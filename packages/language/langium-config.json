@@ -1,0 +1,16 @@
+{
+    "projectName": "Reqlan",
+    "languages": [
+        {
+            "id": "reqlan",
+            "grammar": "src/reqlan.langium",
+            "fileExtensions": [
+                "rq"
+            ],
+            "textMate": {
+                "out": "syntaxes/reqlan.tmLanguage.json"
+            }
+        }
+    ],
+    "out": "src/generated"
+}

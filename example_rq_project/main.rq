@@ -1,0 +1,35 @@
+// curly braces are rich container
+myidea {
+    It should be a good thing.
+}
+
+// ideas can be named with quotes if they contain spaces
+"my idea2" {
+    it should be compatible with [[myidea]]. [[myidea|We can use obsidian-style-aliases]] which are also supported.
+
+    @plan: {
+        steps (
+            - do the thing
+            - do the other thing
+        ) 
+    }
+    @status: pending
+    @tags: (todo, highpriority) // this is a meta-comment
+    @references: { // references blocks support 
+        
+    }    
+    /*
+    These flags may be used for rendering in the ide of the related information; or may just represent true
+    */
+    @a_true_flag_or_render_keyword 
+    @a_false_flag_has_a_bang! 
+}
+
+// () round brackets indicate a list
+my_ideaset (
+    myidea,
+    "my idea2"
+)
+
+
+a_simple_idea doesn't require a block, if it is just a blob than it can be written on a single line without braces.

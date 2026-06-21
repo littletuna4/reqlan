@@ -1,0 +1,44 @@
+{
+    "name": "reqlan-language",
+    "description": "The language specific package",
+    "version": "0.0.1",
+    "type": "module",
+    "engines": {
+        "node": ">=20.10.0",
+        "npm": ">=10.2.3"
+    },
+    "files": [
+        "out",
+        "src"
+    ],
+    "main": "./out/index.js",
+    "module": "./out/index.js",
+    "exports": {
+        ".": {
+            "types": "./out/index.d.ts",
+            "default": "./out/index.js"
+        }
+    },
+    "typesVersions": {
+        "*": {
+            ".": [
+                "out/index"
+            ]
+        }
+    },
+    "scripts": {
+        "clean": "shx rm -fr *.tsbuildinfo out",
+        "build": "echo 'No build step'",
+        "build:clean": "pnpm run clean && pnpm run build",
+        "langium:generate": "langium generate && node scripts/patch-textmate.mjs",
+        "langium:watch": "langium generate --watch",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "langium": "~4.3.0"
+    },
+    "devDependencies": {
+        "langium-cli": "~4.3.0",
+        "vitest": "~3.1.3"
+    }
+}

@@ -1,0 +1,65 @@
+{
+    "name": "vscode-reqlan_extension",
+    "description": "The extension specific package",
+    "version": "0.0.1",
+    "displayName": "reqlan_extension",
+    "type": "module",
+    "engines": {
+        "vscode": "^1.91.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "reqlan",
+            "aliases": ["reqlan", "reqlan"],
+            "extensions": [".rq"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "reqlan",
+            "scopeName": "source.reqlan",
+            "path": "syntaxes/reqlan.tmLanguage.json"
+        }],
+        "semanticTokenScopes": [
+            {
+                "language": "reqlan",
+                "scopes": {
+                    "decorator": ["entity.name.tag.attribute.reqlan"],
+                    "operator": ["punctuation.definition.attribute.reqlan"]
+                }
+            }
+        ],
+        "configurationDefaults": {
+            "[reqlan]": {
+                "editor.semanticHighlighting.enabled": true
+            }
+        }
+    },
+    "activationEvents": [
+        "onLanguage:reqlan"
+    ],
+    "main": "./out/extension/main.cjs",
+    "scripts": {
+        "clean": "shx rm -fr *.tsbuildinfo out syntaxes",
+        "vscode:prepublish": "pnpm run build",
+        "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json",
+        "build": "pnpm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
+        "build:clean": "pnpm run clean && pnpm run build",
+        "watch": "concurrently -n tsc,esbuild,syntax -c blue,yellow,cyan \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
+    },
+    "dependencies": {
+        "reqlan-language": "workspace:*",
+        "vscode-languageclient": "~10.0.0",
+        "vscode-languageserver": "~10.0.0"
+    },
+    "devDependencies": {
+        "@types/vscode": "~1.91.0",
+        "concurrently": "~10.0.3",
+        "esbuild": "~0.28.1"
+    },
+    "vsce": {
+      "dependencies": false
+    }
+}
