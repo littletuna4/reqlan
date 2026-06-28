@@ -1,6 +1,7 @@
 import { type Module, inject } from 'langium';
 import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
 import { ReqlanGeneratedModule, ReqlanGeneratedSharedModule } from './generated/module.js';
+import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
 import { createReqlanGrammarConfig } from './reqlan-grammar-config.js';
 import { ReqlanNameProvider } from './reqlan-name-provider.js';
 import { ReqlanScopeComputation, ReqlanScopeProvider } from './reqlan-scope.js';
@@ -40,6 +41,7 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         GrammarConfig: createReqlanGrammarConfig
     },
     lsp: {
+        DefinitionProvider: services => new ReqlanDefinitionProvider(services),
         SemanticTokenProvider: services => new ReqlanSemanticTokenProvider(services)
     }
 };

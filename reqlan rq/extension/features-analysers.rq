@@ -1,0 +1,31 @@
+index_ideas {
+    The extension should maintain an index of all ideas across the workspace for fast lookup and navigation.
+    The index should update incrementally as .rq files change.
+}
+
+list_all_ideas {
+    The extension should provide a command to list all ideas in the workspace with file location and summary.
+}
+
+file_related_requirements {
+    The extension should provide a view or command to get requirements relating to the currently open file.
+    File-related lookup should follow both explicit file references and comment rq: links in that file.
+}
+
+deprecation_impact_analysis {
+    The extension should analyse the impact of deprecated ideas on dependent requirements.
+    Deprecation analysis should report downstream ideas that reference or depend on deprecated items.
+}
+
+git_dates {
+    The extension should surface creation and last-modified dates for ideas via git history where available.
+}
+
+completion_tracking {
+    The extension should track and surface completion, outstanding work, and open issues across the requirement graph.
+    Completion tracking should derive from @status, @tags, and other lifecycle attributes where present.
+}
+
+semantic_analysis {
+    The 
+}

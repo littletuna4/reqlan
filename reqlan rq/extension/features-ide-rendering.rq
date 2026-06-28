@@ -1,0 +1,11 @@
+complementary_information_rendering {
+    The extension should render computed information inline in the editor as complementary text.
+    Complementary rendering should include resolved references and optionally indirect references behind a toggle.
+    Complementary rendering should not mutate source files unless the user explicitly applies a change.
+}
+
+reference_rendering {
+    Resolved references should be visually distinguishable from unresolved or broken references.
+    Indirect references inferred by graph traversal should be showable via a user toggle.
+    Reference kinds (dependency, incompatible with, applies to, related to) should be surfaced where declared or inferred.
+}

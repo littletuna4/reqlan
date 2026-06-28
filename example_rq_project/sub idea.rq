@@ -1,10 +1,11 @@
 from "main.rq" import myidea
 import "./exampleimport.rq"
 import "exampleimport2.rq" as exampleimport2
+import "an idea in a folder/another idea.rq" as exampleimport2
 import "main.rq" as main // unused imports should be flagged with warnings
 
 myidea3 {
-    application must have something. this should align with [[myidea]] and also with [["exampleimport.rq".myimportableIdea]]
+    application must have something. this should align with [[myidea]] and also with [["./exampleimport.rq".myimportableIdea]]
     
     @tags: (style, accessibility, performance)
     @references: ( 

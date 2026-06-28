@@ -1,0 +1,19 @@
+command_palette {
+    Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
+}
+
+view_all_requirements {
+    A command palette action should open a browsable view of all requirements in the workspace.
+}
+
+toggle_indirect_references {
+    A command palette action should toggle display of indirect references in complementary rendering and graph views.
+}
+
+export_json {
+    A command palette action should export the requirement graph to json.
+}
+
+export_csv {
+    A command palette action should export requirements to csv with tags flattened for quick filtering.
+}

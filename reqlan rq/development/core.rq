@@ -1,0 +1,14 @@
+scope these requirements describe the actual development of the reqlan language and tooling itself
+
+modulurisation files should be small
+
+succinct maximised meaning to character ratio.
+
+hierarchy_of_requirements user request trumps the [../../reqlan rq] requirements, and [../../reqlan rq] trump the current implementation.
+
+stack {
+    - Requirements are documented with reqlan in the [../../reqlan rq] folder.
+    - Language grammar is defined with langium in [../../reqlan rq/language/syntax.rq]
+    - VSCode Extension is implemented with vscode-langium in [../../packages/extension]
+    - vscode webviews are implemented with svelte
+}

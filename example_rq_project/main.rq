@@ -3,6 +3,10 @@ myidea {
     It should be a good thing.
 }
 
+my_unbracketed_one_liner_idea ideas should support one liners
+
+my_second_idea this is a blob of text
+
 // ideas can be named with quotes if they contain spaces
 "my idea2" {
     it should be compatible with [[myidea]]. [[myidea|We can use obsidian-style-aliases]] which are also supported.

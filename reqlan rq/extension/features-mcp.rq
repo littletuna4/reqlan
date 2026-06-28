@@ -1,0 +1,23 @@
+mcp_tools {
+    The extension or companion server should expose mcp tools for ai and automation clients.
+}
+
+mcp_tools_prompt {
+    An mcp tool should provide a prompt-oriented entry point for working with the requirement graph.
+}
+
+mcp_keyword_search {
+    An mcp tool should search requirements by keyword across idea names, bodies, and attributes.
+}
+
+mcp_tree_interrogation {
+    An mcp tool should describe and interrogate the requirement tree for a given root idea or file.
+}
+
+mcp_tree_summarisation {
+    An mcp tool should summarise a requirement subtree for compact ai context.
+}
+
+mcp_interaction_discovery {
+    An mcp tool should discover available interactions, commands, and query patterns for the requirement graph.
+}

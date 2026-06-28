@@ -1,0 +1,11 @@
+python_file_reference {
+    A reqlan comment should be able to reference a python file ["./apythonfile.py"]
+}
+
+python_line_reference {
+    A reqlan comment should be able to reference a python file line or line range ["./apythonfile.pyL#1-2"]
+}
+
+python_symbol_reference {
+    A reqlan comment should be able to reference a python file symbol ["./apythonfile.py".APythonClass.say_hello]
+}

@@ -1,0 +1,14 @@
+create_requirement {
+    The extension should provide a command to create a new requirement idea in an appropriate .rq file.
+    New requirement creation should offer sensible defaults for name, body, and file placement.
+}
+
+split_requirement {
+    The extension should provide a command to split one requirement into two or more separate ideas.
+    Splitting should preserve references and attributes according to user selection.
+}
+
+copy_requirement {
+    The extension should provide a command to copy an idea or requirement to another file or ideaset.
+    Copy should optionally rewrite local references to match the destination context.
+}

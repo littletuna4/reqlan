@@ -1,0 +1,21 @@
+idea a reqlan core unit is an idea.
+
+ideaset ideasets are namespace containers for ideas.
+
+file files store ideas and form ideasets
+
+keyword as a language, reqlan has some keywords that are reserved in some contexts.
+
+import_statement Imports are used to decribe refrences. some [keywords] are reserved for imports
+
+reference References are used to link ideas to other ideas, files, and symbols.
+
+extension the extension contains all of the actual features
+
+grammar_rule grammar rules describe the syntax features
+
+attribute attributes are for classification, functional or nonfunctional metadata.
+
+attribute_body the first attribute in an idea, if not marked otherwise, is the main 'body' attribute. It is unstructured text.
+
+idea_name the idea name is a string/handle/variable that uniquely identifies the idea (within the ideaset/file). It shouldn't be a reserved keyword.

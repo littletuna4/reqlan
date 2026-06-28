@@ -5,24 +5,28 @@
 grammar Reqlan
 
 entry Model:
-    imports+=Import*
-    elements+=TopLevelElement*;
+    (NL* imports+=Import)*
+    (NL* elements+=TopLevelElement)*
+    NL*;
 
 TopLevelElement:
-    Idea | IdeaSet | SimpleIdea;
+    SimpleIdea | Idea | IdeaSet;
 
 Idea:
     name=IdeaName '{'
-        elements+=BodyElement*
-    '}';
+        (NL* elements+=BodyElement)*
+    NL* '}';
 
 SimpleIdea:
-    name=IdeaName tokens+=SimpleIdeaToken+;
+    name=IdeaName tokens+=SimpleIdeaTextToken+;
+
+SimpleIdeaTextToken returns string:
+    ID | WORD | BodyPunctuation | PUNCTUATION | 'from' | 'import' | 'as' | '(' | ')';
 
 IdeaSet:
-    name=ID '('
-        members+=[Idea:IdeaMemberName] (',' members+=[Idea:IdeaMemberName])*
-    ')';
+    name=ID '(' NL*
+        members+=[Idea:IdeaMemberName] (NL* ',' NL* members+=[Idea:IdeaMemberName])*
+    NL* ')';
 
 IdeaMemberName returns string:
     ID | STRING;
@@ -49,7 +53,7 @@ AttributeValue:
     BlockValue | ListValue | ScalarValue;
 
 BlockValue:
-    '{' elements+=BlockElement* '}';
+    '{' (NL* elements+=BlockElement)* NL* '}';
 
 BlockElement:
     WikiLink | BracketReference | Attribute | NamedList | NestedList | BlockLine;
@@ -58,15 +62,19 @@ BlockLine:
     parts+=InlinePart+;
 
 NamedList:
-    label=ID '('
-        items+=ListItem (',' items+=ListItem)*
-    ')';
+    label=ID '(' NL*
+        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
+    NL* ')';
 
 NestedList:
-    '(' items+=ListItem (',' items+=ListItem)* ')';
+    '(' NL*
+        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
+    NL* ')';
 
 ListValue:
-    '(' items+=ListItem (',' items+=ListItem)* ')';
+    '(' NL*
+        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
+    NL* ')';
 
 ListItem:
     WikiLink | BracketReference | tokens+=ListItemToken+;
@@ -90,9 +98,9 @@ BracketReference:
     '[' target=ReferenceTarget ']';
 
 ReferenceTarget:
-    path=STRING '.' idea=[Idea:ID]
-    | idea=[Idea:ID]
-    | qualifier=ID '.' idea=[Idea:ID];
+    path=[Import:STRING] '.' idea=[Idea:ID]
+    | qualifier=[Import:ID] '.' idea=[Idea:ID]
+    | idea=[Idea:ID];
 
 Import:
     FromImport | NamespaceImport | QualifiedImport;
@@ -106,13 +114,11 @@ NamespaceImport:
 QualifiedImport:
     'import' path=STRING '.' ideaset=ID '.' idea=[Idea:ID] ('as' alias=ID)?;
 
-SimpleIdeaToken:
-    text=TextToken | punct=BodyPunctuation | other=PUNCTUATION;
-
 TextToken returns string:
-    ID | WORD;
+    ID | WORD | 'from' | 'import' | 'as';
 
-hidden terminal WS: /\s+/;
+terminal NL: /\r?\n/;
+hidden terminal WS: /[ \t]+/;
 hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
 hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 

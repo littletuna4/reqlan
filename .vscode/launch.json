@@ -11,7 +11,7 @@
             "request": "launch",
             "args": [
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
-                "${workspaceFolder}/example_rq_project"
+                "${workspaceFolder}/reqlan-debug.code-workspace"
             ],
             "sourceMaps": true,
             "outFiles": [

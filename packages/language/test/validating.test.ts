@@ -29,6 +29,17 @@ describe('Validating', () => {
             checkDocumentValid(document) || document?.diagnostics?.map(diagnosticToString)?.join('\n')
         ).toHaveLength(0);
     });
+
+    test('reports duplicate import alias in sub idea.rq', async () => {
+        const document = await parse(readFileSync(join(exampleDir, 'sub idea.rq'), 'utf8'));
+
+        const duplicateAliasErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'exampleimport2' is already defined in this file.")
+        );
+        expect(duplicateAliasErrors).toHaveLength(1);
+        expect(duplicateAliasErrors[0].range.start.line).toBe(3);
+    });
 });
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {

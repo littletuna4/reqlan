@@ -4,7 +4,7 @@
     "version": "0.0.1",
     "type": "module",
     "private": true,
-    "packageManager": "pnpm@10.24.0",
+    "packageManager": "pnpm@11.8.0",
     "scripts": {
         "clean": "pnpm -r run clean",
         "watch": "concurrently -n langium,tsc,ext -c magenta,blue,green \"pnpm run langium:watch\" \"tsc -b tsconfig.build.json --watch\" \"pnpm --filter ./packages/extension run watch\"",

@@ -1,0 +1,6 @@
+remote_imports {
+    Reqlan files should support importing requirements from remote urls.
+    Remote import syntax should follow import "https://company.com/reqs/style.rq" as styleguide.
+    The extension should resolve, cache, and validate remote imports.
+    Barrel imports should be recommended for token efficiency when many symbols are needed from one remote file.
+}

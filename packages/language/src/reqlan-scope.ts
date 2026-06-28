@@ -3,14 +3,19 @@
  * Interacts with imports, wikilinks, and the global workspace index.
  */
 import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium';
-import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, UriUtils, stream, type Scope } from 'langium';
+import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
 import {
+    isFromImport,
     isIdea,
     isModel,
+    isNamespaceImport,
+    isQualifiedImport,
     isReferenceTarget,
     isSimpleIdea,
+    type Import,
     type Model
 } from './generated/ast.js';
+import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 
 export class ReqlanScopeComputation extends DefaultScopeComputation {
@@ -40,33 +45,85 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     override getScope(context: ReferenceInfo): Scope {
         const container = context.container;
-        if (isReferenceTarget(container) && context.property === 'idea') {
-            if (container.qualifier) {
-                const importScope = this.scopeForImportAlias(container.qualifier, AstUtils.getDocument(container));
-                if (importScope) {
-                    return importScope;
-                }
+        if (isReferenceTarget(container)) {
+            const document = AstUtils.getDocument(container);
+            if (context.property === 'qualifier') {
+                return this.scopeForNamedImports(document);
             }
-            if (container.path) {
-                const pathScope = this.scopeForImportPath(container.path, AstUtils.getDocument(container));
-                if (pathScope) {
-                    return pathScope;
+            if (context.property === 'path') {
+                return this.scopeForImportPaths(document);
+            }
+            if (context.property === 'idea') {
+                const importDecl = container.qualifier?.ref ?? container.path?.ref;
+                if (importDecl) {
+                    const importScope = this.scopeForImportDeclaration(importDecl, document);
+                    if (importScope) {
+                        return importScope;
+                    }
+                }
+                const aliasScope = this.scopeForImportAliasName(context.reference.$refText, document);
+                if (aliasScope) {
+                    return aliasScope;
                 }
             }
         }
         return super.getScope(context);
     }
 
-    private scopeForImportAlias(alias: string, document: LangiumDocument): Scope | undefined {
+    private scopeForNamedImports(document: LangiumDocument): Scope {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return new StreamScope(stream([]));
+        }
+        const descriptions = model.imports
+            .map(importDecl => {
+                const alias = importAlias(importDecl);
+                return alias ? this.descriptions.createDescription(importDecl, alias, document) : undefined;
+            })
+            .filter((description): description is AstNodeDescription => description !== undefined);
+        return new StreamScope(stream(descriptions));
+    }
+
+    private scopeForImportPaths(document: LangiumDocument): Scope {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return new StreamScope(stream([]));
+        }
+        const descriptions = model.imports.map(importDecl =>
+            this.descriptions.createDescription(importDecl, importDecl.path, document)
+        );
+        return new StreamScope(stream(descriptions));
+    }
+
+    private scopeForImportDeclaration(importDecl: Import, document: LangiumDocument): Scope | undefined {
+        if (isFromImport(importDecl) || isQualifiedImport(importDecl)) {
+            const imported = this.findImportedDocument(importDecl.path, document);
+            if (!imported) {
+                return undefined;
+            }
+            const target = importDecl.idea.ref;
+            if (!target || !isIdea(target)) {
+                return undefined;
+            }
+            const description = this.descriptions.createDescription(target, target.name, imported);
+            return new StreamScope(stream([description]));
+        }
+        if (isNamespaceImport(importDecl)) {
+            return this.scopeForImportPath(importDecl.path, document);
+        }
+        return undefined;
+    }
+
+    private scopeForImportAliasName(alias: string, document: LangiumDocument): Scope | undefined {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
             return undefined;
         }
-        const importDecl = model.imports.find(entry => entry.alias === alias);
+        const importDecl = model.imports.find(entry => importAlias(entry) === alias);
         if (!importDecl) {
             return undefined;
         }
-        return this.scopeForImportPath(importDecl.path, document);
+        return this.scopeForImportDeclaration(importDecl, document);
     }
 
     private scopeForImportPath(path: string, document: LangiumDocument): Scope | undefined {
@@ -85,7 +142,10 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private findImportedDocument(path: string, document: LangiumDocument): LangiumDocument | undefined {
-        const uri = UriUtils.resolvePath(UriUtils.dirname(document.uri), path);
-        return this.documents.getDocument(uri);
+        return findImportedDocument(path, document, this.documents);
     }
+}
+
+function importAlias(entry: Import): string | undefined {
+    return entry.alias;
 }

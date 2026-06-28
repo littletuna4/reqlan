@@ -10,9 +10,11 @@ import {
     isFromImport,
     isIdea,
     isIdeaSet,
+    isImport,
     isQualifiedImport,
     isReferenceTarget,
-    isSimpleIdea
+    isSimpleIdea,
+    type Import
 } from './generated/ast.js';
 
 export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
@@ -42,11 +44,36 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             return;
         }
         if (isReferenceTarget(node)) {
-            acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+            if (node.qualifier) {
+                acceptor({ node, property: 'qualifier', type: SemanticTokenTypes.namespace });
+            }
+            if (node.path) {
+                acceptor({ node, property: 'path', type: SemanticTokenTypes.string });
+            }
+            if (node.idea) {
+                acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+            }
             return;
+        }
+        if (isImport(node)) {
+            highlightImportKeywords(node, acceptor);
+            acceptor({ node, property: 'path', type: SemanticTokenTypes.string, modifier: SemanticTokenModifiers.declaration });
+            if (node.alias) {
+                acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
+            }
         }
         if (isFromImport(node) || isQualifiedImport(node)) {
             acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
         }
+    }
+}
+
+function highlightImportKeywords(node: Import, acceptor: SemanticTokenAcceptor): void {
+    if (isFromImport(node)) {
+        acceptor({ node, keyword: 'from', type: SemanticTokenTypes.keyword });
+    }
+    acceptor({ node, keyword: 'import', type: SemanticTokenTypes.keyword });
+    if (node.alias) {
+        acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
     }
 }

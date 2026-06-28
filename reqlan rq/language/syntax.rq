@@ -1,0 +1,131 @@
+file_suffix Reqlan requirement documents use the .rq file suffix.
+
+file_layout {
+    A file begins with zero or more import statements, followed by top-level ideas and ideasets.
+    The file forms an implicit ideaset; its name may default to the filename without the suffix.
+    Front matter syntax is not yet specified.
+}
+
+keywords {
+    The keywords import, from, and as are reserved for import statements.
+    Import keywords may also appear as ordinary words in idea body text when not at statement start.
+}
+
+idea_name {
+    Idea names are identifiers or double-quoted strings.
+    Unquoted names follow identifier rules, for example myidea.
+    Quoted names allow spaces and other characters when wrapped in double quotes.
+    Idea names must be unique within their ideaset or file.
+    Idea names should not use reserved keywords.
+}
+
+simple_idea {
+    A simple idea is written as a name followed by unstructured body text on the same line or subsequent lines.
+    Simple ideas do not use curly braces.
+}
+
+block_idea {
+    A block idea is written as a name followed by curly braces containing a body and optional attributes.
+    The first unstructured text in an idea body is the main description when no other body attribute is marked.
+}
+
+ideaset {
+    An ideaset is a parenthesized, comma-separated list of idea names.
+    Ideaset members may be unquoted identifiers or quoted strings.
+    Ideasets act as namespace containers for ideas, nested ideasets, and references.
+}
+
+import_from {
+    From-import syntax uses from, a quoted path, import, and an idea name.
+    From-import may include an alias using as.
+}
+
+import_namespace {
+    Namespace import syntax uses import and a quoted path.
+    Namespace import may include an alias using as.
+}
+
+import_qualified {
+    Qualified import syntax uses import, a quoted path, a dot, an ideaset name, a dot, and an idea name.
+    Qualified import may include an alias using as.
+}
+
+import_paths {
+    Import path strings may use relative paths such as ./exampleimport.rq.
+    Import path strings may use paths containing folders.
+    Import path strings may use remote urls such as https://company.com/reqs/style.rq.
+}
+
+reference_brackets {
+    Single-bracket references use square brackets around a target.
+    Forms include ideaset-only, idea-only, ideaset dot idea, and idea dot attribute targets.
+}
+
+reference_wikilink {
+    Double-bracket wikilinks use doubled square brackets around a target.
+    Wikilinks may include an obsidian-style alias pipe with a display label after the target.
+}
+
+reference_qualified {
+    Cross-file references may qualify an import path or alias with an idea name.
+    Qualified wikilinks may combine a quoted import path with a dot and idea name.
+}
+
+reference_file {
+    References may target arbitrary files, not only .rq files.
+    File reference syntax uses a bracketed quoted path.
+    Line or line-range references append L# and services after the path inside the brackets.
+    Symbol references append a dot-separated symbol path after the quoted file path.
+}
+
+reference_embedding {
+    References may appear inline in description, plan, or other attribute values.
+    References may be declared explicitly in @references or implied by mention elsewhere.
+    Reference kinds include dependency, incompatible with, applies to, and related to.
+    References may use wildcards and apply to namespaces or ideasets.
+}
+
+attribute_marker {
+    Attributes are introduced with the @ prefix.
+    Attribute names follow identifier rules.
+}
+
+attribute_forms {
+    A bare attribute name after @ denotes a true flag or render keyword.
+    A negated flag uses a trailing bang after the attribute name.
+    A valued attribute uses a colon after the attribute name followed by a value.
+    Common attributes include plan, status, priority, criticality, confirmation, owner, log, tags, and references with the @ prefix.
+    Any custom attribute name is allowed.
+}
+
+attribute_values {
+    Attribute values may be unstructured scalar text on the same line.
+    Attribute values may be block values in curly braces.
+    Attribute values may be list values in parentheses.
+}
+
+lists {
+    Parenthesized lists contain comma-separated or newline-separated items.
+    Lists may appear as attribute values and inside block bodies.
+    Named lists use a label followed by a parenthesized item list.
+    Nested lists may appear inside block values.
+    List items may contain references and unstructured text.
+}
+
+comments {
+    Line comments use double slash through end of line.
+    Block comments use slash-star and star-slash delimiters and may span multiple lines.
+    Meta comments on the same line after content are allowed.
+}
+
+code_snippets Idea bodies may embed code snippets delimited by triple backticks.
+
+comment_reference {
+    Reqlan references may appear in line comments of arbitrary source files.
+    Comment reference syntax uses rq, a colon, a quoted path, a dot, and an idea name.
+}
+
+string_literals {
+    String literals in import paths and quoted idea names use double quotes.
+    Escaped characters inside strings follow standard backslash escaping.
+}

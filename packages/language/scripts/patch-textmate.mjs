@@ -12,7 +12,12 @@ const grammar = JSON.parse(readFileSync(grammarPath, 'utf8'));
 grammar.patterns ??= [];
 grammar.repository ??= {};
 
+grammar.patterns = grammar.patterns.filter(
+    pattern => !(typeof pattern.match === 'string' && /\\b\(as\|from\|import\)\\b/.test(pattern.match))
+);
+
 const extraPatterns = [
+    { include: '#import-keywords' },
     { include: '#attributes' },
     { include: '#wikilinks' },
     { include: '#idea-definitions' }
@@ -23,6 +28,37 @@ for (const pattern of extraPatterns) {
         grammar.patterns.push(pattern);
     }
 }
+
+const importPath = '(?:"(?:[^"\\\\]|\\\\.)*")';
+
+grammar.repository['import-keywords'] = {
+    patterns: [
+        {
+            match: '^(\\s*)\\b(from|import)\\b',
+            captures: {
+                '2': { name: 'keyword.control.reqlan' }
+            }
+        },
+        {
+            match: `^(\\s*from\\b\\s+${importPath}\\s+)\\b(import)\\b`,
+            captures: {
+                '2': { name: 'keyword.control.reqlan' }
+            }
+        },
+        {
+            match: `^(\\s*import\\b\\s+${importPath}\\s+)\\b(as)\\b`,
+            captures: {
+                '2': { name: 'keyword.control.reqlan' }
+            }
+        },
+        {
+            match: `^(\\s*from\\b\\s+${importPath}\\s+\\bimport\\b\\s+\\w+\\s+)\\b(as)\\b`,
+            captures: {
+                '2': { name: 'keyword.control.reqlan' }
+            }
+        }
+    ]
+};
 
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
@@ -46,11 +82,19 @@ grammar.repository['idea-definitions'] = {
     patterns: [
         {
             name: 'entity.name.type.idea.reqlan',
-            match: '^(\\s*)([A-Za-z_]\\w*)(\\s*\\{)'
+            match: '^([A-Za-z_]\\w*)(\\s*\\{)'
         },
         {
             name: 'entity.name.type.idea.reqlan',
-            match: '^(\\s*)("(?:[^"\\\\]|\\\\.)*")(\\s*\\{)'
+            match: '^("(?:[^"\\\\]|\\\\.)*")(\\s*\\{)'
+        },
+        {
+            name: 'entity.name.type.idea.reqlan',
+            match: '^([A-Za-z_]\\w*)(\\s+)(?!\\{)(?!\\()'
+        },
+        {
+            name: 'entity.name.type.idea.reqlan',
+            match: '^("(?:[^"\\\\]|\\\\.)*")(\\s+)(?!\\{)(?!\\()'
         }
     ]
 };

@@ -1,0 +1,12 @@
+html_export {
+    The extension should support building documentation as html from the requirement graph.
+    Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
+}
+
+json_export {
+    The extension should export the requirement graph as structured json for tooling and ai consumption.
+}
+
+csv_export {
+    The extension should export requirements as csv with tags and key attributes flattened into columns.
+}

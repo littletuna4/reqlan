@@ -1,0 +1,14 @@
+mission_statement This project offers a structred semantic framework for supporting people working with llms to document their semantic requirements as code; and provide ergonomic consumption and definition of them.
+
+llm_first {
+    The language should be designed to be easy to use with llms.
+    It should be support token minimisation.
+}
+
+vsc_first  The language should be designed to be easy to use with vscode.
+
+general_purpose The language should work in any stack. And ideally, even in non-software development environments.
+
+simplicity The language should be simple to understand and use, and offer flexibility in the syntax for minimised friction and bp.
+
+scope  The scope of these requirments spans the entire project, including the language itself, the developer-user tooling, and the reqlan-developer environment.

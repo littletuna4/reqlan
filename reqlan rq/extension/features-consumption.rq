@@ -1,0 +1,21 @@
+graph_view {
+    The extension should provide a requirements graph view showing ideas and their references as nodes and edges.
+    The graph view should support navigation from a node to its source definition in the editor.
+    Users should be able to filter or focus the graph by file, ideaset, tag, or status.
+}
+
+local_graph_view {
+    The extension should provide a local graph view scoped to the current file or selected idea.
+    The local graph should show direct and optionally indirect references with a configurable depth.
+}
+
+status_table {
+    The extension should render a status table summarising ideas by lifecycle state, priority, and completion.
+    The status table should support sorting and filtering by tags and attributes.
+}
+
+ide_page_reports {
+    The extension should provide dedicated report pages rendered inside the ide.
+    Report pages should include at minimum a graph page and a status table page.
+    Report pages may render computed information that is not present as literal text in source files.
+}

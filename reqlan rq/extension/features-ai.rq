@@ -1,0 +1,16 @@
+ai_integration {
+    The extension should integrate with ai workflows via command palette actions and mcp tools.
+    Ai-facing features should prioritise token minimisation and focused context over full-graph dumps.
+}
+
+ai_build_requirement {
+    A command palette action (e.g. ctrl+p: build new requirement) should create a requirement from user or ai-provided intent.
+}
+
+ai_add_to_context {
+    A command palette action (e.g. ctrl+p: add to context) should add selected requirements to the ai conversation context.
+}
+
+ai_write_plan {
+    A command palette action (e.g. ctrl+p: write plan) should draft or update an @plan attribute for the selected idea.
+}

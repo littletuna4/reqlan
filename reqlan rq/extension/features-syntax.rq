@@ -1,0 +1,32 @@
+syntax_features {
+    The extension should provide language support for .rq files via the lsp.
+    Syntax features should cover ideas, ideasets, imports, references, attributes, comments, and lists.
+    Broken imports and references should be validated and reported in the editor.
+    Go-to-definition and find-references should work for ideas, imports, and cross-file links.
+    Autoformatting should be supported for .rq files.
+}
+
+syntax_highlighting {
+    .rq files should receive full syntax highlighting coverage for all reqlan constructs.
+    Semantic token highlighting should distinguish ideas, attributes, references, imports, and keywords.
+}
+
+syntax_hovering {
+    Hovering on an idea, ideaset, import, or reference should show a text summary of its content and resolved target.
+    Hovering on a reference should show where it resolves and any declared reference kind.
+}
+
+comment_support {
+    The extension should recognise reqlan references embedded in comments of arbitrary source files.
+    Comment reference syntax should follow the form rq:"./reqfile.rq".idea_name in line comments.
+    Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
+    Arbitrary file references should be supported from both .rq files and comment references.
+}
+
+code_completion {
+    The extension should support sensible code completion.
+        - support for references
+        - support for imports 
+        - support for semantic search
+        - support for graph-proximity based ranking
+}

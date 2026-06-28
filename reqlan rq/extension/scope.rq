@@ -1,0 +1,5 @@
+scope these requirements describe the vscode extension and lsp for reqlan
+
+lsp_support the extension should provide an lsp server for .rq files, enabling navigation, validation, and computed views across the requirement graph
+
+vscode_extension the extension should integrate with vscode as the primary developer-user environment
