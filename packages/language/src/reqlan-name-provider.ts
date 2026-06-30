@@ -10,7 +10,7 @@ import {
     isIdeaSet,
     isNamespaceImport,
     isQualifiedImport,
-    isSimpleIdea,
+    isOneLinerIdea,
     type Import
 } from './generated/ast.js';
 
@@ -23,7 +23,7 @@ export class ReqlanNameProvider extends DefaultNameProvider {
         if (isImportWithPath(node)) {
             return node.path;
         }
-        if (isIdea(node) || isSimpleIdea(node) || isIdeaSet(node)) {
+        if (isIdea(node) || isOneLinerIdea(node) || isIdeaSet(node)) {
             return node.name;
         }
         return super.getName(node);
@@ -36,7 +36,7 @@ export class ReqlanNameProvider extends DefaultNameProvider {
         if (isImportWithPath(node)) {
             return GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
         }
-        if (isIdea(node) || isSimpleIdea(node) || isIdeaSet(node)) {
+        if (isIdea(node) || isOneLinerIdea(node) || isIdeaSet(node)) {
             return GrammarUtils.findNodeForProperty(node.$cstNode, 'name');
         }
         return super.getNameNode(node);

@@ -10,6 +10,11 @@
             "textMate": {
                 "out": "syntaxes/reqlan.tmLanguage.json"
             }
+        },
+        {
+            "id": "reqlan-comment",
+            "grammar": "src/reqlan-comment.langium",
+            "fileExtensions": []
         }
     ],
     "out": "src/generated"

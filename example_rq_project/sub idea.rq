@@ -7,8 +7,12 @@ import "main.rq" as main // unused imports should be flagged with warnings
 myidea3 {
     application must have something. this should align with [[myidea]] and also with [["./exampleimport.rq".myimportableIdea]]
     
-    @tags: (style, accessibility, performance)
-    @references: ( 
-        [[exampleimport2.myimportableIdea]]
+    @tags: (
+        style
+        accessibility
+        performance
+    )
+    @references: (
+        { [[exampleimport2.myimportableIdea]] }
     )
 }

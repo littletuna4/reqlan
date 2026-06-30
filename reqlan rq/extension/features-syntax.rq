@@ -1,3 +1,4 @@
+
 syntax_features {
     The extension should provide language support for .rq files via the lsp.
     Syntax features should cover ideas, ideasets, imports, references, attributes, comments, and lists.
@@ -18,7 +19,7 @@ syntax_hovering {
 
 comment_support {
     The extension should recognise reqlan references embedded in comments of arbitrary source files.
-    Comment reference syntax should follow the form rq:"./reqfile.rq".idea_name in line comments.
+    Comment reference syntax should follow the form `rq:"./reqfile.rq".idea_name` in line comments.
     Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
     Arbitrary file references should be supported from both .rq files and comment references.
 }
@@ -29,4 +30,33 @@ code_completion {
         - support for imports 
         - support for semantic search
         - support for graph-proximity based ranking
+}
+
+refactor_support the ideas should support renaming, moving, and deleting.
+
+file_references a file refence should act as link in the editor
+
+sensible_alias_support {
+    if an imported idea shares a name with an idea in the current file:
+    
+    @subreqs (
+        duplicate_error {
+            should be raised if the idea has the same name as any other idea in the context.
+            @tests: (
+                ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
+                ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
+            )
+            }
+        sensible_graph_resolution {
+            the imported namespace should not be assosciated with the new idea: e.g.
+            ```rq
+            from "subreqs.rq" import myidea as myideaalias
+            myidea this a new idea. maybe it references [myideaalias]
+            ```
+            `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
+            @tests: (
+                "../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"
+            )
+            }
+    )
 }

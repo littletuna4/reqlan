@@ -20,6 +20,8 @@ const extraPatterns = [
     { include: '#import-keywords' },
     { include: '#attributes' },
     { include: '#wikilinks' },
+    { include: '#bracket-references' },
+    { include: '#code-snippets' },
     { include: '#idea-definitions' }
 ];
 
@@ -75,6 +77,23 @@ grammar.repository.wikilinks = {
     captures: {
         '1': { name: 'entity.name.tag.reference.reqlan' },
         '2': { name: 'string.other.link.title.reqlan' }
+    }
+};
+
+grammar.repository['bracket-references'] = {
+    name: 'markup.underline.link.reqlan',
+    match: '\\[("(?:[^"\\\\]|\\\\.)*")(?:\\.[A-Za-z_]\\w*)*\\]',
+    captures: {
+        '1': { name: 'string.other.link.reqlan' }
+    }
+};
+
+grammar.repository['code-snippets'] = {
+    name: 'markup.fenced_code.block.reqlan',
+    begin: '```(\\w*)',
+    end: '```',
+    beginCaptures: {
+        '1': { name: 'entity.name.type.language.reqlan' }
     }
 };
 

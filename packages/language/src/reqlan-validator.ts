@@ -1,7 +1,9 @@
-import type { ValidationAcceptor, ValidationChecks } from 'langium';
+import type { AstNode, ValidationAcceptor, ValidationChecks } from 'langium';
 import type { ReqlanAstType } from './generated/ast.js';
 import {
     isFromImport,
+    isIdea,
+    isOneLinerIdea,
     isQualifiedImport,
     type Import,
     type Model
@@ -15,7 +17,7 @@ export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
     const validator = services.validation.ReqlanValidator;
     const checks: ValidationChecks<ReqlanAstType> = {
-        Model: validator.checkDuplicateImportBindings
+        Model: validator.checkModelDuplicates
     };
     registry.register(checks, validator);
 }
@@ -24,6 +26,11 @@ export function registerValidationChecks(services: ReqlanServices) {
  * Custom validations for Reqlan documents.
  */
 export class ReqlanValidator {
+
+    checkModelDuplicates(model: Model, accept: ValidationAcceptor): void {
+        this.checkDuplicateImportBindings(model, accept);
+        this.checkDuplicateIdeaNames(model, accept);
+    }
 
     checkDuplicateImportBindings(model: Model, accept: ValidationAcceptor): void {
         const seen = new Map<string, Import>();
@@ -47,6 +54,41 @@ export class ReqlanValidator {
             } else {
                 seen.set(name, importDecl);
             }
+        }
+    }
+
+    checkDuplicateIdeaNames(model: Model, accept: ValidationAcceptor): void {
+        const seen = new Map<string, AstNode>();
+        for (const importDecl of model.imports) {
+            const bindingName = importBindingName(importDecl);
+            if (bindingName) {
+                seen.set(bindingName, importDecl);
+            }
+        }
+        for (const element of model.elements) {
+            if (!isIdea(element) && !isOneLinerIdea(element)) {
+                continue;
+            }
+            const name = element.name;
+            if (seen.has(name)) {
+                accept('error', `'${name}' is already defined in this file.`, {
+                    node: element,
+                    property: 'name'
+                });
+                continue;
+            }
+            const importedNameConflict = model.imports.some(importDecl =>
+                (isFromImport(importDecl) || isQualifiedImport(importDecl))
+                && importDecl.idea.$refText === name
+            );
+            if (importedNameConflict) {
+                accept('error', `'${name}' is already defined in this file.`, {
+                    node: element,
+                    property: 'name'
+                });
+                continue;
+            }
+            seen.set(name, element);
         }
     }
 }

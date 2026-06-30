@@ -18,7 +18,10 @@ my_second_idea this is a blob of text
         ) 
     }
     @status: pending
-    @tags: (todo, highpriority) // this is a meta-comment
+    @tags: (
+        todo
+        highpriority
+    ) // this is a meta-comment
     @references: { // references blocks support 
         
     }    

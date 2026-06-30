@@ -40,6 +40,34 @@ describe('Validating', () => {
         expect(duplicateAliasErrors).toHaveLength(1);
         expect(duplicateAliasErrors[0].range.start.line).toBe(3);
     });
+
+    test('reports duplicate when local idea shares imported idea name', async () => {
+        const document = await parse(s`
+            from "subreqs.rq" import myidea as myideaalias
+            myidea local idea body
+        `);
+
+        const duplicateErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'myidea' is already defined in this file.")
+        );
+        expect(duplicateErrors).toHaveLength(1);
+        expect(duplicateErrors[0].range.start.line).toBe(1);
+    });
+
+    test('reports duplicate when local idea shares unaliased import binding', async () => {
+        const document = await parse(s`
+            from "subreqs.rq" import myidea
+            myidea local idea body
+        `);
+
+        const duplicateErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'myidea' is already defined in this file.")
+        );
+        expect(duplicateErrors).toHaveLength(1);
+        expect(duplicateErrors[0].range.start.line).toBe(1);
+    });
 });
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {

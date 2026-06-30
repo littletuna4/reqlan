@@ -1,8 +1,16 @@
 /**
- * Reqlan surface syntax for requirement documents.
- * Interacts with the requirement graph model: ideas, ideasets, imports, and references.
+ * Implementation of the rules described in reqlan rq/language/syntax.rq.
+ *
+ * Design:
+ * - Imports and top-level declarations are line-oriented; import/from/as are keywords only there.
+ * - One-liner ideas are name + body on a single line; block ideas use braces for rich content.
+ * - ReferenceTarget covers local members, import-qualified, alias-qualified, and file targets.
  */
 grammar Reqlan
+
+// ---------------------------------------------------------------------------
+// file_layout, keywords
+// ---------------------------------------------------------------------------
 
 entry Model:
     (NL* imports+=Import)*
@@ -10,41 +18,72 @@ entry Model:
     NL*;
 
 TopLevelElement:
-    SimpleIdea | Idea | IdeaSet;
+    Idea | IdeaSet | OneLinerIdea;
+
+// ---------------------------------------------------------------------------
+// idea_name, one_liner_idea, block_idea, ideaset
+// ---------------------------------------------------------------------------
+
+OneLinerIdea:
+    name=IdeaName body=OneLinerBody;
+
+OneLinerBody:
+    content+=(BracketReference | WikiLink | OneLinerText)+;
+
+IdeaDeclaration:
+    Idea | OneLinerIdea;
 
 Idea:
     name=IdeaName '{'
         (NL* elements+=BodyElement)*
     NL* '}';
 
-SimpleIdea:
-    name=IdeaName tokens+=SimpleIdeaTextToken+;
-
-SimpleIdeaTextToken returns string:
-    ID | WORD | BodyPunctuation | PUNCTUATION | 'from' | 'import' | 'as' | '(' | ')';
-
 IdeaSet:
-    name=ID '(' NL*
-        members+=[Idea:IdeaMemberName] (NL* ',' NL* members+=[Idea:IdeaMemberName])*
+    name=IdeaName '(' NL*
+        members+=[IdeaDeclaration:IdeaMemberName] (NL* ',' NL* members+=[IdeaDeclaration:IdeaMemberName])*
     NL* ')';
-
-IdeaMemberName returns string:
-    ID | STRING;
 
 IdeaName returns string:
     ID | STRING;
 
+IdeaMemberName returns string:
+    ID | STRING;
+
+// ---------------------------------------------------------------------------
+// block_idea body, reference_embedding, code_snippets
+// ---------------------------------------------------------------------------
+
 BodyElement:
-    WikiLink | BracketReference | Attribute | BodyLine;
+    Attribute | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BodyLine;
 
 BodyLine:
-    parts+=InlinePart+;
+    parts+=RichTextPart+;
 
-InlinePart:
-    WikiLink | BracketReference | text=TextToken | punct=BodyPunctuation | other=PUNCTUATION;
+RichTextPart:
+    WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation | lparen='(' | rparen=')';
 
-BodyPunctuation returns string:
+InlineTextPart:
+    WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation;
+
+CodeSnippet:
+    raw=CODE_FENCE;
+
+// ---------------------------------------------------------------------------
+// one-liner body (same line only; ends at newline)
+// ---------------------------------------------------------------------------
+
+OneLinerText returns string:
+    WORD | ID | STRING | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | 'from' | 'import' | 'as' | '`';
+
+PlainText returns string:
+    WORD | ID | STRING | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | 'from' | 'import' | 'as' | '`';
+
+PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
+
+// ---------------------------------------------------------------------------
+// attribute_marker, attribute_forms, attribute_values
+// ---------------------------------------------------------------------------
 
 Attribute:
     '@' name=ID (negated?='!')? (':' value=AttributeValue)?;
@@ -52,70 +91,94 @@ Attribute:
 AttributeValue:
     BlockValue | ListValue | ScalarValue;
 
+ScalarValue:
+    parts+=InlineTextPart+;
+
 BlockValue:
     '{' (NL* elements+=BlockElement)* NL* '}';
 
 BlockElement:
-    WikiLink | BracketReference | Attribute | NamedList | NestedList | BlockLine;
+    Attribute | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BlockLine;
 
 BlockLine:
-    parts+=InlinePart+;
+    parts+=RichTextPart+;
 
-NamedList:
-    label=ID '(' NL*
-        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
-    NL* ')';
-
-NestedList:
-    '(' NL*
-        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
-    NL* ')';
+// ---------------------------------------------------------------------------
+// lists (newline-separated one-liners or nameless blocks)
+// ---------------------------------------------------------------------------
 
 ListValue:
-    '(' NL*
-        items+=ListItem (NL+ items+=ListItem | NL* ',' NL* items+=ListItem)*
-    NL* ')';
+    '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
+
+NamedList:
+    label=ID '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
+
+NestedList:
+    '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
 
 ListItem:
-    WikiLink | BracketReference | tokens+=ListItemToken+;
+    OneLinerListItem | AnonymousBlock | NamedBlockListItem | NestedList;
 
-ListItemToken:
-    text=TextToken | punct=BodyPunctuation | other=PUNCTUATION;
+OneLinerListItem:
+    body=OneLinerBody;
 
-ScalarValue:
-    tokens+=ScalarToken+;
+NamedBlockListItem:
+    name=ID '{' (NL* elements+=BodyElement)* NL* '}';
 
-ScalarToken:
-    text=TextToken | punct=BodyPunctuation | other=PUNCTUATION;
+AnonymousBlock:
+    '{' (NL* elements+=BodyElement)* NL* '}';
+
+// ---------------------------------------------------------------------------
+// reference_wikilink, reference_brackets, reference_qualified, reference_file
+// ---------------------------------------------------------------------------
 
 WikiLink:
     '[[' target=ReferenceTarget ('|' alias+=AliasPart+)? ']]';
 
 AliasPart:
-    text=TextToken | punct=BodyPunctuation | other=PUNCTUATION;
+    text=PlainText | punct=PlainPunctuation;
 
 BracketReference:
     '[' target=ReferenceTarget ']';
 
 ReferenceTarget:
-    path=[Import:STRING] '.' idea=[Idea:ID]
-    | qualifier=[Import:ID] '.' idea=[Idea:ID]
-    | idea=[Idea:ID];
+    QualifiedReference | FileSymbolReference | FileReference | LocalReference;
+
+FileReference:
+    file=STRING;
+
+FileSymbolReference:
+    file=STRING '.' symbols+=ID ('.' symbols+=ID)*;
+
+QualifiedReference:
+    (path=[Import:STRING] | qualifier=[Import:ID]) '.'
+        (ideaset=[IdeaSet:IdeaMemberName] '.')? idea=[IdeaDeclaration:IdeaMemberName];
+
+LocalReference:
+    ideaset=[IdeaSet:IdeaMemberName] '.' idea=[IdeaDeclaration:IdeaMemberName]
+    | idea=[IdeaDeclaration:IdeaMemberName] '.' attribute=ID
+    | idea=[IdeaDeclaration:IdeaMemberName]
+    | ideaset=[IdeaSet:IdeaMemberName];
+
+// ---------------------------------------------------------------------------
+// import_from, import_namespace, import_qualified
+// ---------------------------------------------------------------------------
 
 Import:
     FromImport | NamespaceImport | QualifiedImport;
 
 FromImport:
-    'from' path=STRING 'import' idea=[Idea:ID] ('as' alias=ID)?;
+    'from' path=STRING 'import' idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
 
 NamespaceImport:
     'import' path=STRING ('as' alias=ID)?;
 
 QualifiedImport:
-    'import' path=STRING '.' ideaset=ID '.' idea=[Idea:ID] ('as' alias=ID)?;
+    'import' path=STRING '.' ideaset=ID '.' idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
 
-TextToken returns string:
-    ID | WORD | 'from' | 'import' | 'as';
+// ---------------------------------------------------------------------------
+// comments, string_literals
+// ---------------------------------------------------------------------------
 
 terminal NL: /\r?\n/;
 hidden terminal WS: /[ \t]+/;
@@ -125,4 +188,6 @@ hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 terminal ID: /[_a-zA-Z][\w_]*/;
 terminal STRING: /"(\\.|[^"\\])*"/;
 terminal WORD: /[A-Za-z_][\w']*/;
-terminal PUNCTUATION: /[^\s\w\{(\@"\[\]]+/;
+terminal OTHER: /[^\s\w\[\]()@`]/;
+terminal INLINE_CODE: /`[^`\n]+`/;
+terminal CODE_FENCE: /```[^\n]*(?:\r?\n[\s\S]*?)?```/;

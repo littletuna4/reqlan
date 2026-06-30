@@ -26,6 +26,10 @@ completion_tracking {
     Completion tracking should derive from @status, @tags, and other lifecycle attributes where present.
 }
 
+local_graph_analysis {
+    The extension should provide a function to access a small slice of the graph around a given idea..
+}
+
 semantic_analysis {
-    The 
+    Search graph for ideas related to a given idea or ideaset.
 }

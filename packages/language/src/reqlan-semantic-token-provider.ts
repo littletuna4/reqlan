@@ -1,19 +1,22 @@
 /**
  * Semantic highlighting for requirement graph syntax: attributes, ideas, and references.
- * Interacts with VS Code semantic token theming (decorator, type, variable scopes).
  */
 import type { AstNode } from 'langium';
 import { AbstractSemanticTokenProvider, type SemanticTokenAcceptor } from 'langium/lsp';
 import { SemanticTokenModifiers, SemanticTokenTypes } from 'vscode-languageserver';
 import {
     isAttribute,
+    isCodeSnippet,
+    isFileReference,
+    isFileSymbolReference,
     isFromImport,
     isIdea,
     isIdeaSet,
     isImport,
+    isLocalReference,
     isQualifiedImport,
-    isReferenceTarget,
-    isSimpleIdea,
+    isQualifiedReference,
+    isOneLinerIdea,
     type Import
 } from './generated/ast.js';
 
@@ -25,7 +28,7 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             acceptor({ node, property: 'name', type: SemanticTokenTypes.decorator });
             return;
         }
-        if (isIdea(node) || isSimpleIdea(node)) {
+        if (isIdea(node) || isOneLinerIdea(node)) {
             acceptor({
                 node,
                 property: 'name',
@@ -43,16 +46,41 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             });
             return;
         }
-        if (isReferenceTarget(node)) {
+        if (isQualifiedReference(node)) {
             if (node.qualifier) {
                 acceptor({ node, property: 'qualifier', type: SemanticTokenTypes.namespace });
             }
             if (node.path) {
                 acceptor({ node, property: 'path', type: SemanticTokenTypes.string });
             }
+            if (node.ideaset) {
+                acceptor({ node, property: 'ideaset', type: SemanticTokenTypes.namespace });
+            }
             if (node.idea) {
                 acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
             }
+            return;
+        }
+        if (isLocalReference(node)) {
+            if (node.ideaset) {
+                acceptor({ node, property: 'ideaset', type: SemanticTokenTypes.namespace });
+            }
+            if (node.idea) {
+                acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+            }
+            if (node.attribute) {
+                acceptor({ node, property: 'attribute', type: SemanticTokenTypes.property });
+            }
+            return;
+        }
+        if (isFileReference(node) || isFileSymbolReference(node)) {
+            acceptor({ node, property: 'file', type: SemanticTokenTypes.string });
+            if (isFileSymbolReference(node)) {
+                acceptor({ node, property: 'symbols', type: SemanticTokenTypes.method });
+            }
+            return;
+        }
+        if (isCodeSnippet(node)) {
             return;
         }
         if (isImport(node)) {

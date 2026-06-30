@@ -3,12 +3,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { AstUtils, EmptyFileSystem, GrammarUtils, URI, type LangiumDocument } from 'langium';
+import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from 'reqlan-language';
-import { createReqlanServices, isIdea, isModel, isNamespaceImport, isReferenceTarget, isWikiLink } from 'reqlan-language';
+import { createReqlanServices, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
 
-const exampleDir = join(dirname(fileURLToPath(import.meta.url)), '../../../example_rq_project');
+const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+const exampleDir = join(repoDir, 'example_rq_project');
 
 let services: ReturnType<typeof createReqlanServices>;
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -51,7 +53,13 @@ describe('Linking tests', () => {
 
         const links = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isWikiLink)
-            .map(link => link.target.idea.ref?.name ?? link.target.idea.error?.message);
+            .map(link => {
+                const target = link.target;
+                if (isQualifiedReference(target) || isLocalReference(target)) {
+                    return target.idea?.ref?.name ?? target.idea?.error?.message;
+                }
+                return undefined;
+            });
 
         expect(checkDocumentValid(document) || links.join('\n')).toBe(s`
             myidea
@@ -70,12 +78,12 @@ describe('Linking tests', () => {
 
         const aliasLink = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isWikiLink)
-            .find(link => link.target.qualifier?.ref && isNamespaceImport(link.target.qualifier.ref));
+            .find(link => isQualifiedReference(link.target) && link.target.qualifier?.ref && isNamespaceImport(link.target.qualifier.ref));
 
-        expect(aliasLink?.target.qualifier?.ref && isNamespaceImport(aliasLink.target.qualifier.ref) && aliasLink.target.qualifier.ref.alias).toBe('exampleimport2');
-        expect(aliasLink?.target.idea.ref?.name).toBe('myimportableIdea');
-        expect(aliasLink?.target.idea.error).toBeUndefined();
-        expect(aliasLink?.target.qualifier?.error).toBeUndefined();
+        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.qualifier?.ref && isNamespaceImport(aliasLink.target.qualifier.ref) && aliasLink.target.qualifier.ref.alias).toBe('exampleimport2');
+        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.idea.ref?.name).toBe('myimportableIdea');
+        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.idea.error).toBeUndefined();
+        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.qualifier?.error).toBeUndefined();
     });
 
     test('resolve import path in qualified wikilink', async () => {
@@ -89,12 +97,12 @@ describe('Linking tests', () => {
 
         const pathLink = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isWikiLink)
-            .find(link => link.target.path?.ref && isNamespaceImport(link.target.path.ref));
+            .find(link => isQualifiedReference(link.target) && link.target.path?.ref && isNamespaceImport(link.target.path.ref));
 
-        expect(pathLink?.target.path?.ref && isNamespaceImport(pathLink.target.path.ref) && pathLink.target.path.ref.path).toBe('./exampleimport.rq');
-        expect(pathLink?.target.idea.ref?.name).toBe('myimportableIdea');
-        expect(pathLink?.target.idea.error).toBeUndefined();
-        expect(pathLink?.target.path?.error).toBeUndefined();
+        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.path?.ref && isNamespaceImport(pathLink.target.path.ref) && pathLink.target.path.ref.path).toBe('./exampleimport.rq');
+        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.idea.ref?.name).toBe('myimportableIdea');
+        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.idea.error).toBeUndefined();
+        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.path?.error).toBeUndefined();
     });
 
     test('go to definition on import path opens source file', async () => {
@@ -145,7 +153,7 @@ describe('Linking tests', () => {
         const pathLink = [...AstUtils.streamAst(subDocument.parseResult.value)]
             .filter(isWikiLink)
             .map(link => link.target)
-            .find(target => isReferenceTarget(target) && target.path?.ref);
+            .find(target => isQualifiedReference(target) && target.path?.ref);
 
         expect(pathLink?.path?.ref).toBeDefined();
         if (!pathLink?.path?.$refNode) {
@@ -175,7 +183,7 @@ describe('Linking tests', () => {
         const pathLink = [...AstUtils.streamAst(subDocument.parseResult.value)]
             .filter(isWikiLink)
             .map(link => link.target)
-            .find(target => isReferenceTarget(target) && target.path?.ref);
+            .find(target => isQualifiedReference(target) && target.path?.ref);
 
         expect(pathLink?.idea?.$refNode).toBeDefined();
         if (!pathLink?.idea?.$refNode) {
@@ -242,6 +250,33 @@ describe('Linking tests', () => {
         expect(texts.filter(text => text === 'exampleimport2').length).toBeGreaterThanOrEqual(2);
     });
 
+    test('import idea reference resolves to imported file when local idea shares name', async () => {
+        const subreqs = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'myidea imported body',
+            URI.parse('file:///tmp/subreqs.rq')
+        ) as LangiumDocument<Model>;
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                from "subreqs.rq" import myidea as myideaalias
+                myidea local body
+            `,
+            URI.parse('file:///tmp/consumer.rq')
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(subreqs);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([subreqs, consumer], { validation: false });
+
+        const fromImport = consumer.parseResult.value.imports.find(isFromImport);
+        const localIdea = consumer.parseResult.value.elements.find(
+            element => isOneLinerIdea(element) && element.name === 'myidea'
+        );
+
+        expect(fromImport?.idea.ref && AstUtils.getDocument(fromImport.idea.ref).uri.path).toBe('/tmp/subreqs.rq');
+        expect(fromImport?.idea.ref?.name).toBe('myidea');
+        expect(localIdea).toBeDefined();
+        expect(fromImport?.idea.ref).not.toBe(localIdea);
+    });
+
     test('rename finds all idea references including wikilinks', async () => {
         document = await parse(`alpha {
     see [[beta]]
@@ -264,6 +299,34 @@ beta {
             .toArray();
         const texts = references.map(reference => document!.textDocument.getText(reference.segment.range));
         expect(texts.filter(text => text === 'beta').length).toBeGreaterThanOrEqual(2);
+    });
+
+    test('document links resolve test file references to the matching test', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const featuresPath = join(repoDir, 'reqlan rq/extension/features-syntax.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(featuresPath, 'utf8'),
+            URI.parse(pathToFileURL(featuresPath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const position = { line: 45, character: 20 };
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const matchingLink = links?.find(link => link.range.start.line === 45);
+        expect(matchingLink?.target).toContain('validating.test.ts');
+        expect(matchingLink?.target).toContain('#L44');
+
+        const definitions = await fileServices.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position
+        });
+        expect(definitions).toHaveLength(1);
+        expect(definitions?.[0].targetUri).toContain('validating.test.ts');
+        expect(definitions?.[0].targetSelectionRange?.start.line).toBe(43);
     });
 });
 

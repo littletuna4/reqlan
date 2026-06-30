@@ -1,17 +1,18 @@
 /**
- * Publishes idea declarations for file-local and cross-file reference resolution.
- * Interacts with imports, wikilinks, and the global workspace index.
+ * Publishes idea and ideaset declarations for file-local and cross-file reference resolution.
  */
 import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
 import {
     isFromImport,
     isIdea,
+    isIdeaSet,
+    isLocalReference,
     isModel,
     isNamespaceImport,
     isQualifiedImport,
-    isReferenceTarget,
-    isSimpleIdea,
+    isQualifiedReference,
+    isOneLinerIdea,
     type Import,
     type Model
 } from './generated/ast.js';
@@ -25,7 +26,7 @@ export class ReqlanScopeComputation extends DefaultScopeComputation {
         const model = document.parseResult.value;
         if (isModel(model)) {
             for (const element of model.elements) {
-                if (isIdea(element) || isSimpleIdea(element)) {
+                if (isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element)) {
                     this.addExportedSymbol(element, exports, document);
                 }
             }
@@ -45,13 +46,24 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     override getScope(context: ReferenceInfo): Scope {
         const container = context.container;
-        if (isReferenceTarget(container)) {
+        if ((isFromImport(container) || isQualifiedImport(container)) && context.property === 'idea') {
+            const document = AstUtils.getDocument(container);
+            const importScope = this.scopeForImportPath(container.path, document);
+            if (importScope) {
+                return importScope;
+            }
+            return new StreamScope(stream([]));
+        }
+        if (isQualifiedReference(container)) {
             const document = AstUtils.getDocument(container);
             if (context.property === 'qualifier') {
                 return this.scopeForNamedImports(document);
             }
             if (context.property === 'path') {
                 return this.scopeForImportPaths(document);
+            }
+            if (context.property === 'ideaset') {
+                return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
                 const importDecl = container.qualifier?.ref ?? container.path?.ref;
@@ -67,7 +79,24 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 }
             }
         }
+        if (isLocalReference(container)) {
+            const document = AstUtils.getDocument(container);
+            if (context.property === 'ideaset') {
+                return this.scopeForIdeasets(document);
+            }
+        }
         return super.getScope(context);
+    }
+
+    private scopeForIdeasets(document: LangiumDocument): Scope {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return new StreamScope(stream([]));
+        }
+        const descriptions = model.elements
+            .filter(isIdeaSet)
+            .map(ideaset => this.descriptions.createDescription(ideaset, ideaset.name, document));
+        return new StreamScope(stream(descriptions));
     }
 
     private scopeForNamedImports(document: LangiumDocument): Scope {
@@ -102,7 +131,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return undefined;
             }
             const target = importDecl.idea.ref;
-            if (!target || !isIdea(target)) {
+            if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
                 return undefined;
             }
             const description = this.descriptions.createDescription(target, target.name, imported);
@@ -136,7 +165,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             return undefined;
         }
         const descriptions = model.elements
-            .filter(element => isIdea(element) || isSimpleIdea(element))
+            .filter(element => isIdea(element) || isOneLinerIdea(element))
             .map(idea => this.descriptions.createDescription(idea, idea.name, imported));
         return new StreamScope(stream(descriptions));
     }

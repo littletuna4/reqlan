@@ -21,3 +21,7 @@ mcp_tree_summarisation {
 mcp_interaction_discovery {
     An mcp tool should discover available interactions, commands, and query patterns for the requirement graph.
 }
+
+skill_namespace_references {
+    backslash references to skills based on the namespace should be supported.
+}

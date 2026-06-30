@@ -4,6 +4,8 @@ file_layout {
     A file begins with zero or more import statements, followed by top-level ideas and ideasets.
     The file forms an implicit ideaset; its name may default to the filename without the suffix.
     Front matter syntax is not yet specified.
+    
+    @status: incomplete
 }
 
 keywords {
@@ -20,8 +22,8 @@ idea_name {
 }
 
 simple_idea {
-    A simple idea is written as a name followed by unstructured body text on the same line or subsequent lines.
-    Simple ideas do not use curly braces.
+    A one-liner idea is written as a name followed by unstructured body text on the same line.
+    One-liner ideas do not use curly braces and do not continue onto subsequent lines.
 }
 
 block_idea {
@@ -33,11 +35,20 @@ ideaset {
     An ideaset is a parenthesized, comma-separated list of idea names.
     Ideaset members may be unquoted identifiers or quoted strings.
     Ideasets act as namespace containers for ideas, nested ideasets, and references.
+
+    @example: (
+        simple_idea,
+        block_idea
+    )
 }
 
 import_from {
     From-import syntax uses from, a quoted path, import, and an idea name.
     From-import may include an alias using as.
+
+    @example: {
+        from "example.rq" import idea
+    }
 }
 
 import_namespace {
@@ -88,6 +99,8 @@ reference_embedding {
 attribute_marker {
     Attributes are introduced with the @ prefix.
     Attribute names follow identifier rules.
+
+    @required
 }
 
 attribute_forms {
@@ -105,11 +118,11 @@ attribute_values {
 }
 
 lists {
-    Parenthesized lists contain comma-separated or newline-separated items.
+    Parenthesized lists contain newline-separated items.
+    Each list item is either a one-liner or a nameless block idea in curly braces.
     Lists may appear as attribute values and inside block bodies.
     Named lists use a label followed by a parenthesized item list.
-    Nested lists may appear inside block values.
-    List items may contain references and unstructured text.
+    Nested lists may appear inside block values or as list items.
 }
 
 comments {

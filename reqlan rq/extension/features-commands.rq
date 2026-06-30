@@ -1,3 +1,4 @@
+from "./features-analysers.rq" import local_graph_analysis
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
 }
@@ -8,6 +9,10 @@ view_all_requirements {
 
 toggle_indirect_references {
     A command palette action should toggle display of indirect references in complementary rendering and graph views.
+}
+
+get_local_graph {
+    A command palette action should get the local graph for the current file or selected idea.
 }
 
 export_json {

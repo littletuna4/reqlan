@@ -27,6 +27,20 @@
             "language": "reqlan",
             "scopeName": "source.reqlan",
             "path": "syntaxes/reqlan.tmLanguage.json"
+        }, {
+            "scopeName": "comment.rq.injection",
+            "injectTo": [
+                "source.python",
+                "source.js",
+                "source.ts",
+                "source.tsx",
+                "source.java",
+                "source.go",
+                "source.rust",
+                "source.c",
+                "source.cpp"
+            ],
+            "path": "./syntaxes/reqlan-comment.injection.json"
         }],
         "semanticTokenScopes": [
             {
