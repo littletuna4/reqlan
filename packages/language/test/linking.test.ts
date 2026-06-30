@@ -7,7 +7,7 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from 'reqlan-language';
-import { createReqlanServices, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
+import { createReqlanServices, isBracketReference, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const exampleDir = join(repoDir, 'example_rq_project');
@@ -299,6 +299,111 @@ beta {
             .toArray();
         const texts = references.map(reference => document!.textDocument.getText(reference.segment.range));
         expect(texts.filter(text => text === 'beta').length).toBeGreaterThanOrEqual(2);
+    });
+
+    test('resolve anonymous import in bracket reference without import statement', async () => {
+        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            `syntax_whitespace {
+                see ["./ontology.rq".attribute]
+            }`,
+            URI.parse(pathToFileURL(join(ontologyDir, 'consumer.rq')).href)
+        ) as LangiumDocument<Model>;
+        const ontology = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
+            URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(ontology);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: false });
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target));
+
+        expect(bracketRef && isQualifiedReference(bracketRef.target)).toBe(true);
+        if (!bracketRef || !isQualifiedReference(bracketRef.target)) {
+            return;
+        }
+        expect(bracketRef.target.path?.ref).toBeUndefined();
+        expect(bracketRef.target.idea.ref?.name).toBe('attribute');
+        expect(bracketRef.target.idea.error).toBeUndefined();
+        expect(AstUtils.getDocument(bracketRef.target.idea.ref!).uri.path).toContain('ontology.rq');
+    });
+
+    test('go to definition on anonymous import path opens source file', async () => {
+        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            `demo {
+                see ["./ontology.rq".attribute]
+            }`,
+            URI.parse(pathToFileURL(join(ontologyDir, 'consumer.rq')).href)
+        ) as LangiumDocument<Model>;
+        const ontology = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
+            URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(ontology);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: false });
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target) && ref.target.path?.$refNode);
+
+        const pathNode = GrammarUtils.findNodeForProperty(bracketRef.target.$cstNode, 'path');
+        expect(pathNode).toBeDefined();
+        if (!pathNode || !isQualifiedReference(bracketRef.target)) {
+            return;
+        }
+
+        const offset = pathNode.offset + 2;
+        expect(offset).toBeGreaterThanOrEqual(pathNode.offset);
+        expect(offset).toBeLessThan(pathNode.end);
+        expect(bracketRef.target.path?.ref).toBeUndefined();
+
+        const links = await services.Reqlan.lsp.DefinitionProvider?.getDefinition(consumer, {
+            textDocument: { uri: consumer.textDocument.uri },
+            position: consumer.textDocument.positionAt(offset)
+        });
+
+        expect(links).toHaveLength(1);
+        expect(links?.[0].targetUri).toBe(ontology.textDocument.uri);
+    });
+
+    test('go to definition on anonymous import idea opens idea declaration', async () => {
+        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            `demo {
+                see ["./ontology.rq".attribute]
+            }`,
+            URI.parse(pathToFileURL(join(ontologyDir, 'consumer.rq')).href)
+        ) as LangiumDocument<Model>;
+        const ontology = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
+            URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(ontology);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: false });
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target) && ref.target.idea?.$refNode);
+
+        expect(bracketRef?.target.idea?.$refNode).toBeDefined();
+        if (!bracketRef?.target.idea?.$refNode) {
+            return;
+        }
+
+        const links = await services.Reqlan.lsp.DefinitionProvider?.getDefinition(consumer, {
+            textDocument: { uri: consumer.textDocument.uri },
+            position: consumer.textDocument.positionAt(bracketRef.target.idea.$refNode.offset)
+        });
+
+        expect(links).toHaveLength(1);
+        expect(links?.[0].targetUri).toBe(ontology.textDocument.uri);
+        expect(ontology.textDocument.getText(links![0].targetSelectionRange!)).toBe('attribute');
     });
 
     test('document links resolve test file references to the matching test', async () => {

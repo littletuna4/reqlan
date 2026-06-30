@@ -14,10 +14,12 @@ import {
     isQualifiedReference,
     isOneLinerIdea,
     type Import,
-    type Model
+    type Model,
+    type QualifiedReference
 } from './generated/ast.js';
 import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { qualifiedReferenceImportPath } from './reqlan-references.js';
 
 export class ReqlanScopeComputation extends DefaultScopeComputation {
 
@@ -63,12 +65,23 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return this.scopeForImportPaths(document);
             }
             if (context.property === 'ideaset') {
+                const importedDocument = this.documentForQualifiedReference(container, document);
+                if (importedDocument) {
+                    return this.scopeForIdeasets(importedDocument);
+                }
                 return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
                 const importDecl = container.qualifier?.ref ?? container.path?.ref;
                 if (importDecl) {
                     const importScope = this.scopeForImportDeclaration(importDecl, document);
+                    if (importScope) {
+                        return importScope;
+                    }
+                }
+                const path = qualifiedReferenceImportPath(container);
+                if (path) {
+                    const importScope = this.scopeForImportPath(path, document);
                     if (importScope) {
                         return importScope;
                     }
@@ -172,6 +185,17 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     private findImportedDocument(path: string, document: LangiumDocument): LangiumDocument | undefined {
         return findImportedDocument(path, document, this.documents);
+    }
+
+    private documentForQualifiedReference(
+        reference: QualifiedReference,
+        document: LangiumDocument
+    ): LangiumDocument | undefined {
+        const path = qualifiedReferenceImportPath(reference);
+        if (!path) {
+            return undefined;
+        }
+        return this.findImportedDocument(path, document);
     }
 }
 

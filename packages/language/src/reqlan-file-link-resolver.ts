@@ -8,6 +8,7 @@ import { resolveFileUri } from './reqlan-comment-resolver.js';
 import type { EmbeddedFileReference } from './reqlan-embedded-file-references.js';
 import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-references.js';
 import { findImportedDocument } from './reqlan-imports.js';
+import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import {
     findTestLineInText,
     parseFileReferenceString,
@@ -17,9 +18,11 @@ import {
     isFileReference,
     isFileSymbolReference,
     isImport,
+    isQualifiedReference,
     type FileReference,
     type FileSymbolReference,
-    type Import
+    type Import,
+    type QualifiedReference
 } from './generated/ast.js';
 
 export interface ResolvedFileLink {
@@ -52,6 +55,31 @@ export function resolveImportPathLink(
         return undefined;
     }
     const imported = findImportedDocument(importDecl.path, document, documents);
+    const target = imported?.parseResult.value.$cstNode;
+    if (!imported || !target) {
+        return undefined;
+    }
+    return {
+        sourceRange: pathNode.range,
+        targetUri: imported.textDocument.uri,
+        targetRange: target.range
+    };
+}
+
+export function resolveQualifiedReferencePathLink(
+    reference: QualifiedReference,
+    documents: LangiumDocuments
+): ResolvedFileLink | undefined {
+    const pathNode = reference.path?.$refNode;
+    if (!pathNode) {
+        return undefined;
+    }
+    const document = AstUtils.getDocument(reference);
+    const path = qualifiedReferenceImportPath(reference);
+    if (!path) {
+        return undefined;
+    }
+    const imported = findImportedDocument(path, document, documents);
     const target = imported?.parseResult.value.$cstNode;
     if (!imported || !target) {
         return undefined;
@@ -180,6 +208,13 @@ export function collectFileLinks(
         }
         if (isImport(node)) {
             const link = resolveImportPathLink(node, documents);
+            if (link) {
+                links.push(link);
+                linkedRanges.push(rangeKey(link.sourceRange));
+            }
+        }
+        if (isQualifiedReference(node) && node.path && !node.path.ref) {
+            const link = resolveQualifiedReferencePathLink(node, documents);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));

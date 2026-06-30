@@ -1,0 +1,3 @@
+event_driven the application should be event driven.
+
+state_machine_mindset the application should be designed as a collection of state machines; built using zustand if in js.

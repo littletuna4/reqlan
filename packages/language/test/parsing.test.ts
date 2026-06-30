@@ -210,6 +210,26 @@ second_idea line two`);
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.map(element => element.name)).toContain('sensible_alias_support');
     });
+
+    test('parse syntax_whitespace.rq body lines and insignificant attribute whitespace', async () => {
+        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax_whitespace.rq'), 'utf8'));
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements.find(isIdea);
+        expect(idea?.name).toBe('syntax_whitespace');
+        expect(idea?.elements.map(element => element.$type)).toEqual([
+            'BodyLine',
+            'BodyLine',
+            'Attribute',
+            'BodyLine',
+            'Attribute',
+            'BodyLine'
+        ]);
+        const attributes = idea?.elements.filter(element => element.$type === 'Attribute');
+        expect(attributes?.map(attribute => 'name' in attribute && attribute.name)).toEqual([
+            'exampleattribute',
+            'perfectly_acceptable_attribute'
+        ]);
+    });
 });
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {

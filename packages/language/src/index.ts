@@ -2,6 +2,7 @@ export * from './reqlan-module.js';
 export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
 export * from './reqlan-file-references.js';
+export * from './reqlan-embedded-file-references.js';
 export * from './reqlan-references.js';
 export * from './generated/ast.js';
 export * from './generated/grammar.js';

@@ -1,0 +1,7 @@
+syntax_whitespace {
+    whitespace is not significant in attributes.
+this line is not an idea, it is part of the main content attribute ["./ontology.rq".attribute]
+@exampleattribute the same goes for attributes in an idea
+    @perfectly_acceptable_attribute to labour the point
+
+}

@@ -16,6 +16,7 @@ import {
     resolveEmbeddedFileReferenceLink,
     resolveFileReferenceLink,
     resolveImportPathLink,
+    resolveQualifiedReferencePathLink,
     resolvedFileLinkToGoToTarget,
     resolvedFileLinkToGoToTargetFromFilesystem,
     type ResolvedFileLink
@@ -27,7 +28,8 @@ import {
     isQualifiedReference,
     type FileReference,
     type FileSymbolReference,
-    type Import
+    type Import,
+    type QualifiedReference
 } from './generated/ast.js';
 import type { ReqlanServices } from './reqlan-module.js';
 
@@ -57,6 +59,10 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         const fileLink = this.findFileReferenceLinkAtPosition(document, params.position);
         if (fileLink) {
             return [this.toLocationLink(fileLink)];
+        }
+        const anonymousImportPathLink = this.findAnonymousImportPathLinkAtPosition(document, params.position);
+        if (anonymousImportPathLink) {
+            return [this.toLocationLink(anonymousImportPathLink)];
         }
         const importPathLink = this.findImportPathLinkAtPosition(document, params.position);
         if (importPathLink) {
@@ -90,21 +96,37 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     private linkForImportPath(source: CstNode): GoToLink | undefined {
-        const assignment = GrammarUtils.findAssignment(source);
-        if (!assignment) {
-            return undefined;
-        }
-        const container = source.astNode;
-        if (isImport(container) && assignment.feature === 'path') {
-            return this.createImportedFileLink(source, container);
-        }
-        if (isQualifiedReference(container) && assignment.feature === 'path') {
-            const importDecl = container.path?.ref;
-            if (importDecl) {
-                return this.createImportedFileLink(source, importDecl);
+        let current: CstNode | undefined = source;
+        while (current) {
+            const container = current.astNode;
+            const assignment = GrammarUtils.findAssignment(current);
+            if (isImport(container) && assignment?.feature === 'path') {
+                return this.createImportedFileLink(current, container);
             }
+            if (isQualifiedReference(container) && this.isOnQualifiedReferencePath(current, container)) {
+                const importDecl = container.path?.ref;
+                if (importDecl) {
+                    return this.createImportedFileLink(current, importDecl);
+                }
+                const resolved = resolveQualifiedReferencePathLink(container, this.documents);
+                if (resolved) {
+                    const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri.split('#')[0]));
+                    if (targetDocument) {
+                        return resolvedFileLinkToGoToTarget(resolved, current, targetDocument);
+                    }
+                }
+            }
+            current = current.container;
         }
         return undefined;
+    }
+
+    private isOnQualifiedReferencePath(source: CstNode, reference: QualifiedReference): boolean {
+        const pathNode = reference.path?.$refNode ?? GrammarUtils.findNodeForProperty(reference.$cstNode, 'path');
+        if (!pathNode) {
+            return false;
+        }
+        return source.offset >= pathNode.offset && source.end <= pathNode.end;
     }
 
     private redirectImportPathLink(link: GoToLink): GoToLink | undefined {
@@ -169,6 +191,29 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
             ideaNode.range,
             part.reference.range
         )];
+    }
+
+    private findAnonymousImportPathLinkAtPosition(document: LangiumDocument, position: Position): GoToLink | undefined {
+        const offset = document.textDocument.offsetAt(position);
+        for (const node of AstUtils.streamAst(document.parseResult.value)) {
+            if (!isQualifiedReference(node) || node.path?.ref) {
+                continue;
+            }
+            const pathNode = node.path?.$refNode ?? GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
+            if (!pathNode || offset < pathNode.offset || offset >= pathNode.end) {
+                continue;
+            }
+            const resolved = resolveQualifiedReferencePathLink(node, this.documents);
+            if (!resolved) {
+                continue;
+            }
+            const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri.split('#')[0]));
+            if (!targetDocument) {
+                continue;
+            }
+            return resolvedFileLinkToGoToTarget(resolved, pathNode, targetDocument);
+        }
+        return undefined;
     }
 
     private findImportPathLinkAtPosition(document: LangiumDocument, position: Position): GoToLink | undefined {

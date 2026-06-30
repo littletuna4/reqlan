@@ -9,29 +9,47 @@ import { fileURLToPath } from 'node:url';
 const grammarPath = resolve(dirname(fileURLToPath(import.meta.url)), '../syntaxes/reqlan.tmLanguage.json');
 const grammar = JSON.parse(readFileSync(grammarPath, 'utf8'));
 
-grammar.patterns ??= [];
 grammar.repository ??= {};
 
-grammar.patterns = grammar.patterns.filter(
-    pattern => !(typeof pattern.match === 'string' && /\\b\(as\|from\|import\)\\b/.test(pattern.match))
-);
+const importPath = '(?:"(?:[^"\\\\]|\\\\.)*")';
+const id = '[A-Za-z_]\\w*';
+const quotedName = '"(?:[^"\\\\]|\\\\.)*"';
+const ideaName = `(?:(${id})|(${quotedName}))`;
 
-const extraPatterns = [
+const removedRootIncludes = new Set([
+    '#import-keywords',
+    '#attributes',
+    '#wikilinks',
+    '#bracket-references',
+    '#code-snippets',
+    '#idea-definitions',
+    '#top-level-idea-block',
+    '#top-level-one-liner-idea',
+    '#top-level-ideaset'
+]);
+
+grammar.patterns = (grammar.patterns ?? []).filter(pattern => {
+    if (typeof pattern.match === 'string' && /\\b\(as\|from\|import\)\\b/.test(pattern.match)) {
+        return false;
+    }
+    if (pattern.include && removedRootIncludes.has(pattern.include)) {
+        return false;
+    }
+    return true;
+});
+
+const rootPatterns = [
     { include: '#import-keywords' },
-    { include: '#attributes' },
-    { include: '#wikilinks' },
-    { include: '#bracket-references' },
-    { include: '#code-snippets' },
-    { include: '#idea-definitions' }
+    { include: '#top-level-idea-block' },
+    { include: '#top-level-one-liner-idea' },
+    { include: '#top-level-ideaset' }
 ];
 
-for (const pattern of extraPatterns) {
+for (const pattern of rootPatterns) {
     if (!grammar.patterns.some(entry => entry.include === pattern.include)) {
         grammar.patterns.push(pattern);
     }
 }
-
-const importPath = '(?:"(?:[^"\\\\]|\\\\.)*")';
 
 grammar.repository['import-keywords'] = {
     patterns: [
@@ -64,7 +82,7 @@ grammar.repository['import-keywords'] = {
 
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
-    match: '(@)([A-Za-z_]\\w*)',
+    match: '\\s*(@)\\s*([A-Za-z_]\\w*)',
     captures: {
         '1': { name: 'punctuation.definition.attribute.reqlan' },
         '2': { name: 'entity.name.tag.attribute.reqlan' }
@@ -97,25 +115,105 @@ grammar.repository['code-snippets'] = {
     }
 };
 
-grammar.repository['idea-definitions'] = {
+grammar.repository['block-inner'] = {
+    patterns: [
+        { include: '#comments' },
+        { include: '#attributes' },
+        { include: '#wikilinks' },
+        { include: '#bracket-references' },
+        { include: '#code-snippets' },
+        { include: '#named-block-item' },
+        { include: '#named-list' },
+        { include: '#nested-list' },
+        { include: '#anonymous-block' }
+    ]
+};
+
+grammar.repository['top-level-idea-block'] = {
+    begin: `^${ideaName}\\s*\\{`,
+    beginCaptures: {
+        '1': { name: 'entity.name.type.idea.reqlan' },
+        '2': { name: 'entity.name.type.idea.reqlan' }
+    },
+    end: '\\}',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
+grammar.repository['named-block-item'] = {
+    begin: `^\\s+${ideaName}\\s*\\{`,
+    beginCaptures: {
+        '1': { name: 'entity.name.type.idea.reqlan' },
+        '2': { name: 'entity.name.type.idea.reqlan' }
+    },
+    end: '\\}',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
+grammar.repository['anonymous-block'] = {
+    begin: '\\{',
+    end: '\\}',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
+grammar.repository['named-list'] = {
+    begin: `^\\s*(${id})\\s*\\(`,
+    beginCaptures: {
+        '1': { name: 'entity.name.tag.list.reqlan' }
+    },
+    end: '\\)',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
+grammar.repository['nested-list'] = {
+    begin: '\\(',
+    end: '\\)',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
+grammar.repository['top-level-one-liner-idea'] = {
     patterns: [
         {
-            name: 'entity.name.type.idea.reqlan',
-            match: '^([A-Za-z_]\\w*)(\\s*\\{)'
+            match: `^(${id})(\\s+)(?!\\{)(?!\\()`,
+            captures: {
+                '1': { name: 'entity.name.type.idea.reqlan' }
+            }
         },
         {
-            name: 'entity.name.type.idea.reqlan',
-            match: '^("(?:[^"\\\\]|\\\\.)*")(\\s*\\{)'
-        },
-        {
-            name: 'entity.name.type.idea.reqlan',
-            match: '^([A-Za-z_]\\w*)(\\s+)(?!\\{)(?!\\()'
-        },
-        {
-            name: 'entity.name.type.idea.reqlan',
-            match: '^("(?:[^"\\\\]|\\\\.)*")(\\s+)(?!\\{)(?!\\()'
+            match: `^(${quotedName})(\\s+)(?!\\{)(?!\\()`,
+            captures: {
+                '1': { name: 'entity.name.type.idea.reqlan' }
+            }
         }
     ]
 };
+
+grammar.repository['top-level-ideaset'] = {
+    patterns: [
+        {
+            match: `^(${id})\\s*\\(`,
+            captures: {
+                '1': { name: 'entity.name.type.namespace.reqlan' }
+            }
+        },
+        {
+            match: `^(${quotedName})\\s*\\(`,
+            captures: {
+                '1': { name: 'entity.name.type.namespace.reqlan' }
+            }
+        }
+    ]
+};
+
+delete grammar.repository['idea-definitions'];
 
 writeFileSync(grammarPath, `${JSON.stringify(grammar, null, 2)}\n`);

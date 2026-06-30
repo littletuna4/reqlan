@@ -3,12 +3,14 @@ import type * as vscode from 'vscode';
 import * as path from 'node:path';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
+import { activateAnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
 
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     client = await startLanguageClient(context);
+    await activateAnalyticalSubmodule(context);
 }
 
 // This function is called when the extension is deactivated.

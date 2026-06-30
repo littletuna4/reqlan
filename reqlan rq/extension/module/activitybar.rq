@@ -1,0 +1,8 @@
+icon {
+    the activity bar module should use a simple circular icon for now. see ["../../brand.rq"] for more details.
+}
+
+modules {
+    has the following sections:
+ 
+}

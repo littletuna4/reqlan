@@ -55,10 +55,83 @@
             "[reqlan]": {
                 "editor.semanticHighlighting.enabled": true
             }
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "reqlan",
+                    "title": "Reqlan",
+                    "icon": "media/reqlan-activity.svg"
+                }
+            ]
+        },
+        "views": {
+            "reqlan": [
+                {
+                    "id": "reqlan.activityBar",
+                    "name": "Context"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "reqlan.listAllIdeas",
+                "title": "Reqlan: List All Ideas",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.fileRelatedRequirements",
+                "title": "Reqlan: File Related Requirements",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.deprecationImpact",
+                "title": "Reqlan: Deprecation Impact Analysis",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.completionStatus",
+                "title": "Reqlan: Completion Status",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.getLocalGraph",
+                "title": "Reqlan: Get Local Graph",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.semanticSearch",
+                "title": "Reqlan: Semantic Search",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.refreshIndex",
+                "title": "Reqlan: Refresh Idea Index",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.refreshActivityBar",
+                "title": "Refresh",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "reqlan.openIdeaFromActivityBar",
+                "title": "Open Idea"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "reqlan.refreshActivityBar",
+                    "when": "view == reqlan.activityBar",
+                    "group": "navigation"
+                }
+            ]
         }
     },
     "activationEvents": [
-        "onLanguage:reqlan"
+        "onLanguage:reqlan",
+        "onStartupFinished"
     ],
     "main": "./out/extension/main.cjs",
     "scripts": {
@@ -70,17 +143,21 @@
         "watch": "concurrently -n tsc,esbuild,syntax -c blue,yellow,cyan \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
     },
     "dependencies": {
+        "better-sqlite3": "~11.10.0",
         "langium": "~4.3.0",
         "reqlan-language": "workspace:*",
         "vscode-languageclient": "~10.0.0",
-        "vscode-languageserver": "~10.0.0"
+        "vscode-languageserver": "~10.0.0",
+        "vscode-languageserver-textdocument": "~1.0.12",
+        "zustand": "~5.0.8"
     },
     "devDependencies": {
+        "@types/better-sqlite3": "~7.6.13",
         "@types/vscode": "~1.91.0",
         "concurrently": "~10.0.3",
         "esbuild": "~0.28.1"
     },
     "vsce": {
-      "dependencies": false
+      "dependencies": true
     }
 }

@@ -1,7 +1,18 @@
+from "./features-graph.rq" import graph_design
 index_ideas {
     The extension should maintain an index of all ideas across the workspace for fast lookup and navigation.
-    The index should update incrementally as .rq files change.
+    The index should update incrementally as .rq files change.    
 }
+
+index_technology {
+    the [index_ideas] graph database should be built with a sqlite database at context.globalStorageUri. aligned with [graph_design]
+}
+
+indexing_incrementality indexing should be incremental
+
+indexing_trigger_filesave indexing should be triggered by manual .rq file changes.
+indexing_trigger_manual indexing should be triggered by manual indexing commands.
+indexing_trigger_auto indexing should be triggered by automatic indexing when the workspace is idle; and on application open.
 
 list_all_ideas {
     The extension should provide a command to list all ideas in the workspace with file location and summary.
@@ -27,7 +38,7 @@ completion_tracking {
 }
 
 local_graph_analysis {
-    The extension should provide a function to access a small slice of the graph around a given idea..
+    The extension should provide a function to access a small slice of the graph around a given idea.
 }
 
 semantic_analysis {

@@ -1,0 +1,3 @@
+graph_design {
+    the graph should be a graph with nodes representing ideas and files and edges representing references.
+}

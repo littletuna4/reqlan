@@ -9,3 +9,14 @@ reference_rendering {
     Indirect references inferred by graph traversal should be showable via a user toggle.
     Reference kinds (dependency, incompatible with, applies to, related to) should be surfaced where declared or inferred.
 }
+
+
+activity_bar_module {
+  the extension should provide a activity bar module for the ide.
+  the activity bar module should display the following information:
+    - the current file
+    - the current idea
+    - ideas referencing the current idea/selection
+    - a local graph
+  see ["./module/activitybar.rq"] for more details.
+}

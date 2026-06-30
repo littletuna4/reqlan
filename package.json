@@ -15,9 +15,13 @@
         "test": "pnpm --filter ./packages/language run test"
     },
     "devDependencies": {
+        "@types/better-sqlite3": "^7.6.13",
         "@types/node": "~20.19.42",
         "concurrently": "~10.0.3",
         "shx": "~0.4.0",
         "typescript": "~5.9.3"
+    },
+    "dependencies": {
+        "better-sqlite3": "^12.11.1"
     }
 }

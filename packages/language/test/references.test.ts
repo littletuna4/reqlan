@@ -2,8 +2,14 @@ import { describe, expect, test } from 'vitest';
 import { findCommentReferencesInText } from '../src/reqlan-comment-resolver.js';
 import { findEmbeddedFileReferencesInText } from '../src/reqlan-embedded-file-references.js';
 import { findTestLineInText, parseFileReferenceString } from '../src/reqlan-file-references.js';
+import { unquoteReqlanString } from '../src/reqlan-references.js';
 
 describe('Comment and file reference utilities', () => {
+
+    test('unquotes reqlan string literals for anonymous import paths', () => {
+        expect(unquoteReqlanString('"./ontology.rq"')).toBe('./ontology.rq');
+        expect(unquoteReqlanString('./ontology.rq')).toBe('./ontology.rq');
+    });
 
     test('finds rq: comment references in line comments', () => {
         const sample = findCommentReferencesInText('// see rq:"./main.rq".myidea for details');

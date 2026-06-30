@@ -1,3 +1,5 @@
+from "./syntax_whitespace.rq" import syntax_whitespace
+
 file_suffix Reqlan requirement documents use the .rq file suffix.
 
 file_layout {
@@ -141,4 +143,8 @@ comment_reference {
 string_literals {
     String literals in import paths and quoted idea names use double quotes.
     Escaped characters inside strings follow standard backslash escaping.
+}
+
+anonymous_imports_allowed {
+    imports can be inlined with this syntax: `["./ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
 }
