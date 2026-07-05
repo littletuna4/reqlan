@@ -46,8 +46,8 @@ images {
 }
 
 copy {
-    - copy should be really minimal.
-    - In a ts object decoupled from the actual layout/styling
+    - In a ts object decoupled from the actual layout/styling.
+    - copy should be really super minimal and concise if at all. (show don't tell)
 }
 
 links {

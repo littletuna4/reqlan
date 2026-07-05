@@ -1,3 +1,4 @@
+import { RqCode } from "@/components/RqCode";
 import { siteContent } from "@/content/site";
 
 export function Example() {
@@ -6,16 +7,10 @@ export function Example() {
   return (
     <section id="example" className="content-section" aria-labelledby="example-title">
       <h2 id="example-title" className="section-title">
-        {example.title}
+        Example
       </h2>
-      <p className="section-intro">{example.intro}</p>
 
-      <figure className="code-figure">
-        <pre>
-          <code>{example.code}</code>
-        </pre>
-        <figcaption>{example.caption}</figcaption>
-      </figure>
+      <RqCode code={example.code} />
     </section>
   );
 }

@@ -6,11 +6,10 @@ export function Contact() {
   return (
     <section id="contact" className="content-section" aria-labelledby="contact-title">
       <h2 id="contact-title" className="section-title">
-        {contact.title}
+        Links
       </h2>
-      <p className="section-intro">{contact.intro}</p>
 
-      <ul className="contact-links">
+      <ul className="link-row">
         {contact.links.map((link) => {
           const isExternal = link.href.startsWith("http");
 
@@ -22,10 +21,7 @@ export function Contact() {
                   ? { target: "_blank", rel: "noopener noreferrer" }
                   : {})}
               >
-              <span className="contact-label">{link.label}</span>
-              {link.description ? (
-                <span className="contact-description">{link.description}</span>
-              ) : null}
+                {link.label}
               </a>
             </li>
           );

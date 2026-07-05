@@ -1,10 +1,10 @@
 {
-    "name": "vscode-reqlan-extension",
-    "description": "The extension specific package",
+    "name": "reqlan",
+    "description": "Language support for the reqlan language",
     "version": "0.0.1",
-    "displayName": "reqlan",
+    "displayName": "reqlan support",
     "type": "module",
-    "publisher": "btdigital",
+    "publisher": "reqlan",
     "license": "AGPL-3.0-only",
     "repository": {
         "type": "git",

@@ -1,16 +1,16 @@
+import { RqCode } from "@/components/RqCode";
 import { siteContent } from "@/content/site";
 
 export function Hero() {
-  const { hero } = siteContent;
+  const { hero, cta } = siteContent;
 
   return (
-    <section className="hero" aria-labelledby="hero-title">
-      <p className="hero-eyebrow">reqlan</p>
-      <h1 id="hero-title" className="hero-title">
-        {hero.title}
-      </h1>
-      <p className="hero-subtitle">{hero.subtitle}</p>
-      <p className="hero-tagline">{hero.tagline}</p>
+    <section className="hero" aria-label="Introduction">
+      <RqCode code={hero.snippet} className="hero-snippet" />
+
+      <a className="cta-button" href={cta.href}>
+        {cta.label}
+      </a>
     </section>
   );
 }

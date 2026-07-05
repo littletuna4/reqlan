@@ -135,42 +135,29 @@ a:hover {
 /* Hero */
 
 .hero {
-  margin-bottom: 4rem;
-  padding-bottom: 3rem;
+  margin-bottom: 3.5rem;
+  padding-bottom: 2.5rem;
   border-bottom: 1px solid var(--color-border);
 }
 
-.hero-eyebrow {
-  margin: 0 0 1rem;
-  color: var(--color-aqua);
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.hero-snippet {
+  margin: 0 0 1.5rem;
 }
 
-.hero-title {
-  margin: 0 0 1.25rem;
+.cta-button {
+  display: inline-block;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  background: var(--color-rust);
   color: var(--color-text);
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-}
-
-.hero-subtitle {
-  margin: 0 0 1rem;
-  max-width: 38rem;
-  color: var(--color-text-muted);
-  font-size: 1.125rem;
-  line-height: 1.7;
-}
-
-.hero-tagline {
-  margin: 0;
-  color: var(--color-rust);
   font-size: 0.9375rem;
-  font-style: italic;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.cta-button:hover {
+  background: var(--color-rust-muted);
+  color: var(--color-text);
 }
 
 /* Sections */
@@ -191,55 +178,46 @@ a:hover {
   letter-spacing: -0.02em;
 }
 
-.section-intro {
-  margin: 0 0 1.75rem;
-  max-width: 40rem;
-  color: var(--color-text-muted);
-  font-size: 1rem;
-  line-height: 1.7;
+/* Tabs */
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.section-note {
-  margin: 2rem 0 0;
-  padding: 1rem 1.25rem;
-  border-left: 3px solid var(--color-rust-muted);
-  color: var(--color-text-faint);
-  font-size: 0.9375rem;
-  font-style: italic;
-  background: var(--color-surface);
-  border-radius: 0 0.375rem 0.375rem 0;
+.tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
 }
 
-/* Principles */
-
-.principle-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 1rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.principle-card {
-  padding: 1.25rem;
-  background: var(--color-surface);
+.tab {
+  padding: 0.375rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-}
-
-.principle-card h3 {
-  margin: 0 0 0.5rem;
-  color: var(--color-aqua-bright);
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.principle-card p {
-  margin: 0;
+  border-radius: 0.375rem;
+  background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.tab:hover {
+  color: var(--color-text);
+  border-color: var(--color-aqua-dim);
+}
+
+.tab.is-active {
+  border-color: var(--color-aqua);
+  background: var(--color-surface);
+  color: var(--color-aqua-bright);
+}
+
+.tab-content pre {
+  min-height: 8rem;
 }
 
 /* Code blocks */
@@ -253,7 +231,9 @@ pre {
   border-radius: 0.5rem;
 }
 
-code {
+code,
+.rq-code {
+  display: block;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.8125rem;
   line-height: 1.65;
@@ -261,74 +241,116 @@ code {
   white-space: pre;
 }
 
-.syntax-examples {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+.rq-code > span {
+  white-space: pre;
 }
 
-.syntax-example header {
-  margin-bottom: 0.75rem;
-}
-
-.syntax-example h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.syntax-example header p {
-  margin: 0;
-  color: var(--color-text-faint);
-  font-size: 0.875rem;
-}
-
-.code-figure {
-  margin: 0;
-}
-
-.code-figure figcaption {
-  margin-top: 0.75rem;
-  color: var(--color-text-faint);
-  font-size: 0.8125rem;
-  font-style: italic;
-}
-
-/* Contact */
-
-.contact-links {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.contact-links a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 1rem 1.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.contact-links a:hover {
-  border-color: var(--color-aqua-dim);
-  background: var(--color-surface-raised);
-}
-
-.contact-label {
+.rq-idea {
   color: var(--color-aqua-bright);
   font-weight: 600;
 }
 
-.contact-description {
+.rq-keyword {
+  color: var(--color-rust);
+  font-weight: 600;
+}
+
+.rq-string {
+  color: #8ecdb8;
+}
+
+.rq-attribute {
+  color: #e8a66a;
+  font-weight: 600;
+}
+
+.rq-wiki-link {
+  color: var(--color-aqua);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-aqua) 45%, transparent);
+  text-underline-offset: 0.15em;
+}
+
+.rq-file-ref {
+  color: #9ec8e8;
+}
+
+.rq-body {
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+}
+
+.rq-comment {
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.rq-diagram {
+  color: var(--color-rust-muted);
+}
+
+.rq-brace,
+.rq-punctuation {
+  color: var(--color-text-faint);
+}
+
+.rq-tip {
+  cursor: help;
+  outline: none;
+}
+
+.rq-tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-surface-raised);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
+  color: var(--color-text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 0.45rem));
+}
+
+.syntax-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.syntax-example {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.syntax-label {
+  color: var(--color-text-faint);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Links */
+
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.link-row a {
+  font-weight: 500;
 }
 
 /* Footer */
@@ -338,12 +360,6 @@ code {
   padding: 1.5rem 2.5rem;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
-}
-
-.footer-tagline {
-  margin: 0 0 0.25rem;
-  color: var(--color-text-muted);
-  font-size: 0.875rem;
 }
 
 .footer-copy {
