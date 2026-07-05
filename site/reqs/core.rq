@@ -11,7 +11,7 @@ workflow {
 }
 
 pnpm {
-    Must use pnpm for all package management.
+    Must use pnpm for all js package management.
 }
 
 single_page {
