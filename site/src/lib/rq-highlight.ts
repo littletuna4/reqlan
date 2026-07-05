@@ -3,7 +3,7 @@ export type RqTokenType =
   | "keyword"
   | "string"
   | "attribute"
-  | "wiki-link"
+  | "ref"
   | "file-ref"
   | "idea"
   | "body"
@@ -155,14 +155,6 @@ function scanToken(
       }),
     },
     {
-      match: /^\[\[[^\]]+\]\]/,
-      build: (value) => ({
-        type: "wiki-link",
-        text: value,
-        tooltip: "Wikilink — reference another idea in the graph",
-      }),
-    },
-    {
       match: /^\["[^"]+"(?:\.[A-Za-z_][\w.]*)?\]/,
       build: (value) => ({
         type: "file-ref",
@@ -170,6 +162,14 @@ function scanToken(
         tooltip: value.includes(".")
           ? "Symbol reference — link to a file and code symbol"
           : "File reference — link to a source file",
+      }),
+    },
+    {
+      match: /^\[(?!"[^"]+")[^\]]+\]/,
+      build: (value) => ({
+        type: "ref",
+        text: value,
+        tooltip: "Reference — link to another idea in the graph",
       }),
     },
     {
@@ -298,6 +298,14 @@ function ideaToken(
       type: "idea",
       text: value,
       tooltip: "Ideaset — groups ideas in a namespace",
+    };
+  }
+
+  // Indented lines inside a block body are prose, not one-liner ideas.
+  if (context.inBlock) {
+    return {
+      type: "body",
+      text: value,
     };
   }
 

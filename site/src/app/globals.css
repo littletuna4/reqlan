@@ -216,19 +216,71 @@ a:hover {
   color: var(--color-aqua-bright);
 }
 
-.tab-content pre {
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tab-content .rq-block {
   min-height: 8rem;
+}
+
+.feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.feature-list li {
+  position: relative;
+  padding-left: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.feature-list li + li {
+  margin-top: 0.375rem;
+}
+
+.feature-list li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: var(--color-aqua);
+  font-weight: 700;
 }
 
 /* Code blocks */
 
-pre {
+pre,
+.diagram-block,
+.command-block {
   margin: 0;
   overflow-x: auto;
   padding: 1.25rem 1.5rem;
+  border-radius: 0.5rem;
+}
+
+pre,
+.rq-block {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+}
+
+.diagram-block {
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-rust-muted));
+  border: 1px dashed color-mix(in srgb, var(--color-border) 80%, var(--color-rust-muted));
+}
+
+.command-block {
+  padding: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 code,
@@ -264,7 +316,7 @@ code,
   font-weight: 600;
 }
 
-.rq-wiki-link {
+.rq-ref {
   color: var(--color-aqua);
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--color-aqua) 45%, transparent);
@@ -298,24 +350,107 @@ code,
   outline: none;
 }
 
-.rq-tooltip {
-  position: fixed;
-  z-index: 1000;
-  width: max-content;
-  max-width: 14rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--color-border);
+.rq-tip::after {
+  content: none;
+  display: none;
+}
+
+/* Diagram blocks */
+
+.diagram-code {
+  display: block;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+  white-space: pre;
+}
+
+.diagram-code > span {
+  white-space: pre;
+}
+
+.diagram-comment {
+  color: var(--color-text-faint);
+  font-style: italic;
+}
+
+.diagram-connector {
+  color: var(--color-rust);
+  font-weight: 600;
+}
+
+.diagram-node {
+  color: var(--color-aqua-bright);
+  font-weight: 600;
+}
+
+.diagram-location {
+  color: #9ec8e8;
+}
+
+.diagram-ref {
+  color: var(--color-aqua);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-aqua) 45%, transparent);
+  text-underline-offset: 0.15em;
+}
+
+.diagram-plain {
+  color: var(--color-text-muted);
+}
+
+/* Command blocks */
+
+.command-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 0.375rem;
-  background: var(--color-surface-raised);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
-  color: var(--color-text);
+}
+
+.command-line + .command-line {
+  margin-top: 0.125rem;
+}
+
+.command-prefix {
+  flex-shrink: 0;
+  color: var(--color-rust);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.command-code {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.45;
-  white-space: normal;
-  pointer-events: none;
-  transform: translate(-50%, calc(-100% - 0.45rem));
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.command-category {
+  color: var(--color-rust-muted);
+  font-weight: 600;
+}
+
+.command-sep {
+  color: var(--color-text-faint);
+}
+
+.command-name {
+  color: var(--color-text);
+}
+
+.command-slash {
+  color: var(--color-aqua-bright);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.command-args {
+  color: var(--color-text-muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
 }
 
 .syntax-examples {

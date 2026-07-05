@@ -1,6 +1,6 @@
 "use client";
 
-import { RqCode } from "@/components/RqCode";
+import { CodeBlock } from "@/components/CodeBlock";
 import { useState } from "react";
 import { siteContent } from "@/content/site";
 
@@ -53,7 +53,19 @@ export function Motivation() {
           aria-labelledby={`tab-${activeTab.id}`}
           className="tab-content"
         >
-          <RqCode code={activeTab.code} />
+          {activeTab.features ? (
+            <ul className="feature-list">
+              {activeTab.features.map((feature) => (
+                <li key={feature}>{feature}</li>
+              ))}
+            </ul>
+          ) : null}
+          {activeTab.code ? (
+            <CodeBlock
+              kind={activeTab.blockKind ?? "rq"}
+              content={activeTab.code}
+            />
+          ) : null}
         </div>
       </div>
     </section>

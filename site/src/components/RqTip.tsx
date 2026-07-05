@@ -10,6 +10,7 @@ import {
   type MouseEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import styles from "./RqTip.module.css";
 
 type RqTipProps = {
   className: string;
@@ -83,13 +84,17 @@ export function RqTip({ className, tip, children }: RqTipProps) {
     show();
   };
 
+  const anchorClassName = className.includes("rq-tip")
+    ? className
+    : `${className} ${styles.anchor}`;
+
   return (
     <>
       <span
         ref={anchorRef}
-        className={className}
+        className={anchorClassName}
         tabIndex={0}
-        aria-describedby={visible ? tipId : undefined}
+        aria-describedby={mounted && visible ? tipId : undefined}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={hide}
         onFocus={handleFocus}
@@ -103,7 +108,7 @@ export function RqTip({ className, tip, children }: RqTipProps) {
             <span
               id={tipId}
               role="tooltip"
-              className="rq-tooltip"
+              className={styles.tooltip}
               style={{
                 top: `${coords.top}px`,
                 left: `${coords.left}px`,

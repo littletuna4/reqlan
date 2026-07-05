@@ -36,6 +36,10 @@ logo {
     - there is a logo in the sidebar.
 }
 
+assets {
+    this site is published in in gh pages at the "/reqlan" path. Any assets in the /public folder should be referenced as "/reqlan/assets/...".
+}
+
 brand {
     must be aligned with ["../../reqlan rq/brand.rq"]
     Must be completely scrubbed of any reference to next, vercel etc.
