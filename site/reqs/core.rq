@@ -10,6 +10,10 @@ workflow {
     on push to main with changes to the site folder, build and deploy the site to the gh pages.
 }
 
+pnpm {
+    Must use pnpm for all package management.
+}
+
 single_page {
    just one page.
 }
