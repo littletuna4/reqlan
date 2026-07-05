@@ -7,6 +7,46 @@ export const IDEAS_PAGE_SIZE = 50;
 export const IDEASETS_PAGE_SIZE = 50;
 export const REFERENCES_PAGE_SIZE = 50;
 
+export type SortDirection = 'asc' | 'desc';
+
+export type IdeasSortColumn = 'title' | 'path' | 'body' | 'outRefs' | 'inRefs' | `attr:${string}`;
+
+export interface ReferenceFilter {
+    direction: 'inbound' | 'outbound';
+    filterKey: string;
+    label: string;
+}
+
+export interface IdeasTableQuery {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortBy?: IdeasSortColumn;
+    sortDir?: SortDirection;
+    attributeColumns: string[];
+    referenceFilters: ReferenceFilter[];
+}
+
+export type IdeasetsSortColumn = 'name' | 'path' | 'kind' | 'members';
+
+export interface IdeasetsTableQuery {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortBy?: IdeasetsSortColumn;
+    sortDir?: SortDirection;
+}
+
+export type ReferencesSortColumn = 'source' | 'target' | 'inRq' | 'type';
+
+export interface ReferencesTableQuery {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortBy?: ReferencesSortColumn;
+    sortDir?: SortDirection;
+}
+
 export interface IndexErrorDetail {
     summary: string;
     file?: string;
@@ -21,9 +61,17 @@ export interface FileIndexIssueView {
     line: number;
     column: number;
     phase: string;
-    ideaNames: string[];
+    ideaNames?: string[];
     message: string;
     cause?: string;
+}
+
+export interface IdeaReferenceChip {
+    label: string;
+    fileUri: string;
+    line: number;
+    direction: 'inbound' | 'outbound';
+    filterKey: string;
 }
 
 export interface IdeaTableRow {
@@ -32,7 +80,13 @@ export interface IdeaTableRow {
     path: string;
     mainAttribute?: string;
     otherAttributes: string;
+    otherAttributeItems: string[];
+    attributeValues: Record<string, string>;
     referenceCount: number;
+    outboundCount: number;
+    inboundCount: number;
+    outboundReferences: IdeaReferenceChip[];
+    inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
 }
@@ -71,7 +125,8 @@ export type IndexState =
     | 'opening'
     | 'syncing'
     | 'ready'
-    | 'error';
+    | 'error'
+    | 'closing';
 
 export interface IndexStatusView {
     state: IndexState;
@@ -85,20 +140,64 @@ export interface IndexStatusView {
     recentActivity: Array<{ label: string; detail: string; at: number }>;
 }
 
+export interface GraphViewQuery {
+    centerId?: string;
+    search?: string;
+    pathFilter?: string;
+    statusFilter?: string;
+    tagFilter?: string;
+    includeIndirect: boolean;
+    maxNodes?: number;
+}
+
+export interface GraphNodeView {
+    id: string;
+    name: string;
+    kind: string;
+    fileUri: string;
+    path: string;
+    lineStart: number;
+    status?: string;
+    tags: string[];
+    isExternal?: boolean;
+}
+
+export interface GraphEdgeView {
+    id: string;
+    sourceId: string;
+    targetId: string;
+    kind: string;
+    label?: string;
+}
+
+export interface GraphViewSlice {
+    query: GraphViewQuery;
+    centerId?: string;
+    depth: number;
+    truncated: boolean;
+    totalMatching?: number;
+    waitingForIndex?: boolean;
+    nodes: GraphNodeView[];
+    edges: GraphEdgeView[];
+}
+
 export type WebviewToExtensionMessage =
     | { type: 'ready' }
     | { type: 'loadIndexStatus' }
     | { type: 'refreshIndex' }
-    | { type: 'loadIdeas'; page: number }
-    | { type: 'loadIdeasets'; page: number }
-    | { type: 'loadReferences'; page: number }
+    | { type: 'clearAndRebuildIndex' }
+    | { type: 'loadIdeas'; query: IdeasTableQuery }
+    | { type: 'loadIdeasets'; query: IdeasetsTableQuery }
+    | { type: 'loadReferences'; query: ReferencesTableQuery }
+    | { type: 'loadGraph'; query: GraphViewQuery }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
     | { type: 'dumpFullGraph' };
 
 export type ExtensionToWebviewMessage =
     | { type: 'indexStatus'; status: IndexStatusView }
-    | { type: 'ideasPage'; page: number; pageSize: number; total: number; rows: IdeaTableRow[] }
-    | { type: 'ideasetsPage'; page: number; pageSize: number; total: number; rows: IdeasetTableRow[] }
-    | { type: 'referencesPage'; page: number; pageSize: number; total: number; rows: ReferenceTableRow[] }
+    | { type: 'ideasPage'; query: IdeasTableQuery; total: number; rows: IdeaTableRow[] }
+    | { type: 'ideasetsPage'; query: IdeasetsTableQuery; total: number; rows: IdeasetTableRow[] }
+    | { type: 'referencesPage'; query: ReferencesTableQuery; total: number; rows: ReferenceTableRow[] }
+    | { type: 'graphSlice'; slice: GraphViewSlice }
     | { type: 'fullGraph'; ideaCount: number; edgeCount: number; ideasJson: string; edgesJson: string }
     | { type: 'error'; message: string };

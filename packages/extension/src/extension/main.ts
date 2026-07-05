@@ -5,6 +5,7 @@ import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { activateAnalyticalSubmodule } from '../analytical_submodule/index.js';
 
@@ -12,6 +13,7 @@ let client: LanguageClient | undefined;
 
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    registerReferenceInlayHintsToggle(context);
     try {
         client = await startLanguageClient(context);
     } catch (error) {

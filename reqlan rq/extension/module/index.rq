@@ -1,0 +1,6 @@
+idea_index_triggers {
+    should refresh automatically on file change
+}
+
+
+

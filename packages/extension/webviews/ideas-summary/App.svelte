@@ -2,9 +2,14 @@
     import { onMount } from 'svelte';
     import type {
         ExtensionToWebviewMessage,
+        GraphViewQuery,
+        GraphViewSlice,
         IdeaTableRow,
+        IdeasTableQuery,
+        IdeasetsTableQuery,
         IdeasetTableRow,
         IndexStatusView,
+        ReferencesTableQuery,
         ReferenceTableRow
     } from '../../src/webview_module/shared/messages.js';
     import {
@@ -17,42 +22,154 @@
     import IdeasTable from './components/IdeasTable.svelte';
     import IdeasetsTable from './components/IdeasetsTable.svelte';
     import ReferencesTable from './components/ReferencesTable.svelte';
+    import GraphView from './components/GraphView.svelte';
 
-    type Tab = 'index' | 'ideas' | 'ideasets' | 'references';
+    type Tab = 'index' | 'ideas' | 'ideasets' | 'references' | 'graph';
 
     const tabs: Array<{ id: Tab; label: string }> = [
         { id: 'index', label: 'Index' },
         { id: 'ideas', label: 'Ideas' },
         { id: 'ideasets', label: 'Ideasets' },
-        { id: 'references', label: 'References' }
+        { id: 'references', label: 'References' },
+        { id: 'graph', label: 'Graph' }
     ];
+
+    const defaultIdeasQuery = (): IdeasTableQuery => ({
+        page: 0,
+        pageSize: IDEAS_PAGE_SIZE,
+        sortBy: 'path',
+        sortDir: 'asc',
+        attributeColumns: [],
+        referenceFilters: []
+    });
+
+    const defaultIdeasetsQuery = (): IdeasetsTableQuery => ({
+        page: 0,
+        pageSize: IDEASETS_PAGE_SIZE,
+        sortBy: 'path',
+        sortDir: 'asc'
+    });
+
+    const defaultReferencesQuery = (): ReferencesTableQuery => ({
+        page: 0,
+        pageSize: REFERENCES_PAGE_SIZE,
+        sortBy: 'source',
+        sortDir: 'asc'
+    });
+
+    const defaultGraphQuery = (): GraphViewQuery => ({
+        includeIndirect: false
+    });
 
     let activeTab: Tab = 'index';
     let statusText = 'Loading index…';
     let statusError = false;
     let indexStatus: IndexStatusView | undefined;
 
-    let ideasPage = 0;
+    let ideasQuery = defaultIdeasQuery();
     let ideasTotal = 0;
     let ideasRows: IdeaTableRow[] = [];
 
-    let ideasetsPage = 0;
+    let ideasetsQuery = defaultIdeasetsQuery();
     let ideasetsTotal = 0;
     let ideasetsRows: IdeasetTableRow[] = [];
 
-    let referencesPage = 0;
+    let referencesQuery = defaultReferencesQuery();
     let referencesTotal = 0;
     let referencesRows: ReferenceTableRow[] = [];
+
+    let graphQuery = defaultGraphQuery();
+    let graphSlice: GraphViewSlice | undefined;
+    let graphLoading = false;
 
     let dumpOutput = '';
     let dumpVisible = false;
 
+    let ideasSearchTimer: ReturnType<typeof setTimeout> | undefined;
+    let ideasetsSearchTimer: ReturnType<typeof setTimeout> | undefined;
+    let referencesSearchTimer: ReturnType<typeof setTimeout> | undefined;
+
     function setTab(tab: Tab): void {
         activeTab = tab;
+        if (tab === 'graph') {
+            requestGraph();
+        }
+    }
+
+    function requestGraph(): void {
+        if (graphLoading) {
+            return;
+        }
+        if (!graphSlice || graphSlice.waitingForIndex) {
+            loadGraph(graphQuery);
+        }
     }
 
     function openIdea(fileUri: string, line: number, column = 0): void {
         postToExtension({ type: 'openIdea', fileUri, line, column });
+    }
+
+    function loadIdeas(query: IdeasTableQuery): void {
+        ideasQuery = query;
+        postToExtension({ type: 'loadIdeas', query });
+    }
+
+    function loadIdeasets(query: IdeasetsTableQuery): void {
+        ideasetsQuery = query;
+        postToExtension({ type: 'loadIdeasets', query });
+    }
+
+    function loadReferences(query: ReferencesTableQuery): void {
+        referencesQuery = query;
+        postToExtension({ type: 'loadReferences', query });
+    }
+
+    function loadGraph(query: GraphViewQuery): void {
+        graphQuery = query;
+        graphLoading = true;
+        postToExtension({ type: 'loadGraph', query });
+    }
+
+    function debouncedIdeasSearch(query: IdeasTableQuery): void {
+        clearTimeout(ideasSearchTimer);
+        ideasSearchTimer = setTimeout(() => loadIdeas(query), 250);
+    }
+
+    function debouncedIdeasetsSearch(query: IdeasetsTableQuery): void {
+        clearTimeout(ideasetsSearchTimer);
+        ideasetsSearchTimer = setTimeout(() => loadIdeasets(query), 250);
+    }
+
+    function debouncedReferencesSearch(query: ReferencesTableQuery): void {
+        clearTimeout(referencesSearchTimer);
+        referencesSearchTimer = setTimeout(() => loadReferences(query), 250);
+    }
+
+    function handleIdeasQueryChange(query: IdeasTableQuery): void {
+        if (query.search !== ideasQuery.search) {
+            ideasQuery = query;
+            debouncedIdeasSearch(query);
+            return;
+        }
+        loadIdeas(query);
+    }
+
+    function handleIdeasetsQueryChange(query: IdeasetsTableQuery): void {
+        if (query.search !== ideasetsQuery.search) {
+            ideasetsQuery = query;
+            debouncedIdeasetsSearch(query);
+            return;
+        }
+        loadIdeasets(query);
+    }
+
+    function handleReferencesQueryChange(query: ReferencesTableQuery): void {
+        if (query.search !== referencesQuery.search) {
+            referencesQuery = query;
+            debouncedReferencesSearch(query);
+            return;
+        }
+        loadReferences(query);
     }
 
     function updateStatusFromIndex(status: IndexStatusView): void {
@@ -83,21 +200,29 @@
         switch (message.type) {
             case 'indexStatus':
                 updateStatusFromIndex(message.status);
+                if (message.status.ready && activeTab === 'graph' && graphSlice?.waitingForIndex && !graphLoading) {
+                    loadGraph(graphQuery);
+                }
                 break;
             case 'ideasPage':
-                ideasPage = message.page;
+                ideasQuery = message.query;
                 ideasTotal = message.total;
                 ideasRows = message.rows;
                 break;
             case 'ideasetsPage':
-                ideasetsPage = message.page;
+                ideasetsQuery = message.query;
                 ideasetsTotal = message.total;
                 ideasetsRows = message.rows;
                 break;
             case 'referencesPage':
-                referencesPage = message.page;
+                referencesQuery = message.query;
                 referencesTotal = message.total;
                 referencesRows = message.rows;
+                break;
+            case 'graphSlice':
+                graphQuery = message.slice.query;
+                graphSlice = message.slice;
+                graphLoading = false;
                 break;
             case 'fullGraph':
                 dumpVisible = true;
@@ -111,6 +236,7 @@
             case 'error':
                 statusText = message.message;
                 statusError = true;
+                graphLoading = false;
                 break;
         }
     }
@@ -144,6 +270,7 @@
     <IndexPanel
         status={indexStatus}
         on:refresh={() => postToExtension({ type: 'refreshIndex' })}
+        on:clearAndRebuild={() => postToExtension({ type: 'clearAndRebuildIndex' })}
         on:openIssue={(event) => openIdea(event.detail.fileUri, event.detail.line, event.detail.column)}
     />
 {/if}
@@ -151,40 +278,53 @@
 {#if activeTab === 'ideas'}
     <IdeasTable
         rows={ideasRows}
-        page={ideasPage}
+        query={ideasQuery}
         total={ideasTotal}
-        pageSize={IDEAS_PAGE_SIZE}
+        on:queryChange={(event) => handleIdeasQueryChange(event.detail)}
         on:open={(event) => openIdea(event.detail.fileUri, event.detail.line)}
-        on:prev={() => ideasPage > 0 && postToExtension({ type: 'loadIdeas', page: ideasPage - 1 })}
-        on:next={() => postToExtension({ type: 'loadIdeas', page: ideasPage + 1 })}
+        on:openReference={(event) => openIdea(event.detail.fileUri, event.detail.line)}
+        on:prev={() => ideasQuery.page > 0 && loadIdeas({ ...ideasQuery, page: ideasQuery.page - 1 })}
+        on:next={() => loadIdeas({ ...ideasQuery, page: ideasQuery.page + 1 })}
     />
 {/if}
 
 {#if activeTab === 'ideasets'}
     <IdeasetsTable
         rows={ideasetsRows}
-        page={ideasetsPage}
+        query={ideasetsQuery}
         total={ideasetsTotal}
-        pageSize={IDEASETS_PAGE_SIZE}
+        on:queryChange={(event) => handleIdeasetsQueryChange(event.detail)}
         on:openMember={(event) => openIdea(event.detail.fileUri, event.detail.line)}
-        on:prev={() => ideasetsPage > 0 && postToExtension({ type: 'loadIdeasets', page: ideasetsPage - 1 })}
-        on:next={() => postToExtension({ type: 'loadIdeasets', page: ideasetsPage + 1 })}
+        on:openSource={(event) => openIdea(event.detail.fileUri, event.detail.line)}
+        on:prev={() => ideasetsQuery.page > 0 && loadIdeasets({ ...ideasetsQuery, page: ideasetsQuery.page - 1 })}
+        on:next={() => loadIdeasets({ ...ideasetsQuery, page: ideasetsQuery.page + 1 })}
     />
 {/if}
 
 {#if activeTab === 'references'}
     <ReferencesTable
         rows={referencesRows}
-        page={referencesPage}
+        query={referencesQuery}
         total={referencesTotal}
-        pageSize={REFERENCES_PAGE_SIZE}
+        on:queryChange={(event) => handleReferencesQueryChange(event.detail)}
         on:open={(event) => openIdea(event.detail.fileUri, event.detail.line)}
-        on:prev={() => referencesPage > 0 && postToExtension({ type: 'loadReferences', page: referencesPage - 1 })}
-        on:next={() => postToExtension({ type: 'loadReferences', page: referencesPage + 1 })}
+        on:prev={() => referencesQuery.page > 0 && loadReferences({ ...referencesQuery, page: referencesQuery.page - 1 })}
+        on:next={() => loadReferences({ ...referencesQuery, page: referencesQuery.page + 1 })}
     />
 {/if}
 
-{#if activeTab !== 'index'}
+{#if activeTab === 'graph'}
+    <GraphView
+        slice={graphSlice}
+        query={graphQuery}
+        loading={graphLoading}
+        on:queryChange={(event) => loadGraph(event.detail)}
+        on:open={(event) => openIdea(event.detail.fileUri, event.detail.line)}
+        on:focus={(event) => loadGraph({ ...graphQuery, centerId: event.detail.centerId })}
+    />
+{/if}
+
+{#if activeTab !== 'index' && activeTab !== 'graph'}
     <div class="actions">
         <button on:click={dumpGraph}>Export full graph (JSON)</button>
     </div>

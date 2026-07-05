@@ -19,6 +19,10 @@ import {
     resolvedFileLinkToGoToTargetFromFilesystem,
     type ResolvedFileLink
 } from './reqlan-file-link-resolver.js';
+import {
+    isNamespaceImportOnlyReference,
+    resolveNamespaceImportReferenceLink
+} from './reqlan-namespace-import-links.js';
 import { findFileReferenceAtPosition } from './reqlan-reference-at-position.js';
 import { isMarkdownLinkLabelPosition } from './reqlan-markdown-links.js';
 import {
@@ -26,10 +30,12 @@ import {
     isFileSymbolReference,
     isFromImport,
     isImport,
+    isLocalReference,
     isQualifiedReference,
     type FileReference,
     type FileSymbolReference,
     type Import,
+    type LocalReference,
     type QualifiedReference
 } from './generated/ast.js';
 import type { ReqlanServices } from './reqlan-module.js';
@@ -76,7 +82,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     protected override findLinks(source: CstNode): GoToLink[] {
-        const fileLink = this.linkForFileReference(source);
+        const fileLink = this.linkForFileReference(source) ?? this.linkForNamespaceImportReference(source);
         if (fileLink) {
             return [fileLink];
         }
@@ -97,6 +103,37 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
             return this.createFileLink(source, container);
         }
         return undefined;
+    }
+
+    private createNamespaceImportLink(source: CstNode, reference: LocalReference | QualifiedReference): GoToLink | undefined {
+        const resolved = resolveNamespaceImportReferenceLink(reference, this.documents, this.fileSystem);
+        if (!resolved) {
+            return undefined;
+        }
+        const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri));
+        if (targetDocument) {
+            return resolvedFileLinkToGoToTarget(resolved, source, targetDocument);
+        }
+        return resolvedFileLinkToGoToTargetFromFilesystem(resolved, source);
+    }
+
+    private linkForNamespaceImportReference(source: CstNode): GoToLink | undefined {
+        const assignment = GrammarUtils.findAssignment(source);
+        if (!assignment) {
+            return undefined;
+        }
+        const container = source.astNode;
+        if (!(isLocalReference(container) || isQualifiedReference(container))) {
+            return undefined;
+        }
+        if (!isNamespaceImportOnlyReference(container)) {
+            return undefined;
+        }
+        const property = assignment.feature;
+        if (property !== 'idea' && property !== 'ideaset' && property !== 'qualifier') {
+            return undefined;
+        }
+        return this.createNamespaceImportLink(source, container);
     }
 
     private linkForImportPath(source: CstNode): GoToLink | undefined {
@@ -203,7 +240,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         const offset = document.textDocument.offsetAt(position);
         let current: CstNode | undefined = CstUtils.findLeafNodeAtOffset(root, offset);
         while (current) {
-            const link = this.linkForImportPath(current) ?? this.linkForFileReference(current);
+            const link = this.linkForImportPath(current) ?? this.linkForFileReference(current) ?? this.linkForNamespaceImportReference(current);
             if (link) {
                 return link;
             }
@@ -220,7 +257,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         const offset = document.textDocument.offsetAt(position);
         let current: CstNode | undefined = CstUtils.findLeafNodeAtOffset(root, offset);
         while (current) {
-            const link = this.linkForFileReference(current);
+            const link = this.linkForFileReference(current) ?? this.linkForNamespaceImportReference(current);
             if (link) {
                 return link;
             }

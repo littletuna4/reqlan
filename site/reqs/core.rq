@@ -1,0 +1,41 @@
+site {
+    the /site folder contains a next app as a landing page for reqlan.
+}
+
+simple_lightweight_and_static {
+    must be fully statically exported for use in nextjs/gh pages.
+}
+
+workflow {
+    on push to main with changes to the site folder, build and deploy the site to the gh pages.
+}
+
+single_page {
+   just one page.
+}
+
+components {
+    - sidebar
+    - footer
+    - hero
+    - content
+        - motivation
+        - syntax
+        - example
+    - links/contact
+    - 404 page (just something silly / a redirect)
+}
+
+logo {
+    - there is a logo in the sidebar.
+}
+
+brand {
+    must be aligned with ["../../reqlan rq/brand.rq"]
+    Must be completely scrubbed of any reference to next, vercel etc.
+}
+
+links {
+    - reqlan@tony.is-a.dev
+    - github.com/littletuna4/reqlan
+}

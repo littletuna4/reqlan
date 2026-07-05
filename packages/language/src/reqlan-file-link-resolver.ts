@@ -18,6 +18,7 @@ import {
     isFileReference,
     isFileSymbolReference,
     isImport,
+    isLocalReference,
     isMarkdownLink,
     isQualifiedReference,
     type FileReference,
@@ -27,6 +28,10 @@ import {
     type QualifiedReference
 } from './generated/ast.js';
 import { parseMarkdownLink } from './reqlan-references.js';
+import {
+    isNamespaceImportOnlyReference,
+    resolveNamespaceImportReferenceLink
+} from './reqlan-namespace-import-links.js';
 
 export type ReferenceResolution = 'file' | 'folder' | 'missing';
 
@@ -172,7 +177,7 @@ export function resolveEmbeddedFileReferenceLink(
     );
 }
 
-function resolveParsedFileLink(
+export function resolveParsedFileLink(
     document: LangiumDocument,
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider,
@@ -281,6 +286,13 @@ export function collectFileLinks(
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
         if (isFileReference(node) || isFileSymbolReference(node)) {
             const link = resolveFileReferenceLink(node, documents, fileSystem);
+            if (link) {
+                links.push(link);
+                linkedRanges.push(rangeKey(link.sourceRange));
+            }
+        }
+        if ((isLocalReference(node) || isQualifiedReference(node)) && isNamespaceImportOnlyReference(node)) {
+            const link = resolveNamespaceImportReferenceLink(node, documents, fileSystem);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));

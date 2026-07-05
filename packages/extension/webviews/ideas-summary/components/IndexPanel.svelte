@@ -4,7 +4,11 @@
 
     export let status: IndexStatusView | undefined;
 
-    const dispatch = createEventDispatcher<{ refresh: void; openIssue: { fileUri: string; line: number; column: number } }>();
+    const dispatch = createEventDispatcher<{
+        refresh: void;
+        clearAndRebuild: void;
+        openIssue: { fileUri: string; line: number; column: number };
+    }>();
 
     function formatTime(at: number): string {
         return new Date(at).toLocaleTimeString();
@@ -112,7 +116,7 @@
                         <tr class="clickable" on:click={() => openIssue(issue)}>
                             <td>{issue.location}</td>
                             <td>{issue.phase}</td>
-                            <td>{issue.ideaNames.length ? issue.ideaNames.join(', ') : '—'}</td>
+                            <td>{issue.ideaNames?.length ? issue.ideaNames.join(', ') : '—'}</td>
                             <td>{issue.message}</td>
                             <td>{issue.cause ?? '—'}</td>
                         </tr>
@@ -124,6 +128,7 @@
 
     <div class="actions">
         <button on:click={() => dispatch('refresh')}>Refresh index</button>
+        <button class="secondary" on:click={() => dispatch('clearAndRebuild')}>Clear &amp; rebuild index</button>
     </div>
 
     <h2>Recent activity</h2>

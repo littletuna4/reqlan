@@ -9,13 +9,48 @@ import {
     IDEASETS_PAGE_SIZE,
     REFERENCES_PAGE_SIZE,
     type ExtensionToWebviewMessage,
+    type GraphViewQuery,
+    type GraphViewSlice,
+    type IdeasTableQuery,
+    type IdeasetsTableQuery,
     type IndexStatusView,
+    type ReferenceFilter,
+    type ReferencesTableQuery,
     type WebviewToExtensionMessage
-} from './messages.js';
+} from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
-import { resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { buildGraphViewSlice, GRAPH_MAX_NODES, type GraphViewSlice as AnalyticalGraphViewSlice } from 'reqlan-analytical';
 
 const VIEW_TYPE = 'reqlan.ideasSummary';
+
+const DEFAULT_IDEAS_QUERY: IdeasTableQuery = {
+    page: 0,
+    pageSize: IDEAS_PAGE_SIZE,
+    sortBy: 'path',
+    sortDir: 'asc',
+    attributeColumns: [],
+    referenceFilters: []
+};
+
+const DEFAULT_IDEASETS_QUERY: IdeasetsTableQuery = {
+    page: 0,
+    pageSize: IDEASETS_PAGE_SIZE,
+    sortBy: 'path',
+    sortDir: 'asc'
+};
+
+const DEFAULT_REFERENCES_QUERY: ReferencesTableQuery = {
+    page: 0,
+    pageSize: REFERENCES_PAGE_SIZE,
+    sortBy: 'source',
+    sortDir: 'asc'
+};
+
+const DEFAULT_GRAPH_QUERY: GraphViewQuery = {
+    includeIndirect: false,
+    maxNodes: GRAPH_MAX_NODES
+};
 
 export class IdeasSummaryPanel {
     private static current?: IdeasSummaryPanel;
@@ -30,6 +65,10 @@ export class IdeasSummaryPanel {
 
     readonly panel: vscode.WebviewPanel;
     private readonly statusUnsubscribe: () => void;
+    private ideasQuery: IdeasTableQuery = { ...DEFAULT_IDEAS_QUERY };
+    private ideasetsQuery: IdeasetsTableQuery = { ...DEFAULT_IDEASETS_QUERY };
+    private referencesQuery: ReferencesTableQuery = { ...DEFAULT_REFERENCES_QUERY };
+    private graphQuery: GraphViewQuery = { ...DEFAULT_GRAPH_QUERY };
 
     private constructor(
         context: vscode.ExtensionContext,
@@ -76,22 +115,36 @@ export class IdeasSummaryPanel {
                 await this.sendIndexStatus();
                 break;
             case 'refreshIndex':
-                await this.submodule.index.syncWorkspace();
-                await this.sendIndexStatus();
-                if (this.submodule.index.isReady) {
-                    await this.sendIdeasPage(0);
-                    await this.sendIdeasetsPage(0);
-                    await this.sendReferencesPage(0);
-                }
+                await this.refreshIndexData();
                 break;
+            case 'clearAndRebuildIndex': {
+                const confirmed = await vscode.window.showWarningMessage(
+                    'Clear the idea index and rebuild it from scratch? This removes all indexed ideas and references.',
+                    { modal: true },
+                    'Clear & rebuild'
+                );
+                if (confirmed !== 'Clear & rebuild') {
+                    break;
+                }
+                await this.submodule.index.clearAndRebuildIndex();
+                await this.refreshIndexData();
+                break;
+            }
             case 'loadIdeas':
-                await this.sendIdeasPage(message.page);
+                this.ideasQuery = message.query;
+                await this.sendIdeasPage();
                 break;
             case 'loadIdeasets':
-                await this.sendIdeasetsPage(message.page);
+                this.ideasetsQuery = message.query;
+                await this.sendIdeasetsPage();
                 break;
             case 'loadReferences':
-                await this.sendReferencesPage(message.page);
+                this.referencesQuery = message.query;
+                await this.sendReferencesPage();
+                break;
+            case 'loadGraph':
+                this.graphQuery = message.query;
+                await this.sendGraphSlice();
                 break;
             case 'openIdea':
                 await openIdea(message.fileUri, message.line, message.column);
@@ -106,13 +159,27 @@ export class IdeasSummaryPanel {
         void this.panel.webview.postMessage(message);
     }
 
+    private async refreshIndexData(): Promise<void> {
+        await this.submodule.index.syncWorkspace();
+        await this.sendIndexStatus();
+        if (this.submodule.index.isReady) {
+            this.ideasQuery = { ...this.ideasQuery, page: 0 };
+            this.ideasetsQuery = { ...this.ideasetsQuery, page: 0 };
+            this.referencesQuery = { ...this.referencesQuery, page: 0 };
+            await this.sendIdeasPage();
+            await this.sendIdeasetsPage();
+            await this.sendReferencesPage();
+            await this.sendGraphSlice();
+        }
+    }
+
     private async bootstrapData(): Promise<void> {
         await this.submodule.index.syncWorkspace();
         await this.sendIndexStatus();
         if (this.submodule.index.isReady) {
-            await this.sendIdeasPage(0);
-            await this.sendIdeasetsPage(0);
-            await this.sendReferencesPage(0);
+            await this.sendIdeasPage();
+            await this.sendIdeasetsPage();
+            await this.sendReferencesPage();
         }
     }
 
@@ -120,56 +187,60 @@ export class IdeasSummaryPanel {
         this.post({ type: 'indexStatus', status: toIndexStatusView(this.submodule.index.getStatusSnapshot()) });
     }
 
-    private async sendIdeasPage(page: number): Promise<void> {
+    private async sendIdeasPage(): Promise<void> {
         if (!this.submodule.index.isReady) {
             return;
         }
         const store = this.submodule.index.indexStore;
-        const total = await store.countIdeas();
-        const safePage = clampPage(page, total, IDEAS_PAGE_SIZE);
-        const rows = (await store.listIdeasPage(safePage * IDEAS_PAGE_SIZE, IDEAS_PAGE_SIZE))
+        const query = normalizeIdeasQuery(this.ideasQuery);
+        const total = await store.countIdeas(query);
+        const safePage = clampPage(query.page, total, query.pageSize);
+        const resolvedQuery = { ...query, page: safePage };
+        const rows = (await store.listIdeasPage(resolvedQuery))
             .map(row => ({
                 ...row,
                 path: vscode.workspace.asRelativePath(row.path)
             }));
         this.post({
             type: 'ideasPage',
-            page: safePage,
-            pageSize: IDEAS_PAGE_SIZE,
+            query: resolvedQuery,
             total,
             rows
         });
     }
 
-    private async sendIdeasetsPage(page: number): Promise<void> {
+    private async sendIdeasetsPage(): Promise<void> {
         if (!this.submodule.index.isReady) {
             return;
         }
         const store = this.submodule.index.indexStore;
-        const total = await store.countIdeasets();
-        const safePage = clampPage(page, total, IDEASETS_PAGE_SIZE);
-        const rows = (await store.listIdeasetsPage(safePage * IDEASETS_PAGE_SIZE, IDEASETS_PAGE_SIZE))
+        const query = normalizeIdeasetsQuery(this.ideasetsQuery);
+        const total = await store.countIdeasets(query);
+        const safePage = clampPage(query.page, total, query.pageSize);
+        const resolvedQuery = { ...query, page: safePage };
+        const rows = (await store.listIdeasetsPage(resolvedQuery))
             .map(row => ({
                 ...row,
                 path: vscode.workspace.asRelativePath(row.path)
             }));
         this.post({
             type: 'ideasetsPage',
-            page: safePage,
-            pageSize: IDEASETS_PAGE_SIZE,
+            query: resolvedQuery,
             total,
             rows
         });
     }
 
-    private async sendReferencesPage(page: number): Promise<void> {
+    private async sendReferencesPage(): Promise<void> {
         if (!this.submodule.index.isReady) {
             return;
         }
         const store = this.submodule.index.indexStore;
-        const total = await store.countReferences();
-        const safePage = clampPage(page, total, REFERENCES_PAGE_SIZE);
-        const rows = (await store.listReferencesPage(safePage * REFERENCES_PAGE_SIZE, REFERENCES_PAGE_SIZE))
+        const query = normalizeReferencesQuery(this.referencesQuery);
+        const total = await store.countReferences(query);
+        const safePage = clampPage(query.page, total, query.pageSize);
+        const resolvedQuery = { ...query, page: safePage };
+        const rows = (await store.listReferencesPage(resolvedQuery))
             .map(row => ({
                 ...row,
                 sourcePath: vscode.workspace.asRelativePath(row.sourcePath),
@@ -177,13 +248,50 @@ export class IdeasSummaryPanel {
             }));
         this.post({
             type: 'referencesPage',
-            page: safePage,
-            pageSize: REFERENCES_PAGE_SIZE,
+            query: resolvedQuery,
             total,
             rows
         });
     }
 
+    private async sendGraphSlice(): Promise<void> {
+        const query = normalizeGraphQuery(this.graphQuery);
+        if (!this.submodule.index.isReady) {
+            this.post({
+                type: 'graphSlice',
+                slice: {
+                    query,
+                    depth: query.includeIndirect ? 2 : 1,
+                    truncated: false,
+                    nodes: [],
+                    edges: [],
+                    waitingForIndex: true
+                }
+            });
+            return;
+        }
+        try {
+            let resolvedQuery = query;
+            if (!resolvedQuery.centerId && !hasGraphFilters(resolvedQuery)) {
+                const centerId = await defaultGraphCenterId(this.submodule);
+                if (centerId) {
+                    resolvedQuery = { ...resolvedQuery, centerId };
+                }
+            }
+            this.graphQuery = resolvedQuery;
+            const store = this.submodule.index.indexStore;
+            const slice = await buildGraphViewSlice(store, resolvedQuery);
+            this.post({
+                type: 'graphSlice',
+                slice: toGraphSliceView(slice)
+            });
+        } catch (error) {
+            this.post({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Failed to load graph.'
+            });
+        }
+    }
     private async sendFullGraph(): Promise<void> {
         if (!this.submodule.index.isReady) {
             this.post({ type: 'error', message: 'Index is not ready yet.' });
@@ -201,6 +309,92 @@ export class IdeasSummaryPanel {
             edgesJson: JSON.stringify(edges)
         });
     }
+}
+
+function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
+    return {
+        centerId: query.centerId?.trim() || undefined,
+        search: query.search?.trim() || undefined,
+        pathFilter: query.pathFilter?.trim() || undefined,
+        statusFilter: query.statusFilter?.trim() || undefined,
+        tagFilter: query.tagFilter?.trim() || undefined,
+        includeIndirect: Boolean(query.includeIndirect),
+        maxNodes: Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), 200)
+    };
+}
+
+function hasGraphFilters(query: GraphViewQuery): boolean {
+    return Boolean(
+        query.search ||
+        query.pathFilter ||
+        query.statusFilter ||
+        query.tagFilter
+    );
+}
+
+function toGraphSliceView(slice: AnalyticalGraphViewSlice): GraphViewSlice {
+    return {
+        ...slice,
+        nodes: slice.nodes.map(node => ({
+            ...node,
+            path: node.isExternal ? node.fileUri : vscode.workspace.asRelativePath(node.fileUri)
+        }))
+    };
+}
+
+async function defaultGraphCenterId(submodule: AnalyticalSubmodule): Promise<string | undefined> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || !submodule.index.isReady) {
+        return undefined;
+    }
+    const fileUri = toIndexFileUri(editor.document.uri);
+    const ideas = await submodule.index.indexStore.getIdeasInFile(fileUri);
+    return ideas[0]?.id;
+}
+
+function normalizeIdeasQuery(query: IdeasTableQuery): IdeasTableQuery {
+    return {
+        page: Math.max(0, query.page),
+        pageSize: query.pageSize || IDEAS_PAGE_SIZE,
+        search: query.search?.trim() || undefined,
+        sortBy: query.sortBy ?? 'path',
+        sortDir: query.sortDir ?? 'asc',
+        attributeColumns: [...new Set(query.attributeColumns)],
+        referenceFilters: dedupeReferenceFilters(query.referenceFilters ?? [])
+    };
+}
+
+function dedupeReferenceFilters(filters: ReferenceFilter[]): ReferenceFilter[] {
+    const seen = new Set<string>();
+    const result: ReferenceFilter[] = [];
+    for (const filter of filters) {
+        if (seen.has(filter.filterKey)) {
+            continue;
+        }
+        seen.add(filter.filterKey);
+        result.push(filter);
+    }
+    return result;
+}
+
+function normalizeIdeasetsQuery(query: IdeasetsTableQuery): IdeasetsTableQuery {
+    return {
+        page: Math.max(0, query.page),
+        pageSize: query.pageSize || IDEASETS_PAGE_SIZE,
+        search: query.search?.trim() || undefined,
+        sortBy: query.sortBy ?? 'path',
+        sortDir: query.sortDir ?? 'asc'
+    };
+}
+
+function normalizeReferencesQuery(query: ReferencesTableQuery): ReferencesTableQuery {
+    return {
+        page: Math.max(0, query.page),
+        pageSize: query.pageSize || REFERENCES_PAGE_SIZE,
+        search: query.search?.trim() || undefined,
+        sortBy: query.sortBy ?? 'source',
+        sortDir: query.sortDir ?? 'asc'
+    };
 }
 
 function toIndexStatusView(snapshot: IndexStatusSnapshot): IndexStatusView {

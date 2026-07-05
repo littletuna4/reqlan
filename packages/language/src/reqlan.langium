@@ -73,10 +73,10 @@ CodeSnippet:
 // ---------------------------------------------------------------------------
 
 OneLinerText returns string:
-    WORD | ID | STRING | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | STRING | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | 'from' | 'import' | 'as' | '`';
 
 PlainText returns string:
-    WORD | ID | STRING | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | STRING | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | 'from' | 'import' | 'as' | '`';
 
 PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
@@ -154,8 +154,8 @@ FileSymbolReference:
     file=STRING '.' symbols+=ID ('.' symbols+=ID)*;
 
 QualifiedReference:
-    (path=[Import:STRING] | qualifier=[Import:ID]) '.'
-        (ideaset=[IdeaSet:IdeaMemberName] '.')? idea=[IdeaDeclaration:IdeaMemberName];
+    (path=[Import:STRING] | qualifier=[Import:ID]) ('.'
+        (ideaset=[IdeaSet:IdeaMemberName] '.')? idea=[IdeaDeclaration:IdeaMemberName])?;
 
 LocalReference:
     ideaset=[IdeaSet:IdeaMemberName] '.' idea=[IdeaDeclaration:IdeaMemberName]
@@ -194,6 +194,7 @@ hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
 terminal ID: /[_a-zA-Z][\w_]*/;
 terminal STRING: /"(\\.|[^"\\])*"/;
+terminal NUMBER: /\d+/;
 terminal WORD: /[A-Za-z_][\w']*/;
 terminal OTHER: /[^\s\w\[\]()@`]/;
 terminal INLINE_CODE: /`[^`\n]+`/;

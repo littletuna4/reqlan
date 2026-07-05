@@ -6,9 +6,11 @@ import { ReqlanDocumentHighlightProvider } from './reqlan-document-highlight-pro
 import { ReqlanDocumentLinkProvider } from './reqlan-document-link-provider.js';
 import { createReqlanGrammarConfig } from './reqlan-grammar-config.js';
 import { ReqlanNameProvider } from './reqlan-name-provider.js';
+import { ReqlanLinker } from './reqlan-linker.js';
 import { ReqlanScopeComputation, ReqlanScopeProvider } from './reqlan-scope.js';
 import { ReqlanCompletionProvider } from './reqlan-completion-provider.js';
 import { sharedAttributeCatalog } from './reqlan-attribute-catalog.js';
+import { ReqlanInlayHintProvider } from './reqlan-inlay-hint-provider.js';
 import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js';
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
@@ -38,6 +40,7 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         ReqlanValidator: () => new ReqlanValidator()
     },
     references: {
+        Linker: services => new ReqlanLinker(services),
         NameProvider: () => new ReqlanNameProvider(),
         ScopeComputation: services => new ReqlanScopeComputation(services),
         ScopeProvider: services => new ReqlanScopeProvider(services)
@@ -51,6 +54,7 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         DocumentHighlightProvider: services => new ReqlanDocumentHighlightProvider(services),
         DocumentLinkProvider: services => new ReqlanDocumentLinkProvider(services),
         SemanticTokenProvider: services => new ReqlanSemanticTokenProvider(services),
+        InlayHintProvider: services => new ReqlanInlayHintProvider(services),
         CompletionProvider: services => new ReqlanCompletionProvider(services, sharedAttributeCatalog)
     }
 };

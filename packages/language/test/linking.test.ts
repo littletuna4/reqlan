@@ -10,6 +10,7 @@ import type { Model } from 'reqlan-language';
 import type { QualifiedReference } from 'reqlan-language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
 import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
+import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
 import {
     createSourceTextDocument,
     findCommentReferencesInText,
@@ -574,6 +575,89 @@ beta {
         );
         expect(links).toHaveLength(1);
         expect(links?.[0]?.targetUri).toBe(rqDoc.textDocument.uri);
+    });
+
+    test('resolve namespace import references to files', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const targetPath = join(repoDir, 'packages/extension/webviews/ideas-summary/components/IndexPanel.svelte');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/module/webview.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import "${targetPath.replaceAll('\\', '/')}" as IndexPanel
+                demo {
+                    see [IndexPanel]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const namespaceRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)
+            .map(ref => ref.target)
+            .find(isLocalReference);
+        expect(namespaceRef).toBeDefined();
+        if (!namespaceRef) {
+            return;
+        }
+        expect(isNamespaceImportOnlyReference(namespaceRef)).toBe(true);
+
+        const link = resolveNamespaceImportReferenceLink(
+            namespaceRef,
+            fileServices.shared.workspace.LangiumDocuments,
+            fileServices.shared.workspace.FileSystemProvider
+        );
+        expect(link?.targetUri).toContain('IndexPanel.svelte');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    test('does not report linking error for anonymous import path only', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const corePath = join(repoDir, 'site/reqs/core.rq');
+        const brandPath = join(repoDir, 'reqlan rq/brand.rq');
+        const core = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(corePath, 'utf8'),
+            URI.parse(pathToFileURL(corePath).href)
+        ) as LangiumDocument<Model>;
+        const brand = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(brandPath, 'utf8'),
+            URI.parse(pathToFileURL(brandPath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(brand);
+        fileServices.shared.workspace.LangiumDocuments.addDocument(core);
+        await fileServices.shared.workspace.DocumentBuilder.build([brand, core], { validation: true });
+
+        const importPathErrors = (core.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve reference to Import")
+        );
+        expect(importPathErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    test('does not report linking error for anonymous import path with idea', async () => {
+        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const consumer = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            `syntax_whitespace {
+                see ["./ontology.rq".attribute]
+            }`,
+            URI.parse(pathToFileURL(join(ontologyDir, 'consumer.rq')).href)
+        ) as LangiumDocument<Model>;
+        const ontology = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
+            URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(ontology);
+        fileServices.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await fileServices.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: true });
+
+        const importPathErrors = (consumer.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve reference to Import")
+        );
+        expect(importPathErrors).toHaveLength(0);
     });
 });
 

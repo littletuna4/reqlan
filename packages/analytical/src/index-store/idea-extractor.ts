@@ -12,10 +12,13 @@ import {
     isMarkdownLink,
     isModel,
     isOneLinerIdea,
+    isRichTextPart,
     isScalarValue,
     isWikiLink,
     parseMarkdownLink,
     type Attribute,
+    type BodyLine,
+    type Idea,
     type IdeaDeclaration,
     type Model,
     type OneLinerIdea,
@@ -162,26 +165,62 @@ function summarizeOneLinerPart(part: OneLinerIdea['body']['content'][number]): s
     return '';
 }
 
-function summarizeIdea(idea: IdeaDeclaration): string {
-    if (isOneLinerIdea(idea)) {
-        return idea.body.content
-            .map(summarizeOneLinerPart)
-            .join(' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 240);
+function summarizeRichTextPart(part: BodyLine['parts'][number]): string {
+    if (typeof part === 'string') {
+        return part;
     }
+    if (isRichTextPart(part) && part.$type === 'RichTextPart') {
+        return part.text ?? part.inlineCode ?? part.punct ?? part.lparen ?? part.rparen ?? '';
+    }
+    if (isMarkdownLink(part)) {
+        return parseMarkdownLink(part.raw)?.label ?? part.raw;
+    }
+    if (isWikiLink(part) || isBracketReference(part)) {
+        return '[ref]';
+    }
+    return '';
+}
+
+function summarizeOneLinerBody(idea: OneLinerIdea): string {
+    return idea.body.content
+        .map(summarizeOneLinerPart)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function joinRichTextParts(parts: BodyLine['parts']): string {
+    return parts
+        .map(summarizeRichTextPart)
+        .filter(part => part.length > 0)
+        .join(' ')
+        .replace(/\s+([.,!?;:])/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function summarizeBlockIdeaBody(idea: Idea): string {
     const lines: string[] = [];
     for (const element of idea.elements) {
-        if (isBodyLine(element)) {
-            for (const part of element.parts) {
-                if (typeof part === 'string') {
-                    lines.push(part);
-                }
-            }
+        if (!isBodyLine(element)) {
+            continue;
+        }
+        const line = joinRichTextParts(element.parts);
+        if (line) {
+            lines.push(line);
         }
     }
-    return lines.join(' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+    return lines.join('\n');
+}
+
+function summarizeIdea(idea: IdeaDeclaration): string {
+    if (isOneLinerIdea(idea)) {
+        return summarizeOneLinerBody(idea);
+    }
+    if (isIdea(idea)) {
+        return summarizeBlockIdeaBody(idea);
+    }
+    return '';
 }
 
 function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRecord[]): void {

@@ -30,6 +30,33 @@ export { localGraphAnalyser } from './analysis/local-graph-analyser.js';
 export { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
 export { extractIndexedDocument } from './index-store/idea-extractor.js';
 export { SqliteIndexStore } from './index-store/sqlite-store.js';
+export type {
+    IdeasTableQuery,
+    IdeasetsTableQuery,
+    ReferencesTableQuery,
+    ReferenceFilter,
+    IdeasSortColumn,
+    IdeasetsSortColumn,
+    ReferencesSortColumn,
+    SortDirection
+} from './index-store/webview-table-queries.js';
+export {
+    attributeKeyFromChipItem,
+    attributeJsonPath,
+    formatAttributeValue
+} from './index-store/webview-table-queries.js';
+export type {
+    GraphViewQuery,
+    GraphViewSlice,
+    GraphNodeView,
+    GraphEdgeView
+} from './index-store/webview-graph-queries.js';
+export {
+    GRAPH_MAX_NODES,
+    buildGraphFilterWhereClause,
+    buildGraphViewSlice,
+    toGraphNodeView
+} from './index-store/webview-graph-queries.js';
 export * from './core/types.js';
 export { HeadlessIndexService } from './headless-index-service.js';
 export {

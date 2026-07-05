@@ -1,27 +1,45 @@
 <script lang="ts">
-    import type { ReferenceTableRow } from '../../../src/webview_module/shared/messages.js';
+    import type { ReferencesTableQuery, ReferenceTableRow } from '../../../src/webview_module/shared/messages.js';
     import { createEventDispatcher } from 'svelte';
     import Pager from './Pager.svelte';
+    import SortableTh from './SortableTh.svelte';
+    import TableToolbar from './TableToolbar.svelte';
 
     export let rows: ReferenceTableRow[] = [];
-    export let page = 0;
+    export let query: ReferencesTableQuery;
     export let total = 0;
-    export let pageSize = 50;
 
     const dispatch = createEventDispatcher<{
         open: { fileUri: string; line: number };
+        queryChange: ReferencesTableQuery;
         prev: void;
         next: void;
     }>();
+
+    function emitQuery(next: ReferencesTableQuery): void {
+        dispatch('queryChange', next);
+    }
+
+    function handleSearch(event: CustomEvent<string>): void {
+        emitQuery({ ...query, page: 0, search: event.detail || undefined });
+    }
+
+    function handleSort(event: CustomEvent<{ sortKey: string }>): void {
+        const sortKey = event.detail.sortKey as ReferencesTableQuery['sortBy'];
+        const sortDir = query.sortBy === sortKey && query.sortDir === 'asc' ? 'desc' : 'asc';
+        emitQuery({ ...query, page: 0, sortBy: sortKey, sortDir });
+    }
 </script>
+
+<TableToolbar search={query.search ?? ''} placeholder="Filter references…" on:search={handleSearch} />
 
 <table>
     <thead>
         <tr>
-            <th style="width:24%">Source</th>
-            <th style="width:24%">Target</th>
-            <th style="width:10%">In .rq</th>
-            <th style="width:14%">Type</th>
+            <SortableTh label="Source" sortKey="source" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="24%" on:sort={handleSort} />
+            <SortableTh label="Target" sortKey="target" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="24%" on:sort={handleSort} />
+            <SortableTh label="In .rq" sortKey="inRq" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10%" on:sort={handleSort} />
+            <SortableTh label="Type" sortKey="type" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
         </tr>
     </thead>
     <tbody>
@@ -39,4 +57,4 @@
     </tbody>
 </table>
 
-<Pager {page} {total} {pageSize} label="references" on:prev on:next />
+<Pager page={query.page} {total} pageSize={query.pageSize} label="references" on:prev on:next />

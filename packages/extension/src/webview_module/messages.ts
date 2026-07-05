@@ -7,7 +7,12 @@ export {
 export type {
     ExtensionToWebviewMessage,
     FileIndexIssueView,
+    IdeaReferenceChip,
     IdeaTableRow,
+    IdeasTableQuery,
+    IdeasetsTableQuery,
+    ReferenceFilter,
+    ReferencesTableQuery,
     IdeasetMemberRow,
     IdeasetTableRow,
     IndexErrorDetail,

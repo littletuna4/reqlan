@@ -46,3 +46,9 @@ the attribute key should complete based on endorsed keys and what is present in 
 i.e. after the @ symbol at the start of a line, the used attributes should be completed.
 subsquently, values of the attribute key should be completed based on the values in that attribute key.
 }
+
+
+view_referenes_as_inlay_hints {
+  References should be shown as inlay hints in the editor.
+  This should be a toggleable setting, which should be available in the command palette.
+}

@@ -280,6 +280,17 @@ label { body }`);
         expect(isMarkdownLinkLabelPosition(document, position)).toBe(true);
     });
 
+    // rq:["../../../reqlan rq/extension/module/graphical_graph.rq".graphical_graph]
+    test('parse bare numbers in body text', async () => {
+        const document = await parse(s`
+            graphical_graph {
+                An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
+            }
+        `);
+        expect(document.parseResult.lexerErrors).toHaveLength(0);
+        expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".attribute_values]
     test('parse syntax_whitespace.rq body lines and insignificant attribute whitespace', async () => {
         const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax_whitespace.rq'), 'utf8'));

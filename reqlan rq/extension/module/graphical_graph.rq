@@ -1,0 +1,14 @@
+graphical_graph {
+    There should be a tab that renders requirement ideas and references as a force-directed web.
+    The graph tab lives in the Ideas Summary webview per [webview].
+    UI is implemented in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"].
+    Layout physics use d3-force in ["../../../packages/extension/webviews/ideas-summary/lib/graph-simulation.ts"].
+    Graph slices are built in ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"] and served by ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
+    By default the view focuses on the active editor file's first idea; without a focus it shows a capped slice of matching ideas rather than dumping the full graph.
+    Users can filter by search text, path, @status, and tags.
+    An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
+    Clicking a node opens its source; double-click or "Focus graph" recenters the slice on that idea.
+    External file references render as dashed edges to file nodes.
+    A toggleable key explains node colours and edge styles.
+    Pan, zoom, and drag repositioning are supported in the canvas.
+}

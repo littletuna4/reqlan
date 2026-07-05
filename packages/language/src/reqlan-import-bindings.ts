@@ -1,6 +1,7 @@
 import type { AstNode } from 'langium';
 import {
     isFromImport,
+    isNamespaceImport,
     isQualifiedImport,
     type FromImportSpecifier,
     type Import
@@ -55,6 +56,16 @@ export function importedIdeaNames(importDecl: Import): string[] {
         return [importDecl.idea.$refText];
     }
     return [];
+}
+
+export function findNamespaceImportByAlias(imports: Import[], alias: string): Import | undefined {
+    for (const importDecl of imports) {
+        if (!isNamespaceImport(importDecl) || importDecl.alias !== alias) {
+            continue;
+        }
+        return importDecl;
+    }
+    return undefined;
 }
 
 export function findFromImportSpecifierByBinding(

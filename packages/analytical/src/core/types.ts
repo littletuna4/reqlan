@@ -82,13 +82,27 @@ export interface SemanticMatch {
     reasons: string[];
 }
 
+export interface IdeaReferenceChip {
+    label: string;
+    fileUri: string;
+    line: number;
+    direction: 'inbound' | 'outbound';
+    filterKey: string;
+}
+
 export interface IdeaTableRow {
     id: string;
     title: string;
     path: string;
     mainAttribute?: string;
     otherAttributes: string;
+    otherAttributeItems: string[];
+    attributeValues: Record<string, string>;
     referenceCount: number;
+    outboundCount: number;
+    inboundCount: number;
+    outboundReferences: IdeaReferenceChip[];
+    inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
 }

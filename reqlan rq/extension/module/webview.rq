@@ -1,27 +1,75 @@
-import "../features-views.rq"  as views
-
+import "../features-views.rq" as views
+import "./index.rq" as index_reqs
+import "./graphical_graph.rq" as graphical_graph_doc
+import "../../../reqlan rq/development/core.rq" as development_core
+import "../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media
+import "../../../packages/analytical/src/index-store/webview-table-queries.ts" as webview_table_queries
+import "../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte" as IndexPanel
+import "../../../packages/extension/webviews/ideas-summary/components/IdeasTable.svelte" as IdeasTable
+import "../../../packages/extension/webviews/ideas-summary/components/TableToolbar.svelte" as TableToolbar
+import "../../../packages/extension/webviews/ideas-summary/components/SortableTh.svelte" as SortableTh
+import "../../../packages/extension/webviews/ideas-summary/components/ChipList.svelte" as ChipList
+import "../../../packages/extension/webviews/ideas-summary/components/IdeaBodyCell.svelte" as IdeaBodyCell
+import "../../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte" as IdeasetsTable
+import "../../../packages/extension/webviews/ideas-summary/components/ReferencesTable.svelte" as ReferencesTable
 webview {
     the webview module should have a page for the tables of a summary of ideas. 
-    per [simple_views]
+    per [views.simple_views]
     it should be performance conscious and avoid full-graph dumps. unless requested by the user.
     it should be paginated.
-    it should be filterable.
-
+    it should be filterable and sortable via a ui-sql layer.
+    webview UI is implemented with Svelte per [development_core]
+    the extension host loads compiled assets from [ideas_summary_media]
+    table queries are built in [webview_table_queries]
+    the extension host forwards query state through [ideas_summary_panel]
 }
 
 pages {
-    - ideas summary ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
-       - index ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:index panel"]
+    - ideas summary [ideas_summary_panel]
+       - [index_panel] [IndexPanel]
           - index state shown
           - summary stats
           - index errors listed
-       - ideas list ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideas panel"]
-       - ideasets ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideasets panel"]
-       - references ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:references panel"]
+       - ideas list [IdeasTable]
+          - filterable and sortable via [TableToolbar] and [SortableTh]
+          - other attributes shown as expandable chips per [ChipList]
+          - clicking an attribute chip adds a column, filters to ideas with a non-null value for that attribute, and sorts by it (combinable with other filters)
+          - references split into outbound and inbound chip columns with counts
+          - clicking a reference chip filters ideas that share that edge (combinable with other filters)
+          - block idea bodies shown in a scrollable cell per [IdeaBodyCell]
+       - ideasets [IdeasetsTable]
+          - filterable and sortable via ui-sql layer
+       - references [ReferencesTable]
+          - filterable and sortable via ui-sql layer
+       -  Graph view: see [graphical_graph_doc.graphical_graph]
 }
 
 idea_sets_tab {
     The idea sets page should list the ideasets
     unlike the ideas page, it should not directly to the ideaset, but should have a dropdown to it's items.
-    per ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideasets member dropdown"]
+    the path column should link to the ideaset source.
+    members should appear as chips with a … control to expand and show all member chips when needed.
+    per [IdeasetsTable]
 }
+
+index_panel {
+    the index panel should should show:
+    - the index state
+    - summary stats
+    - errors if present.
+    - button to refresh the index
+    - button to clear and rebuild the index
+    per [index_reqs.idea_index_triggers]
+}
+
+ideas_table_filters {
+    the ideas table should support text search, column sorting, and attribute-column filters driven by chip clicks.
+    attribute filters require a non-null attribute value in sqlite json per [webview_table_queries]
+    reference chip filters match outbound/inbound edges by target or source id per [webview_table_queries]
+    chips are right-aligned so truncated labels keep the informative suffix visible.
+    active attribute and reference filters appear as removable chips in the table toolbar.
+}
+
+
+graphical_graph_tab see [graphical_graph_doc.graphical_graph]

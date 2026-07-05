@@ -17,29 +17,52 @@
         "Programming Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "reqlan",
-            "aliases": ["reqlan", "rq"],
-            "extensions": [".rq"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "reqlan",
-            "scopeName": "source.reqlan",
-            "path": "syntaxes/reqlan.tmLanguage.json"
-        }],
+        "languages": [
+            {
+                "id": "reqlan",
+                "aliases": [
+                    "reqlan",
+                    "rq"
+                ],
+                "extensions": [
+                    ".rq"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "reqlan",
+                "scopeName": "source.reqlan",
+                "path": "syntaxes/reqlan.tmLanguage.json"
+            }
+        ],
         "semanticTokenScopes": [
             {
                 "language": "reqlan",
                 "scopes": {
-                    "decorator": ["entity.name.tag.attribute.reqlan"],
-                    "operator": ["punctuation.definition.attribute.reqlan"]
+                    "decorator": [
+                        "entity.name.tag.attribute.reqlan"
+                    ],
+                    "operator": [
+                        "punctuation.definition.attribute.reqlan"
+                    ]
                 }
             }
         ],
         "configurationDefaults": {
             "[reqlan]": {
                 "editor.semanticHighlighting.enabled": true
+            }
+        },
+        "configuration": {
+            "title": "Reqlan",
+            "properties": {
+                "reqlan.referencesInlayHints.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show inbound references as a @referenced-by inlay attribute on idea declarations in .rq editors."
+                }
             }
         },
         "viewsContainers": {
@@ -200,6 +223,11 @@
                 "title": "Open Idea"
             },
             {
+                "command": "reqlan.toggleReferenceInlayHints",
+                "title": "Toggle Reference Inlay Hints",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.openFolderReference",
                 "title": "Open Folder Reference"
             },
@@ -263,6 +291,7 @@
         "onCommand:reqlan.writePlan",
         "onCommand:reqlan.runPrompt",
         "onCommand:reqlan.openIdeasSummary",
+        "onCommand:reqlan.toggleReferenceInlayHints",
         "onChatParticipant:reqlan.reqlan",
         "onLanguage:reqlan",
         "onLanguage:python",
@@ -281,10 +310,11 @@
         "watch": "concurrently -n webviews,tsc,esbuild,syntax -c magenta,blue,yellow,cyan \"vite build --config webviews/ideas-summary/vite.config.ts --watch\" \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
     },
     "dependencies": {
-        "sqlite3": "~5.1.7",
+        "d3-force": "^3.0.0",
         "langium": "~4.3.0",
         "reqlan-analytical": "workspace:*",
         "reqlan-language": "workspace:*",
+        "sqlite3": "~5.1.7",
         "vscode-languageclient": "~10.0.0",
         "vscode-languageserver": "~10.0.0",
         "vscode-languageserver-textdocument": "~1.0.12",
@@ -293,6 +323,7 @@
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "~3.1.2",
         "@tsconfig/svelte": "~5.0.4",
+        "@types/d3-force": "^3.0.10",
         "@types/vscode": "~1.91.0",
         "concurrently": "~10.0.3",
         "esbuild": "~0.28.1",
@@ -300,6 +331,6 @@
         "vite": "~5.4.11"
     },
     "vsce": {
-      "dependencies": true
+        "dependencies": true
     }
 }

@@ -124,6 +124,27 @@ export class IndexService {
         return this.syncInFlight;
     }
 
+    async clearAndRebuildIndex(): Promise<boolean> {
+        if (!this.sqlite) {
+            return false;
+        }
+        if (this.syncInFlight) {
+            await this.syncInFlight;
+        }
+        const analytical = this.analytical.getState();
+        await this.sqlite.clearAll();
+        analytical.clearFileIndexIssues();
+        analytical.clearLastError();
+        analytical.setIndexReady({ ideaCount: 0, edgeCount: 0 });
+        this.analytical.setState({
+            documentUpdates: [],
+            workspaceChanges: []
+        });
+        this.notifyCatalogUpdated();
+        this.notifyStatusUpdated();
+        return this.syncWorkspace();
+    }
+
     async indexFile(uri: vscode.Uri): Promise<void> {
         if (!this.sqlite) {
             return;

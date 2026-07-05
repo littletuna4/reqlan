@@ -9,6 +9,7 @@ import type {
     EdgeKind,
     EdgeRecord,
     IdeaRecord,
+    IdeaReferenceChip,
     IdeaSummary,
     IdeasetKind,
     IdeasetMemberRow,
@@ -18,6 +19,22 @@ import type {
     ReferenceViewType
 } from '../core/types.js';
 import { ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
+import type {
+    IdeasTableQuery,
+    IdeasetsTableQuery,
+    ReferencesTableQuery
+} from './webview-table-queries.js';
+import type { GraphViewQuery } from './webview-graph-queries.js';
+import {
+    attributeValuesForKeys,
+    buildIdeasetsOrderClause,
+    buildIdeasetsWhereClause,
+    buildIdeasOrderClause,
+    buildIdeasWhereClause,
+    buildReferencesOrderClause,
+    buildReferencesWhereClause
+} from './webview-table-queries.js';
+import { buildGraphFilterWhereClause } from './webview-graph-queries.js';
 
 type SqliteDatabase = sqlite3.Database;
 
@@ -125,6 +142,19 @@ export class SqliteIndexStore {
             );
             await run(this.db, 'DELETE FROM ideas WHERE file_uri = ?', fileUri);
             await run(this.db, 'DELETE FROM documents WHERE file_uri = ?', fileUri);
+            await run(this.db, 'COMMIT');
+        } catch (error) {
+            await run(this.db, 'ROLLBACK');
+            throw error;
+        }
+    }
+
+    async clearAll(): Promise<void> {
+        await run(this.db, 'BEGIN');
+        try {
+            await run(this.db, 'DELETE FROM edges');
+            await run(this.db, 'DELETE FROM ideas');
+            await run(this.db, 'DELETE FROM documents');
             await run(this.db, 'COMMIT');
         } catch (error) {
             await run(this.db, 'ROLLBACK');
@@ -241,14 +271,41 @@ export class SqliteIndexStore {
         return rows.map(row => this.toSummary(row));
     }
 
-    async countIdeas(): Promise<number> {
+    async listIdeasForGraphQuery(
+        query: GraphViewQuery,
+        limit: number
+    ): Promise<{ candidates: IdeaSummary[]; totalMatching: number }> {
+        const { sql, params } = buildGraphFilterWhereClause(query);
+        const totalMatching = (await get<{ count: number }>(
+            this.db,
+            `SELECT COUNT(*) as count FROM ideas i WHERE ${sql}`,
+            ...params
+        ))!.count;
+        const rows = await all<SummaryRow>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+            FROM ideas i
+            WHERE ${sql}
+            ORDER BY i.file_uri ASC, i.line_start ASC
+            LIMIT ?
+        `, ...params, limit);
+        return {
+            candidates: rows.map(row => this.toSummary(row)),
+            totalMatching
+        };
+    }
+
+    async countIdeas(query: IdeasTableQuery = { page: 0, pageSize: 50, attributeColumns: [], referenceFilters: [] }): Promise<number> {
+        const { sql, params } = buildIdeasWhereClause(query);
         return (await get<{ count: number }>(
             this.db,
-            "SELECT COUNT(*) as count FROM ideas WHERE kind != 'ideaset'"
+            `SELECT COUNT(*) as count FROM ideas i WHERE ${sql}`,
+            ...params
         ))!.count;
     }
 
-    async listIdeasPage(offset: number, limit: number): Promise<IdeaTableRow[]> {
+    async listIdeasPage(query: IdeasTableQuery): Promise<IdeaTableRow[]> {
+        const { sql: whereSql, params: whereParams } = buildIdeasWhereClause(query);
+        const orderSql = buildIdeasOrderClause(query);
         const rows = await all<IdeaPageRow>(this.db, `
             SELECT
                 i.id,
@@ -260,56 +317,147 @@ export class SqliteIndexStore {
                 (
                     SELECT COUNT(*)
                     FROM edges e
-                    WHERE e.source_id = i.id OR e.target_id = i.id
-                ) AS reference_count
-            FROM ideas i
-            WHERE i.kind != 'ideaset'
-            ORDER BY i.file_uri, i.line_start
-            LIMIT ? OFFSET ?
-        `, limit, offset);
-        return rows.map(row => toIdeaTableRow(row));
-    }
-
-    async countIdeasets(): Promise<number> {
-        const row = await get<{ count: number }>(this.db, `
-            SELECT
-                (SELECT COUNT(*) FROM documents) +
-                (SELECT COUNT(*) FROM ideas WHERE kind = 'ideaset') AS count
-        `);
-        return row?.count ?? 0;
-    }
-
-    async listIdeasetsPage(offset: number, limit: number): Promise<IdeasetTableRow[]> {
-        const rows = await all<IdeasetPageRow>(this.db, `
-            SELECT
-                d.file_uri AS id,
-                'file' AS kind,
-                d.file_uri AS file_uri,
-                0 AS line_start,
-                NULL AS name,
-                (
-                    SELECT COUNT(*)
-                    FROM ideas i
-                    WHERE i.file_uri = d.file_uri
-                ) AS member_count
-            FROM documents d
-            UNION ALL
-            SELECT
-                i.id,
-                'explicit' AS kind,
-                i.file_uri,
-                i.line_start,
-                i.name,
+                    WHERE e.source_id = i.id
+                ) AS outbound_count,
                 (
                     SELECT COUNT(*)
                     FROM edges e
-                    WHERE e.source_id = i.id AND e.kind = 'ideaset_member'
-                ) AS member_count
+                    WHERE e.target_id = i.id
+                ) AS inbound_count,
+                (
+                    SELECT COUNT(*)
+                    FROM edges e
+                    WHERE e.source_id = i.id OR e.target_id = i.id
+                ) AS reference_count
             FROM ideas i
-            WHERE i.kind = 'ideaset'
-            ORDER BY file_uri, line_start
+            WHERE ${whereSql}
+            ORDER BY ${orderSql}
             LIMIT ? OFFSET ?
-        `, limit, offset);
+        `, ...whereParams, query.pageSize, query.page * query.pageSize);
+        const ideaIds = rows.map(row => row.id);
+        const referencesByIdea = await this.listReferenceChipsForIdeas(ideaIds);
+        return rows.map(row => {
+            const references = referencesByIdea.get(row.id) ?? { outbound: [], inbound: [] };
+            return toIdeaTableRow(row, query.attributeColumns, references.outbound, references.inbound);
+        });
+    }
+
+    async listReferenceChipsForIdeas(
+        ideaIds: string[]
+    ): Promise<Map<string, { outbound: IdeaReferenceChip[]; inbound: IdeaReferenceChip[] }>> {
+        const result = new Map<string, { outbound: IdeaReferenceChip[]; inbound: IdeaReferenceChip[] }>();
+        if (ideaIds.length === 0) {
+            return result;
+        }
+        const placeholders = ideaIds.map(() => '?').join(', ');
+        const rows = await all<ReferenceChipRow>(this.db, `
+            SELECT
+                e.id,
+                e.kind,
+                e.source_id,
+                e.target_id,
+                e.target_file,
+                e.label,
+                si.name AS source_name,
+                si.file_uri AS source_uri,
+                si.line_start AS source_line,
+                ti.name AS target_name,
+                ti.file_uri AS target_uri,
+                ti.line_start AS target_line
+            FROM edges e
+            JOIN ideas si ON si.id = e.source_id
+            LEFT JOIN ideas ti ON ti.id = e.target_id
+            WHERE e.source_id IN (${placeholders}) OR e.target_id IN (${placeholders})
+            ORDER BY e.id
+        `, ...ideaIds, ...ideaIds);
+        for (const ideaId of ideaIds) {
+            result.set(ideaId, { outbound: [], inbound: [] });
+        }
+        for (const row of rows) {
+            if (ideaIds.includes(row.source_id)) {
+                result.get(row.source_id)!.outbound.push(toOutgoingReferenceChip(row));
+            }
+            if (row.target_id && ideaIds.includes(row.target_id)) {
+                result.get(row.target_id)!.inbound.push(toIncomingReferenceChip(row));
+            }
+        }
+        return result;
+    }
+
+    async countIdeasets(query: IdeasetsTableQuery = { page: 0, pageSize: 50 }): Promise<number> {
+        const { sql, params } = buildIdeasetsWhereClause(query);
+        const row = await get<{ count: number }>(this.db, `
+            SELECT COUNT(*) AS count
+            FROM (
+                SELECT
+                    d.file_uri AS id,
+                    'file' AS kind,
+                    d.file_uri AS file_uri,
+                    0 AS line_start,
+                    NULL AS name,
+                    (
+                        SELECT COUNT(*)
+                        FROM ideas i
+                        WHERE i.file_uri = d.file_uri
+                    ) AS member_count
+                FROM documents d
+                UNION ALL
+                SELECT
+                    i.id,
+                    'explicit' AS kind,
+                    i.file_uri,
+                    i.line_start,
+                    i.name,
+                    (
+                        SELECT COUNT(*)
+                        FROM edges e
+                        WHERE e.source_id = i.id AND e.kind = 'ideaset_member'
+                    ) AS member_count
+                FROM ideas i
+                WHERE i.kind = 'ideaset'
+            ) ideasets
+            WHERE ${sql}
+        `, ...params);
+        return row?.count ?? 0;
+    }
+
+    async listIdeasetsPage(query: IdeasetsTableQuery): Promise<IdeasetTableRow[]> {
+        const { sql: whereSql, params: whereParams } = buildIdeasetsWhereClause(query);
+        const orderSql = buildIdeasetsOrderClause(query);
+        const rows = await all<IdeasetPageRow>(this.db, `
+            SELECT *
+            FROM (
+                SELECT
+                    d.file_uri AS id,
+                    'file' AS kind,
+                    d.file_uri AS file_uri,
+                    0 AS line_start,
+                    NULL AS name,
+                    (
+                        SELECT COUNT(*)
+                        FROM ideas i
+                        WHERE i.file_uri = d.file_uri
+                    ) AS member_count
+                FROM documents d
+                UNION ALL
+                SELECT
+                    i.id,
+                    'explicit' AS kind,
+                    i.file_uri,
+                    i.line_start,
+                    i.name,
+                    (
+                        SELECT COUNT(*)
+                        FROM edges e
+                        WHERE e.source_id = i.id AND e.kind = 'ideaset_member'
+                    ) AS member_count
+                FROM ideas i
+                WHERE i.kind = 'ideaset'
+            ) ideasets
+            WHERE ${whereSql}
+            ORDER BY ${orderSql}
+            LIMIT ? OFFSET ?
+        `, ...whereParams, query.pageSize, query.page * query.pageSize);
         const ideasets = rows.map(row => toIdeasetTableRow(row));
         return Promise.all(ideasets.map(async ideaset => ({
             ...ideaset,
@@ -343,11 +491,24 @@ export class SqliteIndexStore {
         }));
     }
 
-    async countReferences(): Promise<number> {
-        return (await get<{ count: number }>(this.db, 'SELECT COUNT(*) as count FROM edges'))!.count;
+    async countReferences(query: ReferencesTableQuery = { page: 0, pageSize: 50 }): Promise<number> {
+        const { sql, params } = buildReferencesWhereClause(query);
+        return (await get<{ count: number }>(
+            this.db,
+            `
+            SELECT COUNT(*) as count
+            FROM edges e
+            JOIN ideas si ON si.id = e.source_id
+            LEFT JOIN ideas ti ON ti.id = e.target_id
+            WHERE ${sql}
+        `,
+            ...params
+        ))!.count;
     }
 
-    async listReferencesPage(offset: number, limit: number): Promise<ReferenceTableRow[]> {
+    async listReferencesPage(query: ReferencesTableQuery): Promise<ReferenceTableRow[]> {
+        const { sql: whereSql, params: whereParams } = buildReferencesWhereClause(query);
+        const orderSql = buildReferencesOrderClause(query);
         const rows = await all<ReferencePageRow>(this.db, `
             SELECT
                 e.kind,
@@ -362,9 +523,10 @@ export class SqliteIndexStore {
             FROM edges e
             JOIN ideas si ON si.id = e.source_id
             LEFT JOIN ideas ti ON ti.id = e.target_id
-            ORDER BY si.file_uri, si.line_start, e.id
+            WHERE ${whereSql}
+            ORDER BY ${orderSql}
             LIMIT ? OFFSET ?
-        `, limit, offset);
+        `, ...whereParams, query.pageSize, query.page * query.pageSize);
         return rows.map(row => toReferenceTableRow(row));
     }
 
@@ -482,6 +644,8 @@ interface IdeaPageRow {
     line_start: number;
     summary: string;
     attributes_json: string;
+    outbound_count: number;
+    inbound_count: number;
     reference_count: number;
 }
 
@@ -512,15 +676,27 @@ interface ReferencePageRow {
     target_uri: string | null;
 }
 
-function toIdeaTableRow(row: IdeaPageRow): IdeaTableRow {
+function toIdeaTableRow(
+    row: IdeaPageRow,
+    attributeColumns: string[],
+    outboundReferences: IdeaReferenceChip[],
+    inboundReferences: IdeaReferenceChip[]
+): IdeaTableRow {
     const attributes = parseAttributes(row.attributes_json);
+    const otherAttributeItems = formatOtherAttributeItems(attributes);
     return {
         id: row.id,
         title: row.name,
         path: row.file_uri,
         mainAttribute: row.summary || undefined,
-        otherAttributes: formatOtherAttributes(attributes),
+        otherAttributes: otherAttributeItems.join('; '),
+        otherAttributeItems,
+        attributeValues: attributeValuesForKeys(row.attributes_json, attributeColumns),
         referenceCount: row.reference_count,
+        outboundCount: row.outbound_count,
+        inboundCount: row.inbound_count,
+        outboundReferences,
+        inboundReferences,
         fileUri: row.file_uri,
         lineStart: row.line_start
     };
@@ -547,7 +723,7 @@ function implicitIdeasetName(fileUri: string): string {
     return fileName.endsWith('.rq') ? fileName.slice(0, -3) : fileName;
 }
 
-function formatOtherAttributes(attributes: ReturnType<typeof parseAttributes>): string {
+function formatOtherAttributeItems(attributes: ReturnType<typeof parseAttributes>): string[] {
     const parts: string[] = [];
     for (const [key, value] of Object.entries(attributes)) {
         let rendered: string | undefined;
@@ -562,7 +738,46 @@ function formatOtherAttributes(attributes: ReturnType<typeof parseAttributes>): 
             parts.push(rendered);
         }
     }
-    return parts.join('; ');
+    return parts;
+}
+
+interface ReferenceChipRow {
+    id: string;
+    kind: string;
+    source_id: string;
+    target_id: string | null;
+    target_file: string | null;
+    label: string | null;
+    source_name: string;
+    source_uri: string;
+    source_line: number;
+    target_name: string | null;
+    target_uri: string | null;
+    target_line: number | null;
+}
+
+function toOutgoingReferenceChip(row: ReferenceChipRow): IdeaReferenceChip {
+    const targetName = row.target_name ?? row.label ?? row.target_file ?? '—';
+    const filterKey = row.target_id
+        ? `outbound:idea:${row.target_id}`
+        : `outbound:file:${row.target_file ?? row.label ?? ''}`;
+    return {
+        label: targetName,
+        fileUri: row.target_uri ?? row.source_uri,
+        line: row.target_line ?? row.source_line,
+        direction: 'outbound',
+        filterKey
+    };
+}
+
+function toIncomingReferenceChip(row: ReferenceChipRow): IdeaReferenceChip {
+    return {
+        label: row.source_name,
+        fileUri: row.source_uri,
+        line: row.source_line,
+        direction: 'inbound',
+        filterKey: `inbound:idea:${row.source_id}`
+    };
 }
 
 function toReferenceTableRow(row: ReferencePageRow): ReferenceTableRow {

@@ -1,70 +1,87 @@
 <script lang="ts">
-    import type { IdeasetTableRow } from '../../../src/webview_module/shared/messages.js';
+    import type { IdeasetsTableQuery, IdeasetTableRow } from '../../../src/webview_module/shared/messages.js';
     import { createEventDispatcher } from 'svelte';
+    import ChipList from './ChipList.svelte';
     import Pager from './Pager.svelte';
+    import SortableTh from './SortableTh.svelte';
+    import TableToolbar from './TableToolbar.svelte';
 
     export let rows: IdeasetTableRow[] = [];
-    export let page = 0;
+    export let query: IdeasetsTableQuery;
     export let total = 0;
-    export let pageSize = 50;
 
     const dispatch = createEventDispatcher<{
         openMember: { fileUri: string; line: number };
+        openSource: { fileUri: string; line: number };
+        queryChange: IdeasetsTableQuery;
         prev: void;
         next: void;
     }>();
 
-    function memberPlaceholder(row: IdeasetTableRow): string {
-        const count = row.members?.length ?? row.memberCount ?? 0;
-        return count === 0 ? 'No members' : `Open member (${count})…`;
+    function emitQuery(next: IdeasetsTableQuery): void {
+        dispatch('queryChange', next);
     }
 
-    function handleMemberSelect(event: Event, row: IdeasetTableRow): void {
-        const select = event.currentTarget as HTMLSelectElement;
-        const index = Number(select.value);
-        if (Number.isNaN(index) || index < 0) {
-            return;
-        }
-        const member = row.members[index];
+    function memberItems(row: IdeasetTableRow): string[] {
+        return (row.members ?? []).map(member => member.name);
+    }
+
+    function openMember(row: IdeasetTableRow, index: number): void {
+        const member = row.members?.[index];
         if (!member) {
             return;
         }
         dispatch('openMember', { fileUri: member.fileUri, line: member.lineStart });
-        select.value = '';
+    }
+
+    function openSource(row: IdeasetTableRow): void {
+        dispatch('openSource', { fileUri: row.fileUri, line: row.lineStart });
+    }
+
+    function handleSearch(event: CustomEvent<string>): void {
+        emitQuery({ ...query, page: 0, search: event.detail || undefined });
+    }
+
+    function handleSort(event: CustomEvent<{ sortKey: string }>): void {
+        const sortKey = event.detail.sortKey as IdeasetsTableQuery['sortBy'];
+        const sortDir = query.sortBy === sortKey && query.sortDir === 'asc' ? 'desc' : 'asc';
+        emitQuery({ ...query, page: 0, sortBy: sortKey, sortDir });
     }
 </script>
+
+<TableToolbar search={query.search ?? ''} placeholder="Filter ideasets…" on:search={handleSearch} />
 
 <table>
     <thead>
         <tr>
-            <th style="width:22%">Name</th>
-            <th style="width:28%">Path</th>
-            <th style="width:14%">Kind</th>
-            <th style="width:36%">Members</th>
+            <SortableTh label="Name" sortKey="name" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="22%" on:sort={handleSort} />
+            <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="28%" on:sort={handleSort} />
+            <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
+            <SortableTh label="Members" sortKey="members" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="36%" on:sort={handleSort} />
         </tr>
     </thead>
     <tbody>
         {#each rows as row (row.id)}
-            {@const memberCount = row.members?.length ?? row.memberCount ?? 0}
             <tr>
                 <td>{row.name}</td>
-                <td>{row.path}</td>
+                <td>
+                    <button type="button" class="path-link" on:click={() => openSource(row)}>
+                        {row.path}
+                    </button>
+                </td>
                 <td>{row.kind === 'file' ? 'file (implicit)' : 'explicit'}</td>
                 <td>
-                    <select
-                        class="member-select"
-                        disabled={memberCount === 0}
-                        on:change={(event) => handleMemberSelect(event, row)}
-                    >
-                        <option value="">{memberPlaceholder(row)}</option>
-                        {#each row.members ?? [] as member, index (member.fileUri + member.lineStart)}
-                            <option value={index}>{member.name}</option>
-                        {/each}
-                    </select>
+                    <ChipList
+                        items={memberItems(row)}
+                        titles={memberItems(row)}
+                        clickable
+                        emptyLabel="No members"
+                        on:select={(event) => openMember(row, event.detail.index)}
+                    />
                 </td>
             </tr>
         {/each}
     </tbody>
 </table>
 
-<Pager {page} {total} {pageSize} label="ideasets" on:prev on:next />
+<Pager page={query.page} {total} pageSize={query.pageSize} label="ideasets" on:prev on:next />

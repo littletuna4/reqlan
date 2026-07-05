@@ -75,6 +75,60 @@ th {
     font-weight: 600;
 }
 
+th.sort-active {
+    color: var(--vscode-textLink-foreground);
+}
+
+.table-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.table-filter {
+    flex: 1 1 220px;
+    min-width: 180px;
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 4px 8px;
+    border-radius: 2px;
+}
+
+.active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--vscode-focusBorder);
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    color: var(--vscode-foreground);
+    font: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+
+.filter-chip:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.member-chip-active {
+    outline: 1px solid var(--vscode-focusBorder);
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
 tr.clickable {
     cursor: pointer;
 }
@@ -105,7 +159,15 @@ button:disabled {
 }
 
 .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
     margin-bottom: 12px;
+}
+
+button.secondary {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
 }
 
 pre.dump {
@@ -236,6 +298,91 @@ pre.dump {
     border-radius: 2px;
 }
 
+.path-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--vscode-textLink-foreground);
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    word-break: break-word;
+}
+
+.path-link:hover {
+    color: var(--vscode-textLink-activeForeground);
+}
+
+.member-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.member-chips-end {
+    justify-content: flex-end;
+}
+
+.member-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    font: inherit;
+    font-size: 0.85em;
+    overflow: hidden;
+}
+
+.member-chip-text {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+    unicode-bidi: plaintext;
+}
+
+button.member-chip {
+    cursor: pointer;
+}
+
+button.member-chip:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.member-chip-more {
+    font-weight: 600;
+}
+
+.member-empty {
+    color: var(--vscode-descriptionForeground);
+}
+
+.ref-count {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--vscode-descriptionForeground);
+}
+
+.idea-body {
+    max-height: 6em;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+}
+
+.body-cell {
+    vertical-align: top;
+}
+
 .issues-table-scroll {
     max-height: min(320px, 40vh);
     overflow: auto;
@@ -254,4 +401,208 @@ pre.dump {
     z-index: 1;
     background: var(--vscode-editor-background);
     box-shadow: 0 1px 0 var(--vscode-panel-border);
+}
+
+.graph-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.graph-filter {
+    flex: 0 1 140px;
+    min-width: 120px;
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 4px 8px;
+    border-radius: 2px;
+}
+
+.graph-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: var(--vscode-foreground);
+    white-space: nowrap;
+}
+
+.graph-meta {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+}
+
+.graph-surface {
+    position: relative;
+    min-height: 360px;
+    height: min(70vh, 640px);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    touch-action: none;
+    cursor: grab;
+}
+
+button.secondary.active {
+    outline: 1px solid var(--vscode-focusBorder);
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.graph-key {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    min-width: 180px;
+    max-width: min(240px, calc(100% - 20px));
+    padding: 10px 12px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    background: var(--vscode-editor-background);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    cursor: default;
+}
+
+.graph-key-title {
+    font-weight: 600;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+}
+
+.graph-key-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.graph-key-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    color: var(--vscode-foreground);
+}
+
+.graph-key-swatch {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.graph-key-line {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 0;
+    border-top: 2px solid var(--vscode-panel-border);
+}
+
+.graph-key-line.dashed {
+    border-top-style: dashed;
+    border-top-color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.graph-key-line.solid {
+    border-top-color: var(--vscode-panel-border);
+}
+
+.graph-surface:active {
+    cursor: grabbing;
+}
+
+.graph-svg {
+    display: block;
+}
+
+.graph-edge {
+    stroke: var(--vscode-panel-border);
+    stroke-width: 1.5;
+    pointer-events: none;
+}
+
+.graph-edge.external {
+    stroke-dasharray: 4 3;
+    stroke: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.graph-node {
+    cursor: pointer;
+}
+
+.graph-node circle {
+    stroke: var(--vscode-editor-background);
+    stroke-width: 2;
+}
+
+.graph-node.center circle {
+    stroke: var(--vscode-focusBorder);
+    stroke-width: 3;
+}
+
+.graph-node.selected circle {
+    stroke: var(--vscode-textLink-activeForeground);
+    stroke-width: 3;
+}
+
+.graph-node circle.external {
+    fill-opacity: 0.85;
+}
+
+.graph-label,
+.graph-sublabel {
+    text-anchor: middle;
+    pointer-events: none;
+    fill: var(--vscode-foreground);
+    font-size: 11px;
+}
+
+.graph-sublabel {
+    fill: var(--vscode-descriptionForeground);
+    font-size: 10px;
+}
+
+.graph-empty {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+}
+
+.graph-selection {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.graph-selection-path,
+.graph-selection-tags {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
+}
+
+.graph-selection-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.graph-hint {
+    margin: 0;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.85em;
 }
