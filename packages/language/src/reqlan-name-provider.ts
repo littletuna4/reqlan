@@ -6,6 +6,7 @@ import type { AstNode, CstNode } from 'langium';
 import { DefaultNameProvider, GrammarUtils } from 'langium';
 import {
     isFromImport,
+    isFromImportSpecifier,
     isIdea,
     isIdeaSet,
     isNamespaceImport,
@@ -44,9 +45,12 @@ export class ReqlanNameProvider extends DefaultNameProvider {
 }
 
 function isImportWithAlias(node: AstNode): node is Import & { alias: string } {
-    return (isFromImport(node) || isNamespaceImport(node) || isQualifiedImport(node)) && node.alias !== undefined;
+    return (isFromImportSpecifier(node) || isNamespaceImport(node) || isQualifiedImport(node)) && node.alias !== undefined;
 }
 
 function isImportWithPath(node: AstNode): node is Import & { path: string } {
-    return (isFromImport(node) || isNamespaceImport(node) || isQualifiedImport(node)) && node.alias === undefined;
+    if (isFromImport(node)) {
+        return true;
+    }
+    return (isNamespaceImport(node) || isQualifiedImport(node)) && node.alias === undefined;
 }

@@ -1,4 +1,4 @@
-import type { Model } from 'reqlan-language';
+import type { Model, TopLevelElement } from 'reqlan-language';
 import { expandToNode, joinToNode, toString } from 'langium/generate';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -11,7 +11,7 @@ export function generateJavaScript(model: Model, filePath: string, destination: 
     const fileNode = expandToNode`
         "use strict";
 
-        ${joinToNode(model.elements, element => `// ${element.$type}`, { appendNewLineIfNotEmpty: true })}
+        ${joinToNode(model.elements, (element: TopLevelElement) => `// ${element.$type}`, { appendNewLineIfNotEmpty: true })}
     `.appendNewLineIfNotEmpty();
 
     if (!fs.existsSync(data.destination)) {

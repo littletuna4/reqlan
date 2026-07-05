@@ -1,0 +1,28 @@
+{
+    "name": "reqlan-mcp",
+    "description": "MCP server exposing reqlan requirement graph tools",
+    "version": "0.0.1",
+    "type": "module",
+    "license": "AGPL-3.0-only",
+    "engines": {
+        "node": ">=20.10.0"
+    },
+    "bin": {
+        "reqlan-mcp": "./bin/mcp.js"
+    },
+    "main": "./out/main.js",
+    "scripts": {
+        "clean": "shx rm -fr *.tsbuildinfo out",
+        "build": "tsc -b tsconfig.json",
+        "build:clean": "pnpm run clean && pnpm run build",
+        "start": "node ./bin/mcp.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.12.1",
+        "reqlan-analytical": "workspace:*",
+        "zod": "^3.24.2"
+    },
+    "devDependencies": {
+        "shx": "~0.4.0"
+    }
+}

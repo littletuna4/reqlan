@@ -1,0 +1,4 @@
+attribute_configuration {
+    The extension should be largely unopinionated about attributes, allowing users to extend as they see fit.
+    attributes should be as slim as possible to allow for minimised bloat.
+}

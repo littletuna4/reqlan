@@ -1,0 +1,15 @@
+chat_participant {
+    the chat participant module should expose @reqlan in vscode chat.
+    it should consume analysis functions from the analytical submodule rather than duplicating graph logic.
+    slash commands should use the rq- prefix only in chat, e.g. rq-search, rq-context, rq-graph, and rq-related for the active file.
+}
+
+chat_participant_completion {
+    file and requirement references should be code completed in the chat window via #file and #requirement language model tools.
+}
+
+mcp {
+    to support cursor/non-ms tools, this surface should be replicated/wrapped as an mcp server too.
+    the mcp package exposes the same analysis api as @reqlan chat via stdio tools.
+    cursor project config lives in [".cursor/mcp.json"] and skills sync to [".cursor/skills"] via scripts/sync-cursor-ai.mjs.
+}

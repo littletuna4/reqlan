@@ -2,18 +2,24 @@
  * Analytical submodule: idea graph index and analysers for the reqlan extension.
  */
 import type * as vscode from 'vscode';
-import { createAnalyticalStore, type AnalyticalStore } from './core/analytical-store.js';
-import { AnalyserRegistry } from './analysis/analyser-registry.js';
-import { listAllIdeasAnalyser } from './analysis/list-ideas-analyser.js';
-import { fileRelatedAnalyser } from './analysis/file-related-analyser.js';
-import { deprecationImpactAnalyser } from './analysis/deprecation-impact-analyser.js';
-import { gitDatesAnalyser } from './analysis/git-dates-analyser.js';
-import { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
-import { localGraphAnalyser } from './analysis/local-graph-analyser.js';
-import { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
+import {
+    AnalyserRegistry,
+    createAnalyticalStore,
+    completionTrackingAnalyser,
+    deprecationImpactAnalyser,
+    fileRelatedAnalyser,
+    gitDatesAnalyser,
+    listAllIdeasAnalyser,
+    localGraphAnalyser,
+    semanticSearchAnalyser,
+    type AnalyticalStore
+} from 'reqlan-analytical';
 import { IndexService } from './index-store/index-service.js';
 import { registerAnalyticalCommands } from './commands/register-commands.js';
 import { registerActivityBarModule } from '../activity_bar_module/index.js';
+import { registerChatParticipantModule } from '../chat_participant_module/index.js';
+import { registerWebviewModule } from '../webview_module/index.js';
+import { registerAiCommandsModule } from '../ai_commands_module/index.js';
 
 export type {
     AnalyticalState,
@@ -25,9 +31,9 @@ export type {
     IndexState,
     WorkspaceChange,
     WorkspaceFileChange
-} from './core/analytical-store.js';
-export type { Analyser, AnalyserContext } from './analysis/analyser-registry.js';
-export * from './core/types.js';
+} from 'reqlan-analytical';
+export type { Analyser, AnalyserContext } from 'reqlan-analytical';
+export * from 'reqlan-analytical';
 
 export interface AnalyticalSubmodule {
     store: AnalyticalStore;
@@ -55,6 +61,9 @@ export async function activateAnalyticalSubmodule(
     const submodule = { store, index, analysers };
     registerAnalyticalCommands(context, submodule);
     registerActivityBarModule(context, submodule);
+    registerChatParticipantModule(context, submodule);
+    registerWebviewModule(context, submodule);
+    registerAiCommandsModule(context, submodule);
 
     context.subscriptions.push({
         dispose: () => {

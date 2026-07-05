@@ -4,24 +4,21 @@
     "version": "0.0.1",
     "type": "module",
     "private": true,
-    "packageManager": "pnpm@11.8.0",
+    "packageManager": "pnpm@11.9.0",
     "scripts": {
         "clean": "pnpm -r run clean",
         "watch": "concurrently -n langium,tsc,ext -c magenta,blue,green \"pnpm run langium:watch\" \"tsc -b tsconfig.build.json --watch\" \"pnpm --filter ./packages/extension run watch\"",
-        "build": "pnpm run langium:generate && tsc -b tsconfig.build.json && pnpm -r run build",
+        "sync:cursor": "node scripts/sync-cursor-ai.mjs",
+        "build": "pnpm run langium:generate && tsc -b tsconfig.build.json && pnpm -r run build && pnpm run sync:cursor",
         "build:clean": "pnpm run clean && pnpm run build",
         "langium:generate": "pnpm --filter ./packages/language run langium:generate",
         "langium:watch": "pnpm --filter ./packages/language run langium:watch",
         "test": "pnpm --filter ./packages/language run test"
     },
     "devDependencies": {
-        "@types/better-sqlite3": "^7.6.13",
         "@types/node": "~20.19.42",
         "concurrently": "~10.0.3",
         "shx": "~0.4.0",
         "typescript": "~5.9.3"
-    },
-    "dependencies": {
-        "better-sqlite3": "^12.11.1"
     }
 }

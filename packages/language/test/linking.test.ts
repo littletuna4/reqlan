@@ -7,7 +7,16 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from 'reqlan-language';
+import type { QualifiedReference } from 'reqlan-language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
+import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
+import {
+    createSourceTextDocument,
+    findCommentReferencesInText,
+    resolveFileUri
+} from '../src/reqlan-comment-resolver.js';
+import { findCommentDefinitionAtPosition } from '../src/reqlan-reference-at-position.js';
+import { findTestLineInText } from '../src/reqlan-file-references.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const exampleDir = join(repoDir, 'example_rq_project');
@@ -47,6 +56,7 @@ async function parseDocumentsTogether(filenames: string[]): Promise<LangiumDocum
 
 describe('Linking tests', () => {
 
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
     test('resolve wikilink to idea declaration in main.rq', async () => {
         document = await parse(readFileSync(join(exampleDir, 'main.rq'), 'utf8'));
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
@@ -67,6 +77,7 @@ describe('Linking tests', () => {
         `);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_qualified]
     test('resolve import alias in qualified wikilink', async () => {
         const documents = await parseDocumentsTogether(['exampleimport2.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -86,6 +97,7 @@ describe('Linking tests', () => {
         expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.qualifier?.error).toBeUndefined();
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_qualified]
     test('resolve import path in qualified wikilink', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -105,6 +117,7 @@ describe('Linking tests', () => {
         expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.path?.error).toBeUndefined();
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('go to definition on import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -139,6 +152,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('go to definition on wikilink import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -153,7 +167,7 @@ describe('Linking tests', () => {
         const pathLink = [...AstUtils.streamAst(subDocument.parseResult.value)]
             .filter(isWikiLink)
             .map(link => link.target)
-            .find(target => isQualifiedReference(target) && target.path?.ref);
+            .find((target): target is QualifiedReference => isQualifiedReference(target) && !!target.path?.ref);
 
         expect(pathLink?.path?.ref).toBeDefined();
         if (!pathLink?.path?.$refNode) {
@@ -169,6 +183,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('go to definition on wikilink idea still opens idea declaration', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -180,19 +195,19 @@ describe('Linking tests', () => {
             return;
         }
 
-        const pathLink = [...AstUtils.streamAst(subDocument.parseResult.value)]
+        const ideaLink = [...AstUtils.streamAst(subDocument.parseResult.value)]
             .filter(isWikiLink)
             .map(link => link.target)
-            .find(target => isQualifiedReference(target) && target.path?.ref);
+            .find((target): target is QualifiedReference => isQualifiedReference(target) && !!target.path?.ref);
 
-        expect(pathLink?.idea?.$refNode).toBeDefined();
-        if (!pathLink?.idea?.$refNode) {
+        expect(ideaLink?.idea?.$refNode).toBeDefined();
+        if (!ideaLink?.idea?.$refNode) {
             return;
         }
 
         const links = await services.Reqlan.lsp.DefinitionProvider?.getDefinition(subDocument, {
             textDocument: { uri: subDocument.textDocument.uri },
-            position: subDocument.textDocument.positionAt(pathLink.idea.$refNode.offset)
+            position: subDocument.textDocument.positionAt(ideaLink.idea.$refNode.offset)
         });
 
         expect(links).toHaveLength(1);
@@ -200,6 +215,7 @@ describe('Linking tests', () => {
         expect(importedDocument.textDocument.getText(links![0].targetSelectionRange!)).toBe('myimportableIdea');
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
     test('rename finds import path declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -226,6 +242,7 @@ describe('Linking tests', () => {
         expect(pathTexts.length).toBeGreaterThanOrEqual(2);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
     test('rename finds import alias declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['exampleimport2.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -250,6 +267,7 @@ describe('Linking tests', () => {
         expect(texts.filter(text => text === 'exampleimport2').length).toBeGreaterThanOrEqual(2);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".sensible_graph_resolution]
     test('import idea reference resolves to imported file when local idea shares name', async () => {
         const subreqs = services.shared.workspace.LangiumDocumentFactory.fromString(
             'myidea imported body',
@@ -271,12 +289,13 @@ describe('Linking tests', () => {
             element => isOneLinerIdea(element) && element.name === 'myidea'
         );
 
-        expect(fromImport?.idea.ref && AstUtils.getDocument(fromImport.idea.ref).uri.path).toBe('/tmp/subreqs.rq');
-        expect(fromImport?.idea.ref?.name).toBe('myidea');
+        expect(fromImport?.specifiers[0]?.idea.ref && AstUtils.getDocument(fromImport.specifiers[0].idea.ref).uri.path).toBe('/tmp/subreqs.rq');
+        expect(fromImport?.specifiers[0]?.idea.ref?.name).toBe('myidea');
         expect(localIdea).toBeDefined();
-        expect(fromImport?.idea.ref).not.toBe(localIdea);
+        expect(fromImport?.specifiers[0]?.idea.ref).not.toBe(localIdea);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
     test('rename finds all idea references including wikilinks', async () => {
         document = await parse(`alpha {
     see [[beta]]
@@ -301,6 +320,7 @@ beta {
         expect(texts.filter(text => text === 'beta').length).toBeGreaterThanOrEqual(2);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('resolve anonymous import in bracket reference without import statement', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -331,6 +351,7 @@ beta {
         expect(AstUtils.getDocument(bracketRef.target.idea.ref!).uri.path).toContain('ontology.rq');
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import path opens source file', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -351,9 +372,14 @@ beta {
             .filter(isBracketReference)
             .find(ref => isQualifiedReference(ref.target) && ref.target.path?.$refNode);
 
+        expect(bracketRef).toBeDefined();
+        if (!bracketRef || !isQualifiedReference(bracketRef.target)) {
+            return;
+        }
+
         const pathNode = GrammarUtils.findNodeForProperty(bracketRef.target.$cstNode, 'path');
         expect(pathNode).toBeDefined();
-        if (!pathNode || !isQualifiedReference(bracketRef.target)) {
+        if (!pathNode) {
             return;
         }
 
@@ -371,6 +397,7 @@ beta {
         expect(links?.[0].targetUri).toBe(ontology.textDocument.uri);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import idea opens idea declaration', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -391,8 +418,8 @@ beta {
             .filter(isBracketReference)
             .find(ref => isQualifiedReference(ref.target) && ref.target.idea?.$refNode);
 
-        expect(bracketRef?.target.idea?.$refNode).toBeDefined();
-        if (!bracketRef?.target.idea?.$refNode) {
+        expect(bracketRef).toBeDefined();
+        if (!bracketRef || !isQualifiedReference(bracketRef.target) || !bracketRef.target.idea?.$refNode) {
             return;
         }
 
@@ -406,9 +433,15 @@ beta {
         expect(ontology.textDocument.getText(links![0].targetSelectionRange!)).toBe('attribute');
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
     test('document links resolve test file references to the matching test', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const featuresPath = join(repoDir, 'reqlan rq/extension/features-syntax.rq');
+        const validatingPath = join(repoDir, 'packages/language/test/validating.test.ts');
+        const testName = 'reports duplicate when local idea shares imported idea name';
+        const testLine = findTestLineInText(readFileSync(validatingPath, 'utf8'), testName);
+        expect(testLine).toBeDefined();
+
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             readFileSync(featuresPath, 'utf8'),
             URI.parse(pathToFileURL(featuresPath).href)
@@ -416,14 +449,20 @@ beta {
         fileServices.shared.workspace.LangiumDocuments.addDocument(document);
         await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
 
-        const position = { line: 45, character: 20 };
-
         const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
             textDocument: { uri: document.textDocument.uri }
         });
-        const matchingLink = links?.find(link => link.range.start.line === 45);
+        const expectedLineFragment = `#L${testLine! + 1}`;
+        const matchingLink = links?.find(link =>
+            link.target?.includes('validating.test.ts') && link.target.includes(expectedLineFragment)
+        );
         expect(matchingLink?.target).toContain('validating.test.ts');
-        expect(matchingLink?.target).toContain('#L44');
+        expect(matchingLink?.target).toContain(expectedLineFragment);
+
+        const position = {
+            line: matchingLink!.range.start.line,
+            character: matchingLink!.range.start.character + 5
+        };
 
         const definitions = await fileServices.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
             textDocument: { uri: document.textDocument.uri },
@@ -431,7 +470,110 @@ beta {
         });
         expect(definitions).toHaveLength(1);
         expect(definitions?.[0].targetUri).toContain('validating.test.ts');
-        expect(definitions?.[0].targetSelectionRange?.start.line).toBe(43);
+        expect(definitions?.[0].targetSelectionRange?.start.line).toBe(testLine);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    test('classifyReferenceUri treats existing directories as folders', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                folder_reference {
+                    see ["./module"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const targetUri = resolveFileUri('./module', document);
+        const resolution = classifyReferenceUri(
+            targetUri,
+            fileServices.shared.workspace.LangiumDocuments,
+            fileServices.shared.workspace.FileSystemProvider
+        );
+        expect(resolution).toBe('folder');
+    });
+
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    test('folder file references resolve without reading the directory as a file', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);  
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                folder_reference {
+                    see ["./module"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const position = { line: 1, character: 12 };
+
+        const definitions = await fileServices.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position
+        });
+        expect(definitions).toBeUndefined();
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    test('missing file references do not produce document links', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                missing_reference {
+                    see ["./does-not-exist.rq"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        expect(links).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    test('comment references in source files resolve to rq ideas', async () => {
+        const demoDir = join(repoDir, 'reqlan rq/extension/features-code-comment');
+        const rqPath = join(demoDir, 'functional-code-comment-references.rq');
+        const jsPath = join(demoDir, 'features-code-comment.text.js');
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const rqDoc = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(rqPath, 'utf8'),
+            URI.parse(pathToFileURL(rqPath).href)
+        );
+        const jsDoc = createSourceTextDocument(
+            pathToFileURL(jsPath).href,
+            readFileSync(jsPath, 'utf8')
+        );
+        fileServices.shared.workspace.LangiumDocuments.addDocument(rqDoc);
+        await fileServices.shared.workspace.DocumentBuilder.build([rqDoc], { validation: false });
+
+        const refs = findCommentReferencesInText(readFileSync(jsPath, 'utf8'));
+        expect(refs.length).toBeGreaterThan(0);
+
+        const links = findCommentDefinitionAtPosition(
+            jsDoc,
+            refs[0]!.range.start,
+            fileServices.shared.workspace.LangiumDocuments
+        );
+        expect(links).toHaveLength(1);
+        expect(links?.[0]?.targetUri).toBe(rqDoc.textDocument.uri);
     });
 });
 

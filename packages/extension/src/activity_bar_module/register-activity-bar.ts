@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
+import { resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import { ActivityBarProvider } from './activity-bar-provider.js';
 
 export function registerActivityBarModule(
@@ -26,7 +27,7 @@ export function registerActivityBarModule(
             provider.refresh();
         }),
         vscode.commands.registerCommand('reqlan.openIdeaFromActivityBar', async (fileUri: string, line: number) => {
-            const uri = vscode.Uri.parse(fileUri);
+            const uri = resolveIndexFileUri(fileUri);
             const document = await vscode.workspace.openTextDocument(uri);
             const editor = await vscode.window.showTextDocument(document);
             const position = new vscode.Position(line, 0);

@@ -5,18 +5,21 @@ import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium
 import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
 import {
     isFromImport,
+    isFromImportSpecifier,
     isIdea,
     isIdeaSet,
     isLocalReference,
     isModel,
     isNamespaceImport,
+    isOneLinerIdea,
     isQualifiedImport,
     isQualifiedReference,
-    isOneLinerIdea,
+    type FromImportSpecifier,
     type Import,
     type Model,
     type QualifiedReference
 } from './generated/ast.js';
+import { findFromImportSpecifierByBinding, specifierBindingName } from './reqlan-import-bindings.js';
 import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
@@ -48,9 +51,10 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     override getScope(context: ReferenceInfo): Scope {
         const container = context.container;
-        if ((isFromImport(container) || isQualifiedImport(container)) && context.property === 'idea') {
+        if ((isFromImportSpecifier(container) || isQualifiedImport(container)) && context.property === 'idea') {
             const document = AstUtils.getDocument(container);
-            const importScope = this.scopeForImportPath(container.path, document);
+            const path = isFromImportSpecifier(container) ? container.$container.path : container.path;
+            const importScope = this.scopeForImportPath(path, document);
             if (importScope) {
                 return importScope;
             }
@@ -117,12 +121,18 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         if (!isModel(model)) {
             return new StreamScope(stream([]));
         }
-        const descriptions = model.imports
-            .map(importDecl => {
-                const alias = importAlias(importDecl);
-                return alias ? this.descriptions.createDescription(importDecl, alias, document) : undefined;
-            })
-            .filter((description): description is AstNodeDescription => description !== undefined);
+        const descriptions = model.imports.flatMap(importDecl => {
+            if (isFromImport(importDecl)) {
+                return importDecl.specifiers.flatMap(specifier => {
+                    const alias = specifierBindingName(specifier);
+                    return alias
+                        ? [this.descriptions.createDescription(specifier, alias, document)]
+                        : [];
+                });
+            }
+            const alias = importAlias(importDecl);
+            return alias ? [this.descriptions.createDescription(importDecl, alias, document)] : [];
+        });
         return new StreamScope(stream(descriptions));
     }
 
@@ -137,8 +147,33 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         return new StreamScope(stream(descriptions));
     }
 
-    private scopeForImportDeclaration(importDecl: Import, document: LangiumDocument): Scope | undefined {
-        if (isFromImport(importDecl) || isQualifiedImport(importDecl)) {
+    private scopeForImportDeclaration(importDecl: Import | FromImportSpecifier, document: LangiumDocument): Scope | undefined {
+        if (isFromImportSpecifier(importDecl)) {
+            const imported = this.findImportedDocument(importDecl.$container.path, document);
+            if (!imported) {
+                return undefined;
+            }
+            const target = importDecl.idea.ref;
+            if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+                return undefined;
+            }
+            const description = this.descriptions.createDescription(target, target.name, imported);
+            return new StreamScope(stream([description]));
+        }
+        if (isFromImport(importDecl)) {
+            const imported = this.findImportedDocument(importDecl.path, document);
+            if (!imported) {
+                return undefined;
+            }
+            const descriptions = importDecl.specifiers
+                .map(specifier => specifier.idea.ref)
+                .filter((target): target is NonNullable<typeof target> =>
+                    target !== undefined && (isIdea(target) || isOneLinerIdea(target))
+                )
+                .map(target => this.descriptions.createDescription(target, target.name, imported));
+            return new StreamScope(stream(descriptions));
+        }
+        if (isQualifiedImport(importDecl)) {
             const imported = this.findImportedDocument(importDecl.path, document);
             if (!imported) {
                 return undefined;
@@ -160,6 +195,10 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
             return undefined;
+        }
+        const specifier = findFromImportSpecifierByBinding(model.imports, alias);
+        if (specifier) {
+            return this.scopeForImportDeclaration(specifier, document);
         }
         const importDecl = model.imports.find(entry => importAlias(entry) === alias);
         if (!importDecl) {
@@ -200,5 +239,8 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 }
 
 function importAlias(entry: Import): string | undefined {
+    if (isFromImport(entry)) {
+        return undefined;
+    }
     return entry.alias;
 }

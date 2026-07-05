@@ -18,17 +18,49 @@ import {
     isFileReference,
     isFileSymbolReference,
     isImport,
+    isMarkdownLink,
     isQualifiedReference,
     type FileReference,
     type FileSymbolReference,
     type Import,
+    type MarkdownLink,
     type QualifiedReference
 } from './generated/ast.js';
+import { parseMarkdownLink } from './reqlan-references.js';
+
+export type ReferenceResolution = 'file' | 'folder' | 'missing';
 
 export interface ResolvedFileLink {
     sourceRange: Range;
     targetUri: string;
     targetRange?: Range;
+    resolution?: ReferenceResolution;
+    folderFiles?: string[];
+}
+
+export function classifyReferenceUri(
+    targetUri: URI,
+    documents: LangiumDocuments,
+    fileSystem: FileSystemProvider
+): ReferenceResolution {
+    if (documents.getDocument(targetUri)) {
+        return 'file';
+    }
+    if (!fileSystem.existsSync(targetUri)) {
+        return 'missing';
+    }
+    return fileSystem.statSync(targetUri).isDirectory ? 'folder' : 'file';
+}
+
+export function listFolderFileNames(fileSystem: FileSystemProvider, folderUri: URI): string[] {
+    return fileSystem.readDirectorySync(folderUri)
+        .filter(entry => entry.isFile)
+        .map(entry => {
+            const segments = entry.uri.path.split('/');
+            return segments[segments.length - 1] ?? '';
+        })
+        .filter(name => name.length > 0)
+        .sort((left, right) => left.localeCompare(right));
 }
 
 export function resolveFileReferenceLink(
@@ -91,6 +123,37 @@ export function resolveQualifiedReferencePathLink(
     };
 }
 
+export function resolveMarkdownLinkTargetLink(
+    link: MarkdownLink,
+    document: LangiumDocument,
+    documents: LangiumDocuments,
+    fileSystem: FileSystemProvider
+): ResolvedFileLink | undefined {
+    const parsedLink = parseMarkdownLink(link.raw);
+    if (!parsedLink) {
+        return undefined;
+    }
+    const pathNode = GrammarUtils.findNodeForProperty(link.$cstNode, 'raw');
+    if (!pathNode) {
+        return undefined;
+    }
+    const targetStart = link.raw.indexOf('](') + 2;
+    const targetLength = parsedLink.target.length;
+    const sourceRange = {
+        start: {
+            line: pathNode.range.start.line,
+            character: pathNode.range.start.character + targetStart
+        },
+        end: {
+            line: pathNode.range.start.line,
+            character: pathNode.range.start.character + targetStart + targetLength
+        }
+    };
+    const parsed = parseFileReferenceString(parsedLink.target);
+    const targetUri = resolveFileUri(parsed.filePath, document);
+    return resolvePathStringLink(document, documents, fileSystem, parsed, targetUri, sourceRange);
+}
+
 export function resolveEmbeddedFileReferenceLink(
     reference: EmbeddedFileReference,
     document: LangiumDocument,
@@ -99,24 +162,14 @@ export function resolveEmbeddedFileReferenceLink(
 ): ResolvedFileLink | undefined {
     const parsed = parseFileReferenceString(reference.file);
     const targetUri = resolveFileUri(parsed.filePath, document);
-    const text = readTargetText(targetUri, documents, fileSystem);
-    if (!text) {
-        return undefined;
-    }
-    let targetRange: Range | undefined;
-    if (parsed.testName) {
-        const line = findTestLineInText(text, parsed.testName);
-        if (line !== undefined) {
-            targetRange = lineRangeFromText(text, line);
-        }
-    } else if (parsed.lineStart !== undefined) {
-        targetRange = lineRangeFromText(text, parsed.lineStart - 1);
-    }
-    return {
-        sourceRange: reference.range,
-        targetUri: targetUri.toString(),
-        targetRange
-    };
+    return resolvePathStringLink(
+        document,
+        documents,
+        fileSystem,
+        parsed,
+        targetUri,
+        reference.range
+    );
 }
 
 function resolveParsedFileLink(
@@ -127,14 +180,37 @@ function resolveParsedFileLink(
     pathNode: CstNode
 ): ResolvedFileLink | undefined {
     const targetUri = resolveFileUri(parsed.filePath, document);
+    const sourceRange = parsed.testName
+        ? stringContentRange(pathNode)
+        : filePathRangeInStringNode(pathNode, parsed);
+    return resolvePathStringLink(document, documents, fileSystem, parsed, targetUri, sourceRange);
+}
+
+function resolvePathStringLink(
+    _document: LangiumDocument,
+    documents: LangiumDocuments,
+    fileSystem: FileSystemProvider,
+    parsed: ParsedFileReference,
+    targetUri: URI,
+    sourceRange: Range
+): ResolvedFileLink | undefined {
+    const resolution = classifyReferenceUri(targetUri, documents, fileSystem);
+    if (resolution === 'missing') {
+        return undefined;
+    }
+    if (resolution === 'folder') {
+        return {
+            sourceRange,
+            targetUri: targetUri.toString(),
+            resolution,
+            folderFiles: listFolderFileNames(fileSystem, targetUri)
+        };
+    }
     const text = readTargetText(targetUri, documents, fileSystem);
     if (!text) {
         return undefined;
     }
     const targetDocument = documents.getDocument(targetUri);
-    const sourceRange = parsed.testName
-        ? stringContentRange(pathNode)
-        : filePathRangeInStringNode(pathNode, parsed);
     let targetRange: Range | undefined;
     if (parsed.testName) {
         const line = findTestLineInText(text, parsed.testName);
@@ -149,7 +225,8 @@ function resolveParsedFileLink(
     return {
         sourceRange,
         targetUri: targetUri.toString(),
-        targetRange
+        targetRange,
+        resolution: 'file'
     };
 }
 
@@ -158,10 +235,13 @@ function readTargetText(targetUri: URI, documents: LangiumDocuments, fileSystem:
     if (targetDocument) {
         return targetDocument.textDocument.getText();
     }
-    if (fileSystem.existsSync(targetUri)) {
-        return fileSystem.readFileSync(targetUri);
+    if (!fileSystem.existsSync(targetUri)) {
+        return undefined;
     }
-    return undefined;
+    if (fileSystem.statSync(targetUri).isDirectory) {
+        return undefined;
+    }
+    return fileSystem.readFileSync(targetUri);
 }
 
 export function filePathRangeInStringNode(pathNode: CstNode, parsed: ParsedFileReference): Range {
@@ -220,10 +300,17 @@ export function collectFileLinks(
                 linkedRanges.push(rangeKey(link.sourceRange));
             }
         }
+        if (isMarkdownLink(node)) {
+            const link = resolveMarkdownLinkTargetLink(node, document, documents, fileSystem);
+            if (link) {
+                links.push(link);
+                linkedRanges.push(rangeKey(link.sourceRange));
+            }
+        }
     }
     for (const reference of findEmbeddedFileReferencesInText(document.textDocument.getText())) {
         const key = rangeKey(reference.range);
-        if (linkedRanges.includes(key)) {
+        if (linkedRanges.includes(key) || links.some(link => rangesOverlap(link.sourceRange, reference.range))) {
             continue;
         }
         const link = resolveEmbeddedFileReferenceLink(reference, document, documents, fileSystem);
@@ -239,7 +326,17 @@ function rangeKey(range: Range): string {
     return `${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
 }
 
-export function resolvedFileLinkTargetUri(link: ResolvedFileLink): string {
+function rangesOverlap(left: Range, right: Range): boolean {
+    if (left.start.line !== right.start.line || right.start.line !== right.end.line || left.start.line !== left.end.line) {
+        return left.start.line === right.start.line;
+    }
+    return left.start.character <= right.end.character && right.start.character <= left.end.character;
+}
+
+export function resolvedFileLinkTargetUri(link: ResolvedFileLink): string | undefined {
+    if (link.resolution === 'folder' || link.resolution === 'missing') {
+        return undefined;
+    }
     if (link.targetRange) {
         return `${link.targetUri}#L${link.targetRange.start.line + 1}`;
     }

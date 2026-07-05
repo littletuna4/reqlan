@@ -1,6 +1,13 @@
+from "./module/chat-participant.rq" import chat_participant, chat_participant_completion
+import "./features-skills-and-mcp.rq" as skills_and_mcp
+
+ai_api should use the chat participant api. which should be in a module. that consumes analysis functions from other modules. https://code.visualstudio.com/api/extension-guides/ai/chat
+
+
 ai_integration {
     The extension should integrate with ai workflows via command palette actions and mcp tools.
     Ai-facing features should prioritise token minimisation and focused context over full-graph dumps.
+    Command palette actions use the Reqlan category; chat slash commands and skills use the rq- prefix.
 }
 
 ai_build_requirement {

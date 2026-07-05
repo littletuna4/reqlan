@@ -5,7 +5,6 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { parseHelper } from 'langium/test';
-import type { Diagnostic } from 'vscode-languageserver-types';
 import type { Model } from 'reqlan-language';
 import { createReqlanServices, isModel } from 'reqlan-language';
 
@@ -22,6 +21,7 @@ beforeAll(async () => {
 
 describe('Validating', () => {
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('check no errors for exampleimport1.rq', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'exampleimport1.rq'), 'utf8'));
 
@@ -30,6 +30,7 @@ describe('Validating', () => {
         ).toHaveLength(0);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
     test('reports duplicate import alias in sub idea.rq', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'sub idea.rq'), 'utf8'));
 
@@ -41,6 +42,7 @@ describe('Validating', () => {
         expect(duplicateAliasErrors[0].range.start.line).toBe(3);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
     test('reports duplicate when local idea shares imported idea name', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea as myideaalias
@@ -55,6 +57,7 @@ describe('Validating', () => {
         expect(duplicateErrors[0].range.start.line).toBe(1);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
     test('reports duplicate when local idea shares unaliased import binding', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea
@@ -80,6 +83,8 @@ function checkDocumentValid(document: LangiumDocument): string | undefined {
         || undefined;
 }
 
-function diagnosticToString(d: Diagnostic) {
+type DocumentDiagnostic = NonNullable<LangiumDocument['diagnostics']>[number];
+
+function diagnosticToString(d: DocumentDiagnostic) {
     return `[${d.range.start.line}:${d.range.start.character}..${d.range.end.line}:${d.range.end.character}]: ${d.message}`;
 }

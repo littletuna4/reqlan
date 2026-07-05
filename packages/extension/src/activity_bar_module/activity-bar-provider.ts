@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import type { AnalyserContext } from '../analytical_submodule/analysis/analyser-registry.js';
-import type { AnalyserRegistry } from '../analytical_submodule/analysis/analyser-registry.js';
+import type { AnalyserContext, AnalyserRegistry, GraphSlice, IdeaSummary } from 'reqlan-analytical';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
-import type { GraphSlice, IdeaSummary } from '../analytical_submodule/core/types.js';
+import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 
 type SectionId = 'current-file' | 'current-idea' | 'referencing-ideas' | 'local-graph';
 
@@ -226,15 +225,17 @@ export class ActivityBarProvider implements vscode.TreeDataProvider<ActivityBarI
                 await this.index.syncWorkspace();
             }
 
-            const fileUri = editor.document.uri.toString();
+            const fileUri = toIndexFileUri(editor.document.uri);
             const fileLabel = vscode.workspace.asRelativePath(editor.document.uri);
             const line = editor.selection.active.line;
-            const ideasInFile = this.index.indexStore.getAllIdeasRaw().filter(idea => idea.fileUri === fileUri);
-            const currentIdeaRecord = ideaAtLine(ideasInFile, line);
-            const currentIdea = currentIdeaRecord ? this.index.indexStore.getIdea(currentIdeaRecord.id) : undefined;
-            const centerIdea = currentIdea ?? this.index.indexStore.getIdeasInFile(fileUri)[0];
+            const ideasInFile = await this.index.indexStore.getAllIdeasRaw();
+            const ideasInCurrentFile = ideasInFile.filter(idea => idea.fileUri === fileUri);
+            const currentIdeaRecord = ideaAtLine(ideasInCurrentFile, line);
+            const currentIdea = currentIdeaRecord ? await this.index.indexStore.getIdea(currentIdeaRecord.id) : undefined;
+            const ideasInFileSummaries = await this.index.indexStore.getIdeasInFile(fileUri);
+            const centerIdea = currentIdea ?? ideasInFileSummaries[0];
 
-            const referencingIdeas = centerIdea ? collectReferencingIdeas(this.index, centerIdea.id) : [];
+            const referencingIdeas = centerIdea ? await collectReferencingIdeas(this.index, centerIdea.id) : [];
 
             let graph: GraphSlice | undefined;
             if (centerIdea) {
@@ -272,13 +273,14 @@ function ideaAtLine(
         .sort((a, b) => b.lineStart - a.lineStart)[0];
 }
 
-function collectReferencingIdeas(index: IndexService, ideaId: string): IdeaSummary[] {
+async function collectReferencingIdeas(index: IndexService, ideaId: string): Promise<IdeaSummary[]> {
     const ids = new Set<string>();
-    for (const edge of index.indexStore.getEdgesTo(ideaId)) {
+    for (const edge of await index.indexStore.getEdgesTo(ideaId)) {
         ids.add(edge.sourceId);
     }
-    return [...ids]
-        .map(id => index.indexStore.getIdea(id))
+    return (
+        await Promise.all([...ids].map(id => index.indexStore.getIdea(id)))
+    )
         .filter((idea): idea is IdeaSummary => idea !== undefined)
         .sort((a, b) => a.name.localeCompare(b.name));
 }

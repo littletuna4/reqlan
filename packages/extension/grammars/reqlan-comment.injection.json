@@ -1,0 +1,10 @@
+{
+    "scopeName": "comment.rq.injection",
+    "injectionSelector": "L:comment",
+    "patterns": [
+        {
+            "name": "markup.underline.link.reqlan",
+            "match": "rq:\\[[^\\]]+\\]"
+        }
+    ]
+}

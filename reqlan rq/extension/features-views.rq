@@ -1,0 +1,13 @@
+simple_views {
+    - table of ideas
+        - title,
+        - path/namespace, 
+        - main attribute
+        - other attributes
+        - count of references
+    - table of references
+        - path/namespace of reference to idea
+        - path/namespace of referenced idea
+        - is in in rq (bool)
+        - reference type (file, comment, sub-idea)
+}

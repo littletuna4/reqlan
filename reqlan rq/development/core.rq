@@ -4,11 +4,31 @@ modulurisation files should be small
 
 succinct maximised meaning to character ratio.
 
-hierarchy_of_requirements user request trumps the [../../reqlan rq] requirements, and [../../reqlan rq] trump the current implementation.
+hierarchy_of_requirements user request trumps the ["../../reqlan rq"] requirements, and ["../../reqlan rq"] trump the current implementation.
 
 stack {
-    - Requirements are documented with reqlan in the [../../reqlan rq] folder.
-    - Language grammar is defined with langium in [../../reqlan rq/language/syntax.rq]
-    - VSCode Extension is implemented with vscode-langium in [../../packages/extension]
+    - Requirements are documented with reqlan in the ["../../reqlan rq"] folder.
+    - Language grammar is defined with langium in ["../../reqlan rq/language/syntax.rq"]
+    - VSCode Extension is implemented with vscode-langium in ["../../packages/extension"]
     - vscode webviews are implemented with svelte
+}
+
+rust_mindset {
+    - code should be complete
+    - nulls should be safe and deliberate
+    - fallbacks should be used sparingly
+    - incomplete code should be marked as such
+    - comments should describe final desired state of the code, not the current state; they should be timeless.
+    - tests should be local
+}
+
+code_comment_references {
+    code comments should include reference to their respective rq references.
+}
+
+testing {
+    tests should have comment references to the requirements they serve to test. per ["../extension/features-code-comment/functional-code-comment-references.rq"]
+    @tests: (
+        ["../../packages/language/test/testing.test.ts:each test file includes rq comment references to its requirements"]
+    )
 }

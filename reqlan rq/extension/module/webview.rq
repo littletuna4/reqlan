@@ -1,0 +1,27 @@
+import "../features-views.rq"  as views
+
+webview {
+    the webview module should have a page for the tables of a summary of ideas. 
+    per [simple_views]
+    it should be performance conscious and avoid full-graph dumps. unless requested by the user.
+    it should be paginated.
+    it should be filterable.
+
+}
+
+pages {
+    - ideas summary ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+       - index ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:index panel"]
+          - index state shown
+          - summary stats
+          - index errors listed
+       - ideas list ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideas panel"]
+       - ideasets ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideasets panel"]
+       - references ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:references panel"]
+}
+
+idea_sets_tab {
+    The idea sets page should list the ideasets
+    unlike the ideas page, it should not directly to the ideaset, but should have a dropdown to it's items.
+    per ["../../../packages/extension/src/webview_module/render-ideas-summary-html.ts:ideasets member dropdown"]
+}

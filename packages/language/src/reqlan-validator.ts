@@ -1,13 +1,11 @@
 import type { AstNode, ValidationAcceptor, ValidationChecks } from 'langium';
 import type { ReqlanAstType } from './generated/ast.js';
 import {
-    isFromImport,
     isIdea,
     isOneLinerIdea,
-    isQualifiedImport,
-    type Import,
     type Model
 } from './generated/ast.js';
+import { importBindings, importedIdeaNames } from './reqlan-import-bindings.js';
 import type { ReqlanServices } from './reqlan-module.js';
 
 /**
@@ -33,26 +31,17 @@ export class ReqlanValidator {
     }
 
     checkDuplicateImportBindings(model: Model, accept: ValidationAcceptor): void {
-        const seen = new Map<string, Import>();
+        const seen = new Map<string, ImportBindingSource>();
         for (const importDecl of model.imports) {
-            const name = importBindingName(importDecl);
-            if (!name) {
-                continue;
-            }
-            if (seen.has(name)) {
-                if (importDecl.alias) {
-                    accept('error', `'${name}' is already defined in this file.`, {
-                        node: importDecl,
-                        property: 'alias'
+            for (const binding of importBindings(importDecl)) {
+                if (seen.has(binding.name)) {
+                    accept('error', `'${binding.name}' is already defined in this file.`, {
+                        node: binding.node,
+                        property: binding.property
                     });
-                } else if (isFromImport(importDecl) || isQualifiedImport(importDecl)) {
-                    accept('error', `'${name}' is already defined in this file.`, {
-                        node: importDecl,
-                        property: 'idea'
-                    });
+                } else {
+                    seen.set(binding.name, binding);
                 }
-            } else {
-                seen.set(name, importDecl);
             }
         }
     }
@@ -60,9 +49,8 @@ export class ReqlanValidator {
     checkDuplicateIdeaNames(model: Model, accept: ValidationAcceptor): void {
         const seen = new Map<string, AstNode>();
         for (const importDecl of model.imports) {
-            const bindingName = importBindingName(importDecl);
-            if (bindingName) {
-                seen.set(bindingName, importDecl);
+            for (const binding of importBindings(importDecl)) {
+                seen.set(binding.name, importDecl);
             }
         }
         for (const element of model.elements) {
@@ -78,8 +66,7 @@ export class ReqlanValidator {
                 continue;
             }
             const importedNameConflict = model.imports.some(importDecl =>
-                (isFromImport(importDecl) || isQualifiedImport(importDecl))
-                && importDecl.idea.$refText === name
+                importedIdeaNames(importDecl).includes(name)
             );
             if (importedNameConflict) {
                 accept('error', `'${name}' is already defined in this file.`, {
@@ -93,12 +80,4 @@ export class ReqlanValidator {
     }
 }
 
-function importBindingName(importDecl: Import): string | undefined {
-    if (importDecl.alias) {
-        return importDecl.alias;
-    }
-    if (isFromImport(importDecl) || isQualifiedImport(importDecl)) {
-        return importDecl.idea.$refText;
-    }
-    return undefined;
-}
+type ImportBindingSource = ReturnType<typeof importBindings>[number];

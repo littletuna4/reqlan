@@ -1,0 +1,17 @@
+
+references_in_functional_code_comments {
+    Comments in functional code should be able to reference reqlan ideas using the an `rq:` prefixed to an idea: `rq:[idea]` as demonstrated in python, but actually applicable to any language's comment context:
+    ```python
+    # rq:[myidea]
+    # This has been built to comply with rq:["../file.rq".ideanme] - which is very important.
+    ```
+
+    @demos: (
+        ["./features-code-comment.text.js"]
+        ["./features-code-comment.text.py"]
+    )
+
+    @log:{
+        textmate injection was attempted, but the specific implementation failed, this is presently partially implemented as a link.
+    }
+}

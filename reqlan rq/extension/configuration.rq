@@ -1,0 +1,13 @@
+configuration_location {
+    The environment should be configurable by the user in the ["language-configuration.json"] file.
+}
+
+configuration_schema {
+    there should be an aligned scma 
+}
+
+ai_naming {
+    Command palette entries use category "Reqlan" with unprefixed titles (the palette renders them as "Reqlan: ...").
+    The rq- prefix is reserved for chat slash commands and agent skills only, e.g. /rq-search and /rq-build-requirement in Cursor or @reqlan /rq-search in VS Code Copilot.
+    Do not put rq- or "RQ:" in command palette titles; that duplicates the visible prefix.
+}

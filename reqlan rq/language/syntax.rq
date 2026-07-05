@@ -33,6 +33,11 @@ block_idea {
     The first unstructured text in an idea body is the main description when no other body attribute is marked.
 }
 
+main_desription_lists_allowed {
+    - lists are valid in.
+    - so this should not raise any error.s
+}
+
 ideaset {
     An ideaset is a parenthesized, comma-separated list of idea names.
     Ideaset members may be unquoted identifiers or quoted strings.
@@ -113,6 +118,12 @@ attribute_forms {
     Any custom attribute name is allowed.
 }
 
+
+attribute_location {
+    Marked attributes must be at the start of a line. @this_is_not_an_attribute
+    @this_is_an_attribute
+}
+
 attribute_values {
     Attribute values may be unstructured scalar text on the same line.
     Attribute values may be block values in curly braces.
@@ -131,6 +142,12 @@ comments {
     Line comments use double slash through end of line.
     Block comments use slash-star and star-slash delimiters and may span multiple lines.
     Meta comments on the same line after content are allowed.
+    Comments should not be triggered in a string context - e.g. a 'https://not a comment.com'
+    "//also not a comment"
+    """
+    // multiline string that also not a comment
+    """
+    ["a reference containing // that doens't start a comment"]
 }
 
 code_snippets Idea bodies may embed code snippets delimited by triple backticks.
@@ -147,4 +164,8 @@ string_literals {
 
 anonymous_imports_allowed {
     imports can be inlined with this syntax: `["./ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
+}
+
+markdown_links {
+    markdown style links should be supported. [label](target) where label can be anythign and not be treated as reference
 }

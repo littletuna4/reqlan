@@ -3,6 +3,7 @@
  */
 import type { LangiumDocument } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';
+import { isRangeInsideMarkdownLinkLabel } from './reqlan-markdown-links.js';
 
 export interface EmbeddedFileReference {
     file: string;
@@ -19,13 +20,13 @@ export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): 
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
         for (const match of line.matchAll(BRACKETED_FILE_REFERENCE_PATTERN)) {
-            pushEmbeddedReference(references, match, lineIndex, lineOffset);
+            pushEmbeddedReference(references, match, lineIndex, lineOffset, line);
         }
         for (const match of line.matchAll(QUOTED_FILE_REFERENCE_PATTERN)) {
             if (line.slice(Math.max(0, (match.index ?? 0) - 1), match.index).includes('[')) {
                 continue;
             }
-            pushEmbeddedReference(references, match, lineIndex, lineOffset);
+            pushEmbeddedReference(references, match, lineIndex, lineOffset, line);
         }
     }
     return references;
@@ -35,7 +36,8 @@ function pushEmbeddedReference(
     references: EmbeddedFileReference[],
     match: RegExpMatchArray,
     lineIndex: number,
-    lineOffset: number
+    lineOffset: number,
+    line: string
 ): void {
     const quoted = match[1];
     const file = JSON.parse(quoted) as string;
@@ -43,6 +45,9 @@ function pushEmbeddedReference(
         return;
     }
     const start = match.index ?? 0;
+    if (isRangeInsideMarkdownLinkLabel(line, start, start + match[0].length)) {
+        return;
+    }
     references.push({
         file,
         range: {

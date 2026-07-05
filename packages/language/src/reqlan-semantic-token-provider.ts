@@ -10,10 +10,12 @@ import {
     isFileReference,
     isFileSymbolReference,
     isFromImport,
+    isFromImportSpecifier,
     isIdea,
     isIdeaSet,
     isImport,
     isLocalReference,
+    isMarkdownLink,
     isQualifiedImport,
     isQualifiedReference,
     isOneLinerIdea,
@@ -83,14 +85,24 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
         if (isCodeSnippet(node)) {
             return;
         }
+        if (isMarkdownLink(node)) {
+            return;
+        }
         if (isImport(node)) {
             highlightImportKeywords(node, acceptor);
             acceptor({ node, property: 'path', type: SemanticTokenTypes.string, modifier: SemanticTokenModifiers.declaration });
-            if (node.alias) {
+            if (!isFromImport(node) && node.alias) {
                 acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
             }
         }
-        if (isFromImport(node) || isQualifiedImport(node)) {
+        if (isFromImportSpecifier(node)) {
+            acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+            if (node.alias) {
+                acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
+                acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
+            }
+        }
+        if (isQualifiedImport(node)) {
             acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
         }
     }
@@ -101,7 +113,7 @@ function highlightImportKeywords(node: Import, acceptor: SemanticTokenAcceptor):
         acceptor({ node, keyword: 'from', type: SemanticTokenTypes.keyword });
     }
     acceptor({ node, keyword: 'import', type: SemanticTokenTypes.keyword });
-    if (node.alias) {
+    if (!isFromImport(node) && node.alias) {
         acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
     }
 }

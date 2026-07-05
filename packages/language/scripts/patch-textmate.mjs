@@ -80,6 +80,48 @@ grammar.repository['import-keywords'] = {
     ]
 };
 
+grammar.repository.strings = {
+    name: 'string.quoted.double.reqlan',
+    begin: '"',
+    end: '"',
+    patterns: [
+        { include: '#string-character-escape' }
+    ]
+};
+
+grammar.repository.comments = {
+    patterns: [
+        {
+            name: 'comment.block.reqlan',
+            begin: '/\\*(?!/)',
+            beginCaptures: {
+                '0': { name: 'punctuation.definition.comment.reqlan' }
+            },
+            end: '\\*/',
+            endCaptures: {
+                '0': { name: 'punctuation.definition.comment.reqlan' }
+            }
+        },
+        {
+            begin: '(?<![:/])//',
+            beginCaptures: {
+                '0': { name: 'punctuation.definition.comment.reqlan' }
+            },
+            end: '(?=$)',
+            name: 'comment.line.reqlan'
+        }
+    ]
+};
+
+// Prefer string regions over comment detection at the root level too.
+grammar.patterns = (grammar.patterns ?? []).filter(pattern => {
+    return !(pattern.include === '#comments' || pattern.name === 'string.quoted.double.reqlan');
+});
+grammar.patterns.unshift(
+    { include: '#strings' },
+    { include: '#comments' }
+);
+
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
     match: '\\s*(@)\\s*([A-Za-z_]\\w*)',
@@ -95,6 +137,23 @@ grammar.repository.wikilinks = {
     captures: {
         '1': { name: 'entity.name.tag.reference.reqlan' },
         '2': { name: 'string.other.link.title.reqlan' }
+    }
+};
+
+grammar.repository['markdown-links'] = {
+    name: 'markup.underline.link.reqlan',
+    match: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
+    captures: {
+        '1': { name: 'string.other.link.title.reqlan' },
+        '2': { name: 'string.other.link.reqlan' }
+    }
+};
+
+grammar.repository['idea-bracket-references'] = {
+    name: 'markup.underline.link.reqlan',
+    match: '\\[(?![#\\["])([^\\]]+)\\](?!\\()',
+    captures: {
+        '1': { name: 'entity.name.tag.reference.reqlan' }
     }
 };
 
@@ -115,11 +174,26 @@ grammar.repository['code-snippets'] = {
     }
 };
 
+grammar.repository['one-liner-body'] = {
+    patterns: [
+        { include: '#strings' },
+        { include: '#comments' },
+        { include: '#wikilinks' },
+        { include: '#markdown-links' },
+        { include: '#idea-bracket-references' },
+        { include: '#bracket-references' },
+        { include: '#code-snippets' }
+    ]
+};
+
 grammar.repository['block-inner'] = {
     patterns: [
+        { include: '#strings' },
         { include: '#comments' },
         { include: '#attributes' },
         { include: '#wikilinks' },
+        { include: '#markdown-links' },
+        { include: '#idea-bracket-references' },
         { include: '#bracket-references' },
         { include: '#code-snippets' },
         { include: '#named-block-item' },
@@ -183,16 +257,14 @@ grammar.repository['nested-list'] = {
 grammar.repository['top-level-one-liner-idea'] = {
     patterns: [
         {
-            match: `^(${id})(\\s+)(?!\\{)(?!\\()`,
-            captures: {
+            begin: `^(${id}|${quotedName})(\\s+)`,
+            beginCaptures: {
                 '1': { name: 'entity.name.type.idea.reqlan' }
-            }
-        },
-        {
-            match: `^(${quotedName})(\\s+)(?!\\{)(?!\\()`,
-            captures: {
-                '1': { name: 'entity.name.type.idea.reqlan' }
-            }
+            },
+            end: '$',
+            patterns: [
+                { include: '#one-liner-body' }
+            ]
         }
     ]
 };

@@ -2,11 +2,15 @@ import { type Module, inject } from 'langium';
 import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
 import { ReqlanGeneratedModule, ReqlanGeneratedSharedModule } from './generated/module.js';
 import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
+import { ReqlanDocumentHighlightProvider } from './reqlan-document-highlight-provider.js';
 import { ReqlanDocumentLinkProvider } from './reqlan-document-link-provider.js';
 import { createReqlanGrammarConfig } from './reqlan-grammar-config.js';
 import { ReqlanNameProvider } from './reqlan-name-provider.js';
 import { ReqlanScopeComputation, ReqlanScopeProvider } from './reqlan-scope.js';
+import { ReqlanCompletionProvider } from './reqlan-completion-provider.js';
+import { sharedAttributeCatalog } from './reqlan-attribute-catalog.js';
 import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js';
+import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
 
 /**
@@ -39,12 +43,15 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         ScopeProvider: services => new ReqlanScopeProvider(services)
     },
     parser: {
-        GrammarConfig: createReqlanGrammarConfig
+        GrammarConfig: createReqlanGrammarConfig,
+        TokenBuilder: () => new ReqlanTokenBuilder()
     },
     lsp: {
         DefinitionProvider: services => new ReqlanDefinitionProvider(services),
+        DocumentHighlightProvider: services => new ReqlanDocumentHighlightProvider(services),
         DocumentLinkProvider: services => new ReqlanDocumentLinkProvider(services),
-        SemanticTokenProvider: services => new ReqlanSemanticTokenProvider(services)
+        SemanticTokenProvider: services => new ReqlanSemanticTokenProvider(services),
+        CompletionProvider: services => new ReqlanCompletionProvider(services, sharedAttributeCatalog)
     }
 };
 

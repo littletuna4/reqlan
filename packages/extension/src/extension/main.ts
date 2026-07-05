@@ -3,14 +3,28 @@ import type * as vscode from 'vscode';
 import * as path from 'node:path';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
+import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
+import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { activateAnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
 
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-    client = await startLanguageClient(context);
-    await activateAnalyticalSubmodule(context);
+    try {
+        client = await startLanguageClient(context);
+    } catch (error) {
+        console.error('[reqlan] Language client failed to start:', error);
+    }
+    try {
+        const submodule = await activateAnalyticalSubmodule(context);
+        if (client) {
+            registerAttributeCatalogSync(context, submodule.index, () => client);
+        }
+    } catch (error) {
+        console.error('[reqlan] Analytical submodule failed to activate:', error);
+    }
 }
 
 // This function is called when the extension is deactivated.
@@ -37,17 +51,22 @@ async function startLanguageClient(context: vscode.ExtensionContext): Promise<La
     };
 
     // Options to control the language client
-    const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: '*', language: 'reqlan' }]
-    };
+    let client!: LanguageClient;
+    const clientOptions: LanguageClientOptions = withFolderReferenceMiddleware(
+        { documentSelector: [{ scheme: '*', language: 'reqlan' }] },
+        () => client
+    );
 
     // Create the language client and start the client.
-    const client = new LanguageClient(
+    client = new LanguageClient(
         'reqlan',
         'reqlan',
         serverOptions,
         clientOptions
     );
+
+    registerFolderReferenceCommand(context);
+    registerCommentReferenceDocumentLinks(context);
 
     // Start the client. This will also launch the server
     await client.start();

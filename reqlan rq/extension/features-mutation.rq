@@ -12,3 +12,12 @@ copy_requirement {
     The extension should provide a command to copy an idea or requirement to another file or ideaset.
     Copy should optionally rewrite local references to match the destination context.
 }
+
+merge_requirements{
+    should combine requirement attributes, and any references through the codebase.
+}
+
+rename_file{
+    this should update any referencess in rq files (imports, inline references, etc)
+    it should also update any inline references in functional code files - per ["features-code-comment"]
+}

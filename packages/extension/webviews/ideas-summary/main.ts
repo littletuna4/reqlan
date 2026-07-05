@@ -1,0 +1,10 @@
+import './styles/global.css';
+import App from './App.svelte';
+
+const target = document.getElementById('app');
+if (!target) {
+    throw new Error('Missing #app mount point');
+}
+
+// eslint-disable-next-line no-new
+new App({ target });

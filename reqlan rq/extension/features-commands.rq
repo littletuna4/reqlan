@@ -1,6 +1,9 @@
-from "./features-analysers.rq" import local_graph_analysis
+from "./features-graph-analysers.rq" import local_graph_analysis
+
+
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
+    Command titles should not repeat the category prefix; use category "Reqlan" with plain titles so the palette shows "Reqlan: List All Ideas", not "Reqlan: Reqlan: ..." or "RQ: RQ: ...".
 }
 
 view_all_requirements {
@@ -21,4 +24,8 @@ export_json {
 
 export_csv {
     A command palette action should export requirements to csv with tags flattened for quick filtering.
+}
+
+divide_and_conquer {
+    A command palette action should divide and conquer the current file or selected ideaset. (an llm prompt that takes all the context and fires off subagents)
 }

@@ -1,0 +1,28 @@
+{
+    "name": "reqlan-analytical",
+    "description": "Shared requirement graph index and analysers for reqlan",
+    "version": "0.0.1",
+    "type": "module",
+    "engines": {
+        "node": ">=20.10.0"
+    },
+    "main": "./out/index.js",
+    "types": "./out/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./out/index.d.ts",
+            "default": "./out/index.js"
+        }
+    },
+    "scripts": {
+        "clean": "shx rm -fr *.tsbuildinfo out",
+        "build": "tsc -b tsconfig.json",
+        "build:clean": "pnpm run clean && pnpm run build"
+    },
+    "dependencies": {
+        "langium": "~4.3.0",
+        "reqlan-language": "workspace:*",
+        "sqlite3": "~5.1.7",
+        "zustand": "~5.0.8"
+    }
+}

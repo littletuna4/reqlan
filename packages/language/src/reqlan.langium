@@ -28,7 +28,7 @@ OneLinerIdea:
     name=IdeaName body=OneLinerBody;
 
 OneLinerBody:
-    content+=(BracketReference | WikiLink | OneLinerText)+;
+    content+=(MarkdownLink | BracketReference | WikiLink | OneLinerText)+;
 
 IdeaDeclaration:
     Idea | OneLinerIdea;
@@ -54,16 +54,16 @@ IdeaMemberName returns string:
 // ---------------------------------------------------------------------------
 
 BodyElement:
-    Attribute | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BodyLine;
+    Attribute | MarkdownLink | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BodyLine;
 
 BodyLine:
     parts+=RichTextPart+;
 
 RichTextPart:
-    WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation | lparen='(' | rparen=')';
+    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation | lparen='(' | rparen=')';
 
 InlineTextPart:
-    WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation;
+    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation;
 
 CodeSnippet:
     raw=CODE_FENCE;
@@ -98,7 +98,7 @@ BlockValue:
     '{' (NL* elements+=BlockElement)* NL* '}';
 
 BlockElement:
-    Attribute | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BlockLine;
+    Attribute | MarkdownLink | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BlockLine;
 
 BlockLine:
     parts+=RichTextPart+;
@@ -129,8 +129,11 @@ AnonymousBlock:
     '{' (NL* elements+=BodyElement)* NL* '}';
 
 // ---------------------------------------------------------------------------
-// reference_wikilink, reference_brackets, reference_qualified, reference_file
+// markdown_links, reference_wikilink, reference_brackets, reference_qualified, reference_file
 // ---------------------------------------------------------------------------
+
+MarkdownLink:
+    raw=MARKDOWN_LINK;
 
 WikiLink:
     '[[' target=ReferenceTarget ('|' alias+=AliasPart+)? ']]';
@@ -168,7 +171,10 @@ Import:
     FromImport | NamespaceImport | QualifiedImport;
 
 FromImport:
-    'from' path=STRING 'import' idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
+    'from' path=STRING 'import' specifiers+=FromImportSpecifier (',' specifiers+=FromImportSpecifier)*;
+
+FromImportSpecifier:
+    idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
 
 NamespaceImport:
     'import' path=STRING ('as' alias=ID)?;
@@ -185,6 +191,7 @@ hidden terminal WS: /[ \t]+/;
 hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
 hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 
+terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
 terminal ID: /[_a-zA-Z][\w_]*/;
 terminal STRING: /"(\\.|[^"\\])*"/;
 terminal WORD: /[A-Za-z_][\w']*/;

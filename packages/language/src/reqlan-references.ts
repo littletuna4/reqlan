@@ -60,3 +60,21 @@ export function unquoteReqlanString(text: string): string {
     }
     return text.slice(1, -1).replace(/\\(.)/g, '$1');
 }
+
+export interface ParsedMarkdownLink {
+    label: string;
+    target: string;
+}
+
+const MARKDOWN_LINK_PATTERN = /^\[([^\]]+)\]\(([^)]+)\)$/;
+
+export function parseMarkdownLink(raw: string): ParsedMarkdownLink | undefined {
+    const match = MARKDOWN_LINK_PATTERN.exec(raw);
+    if (!match) {
+        return undefined;
+    }
+    return {
+        label: match[1]!,
+        target: match[2]!
+    };
+}

@@ -6,8 +6,9 @@ import type {
     GraphSlice,
     IdeaSummary,
     SemanticMatch
-} from '../core/types.js';
+} from 'reqlan-analytical';
 import type { AnalyticalSubmodule } from '../index.js';
+import { resolveIndexFileUri, toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
@@ -52,7 +53,7 @@ export function registerAnalyticalCommands(
             const result = await analysers.run<{ fileUri: string }, FileRelatedRequirements>(
                 makeContext(),
                 'file_related_requirements',
-                { fileUri: editor.document.uri.toString() }
+                { fileUri: toIndexFileUri(editor.document.uri) }
             );
             const items = [
                 ...result.ideasInFile.map(idea => ({ label: `[in file] ${idea.name}`, idea })),
@@ -116,7 +117,7 @@ export function registerAnalyticalCommands(
                 void vscode.window.showWarningMessage('Open a reqlan file to inspect its local graph.');
                 return;
             }
-            const ideas = index.indexStore.getIdeasInFile(editor.document.uri.toString());
+            const ideas = await index.indexStore.getIdeasInFile(toIndexFileUri(editor.document.uri));
             if (ideas.length === 0) {
                 void vscode.window.showInformationMessage('No ideas found in the current file.');
                 return;
@@ -178,7 +179,7 @@ async function waitForIndex(index: AnalyticalSubmodule['index']): Promise<void> 
 }
 
 async function openIdea(fileUri: string, line: number): Promise<void> {
-    const uri = vscode.Uri.parse(fileUri);
+    const uri = resolveIndexFileUri(fileUri);
     const document = await vscode.workspace.openTextDocument(uri);
     const editor = await vscode.window.showTextDocument(document);
     const position = new vscode.Position(line, 0);

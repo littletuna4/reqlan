@@ -27,20 +27,6 @@
             "language": "reqlan",
             "scopeName": "source.reqlan",
             "path": "syntaxes/reqlan.tmLanguage.json"
-        }, {
-            "scopeName": "comment.rq.injection",
-            "injectTo": [
-                "source.python",
-                "source.js",
-                "source.ts",
-                "source.tsx",
-                "source.java",
-                "source.go",
-                "source.rust",
-                "source.c",
-                "source.cpp"
-            ],
-            "path": "./syntaxes/reqlan-comment.injection.json"
         }],
         "semanticTokenScopes": [
             {
@@ -61,7 +47,7 @@
                 {
                     "id": "reqlan",
                     "title": "Reqlan",
-                    "icon": "media/reqlan-activity.svg"
+                    "icon": "media/logo.svg"
                 }
             ]
         },
@@ -73,40 +59,135 @@
                 }
             ]
         },
+        "chatAgents": [
+            {
+                "path": "./agents/reqlan.agent.md"
+            }
+        ],
+        "chatSkills": [
+            {
+                "path": "./skills/rq-requirements/SKILL.md"
+            },
+            {
+                "path": "./skills/rq-search/SKILL.md"
+            }
+        ],
+        "chatPromptFiles": [
+            {
+                "path": "./prompts/rq-build-requirement.prompt.md"
+            },
+            {
+                "path": "./prompts/rq-add-to-context.prompt.md"
+            },
+            {
+                "path": "./prompts/rq-write-plan.prompt.md"
+            },
+            {
+                "path": "./prompts/rq-search-requirements.prompt.md"
+            },
+            {
+                "path": "./prompts/rq-file-context.prompt.md"
+            }
+        ],
+        "chatParticipants": [
+            {
+                "id": "reqlan.reqlan",
+                "name": "reqlan",
+                "fullName": "Reqlan",
+                "description": "Ask about requirements, search the graph, or attach #requirement / #file context.",
+                "isSticky": true,
+                "commands": [
+                    {
+                        "name": "rq-search",
+                        "description": "Search requirements by keyword across names, summaries, and tags"
+                    },
+                    {
+                        "name": "rq-context",
+                        "description": "Summarise requirements related to the active file"
+                    },
+                    {
+                        "name": "rq-graph",
+                        "description": "Show the local requirement graph around the current file"
+                    },
+                    {
+                        "name": "rq-related",
+                        "description": "List requirements that reference or are referenced by the active file"
+                    }
+                ]
+            }
+        ],
+        "languageModelTools": [
+            {
+                "name": "reqlan_requirement_reference",
+                "toolReferenceName": "requirement",
+                "displayName": "Requirement",
+                "modelDescription": "Resolve a reqlan requirement by name or keyword and return a compact summary for chat context.",
+                "userDescription": "Attach a requirement from the workspace graph.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(symbol-class)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Requirement name or search text. Leave empty to list nearby matches."
+                        }
+                    }
+                }
+            },
+            {
+                "name": "reqlan_file_reference",
+                "toolReferenceName": "file",
+                "displayName": "Reqlan File",
+                "modelDescription": "Resolve a .rq file and return the requirements indexed in that file.",
+                "userDescription": "Attach requirements from a reqlan file.",
+                "canBeReferencedInPrompt": true,
+                "icon": "$(file)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Relative path fragment for a .rq file in the workspace."
+                        }
+                    }
+                }
+            }
+        ],
         "commands": [
             {
                 "command": "reqlan.listAllIdeas",
-                "title": "Reqlan: List All Ideas",
+                "title": "List All Ideas",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.fileRelatedRequirements",
-                "title": "Reqlan: File Related Requirements",
+                "title": "File Related Requirements",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.deprecationImpact",
-                "title": "Reqlan: Deprecation Impact Analysis",
+                "title": "Deprecation Impact Analysis",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.completionStatus",
-                "title": "Reqlan: Completion Status",
+                "title": "Completion Status",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.getLocalGraph",
-                "title": "Reqlan: Get Local Graph",
+                "title": "Get Local Graph",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.semanticSearch",
-                "title": "Reqlan: Semantic Search",
+                "title": "Semantic Search",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.refreshIndex",
-                "title": "Reqlan: Refresh Idea Index",
+                "title": "Refresh Idea Index",
                 "category": "Reqlan"
             },
             {
@@ -117,34 +198,91 @@
             {
                 "command": "reqlan.openIdeaFromActivityBar",
                 "title": "Open Idea"
+            },
+            {
+                "command": "reqlan.openFolderReference",
+                "title": "Open Folder Reference"
+            },
+            {
+                "command": "reqlan.openIdeasSummary",
+                "title": "Open Ideas Summary",
+                "category": "Reqlan",
+                "icon": "$(table)"
+            },
+            {
+                "command": "reqlan.installCursorSkills",
+                "title": "Install Cursor Skills",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addAgentCommands",
+                "title": "Install Cursor Skills",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.buildRequirement",
+                "title": "Build New Requirement",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addToContext",
+                "title": "Add to Context",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.writePlan",
+                "title": "Write Plan",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.runPrompt",
+                "title": "Run Chat Prompt",
+                "category": "Reqlan"
             }
         ],
         "menus": {
             "view/title": [
                 {
+                    "command": "reqlan.openIdeasSummary",
+                    "when": "view == reqlan.activityBar",
+                    "group": "navigation@1"
+                },
+                {
                     "command": "reqlan.refreshActivityBar",
                     "when": "view == reqlan.activityBar",
-                    "group": "navigation"
+                    "group": "navigation@2"
                 }
             ]
         }
     },
     "activationEvents": [
+        "onCommand:reqlan.installCursorSkills",
+        "onCommand:reqlan.addAgentCommands",
+        "onCommand:reqlan.buildRequirement",
+        "onCommand:reqlan.addToContext",
+        "onCommand:reqlan.writePlan",
+        "onCommand:reqlan.runPrompt",
+        "onCommand:reqlan.openIdeasSummary",
+        "onChatParticipant:reqlan.reqlan",
         "onLanguage:reqlan",
-        "onStartupFinished"
+        "onLanguage:python",
+        "onLanguage:javascript",
+        "onLanguage:typescript",
+        "onLanguage:typescriptreact"
     ],
     "main": "./out/extension/main.cjs",
     "scripts": {
         "clean": "shx rm -fr *.tsbuildinfo out syntaxes",
         "vscode:prepublish": "pnpm run build",
-        "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json",
+        "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
         "build": "pnpm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "concurrently -n tsc,esbuild,syntax -c blue,yellow,cyan \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
     },
     "dependencies": {
-        "better-sqlite3": "~11.10.0",
+        "sqlite3": "~5.1.7",
         "langium": "~4.3.0",
+        "reqlan-analytical": "workspace:*",
         "reqlan-language": "workspace:*",
         "vscode-languageclient": "~10.0.0",
         "vscode-languageserver": "~10.0.0",
@@ -152,7 +290,6 @@
         "zustand": "~5.0.8"
     },
     "devDependencies": {
-        "@types/better-sqlite3": "~7.6.13",
         "@types/vscode": "~1.91.0",
         "concurrently": "~10.0.3",
         "esbuild": "~0.28.1"

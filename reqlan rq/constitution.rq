@@ -12,3 +12,15 @@ general_purpose The language should work in any stack. And ideally, even in non-
 simplicity The language should be simple to understand and use, and offer flexibility in the syntax for minimised friction and bp.
 
 scope  The scope of these requirments spans the entire project, including the language itself, the developer-user tooling, and the reqlan-developer environment.
+
+inspiration {
+    This project draws upon ideas from the following fields:
+      - LLMS
+      - Software development
+      - Obsidian/Personal Knowledge Management systems.
+      - Industrial Control Engineering
+}
+
+supply_chain {
+    The supply chain for this project should be open and transparent, minimising risk and immature dependencies.
+}

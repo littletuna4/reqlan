@@ -8,12 +8,10 @@ import type { DefinitionParams, Position } from 'vscode-languageserver';
 import { LocationLink } from 'vscode-languageserver';
 import {
     findCommentReferencePartAt,
-    resolveCommentReferenceIdea,
-    resolveFileUri
+    resolveCommentDefinitionLinks,
+    type EmbeddedCommentReference
 } from './reqlan-comment-resolver.js';
-import { findEmbeddedFileReferenceAt } from './reqlan-embedded-file-references.js';
 import {
-    resolveEmbeddedFileReferenceLink,
     resolveFileReferenceLink,
     resolveImportPathLink,
     resolveQualifiedReferencePathLink,
@@ -21,9 +19,12 @@ import {
     resolvedFileLinkToGoToTargetFromFilesystem,
     type ResolvedFileLink
 } from './reqlan-file-link-resolver.js';
+import { findFileReferenceAtPosition } from './reqlan-reference-at-position.js';
+import { isMarkdownLinkLabelPosition } from './reqlan-markdown-links.js';
 import {
     isFileReference,
     isFileSymbolReference,
+    isFromImport,
     isImport,
     isQualifiedReference,
     type FileReference,
@@ -45,16 +46,19 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
-        const commentLinks = this.createCommentReferenceLinks(document, params.position);
-        if (commentLinks) {
-            return commentLinks;
+        if (isMarkdownLinkLabelPosition(document, params.position)) {
+            return undefined;
         }
-        const embeddedReference = findEmbeddedFileReferenceAt(document, params.position);
-        if (embeddedReference) {
-            const resolved = resolveEmbeddedFileReferenceLink(embeddedReference, document, this.documents, this.fileSystem);
-            if (resolved) {
-                return [this.resolvedFileLinkToLocationLink(resolved)];
+        const commentPart = findCommentReferencePartAt(document, params.position);
+        if (commentPart?.property === 'idea') {
+            return this.createCommentIdeaReferenceLinks(document, commentPart.reference);
+        }
+        const fileReference = findFileReferenceAtPosition(document, params.position, this.documents, this.fileSystem);
+        if (fileReference) {
+            if (fileReference.resolution === 'folder' || fileReference.resolution === 'missing') {
+                return undefined;
             }
+            return [this.resolvedFileLinkToLocationLink(fileReference)];
         }
         const fileLink = this.findFileReferenceLinkAtPosition(document, params.position);
         if (fileLink) {
@@ -161,36 +165,11 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         return resolvedFileLinkToGoToTargetFromFilesystem(resolved, source);
     }
 
-    private createCommentReferenceLinks(document: LangiumDocument, position: Position): LocationLink[] | undefined {
-        const part = findCommentReferencePartAt(document, position);
-        if (!part) {
-            return undefined;
-        }
-        if (part.property === 'path') {
-            const targetDocument = this.documents.getDocument(resolveFileUri(part.reference.path, document));
-            const target = targetDocument?.parseResult.value.$cstNode;
-            if (!targetDocument || !target) {
-                return undefined;
-            }
-            return [LocationLink.create(
-                targetDocument.textDocument.uri,
-                target.range,
-                target.range,
-                part.reference.range
-            )];
-        }
-        const idea = resolveCommentReferenceIdea(part.reference, document, this.documents);
-        const ideaNode = idea?.$cstNode;
-        const targetDocument = idea ? this.documents.getDocument(AstUtils.getDocument(idea).uri) : undefined;
-        if (!ideaNode || !targetDocument) {
-            return undefined;
-        }
-        return [LocationLink.create(
-            targetDocument.textDocument.uri,
-            ideaNode.range,
-            ideaNode.range,
-            part.reference.range
-        )];
+    private createCommentIdeaReferenceLinks(
+        document: LangiumDocument,
+        reference: EmbeddedCommentReference
+    ): LocationLink[] | undefined {
+        return resolveCommentDefinitionLinks(reference, document, this.documents);
     }
 
     private findAnonymousImportPathLinkAtPosition(document: LangiumDocument, position: Position): GoToLink | undefined {
@@ -277,7 +256,7 @@ function isImportPathTarget(node: unknown, targetCst: CstNode): node is Import {
     if (!isImport(node)) {
         return false;
     }
-    if (!node.alias) {
+    if (isFromImport(node) || !node.alias) {
         return true;
     }
     const pathNode = GrammarUtils.findNodeForProperty(node.$cstNode, 'path');

@@ -4,3 +4,7 @@ remote_imports {
     The extension should resolve, cache, and validate remote imports.
     Barrel imports should be recommended for token efficiency when many symbols are needed from one remote file.
 }
+
+from_import_syntax {
+    Multiple symbols should be allowd to be be imported with `from "path" import symbol1, symbol2, symbol3` syntax.
+}

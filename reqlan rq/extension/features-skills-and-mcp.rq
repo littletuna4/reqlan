@@ -25,3 +25,12 @@ mcp_interaction_discovery {
 skill_namespace_references {
     backslash references to skills based on the namespace should be supported.
 }
+
+cursor_skills_install {
+    A command palette action (e.g. ctrl+p: reqlan install cursor skills) should copy rq-* skills from the extension into the workspace .cursor/skills folder and update .cursor/mcp.json when the local mcp server is available.
+}
+
+chat_skill_naming {
+    Cursor and Copilot chat skills and slash commands should use the rq- prefix, e.g. rq-search and rq-build-requirement.
+    This prefix must not appear in command palette titles; palette entries use category Reqlan only.
+}

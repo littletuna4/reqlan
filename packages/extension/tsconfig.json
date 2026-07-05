@@ -6,6 +6,9 @@
     },
     "references": [
         {
+            "path": "../analytical/tsconfig.json"
+        },
+        {
             "path": "../language/tsconfig.src.json"
         }
     ],
