@@ -1,3 +1,14 @@
 stopgap {
-  Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan   
+  Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
+}
+
+vsix_export {
+  @steps: (
+    cd packages/extension
+    vsce package --no-dependencies
+  )
+}
+
+cicd {
+    On tagged push to `extension-distribution` branch, if there is a tag starting with `v` build and deploy the extension to the marketplace.
 }

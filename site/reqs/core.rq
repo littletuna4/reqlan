@@ -18,11 +18,13 @@ components {
     - sidebar
     - footer
     - hero
+    - links/contact
     - content
         - motivation
         - syntax
         - example
-    - links/contact
+    - CTA:
+        - download the extension
     - 404 page (just something silly / a redirect)
 }
 
@@ -35,7 +37,17 @@ brand {
     Must be completely scrubbed of any reference to next, vercel etc.
 }
 
+images {
+    The source logo is in the /public folder. A sharp dev script is used to generate pngs and favicons etc which should be executed if the svg source logo changes.
+}
+
+copy {
+    - copy should be really minimal.
+    - In a ts object decoupled from the actual layout/styling
+}
+
 links {
     - reqlan@tony.is-a.dev
     - github.com/littletuna4/reqlan
+    - extension: 
 }

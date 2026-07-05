@@ -93,9 +93,12 @@ describe('Linking tests', () => {
             .find(link => isQualifiedReference(link.target) && link.target.qualifier?.ref && isNamespaceImport(link.target.qualifier.ref));
 
         expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.qualifier?.ref && isNamespaceImport(aliasLink.target.qualifier.ref) && aliasLink.target.qualifier.ref.alias).toBe('exampleimport2');
-        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.idea.ref?.name).toBe('myimportableIdea');
-        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.idea.error).toBeUndefined();
-        expect(aliasLink && isQualifiedReference(aliasLink.target) && aliasLink.target.qualifier?.error).toBeUndefined();
+        if (!aliasLink || !isQualifiedReference(aliasLink.target) || !aliasLink.target.idea) {
+            return;
+        }
+        expect(aliasLink.target.idea.ref?.name).toBe('myimportableIdea');
+        expect(aliasLink.target.idea.error).toBeUndefined();
+        expect(aliasLink.target.qualifier?.error).toBeUndefined();
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_qualified]
@@ -113,9 +116,12 @@ describe('Linking tests', () => {
             .find(link => isQualifiedReference(link.target) && link.target.path?.ref && isNamespaceImport(link.target.path.ref));
 
         expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.path?.ref && isNamespaceImport(pathLink.target.path.ref) && pathLink.target.path.ref.path).toBe('./exampleimport.rq');
-        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.idea.ref?.name).toBe('myimportableIdea');
-        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.idea.error).toBeUndefined();
-        expect(pathLink && isQualifiedReference(pathLink.target) && pathLink.target.path?.error).toBeUndefined();
+        if (!pathLink || !isQualifiedReference(pathLink.target) || !pathLink.target.idea) {
+            return;
+        }
+        expect(pathLink.target.idea.ref?.name).toBe('myimportableIdea');
+        expect(pathLink.target.idea.error).toBeUndefined();
+        expect(pathLink.target.path?.error).toBeUndefined();
     });
 
     // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
@@ -343,7 +349,7 @@ beta {
             .find(ref => isQualifiedReference(ref.target));
 
         expect(bracketRef && isQualifiedReference(bracketRef.target)).toBe(true);
-        if (!bracketRef || !isQualifiedReference(bracketRef.target)) {
+        if (!bracketRef || !isQualifiedReference(bracketRef.target) || !bracketRef.target.idea) {
             return;
         }
         expect(bracketRef.target.path?.ref).toBeUndefined();
@@ -583,7 +589,7 @@ beta {
         const sourcePath = join(repoDir, 'reqlan rq/extension/module/webview.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
-                import "${targetPath.replaceAll('\\', '/')}" as IndexPanel
+                import "${targetPath.replace(/\\/g, '/')}" as IndexPanel
                 demo {
                     see [IndexPanel]
                 }

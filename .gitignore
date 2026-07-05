@@ -4,6 +4,7 @@
 !.vscode/tasks.json
 node_modules/
 package-lock.json
+!site/package-lock.json
 pnpm-debug.log*
 dist/
 out/
