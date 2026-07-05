@@ -57,5 +57,5 @@ copy {
 links {
     - reqlan@tony.is-a.dev
     - github.com/littletuna4/reqlan
-    - extension: 
+    - extension: https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan
 }

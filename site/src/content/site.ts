@@ -49,7 +49,7 @@ export const siteContent = {
 
   cta: {
     label: "Install extension",
-    href: "https://marketplace.visualstudio.com/items?itemName=btdigital.vscode-reqlan-extension",
+    href: "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
   },
 
   motivation: {
@@ -181,7 +181,7 @@ myidea3 {
     links: [
       {
         label: "Extension",
-        href: "https://marketplace.visualstudio.com/items?itemName=btdigital.vscode-reqlan-extension",
+        href: "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
       },
       {
         label: "GitHub",
