@@ -12,7 +12,7 @@ import {
     type IndexStatusView,
     type WebviewToExtensionMessage
 } from './messages.js';
-import { renderIdeasSummaryHtml } from './render-ideas-summary-html.js';
+import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 
 const VIEW_TYPE = 'reqlan.ideasSummary';
@@ -41,10 +41,13 @@ export class IdeasSummaryPanel {
             vscode.ViewColumn.One,
             {
                 enableScripts: true,
-                retainContextWhenHidden: true
+                retainContextWhenHidden: true,
+                localResourceRoots: [
+                    vscode.Uri.joinPath(context.extensionUri, 'media', 'webviews', 'ideas-summary')
+                ]
             }
         );
-        this.panel.webview.html = renderIdeasSummaryHtml();
+        this.panel.webview.html = getIdeasSummaryHtml(this.panel.webview, context.extensionUri);
 
         this.panel.webview.onDidReceiveMessage(
             message => this.handleMessage(message as WebviewToExtensionMessage),

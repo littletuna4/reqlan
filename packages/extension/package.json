@@ -272,12 +272,13 @@
     ],
     "main": "./out/extension/main.cjs",
     "scripts": {
-        "clean": "shx rm -fr *.tsbuildinfo out syntaxes",
+        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews",
         "vscode:prepublish": "pnpm run build",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
-        "build": "pnpm run build:prepare && tsc -b tsconfig.json && node esbuild.mjs",
+        "build:webviews": "vite build --config webviews/ideas-summary/vite.config.ts",
+        "build": "pnpm run build:prepare && pnpm run build:webviews && tsc -b tsconfig.json && node esbuild.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
-        "watch": "concurrently -n tsc,esbuild,syntax -c blue,yellow,cyan \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
+        "watch": "concurrently -n webviews,tsc,esbuild,syntax -c magenta,blue,yellow,cyan \"vite build --config webviews/ideas-summary/vite.config.ts --watch\" \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
     },
     "dependencies": {
         "sqlite3": "~5.1.7",
@@ -290,9 +291,13 @@
         "zustand": "~5.0.8"
     },
     "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "~3.1.2",
+        "@tsconfig/svelte": "~5.0.4",
         "@types/vscode": "~1.91.0",
         "concurrently": "~10.0.3",
-        "esbuild": "~0.28.1"
+        "esbuild": "~0.28.1",
+        "svelte": "~4.2.19",
+        "vite": "~5.4.11"
     },
     "vsce": {
       "dependencies": true
