@@ -52,7 +52,6 @@
             slice.nodes.map(node => node.id).join('\u0000'),
             slice.edges.map(edge => edge.id).join('\u0000'),
             centerId ?? '',
-            layoutId,
             useCompound ? '1' : '0',
             compoundBasisId
         ].join('\u0001')

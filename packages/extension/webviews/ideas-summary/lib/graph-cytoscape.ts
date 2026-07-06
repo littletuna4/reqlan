@@ -32,6 +32,32 @@ export function isForceDirectedLayout(layoutId: string): boolean {
     return FORCE_DIRECTED_LAYOUT_IDS.has(layoutId);
 }
 
+/** Why a layout run was requested — drives animation, fit, and incremental behaviour. */
+export type LayoutRunMode = 'initial' | 'relayout' | 'physics';
+
+export interface LayoutFixedNode {
+    nodeId: string;
+    position: { x: number; y: number };
+}
+
+/** Spread nodes on a circle so the first animation frame is readable before fcose runs. */
+export function seedNodePositions(cy: cytoscape.Core): void {
+    const nodes = cy.nodes(':childless');
+    const count = nodes.length;
+    if (count === 0) {
+        return;
+    }
+
+    const radius = Math.max(140, Math.sqrt(count) * 70);
+    nodes.forEach((node, index) => {
+        const angle = (2 * Math.PI * index) / count;
+        node.position({
+            x: radius * Math.cos(angle),
+            y: radius * Math.sin(angle)
+        });
+    });
+}
+
 /** Group nodes by every folder segment in their relative path. */
 export const folderPathCompoundBasis: CompoundBasis = node => {
     const normalized = node.path.replace(/\\/g, '/');
@@ -230,29 +256,60 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
 export function getLayoutConfig(
     layoutId: string,
     useCompound: boolean,
-    animatePhysics: boolean,
-    nodeCount = 0
+    mode: LayoutRunMode,
+    nodeCount = 0,
+    fixedNodes: readonly LayoutFixedNode[] = []
 ): cytoscape.LayoutOptions {
+    const isInitial = mode === 'initial';
+    const isPhysics = mode === 'physics';
+
     const base: cytoscape.LayoutOptions = {
         name: layoutId,
-        animate: true,
-        animationDuration: 800,
-        fit: true,
+        animate: !isPhysics,
+        animationDuration: isPhysics ? 0 : 400,
+        animationEasing: 'ease-out-cubic',
+        fit: isInitial || mode === 'relayout',
         padding: 36
     };
 
-    const cappedIterations = Math.min(1000, 40 + nodeCount * 8);
+    const cappedIterations = Math.min(250, 40 + nodeCount * 4);
+    const fixedNodeConstraint =
+        fixedNodes.length > 0
+            ? fixedNodes.map(node => ({ nodeId: node.nodeId, position: { ...node.position } }))
+            : undefined;
 
     switch (layoutId) {
         case 'fcose':
+            if (isPhysics) {
+                // Incremental fcose: randomize must stay false; draft+randomize:false crashes in relocateComponent.
+                return {
+                    ...base,
+                    animate: false,
+                    animationDuration: 0,
+                    fit: false,
+                    quality: 'default',
+                    randomize: false,
+                    packComponents: false,
+                    tile: false,
+                    nodeRepulsion: 8000,
+                    idealEdgeLength: 100,
+                    numIter: 40,
+                    ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
+                };
+            }
             return {
                 ...base,
-                quality: 'proof',
+                animate: true,
+                animationDuration: 400,
+                animationEasing: 'ease-out-cubic',
+                quality: 'default',
+                randomize: isInitial,
+                packComponents: isInitial,
                 nodeRepulsion: 8000,
                 idealEdgeLength: 100,
-                numIter: animatePhysics ? Math.min(400, cappedIterations) : cappedIterations,
+                numIter: cappedIterations,
                 tile: true,
-                randomize: false
+                ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
             };
         case 'cose':
             return {
@@ -260,9 +317,9 @@ export function getLayoutConfig(
                 nodeRepulsion: () => 8000,
                 idealEdgeLength: () => 90,
                 nestingFactor: useCompound ? 1.2 : 1,
-                gravity: animatePhysics ? 0.15 : 0.25,
-                numIter: animatePhysics ? Math.min(400, cappedIterations) : cappedIterations,
-                refresh: animatePhysics ? 20 : 30
+                gravity: isPhysics ? 0.15 : 0.25,
+                numIter: isPhysics ? 40 : cappedIterations,
+                refresh: isPhysics ? 10 : 30
             };
         case 'breadthfirst':
             return {

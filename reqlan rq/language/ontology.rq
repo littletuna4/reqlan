@@ -10,6 +10,11 @@ import_statement Imports are used to decribe refrences. some [keywords] are rese
 
 reference References are used to link ideas to other ideas, files, and symbols.
 
+referenced_files are non rq files/ideasets that are referenced by ideas, or that reference ideas. these may be shared. they should be captured  in the [index]
+
+cartographic_map a cartographic map is a visual representation of a graph, optimised/curated by the user for context
+
+
 extension the extension contains all of the actual features
 
 grammar_rule grammar rules describe the syntax features
@@ -19,3 +24,5 @@ attribute attributes are for classification, functional or nonfunctional metadat
 attribute_body the first attribute in an idea, if not marked otherwise, is the main 'body' attribute. It is unstructured text.
 
 idea_name the idea name is a string/handle/variable that uniquely identifies the idea (within the ideaset/file). It shouldn't be a reserved keyword.
+
+

@@ -1,4 +1,5 @@
 
+
 graphical_graph {
     There should be a tab that renders requirement ideas and references as a force-directed web.
     The graph tab lives in the Ideas Summary webview per [webview].
@@ -78,3 +79,20 @@ layout_options {
 compound_graph {
     folder hierarchy is to be supported with compound layouts
 }
+
+
+node_truncation {
+    nodes are trunctated if there's to many
+    the count should be configurable; as should the truncation basis (last changed.., last accessed.., owned by etc.)
+}
+
+physics_options {
+    - user can select from a dropdown of physics options offered by cytoscape.js
+        - the options for the phycis should be exposed to the user in a menu too.
+    - user can select whether to use live physics/animation   
+}
+
+referenced_files_grouping {
+    [referenced_files] should be grouped into a common node if they're referenced by multiple ideas.
+    Line numbers should be treated like ideas if specified, such that the reference points to items in rendered graph.
+    }

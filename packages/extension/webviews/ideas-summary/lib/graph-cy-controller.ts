@@ -4,22 +4,27 @@
  */
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
+import layoutUtilities from 'cytoscape-layout-utilities';
 import type { GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
     buildCytoscapeElements,
     buildCytoscapeStylesheet,
     getLayoutConfig,
     isForceDirectedLayout,
-    type CompoundBasis
+    seedNodePositions,
+    type CompoundBasis,
+    type LayoutFixedNode,
+    type LayoutRunMode
 } from './graph-cytoscape.js';
-
-cytoscape.use(fcose);
 import { createGraphCyMachine, type GraphCyEvent, type GraphCyMachine } from './graph-cy-state.js';
 import { GraphNodeRegistry } from './graph-node-state.js';
 
+cytoscape.use(fcose);
+cytoscape.use(layoutUtilities);
+
 const MIN_ZOOM = 0.01;
 const MAX_ZOOM = 100;
-const PHYSICS_PULSE_MS = 450;
+const PHYSICS_PULSE_MS = 350;
 const RESIZE_DEBOUNCE_MS = 120;
 
 export interface GraphSyncOptions {
@@ -43,6 +48,7 @@ export class GraphCyController {
     private readonly nodeRegistry = new GraphNodeRegistry();
     private cy: cytoscape.Core | undefined;
     private activeLayout: cytoscape.Layouts | undefined;
+    private activeLayoutRunId = 0;
     private physicsTimer: ReturnType<typeof setTimeout> | undefined;
     private resizeTimer: ReturnType<typeof setTimeout> | undefined;
     private resizeObserver: ResizeObserver | undefined;
@@ -52,6 +58,8 @@ export class GraphCyController {
         useCompound: false,
         compoundBasis: () => []
     };
+    private draggingCount = 0;
+    private readonly userPositionedNodes = new Map<string, { x: number; y: number }>();
 
     constructor(private readonly options: GraphCyControllerOptions) {
         this.machine = createGraphCyMachine();
@@ -157,7 +165,7 @@ export class GraphCyController {
         }
 
         this.nodeRegistry.beginLayout();
-        this.runLayout(this.activeSyncGeneration);
+        this.runLayout(this.activeSyncGeneration, 'relayout');
     }
 
     resetView(): void {
@@ -192,6 +200,7 @@ export class GraphCyController {
         this.syncOptions = options;
         this.clearPhysicsTimer();
         this.stopLayout();
+        this.userPositionedNodes.clear();
 
         if (!this.dispatch('sync')) {
             return;
@@ -212,10 +221,11 @@ export class GraphCyController {
             this.cy!.add(elements);
         });
 
+        seedNodePositions(this.cy);
         this.applySelection(options.selectedId);
         this.dispatch('synced');
         this.nodeRegistry.beginLayout();
-        this.runLayout(generation);
+        this.runLayout(generation, 'initial');
     }
 
     private dispatch(event: GraphCyEvent): boolean {
@@ -264,7 +274,19 @@ export class GraphCyController {
             if (node.data('isCompound')) {
                 return;
             }
+            this.draggingCount += 1;
+            this.stopLayout();
+            this.clearPhysicsTimer();
             this.nodeRegistry.dragStart(node.id());
+        });
+
+        instance.on('drag', 'node', (event: cytoscape.EventObject) => {
+            const node = event.target;
+            if (node.data('isCompound')) {
+                return;
+            }
+            const position = node.position();
+            this.userPositionedNodes.set(node.id(), { x: position.x, y: position.y });
         });
 
         instance.on('free', 'node', (event: cytoscape.EventObject) => {
@@ -272,7 +294,16 @@ export class GraphCyController {
             if (node.data('isCompound')) {
                 return;
             }
+            const position = node.position();
+            this.userPositionedNodes.set(node.id(), { x: position.x, y: position.y });
             this.nodeRegistry.dragEnd(node.id());
+            this.draggingCount = Math.max(0, this.draggingCount - 1);
+            if (this.draggingCount === 0) {
+                const { animatePhysics } = this.machine.getState();
+                if (animatePhysics && isForceDirectedLayout(this.machine.getState().layoutId)) {
+                    this.schedulePhysicsPulse();
+                }
+            }
         });
     }
 
@@ -291,7 +322,7 @@ export class GraphCyController {
         }
     }
 
-    private runLayout(generation: number): void {
+    private runLayout(generation: number, mode: LayoutRunMode = 'relayout'): void {
         if (!this.cy || this.cy.elements().length === 0) {
             this.dispatch('layouted');
             this.nodeRegistry.placeAll();
@@ -299,57 +330,90 @@ export class GraphCyController {
             return;
         }
 
+        if (this.draggingCount > 0) {
+            return;
+        }
+
         const { layoutId, animatePhysics } = this.machine.getState();
+        const layoutMode = mode === 'relayout' && animatePhysics ? 'physics' : mode;
         this.stopLayout();
 
+        const runId = ++this.activeLayoutRunId;
         const nodeCount = this.cy.nodes(':childless').length;
+        const fixedNodes = this.collectFixedNodes();
         const layout = this.cy.layout(
-            getLayoutConfig(layoutId, this.syncOptions.useCompound, animatePhysics, nodeCount)
+            getLayoutConfig(layoutId, this.syncOptions.useCompound, layoutMode, nodeCount, fixedNodes)
         );
         this.activeLayout = layout;
 
         layout.on('layoutstop', () => {
-            if (generation !== this.activeSyncGeneration) {
+            if (generation !== this.activeSyncGeneration || runId !== this.activeLayoutRunId) {
                 return;
             }
 
+            this.activeLayout = undefined;
             this.nodeRegistry.placeAll();
 
             const state = this.machine.getState();
             if (state.animatePhysics && isForceDirectedLayout(state.layoutId)) {
                 if (state.lifecycle === 'layouting') {
                     this.dispatch('physicsOn');
+                    if (layoutMode === 'initial') {
+                        this.options.onRendered?.();
+                    }
                 }
-                this.schedulePhysicsPulse();
+                if (this.draggingCount === 0) {
+                    this.schedulePhysicsPulse();
+                }
                 return;
             }
 
             if (state.lifecycle === 'layouting') {
                 this.dispatch('layouted');
                 this.options.onRendered?.();
-            } else if (state.lifecycle === 'physics') {
+            } else if (state.lifecycle === 'physics' && this.draggingCount === 0) {
                 this.schedulePhysicsPulse();
             }
         });
 
         setTimeout(() => {
-            if (generation !== this.activeSyncGeneration) {
+            if (generation !== this.activeSyncGeneration || this.draggingCount > 0 || runId !== this.activeLayoutRunId) {
                 return;
             }
             layout.run();
         }, 0);
     }
 
+    private collectFixedNodes(): LayoutFixedNode[] {
+        if (!this.cy) {
+            return [];
+        }
+
+        const fixed: LayoutFixedNode[] = [];
+        for (const [nodeId, position] of this.userPositionedNodes) {
+            if (this.cy.$id(nodeId).length > 0) {
+                fixed.push({ nodeId, position: { ...position } });
+            }
+        }
+        return fixed;
+    }
+
     private schedulePhysicsPulse(): void {
         const { animatePhysics, layoutId, lifecycle } = this.machine.getState();
-        if (!animatePhysics || !isForceDirectedLayout(layoutId) || lifecycle === 'syncing' || lifecycle === 'uninitialized') {
+        if (
+            !animatePhysics ||
+            !isForceDirectedLayout(layoutId) ||
+            lifecycle === 'syncing' ||
+            lifecycle === 'uninitialized' ||
+            this.draggingCount > 0
+        ) {
             return;
         }
 
         this.clearPhysicsTimer();
         this.physicsTimer = setTimeout(() => {
             this.physicsTimer = undefined;
-            if (!this.cy || this.cy.elements().length === 0) {
+            if (!this.cy || this.cy.elements().length === 0 || this.draggingCount > 0) {
                 return;
             }
 
@@ -360,7 +424,7 @@ export class GraphCyController {
 
             if (state.lifecycle === 'physics' && this.dispatch('layout')) {
                 this.nodeRegistry.beginLayout();
-                this.runLayout(this.activeSyncGeneration);
+                this.runLayout(this.activeSyncGeneration, 'physics');
             }
         }, PHYSICS_PULSE_MS);
     }
@@ -373,7 +437,11 @@ export class GraphCyController {
     }
 
     private stopLayout(): void {
-        this.activeLayout?.stop();
+        if (!this.activeLayout) {
+            return;
+        }
+        this.activeLayoutRunId += 1;
+        this.activeLayout.stop();
         this.activeLayout = undefined;
     }
 
