@@ -16,7 +16,7 @@ export interface GraphLayoutOption {
 }
 
 export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
-    { id: 'cose', label: 'Force-directed (cose)', supportsCompound: true },
+    { id: 'fcose', label: 'Force-directed (fcose)', supportsCompound: true },
     { id: 'breadthfirst', label: 'Breadthfirst', supportsCompound: true },
     { id: 'circle', label: 'Circle', supportsCompound: false },
     { id: 'concentric', label: 'Concentric', supportsCompound: false },
@@ -24,7 +24,13 @@ export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
     { id: 'random', label: 'Random', supportsCompound: false }
 ];
 
-export const DEFAULT_LAYOUT_ID = 'cose';
+export const DEFAULT_LAYOUT_ID = 'fcose';
+
+const FORCE_DIRECTED_LAYOUT_IDS = new Set(['fcose', 'cose']);
+
+export function isForceDirectedLayout(layoutId: string): boolean {
+    return FORCE_DIRECTED_LAYOUT_IDS.has(layoutId);
+}
 
 /** Group nodes by every folder segment in their relative path. */
 export const folderPathCompoundBasis: CompoundBasis = node => {
@@ -84,9 +90,9 @@ function buildCompoundElements(
                     data: {
                         id,
                         label: segment,
-                        isCompound: true
-                    },
-                    ...(parentId ? { parent: parentId } : {})
+                        isCompound: true,
+                        ...(parentId ? { parent: parentId } : {})
+                    }
                 });
             }
             parentId = id;
@@ -118,6 +124,7 @@ export function buildCytoscapeElements(
             ? `${truncate(node.name)}\n${truncate(node.status, 18)}`
             : truncate(node.name);
 
+        const compoundParentId = useCompound ? compoundElements.parentByNodeId.get(node.id) : undefined;
         nodeElements.push({
             data: {
                 id: node.id,
@@ -125,9 +132,9 @@ export function buildCytoscapeElements(
                 color: graphNodeFill(node, centerId),
                 isExternal: Boolean(node.isExternal),
                 isCenter: node.id === centerId,
-                nodeKind: node.kind
-            },
-            ...(useCompound ? { parent: compoundElements.parentByNodeId.get(node.id) } : {})
+                nodeKind: node.kind,
+                ...(compoundParentId ? { parent: compoundParentId } : {})
+            }
         });
     }
 
@@ -228,15 +235,25 @@ export function getLayoutConfig(
 ): cytoscape.LayoutOptions {
     const base: cytoscape.LayoutOptions = {
         name: layoutId,
-        animate: animatePhysics,
-        animationDuration: animatePhysics ? 350 : 0,
+        animate: true,
+        animationDuration: 800,
         fit: true,
         padding: 36
     };
 
-    const cappedIterations = Math.min(350, 40 + nodeCount * 4);
+    const cappedIterations = Math.min(1000, 40 + nodeCount * 8);
 
     switch (layoutId) {
+        case 'fcose':
+            return {
+                ...base,
+                quality: 'proof',
+                nodeRepulsion: 8000,
+                idealEdgeLength: 100,
+                numIter: animatePhysics ? Math.min(400, cappedIterations) : cappedIterations,
+                tile: true,
+                randomize: false
+            };
         case 'cose':
             return {
                 ...base,

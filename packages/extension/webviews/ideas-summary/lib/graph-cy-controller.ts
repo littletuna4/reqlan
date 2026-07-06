@@ -3,13 +3,17 @@
  * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
  */
 import cytoscape from 'cytoscape';
+import fcose from 'cytoscape-fcose';
 import type { GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
     buildCytoscapeElements,
     buildCytoscapeStylesheet,
     getLayoutConfig,
+    isForceDirectedLayout,
     type CompoundBasis
 } from './graph-cytoscape.js';
+
+cytoscape.use(fcose);
 import { createGraphCyMachine, type GraphCyEvent, type GraphCyMachine } from './graph-cy-state.js';
 import { GraphNodeRegistry } from './graph-node-state.js';
 
@@ -312,7 +316,7 @@ export class GraphCyController {
             this.nodeRegistry.placeAll();
 
             const state = this.machine.getState();
-            if (state.animatePhysics && state.layoutId === 'cose') {
+            if (state.animatePhysics && isForceDirectedLayout(state.layoutId)) {
                 if (state.lifecycle === 'layouting') {
                     this.dispatch('physicsOn');
                 }
@@ -338,7 +342,7 @@ export class GraphCyController {
 
     private schedulePhysicsPulse(): void {
         const { animatePhysics, layoutId, lifecycle } = this.machine.getState();
-        if (!animatePhysics || layoutId !== 'cose' || lifecycle === 'syncing' || lifecycle === 'uninitialized') {
+        if (!animatePhysics || !isForceDirectedLayout(layoutId) || lifecycle === 'syncing' || lifecycle === 'uninitialized') {
             return;
         }
 
@@ -350,7 +354,7 @@ export class GraphCyController {
             }
 
             const state = this.machine.getState();
-            if (!state.animatePhysics || state.layoutId !== 'cose') {
+            if (!state.animatePhysics || !isForceDirectedLayout(state.layoutId)) {
                 return;
             }
 

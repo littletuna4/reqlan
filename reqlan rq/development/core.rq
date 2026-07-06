@@ -11,6 +11,7 @@ stack {
     - Language grammar is defined with langium in ["../../reqlan rq/language/syntax.rq"]
     - VSCode Extension is implemented with vscode-langium in ["../../packages/extension"]
     - vscode webviews are implemented with svelte
+    - Extension build pipeline is documented in ["./build.rq"]
 }
 
 rust_mindset {

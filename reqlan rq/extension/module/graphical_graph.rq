@@ -60,8 +60,9 @@ webview_threading {
 
 
 layout_physics {
-    defaults to force-directed layout, but user inputs for other options offered by cytoscape.js
+    defaults to force-directed layout (fcose) with animation on, but user inputs for other options offered by cytoscape.js
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately
+    
 }
 
 view_controls {

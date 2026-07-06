@@ -41,7 +41,7 @@ const TRANSITIONS: Record<GraphCyState, Partial<Record<GraphCyEvent, GraphCyStat
 const INITIAL_STATE: GraphCyMachineState = {
     lifecycle: 'uninitialized',
     animatePhysics: false,
-    layoutId: 'cose',
+    layoutId: 'fcose',
     syncGeneration: 0
 };
 

@@ -304,13 +304,14 @@
         "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews",
         "vscode:prepublish": "pnpm run build",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
-        "build:webviews": "vite build --config webviews/ideas-summary/vite.config.ts",
-        "build": "pnpm run build:prepare && pnpm run build:webviews && tsc -b tsconfig.json && node esbuild.mjs",
+        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts",
+        "build": "node scripts/build.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "bash scripts/watch.sh"
     },
     "dependencies": {
         "cytoscape": "^3.33.1",
+        "cytoscape-fcose": "^2.2.0",
         "langium": "~4.3.0",
         "reqlan-analytical": "workspace:*",
         "reqlan-language": "workspace:*",

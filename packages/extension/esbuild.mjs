@@ -1,4 +1,5 @@
 //@ts-check
+/** Extension host and language server bundling — see reqlan rq/development/build.rq */
 import * as esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');

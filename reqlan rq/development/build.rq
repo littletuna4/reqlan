@@ -1,0 +1,42 @@
+import "./core.rq" as development_core
+import "../../packages/extension/scripts/build.mjs" as extension_build_script
+import "../../packages/extension/esbuild.mjs" as extension_esbuild
+import "../../packages/extension/webviews/ideas-summary/vite.config.ts" as ideas_summary_vite_config
+
+scope extension build steps for local development and CI
+
+extension_build {
+    Production builds for the VS Code extension are orchestrated by [extension_build_script].
+    Run from the extension package: `pnpm run build` or `node scripts/build.mjs`.
+    Workspace-wide builds also run langium generation and sibling packages via the root `pnpm run build`.
+}
+
+build_prepare {
+    Copy TextMate grammars from the language package into extension syntaxes.
+    Sync Cursor agent skills from extension sources into `.cursor/skills`.
+    Invoked as `pnpm run build:prepare` before webview and host bundling.
+}
+
+webview_build {
+    Svelte webview UI is bundled with Vite per [development_core].
+    Config: [ideas_summary_vite_config]
+    @steps: (
+        npx vite build --config webviews/ideas-summary/vite.config.ts
+    )
+    Output lands in `packages/extension/media/webviews/ideas-summary/` for the extension host to load.
+    Watch mode during development: `bash scripts/watch.sh` vite `--watch` alongside tsc and esbuild.
+}
+
+extension_typecheck {
+    Extension TypeScript sources are checked with `pnpm exec tsc -b tsconfig.json` before bundling.
+    `noEmit: true` — compilation output comes from esbuild, not tsc.
+}
+
+extension_bundle {
+    The extension host (`src/extension/main.ts`) and language server (`src/language/main.ts`) are bundled with esbuild per [extension_esbuild].
+    @steps: (
+        node esbuild.mjs
+    )
+    Output: CommonJS `.cjs` files under `packages/extension/out/`.
+    `vscode` and `sqlite3` remain external; a small `Object.groupBy` polyfill is injected for older Node runtimes.
+}

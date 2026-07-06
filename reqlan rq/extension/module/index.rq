@@ -3,4 +3,10 @@ idea_index_triggers {
 }
 
 
-
+git_information_capture {
+    - the git state at the requirements should be captured and stored/accessible from in the index state as well.
+        - view ownership
+        - view creator (name and email)
+        - view edit frequency
+        - create an adjacency score based on the edit state and frequency of neighbours and their scores.
+}
