@@ -1,25 +1,19 @@
 <script lang="ts">
     import type { IdeasetsTableQuery, IdeasetTableRow } from '../../../src/webview_module/shared/messages.js';
-    import { createEventDispatcher } from 'svelte';
+    import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';
     import Pager from './Pager.svelte';
     import SortableTh from './SortableTh.svelte';
     import TableToolbar from './TableToolbar.svelte';
 
-    export let rows: IdeasetTableRow[] = [];
-    export let query: IdeasetsTableQuery;
-    export let total = 0;
+    const app = getApp();
 
-    const dispatch = createEventDispatcher<{
-        openMember: { fileUri: string; line: number };
-        openSource: { fileUri: string; line: number };
-        queryChange: IdeasetsTableQuery;
-        prev: void;
-        next: void;
-    }>();
+    $: query = app.ideasets.query;
+    $: rows = app.ideasets.rows;
+    $: total = app.ideasets.total;
 
     function emitQuery(next: IdeasetsTableQuery): void {
-        dispatch('queryChange', next);
+        app.onIdeasetsQueryChange(next);
     }
 
     function memberItems(row: IdeasetTableRow): string[] {
@@ -31,11 +25,11 @@
         if (!member) {
             return;
         }
-        dispatch('openMember', { fileUri: member.fileUri, line: member.lineStart });
+        app.openIdea(member.fileUri, member.lineStart);
     }
 
     function openSource(row: IdeasetTableRow): void {
-        dispatch('openSource', { fileUri: row.fileUri, line: row.lineStart });
+        app.openIdea(row.fileUri, row.lineStart);
     }
 
     function handleSearch(event: CustomEvent<string>): void {
@@ -84,4 +78,11 @@
     </tbody>
 </table>
 
-<Pager page={query.page} {total} pageSize={query.pageSize} label="ideasets" on:prev on:next />
+<Pager
+    page={query.page}
+    {total}
+    pageSize={query.pageSize}
+    label="ideasets"
+    on:prev={() => query.page > 0 && app.loadIdeasets({ ...query, page: query.page - 1 })}
+    on:next={() => app.loadIdeasets({ ...query, page: query.page + 1 })}
+/>

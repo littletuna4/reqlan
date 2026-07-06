@@ -307,10 +307,10 @@
         "build:webviews": "vite build --config webviews/ideas-summary/vite.config.ts",
         "build": "pnpm run build:prepare && pnpm run build:webviews && tsc -b tsconfig.json && node esbuild.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
-        "watch": "concurrently -n webviews,tsc,esbuild,syntax -c magenta,blue,yellow,cyan \"vite build --config webviews/ideas-summary/vite.config.ts --watch\" \"tsc -b tsconfig.json --watch\" \"node esbuild.mjs --watch\" \"node watch-syntax.mjs\""
+        "watch": "bash scripts/watch.sh"
     },
     "dependencies": {
-        "d3-force": "^3.0.0",
+        "cytoscape": "^3.33.1",
         "langium": "~4.3.0",
         "reqlan-analytical": "workspace:*",
         "reqlan-language": "workspace:*",
@@ -321,14 +321,13 @@
         "zustand": "~5.0.8"
     },
     "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "~3.1.2",
+        "@sveltejs/vite-plugin-svelte": "~5.0.3",
         "@tsconfig/svelte": "~5.0.4",
-        "@types/d3-force": "^3.0.10",
         "@types/vscode": "~1.91.0",
         "concurrently": "~10.0.3",
         "esbuild": "~0.28.1",
-        "svelte": "~4.2.19",
-        "vite": "~5.4.11"
+        "svelte": "~5.33.14",
+        "vite": "~6.2.5"
     },
     "vsce": {
         "dependencies": true

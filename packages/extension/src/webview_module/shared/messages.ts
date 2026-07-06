@@ -181,6 +181,22 @@ export interface GraphViewSlice {
     edges: GraphEdgeView[];
 }
 
+/** Progress phases while the extension builds a graph slice. */
+export type GraphLoadPhase =
+    | 'queued'
+    | 'checking-index'
+    | 'waiting-for-index'
+    | 'resolving-focus'
+    | 'querying-slice'
+    | 'packaging-slice'
+    | 'failed';
+
+export interface GraphLoadProgress {
+    requestId?: number;
+    phase: GraphLoadPhase;
+    detail?: string;
+}
+
 export type WebviewToExtensionMessage =
     | { type: 'ready' }
     | { type: 'loadIndexStatus' }
@@ -189,7 +205,8 @@ export type WebviewToExtensionMessage =
     | { type: 'loadIdeas'; query: IdeasTableQuery }
     | { type: 'loadIdeasets'; query: IdeasetsTableQuery }
     | { type: 'loadReferences'; query: ReferencesTableQuery }
-    | { type: 'loadGraph'; query: GraphViewQuery }
+    | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
+    | { type: 'requestWebviewReload' }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
     | { type: 'dumpFullGraph' };
 
@@ -198,6 +215,7 @@ export type ExtensionToWebviewMessage =
     | { type: 'ideasPage'; query: IdeasTableQuery; total: number; rows: IdeaTableRow[] }
     | { type: 'ideasetsPage'; query: IdeasetsTableQuery; total: number; rows: IdeasetTableRow[] }
     | { type: 'referencesPage'; query: ReferencesTableQuery; total: number; rows: ReferenceTableRow[] }
-    | { type: 'graphSlice'; slice: GraphViewSlice }
+    | { type: 'graphLoadProgress'; progress: GraphLoadProgress }
+    | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }
     | { type: 'fullGraph'; ideaCount: number; edgeCount: number; ideasJson: string; edgesJson: string }
-    | { type: 'error'; message: string };
+    | { type: 'error'; message: string; requestId?: number };

@@ -1,31 +1,25 @@
 <script lang="ts">
     import type { IdeaReferenceChip, IdeaTableRow, IdeasTableQuery } from '../../../src/webview_module/shared/messages.js';
-    import { createEventDispatcher } from 'svelte';
     import { attributeKeyFromChipItem } from '../lib/chip-labels.js';
+    import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';
     import IdeaBodyCell from './IdeaBodyCell.svelte';
     import Pager from './Pager.svelte';
     import SortableTh from './SortableTh.svelte';
     import TableToolbar from './TableToolbar.svelte';
 
-    export let rows: IdeaTableRow[] = [];
-    export let query: IdeasTableQuery;
-    export let total = 0;
+    const app = getApp();
 
-    const dispatch = createEventDispatcher<{
-        open: { fileUri: string; line: number };
-        openReference: { fileUri: string; line: number };
-        queryChange: IdeasTableQuery;
-        prev: void;
-        next: void;
-    }>();
+    $: query = app.ideas.query;
+    $: rows = app.ideas.rows;
+    $: total = app.ideas.total;
 
     function emitQuery(next: IdeasTableQuery): void {
-        dispatch('queryChange', next);
+        app.onIdeasQueryChange(next);
     }
 
     function openRow(row: IdeaTableRow): void {
-        dispatch('open', { fileUri: row.fileUri, line: row.lineStart });
+        app.openIdea(row.fileUri, row.lineStart);
     }
 
     function handleSearch(event: CustomEvent<string>): void {
@@ -192,4 +186,11 @@
     </tbody>
 </table>
 
-<Pager page={query.page} {total} pageSize={query.pageSize} label="ideas" on:prev on:next />
+<Pager
+    page={query.page}
+    {total}
+    pageSize={query.pageSize}
+    label="ideas"
+    on:prev={() => query.page > 0 && app.loadIdeas({ ...query, page: query.page - 1 })}
+    on:next={() => app.loadIdeas({ ...query, page: query.page + 1 })}
+/>

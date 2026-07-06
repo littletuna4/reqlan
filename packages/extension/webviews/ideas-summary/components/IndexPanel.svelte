@@ -1,14 +1,9 @@
 <script lang="ts">
     import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
-    import { createEventDispatcher } from 'svelte';
+    import { postToExtension } from '../lib/vscode.js';
+    import { getApp } from '../state/context.js';
 
-    export let status: IndexStatusView | undefined;
-
-    const dispatch = createEventDispatcher<{
-        refresh: void;
-        clearAndRebuild: void;
-        openIssue: { fileUri: string; line: number; column: number };
-    }>();
+    const app = getApp();
 
     function formatTime(at: number): string {
         return new Date(at).toLocaleTimeString();
@@ -35,15 +30,12 @@
     }
 
     function openIssue(issue: FileIndexIssueView): void {
-        dispatch('openIssue', {
-            fileUri: issue.fileUri,
-            line: issue.line,
-            column: issue.column
-        });
+        app.openIdea(issue.fileUri, issue.line, issue.column);
     }
 </script>
 
-{#if status}
+{#if app.index.status}
+    {@const status = app.index.status}
     <div class="stat-grid">
         <div class="stat-card">
             <div class="label">State</div>
@@ -127,8 +119,8 @@
     {/if}
 
     <div class="actions">
-        <button on:click={() => dispatch('refresh')}>Refresh index</button>
-        <button class="secondary" on:click={() => dispatch('clearAndRebuild')}>Clear &amp; rebuild index</button>
+        <button on:click={() => postToExtension({ type: 'refreshIndex' })}>Refresh index</button>
+        <button class="secondary" on:click={() => postToExtension({ type: 'clearAndRebuildIndex' })}>Clear &amp; rebuild index</button>
     </div>
 
     <h2>Recent activity</h2>

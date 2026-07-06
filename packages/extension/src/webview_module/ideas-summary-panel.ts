@@ -9,6 +9,7 @@ import {
     IDEASETS_PAGE_SIZE,
     REFERENCES_PAGE_SIZE,
     type ExtensionToWebviewMessage,
+    type GraphLoadPhase,
     type GraphViewQuery,
     type GraphViewSlice,
     type IdeasTableQuery,
@@ -54,26 +55,58 @@ const DEFAULT_GRAPH_QUERY: GraphViewQuery = {
 
 export class IdeasSummaryPanel {
     private static current?: IdeasSummaryPanel;
+    private static activationGeneration = 0;
 
-    static show(context: vscode.ExtensionContext, submodule: AnalyticalSubmodule): void {
-        if (IdeasSummaryPanel.current) {
-            IdeasSummaryPanel.current.panel.reveal(vscode.ViewColumn.One);
+    static bumpActivationGeneration(): number {
+        IdeasSummaryPanel.activationGeneration += 1;
+        return IdeasSummaryPanel.activationGeneration;
+    }
+
+    static forceDispose(): void {
+        if (!IdeasSummaryPanel.current) {
             return;
         }
-        IdeasSummaryPanel.current = new IdeasSummaryPanel(context, submodule);
+        IdeasSummaryPanel.current.panel.dispose();
+        IdeasSummaryPanel.current = undefined;
+    }
+
+    static show(
+        context: vscode.ExtensionContext,
+        submodule: AnalyticalSubmodule,
+        activationGeneration: number
+    ): void {
+        if (
+            IdeasSummaryPanel.current &&
+            IdeasSummaryPanel.current.activationGeneration !== activationGeneration
+        ) {
+            IdeasSummaryPanel.forceDispose();
+        }
+        if (IdeasSummaryPanel.current) {
+            IdeasSummaryPanel.current.panel.reveal(vscode.ViewColumn.One);
+            void IdeasSummaryPanel.current.sendIndexStatus();
+            return;
+        }
+        IdeasSummaryPanel.current = new IdeasSummaryPanel(context, submodule, activationGeneration);
     }
 
     readonly panel: vscode.WebviewPanel;
     private readonly statusUnsubscribe: () => void;
+    private readonly activationGeneration: number;
     private ideasQuery: IdeasTableQuery = { ...DEFAULT_IDEAS_QUERY };
     private ideasetsQuery: IdeasetsTableQuery = { ...DEFAULT_IDEASETS_QUERY };
     private referencesQuery: ReferencesTableQuery = { ...DEFAULT_REFERENCES_QUERY };
     private graphQuery: GraphViewQuery = { ...DEFAULT_GRAPH_QUERY };
 
+    private statusPostTimer: ReturnType<typeof setTimeout> | undefined;
+    private bootstrapPromise: Promise<void> | undefined;
+    private graphSliceGeneration = 0;
+
     private constructor(
-        context: vscode.ExtensionContext,
-        private readonly submodule: AnalyticalSubmodule
+        private readonly context: vscode.ExtensionContext,
+        private readonly submodule: AnalyticalSubmodule,
+        activationGeneration: number
     ) {
+        this.activationGeneration = activationGeneration;
         this.panel = vscode.window.createWebviewPanel(
             VIEW_TYPE,
             'Reqlan Ideas Summary',
@@ -82,76 +115,111 @@ export class IdeasSummaryPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [
-                    vscode.Uri.joinPath(context.extensionUri, 'media', 'webviews', 'ideas-summary')
+                    vscode.Uri.joinPath(this.context.extensionUri, 'media', 'webviews', 'ideas-summary')
                 ]
             }
         );
-        this.panel.webview.html = getIdeasSummaryHtml(this.panel.webview, context.extensionUri);
 
         this.panel.webview.onDidReceiveMessage(
             message => this.handleMessage(message as WebviewToExtensionMessage),
             undefined,
-            context.subscriptions
+            this.context.subscriptions
         );
         this.panel.onDidDispose(() => {
             IdeasSummaryPanel.current = undefined;
             this.statusUnsubscribe();
-        }, undefined, context.subscriptions);
+        }, undefined, this.context.subscriptions);
+
+        this.panel.webview.html = getIdeasSummaryHtml(this.panel.webview, this.context.extensionUri);
 
         this.statusUnsubscribe = submodule.index.subscribeStatusUpdates(() => {
-            void this.sendIndexStatus();
+            this.scheduleStatusUpdate();
         });
 
-        context.subscriptions.push(this.panel);
+        this.context.subscriptions.push(this.panel);
+    }
+
+    private scheduleStatusUpdate(): void {
+        clearTimeout(this.statusPostTimer);
+        this.statusPostTimer = setTimeout(() => {
+            void this.sendIndexStatus();
+        }, 150);
     }
 
     private async handleMessage(message: WebviewToExtensionMessage): Promise<void> {
-        switch (message.type) {
-            case 'ready':
-                void this.sendIndexStatus();
-                void this.bootstrapData();
-                break;
-            case 'loadIndexStatus':
-                await this.sendIndexStatus();
-                break;
-            case 'refreshIndex':
-                await this.refreshIndexData();
-                break;
-            case 'clearAndRebuildIndex': {
-                const confirmed = await vscode.window.showWarningMessage(
-                    'Clear the idea index and rebuild it from scratch? This removes all indexed ideas and references.',
-                    { modal: true },
-                    'Clear & rebuild'
-                );
-                if (confirmed !== 'Clear & rebuild') {
+        try {
+            switch (message.type) {
+                case 'ready':
+                    void this.sendIndexStatus();
+                    void this.bootstrapData();
+                    break;
+                case 'loadIndexStatus':
+                    await this.sendIndexStatus();
+                    break;
+                case 'refreshIndex':
+                    await this.refreshIndexData();
+                    break;
+                case 'clearAndRebuildIndex': {
+                    const confirmed = await vscode.window.showWarningMessage(
+                        'Clear the idea index and rebuild it from scratch? This removes all indexed ideas and references.',
+                        { modal: true },
+                        'Clear & rebuild'
+                    );
+                    if (confirmed !== 'Clear & rebuild') {
+                        break;
+                    }
+                    await this.submodule.index.clearAndRebuildIndex();
+                    await this.refreshIndexData();
                     break;
                 }
-                await this.submodule.index.clearAndRebuildIndex();
-                await this.refreshIndexData();
-                break;
+                case 'loadIdeas':
+                    this.ideasQuery = message.query;
+                    await this.sendIdeasPage();
+                    break;
+                case 'loadIdeasets':
+                    this.ideasetsQuery = message.query;
+                    await this.sendIdeasetsPage();
+                    break;
+                case 'loadReferences':
+                    this.referencesQuery = message.query;
+                    await this.sendReferencesPage();
+                    break;
+                case 'loadGraph': {
+                    this.graphQuery = message.query;
+                    const requestId = message.requestId ?? 0;
+                    const generation = ++this.graphSliceGeneration;
+                    this.post({
+                        type: 'graphLoadProgress',
+                        progress: {
+                            requestId,
+                            phase: 'checking-index',
+                            detail: 'Extension received request'
+                        }
+                    });
+                    await this.runGraphSlice(requestId, generation);
+                    break;
+                }
+                case 'openIdea':
+                    await openIdea(message.fileUri, message.line, message.column);
+                    break;
+                case 'dumpFullGraph':
+                    await this.sendFullGraph();
+                    break;
             }
-            case 'loadIdeas':
-                this.ideasQuery = message.query;
-                await this.sendIdeasPage();
-                break;
-            case 'loadIdeasets':
-                this.ideasetsQuery = message.query;
-                await this.sendIdeasetsPage();
-                break;
-            case 'loadReferences':
-                this.referencesQuery = message.query;
-                await this.sendReferencesPage();
-                break;
-            case 'loadGraph':
-                this.graphQuery = message.query;
-                await this.sendGraphSlice();
-                break;
-            case 'openIdea':
-                await openIdea(message.fileUri, message.line, message.column);
-                break;
-            case 'dumpFullGraph':
-                await this.sendFullGraph();
-                break;
+        } catch (error) {
+            if (message.type === 'loadGraph') {
+                const detail = error instanceof Error ? error.message : 'Failed to load graph.';
+                this.post({
+                    type: 'graphLoadProgress',
+                    progress: { requestId: message.requestId, phase: 'failed', detail }
+                });
+                this.post({ type: 'error', requestId: message.requestId, message: detail });
+            } else {
+                this.post({
+                    type: 'error',
+                    message: error instanceof Error ? error.message : 'Ideas Summary request failed.'
+                });
+            }
         }
     }
 
@@ -169,12 +237,23 @@ export class IdeasSummaryPanel {
             await this.sendIdeasPage();
             await this.sendIdeasetsPage();
             await this.sendReferencesPage();
-            await this.sendGraphSlice();
         }
     }
 
     private async bootstrapData(): Promise<void> {
-        await this.submodule.index.syncWorkspace();
+        if (this.bootstrapPromise) {
+            return this.bootstrapPromise;
+        }
+        this.bootstrapPromise = this.runBootstrapData().finally(() => {
+            this.bootstrapPromise = undefined;
+        });
+        return this.bootstrapPromise;
+    }
+
+    private async runBootstrapData(): Promise<void> {
+        if (!this.submodule.index.isReady) {
+            await this.submodule.index.syncWorkspace();
+        }
         await this.sendIndexStatus();
         if (this.submodule.index.isReady) {
             await this.sendIdeasPage();
@@ -254,11 +333,26 @@ export class IdeasSummaryPanel {
         });
     }
 
-    private async sendGraphSlice(): Promise<void> {
+    private async runGraphSlice(requestId: number, generation: number): Promise<void> {
+        if (generation !== this.graphSliceGeneration) {
+            return;
+        }
+
+        const postProgress = (phase: GraphLoadPhase, detail?: string): void => {
+            this.post({
+                type: 'graphLoadProgress',
+                progress: { requestId, phase, detail }
+            });
+        };
+
+        postProgress('checking-index');
         const query = normalizeGraphQuery(this.graphQuery);
         if (!this.submodule.index.isReady) {
+            const state = this.submodule.index.getStatusSnapshot().state;
+            postProgress('waiting-for-index', `Index state: ${state}`);
             this.post({
                 type: 'graphSlice',
+                requestId,
                 slice: {
                     query,
                     depth: query.includeIndirect ? 2 : 1,
@@ -273,22 +367,43 @@ export class IdeasSummaryPanel {
         try {
             let resolvedQuery = query;
             if (!resolvedQuery.centerId && !hasGraphFilters(resolvedQuery)) {
+                postProgress('resolving-focus', 'Looking for active .rq file');
                 const centerId = await defaultGraphCenterId(this.submodule);
                 if (centerId) {
                     resolvedQuery = { ...resolvedQuery, centerId };
+                    postProgress('resolving-focus', `Focusing ${centerId}`);
+                } else {
+                    postProgress('resolving-focus', 'No active editor focus; using filtered neighbourhood');
                 }
             }
             this.graphQuery = resolvedQuery;
+            postProgress(
+                'querying-slice',
+                resolvedQuery.centerId
+                    ? `Expanding from ${resolvedQuery.centerId}`
+                    : 'Listing matching ideas and references'
+            );
             const store = this.submodule.index.indexStore;
             const slice = await buildGraphViewSlice(store, resolvedQuery);
+            postProgress('packaging-slice', `${slice.nodes.length} nodes, ${slice.edges.length} edges`);
+            if (generation !== this.graphSliceGeneration) {
+                return;
+            }
             this.post({
                 type: 'graphSlice',
+                requestId,
                 slice: toGraphSliceView(slice)
             });
         } catch (error) {
+            if (generation !== this.graphSliceGeneration) {
+                return;
+            }
+            const detail = error instanceof Error ? error.message : 'Failed to load graph.';
+            postProgress('failed', detail);
             this.post({
                 type: 'error',
-                message: error instanceof Error ? error.message : 'Failed to load graph.'
+                requestId,
+                message: detail
             });
         }
     }

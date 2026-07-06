@@ -1,23 +1,18 @@
 <script lang="ts">
-    import type { ReferencesTableQuery, ReferenceTableRow } from '../../../src/webview_module/shared/messages.js';
-    import { createEventDispatcher } from 'svelte';
+    import type { ReferencesTableQuery } from '../../../src/webview_module/shared/messages.js';
+    import { getApp } from '../state/context.js';
     import Pager from './Pager.svelte';
     import SortableTh from './SortableTh.svelte';
     import TableToolbar from './TableToolbar.svelte';
 
-    export let rows: ReferenceTableRow[] = [];
-    export let query: ReferencesTableQuery;
-    export let total = 0;
+    const app = getApp();
 
-    const dispatch = createEventDispatcher<{
-        open: { fileUri: string; line: number };
-        queryChange: ReferencesTableQuery;
-        prev: void;
-        next: void;
-    }>();
+    $: query = app.references.query;
+    $: rows = app.references.rows;
+    $: total = app.references.total;
 
     function emitQuery(next: ReferencesTableQuery): void {
-        dispatch('queryChange', next);
+        app.onReferencesQueryChange(next);
     }
 
     function handleSearch(event: CustomEvent<string>): void {
@@ -46,7 +41,7 @@
         {#each rows as row (`${row.sourceFileUri}:${row.sourceLineStart}:${row.targetName}`)}
             <tr
                 class="clickable"
-                on:click={() => dispatch('open', { fileUri: row.sourceFileUri, line: row.sourceLineStart })}
+                on:click={() => app.openIdea(row.sourceFileUri, row.sourceLineStart)}
             >
                 <td>{row.sourcePath} · {row.sourceName}</td>
                 <td>{row.targetPath} · {row.targetName}</td>
@@ -57,4 +52,11 @@
     </tbody>
 </table>
 
-<Pager page={query.page} {total} pageSize={query.pageSize} label="references" on:prev on:next />
+<Pager
+    page={query.page}
+    {total}
+    pageSize={query.pageSize}
+    label="references"
+    on:prev={() => query.page > 0 && app.loadReferences({ ...query, page: query.page - 1 })}
+    on:next={() => app.loadReferences({ ...query, page: query.page + 1 })}
+/>
