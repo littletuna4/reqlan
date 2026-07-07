@@ -169,42 +169,73 @@ async function expandFromCenter(
         };
     }
 
-    const nodes = new Map<string, IdeaSummary>();
+    const nodes = new Map<string, IdeaSummary>([[center.id, center]]);
     const edges = new Map<string, EdgeRecord>();
-    const visited = new Set<string>();
-    const queue: Array<{ id: string; remaining: number }> = [{ id: centerId, remaining: depth }];
+    const visited = new Set<string>([centerId]);
     let truncated = false;
 
-    while (queue.length > 0) {
-        const current = queue.shift()!;
-        if (visited.has(current.id)) {
-            continue;
+    // Breadth-first expansion, one batched edge/idea round trip per level rather
+    // than a query per visited node (avoids the N+1 fan-out that froze the tab).
+    let frontier: string[] = [centerId];
+    for (let level = 0; level < depth && frontier.length > 0; level += 1) {
+        const frontierEdges = await store.getEdgesForNodes(frontier);
+        const neighborIds = new Set<string>();
+        for (const edge of frontierEdges) {
+            edges.set(edge.id, edge);
+            for (const endpoint of [edge.sourceId, edge.targetId]) {
+                if (endpoint && !visited.has(endpoint)) {
+                    neighborIds.add(endpoint);
+                }
+            }
         }
-        visited.add(current.id);
 
-        const idea = await store.getIdea(current.id);
-        if (idea) {
-            if (nodes.size >= maxNodes && !nodes.has(idea.id)) {
+        const idsToFetch = [...neighborIds];
+        const neighborIdeas = await store.getIdeasByIds(idsToFetch);
+        const ideaById = new Map(neighborIdeas.map(idea => [idea.id, idea]));
+        const nextFrontier: string[] = [];
+        for (const id of idsToFetch) {
+            visited.add(id);
+            const idea = ideaById.get(id);
+            if (!idea) {
+                continue;
+            }
+            if (nodes.size >= maxNodes) {
                 truncated = true;
                 continue;
             }
             nodes.set(idea.id, idea);
+            nextFrontier.push(id);
         }
+        frontier = nextFrontier;
+    }
 
-        const outbound = await store.getEdgesFrom(current.id);
-        const inbound = await store.getEdgesTo(current.id);
-        for (const edge of [...outbound, ...inbound]) {
+    // Capture edges incident to the outermost ring so inter-node links are not dropped.
+    if (frontier.length > 0) {
+        for (const edge of await store.getEdgesForNodes(frontier)) {
             edges.set(edge.id, edge);
-            if (current.remaining > 0) {
-                const nextId = edge.sourceId === current.id ? edge.targetId : edge.sourceId;
-                if (nextId) {
-                    queue.push({ id: nextId, remaining: current.remaining - 1 });
-                }
-            }
         }
     }
 
-    return finalizeSlice(query, centerId, depth, truncated, undefined, nodes, edges);
+    const nodeIds = new Set(nodes.keys());
+    const visibleEdges = filterVisibleEdges(edges, nodeIds);
+    return finalizeSlice(query, centerId, depth, truncated, undefined, nodes, visibleEdges);
+}
+
+/** Keep edges whose endpoints are both present (or whose target is an external file). */
+function filterVisibleEdges(
+    edges: Map<string, EdgeRecord>,
+    nodeIds: Set<string>
+): Map<string, EdgeRecord> {
+    const visible = new Map<string, EdgeRecord>();
+    for (const edge of edges.values()) {
+        const connectsVisible =
+            nodeIds.has(edge.sourceId) &&
+            (edge.targetId ? nodeIds.has(edge.targetId) : Boolean(edge.targetFile));
+        if (connectsVisible) {
+            visible.set(edge.id, edge);
+        }
+    }
+    return visible;
 }
 
 async function collectSliceFromSeeds(
@@ -217,46 +248,43 @@ async function collectSliceFromSeeds(
     totalMatching: number
 ): Promise<GraphViewSlice> {
     const nodes = new Map<string, IdeaSummary>(seedNodes.map(node => [node.id, node]));
-    const edges = new Map<string, EdgeRecord>();
 
-    for (const seed of seedNodes) {
-        const outbound = await store.getEdgesFrom(seed.id);
-        const inbound = await store.getEdgesTo(seed.id);
-        for (const edge of [...outbound, ...inbound]) {
-            edges.set(edge.id, edge);
-            if (depth > 1 && edge.targetId && !nodes.has(edge.targetId)) {
-                if (nodes.size < maxNodes) {
-                    const neighbor = await store.getIdea(edge.targetId);
-                    if (neighbor) {
-                        nodes.set(neighbor.id, neighbor);
-                    }
-                } else {
-                    truncated = true;
+    // One batched query for every edge incident to a seed, replacing the
+    // per-seed inbound/outbound fan-out.
+    const seedEdges = await store.getEdgesForNodes(seedNodes.map(node => node.id));
+    const edges = new Map<string, EdgeRecord>();
+    for (const edge of seedEdges) {
+        edges.set(edge.id, edge);
+    }
+
+    if (depth > 1) {
+        const neighborIds = new Set<string>();
+        for (const edge of seedEdges) {
+            for (const endpoint of [edge.sourceId, edge.targetId]) {
+                if (endpoint && !nodes.has(endpoint)) {
+                    neighborIds.add(endpoint);
                 }
             }
-            if (depth > 1 && edge.sourceId && !nodes.has(edge.sourceId)) {
-                if (nodes.size < maxNodes) {
-                    const neighbor = await store.getIdea(edge.sourceId);
-                    if (neighbor) {
-                        nodes.set(neighbor.id, neighbor);
-                    }
-                } else {
-                    truncated = true;
-                }
+        }
+
+        const idsToFetch = [...neighborIds];
+        const neighborIdeas = await store.getIdeasByIds(idsToFetch);
+        const ideaById = new Map(neighborIdeas.map(idea => [idea.id, idea]));
+        for (const id of idsToFetch) {
+            const idea = ideaById.get(id);
+            if (!idea) {
+                continue;
+            }
+            if (nodes.size < maxNodes) {
+                nodes.set(idea.id, idea);
+            } else {
+                truncated = true;
             }
         }
     }
 
     const nodeIds = new Set(nodes.keys());
-    const visibleEdges = new Map<string, EdgeRecord>();
-    for (const edge of edges.values()) {
-        const connectsVisible =
-            nodeIds.has(edge.sourceId) &&
-            (edge.targetId ? nodeIds.has(edge.targetId) : Boolean(edge.targetFile));
-        if (connectsVisible) {
-            visibleEdges.set(edge.id, edge);
-        }
-    }
+    const visibleEdges = filterVisibleEdges(edges, nodeIds);
 
     return finalizeSlice(query, undefined, depth, truncated, totalMatching, nodes, visibleEdges);
 }

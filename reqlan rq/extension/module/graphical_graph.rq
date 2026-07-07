@@ -20,6 +20,7 @@ root ["../../../packages/extension/webviews/ideas-summary/components/GraphView.s
 
 technology {
     uses cytoscape.js for the graph layout.
+    cytoscape-fcose provides the batch force-directed settle; cytoscape-cola provides continuous ("live") physics.
 }
 
 ui_controls {
@@ -36,34 +37,33 @@ state_machines {
     Events: init, sync, synced, layout, layouted, physicsOn, physicsOff, destroy.
     syncGeneration cancels stale layout callbacks when the slice changes mid-layout.
 
-    GraphNodeMachine: ["../../../packages/extension/webviews/ideas-summary/lib/graph-node-state.ts"] tracks each cytoscape node.
-    States: absent → mounting → layouting → placed ↔ selected ↔ dragging.
-    Events: mount, layout, place, select, deselect, dragStart, dragEnd, remove.
-    GraphNodeRegistry reconciles machines on each slice sync and dispatches mount/layout/place transitions.
-
     GraphCyController: ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-controller.ts"] owns the cytoscape instance and dispatches GraphCyMachine events.
-    syncSlice replaces elements then runs layout; requestLayout restarts the active algorithm.
-    Live physics pulses cose layout on a throttled interval (not immediately on layoutstop) to avoid webview freeze.
+    Selection and drag-pinned positions are tracked directly on the controller (no per-node state machines).
+    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm.
+    Pointer/selection wiring lives in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-interactions.ts"].
+    Live physics is delegated to cytoscape-cola's continuous (infinite) simulation, which ticks inside cytoscape's own animation loop rather than a hand-rolled pulse; the "physics" lifecycle state means cola is running. Grabbed nodes are handled natively by cola, so drags do not stop/restart the simulation.
     ResizeObserver debounces cy.resize() and does not refit on every resize.
-    syncSlice and layout.run() are deferred (requestAnimationFrame / setTimeout) so the webview can paint loading state first.
+    syncSlice is deferred across two animation frames and layout.run() via setTimeout so the webview paints loading state before the element swap + batch layout block the main thread. When the container has no size (hidden panel) the flush retries on a timer, because rAF is suspended while a webview is hidden.
 }
 
 state_machine_package {
-    state machines should use xstate
+    the graph lifecycle machine is implemented as a hand-rolled transition table over a zustand vanilla store (see GraphCyMachine), not xstate.
+    a full xstate migration was deemed unnecessary: adopting cytoscape-cola for live physics collapsed the physics handling to a single running/stopped state, so the remaining machine is small enough that the explicit transition table stays clearer than an xstate actor.
 }
 
 webview_threading {
     VS Code webviews run JavaScript on a single main thread, like a browser tab.
     Heavy synchronous work — cytoscape layout iterations, large element builds, unbounded loops — blocks UI updates until it finishes.
     Layout iteration count scales with node count (capped) rather than running unbounded defaults.
-    Do not restart layout synchronously on layoutstop; use throttled physics pulses instead.
+    Do not restart layout synchronously on layoutstop; hand off to cytoscape-cola's continuous simulation, which ticks incrementally inside cytoscape's animation loop instead of blocking.
+    Extension-side slice building uses batched (set-based) SQLite queries rather than a per-node query fan-out, so opening the tab does not serialize hundreds of round trips.
 }
 
 
 layout_physics {
     defaults to force-directed layout (fcose) with animation on, but user inputs for other options offered by cytoscape.js
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately
-    
+    live physics is driven by cytoscape-cola's infinite simulation regardless of which force-directed batch layout produced the initial settle
 }
 
 view_controls {
@@ -89,7 +89,8 @@ node_truncation {
 physics_options {
     - user can select from a dropdown of physics options offered by cytoscape.js
         - the options for the phycis should be exposed to the user in a menu too.
-    - user can select whether to use live physics/animation   
+    - user can select whether to use live physics/animation
+    - live physics uses cytoscape-cola (continuous/infinite); cola is also selectable directly in the layout dropdown
 }
 
 referenced_files_grouping {

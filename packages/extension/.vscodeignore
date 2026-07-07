@@ -1,5 +1,15 @@
 .vscode/**
 .vscode-test/**
+src/**
+webviews/**
+scripts/**
+node_modules/**
+esbuild.mjs
+watch-syntax.mjs
+tsconfig.json
+tsconfig.tsbuildinfo
+langium-quickstart.md
+grammars/**
 !.skills/**
 !.prompts/**
 !.agents/**

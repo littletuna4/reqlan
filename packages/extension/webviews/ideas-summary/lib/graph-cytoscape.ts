@@ -17,6 +17,7 @@ export interface GraphLayoutOption {
 
 export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
     { id: 'fcose', label: 'Force-directed (fcose)', supportsCompound: true },
+    { id: 'cola', label: 'Live physics (cola)', supportsCompound: true },
     { id: 'breadthfirst', label: 'Breadthfirst', supportsCompound: true },
     { id: 'circle', label: 'Circle', supportsCompound: false },
     { id: 'concentric', label: 'Concentric', supportsCompound: false },
@@ -26,7 +27,10 @@ export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
 
 export const DEFAULT_LAYOUT_ID = 'fcose';
 
-const FORCE_DIRECTED_LAYOUT_IDS = new Set(['fcose', 'cose']);
+/** Layout id used to drive continuous ("live") physics regardless of the selected batch layout. */
+export const PHYSICS_LAYOUT_ID = 'cola';
+
+const FORCE_DIRECTED_LAYOUT_IDS = new Set(['fcose', 'cose', 'cola']);
 
 export function isForceDirectedLayout(layoutId: string): boolean {
     return FORCE_DIRECTED_LAYOUT_IDS.has(layoutId);
@@ -40,8 +44,11 @@ export interface LayoutFixedNode {
     position: { x: number; y: number };
 }
 
-/** Spread nodes on a circle so the first animation frame is readable before fcose runs. */
-export function seedNodePositions(cy: cytoscape.Core): void {
+/** Reuse prior positions when possible, then seed remaining nodes on a circle. */
+export function seedNodePositions(
+    cy: cytoscape.Core,
+    persistedPositions: ReadonlyMap<string, { x: number; y: number }> = new Map()
+): void {
     const nodes = cy.nodes(':childless');
     const count = nodes.length;
     if (count === 0) {
@@ -50,6 +57,11 @@ export function seedNodePositions(cy: cytoscape.Core): void {
 
     const radius = Math.max(140, Math.sqrt(count) * 70);
     nodes.forEach((node, index) => {
+        const persisted = persistedPositions.get(node.id());
+        if (persisted) {
+            node.position(persisted);
+            return;
+        }
         const angle = (2 * Math.PI * index) / count;
         node.position({
             x: radius * Math.cos(angle),
@@ -164,12 +176,15 @@ export function buildCytoscapeElements(
         });
     }
 
+    const externalNodeIds = new Set(
+        slice.nodes.filter(node => node.isExternal).map(node => node.id)
+    );
     const edgeElements: ElementDefinition[] = slice.edges.map(edge => ({
         data: {
             id: edge.id,
             source: edge.sourceId,
             target: edge.targetId,
-            isExternal: slice.nodes.some(node => node.id === edge.targetId && node.isExternal)
+            isExternal: externalNodeIds.has(edge.targetId)
         }
     }));
 
@@ -185,6 +200,7 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 'text-wrap': 'wrap',
                 'text-max-width': '120px',
                 'font-size': '10px',
+                'min-zoomed-font-size': 8,
                 'text-valign': 'bottom',
                 'text-halign': 'center',
                 'text-margin-y': 6,
@@ -240,7 +256,7 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 width: 1.5,
                 'line-color': 'var(--vscode-panel-border)',
                 'target-arrow-shape': 'none',
-                'curve-style': 'bezier'
+                'curve-style': 'straight'
             }
         },
         {
@@ -253,6 +269,36 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
     ];
 }
 
+/** Continuous force-directed physics config (cola, infinite) used while "live physics" is on. */
+export function getPhysicsLayoutConfig(useCompound: boolean, nodeCount = 0): cytoscape.LayoutOptions {
+    return getLayoutConfig(PHYSICS_LAYOUT_ID, useCompound, 'physics', nodeCount);
+}
+
+/** Seed positions for only the given (newly added) nodes, leaving existing nodes untouched. */
+export function seedNewNodePositions(
+    cy: cytoscape.Core,
+    newNodeIds: readonly string[],
+    persistedPositions: ReadonlyMap<string, { x: number; y: number }> = new Map()
+): void {
+    if (newNodeIds.length === 0) {
+        return;
+    }
+    const radius = Math.max(140, Math.sqrt(cy.nodes(':childless').length) * 70);
+    newNodeIds.forEach((id, index) => {
+        const node = cy.getElementById(id);
+        if (node.length === 0 || !node.isNode() || node.isParent()) {
+            return;
+        }
+        const persisted = persistedPositions.get(id);
+        if (persisted) {
+            node.position(persisted);
+            return;
+        }
+        const angle = (2 * Math.PI * index) / newNodeIds.length;
+        node.position({ x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
+    });
+}
+
 export function getLayoutConfig(
     layoutId: string,
     useCompound: boolean,
@@ -263,7 +309,7 @@ export function getLayoutConfig(
     const isInitial = mode === 'initial';
     const isPhysics = mode === 'physics';
 
-    const base: cytoscape.LayoutOptions = {
+    const base = {
         name: layoutId,
         animate: !isPhysics,
         animationDuration: isPhysics ? 0 : 400,
@@ -272,12 +318,15 @@ export function getLayoutConfig(
         padding: 36
     };
 
-    const cappedIterations = Math.min(250, 40 + nodeCount * 4);
+    const cappedIterations = Math.min(80, 20 + nodeCount);
     const fixedNodeConstraint =
         fixedNodes.length > 0
             ? fixedNodes.map(node => ({ nodeId: node.nodeId, position: { ...node.position } }))
             : undefined;
 
+    // Built as plain objects (cytoscape's layout typings are strict discriminated
+    // unions that reject per-algorithm options), then cast once on return.
+    const resolveConfig = (): Record<string, unknown> => {
     switch (layoutId) {
         case 'fcose':
             if (isPhysics) {
@@ -293,23 +342,57 @@ export function getLayoutConfig(
                     tile: false,
                     nodeRepulsion: 8000,
                     idealEdgeLength: 100,
-                    numIter: 40,
+                    numIter: 25,
+                    ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
+                };
+            }
+            if (isInitial) {
+                return {
+                    ...base,
+                    animate: false,
+                    animationDuration: 0,
+                    fit: true,
+                    quality: 'draft',
+                    randomize: false,
+                    packComponents: false,
+                    tile: false,
+                    nodeRepulsion: 8000,
+                    idealEdgeLength: 100,
+                    numIter: Math.min(40, cappedIterations),
                     ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
                 };
             }
             return {
                 ...base,
-                animate: true,
-                animationDuration: 400,
+                animate: false,
+                animationDuration: 0,
                 animationEasing: 'ease-out-cubic',
-                quality: 'default',
-                randomize: isInitial,
-                packComponents: isInitial,
+                quality: 'draft',
+                randomize: false,
+                packComponents: false,
                 nodeRepulsion: 8000,
                 idealEdgeLength: 100,
-                numIter: cappedIterations,
-                tile: true,
+                numIter: Math.min(48, cappedIterations),
+                tile: false,
                 ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
+            };
+        case 'cola':
+            // cola is the only bundled layout with a true continuous simulation, so it
+            // backs "live physics". infinite:true keeps it ticking inside cytoscape's own
+            // animation loop (non-blocking); batch mode bounds it with maxSimulationTime.
+            return {
+                ...base,
+                animate: true,
+                randomize: false,
+                avoidOverlap: true,
+                handleDisconnected: true,
+                nodeSpacing: 12,
+                edgeLength: 110,
+                ungrabifyWhileSimulating: false,
+                centerGraph: !isPhysics,
+                infinite: isPhysics,
+                fit: isInitial || mode === 'relayout',
+                maxSimulationTime: isPhysics ? 0 : Math.min(2500, 800 + nodeCount * 12)
             };
         case 'cose':
             return {
@@ -344,4 +427,7 @@ export function getLayoutConfig(
         default:
             return base;
     }
+    };
+
+    return resolveConfig() as unknown as cytoscape.LayoutOptions;
 }

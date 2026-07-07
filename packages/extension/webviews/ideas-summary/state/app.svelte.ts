@@ -257,6 +257,9 @@ export class AppState {
 
         requestAnimationFrame(() => {
             postToExtension({ type: 'ready' });
+            if (this.tab.activeTab === 'graph') {
+                this.requestGraph();
+            }
         });
 
         this.extensionConnectTimer = setTimeout(() => {

@@ -39,6 +39,7 @@
     let useCompound = false;
     let compoundBasisId = 'folder-path';
     let animatePhysics = false;
+    let lastSyncedKey = '';
 
     const legendItems = GRAPH_LEGEND_ITEMS;
 
@@ -57,7 +58,11 @@
         ].join('\u0001')
         : '';
 
-    $: if (!loading && !slice?.waitingForIndex && graphDataKey && controller && slice) {
+    // Only rebuild cytoscape when the underlying graph data actually changes.
+    // selectedId is intentionally excluded here so node selection does not trigger
+    // a full element swap + relayout (cytoscape handles selection highlight itself).
+    $: if (!loading && !slice?.waitingForIndex && graphDataKey && controller && slice && graphDataKey !== lastSyncedKey) {
+        lastSyncedKey = graphDataKey;
         controller.syncSlice(slice, {
             useCompound,
             compoundBasis: activeCompoundBasis ?? compoundBasis,
@@ -168,15 +173,7 @@
             }
         });
         controller.init();
-
-        if (!loading && !slice?.waitingForIndex && slice && slice.nodes.length > 0) {
-            controller.syncSlice(slice, {
-                useCompound,
-                compoundBasis: activeCompoundBasis ?? compoundBasis,
-                centerId,
-                selectedId
-            });
-        }
+        app.requestGraph();
     });
 
     onDestroy(() => {

@@ -198,6 +198,36 @@ export class SqliteIndexStore {
         return rows.map(mapEdgeRow);
     }
 
+    /** Batched fetch of every edge touching any of the given node ids (source or target). */
+    async getEdgesForNodes(nodeIds: readonly string[]): Promise<EdgeRecord[]> {
+        if (nodeIds.length === 0) {
+            return [];
+        }
+        const placeholders = nodeIds.map(() => '?').join(',');
+        const rows = await all<SqliteEdgeRow>(
+            this.db,
+            `SELECT * FROM edges WHERE source_id IN (${placeholders}) OR target_id IN (${placeholders})`,
+            ...nodeIds,
+            ...nodeIds
+        );
+        return rows.map(mapEdgeRow);
+    }
+
+    /** Batched fetch of idea summaries by id, preserving no particular order. */
+    async getIdeasByIds(ids: readonly string[]): Promise<IdeaSummary[]> {
+        if (ids.length === 0) {
+            return [];
+        }
+        const placeholders = ids.map(() => '?').join(',');
+        const rows = await all<SummaryRow>(
+            this.db,
+            `SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+             FROM ideas WHERE id IN (${placeholders})`,
+            ...ids
+        );
+        return rows.map(row => this.toSummary(row));
+    }
+
     async getEdgesReferencingFile(filePath: string): Promise<EdgeRecord[]> {
         const rows = await all<SqliteEdgeRow>(this.db, `
             SELECT * FROM edges

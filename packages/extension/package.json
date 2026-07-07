@@ -1,7 +1,7 @@
 {
     "name": "reqlan",
     "description": "Language support for the reqlan language",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "displayName": "reqlan support",
     "type": "module",
     "publisher": "reqlan",
@@ -311,8 +311,8 @@
     },
     "dependencies": {
         "cytoscape": "^3.33.1",
+        "cytoscape-cola": "^2.5.1",
         "cytoscape-fcose": "^2.2.0",
-        "cytoscape-layout-utilities": "^1.1.1",
         "langium": "~4.3.0",
         "reqlan-analytical": "workspace:*",
         "reqlan-language": "workspace:*",

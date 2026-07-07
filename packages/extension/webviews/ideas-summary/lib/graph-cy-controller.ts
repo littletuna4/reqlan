@@ -1,31 +1,36 @@
 /**
  * Event-driven cytoscape controller for the Ideas Summary graph tab.
+ *
+ * Owns the cytoscape instance and the GraphCyMachine lifecycle. Element diffing lives
+ * in ./graph-cy-elements, pointer wiring in ./graph-cy-interactions, and live physics is
+ * delegated to cytoscape-cola's continuous (infinite) simulation rather than a hand-rolled
+ * pulse loop.
  * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
  */
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
-import layoutUtilities from 'cytoscape-layout-utilities';
+import cola from 'cytoscape-cola';
 import type { GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
-    buildCytoscapeElements,
     buildCytoscapeStylesheet,
     getLayoutConfig,
+    getPhysicsLayoutConfig,
     isForceDirectedLayout,
-    seedNodePositions,
     type CompoundBasis,
     type LayoutFixedNode,
     type LayoutRunMode
 } from './graph-cytoscape.js';
+import { syncGraphElements } from './graph-cy-elements.js';
+import { bindGraphInteractions } from './graph-cy-interactions.js';
 import { createGraphCyMachine, type GraphCyEvent, type GraphCyMachine } from './graph-cy-state.js';
-import { GraphNodeRegistry } from './graph-node-state.js';
 
 cytoscape.use(fcose);
-cytoscape.use(layoutUtilities);
+cytoscape.use(cola);
 
 const MIN_ZOOM = 0.01;
 const MAX_ZOOM = 100;
-const PHYSICS_PULSE_MS = 350;
 const RESIZE_DEBOUNCE_MS = 120;
+const READY_RETRY_MS = 120;
 
 export interface GraphSyncOptions {
     useCompound: boolean;
@@ -45,13 +50,14 @@ export interface GraphCyControllerOptions {
 
 export class GraphCyController {
     private readonly machine: GraphCyMachine;
-    private readonly nodeRegistry = new GraphNodeRegistry();
     private cy: cytoscape.Core | undefined;
     private activeLayout: cytoscape.Layouts | undefined;
+    private physicsLayout: cytoscape.Layouts | undefined;
     private activeLayoutRunId = 0;
-    private physicsTimer: ReturnType<typeof setTimeout> | undefined;
     private resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    private readyRetryTimer: ReturnType<typeof setTimeout> | undefined;
     private resizeObserver: ResizeObserver | undefined;
+    private unbindInteractions: (() => void) | undefined;
     private activeSyncGeneration = 0;
     private pendingSync: { generation: number; slice: GraphViewSlice; options: GraphSyncOptions } | undefined;
     private syncOptions: GraphSyncOptions = {
@@ -73,6 +79,10 @@ export class GraphCyController {
         return this.cy;
     }
 
+    get isReadyToRender(): boolean {
+        return this.options.container.clientWidth > 0 && this.options.container.clientHeight > 0;
+    }
+
     init(): void {
         if (this.cy) {
             return;
@@ -84,10 +94,15 @@ export class GraphCyController {
             wheelSensitivity: 0.2,
             minZoom: MIN_ZOOM,
             maxZoom: MAX_ZOOM,
-            boxSelectionEnabled: false
-        });
+            boxSelectionEnabled: false,
+            pixelRatio: 1,
+            renderer: {
+                name: 'canvas',
+                webgl: true
+            }
+        } as cytoscape.CytoscapeOptions);
 
-        this.bindCyEvents(this.cy);
+        this.bindInteractions(this.cy);
         this.dispatch('init');
 
         this.resizeObserver = new ResizeObserver(() => {
@@ -97,9 +112,13 @@ export class GraphCyController {
     }
 
     destroy(): void {
-        this.clearPhysicsTimer();
         clearTimeout(this.resizeTimer);
+        clearTimeout(this.readyRetryTimer);
+        this.readyRetryTimer = undefined;
         this.resizeObserver?.disconnect();
+        this.unbindInteractions?.();
+        this.unbindInteractions = undefined;
+        this.stopPhysics();
         this.stopLayout();
         this.dispatch('destroy');
         this.cy?.destroy();
@@ -110,26 +129,31 @@ export class GraphCyController {
 
     setLayoutId(layoutId: string): void {
         this.machine.getState().setLayoutId(layoutId);
+        this.stopPhysics();
         this.requestLayout();
     }
 
     setAnimatePhysics(enabled: boolean): void {
-        const { setAnimatePhysics, lifecycle } = this.machine.getState();
-        setAnimatePhysics(enabled);
+        const state = this.machine.getState();
+        state.setAnimatePhysics(enabled);
 
         if (enabled) {
-            if (lifecycle === 'idle' || lifecycle === 'layouting') {
-                this.dispatch('physicsOn');
+            const { lifecycle, layoutId } = this.machine.getState();
+            if (isForceDirectedLayout(layoutId) && (lifecycle === 'idle' || lifecycle === 'layouting')) {
+                if (lifecycle === 'layouting') {
+                    this.stopLayout();
+                }
+                if (this.dispatch('physicsOn')) {
+                    this.startPhysics(this.activeSyncGeneration);
+                }
             }
-            this.schedulePhysicsPulse();
             return;
         }
 
-        this.clearPhysicsTimer();
-        if (lifecycle === 'physics') {
+        this.stopPhysics();
+        if (this.machine.getState().lifecycle === 'physics') {
             this.dispatch('physicsOff');
         }
-        this.stopLayout();
     }
 
     syncSlice(slice: GraphViewSlice, options: GraphSyncOptions): void {
@@ -140,8 +164,13 @@ export class GraphCyController {
         const generation = this.machine.getState().bumpSyncGeneration();
         this.activeSyncGeneration = generation;
         this.pendingSync = { generation, slice, options };
+        // Double rAF: the first callback runs before paint, so deferring to the
+        // second guarantees the "Rendering graph" loading state actually paints
+        // before the synchronous element swap + layout blocks the main thread.
         requestAnimationFrame(() => {
-            this.flushPendingSync();
+            requestAnimationFrame(() => {
+                this.flushPendingSync();
+            });
         });
     }
 
@@ -155,7 +184,7 @@ export class GraphCyController {
             return;
         }
 
-        this.clearPhysicsTimer();
+        this.stopPhysics();
         this.stopLayout();
 
         if (lifecycle === 'physics') {
@@ -164,7 +193,6 @@ export class GraphCyController {
             this.dispatch('layout');
         }
 
-        this.nodeRegistry.beginLayout();
         this.runLayout(this.activeSyncGeneration, 'relayout');
     }
 
@@ -181,15 +209,66 @@ export class GraphCyController {
             return;
         }
         this.cy.$id(nodeId).select();
-        this.nodeRegistry.select(nodeId);
         this.options.onSelect?.(nodeId);
     }
 
+    private bindInteractions(instance: cytoscape.Core): void {
+        this.unbindInteractions = bindGraphInteractions(instance, {
+            onNodeTap: (nodeId) => {
+                this.selectNode(nodeId);
+                this.options.onOpen?.(nodeId);
+            },
+            onNodeDblTap: (nodeId) => {
+                const graphNode = this.options.getNodeById?.(nodeId);
+                if (!graphNode || graphNode.isExternal) {
+                    return;
+                }
+                this.selectNode(nodeId);
+                this.options.onFocus?.(nodeId);
+            },
+            onBackgroundTap: () => {
+                this.cy?.$(':selected').unselect();
+                this.options.onSelect?.(undefined);
+            },
+            onNodeGrab: () => {
+                this.draggingCount += 1;
+                // A live cola simulation handles grabbed nodes natively; only a
+                // batch layout needs to be stopped so it doesn't fight the drag.
+                if (this.machine.getState().lifecycle !== 'physics') {
+                    this.stopLayout();
+                }
+            },
+            onNodeDrag: (nodeId, position) => {
+                this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
+            },
+            onNodeFree: (nodeId, position) => {
+                this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
+                this.draggingCount = Math.max(0, this.draggingCount - 1);
+            }
+        });
+    }
+
     private flushPendingSync(): void {
+        clearTimeout(this.readyRetryTimer);
+        this.readyRetryTimer = undefined;
+
         const pending = this.pendingSync;
         if (!pending || !this.cy) {
             return;
         }
+
+        if (!this.isReadyToRender) {
+            // The container has no size yet (panel hidden or mid-layout). rAF is
+            // suspended while a webview is hidden, so retry on a timer instead —
+            // otherwise the sync would wedge on "Rendering graph" until something
+            // else forced a repaint.
+            this.readyRetryTimer = setTimeout(() => {
+                this.readyRetryTimer = undefined;
+                this.flushPendingSync();
+            }, READY_RETRY_MS);
+            return;
+        }
+
         this.pendingSync = undefined;
 
         const { generation, slice, options } = pending;
@@ -198,34 +277,53 @@ export class GraphCyController {
         }
 
         this.syncOptions = options;
-        this.clearPhysicsTimer();
+        this.stopPhysics();
         this.stopLayout();
-        this.userPositionedNodes.clear();
+        this.pruneUserPositionedNodes(new Set(slice.nodes.map(node => node.id)));
 
         if (!this.dispatch('sync')) {
             return;
         }
 
-        const nodeIds = slice.nodes.map(node => node.id);
-        this.nodeRegistry.reconcile(nodeIds);
-        this.nodeRegistry.mountAll();
+        const persistedPositions = this.capturePersistedPositions();
+        const result = syncGraphElements(
+            this.cy,
+            slice,
+            {
+                useCompound: options.useCompound,
+                compoundBasis: options.compoundBasis,
+                centerId: options.centerId
+            },
+            persistedPositions
+        );
 
-        const elements = buildCytoscapeElements(slice, {
-            useCompound: options.useCompound,
-            compoundBasis: options.compoundBasis,
-            centerId: options.centerId
-        });
-
-        this.cy.batch(() => {
-            this.cy!.elements().remove();
-            this.cy!.add(elements);
-        });
-
-        seedNodePositions(this.cy);
+        this.cy.resize();
         this.applySelection(options.selectedId);
         this.dispatch('synced');
-        this.nodeRegistry.beginLayout();
-        this.runLayout(generation, 'initial');
+
+        if (result.structuralChange || this.cy.elements().length === 0) {
+            this.runLayout(generation, 'initial');
+        } else {
+            // Same node/edge set (e.g. only highlight/data changed): keep positions
+            // and skip the relayout entirely.
+            this.settleAfterSync(generation);
+        }
+    }
+
+    private settleAfterSync(generation: number): void {
+        const state = this.machine.getState();
+        if (state.animatePhysics && isForceDirectedLayout(state.layoutId)) {
+            if (state.lifecycle === 'layouting') {
+                this.dispatch('physicsOn');
+            }
+            this.options.onRendered?.();
+            this.startPhysics(generation);
+            return;
+        }
+        if (state.lifecycle === 'layouting') {
+            this.dispatch('layouted');
+        }
+        this.options.onRendered?.();
     }
 
     private dispatch(event: GraphCyEvent): boolean {
@@ -236,77 +334,6 @@ export class GraphCyController {
         return this.machine.getState().canDispatch(event);
     }
 
-    private bindCyEvents(instance: cytoscape.Core): void {
-        instance.on('tap', 'node', (event: cytoscape.EventObject) => {
-            const node = event.target;
-            if (node.data('isCompound')) {
-                return;
-            }
-            const nodeId = node.id();
-            this.selectNode(nodeId);
-            this.options.onOpen?.(nodeId);
-        });
-
-        instance.on('dbltap', 'node', (event: cytoscape.EventObject) => {
-            const node = event.target;
-            if (node.data('isCompound')) {
-                return;
-            }
-            const nodeId = node.id();
-            const graphNode = this.options.getNodeById?.(nodeId);
-            if (!graphNode || graphNode.isExternal) {
-                return;
-            }
-            this.selectNode(nodeId);
-            this.options.onFocus?.(nodeId);
-        });
-
-        instance.on('tap', (event: cytoscape.EventObject) => {
-            if (event.target === instance) {
-                instance.$(':selected').unselect();
-                this.nodeRegistry.select(undefined);
-                this.options.onSelect?.(undefined);
-            }
-        });
-
-        instance.on('grab', 'node', (event: cytoscape.EventObject) => {
-            const node = event.target;
-            if (node.data('isCompound')) {
-                return;
-            }
-            this.draggingCount += 1;
-            this.stopLayout();
-            this.clearPhysicsTimer();
-            this.nodeRegistry.dragStart(node.id());
-        });
-
-        instance.on('drag', 'node', (event: cytoscape.EventObject) => {
-            const node = event.target;
-            if (node.data('isCompound')) {
-                return;
-            }
-            const position = node.position();
-            this.userPositionedNodes.set(node.id(), { x: position.x, y: position.y });
-        });
-
-        instance.on('free', 'node', (event: cytoscape.EventObject) => {
-            const node = event.target;
-            if (node.data('isCompound')) {
-                return;
-            }
-            const position = node.position();
-            this.userPositionedNodes.set(node.id(), { x: position.x, y: position.y });
-            this.nodeRegistry.dragEnd(node.id());
-            this.draggingCount = Math.max(0, this.draggingCount - 1);
-            if (this.draggingCount === 0) {
-                const { animatePhysics } = this.machine.getState();
-                if (animatePhysics && isForceDirectedLayout(this.machine.getState().layoutId)) {
-                    this.schedulePhysicsPulse();
-                }
-            }
-        });
-    }
-
     private applySelection(selectedId: string | undefined): void {
         if (!this.cy) {
             return;
@@ -314,35 +341,38 @@ export class GraphCyController {
 
         if (selectedId && this.cy.$id(selectedId).length > 0) {
             this.cy.$id(selectedId).select();
-            this.nodeRegistry.select(selectedId);
         } else {
             this.cy.$(':selected').unselect();
-            this.nodeRegistry.select(undefined);
             this.options.onSelect?.(undefined);
         }
     }
 
+    /** Run the selected batch layout (fcose/cose/grid/…). Live physics is separate. */
     private runLayout(generation: number, mode: LayoutRunMode = 'relayout'): void {
         if (!this.cy || this.cy.elements().length === 0) {
             this.dispatch('layouted');
-            this.nodeRegistry.placeAll();
             this.options.onRendered?.();
             return;
         }
 
         if (this.draggingCount > 0) {
+            // Don't fight an in-progress drag, but the initial render still has to
+            // resolve its loading phase or the UI stays stuck on "Rendering graph".
+            if (mode === 'initial') {
+                this.dispatch('layouted');
+                this.options.onRendered?.();
+            }
             return;
         }
 
-        const { layoutId, animatePhysics } = this.machine.getState();
-        const layoutMode = mode === 'relayout' && animatePhysics ? 'physics' : mode;
+        const { layoutId } = this.machine.getState();
         this.stopLayout();
 
         const runId = ++this.activeLayoutRunId;
         const nodeCount = this.cy.nodes(':childless').length;
         const fixedNodes = this.collectFixedNodes();
         const layout = this.cy.layout(
-            getLayoutConfig(layoutId, this.syncOptions.useCompound, layoutMode, nodeCount, fixedNodes)
+            getLayoutConfig(layoutId, this.syncOptions.useCompound, mode, nodeCount, fixedNodes)
         );
         this.activeLayout = layout;
 
@@ -352,28 +382,26 @@ export class GraphCyController {
             }
 
             this.activeLayout = undefined;
-            this.nodeRegistry.placeAll();
 
             const state = this.machine.getState();
-            if (state.animatePhysics && isForceDirectedLayout(state.layoutId)) {
+            const goPhysics = state.animatePhysics && isForceDirectedLayout(state.layoutId);
+            if (goPhysics) {
                 if (state.lifecycle === 'layouting') {
                     this.dispatch('physicsOn');
-                    if (layoutMode === 'initial') {
-                        this.options.onRendered?.();
-                    }
+                }
+                if (mode === 'initial') {
+                    this.options.onRendered?.();
                 }
                 if (this.draggingCount === 0) {
-                    this.schedulePhysicsPulse();
+                    this.startPhysics(generation);
                 }
                 return;
             }
 
             if (state.lifecycle === 'layouting') {
                 this.dispatch('layouted');
-                this.options.onRendered?.();
-            } else if (state.lifecycle === 'physics' && this.draggingCount === 0) {
-                this.schedulePhysicsPulse();
             }
+            this.options.onRendered?.();
         });
 
         setTimeout(() => {
@@ -382,6 +410,26 @@ export class GraphCyController {
             }
             layout.run();
         }, 0);
+    }
+
+    /** Start continuous cola physics. Runs inside cytoscape's own animation loop (non-blocking). */
+    private startPhysics(generation: number): void {
+        if (!this.cy || this.cy.elements().length === 0 || generation !== this.activeSyncGeneration) {
+            return;
+        }
+
+        const state = this.machine.getState();
+        if (!state.animatePhysics || !isForceDirectedLayout(state.layoutId) || this.draggingCount > 0) {
+            return;
+        }
+
+        this.stopLayout();
+        this.stopPhysics();
+
+        const nodeCount = this.cy.nodes(':childless').length;
+        const layout = this.cy.layout(getPhysicsLayoutConfig(this.syncOptions.useCompound, nodeCount));
+        this.physicsLayout = layout;
+        layout.run();
     }
 
     private collectFixedNodes(): LayoutFixedNode[] {
@@ -398,35 +446,28 @@ export class GraphCyController {
         return fixed;
     }
 
-    private schedulePhysicsPulse(): void {
-        const { animatePhysics, layoutId, lifecycle } = this.machine.getState();
-        if (
-            !animatePhysics ||
-            !isForceDirectedLayout(layoutId) ||
-            lifecycle === 'syncing' ||
-            lifecycle === 'uninitialized' ||
-            this.draggingCount > 0
-        ) {
-            return;
+    private capturePersistedPositions(): Map<string, { x: number; y: number }> {
+        if (!this.cy) {
+            return new Map();
         }
 
-        this.clearPhysicsTimer();
-        this.physicsTimer = setTimeout(() => {
-            this.physicsTimer = undefined;
-            if (!this.cy || this.cy.elements().length === 0 || this.draggingCount > 0) {
-                return;
-            }
+        const persisted = new Map<string, { x: number; y: number }>();
+        this.cy.nodes(':childless').forEach((node) => {
+            const position = node.position();
+            persisted.set(node.id(), { x: position.x, y: position.y });
+        });
+        for (const [nodeId, position] of this.userPositionedNodes) {
+            persisted.set(nodeId, { ...position });
+        }
+        return persisted;
+    }
 
-            const state = this.machine.getState();
-            if (!state.animatePhysics || !isForceDirectedLayout(state.layoutId)) {
-                return;
+    private pruneUserPositionedNodes(validNodeIds: Set<string>): void {
+        for (const nodeId of this.userPositionedNodes.keys()) {
+            if (!validNodeIds.has(nodeId)) {
+                this.userPositionedNodes.delete(nodeId);
             }
-
-            if (state.lifecycle === 'physics' && this.dispatch('layout')) {
-                this.nodeRegistry.beginLayout();
-                this.runLayout(this.activeSyncGeneration, 'physics');
-            }
-        }, PHYSICS_PULSE_MS);
+        }
     }
 
     private scheduleResize(): void {
@@ -445,10 +486,11 @@ export class GraphCyController {
         this.activeLayout = undefined;
     }
 
-    private clearPhysicsTimer(): void {
-        if (this.physicsTimer !== undefined) {
-            clearTimeout(this.physicsTimer);
-            this.physicsTimer = undefined;
+    private stopPhysics(): void {
+        if (!this.physicsLayout) {
+            return;
         }
+        this.physicsLayout.stop();
+        this.physicsLayout = undefined;
     }
 }
