@@ -49,6 +49,9 @@ IdeaName returns string:
 IdeaMemberName returns string:
     ID | STRING;
 
+ReferenceName returns string:
+    ID;
+
 // ---------------------------------------------------------------------------
 // block_idea body, reference_embedding, code_snippets
 // ---------------------------------------------------------------------------
@@ -145,7 +148,7 @@ BracketReference:
     '[' target=ReferenceTarget ']';
 
 ReferenceTarget:
-    LocalReference | QualifiedReference | FileSymbolReference | FileReference;
+    QualifiedReference | LocalReference | FileSymbolReference | FileReference;
 
 FileReference:
     file=STRING;
@@ -155,13 +158,13 @@ FileSymbolReference:
 
 QualifiedReference:
     (path=[Import:STRING] | qualifier=[Import:ID]) ('.'
-        (ideaset=[IdeaSet:IdeaMemberName] '.')? idea=[IdeaDeclaration:IdeaMemberName])?;
+        (ideaset=[IdeaSet:ReferenceName] '.')? idea=[IdeaDeclaration:ReferenceName])?;
 
 LocalReference:
-    ideaset=[IdeaSet:IdeaMemberName] '.' idea=[IdeaDeclaration:IdeaMemberName]
-    | idea=[IdeaDeclaration:IdeaMemberName] '.' attribute=ID
-    | idea=[IdeaDeclaration:IdeaMemberName]
-    | ideaset=[IdeaSet:IdeaMemberName];
+    ideaset=[IdeaSet:ReferenceName] '.' idea=[IdeaDeclaration:ReferenceName]
+    | idea=[IdeaDeclaration:ReferenceName] '.' attribute=ID
+    | idea=[IdeaDeclaration:ReferenceName]
+    | ideaset=[IdeaSet:ReferenceName];
 
 // ---------------------------------------------------------------------------
 // import_from, import_namespace, import_qualified
