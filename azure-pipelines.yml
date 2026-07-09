@@ -3,6 +3,9 @@ trigger:
     include:
       - refs/tags/ext/v*
 
+variables:
+  - group: "reqlan secret tokens"
+
 jobs:
   - job: build_test_package
     displayName: Build, test, package extension
@@ -96,3 +99,12 @@ jobs:
         timeoutInMinutes: 10
         env:
           VSCE_PAT: $(VSCE_PAT)
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm --filter ./packages/extension run deploy:openvsx
+        displayName: Publish extension to Open VSX
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+        timeoutInMinutes: 10
+        env:
+          OVSX_PAT: $(OpenVSX Token)

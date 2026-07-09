@@ -309,7 +309,8 @@
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "bash scripts/watch.sh",
         "package": "vsce package --no-dependencies",
-        "deploy": "vsce publish --no-dependencies"
+        "deploy": "vsce publish --no-dependencies",
+        "deploy:openvsx": "pnpm dlx ovsx publish ./*.vsix"
     },
     "dependencies": {
         "cytoscape": "^3.33.1",
