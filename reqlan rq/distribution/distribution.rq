@@ -2,6 +2,12 @@ stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
 }
 
+release_tagging {
+  Release automation is tag-driven rather than commit-driven.
+  Site deployments are triggered by Git tags matching `site/v*` via ["./distribution.rq".site_distribution].
+  VS Code extension publishing is triggered by Azure DevOps tags matching `ext/v*` via ["./distribution.rq".extension_distribution].
+}
+
 vsix_export {
   @steps: (
     cd packages/extension
@@ -9,6 +15,21 @@ vsix_export {
   )
 }
 
-cicd {
-    On tagged push to `extension-distribution` branch, if there is a tag starting with `v` build and deploy the extension to the marketplace.
+site_distribution {
+    GitHub Pages deployment should only run when a developer creates a `site/v*` tag.
+    The site workflow should not deploy on ordinary commits.
+    The implementation lives in ["../../.github/workflows/deploy-site.yml"].
+}
+
+extension_distribution {
+    Azure DevOps should build, test, package, and publish the VS Code extension only for tags matching `ext/v*`.
+    The tag suffix after `ext/v` becomes the extension package version before publishing.
+    The implementation lives in ["../../azure-pipelines.yml"].
+    VSIX packaging follows ["./distribution.rq".vsix_export].
+}
+
+workflow_deduplication {
+    Extension publish automation should have a single authoritative workflow to avoid duplicate marketplace releases.
+    Azure DevOps is the authoritative extension publishing workflow per ["./distribution.rq".extension_distribution].
+    The site remains deployed by GitHub Actions per ["./distribution.rq".site_distribution].
 }

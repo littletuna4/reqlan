@@ -1,3 +1,5 @@
+import "../../reqlan rq/distribution/distribution.rq" as distribution_reqs
+
 site {
     the /site folder contains a next app as a landing page for reqlan.
 }
@@ -7,7 +9,9 @@ simple_lightweight_and_static {
 }
 
 workflow {
-    on push to main with changes to the site folder, build and deploy the site to the gh pages.
+    Site deployment should run only when a developer creates a release tag matching `site/v*`.
+    It should not deploy on ordinary commits.
+    per [distribution_reqs.site_distribution]
 }
 
 pnpm {
