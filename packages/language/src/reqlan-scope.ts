@@ -63,7 +63,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         if (isQualifiedReference(container)) {
             const document = AstUtils.getDocument(container);
             if (context.property === 'qualifier') {
-                return this.scopeForNamedImports(document);
+                return this.scopeForReferenceQualifiers(document);
             }
             if (context.property === 'path') {
                 return this.scopeForImportPaths(document);
@@ -116,12 +116,15 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         return new StreamScope(stream(descriptions));
     }
 
-    private scopeForNamedImports(document: LangiumDocument): Scope {
+    private scopeForReferenceQualifiers(document: LangiumDocument): Scope {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
             return new StreamScope(stream([]));
         }
-        const descriptions = model.imports.flatMap(importDecl => {
+        const locals = model.elements
+            .filter(element => isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element))
+            .map(element => this.descriptions.createDescription(element, element.name, document));
+        const namedImports = model.imports.flatMap(importDecl => {
             if (isFromImport(importDecl)) {
                 return importDecl.specifiers.flatMap(specifier => {
                     const alias = specifierBindingName(specifier);
@@ -133,7 +136,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             const alias = importAlias(importDecl);
             return alias ? [this.descriptions.createDescription(importDecl, alias, document)] : [];
         });
-        return new StreamScope(stream(descriptions));
+        return new StreamScope(stream([...locals, ...namedImports]));
     }
 
     private scopeForImportPaths(document: LangiumDocument): Scope {

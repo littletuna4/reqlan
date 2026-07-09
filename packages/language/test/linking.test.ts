@@ -55,6 +55,20 @@ async function parseDocumentsTogether(filenames: string[]): Promise<LangiumDocum
     return documents;
 }
 
+function resolvedReferenceIdeaName(target: QualifiedReference | NonNullable<ReturnType<typeof extractLocalReference>>): string | undefined {
+    if (target.idea?.ref && (isIdea(target.idea.ref) || isOneLinerIdea(target.idea.ref))) {
+        return target.idea.ref.name;
+    }
+    if (isQualifiedReference(target) && !target.idea && target.qualifier?.ref && (isIdea(target.qualifier.ref) || isOneLinerIdea(target.qualifier.ref))) {
+        return target.qualifier.ref.name;
+    }
+    return target.idea?.error?.message;
+}
+
+function extractLocalReference(target: unknown) {
+    return isLocalReference(target) ? target : undefined;
+}
+
 describe('Linking tests', () => {
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
@@ -67,7 +81,7 @@ describe('Linking tests', () => {
             .map(link => {
                 const target = link.target;
                 if (isQualifiedReference(target) || isLocalReference(target)) {
-                    return target.idea?.ref?.name ?? target.idea?.error?.message;
+                    return resolvedReferenceIdeaName(target);
                 }
                 return undefined;
             });
@@ -603,7 +617,10 @@ beta {
         const namespaceRef = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isBracketReference)
             .map(ref => ref.target)
-            .find(isLocalReference);
+            .find(target =>
+                (isLocalReference(target) || isQualifiedReference(target))
+                && isNamespaceImportOnlyReference(target)
+            );
         expect(namespaceRef).toBeDefined();
         if (!namespaceRef) {
             return;

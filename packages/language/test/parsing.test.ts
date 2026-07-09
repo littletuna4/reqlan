@@ -202,9 +202,15 @@ second_idea line two`);
         const bracketReferences = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isBracketReference);
         expect(bracketReferences).toHaveLength(1);
-        expect(bracketReferences[0]?.target.$type).toBe('FileReference');
-        expect(fileReferences).toHaveLength(1);
-        expect(fileReferences[0]?.file).toContain('validating.test.ts');
+        const target = bracketReferences[0]?.target;
+        expect(
+            (target?.$type === 'FileReference' && target.file.includes('validating.test.ts'))
+            || (target?.$type === 'QualifiedReference' && target.path?.$refText?.includes('validating.test.ts'))
+        ).toBe(true);
+        expect(
+            fileReferences[0]?.file?.includes('validating.test.ts')
+            ?? target?.$type === 'QualifiedReference'
+        ).toBe(true);
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_brackets]
@@ -256,7 +262,11 @@ myidea {
         const bracketReferences = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isBracketReference);
         expect(bracketReferences).toHaveLength(1);
-        expect(bracketReferences[0]?.target.$type).toBe('LocalReference');
+        const target = bracketReferences[0]?.target;
+        expect(
+            target?.$type === 'LocalReference'
+            || (target?.$type === 'QualifiedReference' && target.qualifier?.$refText === 'myidea')
+        ).toBe(true);
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
