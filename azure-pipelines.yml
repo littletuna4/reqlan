@@ -13,74 +13,96 @@ pr:
       - main
       - extension-distribution
 
-strategy:
-  matrix:
-    linux:
-      imageName: ubuntu-latest
-    mac:
-      imageName: macos-latest
-    windows:
-      imageName: windows-latest
+jobs:
+  - job: build_test_package
+    displayName: Build, test, package extension
+    timeoutInMinutes: 45
+    cancelTimeoutInMinutes: 5
+    strategy:
+      matrix:
+        linux:
+          imageName: ubuntu-latest
+        mac:
+          imageName: macos-latest
+        windows:
+          imageName: windows-latest
+    pool:
+      vmImage: $(imageName)
 
-pool:
-  vmImage: $(imageName)
+    steps:
+      - checkout: self
+        clean: true
+        timeoutInMinutes: 5
 
-steps:
-  - checkout: self
-    clean: true
+      - task: NodeTool@0
+        inputs:
+          versionSpec: "24.x"
+        displayName: Setup Node.js
+        timeoutInMinutes: 10
 
-  - task: NodeTool@0
-    inputs:
-      versionSpec: "20.x"
-    displayName: Setup Node.js
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          node --version
+          pnpm --version
+        displayName: Setup pnpm
+        timeoutInMinutes: 10
 
-  - pwsh: |
-      corepack enable
-      corepack prepare pnpm@11.9.0 --activate
-      pnpm --version
-    displayName: Setup pnpm
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm install --frozen-lockfile
+        displayName: Install dependencies
+        timeoutInMinutes: 15
 
-  - pwsh: |
-      pnpm install --frozen-lockfile
-    displayName: Install dependencies
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm run build
+        displayName: Build workspace
+        timeoutInMinutes: 20
 
-  - pwsh: |
-      pnpm run build
-    displayName: Build workspace
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm run test
+        displayName: Run tests
+        timeoutInMinutes: 15
 
-  - pwsh: |
-      pnpm run test
-    displayName: Run tests
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          $tagRef = "$(Build.SourceBranch)"
+          if (-not $tagRef.StartsWith("refs/tags/v")) {
+            Write-Host "Not a version tag build; skipping extension version alignment."
+            exit 0
+          }
 
-  - pwsh: |
-      $tagRef = "$(Build.SourceBranch)"
-      if (-not $tagRef.StartsWith("refs/tags/v")) {
-        Write-Host "Not a version tag build; skipping extension version alignment."
-        exit 0
-      }
+          $version = $tagRef.Substring("refs/tags/v".Length)
+          Write-Host "Aligning packages/extension/package.json version to $version"
 
-      $version = $tagRef.Substring("refs/tags/v".Length)
-      Write-Host "Aligning packages/extension/package.json version to $version"
+          node -e "const fs=require('fs'); const path='packages/extension/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.version=process.argv[1]; fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');" $version
+        displayName: Align extension version with tag
+        timeoutInMinutes: 5
 
-      node -e "const fs=require('fs'); const path='packages/extension/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.version=process.argv[1]; fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');" $version
-    displayName: Align extension version with tag
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm --filter ./packages/extension run package
+        displayName: Package extension
+        condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+        timeoutInMinutes: 15
 
-  - pwsh: |
-      pnpm --filter ./packages/extension run package
-    displayName: Package extension
-    condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+      - task: PublishBuildArtifacts@1
+        displayName: Publish VSIX artifact
+        condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+        timeoutInMinutes: 5
+        inputs:
+          PathtoPublish: packages/extension
+          ArtifactName: reqlan-vsix
+          publishLocation: Container
 
-  - task: PublishBuildArtifacts@1
-    displayName: Publish VSIX artifact
-    condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
-    inputs:
-      PathtoPublish: packages/extension
-      ArtifactName: reqlan-vsix
-      publishLocation: Container
-
-  - pwsh: |
-      pnpm --filter ./packages/extension run deploy
-    displayName: Publish extension
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'), eq(variables['Agent.OS'], 'Linux'))
-    env:
-      VSCE_PAT: $(VSCE_PAT)
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm --filter ./packages/extension run deploy
+        displayName: Publish extension
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'), eq(variables['Agent.OS'], 'Linux'))
+        timeoutInMinutes: 10
+        env:
+          VSCE_PAT: $(VSCE_PAT)

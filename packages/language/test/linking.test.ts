@@ -583,6 +583,7 @@ beta {
         expect(links?.[0]?.targetUri).toBe(rqDoc.textDocument.uri);
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
     test('resolve namespace import references to files', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const targetPath = join(repoDir, 'packages/extension/webviews/ideas-summary/components/IndexPanel.svelte');

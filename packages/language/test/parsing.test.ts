@@ -79,6 +79,8 @@ describe('Parsing tests', () => {
             'keyword',
             'import_statement',
             'reference',
+            'referenced_files',
+            'cartographic_map',
             'extension',
             'grammar_rule',
             'attribute',
