@@ -53,6 +53,19 @@ steps:
     displayName: Run tests
 
   - pwsh: |
+      $tagRef = "$(Build.SourceBranch)"
+      if (-not $tagRef.StartsWith("refs/tags/v")) {
+        Write-Host "Not a version tag build; skipping extension version alignment."
+        exit 0
+      }
+
+      $version = $tagRef.Substring("refs/tags/v".Length)
+      Write-Host "Aligning packages/extension/package.json version to $version"
+
+      node -e "const fs=require('fs'); const path='packages/extension/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.version=process.argv[1]; fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');" $version
+    displayName: Align extension version with tag
+
+  - pwsh: |
       pnpm --filter ./packages/extension run package
     displayName: Package extension
     condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
