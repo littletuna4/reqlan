@@ -145,7 +145,7 @@ BracketReference:
     '[' target=ReferenceTarget ']';
 
 ReferenceTarget:
-    QualifiedReference | FileSymbolReference | FileReference | LocalReference;
+    LocalReference | QualifiedReference | FileSymbolReference | FileReference;
 
 FileReference:
     file=STRING;

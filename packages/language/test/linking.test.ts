@@ -58,6 +58,10 @@ function resolvedReferenceIdeaName(target: QualifiedReference | LocalReference):
     if (target.idea?.ref && (isIdea(target.idea.ref) || isOneLinerIdea(target.idea.ref))) {
         return target.idea.ref.name;
     }
+    const qualifierRef = isQualifiedReference(target) ? (target.qualifier?.ref as unknown) : undefined;
+    if (qualifierRef && (isIdea(qualifierRef) || isOneLinerIdea(qualifierRef))) {
+        return qualifierRef.name;
+    }
     return target.idea?.error?.message;
 }
 
