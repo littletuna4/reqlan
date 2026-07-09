@@ -1,8 +1,9 @@
 /**
  * SQLite-backed persistence for the workspace idea graph index.
+ * Uses a bundled asm.js build so VSIX installs do not depend on native modules.
  */
-import sqlite3 from 'sqlite3';
-import { mkdirSync } from 'node:fs';
+import initSqlJs from 'sql.js/dist/sql-asm.js';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { MIGRATIONS, SCHEMA_VERSION } from './schema.js';
 import type {
@@ -36,7 +37,30 @@ import {
 } from './webview-table-queries.js';
 import { buildGraphFilterWhereClause } from './webview-graph-queries.js';
 
-type SqliteDatabase = sqlite3.Database;
+interface SqlJsStatement {
+    step(): boolean;
+    getAsObject(): Record<string, unknown>;
+    free(): void;
+}
+
+interface SqlJsDatabaseHandle {
+    run(sql: string, params?: unknown[]): void;
+    exec(sql: string, params?: unknown[]): unknown;
+    prepare(sql: string, params?: unknown[]): SqlJsStatement;
+    export(): Uint8Array;
+    close(): void;
+}
+
+interface SqlJsModule {
+    Database: new(data?: Uint8Array | ArrayLike<number>) => SqlJsDatabaseHandle;
+}
+
+interface SqliteDatabase {
+    db: SqlJsDatabaseHandle;
+    dbPath: string;
+    inTransaction: boolean;
+    dirty: boolean;
+}
 
 export class SqliteIndexStore {
     private readonly db: SqliteDatabase;
@@ -46,9 +70,7 @@ export class SqliteIndexStore {
     }
 
     static async open(dbPath: string): Promise<SqliteIndexStore> {
-        mkdirSync(dirname(dbPath), { recursive: true });
         const db = await openDatabase(dbPath);
-        await run(db, 'PRAGMA journal_mode = WAL');
         await run(db, 'PRAGMA foreign_keys = ON');
         const store = new SqliteIndexStore(db);
         await store.migrate();
@@ -585,76 +607,124 @@ export class SqliteIndexStore {
     }
 }
 
-function openDatabase(path: string): Promise<SqliteDatabase> {
-    return new Promise((resolve, reject) => {
-        const db = new sqlite3.Database(path, error => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(db);
-            }
-        });
-    });
+async function openDatabase(path: string): Promise<SqliteDatabase> {
+    await mkdir(dirname(path), { recursive: true });
+    const SQL = await getSqlJsModule();
+    const bytes = await readDatabaseBytes(path);
+    return {
+        db: bytes ? new SQL.Database(bytes) : new SQL.Database(),
+        dbPath: path,
+        inTransaction: false,
+        dirty: false
+    };
 }
 
-function closeDatabase(db: SqliteDatabase): Promise<void> {
-    return new Promise((resolve, reject) => {
-        db.close(error => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve();
-            }
-        });
-    });
+async function closeDatabase(db: SqliteDatabase): Promise<void> {
+    await persistDatabase(db);
+    db.db.close();
 }
 
-function run(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<void> {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, error => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve();
-            }
-        });
-    });
+async function run(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<void> {
+    db.db.run(sql, params);
+    const statementKind = classifyStatement(sql);
+    if (statementKind === 'begin') {
+        db.inTransaction = true;
+        return;
+    }
+    if (statementKind === 'commit') {
+        db.inTransaction = false;
+        db.dirty = true;
+        await persistDatabase(db);
+        return;
+    }
+    if (statementKind === 'rollback') {
+        db.inTransaction = false;
+        db.dirty = false;
+        return;
+    }
+    if (statementKind === 'write') {
+        db.dirty = true;
+        if (!db.inTransaction) {
+            await persistDatabase(db);
+        }
+    }
 }
 
-function get<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T | undefined> {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (error, row) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(row as T | undefined);
-            }
-        });
-    });
+async function get<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T | undefined> {
+    const rows = await all<T>(db, sql, ...params);
+    return rows[0];
 }
 
-function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T[]> {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (error, rows) => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve(rows as T[]);
-            }
-        });
-    });
+async function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T[]> {
+    const statement = db.db.prepare(sql, params);
+    const rows: T[] = [];
+    try {
+        while (statement.step()) {
+            rows.push(statement.getAsObject() as T);
+        }
+        return rows;
+    } finally {
+        statement.free();
+    }
 }
 
-function exec(db: SqliteDatabase, sql: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        db.exec(sql, error => {
-            if (error) {
-                reject(error);
-            } else {
-                resolve();
-            }
-        });
-    });
+async function exec(db: SqliteDatabase, sql: string): Promise<void> {
+    db.db.exec(sql);
+    db.dirty = true;
+    if (!db.inTransaction) {
+        await persistDatabase(db);
+    }
+}
+
+let sqlJsModulePromise: Promise<SqlJsModule> | undefined;
+
+async function getSqlJsModule(): Promise<SqlJsModule> {
+    sqlJsModulePromise ??= initSqlJs({}) as Promise<SqlJsModule>;
+    return sqlJsModulePromise;
+}
+
+async function readDatabaseBytes(path: string): Promise<Uint8Array | undefined> {
+    try {
+        const file = await readFile(path);
+        return new Uint8Array(file);
+    } catch (error) {
+        if (isMissingFileError(error)) {
+            return undefined;
+        }
+        throw error;
+    }
+}
+
+async function persistDatabase(db: SqliteDatabase): Promise<void> {
+    if (!db.dirty) {
+        return;
+    }
+    await writeFile(db.dbPath, db.db.export());
+    db.dirty = false;
+}
+
+function classifyStatement(sql: string): 'begin' | 'commit' | 'rollback' | 'write' | 'read' {
+    const keyword = sql.trimStart().match(/^[A-Za-z]+/)?.[0]?.toUpperCase();
+    if (keyword === 'BEGIN') {
+        return 'begin';
+    }
+    if (keyword === 'COMMIT') {
+        return 'commit';
+    }
+    if (keyword === 'ROLLBACK') {
+        return 'rollback';
+    }
+    if (keyword && ['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'CREATE', 'DROP', 'ALTER', 'PRAGMA'].includes(keyword)) {
+        return 'write';
+    }
+    return 'read';
+}
+
+function isMissingFileError(error: unknown): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && error.code === 'ENOENT';
 }
 
 interface SummaryRow {

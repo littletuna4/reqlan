@@ -17,12 +17,26 @@ const extensionRoot = join(root, 'packages', 'extension');
 const skillsSource = join(extensionRoot, 'skills');
 const promptsSource = join(extensionRoot, 'prompts');
 const cursorSkillsRoot = join(workspaceRoot, '.cursor', 'skills');
+const skipSync = process.env.CI === 'true' || process.env.REQLAN_SKIP_CURSOR_SYNC === '1';
 
 const SYNC_MARKER = '<!-- synced by scripts/sync-cursor-ai.mjs; edit packages/extension instead -->\n';
 
 async function main() {
-    await rm(cursorSkillsRoot, { recursive: true, force: true });
-    await mkdir(cursorSkillsRoot, { recursive: true });
+    if (skipSync) {
+        console.log('Skipping Cursor skills sync in CI/non-workspace packaging context');
+        return;
+    }
+
+    try {
+        await rm(cursorSkillsRoot, { recursive: true, force: true });
+        await mkdir(cursorSkillsRoot, { recursive: true });
+    } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && (error.code === 'EROFS' || error.code === 'EPERM')) {
+            console.log(`Skipping Cursor skills sync because ${cursorSkillsRoot} is not writable`);
+            return;
+        }
+        throw error;
+    }
 
     await syncSkillDirectories();
     await syncPromptFiles();

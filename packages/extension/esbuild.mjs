@@ -45,7 +45,7 @@ const ctx = await esbuild.context({
         '.js': '.cjs'
     },
     loader: { '.ts': 'ts' },
-    external: ['vscode', 'sqlite3'],
+    external: ['vscode'],
     platform: 'node',
     sourcemap: !minify,
     minify,

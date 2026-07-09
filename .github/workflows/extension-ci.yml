@@ -1,0 +1,67 @@
+name: Extension CI
+
+on:
+  push:
+    branches:
+      - main
+      - extension-distribution
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+      - extension-distribution
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace
+        run: pnpm run build
+
+      - name: Run tests
+        run: pnpm run test
+
+      - name: Package extension
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter ./packages/extension run package
+
+      - name: Upload VSIX artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reqlan-vsix
+          path: packages/extension/*.vsix
+
+      - name: Publish extension
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
+        run: pnpm --filter ./packages/extension run deploy
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
