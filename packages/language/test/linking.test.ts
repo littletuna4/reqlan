@@ -6,8 +6,7 @@ import { AstUtils, EmptyFileSystem, GrammarUtils, URI, type LangiumDocument } fr
 import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
-import type { Model } from 'reqlan-language';
-import type { QualifiedReference } from 'reqlan-language';
+import type { LocalReference, Model, QualifiedReference } from 'reqlan-language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
 import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
@@ -55,18 +54,11 @@ async function parseDocumentsTogether(filenames: string[]): Promise<LangiumDocum
     return documents;
 }
 
-function resolvedReferenceIdeaName(target: QualifiedReference | NonNullable<ReturnType<typeof extractLocalReference>>): string | undefined {
+function resolvedReferenceIdeaName(target: QualifiedReference | LocalReference): string | undefined {
     if (target.idea?.ref && (isIdea(target.idea.ref) || isOneLinerIdea(target.idea.ref))) {
         return target.idea.ref.name;
     }
-    if (isQualifiedReference(target) && !target.idea && target.qualifier?.ref && (isIdea(target.qualifier.ref) || isOneLinerIdea(target.qualifier.ref))) {
-        return target.qualifier.ref.name;
-    }
     return target.idea?.error?.message;
-}
-
-function extractLocalReference(target: unknown) {
-    return isLocalReference(target) ? target : undefined;
 }
 
 describe('Linking tests', () => {
@@ -617,7 +609,7 @@ beta {
         const namespaceRef = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isBracketReference)
             .map(ref => ref.target)
-            .find(target =>
+            .find((target): target is LocalReference | QualifiedReference =>
                 (isLocalReference(target) || isQualifiedReference(target))
                 && isNamespaceImportOnlyReference(target)
             );
