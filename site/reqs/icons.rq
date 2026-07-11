@@ -1,0 +1,53 @@
+import "../../reqlan rq/phonebook.rq" as phonebook_reqs
+import "../src/components/Contact.tsx" as contact_component
+import "../src/components/Hero.tsx" as hero_component
+import "../src/components/PhonebookIcon.tsx" as phonebook_icon_component
+import "../src/lib/phonebook-icons.ts" as phonebook_icon_registry
+import "../../scripts/phonebook.ts" as phonebook_script
+
+scope site icon rendering for phonebook links and CTAs
+
+iconify_stack {
+    The site renders icons with Iconify offline — bundled at build time, not fetched from a CDN at runtime.
+    Renderer: `@iconify/react` via [phonebook_icon_component].
+    Icon data: npm packages listed under the `icons` key in ["../../reqlan rq/phonebook.json"] per [phonebook_reqs.phonebook_icons].
+    Icons must remain compatible with static export per ["./core.rq".simple_lightweight_and_static].
+}
+
+phonebook_icon_keys {
+    per [phonebook_reqs.phonebook_icons]
+    Each phonebook link carries an `icon` object with `set` and `name`.
+    Set ids and lookup URLs are canonical in ["../../reqlan rq/phonebook.json"].icons.
+    Use each set's `search` URL to find replacement slugs when a name changes or an icon is removed upstream.
+    Typed helpers live in [phonebook_script]: `formatPhonebookIconKey`, `getPhonebookIconSearchUrl`.
+}
+
+icon_registry {
+    [phonebook_icon_registry] maps phonebook icon keys to bundled Iconify data.
+    Every link icon in the phonebook must have a matching registry entry; the module throws at startup if one is missing.
+    When adding or changing a link icon in ["../../reqlan rq/phonebook.json"], update the registry import for that slug.
+}
+
+phonebook_icon_component {
+    [phonebook_icon_component] is the single render entry point for phonebook icons.
+    It accepts a phonebook `icon` ref and renders an inline SVG with `aria-hidden`.
+    Default sizing uses the `.phonebook-icon` class in ["../src/app/globals.css"].
+}
+
+link_icons {
+    The contact link row in [contact_component] renders an icon beside each phonebook link label.
+    per ["./core.rq".links]
+}
+
+cta_icon {
+    The hero install button in [hero_component] reuses the `vsc` phonebook link, including its icon.
+    per ["./core.rq".components]
+}
+
+current_link_icons {
+    Slugs are defined on each link in ["../../reqlan rq/phonebook.json"]:
+    - `vsc` → simple-icons / visualstudiocode
+    - `openvsx` → simple-icons / vscodium (proxy; no Open VSX slug in Simple Icons)
+    - `github` → simple-icons / github
+    - `email` → mdi / email-outline
+}

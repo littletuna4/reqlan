@@ -3,15 +3,42 @@
   "title": "reqlan phonebook",
   "type": "object",
   "additionalProperties": false,
-  "required": ["links"],
+  "required": ["icons", "links"],
   "properties": {
+    "icons": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["package", "iconifyPrefix", "catalog", "search"],
+        "properties": {
+          "package": {
+            "type": "string",
+            "minLength": 1
+          },
+          "iconifyPrefix": {
+            "type": "string",
+            "minLength": 1
+          },
+          "catalog": {
+            "type": "string",
+            "minLength": 1
+          },
+          "search": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
     "links": {
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["label", "href"],
+        "required": ["label", "href", "icon"],
         "properties": {
           "label": {
             "type": "string",
@@ -20,6 +47,21 @@
           "href": {
             "type": "string",
             "minLength": 1
+          },
+          "icon": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["set", "name"],
+            "properties": {
+              "set": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         }
       }

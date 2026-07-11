@@ -1,21 +1,51 @@
 {
   "$schema": "./phonebook.schema.json",
+  "icons": {
+    "simple-icons": {
+      "package": "@iconify-icons/simple-icons",
+      "iconifyPrefix": "simple-icons",
+      "catalog": "https://simpleicons.org/",
+      "search": "https://icon-sets.iconify.design/simple-icons/"
+    },
+    "mdi": {
+      "package": "@iconify-icons/mdi",
+      "iconifyPrefix": "mdi",
+      "catalog": "https://pictogrammers.com/library/mdi/",
+      "search": "https://icon-sets.iconify.design/mdi/"
+    }
+  },
   "links": {
     "vsc": {
       "label": "Visual Studio Marketplace",
-      "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan"
+      "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
+      "icon": {
+        "set": "simple-icons",
+        "name": "visualstudiocode"
+      }
     },
     "openvsx": {
       "label": "Open VSX",
-      "href": "https://open-vsx.org/extension/reqlan/reqlan"
+      "href": "https://open-vsx.org/extension/reqlan/reqlan",
+      "icon": {
+        "set": "simple-icons",
+        "name": "vscodium"
+      }
     },
     "github": {
       "label": "GitHub",
-      "href": "https://github.com/littletuna4/reqlan"
+      "href": "https://github.com/littletuna4/reqlan",
+      "icon": {
+        "set": "simple-icons",
+        "name": "github"
+      }
     },
     "email": {
       "label": "Email",
-      "href": "mailto:reqlan@tony.is-a.dev"
+      "href": "mailto:reqlan@tony.is-a.dev",
+      "icon": {
+        "set": "mdi",
+        "name": "email-outline"
+      }
     }
   }
 }

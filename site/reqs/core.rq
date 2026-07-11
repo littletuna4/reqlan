@@ -1,5 +1,6 @@
 import "../../reqlan rq/distribution/distribution.rq" as distribution_reqs
 import "../../reqlan rq/phonebook.rq" as phonebook_reqs
+import "./icons.rq" as icon_reqs
 
 site {
     the /site folder contains a next app as a landing page for reqlan.
@@ -36,6 +37,7 @@ components {
         - example
     - CTA:
         - download the extension
+        per [icon_reqs.cta_icon]
     - 404 page (just something silly / a redirect)
 }
 
@@ -69,4 +71,5 @@ copy {
 
 links {
     per [phonebook_reqs.phonebook]
+    per [icon_reqs.link_icons]
 }

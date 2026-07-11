@@ -25,4 +25,8 @@ attribute_body the first attribute in an idea, if not marked otherwise, is the m
 
 idea_name the idea name is a string/handle/variable that uniquely identifies the idea (within the ideaset/file). It shouldn't be a reserved keyword.
 
-
+atlas {
+    A challenge with navigating complex graphs is that they can be overwhelming.
+    One extension to the product is to have atlases
+    @idea
+}

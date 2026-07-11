@@ -1,3 +1,4 @@
+import { PhonebookIcon } from "@/components/PhonebookIcon";
 import { siteContent } from "@/content/site";
 
 export function Contact() {
@@ -21,6 +22,7 @@ export function Contact() {
                   ? { target: "_blank", rel: "noopener noreferrer" }
                   : {})}
               >
+                <PhonebookIcon icon={link.icon} />
                 {link.label}
               </a>
             </li>

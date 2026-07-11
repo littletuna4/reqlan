@@ -50,8 +50,8 @@ export const siteContent = {
   },
 
   cta: {
+    ...getPhonebookLink("vsc"),
     label: "Install extension",
-    href: getPhonebookLink("vsc").href,
   },
 
   motivation: {
