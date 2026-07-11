@@ -4,7 +4,7 @@ trigger:
       - refs/tags/ext/v*
 
 variables:
-  - group: "reqlan secret tokens"
+  - group: "reqlan pipeline variables"
 
 jobs:
   - job: build_test_package
