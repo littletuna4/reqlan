@@ -3,6 +3,7 @@ import { Icon } from "@iconify/react/dist/offline";
 
 import { resolvePhonebookIcon } from "@/lib/phonebook-icons";
 import type { PhonebookIconRef } from "@/lib/phonebook";
+import styles from "./PhonebookIcon.module.css";
 
 type PhonebookIconProps = {
   icon: PhonebookIconRef;
@@ -11,7 +12,7 @@ type PhonebookIconProps = {
 
 export function PhonebookIcon({
   icon,
-  className = "phonebook-icon",
+  className = styles.icon,
 }: PhonebookIconProps) {
   const data = resolvePhonebookIcon(icon);
   if (!data) {

@@ -5,11 +5,19 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  InstallFallback,
+  useInstallActionHandler,
+} from "@/components/InstallFallback";
+import {
   quickstartContent,
   type QuickstartIde,
   type QuickstartIdeId,
 } from "@/content/quickstart";
+import { getPreferredIde } from "@/lib/deeplink";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
+import { cn } from "@/lib/utils";
+import shared from "./shared.module.css";
+import styles from "./QuickstartClient.module.css";
 
 type QuickstartClientProps = {
   initialIde?: QuickstartIdeId;
@@ -39,7 +47,7 @@ function IdeIcon({ icon }: { icon: QuickstartIde["icon"] }) {
     return null;
   }
 
-  return <Icon icon={data} className="quickstart-ide-icon" aria-hidden />;
+  return <Icon icon={data} className={styles.ideIcon} aria-hidden />;
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -56,7 +64,7 @@ function CopyButton({ value }: { value: string }) {
   }, [value]);
 
   return (
-    <button type="button" className="quickstart-copy" onClick={copy}>
+    <button type="button" className={styles.copy} onClick={copy}>
       {copied ? "Copied" : "Copy"}
     </button>
   );
@@ -67,11 +75,19 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
   const [activeId, setActiveId] = useState<QuickstartIdeId>(
     initialIde ?? defaultIde,
   );
+  const { status, fallback, runInstallAction, dismissFallback } =
+    useInstallActionHandler();
 
   useEffect(() => {
     const ideFromUrl = readIdeFromLocation();
     if (ideFromUrl) {
       setActiveId(ideFromUrl);
+      return;
+    }
+
+    const stored = getPreferredIde();
+    if (stored) {
+      setActiveId(stored);
     }
   }, []);
 
@@ -80,18 +96,30 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
     ides.find((ide) => ide.id === defaultIde) ??
     ides[0];
 
+  const handlePrimary = useCallback(() => {
+    void runInstallAction(activeIde);
+  }, [activeIde, runInstallAction]);
+
+  const handleDeepLink = useCallback(() => {
+    if (!activeIde.deepLink) {
+      return;
+    }
+
+    void runInstallAction({ ...activeIde, href: activeIde.deepLink, kind: "deeplink" });
+  }, [activeIde, runInstallAction]);
+
   return (
-    <div className="quickstart">
-      <header className="quickstart-header">
-        <Link href="/" className="quickstart-back">
+    <div className={styles.root}>
+      <header className={styles.header}>
+        <Link href="/" className={styles.back}>
           ← Home
         </Link>
-        <h1 className="quickstart-title">{quickstartContent.title}</h1>
-        <p className="quickstart-intro">{quickstartContent.intro}</p>
+        <h1 className={styles.title}>{quickstartContent.title}</h1>
+        <p className={styles.intro}>{quickstartContent.intro}</p>
       </header>
 
-      <div className="quickstart-panel">
-        <div role="tablist" aria-label="Choose your editor" className="quickstart-ide-list">
+      <div className={styles.panel}>
+        <div role="tablist" aria-label="Choose your editor" className={styles.ideList}>
           {ides.map((ide) => {
             const isActive = ide.id === activeId;
 
@@ -103,21 +131,17 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
                 id={`quickstart-tab-${ide.id}`}
                 aria-selected={isActive}
                 aria-controls={`quickstart-panel-${ide.id}`}
-                className={
-                  isActive ? "quickstart-ide-tab is-active" : "quickstart-ide-tab"
-                }
+                className={cn(styles.ideTab, isActive && styles.ideTabActive)}
                 onClick={() => {
                   setActiveId(ide.id);
+                  dismissFallback();
                   const url = new URL(window.location.href);
                   url.searchParams.set("ide", ide.id);
                   window.history.replaceState(null, "", url);
                 }}
               >
                 <IdeIcon icon={ide.icon} />
-                <span className="quickstart-ide-label">{ide.label}</span>
-                {ide.recommended ? (
-                  <span className="quickstart-badge">Default</span>
-                ) : null}
+                <span className={styles.ideLabel}>{ide.label}</span>
               </button>
             );
           })}
@@ -127,44 +151,54 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
           role="tabpanel"
           id={`quickstart-panel-${activeIde.id}`}
           aria-labelledby={`quickstart-tab-${activeIde.id}`}
-          className="quickstart-detail"
+          className={styles.detail}
         >
-          <p className="quickstart-tagline">{activeIde.tagline}</p>
+          <p className={styles.tagline}>{activeIde.tagline}</p>
 
-          <div className="quickstart-actions">
-            <a
-              className="quickstart-primary"
-              href={activeIde.primaryAction.href}
-              {...(activeIde.primaryAction.external
-                ? { target: "_blank", rel: "noopener noreferrer" }
-                : {})}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={handlePrimary}
             >
               {activeIde.primaryAction.label}
-            </a>
+            </button>
 
             {activeIde.deepLink ? (
-              <a className="quickstart-secondary" href={activeIde.deepLink}>
+              <button
+                type="button"
+                className={styles.secondary}
+                onClick={handleDeepLink}
+              >
                 Try editor deep link
-              </a>
+              </button>
             ) : null}
           </div>
 
-          <ol className="quickstart-steps">
+          {status ? <p className={styles.installStatus}>{status}</p> : null}
+
+          {fallback?.ideId === activeIde.id ? (
+            <div className={styles.fallbackWrap}>
+              <InstallFallback ideId={fallback.ideId} onDismiss={dismissFallback} />
+            </div>
+          ) : null}
+
+          <ol className={styles.steps}>
             {activeIde.steps.map((step) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
 
           {activeIde.cli ? (
-            <div className="quickstart-cli">
-              <span className="quickstart-cli-label">Terminal</span>
-              <code className="quickstart-cli-code">{activeIde.cli}</code>
+            <div className={styles.cli}>
+              <span className={styles.cliLabel}>Terminal</span>
+              <code className={styles.cliCode}>{activeIde.cli}</code>
               <CopyButton value={activeIde.cli} />
             </div>
           ) : null}
 
           {activeIde.tips?.length ? (
-            <ul className="quickstart-tips">
+            <ul className={styles.tips}>
               {activeIde.tips.map((tip) => (
                 <li key={tip}>{tip}</li>
               ))}
@@ -173,11 +207,11 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
         </div>
       </div>
 
-      <section className="quickstart-next" aria-labelledby="quickstart-next-title">
-        <h2 id="quickstart-next-title" className="quickstart-next-title">
+      <section className={styles.next} aria-labelledby="quickstart-next-title">
+        <h2 id="quickstart-next-title" className={styles.nextTitle}>
           What&apos;s next
         </h2>
-        <ul className="feature-list">
+        <ul className={shared.featureList}>
           {nextSteps.map((step) => (
             <li key={step}>{step}</li>
           ))}

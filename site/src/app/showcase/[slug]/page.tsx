@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ShowcaseDetail } from "@/components/ShowcaseDetail";
 import { SiteShell } from "@/components/SiteShell";
 import { getShowcase, showcases } from "@/content/showcases";
+import styles from "../page.module.css";
 
 type ShowcaseDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -40,7 +41,7 @@ export default async function ShowcaseDetailPage({
 
   return (
     <SiteShell>
-      <main className="showcase-page">
+      <main className={styles.page}>
         <ShowcaseDetail showcase={showcase} />
       </main>
     </SiteShell>

@@ -1,12 +1,13 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { siteContent } from "@/content/site";
+import shared from "./shared.module.css";
 
 export async function Example() {
   const { example } = siteContent;
 
   return (
-    <section id="example" className="content-section" aria-labelledby="example-title">
-      <h2 id="example-title" className="section-title">
+    <section id="example" className={shared.contentSection} aria-labelledby="example-title">
+      <h2 id="example-title" className={shared.sectionTitle}>
         Example
       </h2>
 

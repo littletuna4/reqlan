@@ -1,16 +1,17 @@
 import { PhonebookIcon } from "@/components/PhonebookIcon";
 import { siteContent } from "@/content/site";
+import shared from "./shared.module.css";
 
 export function Contact() {
   const { contact } = siteContent;
 
   return (
-    <section id="contact" className="content-section" aria-labelledby="contact-title">
-      <h2 id="contact-title" className="section-title">
+    <section id="contact" className={shared.contentSection} aria-labelledby="contact-title">
+      <h2 id="contact-title" className={shared.sectionTitle}>
         Links
       </h2>
 
-      <ul className="link-row">
+      <ul className={shared.linkRow}>
         {contact.links.map((link) => {
           const isExternal = link.href.startsWith("http");
 

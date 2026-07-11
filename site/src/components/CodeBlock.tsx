@@ -1,6 +1,8 @@
 import { RqCode } from "@/components/RqCode";
 import type { CodeLanguage } from "@/content/site";
 import { highlightCode } from "@/lib/highlight";
+import { cn } from "@/lib/utils";
+import styles from "./CodeBlock.module.css";
 
 type CodeBlockProps = {
   language: CodeLanguage;
@@ -18,13 +20,7 @@ export async function CodeBlock({
   }
 
   const html = await highlightCode(content, language);
-  const blockClass = [
-    "code-block",
-    `language-${language}`,
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const blockClass = cn(styles.block, className);
 
   return (
     <div

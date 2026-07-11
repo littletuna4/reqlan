@@ -1,24 +1,20 @@
-import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
+import { HeroActions } from "@/components/HeroActions";
 import { siteContent } from "@/content/site";
+import styles from "./Hero.module.css";
 
 export async function Hero() {
-  const { hero, cta } = siteContent;
+  const { hero } = siteContent;
 
   return (
-    <section className="hero" aria-label="Introduction">
+    <section className={styles.hero} aria-label="Introduction">
       <CodeBlock
         language="rq"
         content={hero.snippet}
-        className="hero-snippet"
+        className={styles.snippet}
       />
 
-      <Link className="cta-button" href={cta.href} prefetch>
-        {cta.label}
-        <span className="cta-button-arrow" aria-hidden>
-          →
-        </span>
-      </Link>
+      <HeroActions />
     </section>
   );
 }

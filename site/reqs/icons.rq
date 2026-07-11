@@ -40,7 +40,8 @@ link_icons {
 }
 
 cta_icon {
-    The hero install button in [hero_component] reuses the `vsc` phonebook link, including its icon.
+    The hero install control is a single "Install" menu button that opens an editor/download chooser (Cursor, VS Code, Open VSX, Download VSIX) — it must not assume the user's editor or pre-select one silently.
+    Each menu row shows the target's icon beside its full label; icons resolve through [phonebook_icon_registry] via the quickstart icon set/name refs in ["../src/content/install-actions.ts"].
     per ["./core.rq".components]
 }
 

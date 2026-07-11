@@ -135,15 +135,11 @@ export function RqTip({ className, tip, children }: RqTipProps) {
     show();
   };
 
-  const anchorClassName = className.includes("rq-tip")
-    ? className
-    : `${className} ${styles.anchor}`;
-
   return (
     <>
       <span
         ref={anchorRef}
-        className={anchorClassName}
+        className={className}
         tabIndex={0}
         aria-describedby={mounted && visible ? tipId : undefined}
         onMouseEnter={handleMouseEnter}

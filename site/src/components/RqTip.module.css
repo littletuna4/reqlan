@@ -21,8 +21,3 @@
 .tooltip[data-placement="bottom"] {
   transform: translate(-50%, 0.45rem);
 }
-
-.anchor {
-  cursor: help;
-  outline: none;
-}

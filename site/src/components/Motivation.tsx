@@ -1,6 +1,7 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { MotivationClient } from "@/components/MotivationClient";
 import { siteContent } from "@/content/site";
+import shared from "./shared.module.css";
 
 export async function Motivation() {
   const { motivation } = siteContent;
@@ -11,7 +12,7 @@ export async function Motivation() {
         motivation.tabs.map(async (tab) => (
           <div key={tab.id}>
             {tab.features ? (
-              <ul className="feature-list">
+              <ul className={shared.featureList}>
                 {tab.features.map((feature) => (
                   <li key={feature}>{feature}</li>
                 ))}

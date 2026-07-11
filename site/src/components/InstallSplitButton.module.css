@@ -1,0 +1,156 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.625rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.button:hover {
+  border-color: color-mix(in srgb, var(--color-aqua) 40%, var(--color-border));
+  background: var(--color-surface-raised);
+}
+
+.buttonIcon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
+.chevron {
+  display: inline-block;
+  margin-left: 0.0625rem;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  transition: transform 0.15s;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: max-content;
+  min-width: 15rem;
+  max-width: min(22rem, 90vw);
+  padding: 0.375rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  background: var(--color-surface-raised);
+  box-shadow: 0 0.75rem 1.75rem
+    color-mix(in srgb, var(--color-bg) 45%, transparent);
+  animation: menuIn 0.14s ease-out;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none;
+  }
+}
+
+.menuBare {
+  min-width: 0;
+  max-width: min(30rem, 92vw);
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.menuLabel {
+  margin: 0;
+  padding: 0.375rem 0.5rem 0.25rem;
+  color: var(--color-text-faint);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.menuItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.5rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.menuItem:hover {
+  background: var(--color-surface);
+  color: var(--color-aqua-bright);
+}
+
+.menuItemLabel {
+  flex: 1;
+}
+
+.actionIcon {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.menuMark {
+  flex-shrink: 0;
+  color: var(--color-text-faint);
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .menu {
+    min-width: 13rem;
+  }
+}

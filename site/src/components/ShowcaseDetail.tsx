@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
 import type { Showcase, ShowcaseBlock } from "@/content/showcases";
+import cardStyles from "./ShowcaseCard.module.css";
+import shared from "./shared.module.css";
+import styles from "./ShowcaseDetail.module.css";
 
 type ShowcaseDetailProps = {
   showcase: Showcase;
@@ -9,11 +12,11 @@ type ShowcaseDetailProps = {
 async function ShowcaseBlockView({ block }: { block: ShowcaseBlock }) {
   if ("items" in block) {
     return (
-      <div className="showcase-block">
+      <div className={styles.block}>
         {block.label ? (
-          <p className="syntax-label">{block.label}</p>
+          <p className={shared.syntaxLabel}>{block.label}</p>
         ) : null}
-        <ul className="feature-list">
+        <ul className={shared.featureList}>
           {block.items.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -23,8 +26,8 @@ async function ShowcaseBlockView({ block }: { block: ShowcaseBlock }) {
   }
 
   return (
-    <div className="showcase-block">
-      {block.label ? <p className="syntax-label">{block.label}</p> : null}
+    <div className={styles.block}>
+      {block.label ? <p className={shared.syntaxLabel}>{block.label}</p> : null}
       <CodeBlock language={block.language} content={block.code} />
     </div>
   );
@@ -32,23 +35,23 @@ async function ShowcaseBlockView({ block }: { block: ShowcaseBlock }) {
 
 export async function ShowcaseDetail({ showcase }: ShowcaseDetailProps) {
   return (
-    <article className="showcase-detail">
-      <Link href="/showcase" className="showcase-back">
+    <article className={styles.detail}>
+      <Link href="/showcase" className={styles.back}>
         ← All showcases
       </Link>
 
-      <div className="showcase-detail-tags">
+      <div className={styles.detailTags}>
         {showcase.tags.map((tag) => (
-          <span key={tag} className="showcase-tag">
+          <span key={tag} className={cardStyles.tag}>
             {tag}
           </span>
         ))}
       </div>
 
-      <h1 className="showcase-detail-title">{showcase.title}</h1>
-      <p className="showcase-detail-summary">{showcase.summary}</p>
+      <h1 className={styles.title}>{showcase.title}</h1>
+      <p className={styles.summary}>{showcase.summary}</p>
 
-      <div className="showcase-detail-blocks">
+      <div className={styles.blocks}>
         {await Promise.all(
           showcase.blocks.map(async (block, index) => (
             <ShowcaseBlockView key={index} block={block} />

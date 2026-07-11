@@ -2,6 +2,9 @@
 
 import { Children, useState } from "react";
 import type { MotivationTab } from "@/content/site";
+import { cn } from "@/lib/utils";
+import shared from "./shared.module.css";
+import styles from "./MotivationClient.module.css";
 
 type MotivationClientProps = {
   tabs: MotivationTab[];
@@ -15,15 +18,15 @@ export function MotivationClient({ tabs, children }: MotivationClientProps) {
   return (
     <section
       id="motivation"
-      className="content-section"
+      className={shared.contentSection}
       aria-labelledby="motivation-title"
     >
-      <h2 id="motivation-title" className="section-title">
+      <h2 id="motivation-title" className={shared.sectionTitle}>
         Motivation
       </h2>
 
-      <div className="tab-panel">
-        <div role="tablist" aria-label="Motivation" className="tab-list">
+      <div className={styles.panel}>
+        <div role="tablist" aria-label="Motivation" className={styles.tabList}>
           {tabs.map((tab) => {
             const isActive = tab.id === activeId;
 
@@ -35,7 +38,7 @@ export function MotivationClient({ tabs, children }: MotivationClientProps) {
                 id={`tab-${tab.id}`}
                 aria-selected={isActive}
                 aria-controls={`panel-${tab.id}`}
-                className={isActive ? "tab is-active" : "tab"}
+                className={cn(styles.tab, isActive && styles.tabActive)}
                 onClick={() => setActiveId(tab.id)}
               >
                 {tab.label}
@@ -48,7 +51,7 @@ export function MotivationClient({ tabs, children }: MotivationClientProps) {
           role="tabpanel"
           id={`panel-${activeTab?.id ?? "none"}`}
           aria-labelledby={`tab-${activeTab?.id ?? "none"}`}
-          className="tab-content"
+          className={styles.tabContent}
         >
           {Children.map(children, (child, index) => {
             const tab = tabs[index];

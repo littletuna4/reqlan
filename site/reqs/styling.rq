@@ -1,0 +1,3 @@
+styling_architecture {
+    styling should be handled primarily at the compoenent level with co-located css module files that are imported in the react components.
+}

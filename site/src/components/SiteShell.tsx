@@ -1,5 +1,6 @@
 import { Footer } from "@/components/Footer";
 import { Sidebar } from "@/components/Sidebar";
+import styles from "./SiteShell.module.css";
 
 type SiteShellProps = {
   children: React.ReactNode;
@@ -7,10 +8,10 @@ type SiteShellProps = {
 
 export function SiteShell({ children }: SiteShellProps) {
   return (
-    <div className="site-shell">
+    <div className={styles.shell}>
       <Sidebar />
 
-      <div className="site-main">
+      <div className={styles.main}>
         {children}
         <Footer />
       </div>

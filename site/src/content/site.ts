@@ -44,9 +44,8 @@ export const siteContent = {
   ] satisfies NavItem[],
 
   hero: {
-    snippet: `auth {
-    login must use oauth
-    @status: in-progress
+    snippet: `reqlan {
+    semantic *engineering* toolset
 }`,
   },
 

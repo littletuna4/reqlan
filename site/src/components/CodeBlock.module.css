@@ -1,0 +1,34 @@
+.block {
+  --code-background: var(--color-surface);
+  --code-foreground: var(--color-text);
+  --code-token-comment: var(--color-text-faint);
+  --code-token-string: #8ecdb8;
+  --code-token-string-expression: #8ecdb8;
+  --code-token-keyword: var(--color-rust);
+  --code-token-function: var(--color-aqua-bright);
+  --code-token-constant: #9ec8e8;
+  --code-token-parameter: var(--color-text-muted);
+  --code-token-punctuation: var(--color-text-faint);
+  --code-token-link: var(--color-aqua);
+  --code-token-number: #e8a66a;
+  --code-token-entity: var(--color-aqua-bright);
+  --code-token-heading: var(--color-aqua-bright);
+  --code-token-meta: var(--color-text-faint);
+}
+
+.block :global(.shiki) {
+  margin: 0;
+  overflow-x: auto;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+.block :global(.shiki code) {
+  display: block;
+  white-space: pre;
+}
