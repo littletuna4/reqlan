@@ -101,8 +101,43 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             if (context.property === 'ideaset') {
                 return this.scopeForIdeasets(document);
             }
+            if (context.property === 'idea') {
+                return this.scopeForBracketIdeas(document);
+            }
         }
         return super.getScope(context);
+    }
+
+    private scopeForBracketIdeas(document: LangiumDocument): Scope {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return new StreamScope(stream([]));
+        }
+        const descriptions = model.elements
+            .filter(element => isIdea(element) || isOneLinerIdea(element))
+            .map(idea => this.descriptions.createDescription(idea, idea.name, document));
+        for (const importDecl of model.imports) {
+            if (isFromImport(importDecl)) {
+                for (const specifier of importDecl.specifiers) {
+                    const target = specifier.idea.ref;
+                    if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+                        continue;
+                    }
+                    const name = specifierBindingName(specifier) ?? target.name;
+                    descriptions.push(this.descriptions.createDescription(target, name, AstUtils.getDocument(target)));
+                }
+                continue;
+            }
+            if (isQualifiedImport(importDecl)) {
+                const target = importDecl.idea.ref;
+                if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+                    continue;
+                }
+                const name = importDecl.alias ?? target.name;
+                descriptions.push(this.descriptions.createDescription(target, name, AstUtils.getDocument(target)));
+            }
+        }
+        return new StreamScope(stream(descriptions));
     }
 
     private scopeForIdeasets(document: LangiumDocument): Scope {

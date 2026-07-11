@@ -1,4 +1,5 @@
 import "../../reqlan rq/distribution/distribution.rq" as distribution_reqs
+import "../../reqlan rq/phonebook.rq" as phonebook_reqs
 
 site {
     the /site folder contains a next app as a landing page for reqlan.
@@ -9,7 +10,7 @@ simple_lightweight_and_static {
 }
 
 workflow {
-    Site deployment runs when an `site/v*` tag is pushed.
+    Site deployment runs when an `site/v*` tag is pushed. 
     Tags are created automatically on main by the release workflow per [distribution_reqs.deployment_flow].
     The site workflow does not deploy on ordinary commits.
     per [distribution_reqs.site_distribution]
@@ -28,6 +29,7 @@ components {
     - footer
     - hero
     - links/contact
+    - showcases
     - content
         - motivation
         - syntax
@@ -35,6 +37,12 @@ components {
     - CTA:
         - download the extension
     - 404 page (just something silly / a redirect)
+}
+
+code_block_styling {
+    Code blocks should be styled per language as a function of a classname; or by using an appropriate lightweight external dependency.
+    .rq, .ts, .md, and .py should be supported for code sections.
+    If using a dependency, it should parse at build, not in the browser.
 }
 
 logo {
@@ -60,7 +68,5 @@ copy {
 }
 
 links {
-    - reqlan@tony.is-a.dev
-    - github.com/littletuna4/reqlan 
-    - extension: https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan
+    per [phonebook_reqs.phonebook]
 }

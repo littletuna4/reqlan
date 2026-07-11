@@ -1,25 +1,26 @@
 export type NavItem = {
   id: string;
   label: string;
+  href?: string;
 };
 
 export type SyntaxExample = {
   label: string;
   code: string;
+  language: CodeLanguage;
 };
 
-export type LinkItem = {
-  label: string;
-  href: string;
-};
+import { getPhonebookLink, phonebookLinks, type PhonebookLink } from "@/lib/phonebook";
 
-export type BlockKind = "rq" | "diagram" | "commands";
+export type LinkItem = PhonebookLink;
+
+export type CodeLanguage = "rq" | "ts" | "md" | "py";
 
 export type MotivationTab = {
   id: string;
   label: string;
   code?: string;
-  blockKind?: BlockKind;
+  language?: CodeLanguage;
   features?: string[];
 };
 
@@ -37,6 +38,7 @@ export const siteContent = {
     { id: "motivation", label: "Motivation" },
     { id: "syntax", label: "Syntax" },
     { id: "example", label: "Example" },
+    { id: "showcase", label: "Showcases", href: "/showcase" },
     { id: "contact", label: "Links" },
   ] satisfies NavItem[],
 
@@ -49,7 +51,7 @@ export const siteContent = {
 
   cta: {
     label: "Install extension",
-    href: "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
+    href: getPhonebookLink("extension").href,
   },
 
   motivation: {
@@ -57,7 +59,7 @@ export const siteContent = {
       {
         id: "llm-first",
         label: "LLM-first",
-        blockKind: "diagram",
+        language: "rq",
         code: `# /rq-search oauth flow
 → auth.login
 → auth.session
@@ -68,7 +70,7 @@ export const siteContent = {
       {
         id: "traceable",
         label: "Traceable",
-        blockKind: "rq",
+        language: "rq",
         code: `login {
     aligns with [auth.session]
     implemented in ["./auth.ts".login]
@@ -77,7 +79,7 @@ export const siteContent = {
       {
         id: "any-stack",
         label: "Any stack",
-        blockKind: "rq",
+        language: "rq",
         code: `safety_interlock {
     valve must close before heater enables
     @tags: (iec-61131, critical)
@@ -86,7 +88,7 @@ export const siteContent = {
       {
         id: "extension-editor",
         label: "Editor",
-        blockKind: "diagram",
+        language: "rq",
         features: [
           "LSP for .rq — go-to-def, find refs, validation",
           "Syntax highlighting and semantic tokens",
@@ -100,7 +102,7 @@ export const siteContent = {
       {
         id: "extension-workspace",
         label: "Workspace",
-        blockKind: "commands",
+        language: "md",
         features: [
           "Ideas and references tables",
           "Graph view — filter by file, tag, or status",
@@ -114,7 +116,7 @@ Reqlan: Export JSON`,
       {
         id: "extension-ai",
         label: "AI",
-        blockKind: "commands",
+        language: "md",
         features: [
           "@reqlan chat participant in VS Code / Copilot",
           "MCP — search, file context, local graph",
@@ -132,16 +134,19 @@ Reqlan: Export JSON`,
     examples: [
       {
         label: "one-liner",
+        language: "rq",
         code: `my_idea ideas support one liners`,
       },
       {
         label: "block",
+        language: "rq",
         code: `myidea {
     It should be a good thing.
 }`,
       },
       {
         label: "links & attributes",
+        language: "rq",
         code: `"my idea2" {
     compatible with [myidea]
     @status: pending
@@ -150,6 +155,7 @@ Reqlan: Export JSON`,
       },
       {
         label: "imports",
+        language: "rq",
         code: `from "main.rq" import myidea
 import "./exampleimport.rq"
 
@@ -157,8 +163,31 @@ my_ideaset (myidea, "my idea2")`,
       },
       {
         label: "file refs",
+        language: "rq",
         code: `["./apythonfile.py"]
 ["./apythonfile.py".APythonClass.say_hello]`,
+      },
+      {
+        label: "typescript",
+        language: "ts",
+        code: `export async function login(req: Request) {
+  const token = await oauth.verify(req);
+  return createSession(token);
+}`,
+      },
+      {
+        label: "markdown",
+        language: "md",
+        code: `# Deployment
+
+See workflow in \`.github/workflows/release.yml\`.`,
+      },
+      {
+        label: "python",
+        language: "py",
+        code: `class APythonClass:
+    def say_hello(self) -> None:
+        print("hello")`,
       },
     ] satisfies SyntaxExample[],
   },
@@ -178,20 +207,7 @@ myidea3 {
   },
 
   contact: {
-    links: [
-      {
-        label: "Extension",
-        href: "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
-      },
-      {
-        label: "GitHub",
-        href: "https://github.com/littletuna4/reqlan",
-      },
-      {
-        label: "Email",
-        href: "mailto:reqlan@tony.is-a.dev",
-      },
-    ] satisfies LinkItem[],
+    links: phonebookLinks satisfies LinkItem[],
   },
 
   footer: {

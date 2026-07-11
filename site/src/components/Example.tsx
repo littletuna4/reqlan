@@ -1,7 +1,7 @@
-import { RqCode } from "@/components/RqCode";
+import { CodeBlock } from "@/components/CodeBlock";
 import { siteContent } from "@/content/site";
 
-export function Example() {
+export async function Example() {
   const { example } = siteContent;
 
   return (
@@ -10,7 +10,7 @@ export function Example() {
         Example
       </h2>
 
-      <RqCode code={example.code} />
+      <CodeBlock language="rq" content={example.code} />
     </section>
   );
 }

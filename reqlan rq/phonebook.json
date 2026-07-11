@@ -1,0 +1,17 @@
+{
+  "$schema": "./phonebook.schema.json",
+  "links": {
+    "extension": {
+      "label": "Extension",
+      "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan"
+    },
+    "github": {
+      "label": "GitHub",
+      "href": "https://github.com/littletuna4/reqlan"
+    },
+    "email": {
+      "label": "Email",
+      "href": "mailto:reqlan@tony.is-a.dev"
+    }
+  }
+}

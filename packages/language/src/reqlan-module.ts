@@ -13,6 +13,7 @@ import { sharedAttributeCatalog } from './reqlan-attribute-catalog.js';
 import { ReqlanInlayHintProvider } from './reqlan-inlay-hint-provider.js';
 import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js';
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
+import { registerRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
 
 /**
@@ -89,6 +90,7 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
     );
     shared.ServiceRegistry.register(Reqlan);
     registerValidationChecks(Reqlan);
+    registerRqIgnoreErrorFiltering(shared);
     if (!context.connection) {
         // We don't run inside a language server
         // Therefore, initialize the configuration provider instantly

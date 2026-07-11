@@ -1,0 +1,4 @@
+phonebook {
+    Canonical project links live in ["./phonebook.json"].
+    Modules that need contact, repo, or marketplace URLs should read from there instead of hardcoding values.
+}

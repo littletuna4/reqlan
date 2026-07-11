@@ -1,73 +1,31 @@
-"use client";
-
 import { CodeBlock } from "@/components/CodeBlock";
-import { useState } from "react";
+import { MotivationClient } from "@/components/MotivationClient";
 import { siteContent } from "@/content/site";
 
-export function Motivation() {
+export async function Motivation() {
   const { motivation } = siteContent;
-  const [activeId, setActiveId] = useState(motivation.tabs[0].id);
-
-  const activeTab =
-    motivation.tabs.find((tab) => tab.id === activeId) ?? motivation.tabs[0];
 
   return (
-    <section
-      id="motivation"
-      className="content-section"
-      aria-labelledby="motivation-title"
-    >
-      <h2 id="motivation-title" className="section-title">
-        Motivation
-      </h2>
-
-      <div className="tab-panel">
-        <div
-          role="tablist"
-          aria-label="Motivation"
-          className="tab-list"
-        >
-          {motivation.tabs.map((tab) => {
-            const isActive = tab.id === activeId;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                id={`tab-${tab.id}`}
-                aria-selected={isActive}
-                aria-controls={`panel-${tab.id}`}
-                className={isActive ? "tab is-active" : "tab"}
-                onClick={() => setActiveId(tab.id)}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          role="tabpanel"
-          id={`panel-${activeTab.id}`}
-          aria-labelledby={`tab-${activeTab.id}`}
-          className="tab-content"
-        >
-          {activeTab.features ? (
-            <ul className="feature-list">
-              {activeTab.features.map((feature) => (
-                <li key={feature}>{feature}</li>
-              ))}
-            </ul>
-          ) : null}
-          {activeTab.code ? (
-            <CodeBlock
-              kind={activeTab.blockKind ?? "rq"}
-              content={activeTab.code}
-            />
-          ) : null}
-        </div>
-      </div>
-    </section>
+    <MotivationClient tabs={motivation.tabs}>
+      {await Promise.all(
+        motivation.tabs.map(async (tab) => (
+          <div key={tab.id}>
+            {tab.features ? (
+              <ul className="feature-list">
+                {tab.features.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+            ) : null}
+            {tab.code ? (
+              <CodeBlock
+                language={tab.language ?? "rq"}
+                content={tab.code}
+              />
+            ) : null}
+          </div>
+        )),
+      )}
+    </MotivationClient>
   );
 }

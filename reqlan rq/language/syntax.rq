@@ -79,6 +79,15 @@ reference_brackets {
     Forms include ideaset-only, idea-only, ideaset dot idea, and idea dot attribute targets.
 }
 
+same_file_reference {
+    [reference_brackets] should work if the target is either imported, or it is in the same file.
+    So, this idea should not throw an error.
+
+    @tests: (
+        ["../../packages/language/test/linking.test.ts"]
+    )
+}
+
 reference_wikilink {
     Double-bracket wikilinks use doubled square brackets around a target.
     Wikilinks may include an obsidian-style alias pipe with a display label after the target.
@@ -147,7 +156,16 @@ comments {
     """
     // multiline string that also not a comment
     """
-    ["a reference containing // that doens't start a comment"]
+    //rq-ignore-error
+    ["a reference containing '//' that doesn't start a comment"]
+}
+
+comment_reference_ignore {
+    Comment reference ignore syntax uses `//rq-ignore-error`.
+    Comment reference ignore suppresses diagnostics on the immediately following line.
+    @tests: (
+        ["../../packages/language/test/ignore-error.test.ts"]
+    )
 }
 
 code_snippets Idea bodies may embed code snippets delimited by triple backticks.

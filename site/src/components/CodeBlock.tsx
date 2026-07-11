@@ -1,21 +1,35 @@
-import { CommandBlock } from "@/components/CommandBlock";
-import { DiagramBlock } from "@/components/DiagramBlock";
 import { RqCode } from "@/components/RqCode";
-import type { BlockKind } from "@/content/site";
+import type { CodeLanguage } from "@/content/site";
+import { highlightCode } from "@/lib/highlight";
 
 type CodeBlockProps = {
-  kind: BlockKind;
+  language: CodeLanguage;
   content: string;
   className?: string;
 };
 
-export function CodeBlock({ kind, content, className }: CodeBlockProps) {
-  switch (kind) {
-    case "diagram":
-      return <DiagramBlock content={content} className={className} />;
-    case "commands":
-      return <CommandBlock content={content} className={className} />;
-    default:
-      return <RqCode code={content} className={className} />;
+export async function CodeBlock({
+  language,
+  content,
+  className,
+}: CodeBlockProps) {
+  if (language === "rq") {
+    return <RqCode code={content} className={className} />;
   }
+
+  const html = await highlightCode(content, language);
+  const blockClass = [
+    "code-block",
+    `language-${language}`,
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className={blockClass}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }

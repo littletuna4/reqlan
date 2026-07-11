@@ -1,0 +1,27 @@
+showcase {
+    Showcase some ideas of using reqlan:
+    - A complex control system sequencing that considers semantics.
+    - Some glue semantics that explains how one File
+    - A module interface requirements file that links to other modules.
+    - An agentic planning system
+    - a compliance system
+    - a scattered hardcoded docs reference.
+    - a feature implementation tracking system
+    - a test explaination system (via for e.g. ts comments above text strings - understanding semantically what a test proves)
+    - arbitrary attribute handling.
+    - static connection between two dependent, but unrelated systems in a codebase.
+    - todo triage system - catch an idea, and add it to a todo list
+    - `@docs` attribute to -> .md files or html wiki export.
+    - antipatterns:
+        - using .rq ideas for data instead of pointers to data.
+}
+
+showcase_module {
+    showcases should be standardised/typed with a short version, tags, a long version (full tsx objects), exist in a list and as a full page.
+}
+
+extension_features_showcase {
+    - graphical graph traversal
+    - ...
+}
+

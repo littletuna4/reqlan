@@ -1,7 +1,7 @@
-import { RqCode } from "@/components/RqCode";
+import { CodeBlock } from "@/components/CodeBlock";
 import { siteContent } from "@/content/site";
 
-export function Syntax() {
+export async function Syntax() {
   const { syntax } = siteContent;
 
   return (
@@ -11,12 +11,14 @@ export function Syntax() {
       </h2>
 
       <div className="syntax-examples">
-        {syntax.examples.map((example) => (
-          <article key={example.label} className="syntax-example">
-            <span className="syntax-label">{example.label}</span>
-            <RqCode code={example.code} />
-          </article>
-        ))}
+        {await Promise.all(
+          syntax.examples.map(async (example) => (
+            <article key={example.label} className="syntax-example">
+              <span className="syntax-label">{example.label}</span>
+              <CodeBlock language={example.language} content={example.code} />
+            </article>
+          )),
+        )}
       </div>
     </section>
   );

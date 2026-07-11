@@ -67,6 +67,55 @@ function resolvedReferenceIdeaName(target: QualifiedReference | LocalReference):
 
 describe('Linking tests', () => {
 
+    // rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+    test('resolve same-file bracket reference to local idea', async () => {
+        document = await parse(s`
+            reference_brackets {
+                bracket syntax
+            }
+            same_file_reference {
+                [reference_brackets] should work in the same file.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const bracketRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)[0];
+        expect(bracketRef).toBeDefined();
+        if (!bracketRef) {
+            return;
+        }
+        const target = bracketRef.target;
+        expect(
+            isLocalReference(target) ? target.idea?.ref?.name : resolvedReferenceIdeaName(target)
+        ).toBe('reference_brackets');
+        if (isLocalReference(target)) {
+            expect(target.idea?.error).toBeUndefined();
+        } else if (isQualifiedReference(target)) {
+            expect(target.idea?.error).toBeUndefined();
+            expect(target.qualifier?.error).toBeUndefined();
+        }
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+
+        const declaration = [...AstUtils.streamAst(document.parseResult.value)].find(
+            node => isIdea(node) && node.name === 'reference_brackets'
+        );
+        expect(declaration && isIdea(declaration)).toBe(true);
+        if (!declaration || !isIdea(declaration)) {
+            return;
+        }
+        const references = services.Reqlan.references.References
+            .findReferences(declaration, { includeDeclaration: true })
+            .toArray();
+        const texts = references.map(reference => document!.textDocument.getText(reference.segment.range));
+        expect(texts.filter(text => text === 'reference_brackets').length).toBeGreaterThanOrEqual(2);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
     test('resolve wikilink to idea declaration in main.rq', async () => {
         document = await parse(readFileSync(join(exampleDir, 'main.rq'), 'utf8'));
