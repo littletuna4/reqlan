@@ -20,7 +20,8 @@ root ["../../../packages/extension/webviews/ideas-summary/components/GraphView.s
 
 technology {
     uses cytoscape.js for the graph layout.
-    cytoscape-fcose provides the batch force-directed settle; cytoscape-cola provides continuous ("live") physics.
+    cytoscape-fcose provides the batch force-directed settle; cytoscape-cola is available as a batch layout option.
+    continuous ("live") physics is a custom simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"].
 }
 
 ui_controls {
@@ -36,7 +37,7 @@ state_machines {
     Selection and drag-pinned positions are tracked in userPositionedNodes on the controller.
     syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
     Pointer/selection wiring lives in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-interactions.ts"].
-    Live physics is delegated to cytoscape-cola's continuous (infinite) simulation. On node release during live physics, pins are written to each node's cola scratch (fixed + px/py) so the simulation does not rubber-band the node; pins are re-applied after startPhysics.
+    Live physics is the custom simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"]; one instance persists with the cytoscape instance and is paused/resumed, never rebuilt. Grabbing a node pins it in the running sim (its live position keeps exerting forces); release unpins with no restart and no snap.
     ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
     GraphView mounts only while the graph tab is active (see TabPanels); do not keep cytoscape alive under display:none — WebGL init on a zero-size hidden container can break the whole webview before App messaging is attached.
 }
@@ -56,7 +57,7 @@ webview_threading {
     VS Code webviews run JavaScript on a single main thread, like a browser tab.
     Heavy synchronous work — cytoscape layout iterations, large element builds, unbounded loops — blocks UI updates until it finishes.
     Layout iteration count scales with node count (capped) rather than running unbounded defaults.
-    Do not restart layout synchronously on layoutstop; hand off to cytoscape-cola's continuous simulation, which ticks incrementally inside cytoscape's animation loop instead of blocking.
+    Do not restart layout synchronously on layoutstop; hand off to the graph-physics simulation, which integrates one step per requestAnimationFrame instead of blocking.
     Extension-side slice building uses batched (set-based) SQLite queries rather than a per-node query fan-out, so opening the tab does not serialize hundreds of round trips.
 }
 
@@ -64,8 +65,11 @@ webview_threading {
 layout_physics {
     defaults to force-directed layout (fcose) with animation on, but user inputs for other options offered by cytoscape.js
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately
-    live physics is driven by cytoscape-cola's infinite simulation regardless of which force-directed batch layout produced the initial settle
-    live physics cola config disables avoidOverlap and handleDisconnected to prevent post-drag constraint snaps
+    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"], regardless of which force-directed batch layout produced the initial settle
+    forces are central gravity toward the centroid, linear edge springs, and inverse-square node repulsion; every childless node participates, including disconnected orphans
+    the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it
+    dragging pins the held node while the sim keeps running around it; release rejoins the node at rest with no snap; clicks never disturb the sim
+    cycling the Animate toggle pauses and resumes the same simulation state, so it converges to the same attractor as leaving it on
 }
 
 view_controls {
@@ -92,7 +96,7 @@ physics_options {
     - user can select from a dropdown of physics options offered by cytoscape.js
         - the options for the phycis should be exposed to the user in a menu too.
     - user can select whether to use live physics/animation
-    - live physics uses cytoscape-cola (continuous/infinite); cola is also selectable directly in the layout dropdown
+    - live physics uses the custom graph-physics simulation; cola remains selectable as a batch layout in the layout dropdown
 }
 
 referenced_files_grouping {

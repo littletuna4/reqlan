@@ -3,7 +3,8 @@
  *
  * Owns the cytoscape instance and inline lifecycle state. Element diffing lives in
  * ./graph-cy-elements, pointer wiring in ./graph-cy-interactions, and live physics is
- * delegated to cytoscape-cola's continuous (infinite) simulation.
+ * the custom continuous simulation in ./graph-physics (central gravity + link
+ * attraction + node repulsion).
  * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
  */
 import cytoscape from 'cytoscape';
@@ -14,12 +15,12 @@ import {
     buildCytoscapeStylesheet,
     DEFAULT_LAYOUT_ID,
     getLayoutConfig,
-    getPhysicsLayoutConfig,
     isForceDirectedLayout,
     type CompoundBasis,
     type LayoutFixedNode,
     type LayoutRunMode
 } from './graph-cytoscape.js';
+import { GraphPhysicsSimulation } from './graph-physics.js';
 import { syncGraphElements } from './graph-cy-elements.js';
 import { bindGraphInteractions } from './graph-cy-interactions.js';
 import { graphLog, graphWarn } from './graph-debug.js';
@@ -53,7 +54,7 @@ export interface GraphCyControllerOptions {
 export class GraphCyController {
     private cy: cytoscape.Core | undefined;
     private activeLayout: cytoscape.Layouts | undefined;
-    private physicsLayout: cytoscape.Layouts | undefined;
+    private physics: GraphPhysicsSimulation | undefined;
     private activeLayoutRunId = 0;
     private resizeTimer: ReturnType<typeof setTimeout> | undefined;
     private readyRetryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -66,6 +67,10 @@ export class GraphCyController {
         compoundBasis: () => []
     };
     private draggingCount = 0;
+    // Tracks nodes for which at least one onNodeDrag event fired, so that a bare
+    // click (grab + free with no movement) is not treated as a drag. Clicks must
+    // never disturb the simulation.
+    private readonly nodesActuallyMoved = new Set<string>();
     private readonly userPositionedNodes = new Map<string, { x: number; y: number }>();
 
     private lifecycle: GraphLifecycle = 'uninitialized';
@@ -129,6 +134,7 @@ export class GraphCyController {
         this.unbindInteractions?.();
         this.unbindInteractions = undefined;
         this.stopPhysics();
+        this.physics = undefined;
         this.stopLayout();
         this.cy?.destroy();
         this.cy = undefined;
@@ -156,6 +162,9 @@ export class GraphCyController {
             return;
         }
 
+        // Pause only — simulation state (velocities, pins) is kept, so toggling
+        // Animate back on continues the exact same trajectory toward the same
+        // attractor instead of restarting a fresh simulation.
         this.stopPhysics();
         if (this.lifecycle === 'physics') {
             this.lifecycle = 'idle';
@@ -196,12 +205,7 @@ export class GraphCyController {
         this.userPositionedNodes.clear();
         this.stopPhysics();
         this.stopLayout();
-
-        if (this.lifecycle === 'physics') {
-            this.lifecycle = 'layouting';
-        } else {
-            this.lifecycle = 'layouting';
-        }
+        this.lifecycle = 'layouting';
 
         this.runLayout(this.activeSyncGeneration, 'relayout');
     }
@@ -267,13 +271,12 @@ export class GraphCyController {
             },
             onNodeGrab: (nodeId) => {
                 this.draggingCount += 1;
+                this.nodesActuallyMoved.delete(nodeId); // reset for this interaction
                 if (this.lifecycle === 'physics') {
-                    // Pin immediately so cola stops applying forces against the drag.
-                    const pos = this.cy?.$id(nodeId)?.position();
-                    if (pos) {
-                        this.userPositionedNodes.set(nodeId, { x: pos.x, y: pos.y });
-                        this.pinNodeInCola(nodeId, pos);
-                    }
+                    // Pin the held node: the simulation stops integrating it but keeps
+                    // running, so its live drag position repels/attracts everyone else
+                    // continuously. The sim is never stopped or restarted for a drag.
+                    this.physics?.pin(nodeId);
                 } else {
                     this.stopLayout();
                     if (this.lifecycle === 'layouting') {
@@ -283,18 +286,28 @@ export class GraphCyController {
                 }
             },
             onNodeDrag: (nodeId, position) => {
-                this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
-                // Keep the cola pin in sync with the drag position so the simulation
-                // tracks the user's hand rather than fighting the drag.
-                if (this.lifecycle === 'physics' && this.physicsLayout) {
-                    this.pinNodeInCola(nodeId, position);
+                this.nodesActuallyMoved.add(nodeId);
+                if (this.lifecycle === 'physics') {
+                    // Cytoscape already moves the node with the pointer; the pinned
+                    // node's live position feeds into the running simulation each tick,
+                    // so nothing else is needed here.
+                    return;
                 }
+                this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
             },
             onNodeFree: (nodeId, position) => {
-                this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
+                const wasMoved = this.nodesActuallyMoved.has(nodeId);
+                this.nodesActuallyMoved.delete(nodeId);
                 this.draggingCount = Math.max(0, this.draggingCount - 1);
-                if (this.physicsLayout) {
-                    this.pinNodeInCola(nodeId, position);
+
+                if (this.lifecycle === 'physics') {
+                    // Release with no snap and no restart: the node rejoins the live
+                    // simulation exactly where the user left it (at rest after a real
+                    // drag; with its untouched velocity after a bare click), and every
+                    // other node keeps converging with its current momentum.
+                    this.physics?.unpin(nodeId, wasMoved);
+                } else if (wasMoved) {
+                    this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
                 }
             }
         });
@@ -322,7 +335,9 @@ export class GraphCyController {
         this.syncOptions = options;
         this.stopPhysics();
         this.stopLayout();
-        this.pruneUserPositionedNodes(new Set(slice.nodes.map(node => node.id)));
+        const validNodeIds = new Set(slice.nodes.map(node => node.id));
+        this.pruneUserPositionedNodes(validNodeIds);
+        this.physics?.prune(validNodeIds);
 
         this.lifecycle = 'syncing';
         graphLog('flush start', { generation, nodes: slice.nodes.length, edges: slice.edges.length });
@@ -443,9 +458,8 @@ export class GraphCyController {
                 if (mode === 'initial') {
                     this.finishRender(generation);
                 }
-                if (this.draggingCount === 0) {
-                    this.startPhysics(generation);
-                }
+                // A batch layout just moved every node, so old momentum is stale.
+                this.startPhysics(generation, true);
                 return;
             }
 
@@ -470,56 +484,32 @@ export class GraphCyController {
         }, 0);
     }
 
-    private startPhysics(generation: number): void {
+    /**
+     * Start (or resume) the continuous simulation. The simulation instance lives as
+     * long as the cytoscape instance: it is only paused/resumed, never rebuilt, so
+     * positions and velocities carry across Animate toggles, drags, and clicks.
+     * `freshPositions` zeroes velocities — set it only when a batch layout has just
+     * teleported nodes, where carried-over momentum would be meaningless.
+     */
+    private startPhysics(generation: number, freshPositions = false): void {
         if (!this.cy || this.cy.elements().length === 0 || generation !== this.activeSyncGeneration) {
             return;
         }
 
-        if (!this.animatePhysics || !isForceDirectedLayout(this.layoutId) || this.draggingCount > 0) {
+        if (!this.animatePhysics || !isForceDirectedLayout(this.layoutId)) {
             return;
         }
 
         this.stopLayout();
-        this.stopPhysics();
 
-        const nodeCount = this.cy.nodes(':childless').length;
-        const layout = this.cy.layout(getPhysicsLayoutConfig(this.syncOptions.useCompound, nodeCount));
-        this.physicsLayout = layout;
-        layout.run();
-        this.applyColaPins();
-    }
-
-    private pinNodeInCola(nodeId: string, position: { x: number; y: number }): void {
-        if (!this.cy) {
-            return;
+        if (!this.physics) {
+            this.physics = new GraphPhysicsSimulation(this.cy);
         }
-
-        const node = this.cy.$id(nodeId);
-        if (node.length === 0) {
-            return;
+        if (freshPositions) {
+            this.physics.resetVelocities();
         }
-
-        // Cola's internal coordinate space is identical to cytoscape's model coordinates
-        // (cola initialises from cy.position() directly). No viewport offset is needed.
-        const scrCola = { ...(node.scratch('cola') ?? {}) };
-        scrCola.x = position.x;
-        scrCola.y = position.y;
-        scrCola.px = position.x;
-        scrCola.py = position.y;
-        scrCola.fixed = true;
-        node.scratch('cola', scrCola);
-    }
-
-    private applyColaPins(): void {
-        if (!this.cy) {
-            return;
-        }
-
-        for (const [nodeId, position] of this.userPositionedNodes) {
-            if (this.cy.$id(nodeId).length > 0) {
-                this.pinNodeInCola(nodeId, position);
-            }
-        }
+        graphLog('physics start', { generation, freshPositions });
+        this.physics.start();
     }
 
     private collectFixedNodes(): LayoutFixedNode[] {
@@ -576,11 +566,8 @@ export class GraphCyController {
         this.activeLayout = undefined;
     }
 
+    /** Pause the simulation; velocities and pins survive for the next start. */
     private stopPhysics(): void {
-        if (!this.physicsLayout) {
-            return;
-        }
-        this.physicsLayout.stop();
-        this.physicsLayout = undefined;
+        this.physics?.stop();
     }
 }

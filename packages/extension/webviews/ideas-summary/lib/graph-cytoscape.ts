@@ -27,17 +27,18 @@ export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
 
 export const DEFAULT_LAYOUT_ID = 'fcose';
 
-/** Layout id used to drive continuous ("live") physics regardless of the selected batch layout. */
-export const PHYSICS_LAYOUT_ID = 'cola';
-
 const FORCE_DIRECTED_LAYOUT_IDS = new Set(['fcose', 'cose', 'cola']);
 
 export function isForceDirectedLayout(layoutId: string): boolean {
     return FORCE_DIRECTED_LAYOUT_IDS.has(layoutId);
 }
 
-/** Why a layout run was requested — drives animation, fit, and incremental behaviour. */
-export type LayoutRunMode = 'initial' | 'relayout' | 'physics';
+/**
+ * Why a layout run was requested — drives animation, fit, and incremental behaviour.
+ * Live ("Animate") physics is not a layout run: it is a custom simulation in
+ * ./graph-physics.ts that ticks node positions directly.
+ */
+export type LayoutRunMode = 'initial' | 'relayout';
 
 export interface LayoutFixedNode {
     nodeId: string;
@@ -276,11 +277,6 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
     ];
 }
 
-/** Continuous force-directed physics config (cola, infinite) used while "live physics" is on. */
-export function getPhysicsLayoutConfig(useCompound: boolean, nodeCount = 0): cytoscape.LayoutOptions {
-    return getLayoutConfig(PHYSICS_LAYOUT_ID, useCompound, 'physics', nodeCount);
-}
-
 /** Seed positions for only the given (newly added) nodes, leaving existing nodes untouched. */
 export function seedNewNodePositions(
     cy: cytoscape.Core,
@@ -314,14 +310,13 @@ export function getLayoutConfig(
     fixedNodes: readonly LayoutFixedNode[] = []
 ): cytoscape.LayoutOptions {
     const isInitial = mode === 'initial';
-    const isPhysics = mode === 'physics';
 
     const base = {
         name: layoutId,
-        animate: !isPhysics,
-        animationDuration: isPhysics ? 0 : 400,
+        animate: true,
+        animationDuration: 400,
         animationEasing: 'ease-out-cubic',
-        fit: isInitial || mode === 'relayout',
+        fit: true,
         padding: 36
     };
 
@@ -336,23 +331,6 @@ export function getLayoutConfig(
     const resolveConfig = (): Record<string, unknown> => {
     switch (layoutId) {
         case 'fcose':
-            if (isPhysics) {
-                // Incremental fcose: randomize must stay false; draft+randomize:false crashes in relocateComponent.
-                return {
-                    ...base,
-                    animate: false,
-                    animationDuration: 0,
-                    fit: false,
-                    quality: 'default',
-                    randomize: false,
-                    packComponents: false,
-                    tile: false,
-                    nodeRepulsion: 8000,
-                    idealEdgeLength: 100,
-                    numIter: 25,
-                    ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
-                };
-            }
             if (isInitial) {
                 return {
                     ...base,
@@ -384,22 +362,19 @@ export function getLayoutConfig(
                 ...(fixedNodeConstraint ? { fixedNodeConstraint } : {})
             };
         case 'cola':
-            // cola is the only bundled layout with a true continuous simulation, so it
-            // backs "live physics". infinite:true keeps it ticking inside cytoscape's own
-            // animation loop (non-blocking); batch mode bounds it with maxSimulationTime.
+            // Batch cola run only ("Animate" live physics is graph-physics.ts, not cola).
             return {
                 ...base,
                 animate: true,
                 randomize: false,
-                avoidOverlap: !isPhysics,
-                handleDisconnected: !isPhysics,
+                avoidOverlap: true,
+                handleDisconnected: true,
                 nodeSpacing: 12,
                 edgeLength: 110,
                 ungrabifyWhileSimulating: false,
-                centerGraph: !isPhysics,
-                infinite: isPhysics,
-                fit: isInitial || mode === 'relayout',
-                maxSimulationTime: isPhysics ? 0 : Math.min(2500, 800 + nodeCount * 12)
+                centerGraph: true,
+                infinite: false,
+                maxSimulationTime: Math.min(2500, 800 + nodeCount * 12)
             };
         case 'cose':
             return {
@@ -407,9 +382,9 @@ export function getLayoutConfig(
                 nodeRepulsion: () => 8000,
                 idealEdgeLength: () => 90,
                 nestingFactor: useCompound ? 1.2 : 1,
-                gravity: isPhysics ? 0.15 : 0.25,
-                numIter: isPhysics ? 40 : cappedIterations,
-                refresh: isPhysics ? 10 : 30
+                gravity: 0.25,
+                numIter: cappedIterations,
+                refresh: 30
             };
         case 'breadthfirst':
             return {
