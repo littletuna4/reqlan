@@ -1,14 +1,8 @@
-# site
+# reqlan-language
 
-## 0.1.2
+## 0.0.2
 
 ### Patch Changes
 
 - f6bae00: rebase the semver to the manual version
 - d50f988: test increment of \*
-
-## 0.1.1
-
-### Patch Changes
-
-- f61e527: A test site version bump
