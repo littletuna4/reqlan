@@ -256,23 +256,25 @@ export class GraphCyController {
         this.unbindInteractions = bindGraphInteractions(instance, {
             onNodeTap: (nodeId) => {
                 this.selectNode(nodeId);
-                this.options.onOpen?.(nodeId);
             },
             onNodeDblTap: (nodeId) => {
-                const graphNode = this.options.getNodeById?.(nodeId);
-                if (!graphNode || graphNode.isExternal) {
-                    return;
-                }
                 this.selectNode(nodeId);
-                this.options.onFocus?.(nodeId);
+                this.options.onOpen?.(nodeId);
             },
             onBackgroundTap: () => {
                 this.cy?.$(':selected').unselect();
                 this.options.onSelect?.(undefined);
             },
-            onNodeGrab: () => {
+            onNodeGrab: (nodeId) => {
                 this.draggingCount += 1;
-                if (this.lifecycle !== 'physics') {
+                if (this.lifecycle === 'physics') {
+                    // Pin immediately so cola stops applying forces against the drag.
+                    const pos = this.cy?.$id(nodeId)?.position();
+                    if (pos) {
+                        this.userPositionedNodes.set(nodeId, { x: pos.x, y: pos.y });
+                        this.pinNodeInCola(nodeId, pos);
+                    }
+                } else {
                     this.stopLayout();
                     if (this.lifecycle === 'layouting') {
                         this.lifecycle = 'idle';
@@ -282,6 +284,11 @@ export class GraphCyController {
             },
             onNodeDrag: (nodeId, position) => {
                 this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
+                // Keep the cola pin in sync with the drag position so the simulation
+                // tracks the user's hand rather than fighting the drag.
+                if (this.lifecycle === 'physics' && this.physicsLayout) {
+                    this.pinNodeInCola(nodeId, position);
+                }
             },
             onNodeFree: (nodeId, position) => {
                 this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
@@ -492,12 +499,13 @@ export class GraphCyController {
             return;
         }
 
-        const bb = this.cy.extent();
+        // Cola's internal coordinate space is identical to cytoscape's model coordinates
+        // (cola initialises from cy.position() directly). No viewport offset is needed.
         const scrCola = { ...(node.scratch('cola') ?? {}) };
-        scrCola.x = position.x - bb.x1;
-        scrCola.y = position.y - bb.y1;
-        scrCola.px = scrCola.x;
-        scrCola.py = scrCola.y;
+        scrCola.x = position.x;
+        scrCola.y = position.y;
+        scrCola.px = position.x;
+        scrCola.py = position.y;
         scrCola.fixed = true;
         node.scratch('cola', scrCola);
     }

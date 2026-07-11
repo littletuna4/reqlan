@@ -100,10 +100,10 @@
             class="graph-chip"
             class:active={animatePhysics}
             aria-pressed={animatePhysics}
-            title="Keep force-directed layout animating"
+            title="Keep force-directed layout animating continuously"
             on:click={() => dispatch('toggleAnimatePhysics')}
         >
-            Live physics
+            Animate
         </button>
         <button
             type="button"

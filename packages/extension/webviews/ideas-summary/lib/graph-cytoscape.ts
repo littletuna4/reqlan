@@ -17,7 +17,7 @@ export interface GraphLayoutOption {
 
 export const GRAPH_LAYOUT_OPTIONS: GraphLayoutOption[] = [
     { id: 'fcose', label: 'Force-directed (fcose)', supportsCompound: true },
-    { id: 'cola', label: 'Live physics (cola)', supportsCompound: true },
+    { id: 'cola', label: 'Animate (cola)', supportsCompound: true },
     { id: 'breadthfirst', label: 'Breadthfirst', supportsCompound: true },
     { id: 'circle', label: 'Circle', supportsCompound: false },
     { id: 'concentric', label: 'Concentric', supportsCompound: false },

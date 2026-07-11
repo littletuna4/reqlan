@@ -311,5 +311,5 @@
         </div>
     {/if}
 
-    <p class="graph-hint">Click a node to open · Double-click to focus · Drag nodes to reposition · Drag background to pan · Scroll to zoom freely</p>
+    <p class="graph-hint">Click to select · Double-click to open · Drag nodes to reposition · Drag background to pan · Scroll to zoom freely</p>
 </div>
