@@ -1,5 +1,8 @@
 name: Deploy site to GitHub Pages
 
+# Triggered by site/v* tags created by .github/workflows/release.yml
+# per reqlan rq/distribution/distribution.rq site_distribution.
+
 on:
   push:
     tags:
@@ -21,6 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resolve site version from tag
+        run: echo "SITE_VERSION=${GITHUB_REF_NAME#site/v}" >> "$GITHUB_ENV"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -39,6 +45,7 @@ jobs:
         working-directory: site
         env:
           NEXT_PUBLIC_BASE_PATH: /reqlan
+          NEXT_PUBLIC_SITE_VERSION: ${{ env.SITE_VERSION }}
         run: pnpm run build
 
       - name: Disable Jekyll processing

@@ -1,0 +1,141 @@
+name: Release packages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Detect pending changesets
+        id: pending
+        run: |
+          shopt -s nullglob
+          files=(.changeset/*.md)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "has_pending=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          for file in "${files[@]}"; do
+            if [ "$(basename "$file")" != "README.md" ]; then
+              echo "has_pending=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "has_pending=false" >> "$GITHUB_OUTPUT"
+
+      - name: Capture package versions before apply
+        if: steps.pending.outputs.has_pending == 'true'
+        id: versions
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+
+          const readVersion = (path) => JSON.parse(fs.readFileSync(path, 'utf8')).version;
+
+          const outputs = [
+            ['extension_before', readVersion('packages/extension/package.json')],
+            ['site_before', readVersion('site/package.json')],
+          ];
+
+          for (const [name, value] of outputs) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+          }
+          EOF
+
+      - name: Apply changesets
+        if: steps.pending.outputs.has_pending == 'true'
+        run: pnpm changeset version
+
+      - name: Commit version bumps
+        if: steps.pending.outputs.has_pending == 'true'
+        id: commit
+        run: |
+          if git diff --quiet; then
+            echo "No version changes after changeset apply."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): version packages"
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create release tags
+        if: steps.pending.outputs.has_pending == 'true'
+        id: tags
+        run: |
+          node <<'EOF'
+          const fs = require('node:fs');
+
+          const readVersion = (path) => JSON.parse(fs.readFileSync(path, 'utf8')).version;
+          const before = {
+            extension: process.env.EXTENSION_BEFORE,
+            site: process.env.SITE_BEFORE,
+          };
+          const after = {
+            extension: readVersion('packages/extension/package.json'),
+            site: readVersion('site/package.json'),
+          };
+
+          const tags = [];
+          if (before.extension !== after.extension) {
+            tags.push(`ext/v${after.extension}`);
+          }
+          if (before.site !== after.site) {
+            tags.push(`site/v${after.site}`);
+          }
+
+          if (tags.length === 0) {
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'created=false\n');
+            process.exit(0);
+          }
+
+          for (const tag of tags) {
+            require('node:child_process').execFileSync('git', ['tag', tag], { stdio: 'inherit' });
+          }
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `created=true\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tags=${tags.join(',')}\n`);
+          EOF
+        env:
+          EXTENSION_BEFORE: ${{ steps.versions.outputs.extension_before }}
+          SITE_BEFORE: ${{ steps.versions.outputs.site_before }}
+
+      - name: Push release commit and tags
+        if: steps.pending.outputs.has_pending == 'true' && (steps.commit.outputs.committed == 'true' || steps.tags.outputs.created == 'true')
+        run: git push origin main --follow-tags

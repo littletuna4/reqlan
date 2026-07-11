@@ -9,8 +9,9 @@ simple_lightweight_and_static {
 }
 
 workflow {
-    Site deployment should run only when a developer creates a release tag matching `site/v*`.
-    It should not deploy on ordinary commits.
+    Site deployment runs when an `site/v*` tag is pushed.
+    Tags are created automatically on main by the release workflow per [distribution_reqs.deployment_flow].
+    The site workflow does not deploy on ordinary commits.
     per [distribution_reqs.site_distribution]
 }
 

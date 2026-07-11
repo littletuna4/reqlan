@@ -1,3 +1,6 @@
+# Triggered by ext/v* tags created by .github/workflows/release.yml
+# per reqlan rq/distribution/distribution.rq extension_distribution.
+
 trigger:
   tags:
     include:
@@ -64,15 +67,19 @@ jobs:
           $ErrorActionPreference = "Stop"
           $tagRef = "$(Build.SourceBranch)"
           if (-not $tagRef.StartsWith("refs/tags/ext/v")) {
-            Write-Host "Not a version tag build; skipping extension version alignment."
+            Write-Host "Not an extension release tag build."
             exit 0
           }
 
-          $version = $tagRef.Substring("refs/tags/ext/v".Length)
-          Write-Host "Aligning packages/extension/package.json version to $version"
+          $tagVersion = $tagRef.Substring("refs/tags/ext/v".Length)
+          $packageVersion = node -p "require('./packages/extension/package.json').version"
+          Write-Host "Tag version: $tagVersion"
+          Write-Host "Package version: $packageVersion"
 
-          node -e "const fs=require('fs'); const path='packages/extension/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.version=process.argv[1]; fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');" $version
-        displayName: Align extension version with tag
+          if ($tagVersion -ne $packageVersion) {
+            throw "Extension package.json version ($packageVersion) must match tag suffix ($tagVersion)."
+          }
+        displayName: Verify extension version matches tag
         timeoutInMinutes: 5
 
       - pwsh: |

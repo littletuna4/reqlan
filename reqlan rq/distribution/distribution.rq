@@ -2,10 +2,39 @@ stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
 }
 
+version_management {
+  Package versions are managed with Changesets via ["../../.changeset/config.json"].
+  Only publishable packages participate in release versioning: ["./distribution.rq".extension_package] and ["./distribution.rq".site_package].
+  Internal tools (`reqlan-cli`, `reqlan-mcp`) are ignored by Changesets.
+  Other workspace libraries (`reqlan-language`, `reqlan-analytical`) bump via dependency updates when publishable packages release.
+  Contributors record release intent by adding a changeset file when a publishable package changes.
+}
+
+extension_package {
+  The VS Code extension lives in packages/extension with npm package name `reqlan`.
+  Its package.json version is the authoritative Marketplace and Open VSX release version.
+}
+
+site_package {
+  The static site lives in site/ with npm package name `site`.
+  Its package.json version identifies site releases for tagging.
+}
+
+deployment_flow {
+  On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
+  This bumps package.json for each affected publishable package and writes changelogs.
+  The workflow commits the result, creates one tag per bumped package, and pushes the commit and tags back to main.
+  Recursive runs are prevented by skipping the release workflow for release commits.
+  Tag patterns and downstream deploy workflows follow ["./distribution.rq".release_tagging].
+  The implementation lives in ["../../.github/workflows/release.yml"].
+}
+
 release_tagging {
-  Release automation is tag-driven rather than commit-driven.
+  Deployment remains tag-driven rather than commit-driven.
+  Tags are created automatically by ["./distribution.rq".deployment_flow], not manually.
   Site deployments are triggered by Git tags matching `site/v*` via ["./distribution.rq".site_distribution].
   VS Code extension publishing is triggered by Azure DevOps tags matching `ext/v*` via ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
+  The tag suffix after `site/v` or `ext/v` equals the package.json version at that tag.
 }
 
 vsix_export {
@@ -16,28 +45,30 @@ vsix_export {
 }
 
 site_distribution {
-    GitHub Pages deployment should only run when a developer creates a `site/v*` tag.
-    The site workflow should not deploy on ordinary commits.
-    The implementation lives in ["../../.github/workflows/deploy-site.yml"].
+  GitHub Pages deployment runs only when an `site/v*` tag is pushed.
+  Tags are created by ["./distribution.rq".deployment_flow]; the site workflow does not deploy on ordinary commits.
+  The implementation lives in ["../../.github/workflows/deploy-site.yml"].
 }
 
 extension_distribution {
-    Azure DevOps should build, test, package, and publish the VS Code extension only for tags matching `ext/v*`.
-    The tag suffix after `ext/v` becomes the extension package version before publishing.
-    The implementation lives in ["../../azure-pipelines.yml"].
-    VSIX packaging follows ["./distribution.rq".vsix_export].
-    Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
+  Azure DevOps builds, tests, packages, and publishes the VS Code extension only for tags matching `ext/v*`.
+  Tags are created by ["./distribution.rq".deployment_flow].
+  The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
+  The implementation lives in ["../../azure-pipelines.yml"].
+  VSIX packaging follows ["./distribution.rq".vsix_export].
+  Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
 }
 
 openvsx_registry {
-    The extension should be published to the Open VSX registry at https://open-vsx.org so it is installable in editors that use Open VSX instead of the Visual Studio Marketplace.
-    Publishing should use the same tag-driven `ext/v*` releases as ["./distribution.rq".extension_distribution].
-    The packaged VSIX from ["./distribution.rq".vsix_export] is the artifact published to Open VSX.
-    Azure DevOps is the authoritative publish workflow; Open VSX publish belongs in ["../../azure-pipelines.yml"] alongside marketplace deploy.
+  The extension should be published to the Open VSX registry at https://open-vsx.org so it is installable in editors that use Open VSX instead of the Visual Studio Marketplace.
+  Publishing should use the same tag-driven `ext/v*` releases as ["./distribution.rq".extension_distribution].
+  The packaged VSIX from ["./distribution.rq".vsix_export] is the artifact published to Open VSX.
+  Azure DevOps is the authoritative publish workflow; Open VSX publish belongs in ["../../azure-pipelines.yml"] alongside marketplace deploy.
 }
 
 workflow_deduplication {
-    Extension publish automation should have a single authoritative workflow to avoid duplicate marketplace releases.
-    Azure DevOps is the authoritative extension publishing workflow per ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
-    The site remains deployed by GitHub Actions per ["./distribution.rq".site_distribution].
+  Extension publish automation should have a single authoritative workflow to avoid duplicate marketplace releases.
+  Azure DevOps is the authoritative extension publishing workflow per ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
+  The site remains deployed by GitHub Actions per ["./distribution.rq".site_distribution].
+  Versioning and tag creation are owned by GitHub Actions per ["./distribution.rq".deployment_flow].
 }
