@@ -1,5 +1,14 @@
 # reqlan
 
+## 0.0.9
+
+### Patch Changes
+
+- 66e5027: updates to animation behaviour; and some grammar/language tweaks
+- Updated dependencies [66e5027]
+  - reqlan-language@0.0.3
+  - reqlan-analytical@0.0.3
+
 ## 0.0.8
 
 ### Patch Changes

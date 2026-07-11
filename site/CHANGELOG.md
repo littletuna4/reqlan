@@ -1,5 +1,15 @@
 # site
 
+## 0.2.0
+
+### Minor Changes
+
+- 661fe4d: Signficant site improvments. Including showcase, quickastart and installation deeplinks
+
+### Patch Changes
+
+- 66e5027: updates to animation behaviour; and some grammar/language tweaks
+
 ## 0.1.2
 
 ### Patch Changes
