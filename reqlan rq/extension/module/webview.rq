@@ -13,6 +13,7 @@ import "../../../packages/extension/webviews/ideas-summary/components/ChipList.s
 import "../../../packages/extension/webviews/ideas-summary/components/IdeaBodyCell.svelte" as IdeaBodyCell
 import "../../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte" as IdeasetsTable
 import "../../../packages/extension/webviews/ideas-summary/components/ReferencesTable.svelte" as ReferencesTable
+
 webview {
     the webview module should have a page for the tables of a summary of ideas. 
     per [views.simple_views]
