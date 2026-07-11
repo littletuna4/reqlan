@@ -1,12 +1,20 @@
 name: Deploy site to GitHub Pages
 
-# Triggered by site/v* tags created by .github/workflows/release.yml
-# per reqlan rq/distribution/distribution.rq site_distribution.
+# Triggered by site/v* tags (manual or release.yml) per
+# reqlan rq/distribution/distribution.rq site_distribution.
+# release.yml also invokes this workflow directly because pushes made
+# with GITHUB_TOKEN do not trigger other workflows.
 
 on:
   push:
     tags:
       - "site/v*"
+  workflow_call:
+    inputs:
+      site_tag:
+        description: Annotated site release tag to deploy
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -23,9 +31,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.site_tag != '' && inputs.site_tag || github.ref }}
 
-      - name: Resolve site version from tag
-        run: echo "SITE_VERSION=${GITHUB_REF_NAME#site/v}" >> "$GITHUB_ENV"
+      - name: Resolve site version
+        run: |
+          if [ -n "${{ inputs.site_tag }}" ]; then
+            TAG="${{ inputs.site_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/site/v* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="site/v$(node -p "require('./site/package.json').version")"
+          fi
+          echo "SITE_VERSION=${TAG#site/v}" >> "$GITHUB_ENV"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -67,6 +85,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          node-version: 24
-          cache: pnpm

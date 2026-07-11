@@ -23,7 +23,10 @@ site_package {
 deployment_flow {
   On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
   This bumps package.json for each affected publishable package and writes changelogs.
-  The workflow commits the result, creates one tag per bumped package, and pushes the commit and tags back to main.
+  The workflow commits the result, creates one annotated tag per bumped package, and pushes the commit and tags back to main.
+  Release tags use `site/v{version}` and `ext/v{version}` where `{version}` is the semver from package.json.
+  GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site deploy is also invoked directly from the release workflow.
+  Optional `RELEASE_PAT` allows tag pushes to trigger downstream workflows for manual reruns and external CI.
   Recursive runs are prevented by skipping the release workflow for release commits.
   Tag patterns and downstream deploy workflows follow ["./distribution.rq".release_tagging].
   The implementation lives in ["../../.github/workflows/release.yml"].

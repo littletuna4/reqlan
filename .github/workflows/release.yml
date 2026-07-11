@@ -16,12 +16,15 @@ jobs:
   release:
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
+    outputs:
+      site_tag: ${{ steps.tags.outputs.site_tag }}
+      extension_tag: ${{ steps.tags.outputs.extension_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -101,6 +104,7 @@ jobs:
         run: |
           node <<'EOF'
           const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
 
           const readVersion = (path) => JSON.parse(fs.readFileSync(path, 'utf8')).version;
           const before = {
@@ -126,16 +130,45 @@ jobs:
           }
 
           for (const tag of tags) {
-            require('node:child_process').execFileSync('git', ['tag', tag], { stdio: 'inherit' });
+            execFileSync(
+              'git',
+              ['tag', '-a', tag, '-m', `Release ${tag}`],
+              { stdio: 'inherit' },
+            );
           }
 
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `created=true\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'created=true\n');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tags=${tags.join(',')}\n`);
+
+          const siteTag = tags.find((tag) => tag.startsWith('site/v')) ?? '';
+          const extensionTag = tags.find((tag) => tag.startsWith('ext/v')) ?? '';
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `site_tag=${siteTag}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `extension_tag=${extensionTag}\n`);
           EOF
         env:
           EXTENSION_BEFORE: ${{ steps.versions.outputs.extension_before }}
           SITE_BEFORE: ${{ steps.versions.outputs.site_before }}
 
-      - name: Push release commit and tags
-        if: steps.pending.outputs.has_pending == 'true' && (steps.commit.outputs.committed == 'true' || steps.tags.outputs.created == 'true')
-        run: git push origin main --follow-tags
+      - name: Push release commit
+        if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
+        run: git push origin HEAD:main
+
+      - name: Push release tags
+        if: steps.pending.outputs.has_pending == 'true' && steps.tags.outputs.created == 'true'
+        run: |
+          IFS=',' read -ra TAGS <<< "${{ steps.tags.outputs.tags }}"
+          for tag in "${TAGS[@]}"; do
+            echo "Pushing tag ${tag}"
+            git push origin "refs/tags/${tag}"
+          done
+
+  deploy-site:
+    needs: release
+    if: needs.release.outputs.site_tag != ''
+    uses: ./.github/workflows/deploy-site.yml
+    with:
+      site_tag: ${{ needs.release.outputs.site_tag }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
