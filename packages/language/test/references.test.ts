@@ -13,7 +13,7 @@ import { findTestLineInText, parseFileReferenceString } from '../src/reqlan-file
 import { parseMarkdownLink, unquoteReqlanString } from '../src/reqlan-references.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-const demoDir = join(repoRoot, 'reqlan rq/extension/features-code-comment');
+const demoDir = join(repoRoot, 'reqlan rq/extension/features-non-rq-code-comment');
 
 describe('Comment and file reference utilities', () => {
 
@@ -23,7 +23,7 @@ describe('Comment and file reference utilities', () => {
         expect(unquoteReqlanString('./ontology.rq')).toBe('./ontology.rq');
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('parses qualified and local rq: bracket comment reference targets', () => {
         expect(parseCommentReferenceTarget('"./main.rq".myidea')).toMatchObject({
             path: './main.rq',
@@ -32,14 +32,14 @@ describe('Comment and file reference utilities', () => {
         expect(parseCommentReferenceTarget('myidea')).toMatchObject({ idea: 'myidea' });
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('finds rq: bracket comment references in line comments', () => {
         const sample = findCommentReferencesInText('// see rq:["./main.rq".myidea] for details');
         expect(sample).toHaveLength(1);
         expect(sample[0]).toMatchObject({ path: './main.rq', idea: 'myidea' });
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('finds rq: local comment references in line comments', () => {
         const sample = findCommentReferencesInText('# rq:[myidea]');
         expect(sample).toHaveLength(1);
@@ -47,7 +47,7 @@ describe('Comment and file reference utilities', () => {
         expect(sample[0]?.path).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('finds rq: comment references in block comments', () => {
         const sample = findCommentReferencesInText(`/**
          * built to comply with rq:["../file.rq".ideaname]
@@ -56,7 +56,7 @@ describe('Comment and file reference utilities', () => {
         expect(sample[0]).toMatchObject({ path: '../file.rq', idea: 'ideaname' });
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('finds rq: comment references in python triple-quoted comments', () => {
         const sample = findCommentReferencesInText(`'''
     rq:["./functional-code-comment-references.rq".references_in_functional_code_comments]
@@ -68,7 +68,7 @@ describe('Comment and file reference utilities', () => {
         });
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('finds rq: references in feature demo source files', () => {
         const js = readFileSync(join(demoDir, 'features-code-comment.text.js'), 'utf8');
         const py = readFileSync(join(demoDir, 'features-code-comment.text.py'), 'utf8');
@@ -92,13 +92,13 @@ describe('Comment and file reference utilities', () => {
         );
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('ignores rq references outside comment spans', () => {
         const sample = findCommentReferencesInText('const x = "https://x.com // rq:[\\"./main.rq\\".myidea]";');
         expect(sample).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('findCommentSpansInText includes slash and hash line comments', () => {
         const text = 'code // line\n# hash';
         const spans = findCommentSpansInText(text);

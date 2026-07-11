@@ -2,6 +2,7 @@
 import github from "@iconify-icons/simple-icons/github";
 import visualstudiocode from "@iconify-icons/simple-icons/visualstudiocode";
 import vscodium from "@iconify-icons/simple-icons/vscodium";
+import emailOutline from "@iconify-icons/mdi/email-outline";
 import type { IconifyIcon } from "@iconify/react";
 
 import {

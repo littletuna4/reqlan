@@ -613,9 +613,9 @@ beta {
         expect(links).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/features-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('comment references in source files resolve to rq ideas', async () => {
-        const demoDir = join(repoDir, 'reqlan rq/extension/features-code-comment');
+        const demoDir = join(repoDir, 'reqlan rq/extension/features-non-rq-code-comment');
         const rqPath = join(demoDir, 'functional-code-comment-references.rq');
         const jsPath = join(demoDir, 'features-code-comment.text.js');
         const fileServices = createReqlanServices(NodeFileSystem);

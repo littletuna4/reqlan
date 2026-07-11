@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
-import { PhonebookIcon } from "@/components/PhonebookIcon";
 import { siteContent } from "@/content/site";
 
 export async function Hero() {
@@ -13,10 +13,12 @@ export async function Hero() {
         className="hero-snippet"
       />
 
-      <a className="cta-button" href={cta.href}>
-        <PhonebookIcon icon={cta.icon} className="phonebook-icon cta-button-icon" />
+      <Link className="cta-button" href={cta.href} prefetch>
         {cta.label}
-      </a>
+        <span className="cta-button-arrow" aria-hidden>
+          →
+        </span>
+      </Link>
     </section>
   );
 }

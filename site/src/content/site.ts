@@ -10,7 +10,7 @@ export type SyntaxExample = {
   language: CodeLanguage;
 };
 
-import { getPhonebookLink, phonebookLinks, type PhonebookLink } from "@/lib/phonebook";
+import { phonebookLinks, type PhonebookLink } from "@/lib/phonebook";
 
 export type LinkItem = PhonebookLink;
 
@@ -35,6 +35,7 @@ export const siteContent = {
   },
 
   nav: [
+    { id: "quickstart", label: "Get started", href: "/quickstart" },
     { id: "motivation", label: "Motivation" },
     { id: "syntax", label: "Syntax" },
     { id: "example", label: "Example" },
@@ -50,8 +51,8 @@ export const siteContent = {
   },
 
   cta: {
-    ...getPhonebookLink("vsc"),
-    label: "Install extension",
+    label: "Get started",
+    href: "/quickstart",
   },
 
   motivation: {
