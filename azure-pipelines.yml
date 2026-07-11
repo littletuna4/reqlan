@@ -15,7 +15,7 @@ jobs:
       matrix:
         linux:
           imageName: ubuntu-latest
-        # mac:
+        # mac: # nah, linux will do.
         #   imageName: macos-latest
         # windows:
         #   imageName: windows-latest
@@ -91,14 +91,19 @@ jobs:
           ArtifactName: reqlan-vsix
           publishLocation: Container
 
-      - pwsh: |
-          $ErrorActionPreference = "Stop"
-          pnpm --filter ./packages/extension run deploy
+      - task: AzureCLI@2
         displayName: Publish extension
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
         timeoutInMinutes: 10
-        env:
-          VSCE_PAT: $(VSCE_PAT)
+        inputs:
+          azureSubscription: $(AzureMarketplaceServiceConnection)
+          scriptType: pscore
+          scriptLocation: inlineScript
+          inlineScript: |
+            $ErrorActionPreference = "Stop"
+            # AzureCLI@2 logs in via the ARM service connection; vsce obtains the
+            # Entra ID access token for the Marketplace resource via --azure-credential.
+            pnpm --filter ./packages/extension exec vsce publish --no-dependencies --azure-credential
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
