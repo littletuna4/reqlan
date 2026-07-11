@@ -1,4 +1,10 @@
 phonebook {
     Canonical project links live in ["./phonebook.json"].
     Modules that need contact, repo, or marketplace URLs should read from there instead of hardcoding values.
+    Typed access is shared via ["../../scripts/phonebook.ts"] for the site and extension README generator.
+}
+
+extension_readme_links {
+    The extension VSIX README uses phonebook link ids `github`, `vsc`, `openvsx`, and `email` for repository, marketplace, Open VSX, and contact URLs.
+    Generation is defined in ["../distribution/distribution.rq".extension_readme].
 }

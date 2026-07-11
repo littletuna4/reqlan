@@ -11,6 +11,14 @@ const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** @type {readonly { readonly name: string; readonly command: string }[]} */
 const steps = [
     {
+        name: 'generate logo media for VSIX packaging',
+        command: 'pnpm run build:media',
+    },
+    {
+        name: 'generate README for VSIX packaging',
+        command: 'pnpm run build:readme',
+    },
+    {
         name: 'prepare syntaxes and sync Cursor skills',
         command: 'pnpm run build:prepare',
     },

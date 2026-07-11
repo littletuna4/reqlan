@@ -1,5 +1,6 @@
 brand reqlan has a simple brand. Dark rust; and aqua blue pallete. Pink for highlights. Logo is a web-like crosshair.
 
 extension_brand {
-    The extension should have a 
+    The extension uses the brand logo from ["../../site/public/logo.svg"].
+    SVG is used in VS Code where allowed (activity bar); PNG and WebP are generated for marketplace icon, README, and chat participant surfaces.
 }

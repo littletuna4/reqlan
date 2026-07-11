@@ -51,7 +51,7 @@ export const siteContent = {
 
   cta: {
     label: "Install extension",
-    href: getPhonebookLink("extension").href,
+    href: getPhonebookLink("vsc").href,
   },
 
   motivation: {

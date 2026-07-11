@@ -94,6 +94,6 @@ physics_options {
 }
 
 referenced_files_grouping {
-    [referenced_files] should be grouped into a common node if they're referenced by multiple ideas.
+  `[referenced_files]` should be grouped into a common node if they're referenced by multiple ideas.
     Line numbers should be treated like ideas if specified, such that the reference points to items in rendered graph.
     }

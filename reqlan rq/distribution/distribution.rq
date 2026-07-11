@@ -1,3 +1,5 @@
+import "../phonebook.rq" as phonebook_reqs
+
 stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
 }
@@ -40,11 +42,20 @@ release_tagging {
   The tag suffix after `site/v` or `ext/v` equals the package.json version at that tag.
 }
 
+extension_readme {
+  The VSIX package must include a README for the Marketplace and Open VSX listings.
+  Contact and repository links come from [phonebook_reqs.phonebook] via ["../../scripts/phonebook.ts"] per [phonebook_reqs.extension_readme_links].
+  Release notes are appended from ["../../packages/extension/CHANGELOG.md"], which Changesets maintains per [version_management].
+  Generated during extension build from ["../../packages/extension/README.template.md"] by ["../../packages/extension/scripts/generate-readme.ts"] per ["../development/build.rq".extension_readme_build].
+}
+
 vsix_export {
   @steps: (
     cd packages/extension
+    pnpm run build
     vsce package --no-dependencies
   )
+  The VSIX includes logo assets from the extension media build: SVG for activity bar, PNG for marketplace icon and README, WebP as a raster fallback.
 }
 
 site_distribution {

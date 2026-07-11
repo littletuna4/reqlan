@@ -1,9 +1,13 @@
 {
   "$schema": "./phonebook.schema.json",
   "links": {
-    "extension": {
-      "label": "Extension",
+    "vsc": {
+      "label": "Visual Studio Marketplace",
       "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan"
+    },
+    "openvsx": {
+      "label": "Open VSX",
+      "href": "https://open-vsx.org/extension/reqlan/reqlan"
     },
     "github": {
       "label": "GitHub",

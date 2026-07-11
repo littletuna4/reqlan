@@ -23,7 +23,7 @@ export function registerChatParticipantModule(
     });
 
     const participant = vscode.chat.createChatParticipant(PARTICIPANT_ID, handler);
-    participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'logo.svg');
+    participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'media', 'logo.png');
     participant.followupProvider = {
         provideFollowups(result) {
             const command = result.metadata?.command;
