@@ -6,7 +6,7 @@
     import GraphControls from './GraphControls.svelte';
     import GraphKeyPanel from './GraphKeyPanel.svelte';
     import { GraphCyController } from '../lib/graph-cy-controller.js';
-    import { graphLoadPhaseLabel } from '../lib/graph-load-status.js';
+    import { graphLog } from '../lib/graph-debug.js';
     import {
         DEFAULT_LAYOUT_ID,
         folderPathCompoundBasis,
@@ -15,40 +15,55 @@
     } from '../lib/graph-cytoscape.js';
     import { GRAPH_LEGEND_ITEMS } from '../lib/graph-theme.js';
 
-    export let compoundBasis: CompoundBasis = folderPathCompoundBasis;
+    interface Props {
+        compoundBasis?: CompoundBasis;
+    }
+    let { compoundBasis = folderPathCompoundBasis }: Props = $props();
 
     const app = getApp();
 
-    $: query = app.graph.query;
-    $: slice = app.graph.slice;
-    $: loading = app.graph.loading;
-    $: loadPhase = app.graph.loadPhase;
-    $: loadDetail = app.graph.loadDetail;
+    // $derived ensures Svelte 5 signal tracking works for $state properties set
+    // from external contexts (e.g. window.message listeners), which $: does not.
+    let query = $derived(app.graph.query);
+    let slice = $derived(app.graph.slice);
+    let loading = $derived(app.graph.loading);
+    let rendering = $derived(app.graph.rendering);
+    let error = $derived(app.graph.error);
+    let indexReady = $derived(app.index.status?.ready ?? false);
 
     const compoundBasisOptions: Array<{ id: string; label: string; basis: CompoundBasis }> = [
         { id: 'folder-path', label: 'Folder path', basis: folderPathCompoundBasis },
         { id: 'parent-folder', label: 'Parent folder', basis: parentFolderCompoundBasis }
     ];
 
-    let container: HTMLDivElement;
-    let controller: GraphCyController | undefined;
-    let selectedId: string | undefined;
-    let searchTimer: ReturnType<typeof setTimeout> | undefined;
-    let showKey = false;
-    let layoutId = DEFAULT_LAYOUT_ID;
-    let useCompound = false;
-    let compoundBasisId = 'folder-path';
-    let animatePhysics = false;
+    // Mutable component state — $state so template and effects react to changes.
+    let container: HTMLDivElement | undefined = $state();
+    // controller being $state means the queueSync $effect reruns once onMount sets it,
+    // which handles the "slice already cached" remount case.
+    let controller: GraphCyController | undefined = $state();
+    let selectedId: string | undefined = $state();
+    let showKey = $state(false);
+    let layoutId = $state(DEFAULT_LAYOUT_ID);
+    let useCompound = $state(false);
+    let compoundBasisId = $state('folder-path');
+    let animatePhysics = $state(false);
+
+    // Non-reactive sync guards — plain let keeps them out of signal tracking,
+    // preventing reactive loops when queueSync writes pendingSyncKey.
     let lastSyncedKey = '';
+    let pendingSyncKey = '';
+    let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
     const legendItems = GRAPH_LEGEND_ITEMS;
 
-    $: graphNodes = slice?.nodes ?? [];
-    $: nodeById = new Map(graphNodes.map(node => [node.id, node]));
-    $: centerId = slice?.centerId;
-    $: selectedNode = selectedId ? nodeById.get(selectedId) : undefined;
-    $: activeCompoundBasis = compoundBasisOptions.find(option => option.id === compoundBasisId)?.basis ?? compoundBasis;
-    $: graphDataKey = slice
+    let graphNodes = $derived(slice?.nodes ?? []);
+    let nodeById = $derived(new Map(graphNodes.map(node => [node.id, node])));
+    let centerId = $derived(slice?.centerId);
+    let selectedNode = $derived(selectedId ? nodeById.get(selectedId) : undefined);
+    let activeCompoundBasis = $derived(
+        compoundBasisOptions.find(option => option.id === compoundBasisId)?.basis ?? compoundBasis
+    );
+    let graphDataKey = $derived(slice
         ? [
             slice.nodes.map(node => node.id).join('\u0000'),
             slice.edges.map(edge => edge.id).join('\u0000'),
@@ -56,13 +71,36 @@
             useCompound ? '1' : '0',
             compoundBasisId
         ].join('\u0001')
-        : '';
+        : '');
 
-    // Only rebuild cytoscape when the underlying graph data actually changes.
-    // selectedId is intentionally excluded here so node selection does not trigger
-    // a full element swap + relayout (cytoscape handles selection highlight itself).
-    $: if (!loading && !slice?.waitingForIndex && graphDataKey && controller && slice && graphDataKey !== lastSyncedKey) {
-        lastSyncedKey = graphDataKey;
+    function queueSync(reason: string): void {
+        if (!controller) {
+            graphLog('queueSync skip — no controller', { reason });
+            return;
+        }
+        if (loading || error) {
+            graphLog('queueSync skip — loading/error', { reason, loading, error });
+            return;
+        }
+        if (!slice || !graphDataKey) {
+            graphLog('queueSync skip — no slice', { reason });
+            return;
+        }
+        if (graphDataKey === lastSyncedKey || graphDataKey === pendingSyncKey) {
+            graphLog('queueSync skip — already synced/pending', {
+                reason,
+                nodes: slice.nodes.length
+            });
+            return;
+        }
+
+        pendingSyncKey = graphDataKey;
+        graphLog('queueSync', {
+            reason,
+            nodes: slice.nodes.length,
+            edges: slice.edges.length,
+            centerId: slice.centerId
+        });
         controller.syncSlice(slice, {
             useCompound,
             compoundBasis: activeCompoundBasis ?? compoundBasis,
@@ -71,22 +109,20 @@
         });
     }
 
-    $: loadingStatus = (() => {
-        if (loading) {
-            const phase = graphLoadPhaseLabel(loadPhase === 'idle' ? 'queued' : loadPhase);
-            return phase ? `Loading graph — ${phase}` : 'Loading graph…';
-        }
-        if (loadPhase === 'rendering') {
-            return 'Rendering graph';
-        }
-        if (loadPhase === 'failed') {
-            return 'Graph load failed';
-        }
-        if (slice?.waitingForIndex) {
-            return 'Waiting for index';
-        }
-        return '';
-    })();
+    // Reactive trigger for slice arrivals, filter/compound toggles, and controller ready.
+    $effect(() => {
+        queueSync(
+            `reactive:${loading ? 'loading' : 'ready'}:${slice?.nodes.length ?? 0}:${graphDataKey.length}`
+        );
+    });
+
+    let loadingStatus = $derived(
+        loading ? 'Loading graph…' :
+        error ? error :
+        rendering ? 'Rendering graph' :
+        (!indexReady && !slice) ? 'Waiting for index' :
+        ''
+    );
 
     function emitQuery(next: GraphViewQuery): void {
         app.loadGraph(next);
@@ -151,11 +187,28 @@
         showKey = !showKey;
     }
 
+    function handleGraphRendered(): void {
+        if (pendingSyncKey) {
+            lastSyncedKey = pendingSyncKey;
+            pendingSyncKey = '';
+        }
+        graphLog('onRendered — UI idle');
+        app.onGraphRendered();
+    }
+
     onMount(() => {
+        graphLog('GraphView mount', {
+            hasSlice: Boolean(app.graph.slice),
+            loading: app.graph.loading,
+            containerSize: container
+                ? { w: container.clientWidth, h: container.clientHeight }
+                : null
+        });
+
         controller = new GraphCyController({
-            container,
+            container: container!,
             getNodeById: id => nodeById.get(id),
-            onRendered: () => app.onGraphRendered(),
+            onRendered: handleGraphRendered,
             onSelect: id => {
                 selectedId = id;
             },
@@ -173,13 +226,22 @@
             }
         });
         controller.init();
-        app.requestGraph();
+        lastSyncedKey = '';
+        pendingSyncKey = '';
+        if (app.graph.error) {
+            app.requestGraph({ force: true });
+        } else if (!app.graph.slice && !app.graph.loading) {
+            app.requestGraph();
+        }
+        queueMicrotask(() => queueSync('mount-microtask'));
+        requestAnimationFrame(() => queueSync('mount-raf'));
     });
 
     onDestroy(() => {
         clearTimeout(searchTimer);
         controller?.destroy();
         controller = undefined;
+        graphLog('GraphView destroy');
     });
 </script>
 
@@ -208,7 +270,7 @@
 
     <div class="graph-meta">
         {#if loadingStatus}
-            {loadingStatus}{#if loadDetail} · {loadDetail}{/if}
+            {loadingStatus}
         {:else if slice}
             {slice.nodes.length} nodes, {slice.edges.length} edges
             {#if slice.truncated}
@@ -224,7 +286,7 @@
 
     <div class="graph-surface" bind:this={container}>
         <GraphKeyPanel items={legendItems} open={showKey} on:close={() => (showKey = false)} />
-        {#if !loading && !slice?.waitingForIndex && slice && slice.nodes.length === 0}
+        {#if !loading && !error && slice && slice.nodes.length === 0}
             <div class="graph-empty">
                 No nodes match the current filters. Try clearing filters or open a .rq file to focus its local graph.
             </div>
@@ -240,10 +302,10 @@
             {/if}
             <div class="graph-selection-actions">
                 {#if !selectedNode.isExternal}
-                    <button on:click={() => openNode(selectedNode)}>Open</button>
-                    <button class="secondary" on:click={() => focusNode(selectedNode)}>Focus graph</button>
+                    <button onclick={() => openNode(selectedNode)}>Open</button>
+                    <button class="secondary" onclick={() => focusNode(selectedNode)}>Focus graph</button>
                 {:else}
-                    <button on:click={() => openNode(selectedNode)}>Open file</button>
+                    <button onclick={() => openNode(selectedNode)}>Open file</button>
                 {/if}
             </div>
         </div>

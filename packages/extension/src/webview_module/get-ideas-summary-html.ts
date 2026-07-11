@@ -8,7 +8,9 @@ export function getIdeasSummaryHtml(webview: vscode.Webview, extensionUri: vscod
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(baseUri, 'main.css'));
     const csp = [
         "default-src 'none'",
-        `style-src ${webview.cspSource}`,
+        // cytoscape applies inline styles on its container/canvases; without this the
+        // graph surface stays empty even after a slice arrives.
+        `style-src ${webview.cspSource} 'unsafe-inline'`,
         `font-src ${webview.cspSource}`,
         `script-src 'nonce-${nonce}'`
     ].join('; ');

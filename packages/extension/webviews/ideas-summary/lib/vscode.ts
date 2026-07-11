@@ -15,6 +15,11 @@ export function getVsCodeApi(): VsCodeApi {
     return api;
 }
 
+/**
+ * Post to the extension host. Always structured-clone via JSON so Svelte 5
+ * `$state` proxies (and other non-cloneable wrappers) never hit MessagePort.
+ */
 export function postToExtension(message: WebviewToExtensionMessage): void {
-    getVsCodeApi().postMessage(message);
+    const plain = JSON.parse(JSON.stringify(message)) as WebviewToExtensionMessage;
+    getVsCodeApi().postMessage(plain);
 }

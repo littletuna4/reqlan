@@ -9,7 +9,6 @@ import {
     IDEASETS_PAGE_SIZE,
     REFERENCES_PAGE_SIZE,
     type ExtensionToWebviewMessage,
-    type GraphLoadPhase,
     type GraphViewQuery,
     type GraphViewSlice,
     type IdeasTableQuery,
@@ -100,6 +99,7 @@ export class IdeasSummaryPanel {
     private statusPostTimer: ReturnType<typeof setTimeout> | undefined;
     private bootstrapPromise: Promise<void> | undefined;
     private graphSliceGeneration = 0;
+    private graphSlicePending = false;
 
     private constructor(
         private readonly context: vscode.ExtensionContext,
@@ -186,17 +186,20 @@ export class IdeasSummaryPanel {
                     break;
                 case 'loadGraph': {
                     this.graphQuery = message.query;
-                    const requestId = message.requestId ?? 0;
+                    this.graphSlicePending = true;
                     const generation = ++this.graphSliceGeneration;
-                    this.post({
-                        type: 'graphLoadProgress',
-                        progress: {
-                            requestId,
-                            phase: 'checking-index',
-                            detail: 'Extension received request'
-                        }
+                    console.log('[reqlan:graph] extension loadGraph', {
+                        generation,
+                        ready: this.submodule.index.isReady,
+                        centerId: message.query.centerId
                     });
-                    await this.runGraphSlice(requestId, generation);
+                    if (!this.submodule.index.isReady) {
+                        // Kick a sync so status updates will deliver the pending slice.
+                        void this.submodule.index.syncWorkspace().then(() => {
+                            void this.sendIndexStatus();
+                        });
+                    }
+                    await this.runGraphSlice(generation);
                     break;
                 }
                 case 'openIdea':
@@ -209,11 +212,8 @@ export class IdeasSummaryPanel {
         } catch (error) {
             if (message.type === 'loadGraph') {
                 const detail = error instanceof Error ? error.message : 'Failed to load graph.';
-                this.post({
-                    type: 'graphLoadProgress',
-                    progress: { requestId: message.requestId, phase: 'failed', detail }
-                });
-                this.post({ type: 'error', requestId: message.requestId, message: detail });
+                this.graphSlicePending = false;
+                this.post({ type: 'error', message: detail });
             } else {
                 this.post({
                     type: 'error',
@@ -264,6 +264,10 @@ export class IdeasSummaryPanel {
 
     private async sendIndexStatus(): Promise<void> {
         this.post({ type: 'indexStatus', status: toIndexStatusView(this.submodule.index.getStatusSnapshot()) });
+        // Never await the graph build on the status path — sync progress must keep flowing.
+        if (this.graphSlicePending && this.submodule.index.isReady) {
+            void this.runGraphSlice(this.graphSliceGeneration);
+        }
     }
 
     private async sendIdeasPage(): Promise<void> {
@@ -333,78 +337,58 @@ export class IdeasSummaryPanel {
         });
     }
 
-    private async runGraphSlice(requestId: number, generation: number): Promise<void> {
-        if (generation !== this.graphSliceGeneration) {
+    private async runGraphSlice(generation: number): Promise<void> {
+        if (generation !== this.graphSliceGeneration || !this.graphSlicePending) {
+            console.log('[reqlan:graph] extension runGraphSlice skip', {
+                generation,
+                current: this.graphSliceGeneration,
+                pending: this.graphSlicePending
+            });
             return;
         }
 
-        const postProgress = (phase: GraphLoadPhase, detail?: string): void => {
-            this.post({
-                type: 'graphLoadProgress',
-                progress: { requestId, phase, detail }
-            });
-        };
-
-        postProgress('checking-index');
-        const query = normalizeGraphQuery(this.graphQuery);
         if (!this.submodule.index.isReady) {
-            const state = this.submodule.index.getStatusSnapshot().state;
-            postProgress('waiting-for-index', `Index state: ${state}`);
-            this.post({
-                type: 'graphSlice',
-                requestId,
-                slice: {
-                    query,
-                    depth: query.includeIndirect ? 2 : 1,
-                    truncated: false,
-                    nodes: [],
-                    edges: [],
-                    waitingForIndex: true
-                }
+            console.log('[reqlan:graph] extension waiting for index', {
+                generation,
+                state: this.submodule.index.getStatusSnapshot().state
             });
             return;
         }
+
+        const query = normalizeGraphQuery(this.graphQuery);
         try {
             let resolvedQuery = query;
             if (!resolvedQuery.centerId && !hasGraphFilters(resolvedQuery)) {
-                postProgress('resolving-focus', 'Looking for active .rq file');
                 const centerId = await defaultGraphCenterId(this.submodule);
                 if (centerId) {
                     resolvedQuery = { ...resolvedQuery, centerId };
-                    postProgress('resolving-focus', `Focusing ${centerId}`);
-                } else {
-                    postProgress('resolving-focus', 'No active editor focus; using filtered neighbourhood');
                 }
             }
             this.graphQuery = resolvedQuery;
-            postProgress(
-                'querying-slice',
-                resolvedQuery.centerId
-                    ? `Expanding from ${resolvedQuery.centerId}`
-                    : 'Listing matching ideas and references'
-            );
             const store = this.submodule.index.indexStore;
             const slice = await buildGraphViewSlice(store, resolvedQuery);
-            postProgress('packaging-slice', `${slice.nodes.length} nodes, ${slice.edges.length} edges`);
             if (generation !== this.graphSliceGeneration) {
                 return;
             }
+            this.graphSlicePending = false;
+            console.log('[reqlan:graph] extension posting graphSlice', {
+                generation,
+                nodes: slice.nodes.length,
+                edges: slice.edges.length,
+                centerId: slice.centerId
+            });
             this.post({
                 type: 'graphSlice',
-                requestId,
                 slice: toGraphSliceView(slice)
             });
         } catch (error) {
             if (generation !== this.graphSliceGeneration) {
                 return;
             }
+            this.graphSlicePending = false;
             const detail = error instanceof Error ? error.message : 'Failed to load graph.';
-            postProgress('failed', detail);
-            this.post({
-                type: 'error',
-                requestId,
-                message: detail
-            });
+            console.error('[reqlan:graph] extension slice failed', detail);
+            this.post({ type: 'error', message: detail });
         }
     }
     private async sendFullGraph(): Promise<void> {

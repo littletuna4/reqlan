@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onDestroy } from 'svelte';
     import { app } from './state/app.svelte.js';
     import { setAppContext } from './state/context.js';
     import StatusBar from './components/StatusBar.svelte';
@@ -9,7 +9,10 @@
 
     setAppContext(app);
 
-    onMount(() => app.init());
+    // Register messaging before children mount. Svelte runs child onMount before
+    // parent onMount; GraphView must not post loadGraph into a void.
+    const disposeApp = app.init();
+    onDestroy(disposeApp);
 </script>
 
 <h1>Ideas Summary</h1>

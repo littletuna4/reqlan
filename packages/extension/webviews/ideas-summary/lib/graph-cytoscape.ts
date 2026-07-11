@@ -5,7 +5,7 @@
 import type cytoscape from 'cytoscape';
 import type { ElementDefinition, StylesheetStyle } from 'cytoscape';
 import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
-import { GRAPH_NODE_COLORS, graphNodeFill } from './graph-theme.js';
+import { GRAPH_NODE_COLORS, graphNodeFill, resolveThemeColor } from './graph-theme.js';
 
 export type CompoundBasis = (node: GraphNodeView) => readonly string[];
 
@@ -192,6 +192,13 @@ export function buildCytoscapeElements(
 }
 
 export function buildCytoscapeStylesheet(): StylesheetStyle[] {
+    const foreground = resolveThemeColor('var(--vscode-foreground)', '#cccccc');
+    const description = resolveThemeColor('var(--vscode-descriptionForeground)', '#999999');
+    const editorBg = resolveThemeColor('var(--vscode-editor-background)', '#1e1e1e');
+    const panelBorder = resolveThemeColor('var(--vscode-panel-border)', '#3c3c3c');
+    const focusBorder = resolveThemeColor('var(--vscode-focusBorder)', '#007fd4');
+    const linkActive = resolveThemeColor('var(--vscode-textLink-activeForeground)', '#3794ff');
+
     return [
         {
             selector: 'node',
@@ -204,27 +211,27 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 'text-valign': 'bottom',
                 'text-halign': 'center',
                 'text-margin-y': 6,
-                color: 'var(--vscode-foreground)',
+                color: foreground,
                 'background-color': 'data(color)',
                 width: 44,
                 height: 44,
                 'border-width': 2,
-                'border-color': 'var(--vscode-editor-background)'
+                'border-color': editorBg
             }
         },
         {
             selector: 'node[?isCompound]',
             style: {
                 'background-opacity': 0.06,
-                'background-color': 'var(--vscode-charts-blue, #3794ff)',
+                'background-color': GRAPH_NODE_COLORS.block,
                 'border-width': 1,
                 'border-style': 'dashed',
-                'border-color': 'var(--vscode-panel-border)',
+                'border-color': panelBorder,
                 'text-valign': 'top',
                 'text-halign': 'center',
                 'font-size': '11px',
                 'font-weight': 'bold',
-                color: 'var(--vscode-descriptionForeground)',
+                color: description,
                 padding: '16px',
                 shape: 'round-rectangle'
             }
@@ -233,14 +240,14 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
             selector: 'node[?isCenter]',
             style: {
                 'border-width': 3,
-                'border-color': 'var(--vscode-focusBorder)'
+                'border-color': focusBorder
             }
         },
         {
             selector: 'node:selected',
             style: {
                 'border-width': 3,
-                'border-color': 'var(--vscode-textLink-activeForeground)'
+                'border-color': linkActive
             }
         },
         {
@@ -254,7 +261,7 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
             selector: 'edge',
             style: {
                 width: 1.5,
-                'line-color': 'var(--vscode-panel-border)',
+                'line-color': panelBorder,
                 'target-arrow-shape': 'none',
                 'curve-style': 'straight'
             }
@@ -384,8 +391,8 @@ export function getLayoutConfig(
                 ...base,
                 animate: true,
                 randomize: false,
-                avoidOverlap: true,
-                handleDisconnected: true,
+                avoidOverlap: !isPhysics,
+                handleDisconnected: !isPhysics,
                 nodeSpacing: 12,
                 edgeLength: 110,
                 ungrabifyWhileSimulating: false,

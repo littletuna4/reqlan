@@ -1,10 +1,9 @@
 /**
  * Event-driven cytoscape controller for the Ideas Summary graph tab.
  *
- * Owns the cytoscape instance and the GraphCyMachine lifecycle. Element diffing lives
- * in ./graph-cy-elements, pointer wiring in ./graph-cy-interactions, and live physics is
- * delegated to cytoscape-cola's continuous (infinite) simulation rather than a hand-rolled
- * pulse loop.
+ * Owns the cytoscape instance and inline lifecycle state. Element diffing lives in
+ * ./graph-cy-elements, pointer wiring in ./graph-cy-interactions, and live physics is
+ * delegated to cytoscape-cola's continuous (infinite) simulation.
  * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
  */
 import cytoscape from 'cytoscape';
@@ -13,6 +12,7 @@ import cola from 'cytoscape-cola';
 import type { GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
     buildCytoscapeStylesheet,
+    DEFAULT_LAYOUT_ID,
     getLayoutConfig,
     getPhysicsLayoutConfig,
     isForceDirectedLayout,
@@ -22,7 +22,7 @@ import {
 } from './graph-cytoscape.js';
 import { syncGraphElements } from './graph-cy-elements.js';
 import { bindGraphInteractions } from './graph-cy-interactions.js';
-import { createGraphCyMachine, type GraphCyEvent, type GraphCyMachine } from './graph-cy-state.js';
+import { graphLog, graphWarn } from './graph-debug.js';
 
 cytoscape.use(fcose);
 cytoscape.use(cola);
@@ -31,6 +31,8 @@ const MIN_ZOOM = 0.01;
 const MAX_ZOOM = 100;
 const RESIZE_DEBOUNCE_MS = 120;
 const READY_RETRY_MS = 120;
+
+type GraphLifecycle = 'uninitialized' | 'idle' | 'syncing' | 'layouting' | 'physics';
 
 export interface GraphSyncOptions {
     useCompound: boolean;
@@ -49,7 +51,6 @@ export interface GraphCyControllerOptions {
 }
 
 export class GraphCyController {
-    private readonly machine: GraphCyMachine;
     private cy: cytoscape.Core | undefined;
     private activeLayout: cytoscape.Layouts | undefined;
     private physicsLayout: cytoscape.Layouts | undefined;
@@ -67,13 +68,12 @@ export class GraphCyController {
     private draggingCount = 0;
     private readonly userPositionedNodes = new Map<string, { x: number; y: number }>();
 
-    constructor(private readonly options: GraphCyControllerOptions) {
-        this.machine = createGraphCyMachine();
-    }
+    private lifecycle: GraphLifecycle = 'uninitialized';
+    private animatePhysics = false;
+    private layoutId = DEFAULT_LAYOUT_ID;
+    private syncGeneration = 0;
 
-    get store(): GraphCyMachine {
-        return this.machine;
-    }
+    constructor(private readonly options: GraphCyControllerOptions) {}
 
     get instance(): cytoscape.Core | undefined {
         return this.cy;
@@ -95,18 +95,28 @@ export class GraphCyController {
             minZoom: MIN_ZOOM,
             maxZoom: MAX_ZOOM,
             boxSelectionEnabled: false,
-            pixelRatio: 1,
-            renderer: {
-                name: 'canvas',
-                webgl: true
-            }
-        } as cytoscape.CytoscapeOptions);
+            pixelRatio: 1
+            // Canvas 2D only: WebGL in VS Code webviews often draws nothing when
+            // styles use unresolved colours, and "webgl rendering enabled" was the
+            // only log users saw with an empty graph.
+        });
 
         this.bindInteractions(this.cy);
-        this.dispatch('init');
+        this.lifecycle = 'idle';
+        graphLog('cytoscape init', {
+            width: this.options.container.clientWidth,
+            height: this.options.container.clientHeight
+        });
 
         this.resizeObserver = new ResizeObserver(() => {
             this.scheduleResize();
+            if (this.pendingSync) {
+                graphLog('resize while pending sync', {
+                    width: this.options.container.clientWidth,
+                    height: this.options.container.clientHeight
+                });
+                this.scheduleFlush();
+            }
         });
         this.resizeObserver.observe(this.options.container);
     }
@@ -120,58 +130,58 @@ export class GraphCyController {
         this.unbindInteractions = undefined;
         this.stopPhysics();
         this.stopLayout();
-        this.dispatch('destroy');
         this.cy?.destroy();
         this.cy = undefined;
-        this.machine.getState().reset();
+        this.lifecycle = 'uninitialized';
         this.pendingSync = undefined;
     }
 
     setLayoutId(layoutId: string): void {
-        this.machine.getState().setLayoutId(layoutId);
+        this.layoutId = layoutId;
         this.stopPhysics();
         this.requestLayout();
     }
 
     setAnimatePhysics(enabled: boolean): void {
-        const state = this.machine.getState();
-        state.setAnimatePhysics(enabled);
+        this.animatePhysics = enabled;
 
         if (enabled) {
-            const { lifecycle, layoutId } = this.machine.getState();
-            if (isForceDirectedLayout(layoutId) && (lifecycle === 'idle' || lifecycle === 'layouting')) {
-                if (lifecycle === 'layouting') {
+            if (isForceDirectedLayout(this.layoutId) && (this.lifecycle === 'idle' || this.lifecycle === 'layouting')) {
+                if (this.lifecycle === 'layouting') {
                     this.stopLayout();
                 }
-                if (this.dispatch('physicsOn')) {
-                    this.startPhysics(this.activeSyncGeneration);
-                }
+                this.lifecycle = 'physics';
+                this.startPhysics(this.activeSyncGeneration);
             }
             return;
         }
 
         this.stopPhysics();
-        if (this.machine.getState().lifecycle === 'physics') {
-            this.dispatch('physicsOff');
+        if (this.lifecycle === 'physics') {
+            this.lifecycle = 'idle';
         }
     }
 
     syncSlice(slice: GraphViewSlice, options: GraphSyncOptions): void {
         if (!this.cy) {
+            graphWarn('syncSlice called before init');
             return;
         }
 
-        const generation = this.machine.getState().bumpSyncGeneration();
+        const generation = this.bumpSyncGeneration();
         this.activeSyncGeneration = generation;
         this.pendingSync = { generation, slice, options };
-        // Double rAF: the first callback runs before paint, so deferring to the
-        // second guarantees the "Rendering graph" loading state actually paints
-        // before the synchronous element swap + layout blocks the main thread.
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                this.flushPendingSync();
-            });
+        graphLog('syncSlice queued', {
+            generation,
+            nodes: slice.nodes.length,
+            edges: slice.edges.length,
+            ready: this.isReadyToRender,
+            size: {
+                w: this.options.container.clientWidth,
+                h: this.options.container.clientHeight
+            }
         });
+        this.scheduleFlush();
     }
 
     requestLayout(): void {
@@ -179,18 +189,18 @@ export class GraphCyController {
             return;
         }
 
-        const { lifecycle } = this.machine.getState();
-        if (lifecycle === 'syncing') {
+        if (this.lifecycle === 'syncing') {
             return;
         }
 
+        this.userPositionedNodes.clear();
         this.stopPhysics();
         this.stopLayout();
 
-        if (lifecycle === 'physics') {
-            this.dispatch('layout');
-        } else if (this.canDispatch('layout')) {
-            this.dispatch('layout');
+        if (this.lifecycle === 'physics') {
+            this.lifecycle = 'layouting';
+        } else {
+            this.lifecycle = 'layouting';
         }
 
         this.runLayout(this.activeSyncGeneration, 'relayout');
@@ -210,6 +220,36 @@ export class GraphCyController {
         }
         this.cy.$id(nodeId).select();
         this.options.onSelect?.(nodeId);
+    }
+
+    private bumpSyncGeneration(): number {
+        this.syncGeneration += 1;
+        return this.syncGeneration;
+    }
+
+    private scheduleFlush(): void {
+        clearTimeout(this.readyRetryTimer);
+        this.readyRetryTimer = undefined;
+
+        if (!this.pendingSync) {
+            return;
+        }
+
+        if (!this.isReadyToRender) {
+            graphLog('flush deferred — container has no size', {
+                w: this.options.container.clientWidth,
+                h: this.options.container.clientHeight
+            });
+            this.readyRetryTimer = setTimeout(() => {
+                this.readyRetryTimer = undefined;
+                this.scheduleFlush();
+            }, READY_RETRY_MS);
+            return;
+        }
+
+        requestAnimationFrame(() => {
+            this.flushPendingSync();
+        });
     }
 
     private bindInteractions(instance: cytoscape.Core): void {
@@ -232,10 +272,12 @@ export class GraphCyController {
             },
             onNodeGrab: () => {
                 this.draggingCount += 1;
-                // A live cola simulation handles grabbed nodes natively; only a
-                // batch layout needs to be stopped so it doesn't fight the drag.
-                if (this.machine.getState().lifecycle !== 'physics') {
+                if (this.lifecycle !== 'physics') {
                     this.stopLayout();
+                    if (this.lifecycle === 'layouting') {
+                        this.lifecycle = 'idle';
+                        this.finishRender(this.activeSyncGeneration);
+                    }
                 }
             },
             onNodeDrag: (nodeId, position) => {
@@ -244,28 +286,21 @@ export class GraphCyController {
             onNodeFree: (nodeId, position) => {
                 this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
                 this.draggingCount = Math.max(0, this.draggingCount - 1);
+                if (this.physicsLayout) {
+                    this.pinNodeInCola(nodeId, position);
+                }
             }
         });
     }
 
     private flushPendingSync(): void {
-        clearTimeout(this.readyRetryTimer);
-        this.readyRetryTimer = undefined;
-
         const pending = this.pendingSync;
         if (!pending || !this.cy) {
             return;
         }
 
         if (!this.isReadyToRender) {
-            // The container has no size yet (panel hidden or mid-layout). rAF is
-            // suspended while a webview is hidden, so retry on a timer instead —
-            // otherwise the sync would wedge on "Rendering graph" until something
-            // else forced a repaint.
-            this.readyRetryTimer = setTimeout(() => {
-                this.readyRetryTimer = undefined;
-                this.flushPendingSync();
-            }, READY_RETRY_MS);
+            this.scheduleFlush();
             return;
         }
 
@@ -273,6 +308,7 @@ export class GraphCyController {
 
         const { generation, slice, options } = pending;
         if (generation !== this.activeSyncGeneration) {
+            graphLog('flush skipped — stale generation', { generation, active: this.activeSyncGeneration });
             return;
         }
 
@@ -281,57 +317,68 @@ export class GraphCyController {
         this.stopLayout();
         this.pruneUserPositionedNodes(new Set(slice.nodes.map(node => node.id)));
 
-        if (!this.dispatch('sync')) {
-            return;
-        }
+        this.lifecycle = 'syncing';
+        graphLog('flush start', { generation, nodes: slice.nodes.length, edges: slice.edges.length });
 
-        const persistedPositions = this.capturePersistedPositions();
-        const result = syncGraphElements(
-            this.cy,
-            slice,
-            {
-                useCompound: options.useCompound,
-                compoundBasis: options.compoundBasis,
-                centerId: options.centerId
-            },
-            persistedPositions
-        );
+        try {
+            const persistedPositions = this.capturePersistedPositions();
+            const result = syncGraphElements(
+                this.cy,
+                slice,
+                {
+                    useCompound: options.useCompound,
+                    compoundBasis: options.compoundBasis,
+                    centerId: options.centerId
+                },
+                persistedPositions
+            );
 
-        this.cy.resize();
-        this.applySelection(options.selectedId);
-        this.dispatch('synced');
+            this.cy.resize();
+            this.applySelection(options.selectedId);
+            this.lifecycle = 'layouting';
 
-        if (result.structuralChange || this.cy.elements().length === 0) {
-            this.runLayout(generation, 'initial');
-        } else {
-            // Same node/edge set (e.g. only highlight/data changed): keep positions
-            // and skip the relayout entirely.
-            this.settleAfterSync(generation);
+            graphLog('elements synced', {
+                added: result.added,
+                removed: result.removed,
+                updated: result.updated,
+                structuralChange: result.structuralChange,
+                cyNodes: this.cy.nodes().length,
+                cyEdges: this.cy.edges().length
+            });
+
+            if (result.structuralChange || this.cy.elements().length === 0) {
+                this.runLayout(generation, 'initial');
+            } else {
+                this.settleAfterSync(generation);
+            }
+        } catch (error) {
+            graphWarn('Graph sync failed', error);
+            this.lifecycle = 'idle';
+            this.finishRender(generation);
         }
     }
 
     private settleAfterSync(generation: number): void {
-        const state = this.machine.getState();
-        if (state.animatePhysics && isForceDirectedLayout(state.layoutId)) {
-            if (state.lifecycle === 'layouting') {
-                this.dispatch('physicsOn');
-            }
-            this.options.onRendered?.();
+        if (this.animatePhysics && isForceDirectedLayout(this.layoutId)) {
+            this.lifecycle = 'physics';
+            this.finishRender(generation);
             this.startPhysics(generation);
             return;
         }
-        if (state.lifecycle === 'layouting') {
-            this.dispatch('layouted');
+        this.lifecycle = 'idle';
+        this.finishRender(generation);
+    }
+
+    private finishRender(generation: number): void {
+        if (generation === this.activeSyncGeneration) {
+            graphLog('render complete', {
+                generation,
+                nodes: this.cy?.nodes().length ?? 0,
+                zoom: this.cy?.zoom(),
+                extent: this.cy?.extent()
+            });
+            this.options.onRendered?.();
         }
-        this.options.onRendered?.();
-    }
-
-    private dispatch(event: GraphCyEvent): boolean {
-        return this.machine.getState().dispatch(event);
-    }
-
-    private canDispatch(event: GraphCyEvent): boolean {
-        return this.machine.getState().canDispatch(event);
     }
 
     private applySelection(selectedId: string | undefined): void {
@@ -347,50 +394,47 @@ export class GraphCyController {
         }
     }
 
-    /** Run the selected batch layout (fcose/cose/grid/…). Live physics is separate. */
     private runLayout(generation: number, mode: LayoutRunMode = 'relayout'): void {
         if (!this.cy || this.cy.elements().length === 0) {
-            this.dispatch('layouted');
-            this.options.onRendered?.();
+            this.lifecycle = 'idle';
+            this.finishRender(generation);
             return;
         }
 
         if (this.draggingCount > 0) {
-            // Don't fight an in-progress drag, but the initial render still has to
-            // resolve its loading phase or the UI stays stuck on "Rendering graph".
             if (mode === 'initial') {
-                this.dispatch('layouted');
-                this.options.onRendered?.();
+                this.lifecycle = 'idle';
+                this.finishRender(generation);
             }
             return;
         }
 
-        const { layoutId } = this.machine.getState();
         this.stopLayout();
+        this.lifecycle = 'layouting';
 
         const runId = ++this.activeLayoutRunId;
         const nodeCount = this.cy.nodes(':childless').length;
         const fixedNodes = this.collectFixedNodes();
+        graphLog('layout run', { generation, runId, mode, layoutId: this.layoutId, nodeCount });
         const layout = this.cy.layout(
-            getLayoutConfig(layoutId, this.syncOptions.useCompound, mode, nodeCount, fixedNodes)
+            getLayoutConfig(this.layoutId, this.syncOptions.useCompound, mode, nodeCount, fixedNodes)
         );
         this.activeLayout = layout;
 
         layout.on('layoutstop', () => {
             if (generation !== this.activeSyncGeneration || runId !== this.activeLayoutRunId) {
+                graphLog('layoutstop ignored (stale)', { generation, runId });
                 return;
             }
 
             this.activeLayout = undefined;
+            graphLog('layoutstop', { generation, runId, mode });
 
-            const state = this.machine.getState();
-            const goPhysics = state.animatePhysics && isForceDirectedLayout(state.layoutId);
+            const goPhysics = this.animatePhysics && isForceDirectedLayout(this.layoutId);
             if (goPhysics) {
-                if (state.lifecycle === 'layouting') {
-                    this.dispatch('physicsOn');
-                }
+                this.lifecycle = 'physics';
                 if (mode === 'initial') {
-                    this.options.onRendered?.();
+                    this.finishRender(generation);
                 }
                 if (this.draggingCount === 0) {
                     this.startPhysics(generation);
@@ -398,28 +442,33 @@ export class GraphCyController {
                 return;
             }
 
-            if (state.lifecycle === 'layouting') {
-                this.dispatch('layouted');
-            }
-            this.options.onRendered?.();
+            this.lifecycle = 'idle';
+            this.finishRender(generation);
         });
 
         setTimeout(() => {
             if (generation !== this.activeSyncGeneration || this.draggingCount > 0 || runId !== this.activeLayoutRunId) {
                 return;
             }
-            layout.run();
+            try {
+                layout.run();
+            } catch (error) {
+                graphWarn('Graph layout failed', error);
+                this.activeLayout = undefined;
+                if (generation === this.activeSyncGeneration && runId === this.activeLayoutRunId) {
+                    this.lifecycle = 'idle';
+                    this.finishRender(generation);
+                }
+            }
         }, 0);
     }
 
-    /** Start continuous cola physics. Runs inside cytoscape's own animation loop (non-blocking). */
     private startPhysics(generation: number): void {
         if (!this.cy || this.cy.elements().length === 0 || generation !== this.activeSyncGeneration) {
             return;
         }
 
-        const state = this.machine.getState();
-        if (!state.animatePhysics || !isForceDirectedLayout(state.layoutId) || this.draggingCount > 0) {
+        if (!this.animatePhysics || !isForceDirectedLayout(this.layoutId) || this.draggingCount > 0) {
             return;
         }
 
@@ -430,6 +479,39 @@ export class GraphCyController {
         const layout = this.cy.layout(getPhysicsLayoutConfig(this.syncOptions.useCompound, nodeCount));
         this.physicsLayout = layout;
         layout.run();
+        this.applyColaPins();
+    }
+
+    private pinNodeInCola(nodeId: string, position: { x: number; y: number }): void {
+        if (!this.cy) {
+            return;
+        }
+
+        const node = this.cy.$id(nodeId);
+        if (node.length === 0) {
+            return;
+        }
+
+        const bb = this.cy.extent();
+        const scrCola = { ...(node.scratch('cola') ?? {}) };
+        scrCola.x = position.x - bb.x1;
+        scrCola.y = position.y - bb.y1;
+        scrCola.px = scrCola.x;
+        scrCola.py = scrCola.y;
+        scrCola.fixed = true;
+        node.scratch('cola', scrCola);
+    }
+
+    private applyColaPins(): void {
+        if (!this.cy) {
+            return;
+        }
+
+        for (const [nodeId, position] of this.userPositionedNodes) {
+            if (this.cy.$id(nodeId).length > 0) {
+                this.pinNodeInCola(nodeId, position);
+            }
+        }
     }
 
     private collectFixedNodes(): LayoutFixedNode[] {

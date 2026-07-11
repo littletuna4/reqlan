@@ -29,26 +29,27 @@ ui_controls {
 }
 
 state_machines {
-    the cytoscape object should use state machines and event driven patterns
-    the objects should be documented in this file.
+    the cytoscape object should use event driven patterns; lifecycle is documented here.
 
-    GraphCyMachine: ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-state.ts"] is a zustand lifecycle store.
-    States: uninitialized → idle → syncing → layouting ↔ physics.
-    Events: init, sync, synced, layout, layouted, physicsOn, physicsOff, destroy.
+    GraphCyController: ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-controller.ts"] owns the cytoscape instance with inline lifecycle state (idle, syncing, layouting, physics).
     syncGeneration cancels stale layout callbacks when the slice changes mid-layout.
-
-    GraphCyController: ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-controller.ts"] owns the cytoscape instance and dispatches GraphCyMachine events.
-    Selection and drag-pinned positions are tracked directly on the controller (no per-node state machines).
-    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm.
+    Selection and drag-pinned positions are tracked in userPositionedNodes on the controller.
+    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
     Pointer/selection wiring lives in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-interactions.ts"].
-    Live physics is delegated to cytoscape-cola's continuous (infinite) simulation, which ticks inside cytoscape's own animation loop rather than a hand-rolled pulse; the "physics" lifecycle state means cola is running. Grabbed nodes are handled natively by cola, so drags do not stop/restart the simulation.
-    ResizeObserver debounces cy.resize() and does not refit on every resize.
-    syncSlice is deferred across two animation frames and layout.run() via setTimeout so the webview paints loading state before the element swap + batch layout block the main thread. When the container has no size (hidden panel) the flush retries on a timer, because rAF is suspended while a webview is hidden.
+    Live physics is delegated to cytoscape-cola's continuous (infinite) simulation. On node release during live physics, pins are written to each node's cola scratch (fixed + px/py) so the simulation does not rubber-band the node; pins are re-applied after startPhysics.
+    ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
+    GraphView mounts only while the graph tab is active (see TabPanels); do not keep cytoscape alive under display:none — WebGL init on a zero-size hidden container can break the whole webview before App messaging is attached.
 }
 
-state_machine_package {
-    the graph lifecycle machine is implemented as a hand-rolled transition table over a zustand vanilla store (see GraphCyMachine), not xstate.
-    a full xstate migration was deemed unnecessary: adopting cytoscape-cola for live physics collapsed the physics handling to a single running/stopped state, so the remaining machine is small enough that the explicit transition table stays clearer than an xstate actor.
+graph_loading {
+    the extension pushes graphSlice when the index is ready — no empty waitingForIndex wedge.
+    ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"] sets graphSlicePending on loadGraph and delivers the slice when the index becomes ready (including via index status updates).
+    Index status posts must not await graph slice builds, so sync progress keeps updating the Index tab.
+    webview state in ["../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"] is query, slice, loading, rendering, and error only.
+    App.init attaches the window message listener during App.svelte script setup (before child onMount) so loadGraph replies are never dropped.
+    GraphView marks a slice as synced only in onRendered (after cytoscape flush + layout), not before syncSlice is queued.
+    Webview→extension posts go through ["../../../packages/extension/webviews/ideas-summary/lib/vscode.ts"] which JSON-clones payloads so Svelte $state proxies are structured-clone safe.
+    GraphView remount reuses app.graph.slice when present; it only loadGraphs when there is no slice and nothing in flight, or force-retries after an error.
 }
 
 webview_threading {
@@ -64,6 +65,7 @@ layout_physics {
     defaults to force-directed layout (fcose) with animation on, but user inputs for other options offered by cytoscape.js
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately
     live physics is driven by cytoscape-cola's infinite simulation regardless of which force-directed batch layout produced the initial settle
+    live physics cola config disables avoidOverlap and handleDisconnected to prevent post-drag constraint snaps
 }
 
 view_controls {
