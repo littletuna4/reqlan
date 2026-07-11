@@ -16,6 +16,7 @@
         "test": "pnpm --filter ./packages/language run test"
     },
     "devDependencies": {
+        "@changesets/cli": "^2.31.0",
         "@sveltejs/vite-plugin-svelte": "~5.0.3",
         "@types/node": "~20.19.42",
         "concurrently": "~10.0.3",
