@@ -1,7 +1,7 @@
 {
     "name": "reqlan",
     "description": "Language support for the reqlan language",
-    "version": "0.0.2",
+    "version": "0.0.7",
     "displayName": "reqlan support",
     "type": "module",
     "publisher": "reqlan",
