@@ -47,6 +47,7 @@ cta_icon {
 
 current_link_icons {
     Slugs are defined on each link in ["../../reqlan rq/phonebook.json"]:
+    - `site` → mdi / web
     - `vsc` → simple-icons / visualstudiocode
     - `openvsx` → simple-icons / vscodium (proxy; no Open VSX slug in Simple Icons)
     - `github` → simple-icons / github

@@ -1,5 +1,6 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { siteContent } from "@/content/site";
+import type { HighlightKey } from "@/generated/highlights";
 import shared from "./shared.module.css";
 import styles from "./Syntax.module.css";
 
@@ -21,7 +22,7 @@ export function Syntax() {
               content={example.code}
               highlightKey={
                 example.language !== "rq"
-                  ? (`syntax:${example.label}` as const)
+                  ? (`syntax:${example.label}` as HighlightKey)
                   : undefined
               }
             />

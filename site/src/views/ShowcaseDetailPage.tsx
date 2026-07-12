@@ -1,7 +1,7 @@
 import { ShowcaseDetail } from "@/components/ShowcaseDetail";
 import { SiteShell } from "@/components/SiteShell";
 import type { Showcase } from "@/content/showcases";
-import styles from "@/pages/showcase.module.css";
+import styles from "@/views/showcase.module.css";
 
 type ShowcaseDetailPageProps = {
   showcase: Showcase;

@@ -3,7 +3,7 @@ import "../../reqlan rq/phonebook.rq" as phonebook_reqs
 import "./icons.rq" as icon_reqs
 
 site {
-    the /site folder contains a static Vite landing page for reqlan.
+    the /site folder contains a static Next.js App Router landing page for reqlan.
 }
 
 simple_lightweight_and_static {
@@ -59,7 +59,6 @@ assets {
 
 brand {
     must be aligned with ["../../reqlan rq/brand.rq"]
-    Must be completely scrubbed of any reference to next, vercel etc.
 }
 
 images {

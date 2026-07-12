@@ -1,6 +1,8 @@
 # reqlan site
 
-Static marketing site for reqlan, built with Vite and deployed to GitHub Pages at `/reqlan`.
+Static marketing site for reqlan, built with Next.js App Router static export and deployed to GitHub Pages at `/reqlan`.
+
+Live site: [https://tony.is-a.dev/reqlan](https://tony.is-a.dev/reqlan) (canonical URL in [`reqlan rq/phonebook.json`](../reqlan%20rq/phonebook.json)).
 
 ## Development
 
@@ -8,7 +10,7 @@ Static marketing site for reqlan, built with Vite and deployed to GitHub Pages a
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). To match production paths locally:
+Open [http://localhost:3000](http://localhost:3000). To match production paths locally:
 
 ```bash
 SITE_BASE_PATH=/reqlan pnpm dev
@@ -23,9 +25,8 @@ pnpm build
 This runs a single static export pipeline:
 
 1. Pre-render syntax highlights (Shiki)
-2. Generate one HTML file per showcase slug
-3. Bundle the site with Vite into `out/`
-4. Verify every required static page exists in `out/`
+2. Export all routes with `next build` into `out/`
+3. Verify every required static page exists in `out/`
 
 Production builds use `SITE_BASE_PATH=/reqlan` in CI. Output is written to `out/`.
 

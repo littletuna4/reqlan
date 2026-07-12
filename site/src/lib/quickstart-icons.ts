@@ -6,7 +6,7 @@ import github from "@iconify-icons/simple-icons/github";
 import visualstudiocode from "@iconify-icons/simple-icons/visualstudiocode";
 import vscodium from "@iconify-icons/simple-icons/vscodium";
 
-import { formatPhonebookIconKey, type PhonebookIconRef } from "../../../scripts/phonebook.ts";
+import { formatPhonebookIconKey, type PhonebookIconRef } from "@/lib/phonebook";
 import type { QuickstartIconRef } from "@/content/quickstart";
 
 const registry: Record<string, IconifyIcon> = {

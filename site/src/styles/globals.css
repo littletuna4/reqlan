@@ -53,6 +53,12 @@ a:hover {
   color: var(--color-aqua);
 }
 
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
+}
+
 .phonebook-icon {
   width: 1.125rem;
   height: 1.125rem;

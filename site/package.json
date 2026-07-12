@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "tsx scripts/generate-highlights.mts && tsx scripts/generate-showcase-pages.mts",
-    "dev": "vite",
+    "predev": "tsx scripts/generate-highlights.mts",
+    "dev": "next dev",
     "build": "tsx scripts/build-static.mts",
-    "preview": "vite preview",
+    "preview": "npx serve out -l 3000",
     "lint": "eslint",
     "generate:images": "node scripts/generate-images.mjs"
   },
@@ -17,6 +17,7 @@
     "@iconify/react": "^6.0.2",
     "clsx": "^2.1.1",
     "motion": "^12.42.2",
+    "next": "^15.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "shiki": "^4.3.1",
@@ -29,7 +30,6 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^5.1.0",
     "eslint": "^9",
     "@eslint/js": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -38,7 +38,6 @@
     "to-ico": "^1.1.5",
     "tsx": "^4.20.6",
     "typescript": "^5",
-    "typescript-eslint": "^8.46.2",
-    "vite": "^7.2.2"
+    "typescript-eslint": "^8.46.2"
   }
 }

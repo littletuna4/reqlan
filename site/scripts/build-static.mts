@@ -19,11 +19,8 @@ function run(command: string, args: string[]): void {
 console.log("Generating syntax highlights…");
 run("tsx", ["scripts/generate-highlights.mts"]);
 
-console.log("Generating showcase detail pages…");
-run("tsx", ["scripts/generate-showcase-pages.mts"]);
-
 console.log("Building static site…");
-run("pnpm", ["exec", "vite", "build"]);
+run("pnpm", ["exec", "next", "build"]);
 
 console.log("Verifying static export…");
 run("tsx", ["scripts/verify-static-export.mts"]);

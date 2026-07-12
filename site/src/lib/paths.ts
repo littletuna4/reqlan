@@ -1,6 +1,6 @@
 const configuredBase =
-  typeof import.meta.env.BASE_URL === "string"
-    ? import.meta.env.BASE_URL.replace(/\/$/, "")
+  typeof process.env.NEXT_PUBLIC_BASE_PATH === "string"
+    ? process.env.NEXT_PUBLIC_BASE_PATH.replace(/\/$/, "")
     : "";
 
 export function sitePath(path: string): string {

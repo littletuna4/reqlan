@@ -1,6 +1,7 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { MotivationClient } from "@/components/MotivationClient";
 import { siteContent } from "@/content/site";
+import type { HighlightKey } from "@/generated/highlights";
 import shared from "./shared.module.css";
 
 export function Motivation() {
@@ -23,7 +24,7 @@ export function Motivation() {
               content={tab.code}
               highlightKey={
                 tab.language && tab.language !== "rq"
-                  ? (`motivation:${tab.id}` as const)
+                  ? (`motivation:${tab.id}` as HighlightKey)
                   : undefined
               }
             />

@@ -6,6 +6,7 @@ import { SiteShell } from "@/components/SiteShell";
 import { Syntax } from "@/components/Syntax";
 
 export function HomePage() {
+  //rq:["../../../reqlan rq/distribution/landers.rq".landers]
   return (
     <SiteShell>
       <main>

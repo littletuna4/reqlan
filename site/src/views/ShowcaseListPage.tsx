@@ -2,7 +2,7 @@ import { ShowcaseCard } from "@/components/ShowcaseCard";
 import { SiteShell } from "@/components/SiteShell";
 import { showcases } from "@/content/showcases";
 import shared from "@/components/shared.module.css";
-import styles from "@/pages/showcase.module.css";
+import styles from "@/views/showcase.module.css";
 
 export function ShowcaseListPage() {
   return (

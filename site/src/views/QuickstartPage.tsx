@@ -1,6 +1,6 @@
 import { QuickstartClient } from "@/components/QuickstartClient";
 import { SiteShell } from "@/components/SiteShell";
-import styles from "@/pages/quickstart.module.css";
+import styles from "@/views/quickstart.module.css";
 
 export function QuickstartPage() {
   return (

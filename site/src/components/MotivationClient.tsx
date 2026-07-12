@@ -1,3 +1,5 @@
+"use client";
+
 import { Children, useState } from "react";
 import type { MotivationTab } from "@/content/site";
 import { cn } from "@/lib/utils";

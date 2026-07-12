@@ -24,4 +24,3 @@ yarn-error.log*
 
 # generated at build time
 /src/generated/
-/showcase/*/index.html

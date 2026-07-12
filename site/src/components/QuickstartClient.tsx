@@ -1,3 +1,5 @@
+"use client";
+
 import { Icon } from "@iconify/react/dist/offline";
 import { useCallback, useEffect, useState } from "react";
 
