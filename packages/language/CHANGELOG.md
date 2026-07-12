@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 0.0.4
+
+### Patch Changes
+
+- 020cd59: Fix blocking build issues and update some of the physics
+
 ## 0.0.3
 
 ### Patch Changes

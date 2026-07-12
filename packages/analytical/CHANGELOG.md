@@ -1,5 +1,12 @@
 # reqlan-analytical
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [020cd59]
+  - reqlan-language@0.0.4
+
 ## 0.0.3
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # reqlan
 
+## 0.0.10
+
+### Patch Changes
+
+- 020cd59: Fix blocking build issues and update some of the physics
+- Updated dependencies [020cd59]
+  - reqlan-language@0.0.4
+  - reqlan-analytical@0.0.4
+
 ## 0.0.9
 
 ### Patch Changes
