@@ -1,0 +1,5 @@
+---
+"site": patch
+---
+
+static site.
