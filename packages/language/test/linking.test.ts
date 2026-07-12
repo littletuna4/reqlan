@@ -87,7 +87,11 @@ describe('Linking tests', () => {
         }
         const target = bracketRef.target;
         expect(
-            isLocalReference(target) ? target.idea?.ref?.name : resolvedReferenceIdeaName(target)
+            isLocalReference(target)
+                ? target.idea?.ref?.name
+                : isQualifiedReference(target)
+                    ? resolvedReferenceIdeaName(target)
+                    : undefined
         ).toBe('reference_brackets');
         if (isLocalReference(target)) {
             expect(target.idea?.error).toBeUndefined();

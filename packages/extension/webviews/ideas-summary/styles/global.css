@@ -616,6 +616,34 @@ button.member-chip:hover {
     border: 1px solid var(--vscode-panel-border);
 }
 
+.graph-key-compound {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px dashed var(--vscode-panel-border);
+    background: color-mix(in srgb, var(--vscode-charts-blue, #3794ff) 8%, transparent);
+}
+
+.graph-key-group-emphasis {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--vscode-editor-background);
+    border-style: solid;
+    border-color: var(--graph-key-group-border, var(--vscode-focusBorder));
+    box-sizing: border-box;
+}
+
+.graph-key-group-emphasis.hover {
+    border-width: 3px;
+}
+
+.graph-key-group-emphasis.selected {
+    border-width: 4px;
+}
+
 .graph-key-line {
     flex: 0 0 24px;
     width: 24px;

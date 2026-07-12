@@ -4,9 +4,7 @@
     import {
         DEFAULT_LAYOUT_ID,
         GRAPH_LAYOUT_OPTIONS,
-        folderPathCompoundBasis,
-        parentFolderCompoundBasis,
-        type CompoundBasis
+        GRAPH_COMPOUND_BASIS_OPTIONS
     } from '../lib/graph-cytoscape.js';
 
     export let query: GraphViewQuery;
@@ -32,10 +30,7 @@
     }>();
 
     const layoutOptions = GRAPH_LAYOUT_OPTIONS;
-    const compoundBasisOptions: Array<{ id: string; label: string; basis: CompoundBasis }> = [
-        { id: 'folder-path', label: 'Folder path', basis: folderPathCompoundBasis },
-        { id: 'parent-folder', label: 'Parent folder', basis: parentFolderCompoundBasis }
-    ];
+    const compoundBasisOptions = GRAPH_COMPOUND_BASIS_OPTIONS;
 
     function emitInput(field: 'pathFilter' | 'statusFilter' | 'tagFilter', event: Event): void {
         dispatch(field, (event.currentTarget as HTMLInputElement).value);

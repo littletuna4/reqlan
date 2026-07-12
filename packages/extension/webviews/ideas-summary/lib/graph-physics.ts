@@ -3,27 +3,19 @@
  *
  * Obsidian-style simulation: central gravity + link (spring) attraction + pairwise
  * node repulsion, integrated with damped semi-implicit Euler once per animation frame.
+ * Group container constraints (shared-node overlap rules) live in graph-groups.ts.
  * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] layout_physics
- *
- * Design constraints:
- * - Deterministic: forces are pure functions of positions, iteration order is stable,
- *   and there is no randomness (coincident nodes separate along a hash-derived angle).
- *   Identical positions + velocities always produce identical future motion, and
- *   restarting from the same positions converges to the same attractor.
- * - Never restarted for interactions: dragging pins a node (the sim stops writing to
- *   it but keeps simulating everyone else against its live position); releasing just
- *   unpins it where it sits. No global reheat, so clicks and drags cannot jolt or
- *   snap the graph.
- * - Every childless node participates, connected or not: orphans feel gravity and
- *   repulsion exactly like linked nodes.
- * - Long, gentle convergence (tens of seconds): weak forces with light viscous
- *   damping. The loop sleeps once average speed stays below restSpeed for restTicks
- *   frames, and wakes on interaction or graph change — state is kept, never reset.
  */
 import type cytoscape from 'cytoscape';
+import {
+    applyGroupForces,
+    DEFAULT_GROUP_SETTINGS,
+    hashAngle,
+    type GraphGroupSettings
+} from './graph-groups.js';
 import { graphLog } from './graph-debug.js';
 
-export interface GraphPhysicsSettings {
+export interface GraphPhysicsSettings extends GraphGroupSettings {
     /** Linear pull toward the graph centroid, per px of distance. */
     gravity: number;
     /** Inverse-square pairwise repulsion constant. */
@@ -44,14 +36,8 @@ export interface GraphPhysicsSettings {
     restTicks: number;
 }
 
-// Tuned for slow, obsidian-like convergence at ~60 fps. With damping d the
-// steady-state velocity under a constant force F is F·d/(1−d), which is exactly F
-// at d = 0.5 — so these force constants read directly as drift speed in px/tick.
-// Springs relax with a ~1 s time constant (local structure forms quickly) while
-// gravity has a ~8 s time constant, so global compaction keeps visibly drifting
-// for tens of seconds before the sim sleeps. Linked pairs settle ~1.4× the rest
-// length apart once repulsion is added.
 export const DEFAULT_PHYSICS_SETTINGS: GraphPhysicsSettings = {
+    ...DEFAULT_GROUP_SETTINGS,
     gravity: 0.002,
     repulsion: 20000,
     linkStrength: 0.015,
@@ -66,15 +52,6 @@ export const DEFAULT_PHYSICS_SETTINGS: GraphPhysicsSettings = {
 interface NodeVelocity {
     vx: number;
     vy: number;
-}
-
-/** Deterministic angle in [0, 2π) derived from a string, for separating coincident nodes. */
-function hashAngle(seed: string): number {
-    let hash = 0;
-    for (let index = 0; index < seed.length; index += 1) {
-        hash = (hash * 31 + seed.charCodeAt(index)) | 0;
-    }
-    return ((hash >>> 0) % 6283) / 1000;
 }
 
 export class GraphPhysicsSimulation {
@@ -93,7 +70,6 @@ export class GraphPhysicsSimulation {
         return this.active;
     }
 
-    /** Start (or resume) the simulation. Velocities persist across stop/start. */
     start(): void {
         if (this.active) {
             this.wake();
@@ -104,7 +80,6 @@ export class GraphPhysicsSimulation {
         this.scheduleTick();
     }
 
-    /** Pause the loop. State (velocities, pins) is kept for a later start(). */
     stop(): void {
         this.active = false;
         if (this.frame !== undefined) {
@@ -113,7 +88,6 @@ export class GraphPhysicsSimulation {
         }
     }
 
-    /** Resume ticking after the loop went to sleep on convergence. */
     wake(): void {
         this.calmTicks = 0;
         if (this.active) {
@@ -121,23 +95,11 @@ export class GraphPhysicsSimulation {
         }
     }
 
-    /**
-     * Stop integrating a node (grab/drag). Its live position still exerts gravity,
-     * spring, and repulsion forces on every other node while the user holds it.
-     * The node's velocity is kept so a bare click (pin + unpin with no movement)
-     * leaves the simulation state exactly as it was.
-     */
     pin(nodeId: string): void {
         this.pinnedNodes.add(nodeId);
         this.wake();
     }
 
-    /**
-     * Hand a node back to the simulation exactly where it is. No snap and no
-     * restart: everyone else keeps converging with their current velocities.
-     * `atRest` zeroes the node's own velocity — used after a real drag, where the
-     * pre-drag velocity is stale; a bare click keeps it for perfect continuation.
-     */
     unpin(nodeId: string, atRest: boolean): void {
         this.pinnedNodes.delete(nodeId);
         if (atRest) {
@@ -146,15 +108,10 @@ export class GraphPhysicsSimulation {
         this.wake();
     }
 
-    /**
-     * Zero all velocities. Used after a batch layout teleports nodes, where carrying
-     * over momentum from the old positions would be meaningless.
-     */
     resetVelocities(): void {
         this.velocities.clear();
     }
 
-    /** Drop state for nodes that no longer exist in the graph. */
     prune(validNodeIds: ReadonlySet<string>): void {
         for (const nodeId of [...this.velocities.keys()]) {
             if (!validNodeIds.has(nodeId)) {
@@ -186,11 +143,20 @@ export class GraphPhysicsSimulation {
         const nodes = this.cy.nodes(':childless');
         const count = nodes.length;
         if (count === 0) {
-            // Sleep; a later wake() (sync, interaction) re-arms the loop.
             return;
         }
 
-        const { gravity, repulsion, linkStrength, linkDistance, damping, maxVelocity, minSeparation, restSpeed, restTicks } = this.settings;
+        const {
+            gravity,
+            repulsion,
+            linkStrength,
+            linkDistance,
+            damping,
+            maxVelocity,
+            minSeparation,
+            restSpeed,
+            restTicks
+        } = this.settings;
 
         const ids = new Array<string>(count);
         const xs = new Float64Array(count);
@@ -198,6 +164,7 @@ export class GraphPhysicsSimulation {
         const fxs = new Float64Array(count);
         const fys = new Float64Array(count);
         const indexById = new Map<string, number>();
+        const groupIdsByIndex = new Array<readonly string[] | undefined>(count);
 
         nodes.forEach((node, index) => {
             const position = node.position();
@@ -205,12 +172,9 @@ export class GraphPhysicsSimulation {
             xs[index] = position.x;
             ys[index] = position.y;
             indexById.set(node.id(), index);
+            groupIdsByIndex[index] = node.data('groupIds') as string[] | undefined;
         });
 
-        // Central gravity: linear pull toward the current centroid. Using the
-        // centroid (not a fixed point) makes gravity translation-invariant, so the
-        // graph compacts without the whole cluster sliding across the canvas, and
-        // the attractor is still a pure function of the current positions.
         let centroidX = 0;
         let centroidY = 0;
         for (let i = 0; i < count; i += 1) {
@@ -224,7 +188,6 @@ export class GraphPhysicsSimulation {
             fys[i] -= gravity * (ys[i] - centroidY);
         }
 
-        // Pairwise inverse-square repulsion, coincident pairs separated deterministically.
         const minSeparationSq = minSeparation * minSeparation;
         for (let i = 0; i < count; i += 1) {
             for (let j = i + 1; j < count; j += 1) {
@@ -249,7 +212,6 @@ export class GraphPhysicsSimulation {
             }
         }
 
-        // Link attraction: linear springs toward the rest length.
         this.cy.edges().forEach((edge) => {
             const sourceIndex = indexById.get(edge.source().id());
             const targetIndex = indexById.get(edge.target().id());
@@ -271,7 +233,16 @@ export class GraphPhysicsSimulation {
             fys[targetIndex] -= fy;
         });
 
-        // Damped semi-implicit Euler; pinned nodes are read-only for the sim.
+        const groupForces = applyGroupForces(
+            count,
+            xs,
+            ys,
+            groupIdsByIndex,
+            fxs,
+            fys,
+            this.settings
+        );
+
         let speedSum = 0;
         let movingCount = 0;
         this.cy.batch(() => {
@@ -298,11 +269,10 @@ export class GraphPhysicsSimulation {
             }
         });
 
-        // Sleep on convergence — but never while a node is held, so the graph keeps
-        // responding (repulsion, springs) around the user's hand for the whole drag.
         const dragging = this.pinnedNodes.size > 0;
         const averageSpeed = movingCount > 0 ? speedSum / movingCount : 0;
-        if (!dragging && averageSpeed < restSpeed) {
+        const groupActive = groupForces.disjointOverlap || groupForces.containerConflict;
+        if (!dragging && !groupActive && averageSpeed < restSpeed) {
             this.calmTicks += 1;
             if (this.calmTicks >= restTicks) {
                 graphLog('physics sleeping', { nodes: count, averageSpeed });

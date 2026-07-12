@@ -9,8 +9,8 @@
     import { graphLog } from '../lib/graph-debug.js';
     import {
         DEFAULT_LAYOUT_ID,
+        GRAPH_COMPOUND_BASIS_OPTIONS,
         folderPathCompoundBasis,
-        parentFolderCompoundBasis,
         type CompoundBasis
     } from '../lib/graph-cytoscape.js';
     import { GRAPH_LEGEND_ITEMS } from '../lib/graph-theme.js';
@@ -31,10 +31,7 @@
     let error = $derived(app.graph.error);
     let indexReady = $derived(app.index.status?.ready ?? false);
 
-    const compoundBasisOptions: Array<{ id: string; label: string; basis: CompoundBasis }> = [
-        { id: 'folder-path', label: 'Folder path', basis: folderPathCompoundBasis },
-        { id: 'parent-folder', label: 'Parent folder', basis: parentFolderCompoundBasis }
-    ];
+    const compoundBasisOptions = GRAPH_COMPOUND_BASIS_OPTIONS;
 
     // Mutable component state — $state so template and effects react to changes.
     let container: HTMLDivElement | undefined = $state();
@@ -60,9 +57,11 @@
     let nodeById = $derived(new Map(graphNodes.map(node => [node.id, node])));
     let centerId = $derived(slice?.centerId);
     let selectedNode = $derived(selectedId ? nodeById.get(selectedId) : undefined);
-    let activeCompoundBasis = $derived(
-        compoundBasisOptions.find(option => option.id === compoundBasisId)?.basis ?? compoundBasis
+    let activeBasisOption = $derived(
+        compoundBasisOptions.find(option => option.id === compoundBasisId)
     );
+    let activeCompoundBasis = $derived(activeBasisOption?.compoundBasis ?? compoundBasis);
+    let activeGroupBasis = $derived(activeBasisOption?.groupBasis);
     let graphDataKey = $derived(slice
         ? [
             slice.nodes.map(node => node.id).join('\u0000'),
@@ -104,6 +103,7 @@
         controller.syncSlice(slice, {
             useCompound,
             compoundBasis: activeCompoundBasis ?? compoundBasis,
+            groupBasis: activeGroupBasis,
             centerId,
             selectedId
         });

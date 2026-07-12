@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onDestroy } from 'svelte';
-    import type { GraphLegendItem } from '../lib/graph-theme.js';
+    import { GRAPH_LEGEND_CSS_COLORS, type GraphLegendItem } from '../lib/graph-theme.js';
 
     export let items: GraphLegendItem[] = [];
     export let open = false;
@@ -139,6 +139,19 @@
                 <li class="graph-key-item">
                     {#if item.kind === 'node'}
                         <span class="graph-key-swatch" style:background={item.color}></span>
+                        <span>{item.label}</span>
+                    {:else if item.kind === 'compound'}
+                        <span class="graph-key-compound"></span>
+                        <span>{item.label}</span>
+                    {:else if item.kind === 'group-emphasis'}
+                        <span
+                            class="graph-key-group-emphasis"
+                            class:hover={item.variant === 'hover'}
+                            class:selected={item.variant === 'selected'}
+                            style:--graph-key-group-border={item.variant === 'hover'
+                                ? GRAPH_LEGEND_CSS_COLORS.groupHover
+                                : GRAPH_LEGEND_CSS_COLORS.groupSelected}
+                        ></span>
                         <span>{item.label}</span>
                     {:else}
                         <span class="graph-key-line {item.variant}"></span>

@@ -30,6 +30,16 @@ function isEdgeDefinition(element: ElementDefinition): boolean {
     return element.data.source !== undefined && element.data.target !== undefined;
 }
 
+function sameStringArray(a: readonly string[] | undefined, b: readonly string[] | undefined): boolean {
+    if (a === b) {
+        return true;
+    }
+    if (!a || !b || a.length !== b.length) {
+        return false;
+    }
+    return a.every((value, index) => value === b[index]);
+}
+
 /**
  * Reconcile the cytoscape graph with `slice`, adding/removing/updating elements in place.
  * New nodes are seeded from `persistedPositions` (or a fallback circle) so physics/layout
@@ -102,6 +112,15 @@ function updateElementData(
             element.data(key, next);
             changed = true;
         }
+    }
+
+    // groupIds is an array (multi-membership); compare by value so a grouping-basis
+    // switch (e.g. folders → tags) updates physics membership without a full rebuild.
+    const nextGroupIds = definition.data.groupIds as string[] | undefined;
+    const currentGroupIds = element.data('groupIds') as string[] | undefined;
+    if (!sameStringArray(currentGroupIds, nextGroupIds)) {
+        element.data('groupIds', nextGroupIds);
+        changed = true;
     }
 
     // Compound membership can only change via move(), not data().

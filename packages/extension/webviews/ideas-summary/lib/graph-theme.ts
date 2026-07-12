@@ -16,13 +16,34 @@ export const GRAPH_NODE_COLORS = {
     external: '#cca700'
 } as const;
 
+/** Border widths (px) for canvas + legend — keep in sync. */
+export const GRAPH_EMPHASIS_BORDER = {
+    /** Bright border on group members when the container is hovered. */
+    member: 4,
+    /** Border on directly selected or focused idea nodes. */
+    selected: 3
+} as const;
+
+/**
+ * Group-emphasis border colours. Green is deliberately outside the node-kind
+ * palette (blue/purple/orange/yellow) so the highlight ring stays legible on any
+ * node fill — a blue ring on the blue block/focus nodes was invisible.
+ * CSS var form is for the legend; the `.fallback` hex is for cytoscape.
+ */
+export const GRAPH_EMPHASIS_COLORS = {
+    hover: { css: 'var(--vscode-charts-green, #89d185)', fallback: '#89d185' },
+    selected: { css: 'var(--vscode-testing-iconPassed, #3fb950)', fallback: '#3fb950' }
+} as const;
+
 /** CSS vars for HTML legend only (browser resolves these). */
 export const GRAPH_LEGEND_CSS_COLORS = {
     block: 'var(--vscode-charts-blue, #3794ff)',
     oneliner: 'var(--vscode-charts-purple, #b180d7)',
     ideaset: 'var(--vscode-charts-orange, #d18616)',
     focus: 'var(--vscode-textLink-foreground, #3794ff)',
-    external: 'var(--vscode-editorWarning-foreground, #cca700)'
+    external: 'var(--vscode-editorWarning-foreground, #cca700)',
+    groupHover: GRAPH_EMPHASIS_COLORS.hover.css,
+    groupSelected: GRAPH_EMPHASIS_COLORS.selected.css
 } as const;
 
 export interface GraphLegendNodeItem {
@@ -37,7 +58,22 @@ export interface GraphLegendEdgeItem {
     variant: 'solid' | 'dashed';
 }
 
-export type GraphLegendItem = GraphLegendNodeItem | GraphLegendEdgeItem;
+export interface GraphLegendCompoundItem {
+    kind: 'compound';
+    label: string;
+}
+
+export interface GraphLegendGroupEmphasisItem {
+    kind: 'group-emphasis';
+    label: string;
+    variant: 'hover' | 'selected';
+}
+
+export type GraphLegendItem =
+    | GraphLegendNodeItem
+    | GraphLegendEdgeItem
+    | GraphLegendCompoundItem
+    | GraphLegendGroupEmphasisItem;
 
 export const GRAPH_LEGEND_ITEMS: GraphLegendItem[] = [
     { kind: 'node', label: 'Block idea', color: GRAPH_LEGEND_CSS_COLORS.block },
@@ -45,6 +81,9 @@ export const GRAPH_LEGEND_ITEMS: GraphLegendItem[] = [
     { kind: 'node', label: 'Ideaset', color: GRAPH_LEGEND_CSS_COLORS.ideaset },
     { kind: 'node', label: 'Focused idea', color: GRAPH_LEGEND_CSS_COLORS.focus },
     { kind: 'node', label: 'External file', color: GRAPH_LEGEND_CSS_COLORS.external },
+    { kind: 'compound', label: 'Folder group (container)' },
+    { kind: 'group-emphasis', label: 'Group hover — member border', variant: 'hover' },
+    { kind: 'group-emphasis', label: 'Group selected — member border', variant: 'selected' },
     { kind: 'edge', label: 'Reference', variant: 'solid' },
     { kind: 'edge', label: 'External file reference', variant: 'dashed' }
 ];

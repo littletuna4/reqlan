@@ -67,6 +67,7 @@ layout_physics {
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately
     live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"], regardless of which force-directed batch layout produced the initial settle
     forces are central gravity toward the centroid, linear edge springs, and inverse-square node repulsion; every childless node participates, including disconnected orphans
+    group container constraints live in ["../../../packages/extension/webviews/ideas-summary/lib/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node
     the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it
     dragging pins the held node while the sim keeps running around it; release rejoins the node at rest with no snap; clicks never disturb the sim
     cycling the Animate toggle pauses and resumes the same simulation state, so it converges to the same attractor as leaving it on

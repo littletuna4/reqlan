@@ -17,10 +17,13 @@ import {
     getLayoutConfig,
     isForceDirectedLayout,
     type CompoundBasis,
+    type GroupBasis,
     type LayoutFixedNode,
     type LayoutRunMode
 } from './graph-cytoscape.js';
 import { GraphPhysicsSimulation } from './graph-physics.js';
+import { graphHasGroupConstraints, resolveGroupContainerOverlaps } from './graph-groups.js';
+import { bindCompoundHighlight, syncCompoundSelection } from './graph-cy-highlight.js';
 import { syncGraphElements } from './graph-cy-elements.js';
 import { bindGraphInteractions } from './graph-cy-interactions.js';
 import { graphLog, graphWarn } from './graph-debug.js';
@@ -38,6 +41,8 @@ type GraphLifecycle = 'uninitialized' | 'idle' | 'syncing' | 'layouting' | 'phys
 export interface GraphSyncOptions {
     useCompound: boolean;
     compoundBasis: CompoundBasis;
+    /** When set, flat multi-membership grouping (e.g. tags) replaces compoundBasis. */
+    groupBasis?: GroupBasis;
     centerId?: string;
     selectedId?: string;
 }
@@ -60,6 +65,7 @@ export class GraphCyController {
     private readyRetryTimer: ReturnType<typeof setTimeout> | undefined;
     private resizeObserver: ResizeObserver | undefined;
     private unbindInteractions: (() => void) | undefined;
+    private unbindCompoundHighlight: (() => void) | undefined;
     private activeSyncGeneration = 0;
     private pendingSync: { generation: number; slice: GraphViewSlice; options: GraphSyncOptions } | undefined;
     private syncOptions: GraphSyncOptions = {
@@ -107,6 +113,11 @@ export class GraphCyController {
         });
 
         this.bindInteractions(this.cy);
+        this.unbindCompoundHighlight = bindCompoundHighlight(this.cy, {
+            onCompoundTap: (compoundId) => {
+                this.selectCompound(compoundId);
+            }
+        });
         this.lifecycle = 'idle';
         graphLog('cytoscape init', {
             width: this.options.container.clientWidth,
@@ -133,6 +144,8 @@ export class GraphCyController {
         this.resizeObserver?.disconnect();
         this.unbindInteractions?.();
         this.unbindInteractions = undefined;
+        this.unbindCompoundHighlight?.();
+        this.unbindCompoundHighlight = undefined;
         this.stopPhysics();
         this.physics = undefined;
         this.stopLayout();
@@ -222,8 +235,24 @@ export class GraphCyController {
         if (!this.cy) {
             return;
         }
+        this.cy.$(':selected').unselect();
         this.cy.$id(nodeId).select();
+        syncCompoundSelection(this.cy);
         this.options.onSelect?.(nodeId);
+    }
+
+    selectCompound(compoundId: string): void {
+        if (!this.cy) {
+            return;
+        }
+        this.cy.$(':selected').unselect();
+        const compound = this.cy.$id(compoundId);
+        if (compound.length === 0 || !compound.data('isCompound')) {
+            return;
+        }
+        compound.select();
+        syncCompoundSelection(this.cy);
+        this.options.onSelect?.(undefined);
     }
 
     private bumpSyncGeneration(): number {
@@ -267,6 +296,7 @@ export class GraphCyController {
             },
             onBackgroundTap: () => {
                 this.cy?.$(':selected').unselect();
+                syncCompoundSelection(this.cy!);
                 this.options.onSelect?.(undefined);
             },
             onNodeGrab: (nodeId) => {
@@ -350,6 +380,7 @@ export class GraphCyController {
                 {
                     useCompound: options.useCompound,
                     compoundBasis: options.compoundBasis,
+                    groupBasis: options.groupBasis,
                     centerId: options.centerId
                 },
                 persistedPositions
@@ -408,10 +439,12 @@ export class GraphCyController {
             return;
         }
 
+        this.cy.$(':selected').unselect();
         if (selectedId && this.cy.$id(selectedId).length > 0) {
             this.cy.$id(selectedId).select();
-        } else {
-            this.cy.$(':selected').unselect();
+        }
+        syncCompoundSelection(this.cy);
+        if (!selectedId || this.cy.$id(selectedId).length === 0) {
             this.options.onSelect?.(undefined);
         }
     }
@@ -439,7 +472,14 @@ export class GraphCyController {
         const fixedNodes = this.collectFixedNodes();
         graphLog('layout run', { generation, runId, mode, layoutId: this.layoutId, nodeCount });
         const layout = this.cy.layout(
-            getLayoutConfig(this.layoutId, this.syncOptions.useCompound, mode, nodeCount, fixedNodes)
+            getLayoutConfig(
+                this.layoutId,
+                this.syncOptions.useCompound,
+                mode,
+                nodeCount,
+                fixedNodes,
+                this.animatePhysics
+            )
         );
         this.activeLayout = layout;
 
@@ -451,6 +491,8 @@ export class GraphCyController {
 
             this.activeLayout = undefined;
             graphLog('layoutstop', { generation, runId, mode });
+
+            this.resolveGroupContainersAfterLayout();
 
             const goPhysics = this.animatePhysics && isForceDirectedLayout(this.layoutId);
             if (goPhysics) {
@@ -482,6 +524,19 @@ export class GraphCyController {
                 }
             }
         }, 0);
+    }
+
+    /**
+     * Cola (and other batch layouts) separate leaf nodes but not compound rectangles.
+     * After every batch layout in compound mode, run the shared group constraint pass:
+     * push disjoint containers apart; allow overlap when a node is shared (groupIds).
+     */
+    private resolveGroupContainersAfterLayout(): void {
+        if (!this.cy || !this.syncOptions.useCompound || !graphHasGroupConstraints(this.cy)) {
+            return;
+        }
+        const result = resolveGroupContainerOverlaps(this.cy);
+        graphLog('group containers resolved', result);
     }
 
     /**
