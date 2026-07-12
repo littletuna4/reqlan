@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source srcset="media/logo.webp" type="image/webp">
-    <img src="media/logo.png" alt="reqlan logo" width="128" height="128">
-  </picture>
+  <img src="{{LOGO_URL}}" alt="reqlan logo" width="128" height="128">
 </p>
 
 # {{DISPLAY_NAME}}

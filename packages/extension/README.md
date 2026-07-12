@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source srcset="media/logo.webp" type="image/webp">
-    <img src="media/logo.png" alt="reqlan logo" width="128" height="128">
-  </picture>
+  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
 </p>
 
 # reqlan support
@@ -24,6 +21,15 @@ Language support for the reqlan language
 - [Contact](mailto:reqlan@tony.is-a.dev)
 
 ## Changelog
+
+### 0.0.10
+
+#### Patch Changes
+
+- 020cd59: Fix blocking build issues and update some of the physics
+- Updated dependencies [020cd59]
+  - reqlan-language@0.0.4
+  - reqlan-analytical@0.0.4
 
 ### 0.0.9
 

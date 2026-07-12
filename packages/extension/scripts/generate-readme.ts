@@ -51,10 +51,15 @@ const github = getPhonebookLink("github");
 const vsc = getPhonebookLink("vsc");
 const openvsx = getPhonebookLink("openvsx");
 const email = getPhonebookLink("email");
+const logoUrl = `${github.href.replace(
+  "https://github.com/",
+  "https://raw.githubusercontent.com/",
+)}/HEAD/packages/extension/media/logo.png`;
 
 const readme = renderTemplate(readFileSync(templatePath, "utf8"), {
   DISPLAY_NAME: manifest.displayName,
   DESCRIPTION: manifest.description,
+  LOGO_URL: logoUrl,
   VSC_LABEL: vsc.label,
   VSC_URL: vsc.href,
   OPENVSX_LABEL: openvsx.label,
