@@ -1,5 +1,11 @@
 # site
 
+## 0.2.2
+
+### Patch Changes
+
+- a6c2066: Branding change
+
 ## 0.2.1
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # reqlan
 
+## 0.0.11
+
+### Patch Changes
+
+- a6c2066: Branding change
+- Updated dependencies [a6c2066]
+  - reqlan-analytical@0.0.5
+  - reqlan-language@0.0.5
+
 ## 0.0.10
 
 ### Patch Changes
