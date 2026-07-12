@@ -1,5 +1,11 @@
 # site
 
+## 0.2.1
+
+### Patch Changes
+
+- d63c970: static site.
+
 ## 0.2.0
 
 ### Minor Changes
