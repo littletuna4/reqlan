@@ -16,24 +16,37 @@ const SHIKI_LANGS: Record<Exclude<CodeLanguage, "rq">, string> = {
   py: "python",
 };
 
-let highlighterPromise: Promise<Highlighter> | null = null;
+let highlighter: Highlighter | null = null;
 
-function getHighlighter() {
-  if (!highlighterPromise) {
-    highlighterPromise = createHighlighter({
-      themes: [reqlanTheme],
-      langs: ["typescript", "markdown", "python"],
-    });
-  }
-
-  return highlighterPromise;
+export async function initHighlighter(): Promise<void> {
+  highlighter = await createHighlighter({
+    themes: [reqlanTheme],
+    langs: ["typescript", "markdown", "python"],
+  });
 }
 
 export async function highlightCode(
   code: string,
   language: Exclude<CodeLanguage, "rq">,
 ): Promise<string> {
-  const highlighter = await getHighlighter();
+  if (!highlighter) {
+    await initHighlighter();
+  }
+
+  return highlighter!.codeToHtml(code.trimEnd(), {
+    lang: SHIKI_LANGS[language],
+    theme: "reqlan",
+    defaultColor: false,
+  });
+}
+
+export function highlightCodeSync(
+  code: string,
+  language: Exclude<CodeLanguage, "rq">,
+): string {
+  if (!highlighter) {
+    throw new Error("Highlighter not initialized. Run generate-highlights first.");
+  }
 
   return highlighter.codeToHtml(code.trimEnd(), {
     lang: SHIKI_LANGS[language],

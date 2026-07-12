@@ -3,11 +3,13 @@ import "../../reqlan rq/phonebook.rq" as phonebook_reqs
 import "./icons.rq" as icon_reqs
 
 site {
-    the /site folder contains a next app as a landing page for reqlan.
+    the /site folder contains a static Vite landing page for reqlan.
 }
 
 simple_lightweight_and_static {
-    must be fully statically exported for use in nextjs/gh pages.
+    must be fully statically exported for GitHub Pages.
+    All routes, including showcase detail pages, are generated at build time.
+    The deploy workflow must upload only static HTML, JS, and assets from site/out.
 }
 
 workflow {

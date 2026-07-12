@@ -1,7 +1,4 @@
-"use client";
-
 import { Icon } from "@iconify/react/dist/offline";
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -14,6 +11,7 @@ import {
   type QuickstartIdeId,
 } from "@/content/quickstart";
 import { getPreferredIde } from "@/lib/deeplink";
+import { sitePath } from "@/lib/paths";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
@@ -111,9 +109,9 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
   return (
     <div className={styles.root}>
       <header className={styles.header}>
-        <Link href="/" className={styles.back}>
+        <a href={sitePath("/")} className={styles.back}>
           ← Home
-        </Link>
+        </a>
         <h1 className={styles.title}>{quickstartContent.title}</h1>
         <p className={styles.intro}>{quickstartContent.intro}</p>
       </header>

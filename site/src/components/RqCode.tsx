@@ -1,5 +1,3 @@
-"use client";
-
 import { RqTip } from "@/components/RqTip";
 import { tokenizeRq, type RqTokenType } from "@/lib/rq-highlight";
 import { cn } from "@/lib/utils";

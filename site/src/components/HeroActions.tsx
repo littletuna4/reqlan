@@ -1,10 +1,8 @@
-"use client";
-
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { siteContent } from "@/content/site";
 import { prefersReducedMotion } from "@/lib/deeplink";
+import { sitePath } from "@/lib/paths";
 import { InstallSplitButton } from "@/components/InstallSplitButton";
 import { Tip } from "@/components/Tip";
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
@@ -22,7 +20,7 @@ export function HeroActions() {
     <div className={styles.actions}>
       <div className={styles.row}>
         <Tip label="Open the interactive quickstart guide">
-          <Link href={cta.href} prefetch className={styles.getStartedLink}>
+          <a href={sitePath(`${cta.href}/`)} className={styles.getStartedLink}>
             <HoverBorderGradient
               as="span"
               reducedMotion={reducedMotion}
@@ -31,7 +29,7 @@ export function HeroActions() {
             >
               {cta.label}
             </HoverBorderGradient>
-          </Link>
+          </a>
         </Tip>
 
         <InstallSplitButton />

@@ -31,7 +31,7 @@ icon_registry {
 phonebook_icon_component {
     [phonebook_icon_component] is the single render entry point for phonebook icons.
     It accepts a phonebook `icon` ref and renders an inline SVG with `aria-hidden`.
-    Default sizing uses the `.phonebook-icon` class in ["../src/app/globals.css"].
+    Default sizing uses the `.phonebook-icon` class in ["../src/styles/globals.css"].
 }
 
 link_icons {

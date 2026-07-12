@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
+import type { HighlightKey } from "@/generated/highlights";
 import type { Showcase, ShowcaseBlock } from "@/content/showcases";
+import { sitePath } from "@/lib/paths";
 import cardStyles from "./ShowcaseCard.module.css";
 import shared from "./shared.module.css";
 import styles from "./ShowcaseDetail.module.css";
@@ -9,7 +10,15 @@ type ShowcaseDetailProps = {
   showcase: Showcase;
 };
 
-async function ShowcaseBlockView({ block }: { block: ShowcaseBlock }) {
+function ShowcaseBlockView({
+  block,
+  showcaseId,
+  index,
+}: {
+  block: ShowcaseBlock;
+  showcaseId: string;
+  index: number;
+}) {
   if ("items" in block) {
     return (
       <div className={styles.block}>
@@ -25,20 +34,29 @@ async function ShowcaseBlockView({ block }: { block: ShowcaseBlock }) {
     );
   }
 
+  const highlightKey: HighlightKey | undefined =
+    block.language !== "rq"
+      ? (`showcase:${showcaseId}:${index}` as HighlightKey)
+      : undefined;
+
   return (
     <div className={styles.block}>
       {block.label ? <p className={shared.syntaxLabel}>{block.label}</p> : null}
-      <CodeBlock language={block.language} content={block.code} />
+      <CodeBlock
+        language={block.language}
+        content={block.code}
+        highlightKey={highlightKey}
+      />
     </div>
   );
 }
 
-export async function ShowcaseDetail({ showcase }: ShowcaseDetailProps) {
+export function ShowcaseDetail({ showcase }: ShowcaseDetailProps) {
   return (
     <article className={styles.detail}>
-      <Link href="/showcase" className={styles.back}>
+      <a href={sitePath("/showcase/")} className={styles.back}>
         ← All showcases
-      </Link>
+      </a>
 
       <div className={styles.detailTags}>
         {showcase.tags.map((tag) => (
@@ -52,11 +70,14 @@ export async function ShowcaseDetail({ showcase }: ShowcaseDetailProps) {
       <p className={styles.summary}>{showcase.summary}</p>
 
       <div className={styles.blocks}>
-        {await Promise.all(
-          showcase.blocks.map(async (block, index) => (
-            <ShowcaseBlockView key={index} block={block} />
-          )),
-        )}
+        {showcase.blocks.map((block, index) => (
+          <ShowcaseBlockView
+            key={index}
+            block={block}
+            showcaseId={showcase.id}
+            index={index}
+          />
+        ))}
       </div>
     </article>
   );

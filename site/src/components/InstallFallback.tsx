@@ -1,6 +1,3 @@
-"use client";
-
-import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import {
@@ -12,6 +9,7 @@ import {
   type QuickstartIdeId,
 } from "@/content/install-actions";
 import { attemptDeepLink, setPreferredIde } from "@/lib/deeplink";
+import { sitePath } from "@/lib/paths";
 import styles from "./InstallFallback.module.css";
 
 type InstallFallbackProps = {
@@ -22,7 +20,7 @@ type InstallFallbackProps = {
 export function InstallFallback({ ideId, onDismiss }: InstallFallbackProps) {
   const action = getInstallAction(ideId);
   const marketplaceHref = getMarketplaceHref();
-  const guideHref = `/quickstart?ide=${ideId}`;
+  const guideHref = sitePath(`/quickstart/?ide=${ideId}`);
 
   const copyCli = useCallback(async () => {
     if (!action.cli) {
@@ -63,9 +61,9 @@ export function InstallFallback({ ideId, onDismiss }: InstallFallbackProps) {
         >
           VSIX
         </a>
-        <Link className={styles.chip} href={guideHref} onClick={onDismiss}>
+        <a className={styles.chip} href={guideHref} onClick={onDismiss}>
           Full guide
-        </Link>
+        </a>
       </div>
       <button
         type="button"

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import type { Showcase } from "@/content/showcases";
+import { sitePath } from "@/lib/paths";
 import styles from "./ShowcaseCard.module.css";
 
 type ShowcaseCardProps = {
@@ -7,6 +7,8 @@ type ShowcaseCardProps = {
 };
 
 export function ShowcaseCard({ showcase }: ShowcaseCardProps) {
+  const href = sitePath(`/showcase/${showcase.id}/`);
+
   return (
     <article className={styles.card}>
       <div className={styles.cardTags}>
@@ -18,14 +20,14 @@ export function ShowcaseCard({ showcase }: ShowcaseCardProps) {
       </div>
 
       <h2 className={styles.cardTitle}>
-        <Link href={`/showcase/${showcase.id}`}>{showcase.title}</Link>
+        <a href={href}>{showcase.title}</a>
       </h2>
 
       <p className={styles.cardSummary}>{showcase.summary}</p>
 
-      <Link href={`/showcase/${showcase.id}`} className={styles.cardLink}>
+      <a href={href} className={styles.cardLink}>
         View showcase
-      </Link>
+      </a>
     </article>
   );
 }

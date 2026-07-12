@@ -3,7 +3,7 @@ import { HeroActions } from "@/components/HeroActions";
 import { siteContent } from "@/content/site";
 import styles from "./Hero.module.css";
 
-export async function Hero() {
+export function Hero() {
   const { hero } = siteContent;
 
   return (

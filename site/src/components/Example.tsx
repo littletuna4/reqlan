@@ -2,7 +2,7 @@ import { CodeBlock } from "@/components/CodeBlock";
 import { siteContent } from "@/content/site";
 import shared from "./shared.module.css";
 
-export async function Example() {
+export function Example() {
   const { example } = siteContent;
 
   return (

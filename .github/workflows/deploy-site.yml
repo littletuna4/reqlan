@@ -62,8 +62,7 @@ jobs:
       - name: Build static site
         working-directory: site
         env:
-          NEXT_PUBLIC_BASE_PATH: /reqlan
-          NEXT_PUBLIC_SITE_VERSION: ${{ env.SITE_VERSION }}
+          SITE_BASE_PATH: /reqlan
         run: pnpm run build
 
       - name: Disable Jekyll processing

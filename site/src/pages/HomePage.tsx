@@ -5,7 +5,7 @@ import { Motivation } from "@/components/Motivation";
 import { SiteShell } from "@/components/SiteShell";
 import { Syntax } from "@/components/Syntax";
 
-export default function Home() {
+export function HomePage() {
   return (
     <SiteShell>
       <main>
