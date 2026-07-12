@@ -1,18 +1,23 @@
 phonebook {
     Canonical project links live in ["./phonebook.json"].
     Modules that need contact, repo, or marketplace URLs should read from there instead of hardcoding values.
-    Typed access is shared via ["../../scripts/phonebook.ts"] for the site and extension README generator.
+    Typed access is shared via ["../scripts/phonebook.ts"] for the site and extension README generator.
 }
 
 phonebook_icons {
     Icon sets and lookup URLs live under the `icons` key in ["./phonebook.json"].
     Each link icon references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
     Search a set at its `search` URL when renaming or replacing icons.
-    The site renders icons with Iconify via the packages listed in each set's `package` field per ["../../site/reqs/icons.rq"].
-    Registry: ["../../site/src/lib/phonebook-icons.ts"].
+    The site renders icons with Iconify via the packages listed in each set's `package` field per ["../site/reqs/icons.rq"].
+    Registry: ["../site/src/lib/phonebook-icons.ts"].
 }
 
 extension_readme_links {
-    The extension VSIX README uses phonebook link ids `github`, `vsc`, `openvsx`, and `email` for repository, marketplace, Open VSX, and contact URLs.
-    Generation is defined in ["../distribution/distribution.rq".extension_readme].
+    The extension VSIX README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, and `email` for site, repository, marketplace, Open VSX, and contact URLs.
+    Generation is defined in ["./distribution/distribution.rq".extension_readme].
+}
+
+root_readme_links {
+    The repository README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, and `email` for site, repository, marketplace, Open VSX, and contact URLs.
+    Generation is defined in ["./distribution/distribution.rq".root_readme].
 }

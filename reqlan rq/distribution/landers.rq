@@ -1,0 +1,10 @@
+from "../phonebook.rq" import phonebook
+
+landers {
+    The reqlan extension has the following entry points:
+    - the vsc marketplace and open vsx marketplace via the ["../../packages/extension/README.template.md"]
+    - the site.
+    - the github repository via the ["../../README.template.md"]
+    - landers must keep cross references up to date via the ["../../scripts/phonebook.ts"]
+    [phonebook]
+}

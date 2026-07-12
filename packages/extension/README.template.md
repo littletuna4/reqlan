@@ -15,6 +15,7 @@
 
 ## Links
 
+- [{{SITE_LABEL}}]({{SITE_URL}})
 - [{{VSC_LABEL}}]({{VSC_URL}})
 - [{{OPENVSX_LABEL}}]({{OPENVSX_URL}})
 - [GitHub repository]({{GITHUB_URL}})

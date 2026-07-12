@@ -15,6 +15,14 @@
     }
   },
   "links": {
+    "site": {
+      "label": "Site",
+      "href": "https://tony.is-a.dev/reqlan",
+      "icon": {
+        "set": "mdi",
+        "name": "web"
+      }
+    },
     "vsc": {
       "label": "Visual Studio Marketplace",
       "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",

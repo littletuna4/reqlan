@@ -49,6 +49,12 @@ extension_readme {
   Generated during extension build from ["../../packages/extension/README.template.md"] by ["../../packages/extension/scripts/generate-readme.ts"] per ["../development/build.rq".extension_readme_build].
 }
 
+root_readme {
+  The GitHub repository README is the primary repo lander per ["./landers.rq".landers].
+  Site, marketplace, repository, and contact links come from [phonebook_reqs.phonebook] via ["../../scripts/phonebook.ts"] per [phonebook_reqs.root_readme_links].
+  Generated from ["../../README.template.md"] by ["../../scripts/generate-root-readme.ts"].
+}
+
 vsix_export {
   @steps: (
     cd packages/extension

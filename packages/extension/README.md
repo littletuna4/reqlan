@@ -15,12 +15,22 @@ Language support for the reqlan language
 
 ## Links
 
+- [Site](https://tony.is-a.dev/reqlan)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
 - [Contact](mailto:reqlan@tony.is-a.dev)
 
 ## Changelog
+
+### 0.0.11
+
+#### Patch Changes
+
+- a6c2066: Branding change
+- Updated dependencies [a6c2066]
+  - reqlan-analytical@0.0.5
+  - reqlan-language@0.0.5
 
 ### 0.0.10
 

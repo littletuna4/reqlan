@@ -15,7 +15,8 @@
         "langium:watch": "pnpm --filter ./packages/language run langium:watch",
         "test": "pnpm --filter ./packages/language run test",
         "changeset": "changeset",
-        "version-packages": "changeset version"
+        "version-packages": "changeset version",
+        "build:readme": "pnpm exec tsx scripts/generate-root-readme.ts"
     },
     "devDependencies": {
         "@changesets/cli": "^2.31.0",

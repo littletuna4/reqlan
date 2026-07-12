@@ -1,35 +1,15 @@
 /**
- * Generate README.md for VSIX packaging — see reqlan rq/distribution/distribution.rq extension_readme
+ * Generate README.md for the GitHub repository — see reqlan rq/distribution/distribution.rq root_readme
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { getPhonebookLink } from "../../../scripts/phonebook.ts";
+import { getPhonebookLink } from "./phonebook.ts";
 
-const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-const templatePath = join(extensionRoot, "README.template.md");
-const changelogPath = join(extensionRoot, "CHANGELOG.md");
-const packageJsonPath = join(extensionRoot, "package.json");
-const outputPath = join(extensionRoot, "README.md");
-
-type PackageManifest = {
-  displayName: string;
-  description: string;
-};
-
-function readChangelogBody(): string {
-  const markdown = readFileSync(changelogPath, "utf8").trimEnd();
-  const withoutTitle = markdown.replace(/^#\s+.*\n*/m, "").trimStart();
-
-  if (!withoutTitle) {
-    return "_No releases yet._";
-  }
-
-  return withoutTitle
-    .replace(/^### /gm, "#### ")
-    .replace(/^## /gm, "### ");
-}
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const templatePath = join(repoRoot, "README.template.md");
+const outputPath = join(repoRoot, "README.md");
 
 function renderTemplate(
   template: string,
@@ -44,9 +24,6 @@ function renderTemplate(
   });
 }
 
-const manifest = JSON.parse(
-  readFileSync(packageJsonPath, "utf8"),
-) as PackageManifest;
 const site = getPhonebookLink("site");
 const github = getPhonebookLink("github");
 const vsc = getPhonebookLink("vsc");
@@ -58,9 +35,6 @@ const logoUrl = `${github.href.replace(
 )}/HEAD/packages/extension/media/logo.png`;
 
 const readme = renderTemplate(readFileSync(templatePath, "utf8"), {
-  DISPLAY_NAME: manifest.displayName,
-  DESCRIPTION: manifest.description,
-  LOGO_URL: logoUrl,
   SITE_LABEL: site.label,
   SITE_URL: site.href,
   VSC_LABEL: vsc.label,
@@ -69,7 +43,7 @@ const readme = renderTemplate(readFileSync(templatePath, "utf8"), {
   OPENVSX_URL: openvsx.href,
   GITHUB_URL: github.href,
   EMAIL_URL: email.href,
-  CHANGELOG: readChangelogBody(),
+  LOGO_URL: logoUrl,
 });
 
 writeFileSync(outputPath, `${readme.trimEnd()}\n`, "utf8");
