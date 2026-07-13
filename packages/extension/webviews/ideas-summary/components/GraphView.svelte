@@ -264,7 +264,7 @@
             on:compoundBasisChange={(event) => handleCompoundBasisChange(event.detail)}
             on:clearCenter={clearCenter}
             on:toggleKey={toggleKey}
-            on:resetView={() => controller?.resetView()}
+            on:reframeView={() => controller?.reframeToViewport()}
         />
     </TableToolbar>
 

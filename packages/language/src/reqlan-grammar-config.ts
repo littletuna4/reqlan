@@ -4,7 +4,7 @@
 import type { GrammarConfig, LangiumCoreServices } from 'langium';
 import { createGrammarConfig } from 'langium';
 
-const ReqlanNameRegexp = /"[^"]*"|\w[\w_]*/;
+const ReqlanNameRegexp = /"[^"]*"|'[^']*'|\w[\w_]*/;
 
 export function createReqlanGrammarConfig(services: LangiumCoreServices): GrammarConfig {
     return {

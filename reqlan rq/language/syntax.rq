@@ -7,7 +7,10 @@ file_layout {
     The file forms an implicit ideaset; its name may default to the filename without the suffix.
     Front matter syntax is not yet specified.
     
-    @status: incomplete
+    @status incomplete
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse syntax.rq"]
+    )
 }
 
 keywords {
@@ -43,7 +46,7 @@ ideaset {
     Ideaset members may be unquoted identifiers or quoted strings.
     Ideasets act as namespace containers for ideas, nested ideasets, and references.
 
-    @example: (
+    @example (
         simple_idea,
         block_idea
     )
@@ -53,14 +56,25 @@ import_from {
     From-import syntax uses from, a quoted path, import, and an idea name.
     From-import may include an alias using as.
 
-    @example: {
+    @example {
         from "example.rq" import idea
     }
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses from-import example line inside an attribute block value"]
+    )
 }
 
 import_namespace {
     Namespace import syntax uses import and a quoted path.
     Namespace import may include an alias using as.
+    A bracket reference to the alias alone — for example [context_model] — opens the imported file and links only the alias name, like an ideaset namespace.
+    Qualified references through the alias — for example [context_model.builder] — resolve ideas from the imported module.
+
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve namespace import references to files"]
+        ["../../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
+    )
 }
 
 import_qualified {
@@ -81,16 +95,27 @@ reference_brackets {
 
 same_file_reference {
     [reference_brackets] should work if the target is either imported, or it is in the same file.
+    Forward references to ideas declared later in the file are valid.
+    Circular references between ideas in the same file are valid.
     So, this idea should not throw an error.
 
-    @tests: (
-        ["../../packages/language/test/linking.test.ts"]
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve same-file bracket reference to local idea"]
+        ["../../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
+        ["../../packages/language/test/linking.test.ts:resolve circular same-file references"]
+        ["../../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
     )
 }
 
 reference_wikilink {
     Double-bracket wikilinks use doubled square brackets around a target.
     Wikilinks may include an obsidian-style alias pipe with a display label after the target.
+    A bare pipe character in body prose — for example kind: idea | file | selection — is plain text, not wikilink syntax.
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:keeps pipe characters in body prose as text"]
+        ["../../packages/language/test/parsing.test.ts:parse extension context-scope.rq module"]
+        ["../../packages/language/test/linking.test.ts:resolve wikilink to idea declaration in main.rq"]
+    )
 }
 
 reference_qualified {
@@ -103,6 +128,34 @@ reference_file {
     File reference syntax uses a bracketed quoted path.
     Line or line-range references append L# and services after the path inside the brackets.
     Symbol references append a dot-separated symbol path after the quoted file path.
+}
+
+string_and_reference_apostrophes {
+    strings should use double or single apostrophes interchangeably and support backslash escapes.
+
+    @plan {
+        goal
+            Allow reqlan string literals in imports, idea names, and bracketed file/reference targets to use either double or single quotes with backslash escaping.
+
+        constraints
+            - [string_literals] documents escaping rules; double-quoted syntax must remain valid.
+            - [reference_file] bracketed quoted paths must resolve with either quote style.
+            - Embedded scanners and comment reference parsing must not treat // inside quoted strings as comments.
+
+        steps
+            1. Extend grammar STRING terminal and shared unquote helper for both quote styles.
+            2. Update import/path/comment/embedded reference scanners and completion to accept single-quoted literals.
+            3. Update TextMate highlighting for single-quoted strings.
+            4. Add parsing and reference-resolution tests for single-quoted paths and idea names.
+
+        open questions
+            - None for initial scope; both quote styles apply everywhere STRING is used.
+    }
+
+    @tests (
+        ["../../packages/language/test/references.test.ts:unquotes single-quoted reqlan string literals"]
+        ["../../packages/language/test/parsing.test.ts:parse single-quoted import paths and idea names"]
+    )
 }
 
 reference_embedding {
@@ -122,15 +175,24 @@ attribute_marker {
 attribute_forms {
     A bare attribute name after @ denotes a true flag or render keyword.
     A negated flag uses a trailing bang after the attribute name.
-    A valued attribute uses a colon after the attribute name followed by a value.
+    A valued attribute uses a space after the attribute name followed by a value.
+    A colon after the attribute name is optional legacy syntax and is not part of the value.
     Common attributes include plan, status, priority, criticality, confirmation, owner, log, tags, and references with the @ prefix.
     Any custom attribute name is allowed.
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses valued attributes without a colon"]
+        ["../../packages/language/test/parsing.test.ts:still accepts optional colon before attribute values"]
+    )
 }
 
 
 attribute_location {
     Marked attributes must be at the start of a line. @this_is_not_an_attribute
     @this_is_an_attribute
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
+        ["../../packages/language/test/parsing.test.ts:backslash before @ at line start keeps it as body text"]
+    )
 }
 
 attribute_values {
@@ -143,8 +205,13 @@ lists {
     Parenthesized lists contain newline-separated items.
     Each list item is either a one-liner or a nameless block idea in curly braces.
     Lists may appear as attribute values and inside block bodies.
-    Named lists use a label followed by a parenthesized item list.
-    Nested lists may appear inside block values or as list items.
+    Named lists use a label followed by a parenthesized item list; the opening parenthesis must be followed by a newline before the first item.
+    Nested lists may appear inside block values or as list items; the opening parenthesis must be followed by a newline before the first item.
+    Inline parentheses in body prose — for example continuous ("live") physics or (pixelRatio 1, no WebGL) — are plain text, not lists.
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse list items as one-liners and anonymous blocks"]
+        ["../../packages/language/test/parsing.test.ts:keeps inline parentheses in body prose as text"]
+    )
 }
 
 comments {
@@ -163,12 +230,31 @@ comments {
 comment_reference_ignore {
     Comment reference ignore syntax uses `//rq-ignore-error`.
     Comment reference ignore suppresses diagnostics on the immediately following line.
-    @tests: (
+    @tests (
         ["../../packages/language/test/ignore-error.test.ts"]
     )
 }
 
-code_snippets Idea bodies may embed code snippets delimited by triple backticks.
+code_snippets {
+    Idea bodies and block attribute values may embed fenced code blocks delimited by triple backticks.
+    An opening fence is three backticks on a line, optionally followed by a language tag such as python or rq.
+    A closing fence is three backticks on a line.
+    Everything between the fences is literal opaque text — it is not parsed as reqlan syntax.
+    Keywords, imports, attributes, and quotes inside a fence are inert for the parser and may be shown as examples without parse errors.
+    Fenced blocks may span multiple lines and preserve their inner content verbatim.
+
+    @example {
+        ```python
+        print("hello")
+        ```
+    }
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse code snippet in block idea"]
+        ["../../packages/language/test/parsing.test.ts:parse fenced code block in attribute value"]
+        ["../../packages/language/test/parsing.test.ts:treats fenced rq example as opaque text"]
+    )
+}
 
 comment_reference {
     Reqlan references may appear in line comments of arbitrary source files.
@@ -176,8 +262,27 @@ comment_reference {
 }
 
 string_literals {
-    String literals in import paths and quoted idea names use double quotes.
+    String literals in import paths and quoted idea names may use double or single quotes.
     Escaped characters inside strings follow standard backslash escaping.
+}
+
+naked_strings_in_body {
+    Quoted text in idea bodies, attribute values, and list items is plain prose, not a string literal.
+    Quote characters are preserved in the body text. For example, "Fit to view" in a bullet line is body text.
+    String literals are reserved for import paths, top-level quoted idea names, and quoted paths inside bracket references.
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in block body text"]
+        ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in attribute scalar values"]
+        ["../../packages/language/test/parsing.test.ts:keeps single-quoted naked phrases in block body text"]
+        ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in one-liner body after the idea name"]
+        ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in list items"]
+        ["../../packages/language/test/parsing.test.ts:keeps naked quotes alongside bracket references on one line"]
+        ["../../packages/language/test/parsing.test.ts:does not treat naked quoted path-like prose as an import reference"]
+        ["../../packages/language/test/parsing.test.ts:parses reframe requirement snippets with naked quoted UI labels"]
+        ["../../packages/language/test/parsing.test.ts:parses self-contained ideas with apostrophe contractions in body prose"]
+        ["../../packages/language/test/naked-strings.test.ts"]
+        ["../../packages/language/test/comment-in-string.test.ts:single-quoted URL in block body is naked prose"]
+    )
 }
 
 anonymous_imports_allowed {
@@ -186,4 +291,44 @@ anonymous_imports_allowed {
 
 markdown_links {
     markdown style links should be supported. [label](target) where label can be anythign and not be treated as reference
+}
+
+round_brackets {
+    Round brackets indicate a list of ideas or attributes. Items may be separated by commas or newlines.
+    Attribute list values may use commas or newlines; see @example_list_attribute_using_commas and @example_list_attribute_using_newlines.
+    Parentheses in body prose — including API call shapes like cytoscape.animate({ fit, easing: 'ease-out-cubic' }) — are plain text, not list syntax.
+    @example_list_attribute_using_commas (
+        idea1,
+        idea2,
+        idea3
+    )
+    @example_list_attribute_using_newlines (
+        idea1
+        idea2
+        idea3
+    )
+    @example_list_containing_ideas (
+        subidea1
+        subidea2
+    )
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:keeps inline parentheses in body prose as text"]
+        ["../../packages/language/test/parsing.test.ts:keeps inline braces in body prose as text"]
+        ["../../packages/language/test/parsing.test.ts:parse extension graph.rq library"]
+    )
+}
+
+subidea1 hello
+
+subidea2 {
+    hi, i'm a subidea
+}
+
+example_ideaset (
+    subidea1,
+    subidea2
+)
+
+references_to_subidea {
+    It should be acceptable to reference [example_ideaset.subidea1]
 }

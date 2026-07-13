@@ -43,7 +43,7 @@ sensible_alias_support {
     @subreqs (
         duplicate_error {
             should be raised if the idea has the same name as any other idea in the context.
-            @tests: (
+            @tests (
                 ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
                 ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
             )
@@ -55,9 +55,20 @@ sensible_alias_support {
             myidea this a new idea. maybe it references [myideaalias]
             ```
             `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
-            @tests: (
+            @tests (
                 "../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"
             )
             }
+    )
+}
+
+at_sign_in_idea_text_block{
+    the @ symbol should only indicate an attribute if at the start of a line. 
+    it should be escapeable with a backslash (although any character would work as the @ would no longer be at the start of the line)
+    so @this_is_not_an_attribute
+    @this_is_an_attribute
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
+        ["../../packages/language/test/parsing.test.ts:backslash before @ at line start keeps it as body text"]
     )
 }

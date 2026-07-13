@@ -5,7 +5,7 @@ import type { CstNode, FileSystemProvider, LangiumDocuments } from 'langium';
 import { AstUtils, GrammarUtils } from 'langium';
 import { isIdea, isModel, isOneLinerIdea, type Import, type LocalReference, type QualifiedReference } from './generated/ast.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
-import { resolveParsedFileLink, type ResolvedFileLink } from './reqlan-file-link-resolver.js';
+import { bindingNameSourceRange, resolveImportedFileLink, type ResolvedFileLink } from './reqlan-file-link-resolver.js';
 
 export function namespaceImportBindingName(reference: LocalReference): string | undefined {
     if (reference.idea) {
@@ -28,15 +28,15 @@ export function isNamespaceImportOnlyReference(reference: LocalReference | Quali
     if (!bindingName) {
         return false;
     }
+    const document = AstUtils.getDocument(reference);
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return false;
+    }
     if (reference.idea?.ref) {
         return false;
     }
     if (reference.ideaset?.ref) {
-        return false;
-    }
-    const document = AstUtils.getDocument(reference);
-    const model = document.parseResult.value;
-    if (!isModel(model)) {
         return false;
     }
     if (model.elements.some(element =>
@@ -73,7 +73,13 @@ export function resolveNamespaceImportReferenceLink(
     if (!pathNode) {
         return undefined;
     }
-    return resolveParsedFileLink(document, documents, fileSystem, { filePath: importDecl.path }, pathNode);
+    return resolveImportedFileLink(
+        document,
+        documents,
+        fileSystem,
+        importDecl.path,
+        bindingNameSourceRange(pathNode, bindingName)
+    );
 }
 
 function isNamespaceImportBinding(importDecl: Import, bindingName: string): boolean {

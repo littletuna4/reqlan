@@ -35,7 +35,7 @@ build_prepare {
 webview_build {
     Svelte webview UI is bundled with Vite per [development_core].
     Config: [ideas_summary_vite_config]
-    @steps: (
+    @steps (
         npx vite build --config webviews/ideas-summary/vite.config.ts
     )
     Output lands in `packages/extension/media/webviews/ideas-summary/` for the extension host to load.
@@ -49,7 +49,7 @@ extension_typecheck {
 
 extension_bundle {
     The extension host (`src/extension/main.ts`) and language server (`src/language/main.ts`) are bundled with esbuild per [extension_esbuild].
-    @steps: (
+    @steps (
         node esbuild.mjs
     )
     Output: CommonJS `.cjs` files under `packages/extension/out/`.

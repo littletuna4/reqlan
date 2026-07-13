@@ -58,7 +58,7 @@ describe('Completion', () => {
     test('suppresses completion in main description prose', async () => {
         document = await parse(`demo {
             This is main description prose.
-            @tags: (todo)
+            @tags (todo)
         }`);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
 
@@ -96,10 +96,10 @@ describe('Completion', () => {
     // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
     test('completes attribute values from workspace and index catalog', async () => {
         document = await parse(`demo {
-            @status: don
+            @status don
         }
         other {
-            @status: done
+            @status done
         }`);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
 

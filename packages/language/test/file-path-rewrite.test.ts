@@ -41,6 +41,16 @@ describe('findPathReferencesInMovedFile', () => {
         expect(refs.map(ref => ref.path)).toEqual(['./imports.rq', '../shared/base.rq']);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('finds single-quoted import and embedded paths in rq files', () => {
+        const text = [
+            "from './imports.rq' import myidea",
+            "see also ['../shared/base.rq']"
+        ].join('\n');
+        const refs = findPathReferencesInMovedFile(text, true);
+        expect(refs.map(ref => ref.path)).toEqual(['./imports.rq', '../shared/base.rq']);
+    });
+
     // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
     test('finds rq comment paths in code files', () => {
         const text = '// built for rq:["./main.rq".myidea]';

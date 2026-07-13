@@ -2,42 +2,46 @@
 graph_library {
     Reusable cytoscape-based graph visualization library for force-directed and compound graphs.
     Provides a mount → sync slice → layout → optional live physics → destroy lifecycle with a simplified API.
-    Implementation lives in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cytoscape.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-controller.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-interactions.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-highlight.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"], ["../../../packages/extension/webviews/ideas-summary/lib/graph-groups.ts"], and ["../../../packages/extension/webviews/ideas-summary/lib/graph-theme.ts"].
+    Implementation lives in ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"], ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"], ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"], and ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"].
+    Ideas Summary re-exports the shared modules from ["../../../packages/extension/webviews/ideas-summary/lib/"] for backward-compatible import paths.
     Consumers pass a node/edge slice and sync options; the library owns the cytoscape instance, diffing, layout runs, and optional continuous physics.
 }
 
 technology {
     uses cytoscape.js for the graph layout and canvas.
     cytoscape-fcose provides the batch force-directed settle; cytoscape-cola is available as a batch layout option.
-    continuous ("live") physics is a custom simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"].
+    continuous ("live") physics is a custom simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"].
     the controller initialises cytoscape with Canvas 2D only (pixelRatio 1, no WebGL) so webviews do not break on unresolved CSS variables.
+    Body prose with inline parentheses must parse per ["../../../reqlan rq/language/syntax.rq".lists] and ["../../../reqlan rq/language/syntax.rq".round_brackets].
 }
 
 graph_cytoscape {
     builds cytoscape elements and stylesheet from a generic node/edge slice.
     registers batch layout options (fcose, cola, breadthfirst, circle, concentric, grid, random) and seeds positions for new nodes.
     exposes CompoundBasis (single-membership folder tree) and GroupBasis (flat multi-membership) as grouping inputs.
-    per ["../../../packages/extension/webviews/ideas-summary/lib/graph-cytoscape.ts"] and ["../../../packages/extension/webviews/ideas-summary/lib/graph-theme.ts"].
+    per ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"] and ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"].
+    getLayoutConfig sets fit:false for initial (mode === 'initial') batch layouts so [auto_reframe] owns the first viewport fit; relayout modes may still fit via the layout algorithm.
 }
 
 graph_cy_controller {
     the cytoscape object should use event driven patterns; lifecycle is documented here.
 
-    GraphCyController in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-controller.ts"] owns the cytoscape instance with inline lifecycle state (idle, syncing, layouting, physics).
+    GraphCyController in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"] owns the cytoscape instance with inline lifecycle state (idle, syncing, layouting, physics).
     syncGeneration cancels stale layout callbacks when the slice changes mid-layout.
     Selection and drag-pinned positions are tracked in userPositionedNodes on the controller.
-    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
-    Pointer/selection wiring lives in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-interactions.ts"]; compound hover/selection in ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-highlight.ts"].
-    Live physics is the custom simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"]; one instance persists with the cytoscape instance and is paused/resumed, never rebuilt. Grabbing a node pins it in the running sim (its live position keeps exerting forces); release unpins with no restart and no snap.
+    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
+    Pointer/selection wiring lives in ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]; compound hover/selection in ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"].
+    Live physics is the custom simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"]; one instance persists with the cytoscape instance and is paused/resumed, never rebuilt. Grabbing a node pins it in the running sim (its live position keeps exerting forces); release unpins with no restart and no snap.
     ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
     Mount only while the graph container is visible and non-zero — do not keep cytoscape alive under display:none; WebGL init on a zero-size hidden container can break the host webview before messaging is attached.
+    Viewport fitting per [reframe_view]; tracks lastSyncedNodeSetKey vs fittedNodeSetKey to drive [auto_reframe].
 }
 
 graph_cy_elements {
     syncGraphElements diffs the live cytoscape graph against the desired slice rather than remove-all/add-all on every sync.
     Surviving nodes keep positions; only added/removed/updated elements move.
     Mutable data fields (label, color, flags) can update without a structural relayout.
-    per ["../../../packages/extension/webviews/ideas-summary/lib/graph-cy-elements.ts"].
+    per ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"].
 }
 
 webview_threading {
@@ -50,9 +54,9 @@ webview_threading {
 layout_physics {
     defaults to force-directed layout (fcose) with animation on, but callers can select other options offered by cytoscape.js.
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately.
-    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/ideas-summary/lib/graph-physics.ts"], regardless of which force-directed batch layout produced the initial settle.
+    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"], regardless of which force-directed batch layout produced the initial settle.
     forces are central gravity toward the centroid, linear edge springs, and inverse-square node repulsion; every childless node participates, including disconnected orphans.
-    group container constraints live in ["../../../packages/extension/webviews/ideas-summary/lib/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node.
+    group container constraints live in ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node.
     the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it.
     dragging pins the held node while the sim keeps running around it; release rejoins the node at rest with no snap; clicks never disturb the sim.
     cycling the Animate toggle pauses and resumes the same simulation state, so it converges to the same attractor as leaving it on.
@@ -61,6 +65,41 @@ layout_physics {
 view_controls {
     pan, zoom, and drag repositioning are supported on the canvas.
     zoom range is wide rather than tightly capped so users can inspect fine detail or see the whole neighbourhood.
+    [reframe_view] fits and centres the camera on the graph bounding box without changing node positions or restarting layout/physics.
+}
+
+reframe_view {
+    Shared viewport behaviour for every surface that mounts GraphCyController (Ideas Summary graph tab, activity bar mini graph, and future consumers).
+    Implementation: reframeGraphToViewport and GraphCyController.reframeToViewport in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]. 
+    [manual_reframe]
+    [auto_reframe]
+    [reframe_animation]
+    Constants: GRAPH_VIEWPORT_PADDING (36px padding around the element bounding box), GRAPH_REFRAME_ANIMATION_MS (400ms animated transition).
+    Reframes resize the cytoscape container first, then fit all elements and centre the camera.
+    Does not clear selection, centreId, user-pinned drag positions, or live physics state — viewport only.
+}
+
+manual_reframe {
+    Users can explicitly reframe the viewport when pan/zoom has moved the graph off-screen or they want to see the whole neighbourhood again.
+    - "Fit to view" control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] dispatches to GraphView → GraphCyController.reframeToViewport().
+    - "Fit to view" control in ["../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte"] calls the same API on the mini-graph controller.
+    Every graph surface that mounts GraphCyController should expose this control.
+}
+
+auto_reframe {
+    The graph should automatically fit to the viewport when the loaded node set changes — without requiring the user to click "Fit to view".
+    After each successful syncSlice, GraphCyController compares the sorted node-id set of the incoming slice with fittedNodeSetKey (the set the viewport was last fitted to).
+    When they differ, finishRender triggers an automatic reframe via reframeToViewport.
+    Triggers when any node is added or removed from the slice (new neighbourhood, focus change, filter change that changes membership).
+    Does not trigger for metadata-only updates on the same node ids (label, colour, isCenter flag, etc.) — those keep the user's current pan/zoom.
+    Does not trigger on requestLayout relayout when the node-id set is unchanged.
+}
+
+reframe_animation {
+    The first reframe on a controller mount is instant (synchronous cy.fit + cy.center) so the graph appears immediately on first paint.
+    Every subsequent reframe — automatic ([auto_reframe]) or manual ([manual_reframe]) — animates pan and zoom smoothly over GRAPH_REFRAME_ANIMATION_MS using cytoscape.animate({ fit, easing: 'ease-out-cubic' }).
+    Callers may pass `reframeToViewport({ animate: false })` to force an instant reframe.
+    Initial batch layouts use fit:false (see [graph_cytoscape]) so the controller owns the first fit and later animated handoffs are not double-applied.
 }
 
 layout_options {

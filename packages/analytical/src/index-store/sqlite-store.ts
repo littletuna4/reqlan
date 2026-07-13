@@ -5,21 +5,24 @@
 import initSqlJs from 'sql.js/dist/sql-asm.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
-import { MIGRATIONS, SCHEMA_VERSION } from './schema.js';
+import { BASE_MIGRATIONS, SCHEMA_VERSION, VERSION_MIGRATIONS } from './schema.js';
 import type {
     EdgeKind,
     EdgeRecord,
     IdeaRecord,
     IdeaReferenceChip,
     IdeaSummary,
+    IdeaWithRange,
     IdeasetKind,
     IdeasetMemberRow,
     IdeasetTableRow,
     IdeaTableRow,
+    ReferenceListRow,
     ReferenceTableRow,
-    ReferenceViewType
+    ReferenceViewType,
+    AncestorChainResult
 } from '../core/types.js';
-import { ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
+import { BLOCKING_STATUSES, ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
 import type {
     IdeasTableQuery,
     IdeasetsTableQuery,
@@ -126,8 +129,11 @@ export class SqliteIndexStore {
             }
 
             const insertEdgeSql = `
-                INSERT OR IGNORE INTO edges (id, source_id, target_id, target_file, kind, label)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO edges (
+                    id, source_id, target_id, target_file, kind, label,
+                    source_line, snippet, is_resolved
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             for (const edge of edges) {
                 await run(this.db, insertEdgeSql,
@@ -136,7 +142,10 @@ export class SqliteIndexStore {
                     edge.targetId ?? null,
                     edge.targetFile ?? null,
                     edge.kind,
-                    edge.label ?? null
+                    edge.label ?? null,
+                    edge.sourceLine ?? null,
+                    edge.snippet ?? null,
+                    edge.isResolved === false ? 0 : 1
                 );
             }
 
@@ -208,6 +217,131 @@ export class SqliteIndexStore {
             ORDER BY line_start
         `, fileUri);
         return rows.map(row => this.toSummary(row));
+    }
+
+    async getIdeaAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
+        const row = await get<SummaryRow>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+            FROM ideas
+            WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind != 'ideaset'
+            ORDER BY line_start DESC
+            LIMIT 1
+        `, fileUri, line, line);
+        return row ? this.toSummary(row) : undefined;
+    }
+
+    async listIdeasInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
+        const rows = await all<SummaryRowWithEnd>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json
+            FROM ideas
+            WHERE file_uri = ? AND kind != 'ideaset'
+            ORDER BY line_start ASC
+        `, fileUri);
+        return rows.map(row => ({
+            ...this.toSummary(row),
+            lineEnd: row.line_end
+        }));
+    }
+
+    async listReferencesForIdea(ideaId: string): Promise<ReferenceListRow[]> {
+        const outbound = await all<ReferenceListSqlRow>(this.db, `
+            SELECT
+                e.id AS edge_id,
+                e.kind,
+                e.source_id,
+                e.target_id,
+                e.target_file,
+                e.label,
+                e.source_line,
+                e.snippet,
+                e.is_resolved,
+                ti.name AS target_name,
+                ti.file_uri AS target_uri,
+                ti.line_start AS target_line
+            FROM edges e
+            LEFT JOIN ideas ti ON ti.id = e.target_id
+            WHERE e.source_id = ?
+            ORDER BY e.kind, e.id
+        `, ideaId);
+
+        const inbound = await all<ReferenceListSqlRow>(this.db, `
+            SELECT
+                e.id AS edge_id,
+                e.kind,
+                e.source_id,
+                e.target_id,
+                e.target_file,
+                e.label,
+                e.source_line,
+                e.snippet,
+                e.is_resolved,
+                si.name AS source_name,
+                si.file_uri AS source_uri,
+                si.line_start AS source_line_idea
+            FROM edges e
+            JOIN ideas si ON si.id = e.source_id
+            WHERE e.target_id = ?
+            ORDER BY e.kind, e.id
+        `, ideaId);
+
+        const rows: ReferenceListRow[] = [];
+        for (const row of outbound) {
+            rows.push(toOutboundReferenceListRow(row));
+        }
+        for (const row of inbound) {
+            rows.push(toInboundReferenceListRow(row));
+        }
+        return rows;
+    }
+
+    async countUnresolvedForIdea(ideaId: string): Promise<number> {
+        return (await get<{ count: number }>(this.db, `
+            SELECT COUNT(*) AS count FROM edges
+            WHERE source_id = ? AND is_resolved = 0
+        `, ideaId))!.count;
+    }
+
+    async listAncestorChain(ideaId: string, maxDepth = 8): Promise<IdeaSummary[]> {
+        const ancestors: IdeaSummary[] = [];
+        const visited = new Set<string>([ideaId]);
+        let frontier = [ideaId];
+
+        for (let depth = 0; depth < maxDepth; depth++) {
+            const nextFrontier: string[] = [];
+            for (const currentId of frontier) {
+                for (const edge of await this.getEdgesFrom(currentId)) {
+                    if (edge.kind !== 'references' || !edge.targetId || visited.has(edge.targetId)) {
+                        continue;
+                    }
+                    visited.add(edge.targetId);
+                    const idea = await this.getIdea(edge.targetId);
+                    if (idea) {
+                        ancestors.push(idea);
+                        nextFrontier.push(edge.targetId);
+                    }
+                }
+            }
+            if (nextFrontier.length === 0) {
+                break;
+            }
+            frontier = nextFrontier;
+        }
+
+        return ancestors;
+    }
+
+    async buildAncestorChainResult(ideaId: string, maxDepth = 8): Promise<AncestorChainResult> {
+        const ancestors = await this.listAncestorChain(ideaId, maxDepth);
+        const statusRollup: Record<string, number> = {};
+        const blocking: IdeaSummary[] = [];
+        for (const ancestor of ancestors) {
+            const status = (ancestor.status ?? 'unspecified').toLowerCase();
+            statusRollup[status] = (statusRollup[status] ?? 0) + 1;
+            if (BLOCKING_STATUSES.has(status)) {
+                blocking.push(ancestor);
+            }
+        }
+        return { ideaId, ancestors, statusRollup, blocking };
     }
 
     async getEdgesFrom(sourceId: string): Promise<EdgeRecord[]> {
@@ -597,9 +731,28 @@ export class SqliteIndexStore {
     }
 
     private async migrate(): Promise<void> {
-        for (const statement of MIGRATIONS) {
+        for (const statement of BASE_MIGRATIONS) {
             await exec(this.db, statement);
         }
+
+        const currentVersion = Number(
+            (await get<{ value: string }>(this.db, `SELECT value FROM meta WHERE key = 'schema_version'`))?.value ?? '1'
+        );
+
+        for (let version = currentVersion + 1; version <= SCHEMA_VERSION; version++) {
+            const steps = VERSION_MIGRATIONS[version] ?? [];
+            for (const statement of steps) {
+                try {
+                    await exec(this.db, statement);
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    if (!message.includes('duplicate column')) {
+                        throw error;
+                    }
+                }
+            }
+        }
+
         await run(this.db, `
             INSERT INTO meta (key, value) VALUES (?, ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value
@@ -906,6 +1059,65 @@ function toReferenceViewType(kind: EdgeKind): ReferenceViewType {
     }
 }
 
+interface SummaryRowWithEnd extends SummaryRow {
+    line_end: number;
+}
+interface ReferenceListSqlRow {
+    edge_id: string;
+    kind: string;
+    source_id: string;
+    target_id: string | null;
+    target_file: string | null;
+    label: string | null;
+    source_line: number | null;
+    snippet: string | null;
+    is_resolved: number | null;
+    target_name?: string | null;
+    target_uri?: string | null;
+    target_line?: number | null;
+    source_name?: string | null;
+    source_uri?: string | null;
+    source_line_idea?: number | null;
+}
+
+function toOutboundReferenceListRow(row: ReferenceListSqlRow): ReferenceListRow {
+    const targetName = row.target_name ?? row.label ?? row.target_file ?? 'unknown';
+    const targetPath = row.target_uri ?? row.target_file ?? '';
+    return {
+        edgeId: row.edge_id,
+        direction: 'outbound',
+        kind: row.kind as EdgeKind,
+        label: row.label ?? targetName,
+        targetName,
+        targetPath,
+        targetLine: row.target_line ?? undefined,
+        sourceLine: row.source_line ?? undefined,
+        snippet: row.snippet ?? undefined,
+        isResolved: row.is_resolved !== 0,
+        sourceIdeaId: row.source_id,
+        targetIdeaId: row.target_id ?? undefined
+    };
+}
+
+function toInboundReferenceListRow(row: ReferenceListSqlRow): ReferenceListRow {
+    const targetName = row.source_name ?? 'unknown';
+    const targetPath = row.source_uri ?? '';
+    return {
+        edgeId: row.edge_id,
+        direction: 'inbound',
+        kind: row.kind as EdgeKind,
+        label: row.label ?? targetName,
+        targetName,
+        targetPath,
+        targetLine: row.source_line_idea ?? undefined,
+        sourceLine: row.source_line ?? undefined,
+        snippet: row.snippet ?? undefined,
+        isResolved: row.is_resolved !== 0,
+        sourceIdeaId: row.source_id,
+        targetIdeaId: row.target_id ?? undefined
+    };
+}
+
 interface SqliteEdgeRow {
     id: string;
     source_id: string;
@@ -913,6 +1125,9 @@ interface SqliteEdgeRow {
     target_file: string | null;
     kind: string;
     label: string | null;
+    source_line?: number | null;
+    snippet?: string | null;
+    is_resolved?: number | null;
 }
 
 interface SqliteIdeaRow {
@@ -936,7 +1151,12 @@ function mapEdgeRow(row: SqliteEdgeRow): EdgeRecord {
         targetId: row.target_id ?? undefined,
         targetFile: row.target_file ?? undefined,
         kind: row.kind as EdgeKind,
-        label: row.label ?? undefined
+        label: row.label ?? undefined,
+        sourceLine: row.source_line ?? undefined,
+        snippet: row.snippet ?? undefined,
+        isResolved: row.is_resolved === undefined || row.is_resolved === null
+            ? true
+            : row.is_resolved !== 0
     };
 }
 

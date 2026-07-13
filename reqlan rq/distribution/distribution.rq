@@ -56,7 +56,7 @@ root_readme {
 }
 
 vsix_export {
-  @steps: (
+  @steps (
     cd packages/extension
     pnpm run build
     vsce package --no-dependencies

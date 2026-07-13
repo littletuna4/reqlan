@@ -1,4 +1,7 @@
 import "../../brand.rq" as brand
+import "../../phonebook.rq" as phonebook_reqs
+import "./context-scope.rq" as context_scope_doc
+import "./graph-path.rq" as graph_path_doc
 import "../features-graph-analysers.rq" as graph_analysers
 import "../features-commands.rq" as commands
 import "../features-consumption.rq" as consumption
@@ -6,13 +9,17 @@ import "../library/graph.rq" as graph_lib
 import "./webview.rq" as webview_doc
 import "./graphical_graph.rq" as graphical_graph_doc
 import "../../../reqlan rq/development/core.rq" as development_core
-import "../../../packages/extension/src/activity_bar_module/activity-bar-provider.ts" as activity_bar_provider
+import "../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
+import "../../../packages/extension/src/activity_bar_module/activity-bar-data-service.ts" as activity_bar_data
+import "../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts" as activity_bar_messages
 import "../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../packages/extension/webviews/activity-bar/App.svelte" as ActivityBarApp
+import "../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte" as MiniGraphCanvas
 
 activity_bar {
     The extension should provide an activity bar sidebar for editor-adjacent requirement context per [consumption.local_graph_view].
     UI is implemented as Svelte webview panes per [development_core], not as a long-lived tree of static rows.
-    The host loads slices from the index via [graph_analysers.local_graph_analysis] and forwards editor focus through [activity_bar_provider].
+    The host loads slices from the index via [graph_analysers.local_graph_analysis] and forwards editor focus through [activity_bar_webview] and [activity_bar_data].
     Panes should be performance conscious: capped neighbourhoods, lazy cytoscape mount, debounced cursor updates — same discipline as [webview_doc.webview].
     Workspace-wide tables, full layout controls, and unconstrained graph dumps belong in Ideas Summary per [webview_doc]; panes link out with prefilled state instead of duplicating those views.
 }
@@ -28,7 +35,7 @@ panes {
     - [ideaset_pane]
     - [file_references_pane]
     - [recent_pane]
-    - [index_health_pane]
+    - [workspace_pane]
 }
 
 header_buttons {
@@ -39,6 +46,14 @@ header_buttons {
     - "Export slice": JSON or CSV of the current neighbourhood only (lighter than workspace [commands.export_json] / [commands.export_csv]).
     - "Copy as markdown": copy the focused idea plus parents and reference lists for pasting into chat or PRs.
     - Refresh control tied to index readiness.
+    - [info_site_link]
+}
+
+info_site_link {
+    The header shows an info control that opens the project site in the system browser.
+    Link id `site` from [phonebook_reqs.phonebook] per [phonebook_reqs.activity_bar_site_link].
+    Resolved in the extension host via ["../../../packages/extension/src/shared/phonebook.ts"] (canonical data in ["../../phonebook.json"]), not hardcoded in the webview.
+    The webview receives the resolved label and href from [activity_bar_webview] and posts `openPhonebookLink` when the user activates the control.
 }
 
 current_file_pane {
@@ -51,19 +66,20 @@ current_file_pane {
 }
 
 scope_pane {
-    Current scope for the active editor.
-    - Show the active file path (click opens the file).
-    - Highlight the idea at the caret: name, @status, tags, and a one-line summary.
-    - List all ideas in the file with line ranges; click jumps in the editor, double-click focuses [miniature_graph_pane] on that idea.
-    - Shallow outline of nested block ideas (parent → child) when the file contains nested structures.
-    - Badge for unresolved or broken references in the current scope; clicking filters [reference_lists_pane] to broken edges only.
+    Composed context inspector per [context_scope_doc.scope_pane_design].
+    Built from [context_scope_doc.reqlan_context_model]; not a flat file list.
+    See [context_scope_doc.context_dimensions] for workspace, current file, open files, file history, edit history, manual, and git lenses.
+    Legacy file-only fields live in [context_scope_doc.current_file_context] / currentFile slice when the current-file lens is expanded.
 }
 
 miniature_graph_pane {
     A small interactive graph centred on the cursor idea (or the file's first idea when the caret is outside any block).
     Consumes [graph_lib.graph_library] with sidebar-appropriate defaults; slices from [graph_analysers.local_graph_analysis].
     - Default depth 1; +/- controls expand or collapse neighbourhood depth without opening Ideas Summary.
-    - Pan, zoom, and drag per [graph_lib.view_controls]; no full layout/physics menus here (defer to [graphical_graph_doc.graphical_graph]).
+    - Pan, zoom, and drag per [graph_lib.view_controls].
+    - [graph_lib.manual_reframe] — "Fit to view" in [MiniGraphCanvas]; same API as the full graph tab.
+    - [graph_lib.auto_reframe] and [graph_lib.reframe_animation] when the neighbourhood node set changes (instant first fit, animated afterward).
+    - No full layout/physics menus here (defer to [graphical_graph_doc.graphical_graph]).
     - Single-click a node opens its source; double-click or "Focus" recentres the slice on that idea.
     - Edge kinds styled like the full graph (including dashed file-reference edges).
     - When nodes are truncated per [graphical_graph_doc.node_truncation], show "+N more" with a control to open the centred slice in Ideas Summary.
@@ -90,10 +106,10 @@ parent_nodes_pane {
 }
 
 selection_pane {
-    When the user selects text spanning one or more ideas, or multi-selects ideas in the outline.
-    - Union of inbound and outbound references across the selection.
-    - Merged miniature graph for the selection (still capped; same truncation rules as [miniature_graph_pane]).
-    - Hidden when there is no multi-idea selection.
+    When the user selects text spanning one or more `.rq` ideas ([context_scope_doc.context_selection]).
+    - List selected ideas with Focus and Pin actions.
+    - Contributes selection idea ids to [context_scope_doc.context_footprint] and may pair with [graph_path_doc.graph_path_walk] as path endpoints.
+    - Hidden when there is no non-empty multi-line selection overlapping ideas.
 }
 
 ideaset_pane {
@@ -115,14 +131,18 @@ recent_pane {
     - Click opens the idea; optional pin to [context_tray].
 }
 
-index_health_pane {
-    Compact index status without duplicating the full Index tab in [webview_doc.index_panel].
-    - Ready / syncing / stale indicator and summary counts.
-    - Error count with expand to list errors; refresh and rebuild actions delegate to [webview_doc.index_panel] behaviour.
+workspace_pane {
+    Workspace-wide index health, errors, and activity — without duplicating the full Index tab in [webview_doc.index_panel].
+    - State badge with idea and reference counts; file issue count when non-zero.
+    - Sync progress while indexing.
+    - Global and per-file error details with phase and cause.
+    - Clickable file issue list opens the source location in the editor.
+    - Recent index activity log.
+    - Refresh, clear & rebuild, and "Open index tab" hand off to [ideas_summary_panel].
 }
 
 context_tray {
-    A small pinned set of ideas carried across panes for AI context.
+    A small pinned set of ideas carried across panes for AI context — the [context_scope_doc.manual_context] dimension.
     - Chips for pinned ideas with remove control.
     - "Clear tray" and "Copy tray as markdown" actions.
     - Tray contents are included when invoking @reqlan context or divide-and-conquer flows per [commands.divide_and_conquer].
@@ -142,5 +162,21 @@ implementation_priority {
     2. [miniature_graph_pane] with expand/collapse and handoff to Ideas Summary.
     3. [parent_nodes_pane] with status rollup.
     4. [context_tray] and create-stub integration with [commands.pallete_function_create_todo].
-    5. [selection_pane], [ideaset_pane], [file_references_pane], [recent_pane], [index_health_pane].
+    5. [selection_pane], [ideaset_pane], [file_references_pane], [recent_pane].
+}
+
+component_list {
+    Priority release (shipped):
+    - Shell: [ActivityBarApp], HeaderBar (includes [info_site_link]), CollapsiblePane in ["../../../packages/extension/webviews/activity-bar/"]
+    - Panes: WorkspacePane, ScopePane, SelectionPane, ReferenceListsPane, MiniatureGraphPane, ParentNodesPane, ContextTray
+    - Graph: [MiniGraphCanvas] consuming shared graph lib per [graph_lib]
+    - Host: [activity_bar_webview], [activity_bar_data], wire types in [activity_bar_messages]
+    - HTML: ["../../../packages/extension/src/activity_bar_module/get-activity-bar-html.ts"]
+    - Build: ["../../../packages/extension/webviews/activity-bar/vite.config.ts"] → media/webviews/activity-bar/
+
+    Deferred (not in priority release):
+    - IdeasetPane, FileReferencesPane, RecentPane
+    - [graph_path_doc.graph_path_walk] UI pane
+    - ExportSliceButton, CreateStubReference action
+    - Full workspace export via [commands.export_json] / [commands.export_csv]
 }

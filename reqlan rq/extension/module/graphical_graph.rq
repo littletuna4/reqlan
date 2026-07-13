@@ -1,4 +1,4 @@
-from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, webview_threading
+from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading
 from "./webview.rq" import webview
 
 
@@ -15,6 +15,7 @@ graphical_graph {
     External file references render as dashed edges to file nodes.
     A toggleable key explains node colours and edge styles.
     Pan, zoom, and drag repositioning per [view_controls].
+    [manual_reframe] via "Fit to view" in [ui_controls]; [auto_reframe] when the loaded node set changes; [reframe_animation] for smooth transitions after the first paint.
     Layout, compound grouping, and live physics behaviour per [layout_physics], [layout_options], [physics_options], and [compound_graph].
     Cytoscape lifecycle and threading constraints per [graph_cy_controller] and [webview_threading].
 }
@@ -27,6 +28,8 @@ root ["../../../packages/extension/webviews/ideas-summary/components/GraphView.s
 
 ui_controls {
     Controls live in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] and dispatch events to GraphView.
+    [manual_reframe] — "Fit to view" calls GraphCyController.reframeToViewport per [reframe_view].
+    [auto_reframe] and [reframe_animation] are handled by the shared controller; no extra UI beyond pan/zoom/drag.
     The Key button toggles a draggable legend panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
 }
 

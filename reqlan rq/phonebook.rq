@@ -17,6 +17,10 @@ extension_readme_links {
     Generation is defined in ["./distribution/distribution.rq".extension_readme].
 }
 
+activity_bar_site_link {
+    The activity bar Context webview header info control opens phonebook link id `site` per ["./extension/module/activitybar.rq".info_site_link].
+}
+
 root_readme_links {
     The repository README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, and `email` for site, repository, marketplace, Open VSX, and contact URLs.
     Generation is defined in ["./distribution/distribution.rq".root_readme].

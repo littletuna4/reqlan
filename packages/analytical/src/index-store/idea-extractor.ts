@@ -227,7 +227,7 @@ function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRec
     const sourceId = ideaId(fileUri, idea.name);
     for (const node of AstUtils.streamAst(idea)) {
         if (isWikiLink(node) || isBracketReference(node)) {
-            const edge = referenceToEdge(sourceId, node.target, fileUri);
+            const edge = referenceToEdge(sourceId, node.target, fileUri, node);
             if (edge) {
                 edges.push(edge);
             }
@@ -240,7 +240,9 @@ function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRec
                     sourceId,
                     targetFile: target,
                     kind: 'file_reference',
-                    label: target
+                    label: target,
+                    ...edgeMetaFromNode(node),
+                    isResolved: true
                 });
             }
         }
@@ -261,7 +263,7 @@ function collectReferenceEdges(model: Model, fileUri: string): EdgeRecord[] {
         if (!sourceName) {
             continue;
         }
-        const edge = referenceToEdge(ideaId(fileUri, sourceName), node.target, fileUri);
+        const edge = referenceToEdge(ideaId(fileUri, sourceName), node.target, fileUri, node);
         if (edge) {
             edges.push(edge);
         }
@@ -269,9 +271,38 @@ function collectReferenceEdges(model: Model, fileUri: string): EdgeRecord[] {
     return edges;
 }
 
-function referenceToEdge(sourceId: string, target: ReferenceTarget, fileUri: string): EdgeRecord | undefined {
+function edgeMetaFromNode(node: {
+    $cstNode?: { range?: { start: { line: number } }; text?: string };
+}): Pick<EdgeRecord, 'sourceLine' | 'snippet'> {
+    const line = node.$cstNode?.range?.start.line;
+    const raw = node.$cstNode?.text ?? '';
+    const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 120);
+    return {
+        sourceLine: line !== undefined ? line + 1 : undefined,
+        snippet: snippet || undefined
+    };
+}
+
+function unresolvedIdeaName(target: ReferenceTarget): string | undefined {
+    if (!('idea' in target) || !target.idea || typeof target.idea !== 'object') {
+        return undefined;
+    }
+    const idea = target.idea as { ref?: unknown; $refText?: string; name?: string };
+    if (idea.ref) {
+        return undefined;
+    }
+    return idea.$refText ?? idea.name;
+}
+
+function referenceToEdge(
+    sourceId: string,
+    target: ReferenceTarget,
+    fileUri: string,
+    sourceNode?: { $cstNode?: { range?: { start: { line: number } }; text?: string } }
+): EdgeRecord | undefined {
+    const meta = sourceNode ? edgeMetaFromNode(sourceNode) : {};
     const ideaRef = 'idea' in target ? target.idea : undefined;
-    if (ideaRef?.ref) {
+    if (ideaRef && typeof ideaRef === 'object' && 'ref' in ideaRef && ideaRef.ref) {
         const targetFileUri = AstUtils.getDocument(ideaRef.ref).uri.toString();
         const targetId = ideaId(targetFileUri, ideaRef.ref.name);
         return {
@@ -279,7 +310,20 @@ function referenceToEdge(sourceId: string, target: ReferenceTarget, fileUri: str
             sourceId,
             targetId,
             kind: 'references',
-            label: ideaRef.ref.name
+            label: ideaRef.ref.name,
+            ...meta,
+            isResolved: true
+        };
+    }
+    const unresolved = unresolvedIdeaName(target);
+    if (unresolved) {
+        return {
+            id: edgeId(sourceId, 'references', `unresolved:${unresolved}`),
+            sourceId,
+            kind: 'references',
+            label: unresolved,
+            ...meta,
+            isResolved: false
         };
     }
     if ('file' in target && typeof target.file === 'string') {
@@ -288,7 +332,9 @@ function referenceToEdge(sourceId: string, target: ReferenceTarget, fileUri: str
             sourceId,
             targetFile: target.file,
             kind: 'file_reference',
-            label: target.file
+            label: target.file,
+            ...meta,
+            isResolved: true
         };
     }
     return undefined;

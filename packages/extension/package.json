@@ -83,7 +83,8 @@
             "reqlan": [
                 {
                     "id": "reqlan.activityBar",
-                    "name": "Context"
+                    "name": "Context",
+                    "type": "webview"
                 }
             ]
         },
@@ -296,6 +297,7 @@
         "onCommand:reqlan.writePlan",
         "onCommand:reqlan.runPrompt",
         "onCommand:reqlan.openIdeasSummary",
+        "onView:reqlan.activityBar",
         "onCommand:reqlan.toggleReferenceInlayHints",
         "onChatParticipant:reqlan.reqlan",
         "onLanguage:reqlan",
@@ -311,7 +313,7 @@
         "build:media": "node scripts/generate-media.mjs",
         "build:readme": "pnpm exec tsx scripts/generate-readme.ts",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
-        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts",
+        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts",
         "build": "node scripts/build.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "bash scripts/watch.sh",

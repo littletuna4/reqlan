@@ -2,9 +2,10 @@
  * SQLite schema for the workspace idea graph index.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
-export const MIGRATIONS: string[] = [
+/** Initial schema — always safe to re-run (IF NOT EXISTS). */
+export const BASE_MIGRATIONS: string[] = [
     `CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -42,3 +43,15 @@ export const MIGRATIONS: string[] = [
         indexed_at TEXT NOT NULL
     )`
 ];
+
+/** Versioned migrations applied once when upgrading from an older schema_version. */
+export const VERSION_MIGRATIONS: Record<number, string[]> = {
+    2: [
+        `ALTER TABLE edges ADD COLUMN source_line INTEGER`,
+        `ALTER TABLE edges ADD COLUMN snippet TEXT`,
+        `ALTER TABLE edges ADD COLUMN is_resolved INTEGER NOT NULL DEFAULT 1`
+    ]
+};
+
+/** @deprecated Use BASE_MIGRATIONS — kept for tests referencing MIGRATIONS. */
+export const MIGRATIONS = BASE_MIGRATIONS;

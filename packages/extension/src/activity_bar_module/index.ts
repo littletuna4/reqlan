@@ -1,2 +1,3 @@
 export { registerActivityBarModule } from './register-activity-bar.js';
-export { ActivityBarProvider } from './activity-bar-provider.js';
+export { ActivityBarDataService } from './activity-bar-data-service.js';
+export { registerActivityBarWebview } from './activity-bar-webview-provider.js';

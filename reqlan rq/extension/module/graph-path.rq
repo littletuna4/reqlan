@@ -1,0 +1,66 @@
+import "./activitybar.rq" as activitybar
+import "./context-scope.rq" as context_scope
+import "../library/graph.rq" as graph_lib
+import "../features-graph-analysers.rq" as graph_analysers
+import "../module/graphical_graph.rq" as graphical_graph
+
+graph_path_walk {
+    Future capability: walk the requirement graph **point-to-point** between two chosen ideas.
+    Complements the activity bar's single-centre neighbourhood ([activitybar.miniature_graph_pane]) and Ideas Summary's unconstrained graph tab ([graphical_graph.graphical_graph]).
+}
+
+problem {
+    Users often need to answer: "How does requirement A relate to requirement B?" — not the full ego-graph around A, and not an unbounded workspace dump.
+    Today they manually expand hops or search references. A dedicated path walk would make dependency chains, impact routes, and gap analysis inspectable in the sidebar or graph tab.
+}
+
+path_query {
+    Inputs:
+    - `fromIdeaId` (source node)
+    - `toIdeaId` (target node)
+    - optional `maxDepth` (default 8)
+    - optional `edgeKinds` filter (references, file_reference, incompatible, …)
+    - optional `direction` (undirected default, or outbound-only / inbound-only for directed traces)
+
+    Output: [path_result] — zero or more shortest paths through the indexed graph, capped for token and UI limits.
+}
+
+path_result {
+    - `found`: boolean
+    - `paths`: ordered list of [graph_path] (typically top 1–3 shortest)
+    - `truncated`: true when search hit depth or branch limits
+    - `summaryLine`: e.g. "A → implements → B → depends on → C" for collapsed UI
+}
+
+graph_path {
+    Ordered nodes and edges from source to target.
+    Each step records idea id, name, status, edge kind, and optional snippet/line for the traversed edge.
+    Paths with unresolved hops are marked broken; UI offers jump-to-source like [activitybar.reference_lists_pane].
+}
+
+path_ui_design {
+    Entry points:
+    - Activity bar: "Path to…" on focus hero when a second idea is pinned or selected ([context_scope.manual_context] + [activitybar.selection_pane]).
+    - Ideas Summary graph tab: shift-click two nodes to set endpoints.
+    - Command palette: `Reqlan: Find path between requirements`.
+
+    Presentation (sidebar-first):
+    - Collapsed: [path_result.summaryLine] under the scope footprint line.
+    - Expanded: vertical stepper (breadcrumb) with edge kind labels; optional overlay on [graph_lib.graph_library] highlighting only path edges/nodes.
+    - When no path: show closest partial path or "no connection within N hops" with expand-in-Summary action.
+
+    Performance:
+    - BFS/ bidirectional BFS on sqlite edge tables via [graph_analysers.local_graph_analysis] — never materialise full workspace graph.
+    - Debounce endpoint changes; cache last path per `(from,to,depth)` revision tied to index catalog generation.
+}
+
+relationship_to_context {
+    Path endpoints should default from [context_scope.context_focus] and [context_scope.effective_center_id].
+    A successful walk contributes traversed idea ids to a transient "path context" slice suitable for [context_scope.ai_context_export] without pinning every intermediate node.
+}
+
+implementation_notes {
+    Analytical: add `findPathsBetween(store, fromId, toId, options)` returning [path_result].
+    Wire: new `loadGraphPath` message alongside existing `loadGraph` / `loadAncestors`.
+    UI: defer dedicated pane until [activitybar.selection_pane] and composed context are stable; prototype in Ideas Summary graph tab first.
+}

@@ -18,6 +18,7 @@ import {
     type ReferencesTableQuery,
     type WebviewToExtensionMessage
 } from './shared/messages.js';
+import type { IdeasSummaryNavigateIntent } from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import { buildGraphViewSlice, GRAPH_MAX_NODES, type GraphViewSlice as AnalyticalGraphViewSlice } from 'reqlan-analytical';
@@ -72,7 +73,8 @@ export class IdeasSummaryPanel {
     static show(
         context: vscode.ExtensionContext,
         submodule: AnalyticalSubmodule,
-        activationGeneration: number
+        activationGeneration: number,
+        intent?: IdeasSummaryNavigateIntent
     ): void {
         if (
             IdeasSummaryPanel.current &&
@@ -83,9 +85,12 @@ export class IdeasSummaryPanel {
         if (IdeasSummaryPanel.current) {
             IdeasSummaryPanel.current.panel.reveal(vscode.ViewColumn.One);
             void IdeasSummaryPanel.current.sendIndexStatus();
+            if (intent) {
+                IdeasSummaryPanel.current.applyNavigateIntent(intent);
+            }
             return;
         }
-        IdeasSummaryPanel.current = new IdeasSummaryPanel(context, submodule, activationGeneration);
+        IdeasSummaryPanel.current = new IdeasSummaryPanel(context, submodule, activationGeneration, intent);
     }
 
     readonly panel: vscode.WebviewPanel;
@@ -104,7 +109,8 @@ export class IdeasSummaryPanel {
     private constructor(
         private readonly context: vscode.ExtensionContext,
         private readonly submodule: AnalyticalSubmodule,
-        activationGeneration: number
+        activationGeneration: number,
+        initialIntent?: IdeasSummaryNavigateIntent
     ) {
         this.activationGeneration = activationGeneration;
         this.panel = vscode.window.createWebviewPanel(
@@ -137,6 +143,37 @@ export class IdeasSummaryPanel {
         });
 
         this.context.subscriptions.push(this.panel);
+
+        if (initialIntent) {
+            queueMicrotask(() => this.applyNavigateIntent(initialIntent));
+        }
+    }
+
+    applyNavigateIntent(intent: IdeasSummaryNavigateIntent): void {
+        if (intent.pathFilter) {
+            this.ideasQuery = {
+                ...this.ideasQuery,
+                page: 0,
+                search: intent.pathFilter
+            };
+        }
+        if (intent.centerId || intent.includeIndirect !== undefined || intent.pathFilter) {
+            this.graphQuery = {
+                ...this.graphQuery,
+                centerId: intent.centerId ?? this.graphQuery.centerId,
+                includeIndirect: intent.includeIndirect ?? this.graphQuery.includeIndirect,
+                pathFilter: intent.pathFilter ?? this.graphQuery.pathFilter
+            };
+            this.graphSlicePending = true;
+        }
+        this.post({
+            type: 'navigate',
+            intent
+        });
+        if (this.submodule.index.isReady) {
+            void this.sendIdeasPage();
+            void this.runGraphSlice(++this.graphSliceGeneration);
+        }
     }
 
     private scheduleStatusUpdate(): void {
@@ -496,7 +533,7 @@ function normalizeReferencesQuery(query: ReferencesTableQuery): ReferencesTableQ
     };
 }
 
-function toIndexStatusView(snapshot: IndexStatusSnapshot): IndexStatusView {
+export function toIndexStatusView(snapshot: IndexStatusSnapshot): IndexStatusView {
     const recentActivity = [
         ...snapshot.recentDocumentUpdates.map(update => ({
             label: 'Indexed',

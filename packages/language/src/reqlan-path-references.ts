@@ -6,8 +6,9 @@ import { findCommentReferencesInText } from './reqlan-comment-resolver.js';
 import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-references.js';
 import { parseFileReferenceString } from './reqlan-file-references.js';
 import type { PathReference } from './file-path-rewrite.js';
+import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
 
-const IMPORT_PATH_PATTERN = /(?:\bfrom|\bimport)\s+("(?:\\.|[^"\\])*")/g;
+const IMPORT_PATH_PATTERN = new RegExp(`(?:\\bfrom|\\bimport)\\s+(${REQLAN_QUOTED_STRING_CAPTURE})`, 'g');
 
 export function findImportPathReferencesInText(text: string, lineOffset = 0): PathReference[] {
     const references: PathReference[] = [];
@@ -16,7 +17,7 @@ export function findImportPathReferencesInText(text: string, lineOffset = 0): Pa
         const line = lines[lineIndex]!;
         for (const match of line.matchAll(IMPORT_PATH_PATTERN)) {
             const quoted = match[1]!;
-            const path = JSON.parse(quoted) as string;
+            const path = parseReqlanQuotedString(quoted);
             const start = match.index! + match[0].indexOf(quoted);
             references.push({
                 path,
@@ -37,15 +38,17 @@ export function findEmbeddedPathReferencesInText(text: string, lineOffset = 0): 
         if (!parsed.filePath) {
             continue;
         }
-        const quoted = JSON.stringify(parsed.filePath);
+        const quotedPattern = new RegExp(REQLAN_QUOTED_STRING_CAPTURE);
         const embeddedText = text.slice(
             textOffsetAtPosition(text, embedded.range.start),
             textOffsetAtPosition(text, embedded.range.end)
         );
-        const pathIndex = embeddedText.indexOf(quoted);
-        if (pathIndex < 0) {
+        const quotedMatch = quotedPattern.exec(embeddedText);
+        if (!quotedMatch) {
             continue;
         }
+        const quoted = quotedMatch[0];
+        const pathIndex = quotedMatch.index ?? embeddedText.indexOf(quoted);
         const absoluteStart = textOffsetAtPosition(text, embedded.range.start) + pathIndex;
         const startPos = offsetToPosition(text, absoluteStart);
         references.push({
@@ -65,14 +68,16 @@ export function findCommentPathReferencesInText(text: string, lineOffset = 0): P
         if (!commentRef.path) {
             continue;
         }
-        const quoted = JSON.stringify(commentRef.path);
+        const quotedPattern = new RegExp(REQLAN_QUOTED_STRING_CAPTURE);
         const segmentStart = textOffsetAtPosition(text, commentRef.range.start);
         const segmentEnd = textOffsetAtPosition(text, commentRef.range.end);
         const segment = text.slice(segmentStart, segmentEnd);
-        const pathIndex = segment.indexOf(quoted);
-        if (pathIndex < 0) {
+        const quotedMatch = quotedPattern.exec(segment);
+        if (!quotedMatch) {
             continue;
         }
+        const quoted = quotedMatch[0];
+        const pathIndex = quotedMatch.index ?? segment.indexOf(quoted);
         const absoluteStart = segmentStart + pathIndex;
         const startPos = offsetToPosition(text, absoluteStart);
         references.push({

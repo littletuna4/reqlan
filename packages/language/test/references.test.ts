@@ -9,13 +9,41 @@ import {
     parseCommentReferenceTarget
 } from '../src/reqlan-comment-resolver.js';
 import { findEmbeddedFileReferencesInText } from '../src/reqlan-embedded-file-references.js';
-import { findTestLineInText, parseFileReferenceString } from '../src/reqlan-file-references.js';
+import { findTestLineInText, isOpaqueFileReferencePath, parseFileReferenceString } from '../src/reqlan-file-references.js';
 import { parseMarkdownLink, unquoteReqlanString } from '../src/reqlan-references.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const demoDir = join(repoRoot, 'reqlan rq/extension/features-non-rq-code-comment');
 
 describe('Comment and file reference utilities', () => {
+
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('unquotes single-quoted reqlan string literals', () => {
+        expect(unquoteReqlanString("'./ontology.rq'")).toBe('./ontology.rq');
+        expect(unquoteReqlanString("'it\\'s fine'")).toBe("it's fine");
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('parses qualified rq comment reference targets with single-quoted paths', () => {
+        expect(parseCommentReferenceTarget("'./main.rq'.myidea")).toMatchObject({
+            path: './main.rq',
+            idea: 'myidea'
+        });
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('finds rq comment references with single-quoted paths', () => {
+        const sample = findCommentReferencesInText("// see rq:['./main.rq'.myidea] for details");
+        expect(sample).toHaveLength(1);
+        expect(sample[0]).toMatchObject({ path: './main.rq', idea: 'myidea' });
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('finds embedded file references with single-quoted paths', () => {
+        const sample = findEmbeddedFileReferencesInText("['../../packages/language/test/validating.test.ts']");
+        expect(sample).toHaveLength(1);
+        expect(sample[0]?.file).toContain('validating.test.ts');
+    });
 
     // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('unquotes reqlan string literals for anonymous import paths', () => {
@@ -129,6 +157,16 @@ describe('Comment and file reference utilities', () => {
             filePath: '../../packages/language/test/validating.test.ts',
             testName: 'reports duplicate when local idea shares imported idea name'
         });
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+    test('classifies opaque file reference paths for linker', () => {
+        expect(isOpaqueFileReferencePath('../../packages/language/test/validating.test.ts:reports duplicate')).toBe(true);
+        expect(isOpaqueFileReferencePath('../../packages/language/test/linking.test.ts')).toBe(true);
+        expect(isOpaqueFileReferencePath('./apythonfile.pyL#1-2')).toBe(true);
+        expect(isOpaqueFileReferencePath('./ontology.rq')).toBe(false);
+        expect(isOpaqueFileReferencePath('myidea')).toBe(false);
+        expect(isOpaqueFileReferencePath("a reference containing '//' that doesn't start a comment")).toBe(false);
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]

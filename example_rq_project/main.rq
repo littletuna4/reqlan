@@ -11,18 +11,18 @@ my_second_idea this is a blob of text
 "my idea2" {
     it should be compatible with [[myidea]]. [[myidea|We can use obsidian-style-aliases]] which are also supported.
 
-    @plan: {
+    @plan {
         steps (
             - do the thing
             - do the other thing
         ) 
     }
     @status: pending
-    @tags: (
+    @tags (
         todo
         highpriority
     ) // this is a meta-comment
-    @references: { // references blocks support 
+    @references { // references blocks support 
         
     }    
     /*

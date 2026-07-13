@@ -15,6 +15,7 @@ import {
     isQualifiedImport,
     isQualifiedReference,
     type FromImportSpecifier,
+    type IdeaSet,
     type Import,
     type Model,
     type QualifiedReference
@@ -76,6 +77,10 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
+                const qualifier = container.qualifier?.ref;
+                if (qualifier && isIdeaSet(qualifier)) {
+                    return this.scopeForIdeasetMembers(qualifier, document);
+                }
                 const importDecl = container.qualifier?.ref ?? container.path?.ref;
                 if (importDecl) {
                     const importScope = this.scopeForImportDeclaration(importDecl, document);
@@ -94,7 +99,12 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 if (aliasScope) {
                     return aliasScope;
                 }
+                return this.scopeForFileIdeas(document);
             }
+        }
+        if (isIdeaSet(container) && context.property === 'members') {
+            const document = AstUtils.getDocument(container);
+            return this.scopeForFileIdeas(document);
         }
         if (isLocalReference(container)) {
             const document = AstUtils.getDocument(container);
@@ -102,13 +112,17 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
-                return this.scopeForBracketIdeas(document);
+                const ideasetRef = container.ideaset?.ref;
+                if (ideasetRef && isIdeaSet(ideasetRef)) {
+                    return this.scopeForIdeasetMembers(ideasetRef, document);
+                }
+                return this.scopeForFileIdeas(document);
             }
         }
         return super.getScope(context);
     }
 
-    private scopeForBracketIdeas(document: LangiumDocument): Scope {
+    private scopeForFileIdeas(document: LangiumDocument): Scope {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
             return new StreamScope(stream([]));
@@ -138,6 +152,19 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             }
         }
         return new StreamScope(stream(descriptions));
+    }
+
+    private scopeForIdeasetMembers(ideaset: IdeaSet, document: LangiumDocument): Scope {
+        const descriptions = ideaset.members
+            .map(member => member.ref)
+            .filter((target): target is NonNullable<typeof target> =>
+                target !== undefined && (isIdea(target) || isOneLinerIdea(target))
+            )
+            .map(target => this.descriptions.createDescription(target, target.name, AstUtils.getDocument(target)));
+        if (descriptions.length > 0) {
+            return new StreamScope(stream(descriptions));
+        }
+        return this.scopeForFileIdeas(document);
     }
 
     private scopeForIdeasets(document: LangiumDocument): Scope {

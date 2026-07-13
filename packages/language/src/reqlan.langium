@@ -76,10 +76,10 @@ CodeSnippet:
 // ---------------------------------------------------------------------------
 
 OneLinerText returns string:
-    WORD | ID | STRING | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
 
 PlainText returns string:
-    WORD | ID | STRING | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
 
 PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
@@ -89,7 +89,7 @@ PlainPunctuation returns string:
 // ---------------------------------------------------------------------------
 
 Attribute:
-    '@' name=ID (negated?='!')? (':' value=AttributeValue)?;
+    '@' name=ID (negated?='!')? (':'? value=AttributeValue)?;
 
 AttributeValue:
     BlockValue | ListValue | ScalarValue;
@@ -114,10 +114,10 @@ ListValue:
     '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
 
 NamedList:
-    label=ID '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
+    label=ID '(' NL+ items+=ListItem (NL+ items+=ListItem)* NL* ')';
 
 NestedList:
-    '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
+    '(' NL+ items+=ListItem (NL+ items+=ListItem)* NL* ')';
 
 ListItem:
     OneLinerListItem | AnonymousBlock | NamedBlockListItem | NestedList;
@@ -157,8 +157,8 @@ FileSymbolReference:
     file=STRING '.' symbols+=ID ('.' symbols+=ID)*;
 
 QualifiedReference:
-    (path=[Import:STRING] | qualifier=[Import:ID]) ('.'
-        (ideaset=[IdeaSet:ReferenceName] '.')? idea=[IdeaDeclaration:ReferenceName])?;
+    (path=[Import:STRING] | qualifier=[Import:ID]) '.'
+    (ideaset=[IdeaSet:ReferenceName] '.')? idea=[IdeaDeclaration:ReferenceName];
 
 LocalReference:
     ideaset=[IdeaSet:ReferenceName] '.' idea=[IdeaDeclaration:ReferenceName]
@@ -196,9 +196,9 @@ hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 
 terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
 terminal ID: /[_a-zA-Z][\w_]*/;
-terminal STRING: /"(\\.|[^"\\])*"/;
+terminal STRING: /"(\\.|[^"\\\r\n])*"|'(\\.|[^'\\\r\n])*'/;
 terminal NUMBER: /\d+/;
 terminal WORD: /[A-Za-z_][\w']*/;
-terminal OTHER: /[^\s\w\[\]()@`]/;
+terminal OTHER: /[^\s\w\[\]()`]/;
 terminal INLINE_CODE: /`[^`\n]+`/;
 terminal CODE_FENCE: /```[^\n]*(?:\r?\n[\s\S]*?)?```/;

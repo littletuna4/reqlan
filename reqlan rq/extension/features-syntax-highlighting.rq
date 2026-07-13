@@ -32,7 +32,7 @@ reference_code_completion {
   references should code complete the available namespace of ideas
   this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
   
-  @tags: (
+  @tags (
     autocompletion
     )
 }

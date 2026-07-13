@@ -12,6 +12,7 @@ import {
     type QualifiedReference,
     type ReferenceTarget
 } from './generated/ast.js';
+import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 export function referenceImport(target: ReferenceTarget): Reference<Import> | undefined {
     if (isQualifiedReference(target)) {
@@ -54,12 +55,7 @@ export function isAnonymousQualifiedReference(reference: QualifiedReference): bo
     return reference.path !== undefined && reference.path.ref === undefined && reference.qualifier === undefined;
 }
 
-export function unquoteReqlanString(text: string): string {
-    if (!text.startsWith('"') || !text.endsWith('"')) {
-        return text;
-    }
-    return text.slice(1, -1).replace(/\\(.)/g, '$1');
-}
+export { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 export interface ParsedMarkdownLink {
     label: string;

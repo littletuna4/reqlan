@@ -34,7 +34,7 @@ describe('comment reference ignore', () => {
     test('reports unresolved reference without ignore directive', async () => {
         const document = await parse(s`
             demo {
-                ["a reference containing '//' that doesn't start a comment"]
+                [missing_idea_reference]
             }
         `, { validation: true });
 
@@ -50,12 +50,34 @@ describe('comment reference ignore', () => {
         const input = s`
             demo {
                 //rq-ignore-error
-                ["a reference containing '//' that doesn't start a comment"]
+                [missing_idea_reference]
             }
         `;
         expect([...findRqIgnoreErrorTargetLines(input)]).toEqual([2]);
         const document = await parse(input, { validation: true });
 
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+    test('suppresses ignore target after single-quoted URL prose and faux multiline quotes', async () => {
+        const input = s`
+            demo {
+                e.g. a 'https://not a comment.com'
+                "//also not a comment"
+                """
+                // not a directive inside faux quotes
+                """
+                //rq-ignore-error
+                [missing_idea_reference]
+            }
+        `;
+        const document = await parse(input, { validation: true });
         const unresolved = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes('Could not resolve reference')

@@ -28,6 +28,7 @@ import {
     type QualifiedReference
 } from './generated/ast.js';
 import { parseMarkdownLink } from './reqlan-references.js';
+import { reqlanStringDelimiter } from './reqlan-quoted-strings.js';
 import {
     isNamespaceImportOnlyReference,
     resolveNamespaceImportReferenceLink
@@ -215,7 +216,6 @@ function resolvePathStringLink(
     if (!text) {
         return undefined;
     }
-    const targetDocument = documents.getDocument(targetUri);
     let targetRange: Range | undefined;
     if (parsed.testName) {
         const line = findTestLineInText(text, parsed.testName);
@@ -225,7 +225,7 @@ function resolvePathStringLink(
     } else if (parsed.lineStart !== undefined) {
         targetRange = lineRangeFromText(text, parsed.lineStart - 1);
     } else {
-        targetRange = targetDocument?.parseResult.value.$cstNode?.range;
+        targetRange = fileStartRange();
     }
     return {
         sourceRange,
@@ -249,9 +249,29 @@ function readTargetText(targetUri: URI, documents: LangiumDocuments, fileSystem:
     return fileSystem.readFileSync(targetUri);
 }
 
+export function bindingNameSourceRange(bindingNode: CstNode, bindingName: string): Range {
+    const line = bindingNode.range.start.line;
+    const startCharacter = bindingNode.range.start.character;
+    return {
+        start: { line, character: startCharacter },
+        end: { line, character: startCharacter + bindingName.length }
+    };
+}
+
+export function resolveImportedFileLink(
+    document: LangiumDocument,
+    documents: LangiumDocuments,
+    fileSystem: FileSystemProvider,
+    filePath: string,
+    sourceRange: Range
+): ResolvedFileLink | undefined {
+    const targetUri = resolveFileUri(filePath, document);
+    return resolvePathStringLink(document, documents, fileSystem, { filePath }, targetUri, sourceRange);
+}
+
 export function filePathRangeInStringNode(pathNode: CstNode, parsed: ParsedFileReference): Range {
     const text = pathNode.text;
-    const contentStart = pathNode.range.start.character + (text.startsWith('"') ? 1 : 0);
+    const contentStart = pathNode.range.start.character + (reqlanStringDelimiter(text) ? 1 : 0);
     return {
         start: { line: pathNode.range.start.line, character: contentStart },
         end: { line: pathNode.range.start.line, character: contentStart + parsed.filePath.length }
@@ -260,8 +280,8 @@ export function filePathRangeInStringNode(pathNode: CstNode, parsed: ParsedFileR
 
 function stringContentRange(pathNode: CstNode): Range {
     const text = pathNode.text;
-    const quoteOffset = text.startsWith('"') ? 1 : 0;
-    const trailingQuote = text.endsWith('"') ? 1 : 0;
+    const quoteOffset = reqlanStringDelimiter(text) ? 1 : 0;
+    const trailingQuote = quoteOffset;
     return {
         start: { line: pathNode.range.start.line, character: pathNode.range.start.character + quoteOffset },
         end: { line: pathNode.range.end.line, character: pathNode.range.end.character - trailingQuote }
@@ -273,6 +293,13 @@ function lineRangeFromText(text: string, line: number): Range {
     return {
         start: { line, character: 0 },
         end: { line, character: lineText.length }
+    };
+}
+
+function fileStartRange(): Range {
+    return {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 0 }
     };
 }
 

@@ -124,7 +124,7 @@ export function getAttributeValueContext(
         start: { line: position.line, character: 0 },
         end: position
     });
-    const inlineMatch = linePrefix.match(/^\s*@([\w_]+)\s*:\s*(\S*)$/);
+    const inlineMatch = linePrefix.match(/^\s*@([\w_]+)(?:\s*:\s*|\s+)(\S*)$/);
     if (inlineMatch) {
         const attributeName = inlineMatch[1]!;
         const prefix = inlineMatch[2] ?? '';

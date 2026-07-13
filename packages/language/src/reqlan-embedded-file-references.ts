@@ -4,14 +4,15 @@
 import type { LangiumDocument } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';
 import { isRangeInsideMarkdownLinkLabel } from './reqlan-markdown-links.js';
+import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
 
 export interface EmbeddedFileReference {
     file: string;
     range: Range;
 }
 
-const BRACKETED_FILE_REFERENCE_PATTERN = /\[\s*("(?:\\.|[^"\\])*")\s*\]/g;
-const QUOTED_FILE_REFERENCE_PATTERN = /("(?:\\.|[^"\\])*")/g;
+const BRACKETED_FILE_REFERENCE_PATTERN = new RegExp(`\\[\\s*(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\]`, 'g');
+const QUOTED_FILE_REFERENCE_PATTERN = new RegExp(`(${REQLAN_QUOTED_STRING_CAPTURE})`, 'g');
 const FILE_REFERENCE_LIKE = /(?:\.\w[\w.]*|\/)/;
 
 export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): EmbeddedFileReference[] {
@@ -40,7 +41,7 @@ function pushEmbeddedReference(
     line: string
 ): void {
     const quoted = match[1];
-    const file = JSON.parse(quoted) as string;
+    const file = parseReqlanQuotedString(quoted);
     if (!FILE_REFERENCE_LIKE.test(file)) {
         return;
     }

@@ -57,6 +57,38 @@ export {
     buildGraphViewSlice,
     toGraphNodeView
 } from './index-store/webview-graph-queries.js';
+export {
+    ACTIVITY_BAR_MAX_NODES,
+    BLOCKING_STATUSES
+} from './core/types.js';
+export type {
+    ActivityBarScope,
+    AncestorChainResult,
+    CurrentFileSlice,
+    IdeaWithRange,
+    OutlineNode,
+    ReferenceListRow,
+    ReqlanContextModel,
+    ContextAnomaly,
+    ContextDimensionContribution,
+    ContextDimensionId,
+    ContextFileEntry,
+    ContextFocus,
+    ContextFootprint,
+    GitContextSlice,
+    WorkspaceContextSlice
+} from './core/types.js';
+export type {
+    ContextFileLensDetail,
+    ContextSelection
+} from './core/context-model.js';
+export {
+    CONTEXT_DIMENSION_LABELS,
+    CONTEXT_DIMENSION_WEIGHTS,
+    DEFAULT_ENABLED_DIMENSIONS
+} from './core/context-model.js';
+export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
+export type { IdeaReferenceStore } from './core/idea-references.js';
 export * from './core/types.js';
 export { HeadlessIndexService } from './headless-index-service.js';
 export {

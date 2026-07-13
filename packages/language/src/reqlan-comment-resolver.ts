@@ -8,6 +8,7 @@ import { LocationLink } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findImportedDocument } from './reqlan-imports.js';
 import { isIdea, isModel, isOneLinerIdea } from './generated/ast.js';
+import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
 
 export interface EmbeddedCommentReference {
     path?: string;
@@ -23,7 +24,7 @@ export function createSourceTextDocument(uri: string, text: string): LangiumDocu
 }
 
 const COMMENT_REFERENCE_PATTERN = /rq:\s*\[([^\]]+)\]/g;
-const QUALIFIED_TARGET_PATTERN = /^("(?:\\.|[^"\\])*")\s*\.\s*([_a-zA-Z][\w_]*)(?:\s*\.\s*([_a-zA-Z][\w_]*))?$/;
+const QUALIFIED_TARGET_PATTERN = new RegExp(`^(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\.\\s*([_a-zA-Z][\\w_]*)(?:\\s*\\.\\s*([_a-zA-Z][\\w_]*))?$`);
 const LOCAL_TARGET_PATTERN = /^([_a-zA-Z][\w_]*)$/;
 
 interface CommentSpan {
@@ -205,7 +206,7 @@ export function parseCommentReferenceTarget(target: string): { path?: string; id
     const trimmed = target.trim();
     const qualified = QUALIFIED_TARGET_PATTERN.exec(trimmed);
     if (qualified) {
-        const path = JSON.parse(qualified[1]!) as string;
+        const path = parseReqlanQuotedString(qualified[1]!);
         const idea = qualified[3] ?? qualified[2]!;
         return { path, idea };
     }

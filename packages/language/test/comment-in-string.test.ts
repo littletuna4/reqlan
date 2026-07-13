@@ -67,9 +67,12 @@ describe('comments in string context', () => {
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
     test('quoted string containing // parses in block body', async () => {
         const document = await expectValid('demo { note "//also not a comment" here }');
-        expect(blockBodyText(document)).toContain('//also not a comment');
+        const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
+            .find(node => node.$type === 'BodyLine');
+        expect(bodyLine?.$cstNode?.text).toContain('"//also not a comment"');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]
@@ -81,10 +84,11 @@ describe('comments in string context', () => {
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
     test('quoted one-liner with // inside preserves text', async () => {
         const document = await expectValid('url_example "https://not a comment.com //still not"');
         const idea = document.parseResult.value.elements.find(isOneLinerIdea);
-        expect(oneLinerText(idea!)).toContain('https://not a comment.com //still not');
+        expect(idea?.$cstNode?.text).toContain('"https://not a comment.com //still not"');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]
@@ -92,6 +96,15 @@ describe('comments in string context', () => {
         const document = await expectValid('demo { see https://not a comment.com for details }');
         expect(blockBodyText(document)).toContain('https://');
         expect(blockBodyText(document)).toContain('comment.com');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
+    test('single-quoted URL in block body is naked prose', async () => {
+        const document = await expectValid("demo { e.g. a 'https://not a comment.com' in prose }");
+        const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
+            .find(node => node.$type === 'BodyLine');
+        expect(bodyLine?.$cstNode?.text).toContain("'https://not a comment.com'");
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]

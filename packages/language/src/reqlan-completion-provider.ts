@@ -10,6 +10,7 @@ import {
     type CompletionContext,
     type CompletionProviderOptions
 } from 'langium/lsp';
+import { reqlanStringDelimiter } from './reqlan-quoted-strings.js';
 import type { CompletionList, CompletionParams } from 'vscode-languageserver';
 import { CompletionItemKind, CompletionList as LspCompletionList } from 'vscode-languageserver';
 import {
@@ -222,24 +223,27 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             end: context.position
         };
         if (existingText.length > 0) {
-            const unquoted = existingText.startsWith('"')
-                ? existingText.slice(1)
+            const delimiter = reqlanStringDelimiter(existingText);
+            const unquoted = delimiter
+                ? existingText.slice(1, existingText.endsWith(delimiter) ? -1 : undefined)
                 : existingText;
             paths = paths.filter(path => path.startsWith(unquoted));
-            const quoteOffset = existingText.startsWith('"') ? 1 : 0;
+            const quoteOffset = delimiter ? 1 : 0;
             const start = context.textDocument.positionAt(context.tokenOffset + quoteOffset);
             const end = context.textDocument.positionAt(
-                context.tokenEndOffset - (existingText.endsWith('"') ? 1 : 0)
+                context.tokenEndOffset - (delimiter && existingText.endsWith(delimiter) ? 1 : 0)
             );
             range = { start, end };
         }
         for (const path of paths) {
-            const delimiter = existingText.startsWith('"') ? '' : '"';
-            const closing = existingText.startsWith('"') && !existingText.endsWith('"') ? '"' : delimiter;
+            const delimiter = reqlanStringDelimiter(existingText);
+            const opening = delimiter ?? '"';
+            const needsClosing = !delimiter || !existingText.endsWith(delimiter);
+            const closing = needsClosing ? opening : '';
             acceptor(context, {
                 label: path,
                 textEdit: {
-                    newText: `${delimiter}${path}${closing}`,
+                    newText: `${delimiter ? '' : opening}${path}${closing}`,
                     range
                 },
                 kind: CompletionItemKind.File,

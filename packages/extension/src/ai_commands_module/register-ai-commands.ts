@@ -125,9 +125,28 @@ async function pickIdea(
     }
 
     const editor = vscode.window.activeTextEditor;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     let ideas: IdeaSummary[] = [];
-    if (editor?.document.languageId === 'reqlan') {
-        ideas = await index.indexStore.getIdeasInFile(toIndexFileUri(editor.document.uri));
+    if (editor && vscode.workspace.getWorkspaceFolder(editor.document.uri)) {
+        const fileUri = toIndexFileUri(editor.document.uri);
+        if (editor.document.languageId === 'reqlan') {
+            ideas = await index.indexStore.getIdeasInFile(fileUri);
+        } else {
+            const related = await analysers.run<{ fileUri: string }, import('reqlan-analytical').FileRelatedRequirements>(
+                {
+                    store: index.indexStore,
+                    analytical: submodule.store,
+                    workspaceRoot
+                },
+                'file_related_requirements',
+                { fileUri }
+            );
+            ideas = [
+                ...related.referencingIdeas,
+                ...related.commentLinkedIdeas,
+                ...related.folderReferencingIdeas
+            ].filter((idea, idx, list) => list.findIndex(entry => entry.id === idea.id) === idx);
+        }
     }
     if (ideas.length === 0) {
         ideas = await analysers.run<void, IdeaSummary[]>(

@@ -250,6 +250,30 @@ export class AppState {
                     edges: JSON.parse(message.edgesJson)
                 }, null, 2);
                 break;
+            case 'navigate': {
+                const intent = message.intent;
+                if (intent.activeTab) {
+                    this.setTab(intent.activeTab);
+                }
+                if (intent.pathFilter) {
+                    this.ideas.query = {
+                        ...this.ideas.query,
+                        page: 0,
+                        search: intent.pathFilter
+                    };
+                    this.loadIdeas(this.ideas.query);
+                }
+                if (intent.centerId || intent.includeIndirect !== undefined || intent.pathFilter) {
+                    this.graph.query = {
+                        ...this.graph.query,
+                        centerId: intent.centerId ?? this.graph.query.centerId,
+                        includeIndirect: intent.includeIndirect ?? this.graph.query.includeIndirect,
+                        pathFilter: intent.pathFilter ?? this.graph.query.pathFilter
+                    };
+                    this.requestGraph({ force: true });
+                }
+                break;
+            }
             case 'error':
                 clearTimeout(this.graphLoadTimeout);
                 graphLog('extension error', { message: message.message, wasLoading: this.graph.loading });

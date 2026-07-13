@@ -32,6 +32,9 @@ export interface EdgeRecord {
     targetFile?: string;
     kind: EdgeKind;
     label?: string;
+    sourceLine?: number;
+    snippet?: string;
+    isResolved?: boolean;
 }
 
 export interface IdeaAttributeMap {
@@ -55,6 +58,71 @@ export interface IdeaSummary {
     status?: string;
     tags: string[];
 }
+
+export interface IdeaWithRange extends IdeaSummary {
+    lineEnd: number;
+}
+
+export interface ReferenceListRow {
+    edgeId: string;
+    direction: 'inbound' | 'outbound';
+    kind: EdgeKind;
+    label: string;
+    targetName: string;
+    targetPath: string;
+    targetLine?: number;
+    sourceLine?: number;
+    snippet?: string;
+    isResolved: boolean;
+    sourceIdeaId: string;
+    targetIdeaId?: string;
+}
+
+export interface AncestorChainResult {
+    ideaId: string;
+    ancestors: IdeaSummary[];
+    statusRollup: Record<string, number>;
+    blocking: IdeaSummary[];
+}
+
+export interface OutlineNode {
+    id: string;
+    name: string;
+    lineStart: number;
+    lineEnd: number;
+    children: OutlineNode[];
+}
+
+export type { ActivityBarScope, CurrentFileSlice, ReqlanContextModel } from './context-model.js';
+export {
+    CONTEXT_DIMENSION_LABELS,
+    CONTEXT_DIMENSION_WEIGHTS,
+    DEFAULT_ENABLED_DIMENSIONS
+} from './context-model.js';
+export type {
+    ContextAnomaly,
+    ContextDimensionContribution,
+    ContextDimensionId,
+    ContextFileEntry,
+    ContextFocus,
+    ContextFocusKind,
+    ContextFootprint,
+    ContextIdeaEntry,
+    ContextProvenance,
+    GitContextSlice,
+    WorkspaceContextSlice
+} from './context-model.js';
+
+export const ACTIVITY_BAR_MAX_NODES = 40;
+
+export const BLOCKING_STATUSES = new Set([
+    'pending',
+    'todo',
+    'open',
+    'blocked',
+    'stub',
+    'unspecified'
+]);
 
 export interface GraphSlice {
     centerId: string;
@@ -144,6 +212,7 @@ export interface FileRelatedRequirements {
     ideasInFile: IdeaSummary[];
     referencingIdeas: IdeaSummary[];
     commentLinkedIdeas: IdeaSummary[];
+    folderReferencingIdeas: IdeaSummary[];
 }
 
 export function ideaId(fileUri: string, name: string): string {

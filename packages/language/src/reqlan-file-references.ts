@@ -54,7 +54,7 @@ function parseTestNameSuffix(file: string): { filePath: string; testName?: strin
     };
 }
 
-const FILE_REFERENCE_LIKE = /(?:\.\w[\w.]*|\/)/;
+const NON_RQ_FILE_EXTENSION = /\.[^./\\]+$/;
 
 /**
  * True when a bracketed quoted path is an arbitrary file reference, not an inline .rq import path.
@@ -64,10 +64,11 @@ export function isOpaqueFileReferencePath(path: string): boolean {
     if (parsed.testName !== undefined || parsed.lineStart !== undefined) {
         return true;
     }
-    if (/\.rq$/i.test(parsed.filePath)) {
+    const filePath = parsed.filePath;
+    if (/\.rq$/i.test(filePath)) {
         return false;
     }
-    return FILE_REFERENCE_LIKE.test(parsed.filePath);
+    return NON_RQ_FILE_EXTENSION.test(filePath);
 }
 
 export function findTestLineInText(text: string, testName: string): number | undefined {

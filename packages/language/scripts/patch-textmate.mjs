@@ -11,9 +11,9 @@ const grammar = JSON.parse(readFileSync(grammarPath, 'utf8'));
 
 grammar.repository ??= {};
 
-const importPath = '(?:"(?:[^"\\\\]|\\\\.)*")';
+const importPath = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 const id = '[A-Za-z_]\\w*';
-const quotedName = '"(?:[^"\\\\]|\\\\.)*"';
+const quotedName = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 const ideaName = `(?:(${id})|(${quotedName}))`;
 
 const removedRootIncludes = new Set([
@@ -60,15 +60,16 @@ grammar.repository['import-keywords'] = {
             }
         },
         {
-            match: `^(\\s*from\\b\\s+${importPath}\\s+)\\b(import)\\b`,
+            match: `^(\\s*from\\b\\s+)(${importPath})(\\s+\\bimport\\b)`,
             captures: {
-                '2': { name: 'keyword.control.reqlan' }
+                '2': { name: 'string.quoted.reqlan' }
             }
         },
         {
-            match: `^(\\s*import\\b\\s+${importPath}\\s+)\\b(as)\\b`,
+            match: `^(\\s*import\\b\\s+)(${importPath})(\\s+\\b(as)\\b)`,
             captures: {
-                '2': { name: 'keyword.control.reqlan' }
+                '2': { name: 'string.quoted.reqlan' },
+                '3': { name: 'keyword.control.reqlan' }
             }
         },
         {
@@ -80,13 +81,9 @@ grammar.repository['import-keywords'] = {
     ]
 };
 
+// String literals only appear in import paths and bracket-reference paths — not naked body prose.
 grammar.repository.strings = {
-    name: 'string.quoted.double.reqlan',
-    begin: '"',
-    end: '"',
-    patterns: [
-        { include: '#string-character-escape' }
-    ]
+    patterns: []
 };
 
 grammar.repository.comments = {
@@ -113,18 +110,25 @@ grammar.repository.comments = {
     ]
 };
 
-// Prefer string regions over comment detection at the root level too.
+// Comments at file root; body blocks include their own comment rules.
+// Drop Langium's global quote rules — body prose uses naked quotes; strings only in import paths and bracket refs.
 grammar.patterns = (grammar.patterns ?? []).filter(pattern => {
-    return !(pattern.include === '#comments' || pattern.name === 'string.quoted.double.reqlan');
+    if (pattern.include === '#comments' || pattern.include === '#strings') {
+        return false;
+    }
+    if (pattern.name === 'string.quoted.double.reqlan' || pattern.name === 'string.quoted.single.reqlan') {
+        return false;
+    }
+    if (typeof pattern.match === 'string' && /\\b\(as\|from\|import\)\\b/.test(pattern.match)) {
+        return false;
+    }
+    return true;
 });
-grammar.patterns.unshift(
-    { include: '#strings' },
-    { include: '#comments' }
-);
+grammar.patterns.unshift({ include: '#comments' });
 
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
-    match: '\\s*(@)\\s*([A-Za-z_]\\w*)',
+    match: '^\\s*(@)\\s*([A-Za-z_]\\w*)',
     captures: {
         '1': { name: 'punctuation.definition.attribute.reqlan' },
         '2': { name: 'entity.name.tag.attribute.reqlan' }
@@ -159,7 +163,7 @@ grammar.repository['idea-bracket-references'] = {
 
 grammar.repository['bracket-references'] = {
     name: 'markup.underline.link.reqlan',
-    match: '\\[("(?:[^"\\\\]|\\\\.)*")(?:\\.[A-Za-z_]\\w*)*\\]',
+    match: '\\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')(?:\\.[A-Za-z_]\\w*)*\\]',
     captures: {
         '1': { name: 'string.other.link.reqlan' }
     }
@@ -176,7 +180,6 @@ grammar.repository['code-snippets'] = {
 
 grammar.repository['one-liner-body'] = {
     patterns: [
-        { include: '#strings' },
         { include: '#comments' },
         { include: '#wikilinks' },
         { include: '#markdown-links' },
@@ -188,7 +191,6 @@ grammar.repository['one-liner-body'] = {
 
 grammar.repository['block-inner'] = {
     patterns: [
-        { include: '#strings' },
         { include: '#comments' },
         { include: '#attributes' },
         { include: '#wikilinks' },

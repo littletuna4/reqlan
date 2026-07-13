@@ -7,7 +7,7 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from 'reqlan-language';
-import { createReqlanServices, isBracketReference, isFromImport, isIdea, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
+import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
 import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
 import {
@@ -390,6 +390,84 @@ beta {
         expect(texts.filter(text => text === 'beta').length).toBeGreaterThanOrEqual(2);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+    test('resolve forward reference to later idea in the same file', async () => {
+        document = await parse(`earlier {
+    see [later_idea] before it is declared.
+}
+later_idea {
+    body
+}`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const bracketRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)[0];
+        expect(bracketRef).toBeDefined();
+        const target = bracketRef?.target;
+        expect(isLocalReference(target) && target.idea?.ref?.name).toBe('later_idea');
+        expect(isLocalReference(target) ? target.idea?.error : undefined).toBeUndefined();
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+    test('resolve circular same-file references', async () => {
+        document = await parse(`alpha {
+    see [[beta]]
+}
+beta {
+    see [[alpha]]
+}`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const wikilinks = [...AstUtils.streamAst(document.parseResult.value)].filter(isWikiLink);
+        expect(wikilinks).toHaveLength(2);
+        for (const link of wikilinks) {
+            const target = link.target;
+            if (isLocalReference(target)) {
+                expect(target.idea?.error).toBeUndefined();
+                expect(target.idea?.ref?.name).toBeDefined();
+            }
+        }
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_brackets]
+    test('resolve ideaset member forward reference', async () => {
+        document = await parse(`demo {
+    see [my_ideaset.later_member]
+}
+my_ideaset (
+    later_member
+)
+later_member {
+    body
+}`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const bracketRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)[0];
+        const target = bracketRef?.target;
+        const qualifierRef = isQualifiedReference(target) ? (target.qualifier?.ref as unknown) : undefined;
+        expect(qualifierRef && isIdeaSet(qualifierRef) && qualifierRef.name).toBe('my_ideaset');
+        expect(isQualifiedReference(target) && target.idea?.ref?.name).toBe('later_member');
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('resolve anonymous import in bracket reference without import statement', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
@@ -684,6 +762,60 @@ beta {
         expect(link?.targetUri).toContain('IndexPanel.svelte');
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".import_namespace]
+    test('namespace import bracket reference links only the alias name', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const targetPath = join(repoDir, 'packages/extension/src/activity_bar_module/context-model.ts');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/module/context-scope.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import "${targetPath.replace(/\\/g, '/')}" as context_model
+                any_file_scope {
+                    1. [any_file_scope] types and [context_model] builder.
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const namespaceRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)
+            .map(ref => ref.target)
+            .find((target): target is LocalReference =>
+                isLocalReference(target) && target.idea?.$refText === 'context_model'
+            );
+        expect(namespaceRef).toBeDefined();
+        if (!namespaceRef) {
+            return;
+        }
+        expect(isNamespaceImportOnlyReference(namespaceRef)).toBe(true);
+
+        const link = resolveNamespaceImportReferenceLink(
+            namespaceRef,
+            fileServices.shared.workspace.LangiumDocuments,
+            fileServices.shared.workspace.FileSystemProvider
+        );
+        expect(link?.targetUri).toContain('context-model.ts');
+        expect(document.textDocument.getText(link!.sourceRange)).toBe('context_model');
+
+        const documentLinks = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const contextModelLink = documentLinks?.find(entry =>
+            document.textDocument.getText(entry.range) === 'context_model'
+        );
+        expect(contextModelLink?.target).toContain('context-model.ts');
+
+        const definitions = await fileServices.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: namespaceRef.idea!.$refNode!.range.start
+        });
+        expect(definitions).toHaveLength(1);
+        expect(definitions?.[0].targetUri).toContain('context-model.ts');
+        expect(definitions?.[0].targetSelectionRange?.start).toEqual({ line: 0, character: 0 });
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
     test('does not report linking error for anonymous import path only', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
@@ -727,6 +859,24 @@ beta {
         await fileServices.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: true });
 
         const importPathErrors = (consumer.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve reference to Import")
+        );
+        expect(importPathErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
+    test('does not report linking error for @tests file references with test name suffix', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const featuresPath = join(repoDir, 'reqlan rq/extension/features-syntax.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(featuresPath, 'utf8'),
+            URI.parse(pathToFileURL(featuresPath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const importPathErrors = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes("Could not resolve reference to Import")
         );

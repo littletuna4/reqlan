@@ -26,7 +26,7 @@
         compoundBasisChange: string;
         clearCenter: void;
         toggleKey: void;
-        resetView: void;
+        reframeView: void;
     }>();
 
     const layoutOptions = GRAPH_LAYOUT_OPTIONS;
@@ -138,8 +138,13 @@
         >
             Key
         </button>
-        <button type="button" class="graph-action" on:click={() => dispatch('resetView')}>
-            Reset view
+        <button
+            type="button"
+            class="graph-action"
+            title="Fit all nodes into the viewport and center the camera"
+            on:click={() => dispatch('reframeView')}
+        >
+            Fit to view
         </button>
     </section>
 </div>

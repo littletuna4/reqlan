@@ -197,6 +197,13 @@ export interface GraphLoadProgress {
     detail?: string;
 }
 
+export interface IdeasSummaryNavigateIntent {
+    activeTab?: 'index' | 'ideas' | 'ideasets' | 'references' | 'graph';
+    centerId?: string;
+    pathFilter?: string;
+    includeIndirect?: boolean;
+}
+
 export type WebviewToExtensionMessage =
     | { type: 'ready' }
     | { type: 'loadIndexStatus' }
@@ -217,5 +224,6 @@ export type ExtensionToWebviewMessage =
     | { type: 'referencesPage'; query: ReferencesTableQuery; total: number; rows: ReferenceTableRow[] }
     | { type: 'graphLoadProgress'; progress: GraphLoadProgress }
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }
+    | { type: 'navigate'; intent: IdeasSummaryNavigateIntent }
     | { type: 'fullGraph'; ideaCount: number; edgeCount: number; ideasJson: string; edgesJson: string }
     | { type: 'error'; message: string; requestId?: number };
