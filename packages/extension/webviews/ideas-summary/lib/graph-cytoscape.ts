@@ -1,6 +1,6 @@
 /**
  * Cytoscape graph helpers for the Ideas Summary graph tab.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"]
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cytoscape
  */
 import type cytoscape from 'cytoscape';
 import type { ElementDefinition, StylesheetStyle } from 'cytoscape';

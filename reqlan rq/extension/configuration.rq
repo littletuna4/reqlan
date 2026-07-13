@@ -1,5 +1,5 @@
 configuration_location {
-    The environment should be configurable by the user in the ["language-configuration.json"] file.
+    The environment should be configurable by the user in a "language-configuration.json" file.
 }
 
 configuration_schema {

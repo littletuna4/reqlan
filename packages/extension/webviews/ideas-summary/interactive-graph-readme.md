@@ -2,7 +2,7 @@
 
 This document explains how the Ideas Summary graph tab handles layout and live physics, why the current design looks the way it does, and what to watch out for when changing it.
 
-**Requirement source:** [`reqlan rq/extension/module/graphical_graph.rq`](../../../../reqlan%20rq/extension/module/graphical_graph.rq) (`layout_physics`, `state_machines`, `physics_options`).
+**Requirement source:** [`reqlan rq/extension/library/graph.rq`](../../../../reqlan%20rq/extension/library/graph.rq) (`layout_physics`, `graph_cy_controller`, `physics_options`); Ideas Summary tab wiring in [`graphical_graph.rq`](../../../../reqlan%20rq/extension/module/graphical_graph.rq).
 
 ---
 
@@ -342,7 +342,7 @@ To expose settings in UI later, thread a `GraphPhysicsSettings` partial through 
 ## Performance notes
 
 - **Live physics:** O(n²) repulsion per frame over childless nodes. Fine for typical slice caps (~120 nodes); if truncation limits rise, consider Barnes–Hut, spatial hashing, or limiting repulsion to neighbours within a radius.
-- **Batch layout:** fcose/cola block the webview main thread. Iteration caps in `getLayoutConfig` intentionally scale with `nodeCount` (see `graphical_graph.rq` `webview_threading`).
+- **Batch layout:** fcose/cola block the webview main thread. Iteration caps in `getLayoutConfig` intentionally scale with `nodeCount` (see `graph.rq` `webview_threading`).
 - **Element diff:** `graph-cy-elements.ts` avoids full graph rebuilds so positions survive non-structural filter/sync updates.
 - **Graph mount:** GraphView mounts only while the graph tab is visible — do not keep cytoscape alive under `display: none` (zero-size container breaks init).
 

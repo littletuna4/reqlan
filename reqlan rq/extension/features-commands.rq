@@ -33,6 +33,6 @@ divide_and_conquer {
 pallete_function_create_todo {
     A function that opens up a modal webview form allowing the user to write a rq-idea, search for references etc, and writes it to a specified output file.
     default folder is next to current file, but should be selectable in form.
-    This behaviour should be configurable via ["./configuration"]
+    This behaviour should be configurable via ["./configuration.rq"]
     @todo
 }

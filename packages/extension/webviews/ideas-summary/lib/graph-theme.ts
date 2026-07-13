@@ -1,6 +1,6 @@
 /**
  * Graph node and edge styling shared by the canvas and legend.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"]
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cytoscape
  *
  * Cytoscape (especially WebGL) cannot parse CSS `var()` — node fills and stylesheet
  * colours must be concrete hex/rgb values. HTML legend swatches may still use vars.

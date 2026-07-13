@@ -37,7 +37,6 @@ refactor_support the ideas should support renaming, moving, and deleting.
 file_references a file refence should act as link in the editor
 
 
-
 sensible_alias_support {
     if an imported idea shares a name with an idea in the current file:
     

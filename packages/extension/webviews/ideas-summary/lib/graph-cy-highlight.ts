@@ -5,7 +5,7 @@
  * descendants) with a bright thick border. Flags live on element data; the
  * stylesheet uses mapper functions (not boolean selectors) and we call
  * updateStyle() after each change so the canvas renderer repaints reliably.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"]
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cy_controller
  */
 import type cytoscape from 'cytoscape';
 

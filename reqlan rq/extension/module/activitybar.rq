@@ -1,12 +1,146 @@
+import "../../brand.rq" as brand
+import "../features-graph-analysers.rq" as graph_analysers
+import "../features-commands.rq" as commands
+import "../features-consumption.rq" as consumption
+import "../library/graph.rq" as graph_lib
+import "./webview.rq" as webview_doc
+import "./graphical_graph.rq" as graphical_graph_doc
+import "../../../reqlan rq/development/core.rq" as development_core
+import "../../../packages/extension/src/activity_bar_module/activity-bar-provider.ts" as activity_bar_provider
+import "../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+
+activity_bar {
+    The extension should provide an activity bar sidebar for editor-adjacent requirement context per [consumption.local_graph_view].
+    UI is implemented as Svelte webview panes per [development_core], not as a long-lived tree of static rows.
+    The host loads slices from the index via [graph_analysers.local_graph_analysis] and forwards editor focus through [activity_bar_provider].
+    Panes should be performance conscious: capped neighbourhoods, lazy cytoscape mount, debounced cursor updates — same discipline as [webview_doc.webview].
+    Workspace-wide tables, full layout controls, and unconstrained graph dumps belong in Ideas Summary per [webview_doc]; panes link out with prefilled state instead of duplicating those views.
+}
+
 icon {
-    the activity bar icon should use the reqlan logo. ["../../brand.rq"]
+    the activity bar icon should use the reqlan logo. [brand]
 }
 
 panes {
-    - header buttons
-    - current_file_pane
-        - graph
-        - list of 
-    - 
+    - [header_buttons]
+    - [current_file_pane]
+    - [selection_pane]
+    - [ideaset_pane]
+    - [file_references_pane]
+    - [recent_pane]
+    - [index_health_pane]
 }
 
+header_buttons {
+    Cross-pane controls live in a compact header above the pane stack.
+    - "Sync with editor" toggle: panes follow the active editor and cursor by default; when off, stay pinned on the last focused idea.
+    - Depth control: 1-hop vs 2-hop neighbourhood (aligns with indirect references in [graphical_graph_doc.graphical_graph] and [commands.toggle_indirect_references]).
+    - "Open in Ideas Summary": reveal [ideas_summary_panel] with the ideas table filtered to the current file, or the graph tab centred on the current idea.
+    - "Export slice": JSON or CSV of the current neighbourhood only (lighter than workspace [commands.export_json] / [commands.export_csv]).
+    - "Copy as markdown": copy the focused idea plus parents and reference lists for pasting into chat or PRs.
+    - Refresh control tied to index readiness.
+}
+
+current_file_pane {
+    Primary contextual pane when a .rq file is active. Sub-sections may collapse independently.
+
+    [scope_pane]
+    [miniature_graph_pane]
+    [reference_lists_pane]
+    [parent_nodes_pane]
+}
+
+scope_pane {
+    Current scope for the active editor.
+    - Show the active file path (click opens the file).
+    - Highlight the idea at the caret: name, @status, tags, and a one-line summary.
+    - List all ideas in the file with line ranges; click jumps in the editor, double-click focuses [miniature_graph_pane] on that idea.
+    - Shallow outline of nested block ideas (parent → child) when the file contains nested structures.
+    - Badge for unresolved or broken references in the current scope; clicking filters [reference_lists_pane] to broken edges only.
+}
+
+miniature_graph_pane {
+    A small interactive graph centred on the cursor idea (or the file's first idea when the caret is outside any block).
+    Consumes [graph_lib.graph_library] with sidebar-appropriate defaults; slices from [graph_analysers.local_graph_analysis].
+    - Default depth 1; +/- controls expand or collapse neighbourhood depth without opening Ideas Summary.
+    - Pan, zoom, and drag per [graph_lib.view_controls]; no full layout/physics menus here (defer to [graphical_graph_doc.graphical_graph]).
+    - Single-click a node opens its source; double-click or "Focus" recentres the slice on that idea.
+    - Edge kinds styled like the full graph (including dashed file-reference edges).
+    - When nodes are truncated per [graphical_graph_doc.node_truncation], show "+N more" with a control to open the centred slice in Ideas Summary.
+    - "Open in Graph tab" hands off centerId and query state to [ideas_summary_panel].
+    Mount cytoscape only while this sub-pane is visible per [graph_lib.graph_cy_controller].
+}
+
+reference_lists_pane {
+    Actionable inbound and outbound reference lists for the focused idea.
+    - Inbound: ideas that reference the focus (edges to the focus).
+    - Outbound: ideas and files the focus references (edges from the focus).
+    - Group entries by edge kind (dependency, related to, file ref, incompatible, etc.) in collapsible sections.
+    - Show a short snippet or source line explaining why each edge exists where available.
+    - Text filter scoped to this pane only (not the full ui-sql layer).
+    - "Add to context" pins an idea into [context_tray] for Copilot / @reqlan workflows.
+    - For unresolved outbound targets, offer "Create stub idea" which opens [commands.pallete_function_create_todo] prefilled with the reference.
+}
+
+parent_nodes_pane {
+    Upstream context for the focused idea.
+    - Ancestor chain as a breadcrumb with a configurable depth limit (not only immediate parents).
+    - Status rollup for ancestors (e.g. counts by @status).
+    - "What blocks completion?" surfaces upstream ideas whose @status is not done or in-progress.
+}
+
+selection_pane {
+    When the user selects text spanning one or more ideas, or multi-selects ideas in the outline.
+    - Union of inbound and outbound references across the selection.
+    - Merged miniature graph for the selection (still capped; same truncation rules as [miniature_graph_pane]).
+    - Hidden when there is no multi-idea selection.
+}
+
+ideaset_pane {
+    When the focused idea belongs to one or more ideasets.
+    - List ideaset names with a dropdown of member chips (same interaction model as [webview_doc.idea_sets_tab]).
+    - Path column links to the ideaset source file.
+    - Hidden when the focus idea is not a member of any ideaset.
+}
+
+file_references_pane {
+    File-scoped edges only — inbound and outbound file references for the focused idea.
+    Useful for tracing which source files implement or mention a requirement.
+    - Group shared file targets per [graphical_graph_doc.referenced_files_grouping] when multiple ideas reference the same path.
+    - Line-qualified references should navigate to the specific line when present.
+}
+
+recent_pane {
+    Recently touched ideas in the session (configurable count and truncation basis per [graphical_graph_doc.node_truncation]).
+    - Click opens the idea; optional pin to [context_tray].
+}
+
+index_health_pane {
+    Compact index status without duplicating the full Index tab in [webview_doc.index_panel].
+    - Ready / syncing / stale indicator and summary counts.
+    - Error count with expand to list errors; refresh and rebuild actions delegate to [webview_doc.index_panel] behaviour.
+}
+
+context_tray {
+    A small pinned set of ideas carried across panes for AI context.
+    - Chips for pinned ideas with remove control.
+    - "Clear tray" and "Copy tray as markdown" actions.
+    - Tray contents are included when invoking @reqlan context or divide-and-conquer flows per [commands.divide_and_conquer].
+}
+
+performance {
+    Sidebar webviews share the same constraints as [graph_lib.webview_threading].
+    - Default neighbourhood slices; never load the full workspace graph into a pane.
+    - Debounce editor selection and cursor events before rebuilding slices.
+    - Lazy-mount cytoscape only for visible sub-panes; destroy when collapsed or hidden.
+    - Reuse [graph_analysers.local_graph_analysis] and graph query builders rather than ad-hoc index walks in the webview.
+}
+
+implementation_priority {
+    Suggested build order:
+    1. [scope_pane] and [reference_lists_pane] (index data only, no cytoscape).
+    2. [miniature_graph_pane] with expand/collapse and handoff to Ideas Summary.
+    3. [parent_nodes_pane] with status rollup.
+    4. [context_tray] and create-stub integration with [commands.pallete_function_create_todo].
+    5. [selection_pane], [ideaset_pane], [file_references_pane], [recent_pane], [index_health_pane].
+}

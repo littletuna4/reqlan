@@ -6,14 +6,13 @@ file files store ideas and form ideasets
 
 keyword as a language, reqlan has some keywords that are reserved in some contexts.
 
-import_statement Imports are used to decribe refrences. some [keywords] are reserved for imports
+import_statement Imports are used to decribe refrences. some [keyword]s are reserved for imports
 
 reference References are used to link ideas to other ideas, files, and symbols.
 
 referenced_files are non rq files/ideasets that are referenced by ideas, or that reference ideas. these may be shared. they should be captured  in the [index]
 
 cartographic_map a cartographic map is a visual representation of a graph, optimised/curated by the user for context
-
 
 extension the extension contains all of the actual features
 

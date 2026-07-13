@@ -4,6 +4,7 @@
 import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, ReferenceInfo } from 'langium';
 import { DefaultLinker, type DefaultReference } from 'langium';
 import { isQualifiedReference } from './generated/ast.js';
+import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { unquoteReqlanString } from './reqlan-references.js';
@@ -28,7 +29,11 @@ export class ReqlanLinker extends DefaultLinker {
                 super.doLink(refInfo, document);
                 return;
             }
-            if (this.resolvesAnonymousImportPath(refInfo, document)) {
+            const path = unquoteReqlanString(refInfo.reference.$refText);
+            if (isOpaqueFileReferencePath(path)) {
+                return;
+            }
+            if (this.resolvesAnonymousImportPath(path, document)) {
                 this.linkAnonymousImportPath(refInfo, document);
                 return;
             }
@@ -49,8 +54,7 @@ export class ReqlanLinker extends DefaultLinker {
             && refInfo.container.path === refInfo.reference;
     }
 
-    private resolvesAnonymousImportPath(refInfo: ReferenceInfo, document: LangiumDocument): boolean {
-        const path = unquoteReqlanString(refInfo.reference.$refText);
+    private resolvesAnonymousImportPath(path: string, document: LangiumDocument): boolean {
         return isResolvableImportPath(path, document, this.documents, this.fileSystem);
     }
 

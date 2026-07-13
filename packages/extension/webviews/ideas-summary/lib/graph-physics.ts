@@ -4,7 +4,7 @@
  * Obsidian-style simulation: central gravity + link (spring) attraction + pairwise
  * node repulsion, integrated with damped semi-implicit Euler once per animation frame.
  * Group container constraints (shared-node overlap rules) live in graph-groups.ts.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] layout_physics
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] layout_physics
  */
 import type cytoscape from 'cytoscape';
 import {

@@ -4,7 +4,7 @@
  * Kept separate from the controller so the controller owns lifecycle/physics only.
  * Handlers receive node ids (compound container nodes are filtered out here); the
  * controller decides what selection/open/focus/drag mean.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cy_controller
  */
 import type cytoscape from 'cytoscape';
 

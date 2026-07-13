@@ -4,7 +4,7 @@
  * Rather than remove-all/add-all on every sync (which discards positions and forces
  * a full relayout), this computes the delta between the live cytoscape graph and the
  * desired slice: surviving nodes keep their positions, only new/removed elements move.
- * per ["../../../../../reqlan rq/extension/module/graphical_graph.rq"] state_machines
+ * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cy_elements
  */
 import type cytoscape from 'cytoscape';
 import type { ElementDefinition } from 'cytoscape';
