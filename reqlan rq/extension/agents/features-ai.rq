@@ -1,4 +1,4 @@
-from "./module/chat-participant.rq" import chat_participant, chat_participant_completion
+from "../module/chat-participant.rq" import chat_participant, chat_participant_completion
 import "./features-skills-and-mcp.rq" as skills_and_mcp
 
 ai_api should use the chat participant api. which should be in a module. that consumes analysis functions from other modules. https://code.visualstudio.com/api/extension-guides/ai/chat
@@ -21,3 +21,4 @@ ai_add_to_context {
 ai_write_plan {
     A command palette action (e.g. ctrl+p: write plan) should draft or update an @plan attribute for the selected idea.
 }
+

@@ -44,6 +44,15 @@ async function main() {
     console.log(`Synced Cursor skills to ${relative(root, cursorSkillsRoot)}`);
 }
 
+const installedSkillNames = new Set();
+
+function assertUniqueSkillName(skillName, source) {
+    if (installedSkillNames.has(skillName)) {
+        throw new Error(`Duplicate Cursor skill name "${skillName}" from ${source}`);
+    }
+    installedSkillNames.add(skillName);
+}
+
 async function syncSkillDirectories() {
     const entries = await readdir(skillsSource, { withFileTypes: true });
     for (const entry of entries) {
@@ -52,6 +61,7 @@ async function syncSkillDirectories() {
         }
         const sourceDir = join(skillsSource, entry.name);
         const targetDir = join(cursorSkillsRoot, cursorSkillName(entry.name));
+        assertUniqueSkillName(cursorSkillName(entry.name), `bundled skill directory ${entry.name}`);
         await mkdir(targetDir, { recursive: true });
         const skillContent = await readFile(join(sourceDir, 'SKILL.md'), 'utf8');
         await writeFile(join(targetDir, 'SKILL.md'), skillContent, 'utf8');
@@ -74,6 +84,7 @@ async function syncPromptFiles() {
         const { frontmatter, body } = splitFrontmatter(content);
         const metadata = parseSimpleYaml(frontmatter);
         const name = cursorSkillName(metadata.name ?? basename(entry.name, '.prompt.md'));
+        assertUniqueSkillName(name, `prompt file ${entry.name}`);
         const targetDir = join(cursorSkillsRoot, name);
         await mkdir(targetDir, { recursive: true });
 

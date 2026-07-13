@@ -4,6 +4,8 @@ export * from './reqlan-comment-resolver.js';
 export * from './reqlan-ignore-error.js';
 export * from './reqlan-file-references.js';
 export * from './reqlan-embedded-file-references.js';
+export * from './file-path-rewrite.js';
+export * from './reqlan-path-references.js';
 export * from './reqlan-references.js';
 export * from './reqlan-reference-at-position.js';
 export * from './reqlan-attribute-catalog.js';

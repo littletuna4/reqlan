@@ -5,8 +5,6 @@ import * as vscode from 'vscode';
 import type { IdeaSummary, SemanticMatch } from 'reqlan-analytical';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
-import { registerReqlanAgentContributions } from './register-agent-contributions.js';
-
 import {
     installCursorSkills,
     workspaceHasCursorSkills
@@ -16,7 +14,6 @@ export function registerAiCommandsModule(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
-    registerReqlanAgentContributions(context);
     void maybePromptCursorSkillsInstall(context);
 
     context.subscriptions.push(

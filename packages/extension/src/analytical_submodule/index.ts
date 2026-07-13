@@ -20,6 +20,7 @@ import { registerActivityBarModule } from '../activity_bar_module/index.js';
 import { registerChatParticipantModule } from '../chat_participant_module/index.js';
 import { registerWebviewModule } from '../webview_module/index.js';
 import { registerAiCommandsModule } from '../ai_commands_module/index.js';
+import { registerMutationHooksModule } from '../mutation_hooks_module/index.js';
 
 export type {
     AnalyticalState,
@@ -64,6 +65,7 @@ export async function activateAnalyticalSubmodule(
     registerChatParticipantModule(context, submodule);
     registerWebviewModule(context, submodule);
     registerAiCommandsModule(context, submodule);
+    registerMutationHooksModule(context, submodule);
 
     context.subscriptions.push({
         dispose: () => {

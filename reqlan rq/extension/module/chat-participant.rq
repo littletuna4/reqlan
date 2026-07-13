@@ -13,3 +13,7 @@ mcp {
     the mcp package exposes the same analysis api as @reqlan chat via stdio tools.
     cursor project config lives in [".cursor/mcp.json"] and skills sync to [".cursor/skills"] via scripts/sync-cursor-ai.mjs.
 }
+
+chat_participant_skills {
+    the chat participant must not have duplicate skills.
+}

@@ -1,8 +1,5 @@
 export { registerAiCommandsModule } from './register-ai-commands.js';
-export {
-    listReqlanAgentContributionPaths,
-    registerReqlanAgentContributions
-} from './register-agent-contributions.js';
+export { listReqlanAgentContributionPaths } from './register-agent-contributions.js';
 export {
     installCursorSkills,
     workspaceHasCursorSkills

@@ -21,3 +21,11 @@ rename_file{
     this should update any referencess in rq files (imports, inline references, etc)
     it should also update any inline references in functional code files - per ["features-code-comment"]
 }
+
+move_file{
+    if a file is moved, a prompt should be shown to the user to update any references in the file to the new path.
+    if multiple files are moved there should be only one prompt.
+    the trigger should only happen if the reqlan file has inbound or outbound references, or the non-reqlan file has inbound reqlan references.
+    "reqlan wants to make refactoring changes to your codebase. Do you approve?"
+    "yes", "no", "view changes"
+}

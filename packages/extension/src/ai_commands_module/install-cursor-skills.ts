@@ -68,6 +68,7 @@ async function installBundledSkills(
             continue;
         }
         const skillName = cursorSkillName(name);
+        assertUniqueSkillName(installed, skillName, `bundled skill directory ${name}`);
         const source = vscode.Uri.joinPath(sourceRoot, name, 'SKILL.md');
         const targetDir = vscode.Uri.joinPath(skillsRoot, skillName);
         await vscode.workspace.fs.createDirectory(targetDir);
@@ -102,6 +103,7 @@ async function installPromptSkills(
         const { frontmatter, body } = splitFrontmatter(raw);
         const metadata = parseSimpleYaml(frontmatter);
         const skillName = cursorSkillName(String(metadata.name ?? fileName.replace(/\.prompt\.md$/, '')));
+        assertUniqueSkillName(installed, skillName, `prompt file ${fileName}`);
         const targetDir = vscode.Uri.joinPath(skillsRoot, skillName);
         await vscode.workspace.fs.createDirectory(targetDir);
 
@@ -164,6 +166,12 @@ async function configureMcp(workspaceUri: vscode.Uri): Promise<{ configured: boo
 function cursorSkillName(name: string): string {
     const normalized = name.replace(/\.prompt$/, '');
     return normalized.startsWith(SKILL_PREFIX) ? normalized : `${SKILL_PREFIX}${normalized}`;
+}
+
+function assertUniqueSkillName(installed: Set<string>, skillName: string, source: string): void {
+    if (installed.has(skillName)) {
+        throw new Error(`Duplicate Cursor skill name "${skillName}" from ${source}`);
+    }
 }
 
 function splitFrontmatter(content: string): { frontmatter: string; body: string } {

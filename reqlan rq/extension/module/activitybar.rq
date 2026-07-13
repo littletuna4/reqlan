@@ -1,8 +1,12 @@
 icon {
-    the activity bar module should use a simple circular icon for now. see ["../../brand.rq"] for more details.
+    the activity bar icon should use the reqlan logo. ["../../brand.rq"]
 }
 
-modules {
-    has the following sections:
- 
+panes {
+    - header buttons
+    - current_file_pane
+        - graph
+        - list of 
+    - 
 }
+
