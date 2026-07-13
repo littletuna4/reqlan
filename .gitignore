@@ -13,5 +13,7 @@ syntaxes/
 *.tsbuildinfo
 *.vsix
 
+*/:memory:
+
 .cursor/
 .pnpm-store/
