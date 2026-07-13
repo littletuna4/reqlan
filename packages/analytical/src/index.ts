@@ -80,6 +80,7 @@ export type {
 } from './core/types.js';
 export type {
     ContextFileLensDetail,
+    ContextReferencesSlice,
     ContextSelection
 } from './core/context-model.js';
 export {

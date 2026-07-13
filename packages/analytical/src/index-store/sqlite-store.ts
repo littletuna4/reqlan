@@ -301,6 +301,14 @@ export class SqliteIndexStore {
         `, ideaId))!.count;
     }
 
+    async countEdgesFromFile(fileUri: string): Promise<number> {
+        return (await get<{ count: number }>(this.db, `
+            SELECT COUNT(*) AS count
+            FROM edges
+            WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)
+        `, fileUri))!.count;
+    }
+
     async listAncestorChain(ideaId: string, maxDepth = 8): Promise<IdeaSummary[]> {
         const ancestors: IdeaSummary[] = [];
         const visited = new Set<string>([ideaId]);

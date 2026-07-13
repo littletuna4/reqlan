@@ -109,6 +109,7 @@ export type {
     ContextFootprint,
     ContextIdeaEntry,
     ContextProvenance,
+    ContextReferencesSlice,
     GitContextSlice,
     WorkspaceContextSlice
 } from './context-model.js';

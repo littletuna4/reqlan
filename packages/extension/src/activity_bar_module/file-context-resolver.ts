@@ -8,6 +8,7 @@ import {
     resolveWorkspaceFileUri,
     type FileRelatedRequirements,
     type IdeaSummary,
+    type IdeaWithRange,
     type SqliteIndexStore
 } from 'reqlan-analytical';
 
@@ -89,4 +90,17 @@ export function ideasInSelectionRange(
     const minLine = Math.min(startLine, endLine);
     const maxLine = Math.max(startLine, endLine);
     return ideas.filter(idea => idea.lineStart <= maxLine && idea.lineEnd >= minLine);
+}
+
+/** Innermost idea whose line range contains `line` (0-based). */
+export function findIdeaAtLine(ideas: IdeaWithRange[], line: number): IdeaSummary | undefined {
+    let match: IdeaWithRange | undefined;
+    for (const idea of ideas) {
+        if (idea.lineStart <= line && line <= idea.lineEnd) {
+            if (!match || idea.lineStart > match.lineStart) {
+                match = idea;
+            }
+        }
+    }
+    return match;
 }

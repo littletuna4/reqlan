@@ -183,8 +183,11 @@ export class IndexService {
         const ideasToPersist = validIdeas(extracted.ideas);
 
         if (existingHash === extracted.contentHash && indexingIssues.length === 0) {
-            analytical.clearFileIndexIssuesForFile(fileUri);
-            return;
+            const storedEdges = await this.sqlite.countEdgesFromFile(fileUri);
+            if (storedEdges >= extracted.edges.length) {
+                analytical.clearFileIndexIssuesForFile(fileUri);
+                return;
+            }
         }
 
         for (const idea of ideasToPersist) {

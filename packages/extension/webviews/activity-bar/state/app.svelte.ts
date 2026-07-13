@@ -12,7 +12,7 @@ import type {
 } from 'reqlan-analytical';
 import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
 import type { PhonebookLinkView, ReferenceListsPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';
-import { buildReferencesPayloadFromCurrentFile } from '../../../src/activity_bar_module/context-helpers.js';
+import { buildReferencesPayloadFromCurrentFile, groupReferences } from '../../../src/activity_bar_module/context-helpers.js';
 import { getVsCodeApi, postToExtension } from '../lib/vscode.js';
 
 export class AppState {
@@ -71,12 +71,22 @@ export class AppState {
                     this.context = message.model;
                     this.scope = message.model.currentFile;
                     const centerId = message.model.footprint.effectiveCenterId;
-                    const currentFile = message.model.currentFile;
-                    if (centerId && currentFile?.focusIdea?.id === centerId) {
-                        this.references = buildReferencesPayloadFromCurrentFile(centerId, currentFile);
+                    if (message.model.references) {
+                        this.references = {
+                            ideaId: message.model.references.ideaId,
+                            rows: message.model.references.rows,
+                            grouped: groupReferences(message.model.references.rows)
+                        };
+                    } else if (centerId && message.model.currentFile) {
+                        this.references = buildReferencesPayloadFromCurrentFile(
+                            centerId,
+                            message.model.currentFile
+                        );
                     }
                     if (centerId) {
-                        this.loadReferences(centerId);
+                        if (this.referenceSearch || this.brokenOnly) {
+                            this.loadReferences(centerId);
+                        }
                         this.loadGraph(centerId);
                         this.loadAncestors(centerId);
                     }
@@ -102,6 +112,15 @@ export class AppState {
                 }
                 if (message.requestId !== undefined) {
                     this.referencesRequestId = message.requestId;
+                }
+                if (
+                    message.payload.rows.length === 0 &&
+                    this.references?.ideaId === message.payload.ideaId &&
+                    (this.references.rows.length ?? 0) > 0 &&
+                    !this.referenceSearch &&
+                    !this.brokenOnly
+                ) {
+                    break;
                 }
                 this.references = message.payload;
                 break;

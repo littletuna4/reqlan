@@ -101,7 +101,10 @@ export class HeadlessIndexService {
         const fileUri = extracted.fileUri;
         const existingHash = await this.sqlite.getDocumentHash(fileUri);
         if (existingHash === extracted.contentHash) {
-            return;
+            const storedEdges = await this.sqlite.countEdgesFromFile(fileUri);
+            if (storedEdges >= extracted.edges.length) {
+                return;
+            }
         }
         for (const idea of extracted.ideas) {
             idea.contentHash = extracted.contentHash;

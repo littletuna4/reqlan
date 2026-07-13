@@ -26,12 +26,13 @@ import {
     type FileRelatedRequirements,
     type ContextSelection,
     type ContextFileLensDetail,
+    type ContextReferencesSlice,
     type WorkspaceContextSlice
 } from 'reqlan-analytical';
 import type { GraphViewQuery, GraphViewSlice } from '../webview_module/shared/messages.js';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 import type { ContextSessionState } from './context-session.js';
-import { enrichFileContext, dedupeIdeas, ideasInSelectionRange } from './file-context-resolver.js';
+import { enrichFileContext, dedupeIdeas, findIdeaAtLine, ideasInSelectionRange } from './file-context-resolver.js';
 
 import {
     buildOutlineFromIdeas,
@@ -183,6 +184,22 @@ export class ContextModelBuilder {
             });
         }
 
+        const centerId = footprint.effectiveCenterId;
+        let references: ContextReferencesSlice | undefined;
+        if (centerId) {
+            const rows = await this.store.listReferencesForIdea(centerId);
+            references = { ideaId: centerId, rows };
+            const related = await resolveBidirectionalIdeaReferences(this.store, centerId);
+            if (currentFile) {
+                currentFile = {
+                    ...currentFile,
+                    inboundReferencingIdeas: related.inbound,
+                    referencedIdeas: related.outbound,
+                    unresolvedCount: await this.store.countUnresolvedForIdea(centerId)
+                };
+            }
+        }
+
         return {
             revision: session.revision,
             focus,
@@ -197,7 +214,8 @@ export class ContextModelBuilder {
             git: enabled.git ? input.git : undefined,
             workspace: input.workspace,
             anomalies,
-            selection
+            selection,
+            references
         };
     }
 
@@ -215,9 +233,11 @@ export class ContextModelBuilder {
         const isRqFile = fileUri.endsWith('.rq');
         const ideasInFile = isRqFile ? await this.store.listIdeasInFileWithRanges(fileUri) : [];
         const focusIdea = isRqFile
-            ? options?.pinnedFocusId
+            ? (options?.pinnedFocusId
                 ? await this.store.getIdea(options.pinnedFocusId)
-                : await this.store.getIdeaAtLine(fileUri, line)
+                : undefined) ??
+              findIdeaAtLine(ideasInFile, line) ??
+              (await this.store.getIdeaAtLine(fileUri, line))
             : undefined;
 
         let referencingIdeas: IdeaSummary[] = [];
