@@ -1,5 +1,16 @@
 # reqlan-analytical
 
+## 0.1.0
+
+### Minor Changes
+
+- 65840f4: update to extension activity bar; update to the syntax. addition of testing. bidirectional references.
+
+### Patch Changes
+
+- Updated dependencies [65840f4]
+  - reqlan-language@0.1.0
+
 ## 0.0.5
 
 ### Patch Changes

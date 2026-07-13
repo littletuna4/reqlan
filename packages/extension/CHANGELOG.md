@@ -1,5 +1,18 @@
 # reqlan
 
+## 0.1.0
+
+### Minor Changes
+
+- 65840f4: update to extension activity bar; update to the syntax. addition of testing. bidirectional references.
+
+### Patch Changes
+
+- ea699c2: Add file icon; add refactor support; chat participant bug fixes.
+- Updated dependencies [65840f4]
+  - reqlan-analytical@0.1.0
+  - reqlan-language@0.1.0
+
 ## 0.0.11
 
 ### Patch Changes
