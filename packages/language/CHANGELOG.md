@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 0.1.1
+
+### Patch Changes
+
+- d9f43be: remove :memory:
+
 ## 0.1.0
 
 ### Minor Changes
