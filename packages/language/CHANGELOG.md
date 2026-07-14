@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 1.0.0
+
+### Major Changes
+
+- 931fc87: build fix
+
 ## 0.1.2
 
 ### Patch Changes
