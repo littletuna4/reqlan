@@ -355,3 +355,46 @@ configuration_import_root_alias {
         ["../../packages/language/test/rqconfig.test.ts:longest alias wins when mappings overlap"]
     )
 }
+
+//--- syntax 2 demo ---
+/*
+
+idea1 {
+    hello
+}
+
+idea2 `hello`
+
+idea3 ```markdown
+hello
+```
+
+ideaset1 (
+    idea1,
+    idea2,
+    idea3, // trailing comma is aok
+)
+
+
+idea4 {
+    ```mermaid
+    hello 
+    ```
+    @attribute {
+        hellos
+    }
+    @boolean_attribute true
+    @ideaset_attribute (
+        [idea1],
+        [idea2],
+        [idea3],
+    )
+    @attribute_with_value 123
+    @reference_attribute [idea4]
+}
+
+idea5 {
+    hello
+    
+}
+*/

@@ -10,6 +10,7 @@ import {
 } from '../src/reqlan-import-edits.js';
 
 describe('import edit helpers', () => {
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('builds relative import paths with leading ./', () => {
         expect(
             relativeRqImportPath(
@@ -25,6 +26,7 @@ describe('import edit helpers', () => {
         ).toBe('../lib/b.rq');
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('derives a safe namespace alias from file basename', () => {
         expect(fileBasenameAlias('file:///tmp/my-file.rq')).toBe('my_file');
         expect(fileBasenameAlias('file:///tmp/123.rq')).toBe('_123');

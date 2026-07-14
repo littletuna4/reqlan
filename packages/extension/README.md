@@ -23,6 +23,15 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 0.1.2
+
+#### Patch Changes
+
+- fcb99a0: Various vibed changes
+- Updated dependencies [fcb99a0]
+  - reqlan-analytical@0.1.2
+  - reqlan-language@0.1.2
+
 ### 0.1.1
 
 #### Patch Changes

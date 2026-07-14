@@ -48,6 +48,7 @@ function isCodeAction(value: unknown): value is CodeAction {
 }
 
 describe('Import error code actions', () => {
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('offers add-import and rewrite when a matching idea exists elsewhere', async () => {
         const library = await parseUri(s`
             shared_idea {
@@ -83,6 +84,7 @@ describe('Import error code actions', () => {
         expect(addImport?.isPreferred).toBe(true);
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('uses name catalog matches when documents are not loaded', async () => {
         const catalog: NameCatalog = {
             entries: [{
@@ -108,6 +110,7 @@ describe('Import error code actions', () => {
             .toContain('import catalog_only');
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('search and create actions invoke extension commands', async () => {
         const document = await parse(s`
             consumer {
@@ -130,6 +133,7 @@ describe('Import error code actions', () => {
         expect(create?.command?.command).toBe(REQLAN_IMPORT_ERROR_CREATE_COMMAND);
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('appends to an existing from-import for the same path', async () => {
         const library = await parseUri(s`
             alpha {
