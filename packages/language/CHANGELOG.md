@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 0.1.2
+
+### Patch Changes
+
+- fcb99a0: Various vibed changes
+
 ## 0.1.1
 
 ### Patch Changes
