@@ -36,3 +36,10 @@ pallete_function_create_todo {
     This behaviour should be configurable via ["./configuration.rq"]
     @todo
 }
+
+add_to_chat {
+    A set of [command_palette] functions that add the selected idea, ideaset, or file to the chat.
+    Commands: Add Idea to Chat, Add Ideaset to Chat, Add File to Chat (category Reqlan).
+    Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick. Opens chat with #requirement / #file context, with clipboard fallback.
+    @status done
+}

@@ -3,6 +3,27 @@
  * per ["../../../../reqlan rq/extension/module/context-scope.rq"]
  */
 import type { IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from './types.js';
+import type {
+    AiReadiness,
+    ContextFingerprintAxes,
+    ContextSignals,
+    ContextSynthesis
+} from './context-signals.js';
+
+export type {
+    AiReadiness,
+    ContextFingerprintAxes,
+    ContextSignals,
+    ContextSynthesis,
+    ContextRiskLevel,
+    ContextCoverageLevel,
+    ContextHotspotBand,
+    DevelopmentHistorySignals,
+    LifecycleSignals,
+    QualitySignals,
+    RelationshipSignals,
+    RiskSignals
+} from './context-signals.js';
 
 export interface ContextReferencesSlice {
     ideaId: string;
@@ -57,6 +78,10 @@ export interface ContextDimensionContribution {
     ideaCount: number;
     fileCount: number;
     summary: string;
+    /** Effective graph hop depth for this dimension (inherits global when unset). */
+    hopDepth: number;
+    /** True when this dimension supports per-lens hop overrides. */
+    supportsHopControl: boolean;
 }
 
 export interface CurrentFileSlice {
@@ -130,6 +155,12 @@ export interface ReqlanContextModel {
     dimensions: ContextDimensionContribution[];
     footprint: ContextFootprint;
     expandedLens?: ContextDimensionId;
+    /** Global graph hop depth for panes and context search. */
+    globalHopDepth: number;
+    minHopDepth: number;
+    maxHopDepth: number;
+    /** Per-dimension hop overrides; omitted dimensions inherit globalHopDepth. */
+    dimensionHopDepth: Partial<Record<ContextDimensionId, number>>;
     currentFile?: CurrentFileSlice;
     openFiles: ContextFileEntry[];
     fileHistory: ContextFileEntry[];
@@ -141,6 +172,14 @@ export interface ReqlanContextModel {
     selection?: ContextSelection;
     /** Bidirectional reference rows for [footprint.effectiveCenterId]. */
     references?: ContextReferencesSlice;
+    /** v2 focus signals (relationship, history, risk, …). */
+    signals?: ContextSignals;
+    /** v2 synthesized knowledge for the focus entity. */
+    synthesis?: ContextSynthesis;
+    /** Compact axes describing what is in composed context. */
+    fingerprint?: ContextFingerprintAxes;
+    /** Whether AI has enough / safe enough context to assist. */
+    aiReadiness?: AiReadiness;
 }
 
 export const CONTEXT_DIMENSION_LABELS: Record<ContextDimensionId, string> = {
@@ -172,3 +211,12 @@ export const DEFAULT_ENABLED_DIMENSIONS: Record<ContextDimensionId, boolean> = {
     manual: true,
     git: true
 };
+
+/** Dimensions that traverse the requirement graph and expose hop controls. */
+export const CONTEXT_GRAPH_SEARCH_DIMENSIONS: ContextDimensionId[] = [
+    'current_file',
+    'open_files',
+    'file_history',
+    'edit_history',
+    'manual'
+];

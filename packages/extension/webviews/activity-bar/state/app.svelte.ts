@@ -17,7 +17,9 @@ import { getVsCodeApi, postToExtension } from '../lib/vscode.js';
 
 export class AppState {
     syncWithEditor = $state(true);
-    includeIndirect = $state(false);
+    globalHopDepth = $state(1);
+    minHopDepth = $state(1);
+    maxHopDepth = $state(4);
     pinnedFocusId = $state<string | undefined>(undefined);
 
     scope = $state<ActivityBarScope | undefined>(undefined);
@@ -28,7 +30,7 @@ export class AppState {
     referenceSearch = $state('');
     brokenOnly = $state(false);
     graph = $state({
-        query: { includeIndirect: false, maxNodes: 40 } as GraphViewQuery,
+        query: { includeIndirect: false, hopDepth: 1, maxNodes: 40 } as GraphViewQuery,
         slice: undefined as GraphViewSlice | undefined,
         loading: false,
         error: undefined as string | undefined,
@@ -61,15 +63,23 @@ export class AppState {
         switch (message.type) {
             case 'editorContext':
                 this.syncWithEditor = message.syncWithEditor;
-                this.includeIndirect = message.includeIndirect;
+                this.globalHopDepth = message.globalHopDepth;
+                this.minHopDepth = message.minHopDepth;
+                this.maxHopDepth = message.maxHopDepth;
                 this.pinnedFocusId = message.pinnedFocusId;
-                this.graph.query.includeIndirect = message.includeIndirect;
+                this.graph.query.hopDepth = message.globalHopDepth;
+                this.graph.query.includeIndirect = message.globalHopDepth >= 2;
                 break;
             case 'context':
                 if (message.model.revision >= this.contextRevision) {
                     this.contextRevision = message.model.revision;
                     this.context = message.model;
                     this.scope = message.model.currentFile;
+                    this.globalHopDepth = message.model.globalHopDepth;
+                    this.minHopDepth = message.model.minHopDepth;
+                    this.maxHopDepth = message.model.maxHopDepth;
+                    this.graph.query.hopDepth = message.model.globalHopDepth;
+                    this.graph.query.includeIndirect = message.model.globalHopDepth >= 2;
                     const centerId = message.model.footprint.effectiveCenterId;
                     if (message.model.references) {
                         this.references = {
@@ -183,14 +193,16 @@ export class AppState {
         postToExtension({ type: 'setSyncWithEditor', enabled });
     }
 
-    setIncludeIndirect(enabled: boolean): void {
-        this.includeIndirect = enabled;
-        this.graph.query = { ...this.graph.query, includeIndirect: enabled };
-        postToExtension({ type: 'setIncludeIndirect', enabled });
-        const centerId = this.context?.footprint.effectiveCenterId ?? this.scope?.focusIdea?.id;
-        if (centerId) {
-            this.loadGraph(centerId);
-        }
+    adjustGlobalHopDepth(delta: number): void {
+        postToExtension({ type: 'adjustGlobalHopDepth', delta });
+    }
+
+    adjustDimensionHopDepth(dimension: ContextDimensionId, delta: number): void {
+        postToExtension({ type: 'adjustDimensionHopDepth', dimension, delta });
+    }
+
+    effectiveDimensionHop(dimension: ContextDimensionId): number {
+        return this.context?.dimensions.find(dim => dim.id === dimension)?.hopDepth ?? this.globalHopDepth;
     }
 
     focusIdea(ideaId: string): void {
@@ -217,11 +229,13 @@ export class AppState {
     loadGraph(centerId: string): void {
         this.graph.loading = true;
         this.graph.error = undefined;
+        const hopDepth = this.context?.globalHopDepth ?? this.globalHopDepth;
         postToExtension({
             type: 'loadGraph',
             query: {
                 centerId,
-                includeIndirect: this.includeIndirect,
+                includeIndirect: hopDepth >= 2,
+                hopDepth,
                 maxNodes: 40
             },
             requestId: this.nextRequestId()
@@ -276,7 +290,7 @@ export class AppState {
                 activeTab: tab,
                 centerId: focus?.id,
                 pathFilter: this.scope?.fileLabel,
-                includeIndirect: this.includeIndirect
+                includeIndirect: this.globalHopDepth >= 2
             }
         });
     }

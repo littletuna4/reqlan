@@ -2,22 +2,55 @@
  * Normalize file paths and idea ids relative to the workspace root.
  */
 import { URI } from 'langium';
-import { relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { edgeId, ideaId, type IndexedDocument } from './types.js';
+
+function normalizeSlashes(filePath: string): string {
+    return filePath.replace(/\\/g, '/');
+}
+
+function relativeWindowsDrivePath(filePath: string, workspaceRoot: string): string | undefined {
+    const normalizedFile = normalizeSlashes(filePath);
+    const normalizedRoot = normalizeSlashes(workspaceRoot).replace(/\/+$/, '');
+
+    const fileMatch = normalizedFile.match(/^([A-Za-z]:)(\/.*)?$/);
+    const rootMatch = normalizedRoot.match(/^([A-Za-z]:)(\/.*)?$/);
+    if (!fileMatch || !rootMatch || fileMatch[1].toLowerCase() !== rootMatch[1].toLowerCase()) {
+        return undefined;
+    }
+
+    const fileRest = (fileMatch[2] ?? '').replace(/^\/+/, '');
+    const rootRest = (rootMatch[2] ?? '').replace(/^\/+/, '');
+    if (fileRest === rootRest) {
+        return '';
+    }
+    const rootPrefix = rootRest ? `${rootRest}/` : '';
+    if (!rootRest || fileRest.startsWith(rootPrefix)) {
+        return rootRest ? fileRest.slice(rootPrefix.length) : fileRest;
+    }
+    return undefined;
+}
 
 export function toWorkspaceRelativePath(fileUri: string, workspaceRoot: string): string {
     if (!workspaceRoot) {
-        return fileUri;
+        return normalizeSlashes(fileUri);
     }
-    if (!fileUri.startsWith('file://') && !fileUri.startsWith('/')) {
-        return fileUri.replace(/\\/g, '/');
-    }
+
     const filePath = fileUri.startsWith('file://') ? URI.parse(fileUri).fsPath : fileUri;
+    const driveRelative = relativeWindowsDrivePath(filePath, workspaceRoot);
+    if (driveRelative !== undefined) {
+        return driveRelative;
+    }
+
+    if (!isAbsolute(filePath)) {
+        return normalizeSlashes(filePath);
+    }
+
     const rel = relative(workspaceRoot, filePath);
     if (rel.startsWith('..')) {
-        return fileUri;
+        return normalizeSlashes(fileUri);
     }
-    return rel.replace(/\\/g, '/');
+    return normalizeSlashes(rel);
 }
 
 export function resolveWorkspaceFileUri(relativeOrAbsolute: string, workspaceRoot?: string): string {

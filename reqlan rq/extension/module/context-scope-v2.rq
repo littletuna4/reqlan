@@ -1,0 +1,570 @@
+import "./context-scope.rq" as context_scope_v1
+import "./activitybar.rq" as activitybar
+import "./graphical_graph.rq" as graphical_graph_doc
+import "./webview.rq" as webview_doc
+import "../agents/features-ai.rq" as features_ai
+import "../features-graph-analysers.rq" as graph_analysers
+import "../../ui.rq" as ui
+
+context_scope_v2 {
+    Evolves [context_scope_v1.context_scope] from a **source-oriented** model
+    ("where did this context come from?") to a **decision-oriented** model
+    ("what information helps a human or AI make the next decision?").
+
+    v1 [context_scope_v1.context_dimensions] remain valid *producers*
+    (workspace, current file, open files, file history, edit history, manual, git).
+    v2 separates those producers from extracted signals, synthesized knowledge,
+    presentation views, and consumers — so new analyses can be added without
+    inventing new dimensions each time.
+
+    Primary UI principle: [ui.show_dont_tell] — make project health, momentum,
+    relationships, and intent legible at a glance. Host fact chips
+    ("17 modified files") remain useful; widgets below are the preferred
+    default for conveying meaning.
+
+    Surfaces: extend [activitybar.scope_pane] / [context_scope_v1.scope_pane_design],
+    Ideas Summary ([webview_doc.webview]), and graph overlays
+    ([graphical_graph_doc.graphical_graph]) — same signals, different projections.
+
+    @status in-progress
+    @tags (context, ui, knowledge, v2)
+    @tests (
+        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/test/context-model.test.ts"]
+        ["../../../packages/extension/test/context-widgets.test.ts"]
+    )
+}
+
+context_model_layers {
+    Canonical v2 layers. Implementation builds on
+    [context_scope_v1.reqlan_context_model]; consumers must not reconstruct
+    project understanding independently.
+
+    @context_model {
+        sources   — [context_sources]
+        signals   — [context_signals]
+        synthesis — [synthesized_context]
+        views     — [context_views]
+        consumers — [context_consumers]
+    }
+
+    @status done
+    @tests (
+        ["../../../packages/analytical/src/core/context-model.ts"]
+        ["../../../packages/analytical/src/core/context-signals.ts"]
+    )
+}
+
+context_sources {
+    Stable raw producers. Answer: "Where are we collecting information from?"
+    Map from v1: [context_scope_v1.workspace_context],
+    [context_scope_v1.current_file_context], [context_scope_v1.open_files_context],
+    [context_scope_v1.file_history_context], [context_scope_v1.edit_history_context],
+    [context_scope_v1.manual_context], [context_scope_v1.git_context] become
+    sources (and contributions), not the whole model.
+
+    @items (
+        workspace
+        active_file
+        editor_state
+        selection
+        manual
+        git_repository
+        requirements_graph
+        project_index
+        language_server
+        build_system
+        diagnostics
+        tasks
+        terminal
+        external_tools
+    )
+
+
+    @status incomplete
+}
+
+context_signals {
+    Extracted facts. Answer: "What useful information exists?"
+    One source may emit many signals (e.g. git → development history, not only staged/unstaged).
+
+    Families:
+    - [requirement_signals]
+    - [file_signals]
+    - [development_history_signals]
+    - [project_activity_signals]
+    - [semantic_signals]
+    - [quality_signals]
+    - [user_signals]
+    - [relationship_signals]
+    - [temporal_signals]
+    - [risk_signals]
+    - [architecture_signals]
+    - [requirement_lifecycle_signals]
+
+    Signals are evidence; [synthesized_context] merges them into actionable knowledge.
+
+    @status done
+    @tests (
+        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/test/context-model.test.ts"]
+    )
+}
+
+requirement_signals {
+    related_requirements, parents, children, incoming/outgoing references,
+    linked implementation files, coverage status, requirement age, stability,
+    priority, verification state, orphaned, cycles, missing references.
+}
+
+file_signals {
+    active file, related files, recently viewed, recently edited, high churn,
+    frequently opened, ownership, generated / test / implementation /
+    specification / documentation classification.
+}
+
+development_history_signals {
+    Prefer actionable history over staged/unstaged alone.
+    development_context (git reimagined): current branch, active issue,
+    release version, commits, authors, change frequency/velocity, historical
+    and semantic hotspots, last meaningful modification, first introduction,
+    ownership concentration, refactor/merge likelihood, stability score.
+    
+    @development_history {
+        creation_date, last_modified, edit_frequency, authors, commit_count,
+        time_since_touched, active_development, historical_hotspot,
+        first_introduced, last_semantic_change, last_structural_change
+    }
+}
+
+project_activity_signals {
+    currently changing subsystem, hot/cold modules, high activity area,
+    merge conflicts nearby, active branch, recent issue cluster,
+    recent requirement churn, release/milestone affected.
+}
+
+semantic_signals {
+    concept clusters, shared vocabulary, duplicate / near-duplicate /
+    similar requirements, contradictions, implicit dependencies,
+    missing abstraction, large / isolated concepts.
+}
+
+quality_signals {
+    missing documentation, large files / requirements, broken references,
+    failing diagnostics, lint / parse / test / build failures, coverage gaps.
+}
+
+user_signals {
+    manual pins, recent focus, navigation history, editing intent,
+    copied context, AI conversation history, last searched,
+    last graph traversal, frequently revisited.
+}
+
+relationship_signals {
+    @relationship_context {
+        strongest_neighbours, most/least referenced,
+        growing/shrinking dependencies, new/removed links,
+        unstable neighbours, implementation distance, test distance
+    }
+}
+
+temporal_signals {
+    @temporal_context {
+        recent, today, this_week, this_sprint, this_release,
+        historical, archived, obsolete, experimental
+    }
+    Enables queries: what changed this week, why this requirement changed,
+    newly introduced risks, recent architectural evolution.
+}
+
+risk_signals {
+    @risk_context {
+        high_churn, many_dependents, poor_documentation, large_implementation,
+        high_complexity, missing_tests, recent_regressions, many_open_issues,
+        ownership_risk, single_contributor, breaking_history, high_review_latency
+    }
+}
+
+architecture_signals {
+    @architecture_context {
+        subsystem, bounded_context, layer, module, feature, package,
+        service, deployment, ownership, technology_stack
+    }
+}
+
+requirement_lifecycle_signals {
+    @requirement_history {
+        created, first_implemented, first_referenced, last_edited,
+        last_reviewed, last_tested, last_verified, revision_count,
+        breaking / major / minor revisions, active_duration, inactive_duration
+    }
+}
+
+synthesized_context {
+    Signals merged into decision-oriented knowledge not tied to a single source.
+
+    Example projection on a requirement:
+    - Importance, Confidence, Stability, Recent Activity
+    - Dependencies, Implementations, Tests, Documentation
+    - AI Risk
+
+    Synthesis powers [show_dont_tell] widgets and
+    [features_ai.ai_integration] exports — preference for compact synthesized
+    facts over raw dimension dumps ([context_scope_v1.ai_context_export]).
+
+    @status done
+    @tests (
+        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/test/context-model.test.ts"]
+    )
+}
+
+context_views {
+    Projections over the same signals — not separate data models.
+    Timeline · Graph · File · Requirement · Subsystem · Concept ·
+    Implementation · History · Risk · AI Summary.
+
+    @status incomplete
+}
+
+context_consumers {
+    Shared semantic representation for: UI widgets, graph traversal,
+    AI agents, search, diagnostics, navigation-by-intent.
+    New analyses register as signal producers; consumers bind to signals /
+    synthesis, not to ad-hoc dimension lists.
+
+    @status incomplete
+}
+
+show_dont_tell {
+    Make project state **legible at a glance**. Prefer visual evidence of
+    health, momentum, relationships, and intent over numeric fact lists.
+    Widgets below are show-don't-tell components for [context_scope_v2];
+    each consumes [context_signals] / [synthesized_context] and may appear
+    in activity bar, Ideas Summary, focus heroes, search results, or graph overlays.
+
+    Placement guidance:
+    - Focus / card density: [timeline_ribbon], [churn_heat_bar], [dependency_pulse],
+      [stability_meter], [change_velocity], [requirement_lifecycle_wheel],
+      [requirement_card], [confidence_card], [ai_readiness_gauge]
+    - Workspace chrome / dashboard denser: [activity_river], [project_weather],
+      [context_fingerprint], [architectural_map]
+    - Graph / Ideas Summary: [hotspot_overlay], [impact_radius],
+      [activity_constellation], [historical_replay_slider], [relationship_cloud]
+    -       Coverage / ownership / density: [knowledge_coverage], [traceability_matrix],
+      [ownership_distribution], [concept_density], [context_radar], [semantic_diff_viewer]
+
+    @status in-progress
+    @tags (ui, widgets, show-dont-tell)
+    @tests (
+        ["../../../packages/extension/webviews/activity-bar/components/widgets"]
+        ["../../../packages/extension/test/context-widgets.test.ts"]
+    )
+}
+
+timeline_ribbon {
+    Horizontal lifecycle ribbon for a requirement (or focused entity), not a single "last modified" label.
+
+    Show milestones along a line toward Now — e.g. created, first implementation,
+    last reviewed, current edit, last test — so maturity and recent activity
+    are visible in one glance.
+
+    Consumes [requirement_lifecycle_signals] and [temporal_signals].
+    Fits [context_scope_v1.scope_pane_design].focus_hero and [requirement_card].
+
+    @status incomplete
+    @tags (widget, timeline)
+}
+
+churn_heat_bar {
+    Compact sparkline of edit intensity over time for a requirement, file,
+    folder, or subsystem (e.g. ▁▁▂▁▁▇█▆▂▁▁).
+
+    Hover reveals synthesized story (stable / large rewrite / quiet since).
+    Consumes [development_history_signals] and [project_activity_signals].
+
+    @status incomplete
+    @tags (widget, churn)
+}
+
+dependency_pulse {
+    Spatial dependency summary instead of "Parents: 4 / Children: 12".
+    Compact compass (↑ parents, → children, ← siblings, ↓ dependents) and/or
+    a filled **Dependency Load** bar showing centrality growth.
+
+    Consumes [requirement_signals] and [relationship_signals].
+    Surfaced on focus hero and graph node details.
+
+    @status incomplete
+    @tags (widget, dependencies)
+}
+
+stability_meter {
+    Segmented meter + percent (e.g. Stable █████████░ 91%) derived from
+    edit frequency, age, dependency churn, and issue count — not raw git status.
+
+    AI and humans use it as a confidence cue for change. Pair with
+    [confidence_card] and [risk_signals].
+
+    @status incomplete
+    @tags (widget, stability)
+}
+
+confidence_card {
+    Pre-edit checklist card: High/Medium/Low confidence with check/warn rows
+    (stable, reviewed, tested, high fanout, …) and a confidence %.
+
+    Shown before AI modify workflows ([features_ai.ai_integration]) and on
+    focus when synthesis is available.
+
+    @status incomplete
+    @tags (widget, confidence, ai)
+}
+
+activity_river {
+    Workspace-top ribbon of recent activity density (yesterday / today bursts).
+    Shows momentum, not a file list. Consumes [project_activity_signals]
+    and [user_signals].
+
+    @status incomplete
+    @tags (widget, activity)
+}
+
+architectural_map {
+    Tiny layered minimap (UI / Services / Core / Infra …) with current focus
+    highlighted and bar width for effort concentration.
+    Consumes [architecture_signals] and [project_activity_signals].
+    Links out to Ideas Summary graph rather than duplicating full layout.
+
+    @status incomplete
+    @tags (widget, architecture)
+}
+
+hotspot_overlay {
+    Graph-node encoding of churn / risk / discussion / instability
+    (size rings ○◎⬤ or green→red). Same signal set as [activity_constellation].
+    Applies to [activitybar.miniature_graph_pane] and
+    [graphical_graph_doc.graphical_graph].
+
+    @status incomplete
+    @tags (widget, graph, hotspot)
+}
+
+requirement_lifecycle_wheel {
+    Four-quadrant wheel: Specify · Implement · Test · Review.
+    Segments fill as evidence accumulates from [requirement_lifecycle_signals]
+    and [quality_signals]. Compact lifecycle for engineering projects.
+
+    @status incomplete
+    @tags (widget, lifecycle)
+}
+
+change_velocity {
+    Slow↔Fast bar from edits/week (or equivalent). Complements [churn_heat_bar]
+    (shape over time) with a single magnitude readout.
+
+    @status incomplete
+    @tags (widget, velocity)
+}
+
+concept_density {
+    Per-folder or per-subsystem bars of conceptual richness
+    (Authentication ██████████ vs Payments ███).
+    Consumes [semantic_signals]; useful in Ideas Summary folders / index panel.
+
+    @status incomplete
+    @tags (widget, semantic)
+}
+
+knowledge_coverage {
+    Stacked coverage bars: Requirements / Implementation / Tests / Docs —
+    prefer filled bars over bare percentages. Consumes [quality_signals]
+    and [requirement_signals]. Pair with [traceability_matrix].
+
+    @status incomplete
+    @tags (widget, coverage)
+}
+
+traceability_matrix {
+    Compact Req × Impl × Test (and optional Docs) check matrix for a local
+    neighbourhood or subsystem. Exposes gaps immediately.
+    Neighbourhood-scoped only — full-workspace matrices stay in Ideas Summary
+    with pagination/filters per [webview_doc.webview].
+
+    @status incomplete
+    @tags (widget, traceability)
+}
+
+relationship_cloud {
+    Compact spatial alternative to a full graph: related concepts laid out by
+    semantic closeness (distance encodes similarity). Click focuses;
+    "Open in Graph" hands off to [graphical_graph_doc.graphical_graph].
+
+    Consumes [semantic_signals] and [relationship_signals].
+
+    @status incomplete
+    @tags (widget, semantic, relationships)
+}
+
+ownership_distribution {
+    Horizontal author share bars (bus-factor at a glance).
+    Consumes [development_history_signals] ownership and [risk_signals]
+    (e.g. single_contributor).
+
+    @status incomplete
+    @tags (widget, ownership)
+}
+
+historical_replay_slider {
+    Time slider across the graph (e.g. 2023 → Now). Nodes and edges appear /
+    disappear; dependencies animate. Extremely powerful for architectural
+    storytelling; performance-capped neighbourhoods only in the activity bar;
+    fuller replay in Ideas Summary.
+
+    Consumes [temporal_signals], [requirement_lifecycle_signals],
+    [relationship_signals].
+
+    @status incomplete
+    @tags (widget, timeline, graph)
+}
+
+requirement_card {
+    GitHub-issue-style compact card for search results and lists:
+    name, stability chip, meter %, last edited, ref/impl/test counts,
+    urgency flag (e.g. recently changing).
+
+    Composes [stability_meter], [churn_heat_bar], [dependency_pulse]
+    as optional rows — not all at once by default (token/UI density).
+
+    @status incomplete
+    @tags (widget, card)
+}
+
+context_radar {
+    Polar/radar chart of context richness axes (Tests, Docs, Dependencies,
+    History, AI, …). Filled polygon shows what the current
+    [context_scope_v1.context_footprint] actually covers.
+
+    @status incomplete
+    @tags (widget, context)
+}
+
+activity_constellation {
+    Spatial glow of nodes by activity (GitHub-contribution feel, but layout-
+    aware). Shows hotspots without a separate legend dump.
+    Complements [hotspot_overlay]; prefer one encoding per surface to avoid
+    competing visual channels.
+
+    @status incomplete
+    @tags (widget, activity, graph)
+}
+
+impact_radius {
+    On select/focus, fade in affected neighbours; opacity ∝ downstream impact.
+    Consumes [relationship_signals] and [risk_signals]. Works in miniature
+    graph and Ideas Summary graph.
+
+    @status incomplete
+    @tags (widget, impact, graph)
+}
+
+ai_readiness_gauge {
+    Ready-to-assist gauge: requirements ✓, implementation ✓, history ✓,
+    tests ✕, risk low — plus readiness %. Tells the user whether AI has enough
+    synthesized context before [features_ai.ai_add_to_context] / export.
+
+    Pairs with [context_fingerprint] (what is in context) vs readiness
+    (is it enough / safe).
+
+    @status incomplete
+    @tags (widget, ai)
+}
+
+semantic_diff_viewer {
+    Conceptual change summary instead of (or above) line diffs:
+    Added / Changed / Removed ideas or policies, plus impact count
+    (e.g. 17 requirements). Higher signal for AI and review than textual diffs alone.
+
+    Consumes [semantic_signals], [relationship_signals],
+    [development_history_signals].
+
+    @status incomplete
+    @tags (widget, diff, semantic)
+}
+
+project_weather {
+    Synthesized workspace health widget — the engineering "dashboard" glance:
+    Stable / Risk / Momentum / Knowledge / Recent Change, or compact meters
+    for Project Health, Momentum, Risk, Confidence.
+
+    Consumes [synthesized_context] across [risk_signals],
+    [project_activity_signals], [quality_signals]. Belongs in activity bar
+    workspace lens / Ideas Summary index panel — not as competing hero noise
+    on every focus.
+
+    @status incomplete
+    @tags (widget, dashboard, health)
+}
+
+context_fingerprint {
+    Compact bars of what the current AI/composed context actually contains:
+    Files, Requirements, History, Architecture, Git, Diagnostics, Coverage.
+    Lets the user see expansion when LLM reports "context expanded"
+    ([context_scope_v1.ai_context_export], [features_ai.ai_integration]).
+
+    @status incomplete
+    @tags (widget, context, ai)
+}
+
+widget_composition_rules {
+    Show-don't-tell without dashboard clutter.
+
+    @items (
+        one_job {
+            Each pane region hosts one primary widget job; secondary widgets
+            collapse behind chevrons or appear on hover.
+        }
+        shared_signals {
+            Widgets never own private analyses — they bind to named signal /
+            synthesis fields so graph, AI, and UI stay consistent.
+        }
+        density_tiers {
+            Focus hero: at most timeline + one meter + one pulse.
+            Cards/lists: [requirement_card] defaults; expand for sparklines.
+            Workspace: [project_weather] + [activity_river] + optional fingerprint.
+            Graph: pick one of hotspot / constellation / impact encoding per view mode.
+        }
+        token_discipline {
+            AI export prefers synthesized meters and short stories from widgets
+            (stability, risk, coverage gaps) over enumerating every signal —
+            aligned with [features_ai.ai_integration] and
+            [context_scope_v1.ai_context_export].
+        }
+    )
+
+    @status incomplete
+}
+
+implementation_priority_v2 {
+    After v1 [context_scope_v1.implementation_priority] is solid:
+
+    1. [context_model_layers] types: sources → signals → synthesis contracts
+       (extend analytical context model; keep v1 dimensions as sources). ✓
+    2. Seed signal producers: [development_history_signals],
+       [requirement_lifecycle_signals], [relationship_signals], [risk_signals]
+       from index + git (reimagined, not staged/unstaged-only). ✓ (thin)
+    3. [synthesized_context] rollups for focus entity (stability, confidence,
+       AI risk, coverage). ✓
+    4. First widgets on focus hero: [stability_meter], [dependency_pulse],
+       [timeline_ribbon], [churn_heat_bar]. ✓
+    5. [requirement_card] in search / Ideas Summary lists;
+       [context_fingerprint] + [ai_readiness_gauge] on AI context export. ✓
+    6. Graph overlays: [hotspot_overlay], [impact_radius]. ✓
+    7. Workspace glance: [project_weather], [activity_river],
+       [architectural_map]. deferred
+    8. Deeper storytelling: [historical_replay_slider], [semantic_diff_viewer],
+       [relationship_cloud], [traceability_matrix]. deferred
+
+
+    @status in-progress
+}

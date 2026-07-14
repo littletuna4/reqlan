@@ -4,13 +4,23 @@ import type { SqliteIndexStore } from './sqlite-store.js';
 
 export const GRAPH_MAX_NODES = 120;
 
+export const CONTEXT_MIN_HOP_DEPTH = 1;
+export const CONTEXT_MAX_HOP_DEPTH = 4;
+
+export function clampGraphHopDepth(depth: number): number {
+    return Math.min(CONTEXT_MAX_HOP_DEPTH, Math.max(CONTEXT_MIN_HOP_DEPTH, Math.round(depth)));
+}
+
 export interface GraphViewQuery {
     centerId?: string;
     search?: string;
     pathFilter?: string;
     statusFilter?: string;
     tagFilter?: string;
+    /** @deprecated Prefer hopDepth — true maps to depth 2 when hopDepth is omitted */
     includeIndirect: boolean;
+    /** Neighbourhood hop depth from center (1 = direct edges only). */
+    hopDepth?: number;
     maxNodes?: number;
 }
 
@@ -23,6 +33,7 @@ export interface GraphNodeView {
     status?: string;
     tags: string[];
     isExternal?: boolean;
+    hotspotBand?: 'low' | 'medium' | 'high';
 }
 
 export interface GraphEdgeView {
@@ -127,7 +138,7 @@ export async function buildGraphViewSlice(
     query: GraphViewQuery
 ): Promise<GraphViewSlice> {
     const maxNodes = Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), 200);
-    const depth = query.includeIndirect ? 2 : 1;
+    const depth = clampGraphHopDepth(query.hopDepth ?? (query.includeIndirect ? 2 : 1));
 
     if (query.centerId) {
         return expandFromCenter(store, query, query.centerId, depth, maxNodes);

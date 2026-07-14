@@ -236,6 +236,42 @@ button:disabled {
     border-bottom: none;
 }
 
+.hop-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.hop-button {
+    min-width: 22px;
+    padding: 4px 6px;
+}
+
+.hop-button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.hop-value {
+    min-width: 1.2em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+}
+
+.lens-hop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 6px 0 8px;
+    gap: 8px;
+}
+
+.lens-file-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
 
 .idea-focus h3 {
     margin: 0 0 4px;
@@ -577,3 +613,9 @@ button.link:hover {
 .graph-meta.is-error {
     color: var(--vscode-errorForeground);
 }
+
+.synthesis-story {
+    margin: 0 0 4px;
+    font-size: 0.85em;
+}
+

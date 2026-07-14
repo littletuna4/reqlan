@@ -76,6 +76,44 @@ describe('activity bar sqlite queries', () => {
         await store.close();
     });
 
+    test('getIdeasetAtLine returns innermost ideaset at cursor', async () => {
+        const fileUri = 'file:///workspace/test.rq';
+        const store = await openTestStore();
+        const outerId = ideaId(fileUri, 'outer_set');
+        const innerId = ideaId(fileUri, 'inner_set');
+        await store.upsertDocument(fileUri, 'hash', [
+            {
+                id: outerId,
+                name: 'outer_set',
+                kind: 'ideaset',
+                fileUri,
+                lineStart: 0,
+                lineEnd: 10,
+                summary: 'outer',
+                attributesJson: '{}',
+                contentHash: 'o'
+            },
+            {
+                id: innerId,
+                name: 'inner_set',
+                kind: 'ideaset',
+                fileUri,
+                lineStart: 2,
+                lineEnd: 4,
+                summary: 'inner',
+                attributesJson: '{}',
+                contentHash: 'i'
+            }
+        ], []);
+
+        const atInner = await store.getIdeasetAtLine(fileUri, 3);
+        expect(atInner?.name).toBe('inner_set');
+
+        const atOuter = await store.getIdeasetAtLine(fileUri, 8);
+        expect(atOuter?.name).toBe('outer_set');
+        await store.close();
+    });
+
     test('listReferencesForIdea groups inbound and outbound edges', async () => {
         const fileA = 'file:///workspace/a.rq';
         const fileB = 'file:///workspace/b.rq';

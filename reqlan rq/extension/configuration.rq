@@ -1,9 +1,65 @@
 configuration_location {
-    The environment should be configurable by the user in a "language-configuration.json" file.
+    An optional `.rqconfig.json` may appear in any directory of the workspace.
+    For a given `.rq` file, the applying config is the nearest `.rqconfig.json` among that file’s directory and its ancestor directories.
+    If no `.rqconfig.json` is found, defaults from [configuration_import_roots] apply.
+    Implemented by ["../../packages/language/src/reqlan-path-resolve.ts"].
+    @tests (
+        ["../../packages/language/test/rqconfig.test.ts:returns undefined when no rqconfig exists"]
+        ["../../packages/language/test/rqconfig.test.ts:loads rqconfig from the same directory as the start path"]
+        ["../../packages/language/test/rqconfig.test.ts:loads rqconfig from an ancestor directory"]
+        ["../../packages/language/test/rqconfig.test.ts:nearest ancestor rqconfig wins over farther ones"]
+        ["../../packages/language/test/rqconfig.test.ts:resolveRqConfig uses defaults when no applying file exists"]
+        ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest rqconfig"]
+    )
 }
 
-configuration_schema {
-    there should be an aligned scma 
+configuration_schema_file {
+    The machine-readable JSON Schema for `.rqconfig.json` is ["../../packages/extension/schemas/rqconfig.schema.json"].
+    The extension contributes that schema for `.rqconfig.json` via `jsonValidation` in ["../../packages/extension/package.json"].
+    `.rqconfig.json` is a JSON object. Unknown properties are not part of the schema and are ignored when loading.
+    @tests (
+        ["../../packages/language/test/rqconfig.test.ts:unknown properties are ignored while known keys still apply"]
+        ["../../packages/language/test/rqconfig.test.ts:schema file documents importRoots mappings"]
+    )
+}
+
+configuration_import_roots {
+    `importRoots` is an optional array of alias-to-directory mappings in `.rqconfig.json`.
+    Each mapping has:
+    - `alias` (required non-empty string): prefix before `/` in aliased import paths.
+    - `root` (optional non-empty string): directory for that alias.
+    A relative `root` resolves against the directory that contains the applying `.rqconfig.json`.
+    An absolute path or `file://` URI is used as that alias’s import-root directory directly.
+    When `root` is omitted for a mapping, that alias uses the workspace folder that contains the `.rq` file.
+    When `importRoots` is omitted, empty, or has no valid entries, the default is one mapping with alias `@` and no explicit root.
+    When several aliases could match a path, the longest alias wins.
+    Invalid or unreadable JSON, and a non-array `importRoots` value, fall back to defaults (or no loaded config for discovery, then defaults at resolve time).
+    Path resolution, rewrite skip, and completion use these mappings; see ["../language/syntax.rq".configuration_import_root_alias].
+    Implemented by ["../../packages/language/src/reqlan-path-resolve.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-completion-provider.ts"].
+    @tests (
+        ["../../packages/language/test/rqconfig.test.ts:empty object uses default alias mapping"]
+        ["../../packages/language/test/rqconfig.test.ts:importRoots alias only overrides the alias"]
+        ["../../packages/language/test/rqconfig.test.ts:relative root resolves against the config file directory"]
+        ["../../packages/language/test/rqconfig.test.ts:absolute filesystem root is used directly"]
+        ["../../packages/language/test/rqconfig.test.ts:file URI root is used directly"]
+        ["../../packages/language/test/rqconfig.test.ts:multiple importRoots map aliases to different roots"]
+        ["../../packages/language/test/rqconfig.test.ts:longest alias wins when mappings overlap"]
+        ["../../packages/language/test/rqconfig.test.ts:empty string alias entries are skipped"]
+        ["../../packages/language/test/rqconfig.test.ts:empty string root is ignored on a mapping"]
+        ["../../packages/language/test/rqconfig.test.ts:invalid importRoots entries are skipped"]
+        ["../../packages/language/test/rqconfig.test.ts:unknown properties are ignored while known keys still apply"]
+        ["../../packages/language/test/rqconfig.test.ts:invalid JSON falls back to undefined load"]
+        ["../../packages/language/test/rqconfig.test.ts:non-object JSON falls back to undefined load"]
+        ["../../packages/language/test/rqconfig.test.ts:non-array importRoots falls back to undefined load"]
+        ["../../packages/language/test/rqconfig.test.ts:empty importRoots array uses default alias mapping"]
+        ["../../packages/language/test/rqconfig.test.ts:resolveRqConfig falls back to defaults when applying JSON is invalid"]
+        ["../../packages/language/test/rqconfig.test.ts:aliased path uses relative root from applying config"]
+        ["../../packages/language/test/rqconfig.test.ts:aliased path uses workspace folder when root is omitted"]
+        ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest rqconfig"]
+        ["../../packages/language/test/path-resolve.test.ts:resolves using config importRoots mapping"]
+        ["../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
+        ["../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+    )
 }
 
 ai_naming {

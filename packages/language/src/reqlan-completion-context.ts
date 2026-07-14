@@ -12,9 +12,11 @@ import {
     isIdea,
     isImport,
     isMarkdownLink,
+    isOneLinerIdea,
     isQualifiedReference,
     isWikiLink,
-    type Attribute
+    type Attribute,
+    type IdeaDeclaration
 } from './generated/ast.js';
 import {
     isMarkdownLinkLabelPosition,
@@ -184,17 +186,22 @@ export function isFilePathCompletion(contextProperty: string | undefined, contai
     return contextProperty === 'file' && (isFileReference(container) || isFileSymbolReference(container));
 }
 
-function findContainingIdea(document: LangiumDocument, position: Position) {
+/** Innermost idea / one-liner whose range covers `position` (for completion ranking). */
+export function findContainingIdea(
+    document: LangiumDocument,
+    position: Position
+): IdeaDeclaration | undefined {
+    let match: IdeaDeclaration | undefined;
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
-        if (!isIdea(node) || !node.$cstNode?.range) {
+        if ((!isIdea(node) && !isOneLinerIdea(node)) || !node.$cstNode?.range) {
             continue;
         }
         const range = node.$cstNode.range;
         if (position.line >= range.start.line && position.line <= range.end.line) {
-            return node;
+            match = node;
         }
     }
-    return undefined;
+    return match;
 }
 
 function findAttributeAtPosition(document: LangiumDocument, position: Position): Attribute | undefined {

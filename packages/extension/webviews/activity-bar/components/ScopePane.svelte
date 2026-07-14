@@ -2,6 +2,12 @@
     import type { ContextDimensionId, ContextFileEntry, ContextFileLensDetail, IdeaSummary, OutlineNode } from 'reqlan-analytical';
     import { getApp } from '../state/context.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import StabilityMeter from './widgets/StabilityMeter.svelte';
+    import DependencyPulse from './widgets/DependencyPulse.svelte';
+    import TimelineRibbon from './widgets/TimelineRibbon.svelte';
+    import ChurnHeatBar from './widgets/ChurnHeatBar.svelte';
+    import ContextFingerprint from './widgets/ContextFingerprint.svelte';
+    import AiReadinessGauge from './widgets/AiReadinessGauge.svelte';
 
     interface Props {
         expanded: boolean;
@@ -13,11 +19,50 @@
     let context = $derived(app.context);
     let scope = $derived(context?.currentFile);
     let focusIdea = $derived(scope?.focusIdea);
+    let synthesis = $derived(context?.synthesis);
+    let signals = $derived(context?.signals);
     let lensDimensions = $derived(
         context?.dimensions.filter(dim => dim.id !== 'workspace') ?? []
     );
     let expandedLens = $derived(context?.expandedLens);
     let expandedFileUri = $state<string | undefined>(undefined);
+
+    let ribbonMilestones = $derived.by(() => {
+        const milestones: { id: string; label: string; at: Date }[] = [];
+        const created = signals?.developmentHistory?.createdAt;
+        const modified = signals?.developmentHistory?.modifiedAt;
+        if (created) {
+            const at = new Date(created);
+            if (!Number.isNaN(at.getTime())) {
+                milestones.push({ id: 'created', label: 'Created', at });
+            }
+        }
+        if (modified) {
+            const at = new Date(modified);
+            if (!Number.isNaN(at.getTime())) {
+                milestones.push({ id: 'modified', label: 'Last edit', at });
+            }
+        }
+        milestones.push({ id: 'now', label: 'Now', at: new Date() });
+        return milestones.sort((a, b) => a.at.getTime() - b.at.getTime());
+    });
+
+    let churnIntensity = $derived.by(() => {
+        const days = signals?.developmentHistory?.timeSinceTouchedDays;
+        if (days === undefined) {
+            return 0.15;
+        }
+        if (days <= 3) {
+            return 0.95;
+        }
+        if (days <= 14) {
+            return 0.65;
+        }
+        if (days <= 60) {
+            return 0.35;
+        }
+        return 0.1;
+    });
 
     function renderOutline(nodes: OutlineNode[], depth = 0): { node: OutlineNode; depth: number }[] {
         const flat: { node: OutlineNode; depth: number }[] = [];
@@ -118,6 +163,23 @@
                     </button>
                 </p>
                 <p class="muted">{focusIdea.summary}</p>
+                {#if synthesis}
+                    <StabilityMeter
+                        stability={synthesis.stability}
+                        title={synthesis.stability >= 0.75 ? 'Stable' : synthesis.stability >= 0.45 ? 'Moderate' : 'Unstable'}
+                    />
+                    <p class="muted synthesis-story">{synthesis.story}</p>
+                {/if}
+                {#if signals?.relationship}
+                    <DependencyPulse
+                        parentCount={signals.relationship.parentCount}
+                        outboundCount={signals.relationship.outboundCount}
+                        inboundCount={signals.relationship.inboundCount}
+                        dependentCount={signals.relationship.dependentCount}
+                    />
+                {/if}
+                <TimelineRibbon milestones={ribbonMilestones} />
+                <ChurnHeatBar intensity={churnIntensity} title={synthesis?.story ?? 'Churn'} />
                 {#if (scope.inboundReferencingIdeas?.length ?? 0) > 0 || (scope.referencedIdeas?.length ?? 0) > 0}
                     <div class="focus-refs">
                         {#if (scope.inboundReferencingIdeas?.length ?? 0) > 0}
@@ -192,11 +254,42 @@
 
         <p class="footprint-line muted">{context.footprint.summaryLine}</p>
 
+        {#if context.fingerprint}
+            <ContextFingerprint axes={context.fingerprint} />
+        {/if}
+        {#if context.aiReadiness}
+            <AiReadinessGauge readiness={context.aiReadiness} />
+        {/if}
+
         {#each context.anomalies as anomaly}
             <button class="anomaly-strip link" onclick={() => handleAnomaly(anomaly.action)}>
                 {anomaly.message}
             </button>
         {/each}
+
+        {#if expandedLens}
+            {@const expandedDim = context.dimensions.find(dim => dim.id === expandedLens)}
+            {#if expandedDim?.supportsHopControl}
+                <div class="lens-hop-row">
+                    <span class="muted">{expandedDim.label} hop depth</span>
+                    <div class="hop-control">
+                        <button
+                            class="toolbar-button hop-button"
+                            disabled={expandedDim.hopDepth <= context.minHopDepth}
+                            onclick={() => app.adjustDimensionHopDepth(expandedLens!, -1)}
+                            aria-label="Decrease dimension hop depth"
+                        >−</button>
+                        <span class="hop-value">{expandedDim.hopDepth}</span>
+                        <button
+                            class="toolbar-button hop-button"
+                            disabled={expandedDim.hopDepth >= context.maxHopDepth}
+                            onclick={() => app.adjustDimensionHopDepth(expandedLens!, 1)}
+                            aria-label="Increase dimension hop depth"
+                        >+</button>
+                    </div>
+                </div>
+            {/if}
+        {/if}
 
         {#if expandedLens === 'current_file' && scope}
             {#if !scope.isRqFile}

@@ -1,8 +1,15 @@
 /**
- * Session-side context signals (history rings, dimension toggles).
+ * Session-side context signals (history rings, dimension toggles, hop depth).
  * per ["../../../../reqlan rq/extension/module/context-scope.rq"]
  */
-import type { ContextDimensionId, IdeaSummary } from 'reqlan-analytical';
+import {
+    clampGraphHopDepth,
+    CONTEXT_GRAPH_SEARCH_DIMENSIONS,
+    CONTEXT_MAX_HOP_DEPTH,
+    CONTEXT_MIN_HOP_DEPTH,
+    type ContextDimensionId,
+    type IdeaSummary
+} from 'reqlan-analytical';
 
 const MAX_HISTORY = 12;
 
@@ -10,6 +17,8 @@ export interface ContextSessionState {
     revision: number;
     dimensionEnabled: Record<ContextDimensionId, boolean>;
     expandedLens?: ContextDimensionId;
+    globalHopDepth: number;
+    dimensionHopDepth: Partial<Record<ContextDimensionId, number>>;
     fileHistory: string[];
     editHistory: Array<{ fileUri: string; line: number; at: number }>;
     manualIdeas: IdeaSummary[];
@@ -27,6 +36,8 @@ export function createContextSession(): ContextSessionState {
             manual: true,
             git: true
         },
+        globalHopDepth: CONTEXT_MIN_HOP_DEPTH,
+        dimensionHopDepth: {},
         fileHistory: [],
         editHistory: [],
         manualIdeas: []
@@ -35,6 +46,37 @@ export function createContextSession(): ContextSessionState {
 
 export function bumpContextRevision(session: ContextSessionState): void {
     session.revision += 1;
+}
+
+export function effectiveHopDepth(
+    session: ContextSessionState,
+    dimension?: ContextDimensionId
+): number {
+    if (dimension && session.dimensionHopDepth[dimension] !== undefined) {
+        return clampGraphHopDepth(session.dimensionHopDepth[dimension]!);
+    }
+    return clampGraphHopDepth(session.globalHopDepth);
+}
+
+export function adjustGlobalHopDepth(session: ContextSessionState, delta: number): number {
+    session.globalHopDepth = clampGraphHopDepth(session.globalHopDepth + delta);
+    bumpContextRevision(session);
+    return session.globalHopDepth;
+}
+
+export function adjustDimensionHopDepth(
+    session: ContextSessionState,
+    dimension: ContextDimensionId,
+    delta: number
+): number {
+    const current = effectiveHopDepth(session, dimension);
+    session.dimensionHopDepth[dimension] = clampGraphHopDepth(current + delta);
+    bumpContextRevision(session);
+    return session.dimensionHopDepth[dimension]!;
+}
+
+export function dimensionSupportsHopControl(id: ContextDimensionId): boolean {
+    return CONTEXT_GRAPH_SEARCH_DIMENSIONS.includes(id);
 }
 
 export function recordFileVisit(session: ContextSessionState, fileUri: string): void {
@@ -82,3 +124,5 @@ export function clearManualIdeas(session: ContextSessionState): void {
     session.manualIdeas = [];
     bumpContextRevision(session);
 }
+
+export { CONTEXT_MIN_HOP_DEPTH, CONTEXT_MAX_HOP_DEPTH };

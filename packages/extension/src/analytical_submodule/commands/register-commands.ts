@@ -8,7 +8,8 @@ import type {
     SemanticMatch
 } from 'reqlan-analytical';
 import type { AnalyticalSubmodule } from '../index.js';
-import { resolveIndexFileUri, toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
+import { openIndexFile } from '../index-store/open-index-file.js';
+import { toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
@@ -39,7 +40,7 @@ export function registerAnalyticalCommands(
                 matchOnDetail: true
             });
             if (picked) {
-                await openIdea(picked.idea.fileUri, picked.idea.lineStart);
+                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -64,7 +65,7 @@ export function registerAnalyticalCommands(
                 placeHolder: 'Requirements related to current file'
             });
             if (picked) {
-                await openIdea(picked.idea.fileUri, picked.idea.lineStart);
+                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -90,7 +91,7 @@ export function registerAnalyticalCommands(
                 placeHolder: 'Downstream impact of deprecated ideas'
             });
             if (picked) {
-                await openIdea(picked.idea.fileUri, picked.idea.lineStart);
+                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -160,7 +161,7 @@ export function registerAnalyticalCommands(
                 placeHolder: `Semantic matches for "${query}"`
             });
             if (picked) {
-                await openIdea(picked.idea.fileUri, picked.idea.lineStart);
+                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -176,15 +177,6 @@ async function waitForIndex(index: AnalyticalSubmodule['index']): Promise<void> 
         return;
     }
     await index.syncWorkspace();
-}
-
-async function openIdea(fileUri: string, line: number): Promise<void> {
-    const uri = resolveIndexFileUri(fileUri);
-    const document = await vscode.workspace.openTextDocument(uri);
-    const editor = await vscode.window.showTextDocument(document);
-    const position = new vscode.Position(line, 0);
-    editor.selection = new vscode.Selection(position, position);
-    editor.revealRange(new vscode.Range(position, position));
 }
 
 function renderGraphHtml(

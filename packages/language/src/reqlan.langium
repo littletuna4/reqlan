@@ -107,23 +107,34 @@ BlockLine:
     parts+=RichTextPart+;
 
 // ---------------------------------------------------------------------------
-// lists (newline-separated one-liners or nameless blocks)
+// lists (comma- or newline-separated one-liners or nameless blocks)
 // ---------------------------------------------------------------------------
 
 ListValue:
-    '(' NL* items+=ListItem (NL+ items+=ListItem)* NL* ')';
+    '(' NL* items+=ListItem ((NL* ',' NL* | NL+) items+=ListItem)* NL* (',' NL*)? ')';
 
 NamedList:
-    label=ID '(' NL+ items+=ListItem (NL+ items+=ListItem)* NL* ')';
+    label=ID '(' NL+ items+=ListItem ((NL* ',' NL* | NL+) items+=ListItem)* NL* (',' NL*)? ')';
 
 NestedList:
-    '(' NL+ items+=ListItem (NL+ items+=ListItem)* NL* ')';
+    '(' NL+ items+=ListItem ((NL* ',' NL* | NL+) items+=ListItem)* NL* (',' NL*)? ')';
 
 ListItem:
     OneLinerListItem | AnonymousBlock | NamedBlockListItem | NestedList;
 
 OneLinerListItem:
-    body=OneLinerBody;
+    body=ListItemBody;
+
+// List item text omits ',' and ')' so separators and the closing paren are not
+// swallowed by OneLinerText (which allows both for free-form one-liner ideas).
+ListItemBody:
+    content+=(MarkdownLink | BracketReference | WikiLink | ListItemText)+;
+
+ListItemText returns string:
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | ListItemPunctuation | '(' | '|' | 'from' | 'import' | 'as' | '`';
+
+ListItemPunctuation returns string:
+    '.' | ':' | ';' | '!' | '?' | '-';
 
 NamedBlockListItem:
     name=ID '{' (NL* elements+=BodyElement)* NL* '}';

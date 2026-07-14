@@ -4,10 +4,20 @@
  */
 import {
     ACTIVITY_BAR_MAX_NODES,
+    buildAiReadiness,
+    buildContextFingerprint,
+    buildFocusSignals,
     buildGraphViewSlice,
     CONTEXT_DIMENSION_LABELS,
     CONTEXT_DIMENSION_WEIGHTS,
+    CONTEXT_MAX_HOP_DEPTH,
+    CONTEXT_MIN_HOP_DEPTH,
+    formatAiReadinessMarkdown,
+    formatFingerprintMarkdown,
+    formatSynthesisMarkdown,
+    hotspotBandFromRisk,
     resolveBidirectionalIdeaReferences,
+    synthesizeFocusContext,
     type AncestorChainResult,
     type ContextAnomaly,
     type ContextDimensionContribution,
@@ -32,6 +42,10 @@ import {
 import type { GraphViewQuery, GraphViewSlice } from '../webview_module/shared/messages.js';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 import type { ContextSessionState } from './context-session.js';
+import {
+    dimensionSupportsHopControl,
+    effectiveHopDepth
+} from './context-session.js';
 import { enrichFileContext, dedupeIdeas, findIdeaAtLine, ideasInSelectionRange } from './file-context-resolver.js';
 
 import {
@@ -153,6 +167,7 @@ export class ContextModelBuilder {
             enabled.manual || session.manualIdeas.length > 0 ? [...session.manualIdeas] : [];
 
         const dimensions = this.buildDimensionContributions({
+            session,
             enabled,
             currentFile,
             openFiles,
@@ -185,9 +200,10 @@ export class ContextModelBuilder {
         }
 
         const centerId = footprint.effectiveCenterId;
+        const currentFileHop = effectiveHopDepth(session, 'current_file');
         let references: ContextReferencesSlice | undefined;
         if (centerId) {
-            const rows = await this.store.listReferencesForIdea(centerId);
+            const rows = await this.store.listReferencesWithinHopDepth(centerId, currentFileHop);
             references = { ideaId: centerId, rows };
             const related = await resolveBidirectionalIdeaReferences(this.store, centerId);
             if (currentFile) {
@@ -200,12 +216,44 @@ export class ContextModelBuilder {
             }
         }
 
+        const focusIdea =
+            currentFile?.focusIdea ??
+            (centerId ? await this.store.getIdea(centerId) : undefined);
+        const parentCount = centerId
+            ? (await this.store.listAncestorChain(centerId, 1)).length
+            : 0;
+        const signals = buildFocusSignals({
+            focusIdeaId: centerId,
+            status: focusIdea?.status,
+            parentCount,
+            inboundCount: currentFile?.inboundReferencingIdeas?.length ?? 0,
+            outboundCount: currentFile?.referencedIdeas?.length ?? 0,
+            unresolvedCount: currentFile?.unresolvedCount ?? 0,
+            createdAt: focusIdea?.gitCreatedAt,
+            modifiedAt: focusIdea?.gitModifiedAt
+        });
+        const synthesis = centerId ? synthesizeFocusContext(signals) : undefined;
+        const fingerprint = buildContextFingerprint({
+            fileCount: footprint.fileUris.length,
+            ideaCount: footprint.ideaIds.length,
+            historyCount: fileHistory.length + editHistory.length,
+            hasArchitectureHint: (currentFile?.referencedIdeas?.length ?? 0) > 0 || parentCount > 0,
+            gitChangeCount: input.git?.changedFiles.length ?? 0,
+            anomalyCount: anomalies.length,
+            coverage: synthesis?.coverage ?? 'unknown'
+        });
+        const aiReadiness = synthesis ? buildAiReadiness(signals, synthesis) : undefined;
+
         return {
             revision: session.revision,
             focus,
             dimensions,
             footprint,
             expandedLens: session.expandedLens,
+            globalHopDepth: session.globalHopDepth,
+            minHopDepth: CONTEXT_MIN_HOP_DEPTH,
+            maxHopDepth: CONTEXT_MAX_HOP_DEPTH,
+            dimensionHopDepth: { ...session.dimensionHopDepth },
             currentFile,
             openFiles,
             fileHistory,
@@ -215,7 +263,11 @@ export class ContextModelBuilder {
             workspace: input.workspace,
             anomalies,
             selection,
-            references
+            references,
+            signals: centerId ? signals : undefined,
+            synthesis,
+            fingerprint,
+            aiReadiness
         };
     }
 
@@ -329,6 +381,7 @@ export class ContextModelBuilder {
     }
 
     private buildDimensionContributions(input: {
+        session: ContextSessionState;
         enabled: Record<ContextDimensionId, boolean>;
         currentFile?: CurrentFileSlice;
         openFiles: ContextFileEntry[];
@@ -421,7 +474,9 @@ export class ContextModelBuilder {
                 weight: CONTEXT_DIMENSION_WEIGHTS[id],
                 ideaCount,
                 fileCount,
-                summary
+                summary,
+                hopDepth: effectiveHopDepth(input.session, id),
+                supportsHopControl: dimensionSupportsHopControl(id)
             };
         });
     }
@@ -530,6 +585,15 @@ export class ActivityBarDataService extends ContextModelBuilder {
         if (centerId) {
             sections.push(await this.buildScopeMarkdown(centerId));
         }
+        if (model.synthesis) {
+            sections.push(formatSynthesisMarkdown(model.synthesis));
+        }
+        if (model.fingerprint) {
+            sections.push(formatFingerprintMarkdown(model.fingerprint));
+        }
+        if (model.aiReadiness) {
+            sections.push(formatAiReadinessMarkdown(model.aiReadiness));
+        }
         if (model.currentFile && !model.currentFile.isRqFile) {
             const file = model.currentFile;
             sections.push(
@@ -569,24 +633,52 @@ export class ActivityBarDataService extends ContextModelBuilder {
 
     async loadReferences(
         ideaId: string,
-        options?: { search?: string; brokenOnly?: boolean }
+        options?: { search?: string; brokenOnly?: boolean; hopDepth?: number }
     ): Promise<ReferenceListsPayload> {
-        const rows = filterReferences(await this.store.listReferencesForIdea(ideaId), options);
+        const hopDepth = options?.hopDepth ?? CONTEXT_MIN_HOP_DEPTH;
+        const rows = filterReferences(
+            await this.store.listReferencesWithinHopDepth(ideaId, hopDepth),
+            options
+        );
         return { ideaId, rows, grouped: groupReferences(rows) };
     }
 
-    async loadGraph(centerId: string, includeIndirect: boolean): Promise<GraphViewSlice> {
+    async loadGraph(centerId: string, hopDepth: number): Promise<GraphViewSlice> {
         const query: GraphViewQuery = {
             centerId,
-            includeIndirect,
+            includeIndirect: hopDepth >= 2,
+            hopDepth,
             maxNodes: ACTIVITY_BAR_MAX_NODES
         };
         const slice = await buildGraphViewSlice(this.store, query);
+        const center = await this.store.getIdea(centerId);
+        const inbound = (await this.store.listReferencesForIdea(centerId)).filter(
+            row => row.direction === 'inbound'
+        ).length;
+        const outbound = (await this.store.listReferencesForIdea(centerId)).filter(
+            row => row.direction === 'outbound'
+        ).length;
+        const unresolved = await this.store.countUnresolvedForIdea(centerId);
+        const parents = (await this.store.listAncestorChain(centerId, 1)).length;
+        const synthesis = synthesizeFocusContext(
+            buildFocusSignals({
+                focusIdeaId: centerId,
+                status: center?.status,
+                parentCount: parents,
+                inboundCount: inbound,
+                outboundCount: outbound,
+                unresolvedCount: unresolved,
+                createdAt: center?.gitCreatedAt,
+                modifiedAt: center?.gitModifiedAt
+            })
+        );
+        const hotspotBand = hotspotBandFromRisk(synthesis.aiRisk);
         return {
             ...slice,
             nodes: slice.nodes.map(node => ({
                 ...node,
-                path: node.isExternal ? node.fileUri : this.relativePath(node.fileUri)
+                path: node.isExternal ? node.fileUri : this.relativePath(node.fileUri),
+                hotspotBand: node.id === centerId ? hotspotBand : undefined
             }))
         };
     }

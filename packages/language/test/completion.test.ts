@@ -137,6 +137,51 @@ describe('Completion', () => {
         expect(labels).toContain('my');
     });
 
+    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+    test('orders reference completions by distance then alphabetically', async () => {
+        document = await parse(`hub {
+            see [a_near]
+            see [z_near]
+            see [
+        }
+        a_near {
+            links [far_idea]
+        }
+        z_near {
+            sibling
+        }
+        far_idea {
+            distant
+        }
+        orphan_alpha {
+            disconnected
+        }
+        orphan_zeta {
+            also disconnected
+        }`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 3, character: 17 }
+        });
+        const labels = (result?.items ?? []).map(item => String(item.label));
+        expect(labels).toEqual([
+            'hub',
+            'a_near',
+            'z_near',
+            'far_idea',
+            'orphan_alpha',
+            'orphan_zeta'
+        ]);
+        const sortTexts = (result?.items ?? []).map(item => item.sortText);
+        expect(sortTexts[0]).toBe('0000_hub');
+        expect(sortTexts[1]).toBe('0001_a_near');
+        expect(sortTexts[2]).toBe('0001_z_near');
+        expect(sortTexts[3]).toBe('0002_far_idea');
+    });
+
     // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion]
     test('completes relative import paths', async () => {
         services = createReqlanServices(NodeFileSystem);
@@ -155,5 +200,35 @@ describe('Completion', () => {
         });
         const labels = (result?.items ?? []).map(item => item.label);
         expect(labels.some(label => String(label).includes('exampleimport'))).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    test('completes import-root alias paths', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const workspaceUri = URI.parse(pathToFileURL(exampleDir).href);
+        services.shared.workspace.WorkspaceManager.initialize({
+            processId: null,
+            capabilities: {},
+            rootUri: null,
+            workspaceFolders: [{ name: 'example', uri: workspaceUri.toString() }]
+        });
+        await parseDocumentsTogether(['exampleimport.rq']);
+        const importerUri = URI.parse(pathToFileURL(join(exampleDir, 'alias-completion.rq')).href);
+        document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'import "@',
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 0, character: 8 }
+        });
+        const labels = (result?.items ?? []).map(item => String(item.label));
+        expect(labels.some(label => label.startsWith('@/') && label.includes('exampleimport'))).toBe(true);
     });
 });

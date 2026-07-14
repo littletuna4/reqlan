@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
-import type { FileRelatedRequirements } from 'reqlan-analytical';
+import type { FileRelatedRequirements, GitDateInfo, IdeaSummary } from 'reqlan-analytical';
+import { CONTEXT_MAX_HOP_DEPTH, CONTEXT_MIN_HOP_DEPTH } from 'reqlan-analytical';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
+import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri, resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import { toIndexStatusView } from '../webview_module/ideas-summary-panel.js';
 import { IdeasSummaryPanel } from '../webview_module/ideas-summary-panel.js';
@@ -16,6 +18,9 @@ import {
     setExpandedLens,
     unpinManualIdea,
     clearManualIdeas,
+    adjustGlobalHopDepth,
+    adjustDimensionHopDepth,
+    effectiveHopDepth,
     type ContextSessionState
 } from './context-session.js';
 import { getActivityBarHtml } from './get-activity-bar-html.js';
@@ -33,13 +38,14 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private data?: ActivityBarDataService;
     private readonly contextSession: ContextSessionState = createContextSession();
     private syncWithEditor = true;
-    private includeIndirect = false;
     private pinnedFocusId?: string;
     private editorTimer?: ReturnType<typeof setTimeout>;
     private requestGeneration = 0;
     private readonly statusUnsubscribe: () => void;
     private readonly catalogUnsubscribe: () => void;
     private visible = true;
+    /** Idea ids for which focus-scoped git_dates was already attempted this session. */
+    private readonly gitDatesAttempted = new Set<string>();
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -129,7 +135,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.post({
             type: 'editorContext',
             syncWithEditor: this.syncWithEditor,
-            includeIndirect: this.includeIndirect,
+            globalHopDepth: this.contextSession.globalHopDepth,
+            minHopDepth: CONTEXT_MIN_HOP_DEPTH,
+            maxHopDepth: CONTEXT_MAX_HOP_DEPTH,
+            dimensionHopDepth: { ...this.contextSession.dimensionHopDepth },
             pinnedFocusId: this.pinnedFocusId
         });
     }
@@ -240,7 +249,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'loadGraph':
                     if (message.query.centerId) {
-                        await this.loadGraph(message.query.centerId, requestId, message.query.includeIndirect);
+                        const hopDepth =
+                            message.query.hopDepth ??
+                            (message.query.includeIndirect ? 2 : this.contextSession.globalHopDepth);
+                        await this.loadGraph(message.query.centerId, requestId, hopDepth);
                     } else {
                         this.post({
                             type: 'error',
@@ -350,7 +362,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     );
                     break;
                 case 'openIdea':
-                    await openIdea(message.fileUri, message.line, message.column);
+                    await openIndexFile(message.fileUri, message.line, message.column);
                     break;
                 case 'setSyncWithEditor':
                     this.syncWithEditor = message.enabled;
@@ -376,11 +388,19 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 case 'setIncludeIndirect':
-                    this.includeIndirect = message.enabled;
+                    this.contextSession.globalHopDepth = message.enabled ? 2 : 1;
                     this.postEditorContext();
-                    if (this.pinnedFocusId || this.syncWithEditor) {
-                        await this.refreshFromEditor();
-                    }
+                    void this.refreshFromEditor();
+                    break;
+                case 'adjustGlobalHopDepth':
+                    adjustGlobalHopDepth(this.contextSession, message.delta);
+                    this.postEditorContext();
+                    void this.refreshFromEditor();
+                    break;
+                case 'adjustDimensionHopDepth':
+                    adjustDimensionHopDepth(this.contextSession, message.dimension, message.delta);
+                    this.postEditorContext();
+                    void this.refreshFromEditor();
                     break;
                 case 'toggleContextDimension':
                     setDimensionEnabled(this.contextSession, message.dimension, message.enabled);
@@ -412,6 +432,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             this.post({ type: 'error', message: 'Index is not ready yet.', requestId });
             return undefined;
         }
+        await this.ensureFocusGitDates(editor);
         const model = await data.build(this.buildContextInput(editor));
         this.post({ type: 'context', model, requestId });
         this.post({ type: 'scope', scope: model.currentFile, requestId });
@@ -421,6 +442,40 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             this.post({ type: 'references', payload, requestId });
         }
         return model;
+    }
+
+    /** Lazy focus-scoped git_dates so development history signals have timestamps. */
+    private async ensureFocusGitDates(editor: vscode.TextEditor): Promise<void> {
+        const store = this.submodule.index.indexStore;
+        const fileUri = toIndexFileUri(editor.document.uri);
+        const line = editor.selection.active.line;
+        let idea: IdeaSummary | undefined;
+        if (this.pinnedFocusId) {
+            idea = await store.getIdea(this.pinnedFocusId);
+        }
+        idea ??= await store.getIdeaAtLine(fileUri, line);
+        if (!idea || this.gitDatesAttempted.has(idea.id)) {
+            return;
+        }
+        if (idea.gitCreatedAt || idea.gitModifiedAt) {
+            this.gitDatesAttempted.add(idea.id);
+            return;
+        }
+        this.gitDatesAttempted.add(idea.id);
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        try {
+            await this.submodule.analysers.run<{ ideaIds?: string[] }, GitDateInfo[]>(
+                {
+                    store,
+                    analytical: this.submodule.store,
+                    workspaceRoot
+                },
+                'git_dates',
+                { ideaIds: [idea.id] }
+            );
+        } catch {
+            // Dates remain empty; synthesis still works from refs/status.
+        }
     }
 
     /** @deprecated use loadContext */
@@ -447,14 +502,15 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         if (!data) {
             return;
         }
-        const payload = await data.loadReferences(ideaId, options);
+        const hopDepth = effectiveHopDepth(this.contextSession, 'current_file');
+        const payload = await data.loadReferences(ideaId, { ...options, hopDepth });
         this.post({ type: 'references', payload, requestId });
     }
 
     private async loadGraph(
         centerId: string,
         requestId?: number,
-        includeIndirect = this.includeIndirect
+        hopDepth = this.contextSession.globalHopDepth
     ): Promise<void> {
         const data = await this.ensureData();
         if (!data) {
@@ -466,7 +522,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
         const generation = ++this.requestGeneration;
-        const slice = await data.loadGraph(centerId, includeIndirect);
+        const slice = await data.loadGraph(centerId, hopDepth);
         if (generation !== this.requestGeneration) {
             return;
         }
@@ -476,7 +532,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private async loadAncestors(
         ideaId: string,
         requestId?: number,
-        maxDepth = 8
+        maxDepth = effectiveHopDepth(this.contextSession, 'current_file')
     ): Promise<void> {
         const data = await this.ensureData();
         if (!data) {
@@ -517,15 +573,6 @@ function isWorkspaceEditor(editor: vscode.TextEditor): boolean {
     return vscode.workspace.getWorkspaceFolder(editor.document.uri) !== undefined;
 }
 
-async function openIdea(fileUri: string, line: number, column = 0): Promise<void> {
-    const uri = resolveIndexFileUri(fileUri);
-    const document = await vscode.workspace.openTextDocument(uri);
-    const editor = await vscode.window.showTextDocument(document);
-    const position = new vscode.Position(line, column);
-    editor.selection = new vscode.Selection(position, position);
-    editor.revealRange(new vscode.Range(position, position));
-}
-
 async function openPhonebookLink(linkId: string): Promise<void> {
     const link = getPhonebookLink(linkId as PhonebookLinkId);
     await vscode.env.openExternal(vscode.Uri.parse(link.href));
@@ -554,7 +601,7 @@ export function registerActivityBarWebview(
             provider.refreshFromEditorDebounced();
         }),
         vscode.commands.registerCommand('reqlan.openIdeaFromActivityBar', async (fileUri: string, line: number) => {
-            await openIdea(fileUri, line);
+            await openIndexFile(fileUri, line);
         }),
         { dispose: () => provider.disposeSubscriptions() }
     );

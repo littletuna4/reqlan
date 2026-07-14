@@ -7,6 +7,7 @@ import { isQualifiedReference } from './generated/ast.js';
 import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-references.js';
 
 export const AnonymousImportPath = Symbol('AnonymousImportPath');
@@ -15,11 +16,13 @@ export class ReqlanLinker extends DefaultLinker {
 
     private readonly documents: LangiumDocuments;
     private readonly fileSystem: FileSystemProvider;
+    private readonly services: ReqlanServices;
 
     constructor(services: ReqlanServices) {
         super(services);
         this.documents = services.shared.workspace.LangiumDocuments;
         this.fileSystem = services.shared.workspace.FileSystemProvider;
+        this.services = services;
     }
 
     protected override doLink(refInfo: ReferenceInfo, document: LangiumDocument): void {
@@ -55,7 +58,13 @@ export class ReqlanLinker extends DefaultLinker {
     }
 
     private resolvesAnonymousImportPath(path: string, document: LangiumDocument): boolean {
-        return isResolvableImportPath(path, document, this.documents, this.fileSystem);
+        return isResolvableImportPath(
+            path,
+            document,
+            this.documents,
+            this.fileSystem,
+            pathResolveContextFromServices(this.services)
+        );
     }
 
     private linkAnonymousImportPath(refInfo: ReferenceInfo, document: LangiumDocument): void {

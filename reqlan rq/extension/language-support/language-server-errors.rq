@@ -1,0 +1,7 @@
+from "../../core-architecture.rq" import language_server
+
+
+general_errors {
+    error messages should be deliberate and developer friendly.
+    recommendations should be offerred where appropriate.
+}

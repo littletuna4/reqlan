@@ -23,6 +23,28 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 0.1.1
+
+#### Patch Changes
+
+- d9f43be: remove :memory:
+- Updated dependencies [d9f43be]
+  - reqlan-analytical@0.1.1
+  - reqlan-language@0.1.1
+
+### 0.1.0
+
+#### Minor Changes
+
+- 65840f4: update to extension activity bar; update to the syntax. addition of testing. bidirectional references.
+
+#### Patch Changes
+
+- ea699c2: Add file icon; add refactor support; chat participant bug fixes.
+- Updated dependencies [65840f4]
+  - reqlan-analytical@0.1.0
+  - reqlan-language@0.1.0
+
 ### 0.0.11
 
 #### Patch Changes

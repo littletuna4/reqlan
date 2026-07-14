@@ -1,4 +1,5 @@
 from "./syntax_whitespace.rq" import syntax_whitespace
+import "../extension/configuration.rq" as configuration
 
 file_suffix Reqlan requirement documents use the .rq file suffix.
 
@@ -324,6 +325,7 @@ subidea2 {
     hi, i'm a subidea
 }
 
+
 example_ideaset (
     subidea1,
     subidea2
@@ -331,4 +333,25 @@ example_ideaset (
 
 references_to_subidea {
     It should be acceptable to reference [example_ideaset.subidea1]
+}
+
+configuration_import_root_alias {
+    An import path may start with an alias string, then `/`, then a relative path.
+    Default alias string: `@`.
+    Default import-root directory: the workspace folder that contains the `.rq` file.
+    The path after `/` is joined to that alias’s import-root directory.
+    Alias strings and import-root directories are configured as [configuration.configuration_import_roots] in the applying `.rqconfig.json` from [configuration.configuration_location].
+    When several configured aliases could match a path, the longest alias wins.
+    Implemented by ["../../packages/language/src/reqlan-path-resolve.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-completion-provider.ts"].
+    @tests (
+        ["../../packages/language/test/path-resolve.test.ts:resolves import-root alias against the workspace folder"]
+        ["../../packages/language/test/path-resolve.test.ts:leaves non-aliased relative paths document-relative"]
+        ["../../packages/language/test/path-resolve.test.ts:matchImportRootAlias requires alias then slash"]
+        ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest rqconfig"]
+        ["../../packages/language/test/path-resolve.test.ts:resolves using config importRoots mapping"]
+        ["../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
+        ["../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+        ["../../packages/language/test/rqconfig.test.ts:multiple importRoots map aliases to different roots"]
+        ["../../packages/language/test/rqconfig.test.ts:longest alias wins when mappings overlap"]
+    )
 }

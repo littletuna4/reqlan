@@ -49,6 +49,12 @@ export type ActivityBarToExtensionMessage =
     | { type: 'setSyncWithEditor'; enabled: boolean }
     | { type: 'setPinnedFocus'; ideaId?: string }
     | { type: 'setIncludeIndirect'; enabled: boolean }
+    | { type: 'adjustGlobalHopDepth'; delta: number }
+    | {
+          type: 'adjustDimensionHopDepth';
+          dimension: import('reqlan-analytical').ContextDimensionId;
+          delta: number;
+      }
     | { type: 'toggleContextDimension'; dimension: import('reqlan-analytical').ContextDimensionId; enabled: boolean }
     | { type: 'setExpandedLens'; dimension?: import('reqlan-analytical').ContextDimensionId }
     | { type: 'openPhonebookLink'; linkId: string };
@@ -65,6 +71,14 @@ export type ExtensionToActivityBarMessage =
     | { type: 'scopeMarkdown'; text: string }
     | { type: 'contextMarkdown'; text: string }
     | { type: 'fileLensDetail'; detail: import('reqlan-analytical').ContextFileLensDetail; requestId?: number }
-    | { type: 'editorContext'; syncWithEditor: boolean; includeIndirect: boolean; pinnedFocusId?: string }
+    | {
+          type: 'editorContext';
+          syncWithEditor: boolean;
+          globalHopDepth: number;
+          minHopDepth: number;
+          maxHopDepth: number;
+          dimensionHopDepth: Partial<Record<import('reqlan-analytical').ContextDimensionId, number>>;
+          pinnedFocusId?: string;
+      }
     | { type: 'phonebookLinks'; links: PhonebookLinkView[] }
     | { type: 'error'; message: string; requestId?: number };

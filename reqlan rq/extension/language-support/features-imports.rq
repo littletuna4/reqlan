@@ -1,3 +1,5 @@
+from "./language-server-errors.rq" import general_errors
+
 remote_imports {
     Reqlan files should support importing requirements from remote urls.
     Remote import syntax should follow import "https://company.com/reqs/style.rq" as styleguide.
@@ -7,4 +9,21 @@ remote_imports {
 
 from_import_syntax {
     Multiple symbols should be allowd to be be imported with `from "path" import symbol1, symbol2, symbol3` syntax.
+}
+
+
+
+import_error {
+    "Could not resolve reference" errors offer Quick Fix code actions (lightbulb and editor right-click Quick Fix).
+    Fixes:
+        - Add import from a matching idea found in loaded documents or the name catalog pushed from the index
+        - Rewrite the reference to an anonymous qualified form `["path".name]`
+        - Search the index for matching ideas, ideasets, or files (QuickPick), then insert an import
+        - Create the idea in a new .rq file and import it
+    [general_errors]
+    
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts"]
+        ["../../../packages/language/test/import-edits.test.ts"]
+    )
 }

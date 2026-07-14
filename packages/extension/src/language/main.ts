@@ -9,10 +9,14 @@ import {
     createSourceTextDocument,
     fileReferenceAtRequestResult,
     findFileReferenceAtPosition,
+    pathResolveContextFromServices,
     REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION,
     REQLAN_FILE_REFERENCE_AT_REQUEST,
+    REQLAN_NAME_CATALOG_NOTIFICATION,
     sharedAttributeCatalog,
-    type AttributeCatalog
+    sharedNameCatalog,
+    type AttributeCatalog,
+    type NameCatalog
 } from 'reqlan-language';
 
 // Create a connection to the client
@@ -32,7 +36,8 @@ connection.onRequest(
             document,
             params.position,
             shared.workspace.LangiumDocuments,
-            shared.workspace.FileSystemProvider
+            shared.workspace.FileSystemProvider,
+            pathResolveContextFromServices({ shared })
         );
         return link ? fileReferenceAtRequestResult(link) : null;
     }
@@ -40,6 +45,10 @@ connection.onRequest(
 
 connection.onNotification(REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION, (catalog: AttributeCatalog) => {
     sharedAttributeCatalog.update(catalog);
+});
+
+connection.onNotification(REQLAN_NAME_CATALOG_NOTIFICATION, (catalog: NameCatalog) => {
+    sharedNameCatalog.update(catalog);
 });
 
 function getTextDocument(params: { uri: string; text?: string }) {

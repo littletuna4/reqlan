@@ -1,10 +1,16 @@
 /**
  * AI workflow commands per ["../../../../reqlan rq/extension/features-ai.rq"]
+ * and add_to_chat in ["../../../../reqlan rq/extension/features-commands.rq"]
  */
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { IdeaSummary, SemanticMatch } from 'reqlan-analytical';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import {
+    findIdeaAtLine,
+    ideasInSelectionRange
+} from '../activity_bar_module/file-context-resolver.js';
 import {
     installCursorSkills,
     workspaceHasCursorSkills
@@ -54,18 +60,31 @@ export function registerAiCommandsModule(
         }),
 
         vscode.commands.registerCommand('reqlan.addToContext', async () => {
-            const idea = await pickIdea(submodule, 'Select a requirement to add to chat context');
+            await vscode.commands.executeCommand('reqlan.addIdeaToChat');
+        }),
+
+        vscode.commands.registerCommand('reqlan.addIdeaToChat', async () => {
+            const idea = await resolveIdeaForChat(submodule);
             if (!idea) {
                 return;
             }
-            const contextText = formatIdeaContext(idea);
-            const copied = await copyToClipboard(contextText);
-            const opened = await openChatWithText(`#requirement ${idea.name}\n\n${contextText}`);
-            if (!opened && copied) {
-                void vscode.window.showInformationMessage(
-                    'Requirement context copied to clipboard. Paste it into chat.'
-                );
+            await sendIdeaToChat(idea);
+        }),
+
+        vscode.commands.registerCommand('reqlan.addIdeasetToChat', async () => {
+            const ideaset = await resolveIdeasetForChat(submodule);
+            if (!ideaset) {
+                return;
             }
+            await sendIdeasetToChat(submodule, ideaset);
+        }),
+
+        vscode.commands.registerCommand('reqlan.addFileToChat', async () => {
+            const file = await resolveRqFileForChat(submodule);
+            if (!file) {
+                return;
+            }
+            await sendFileToChat(submodule, file);
         }),
 
         vscode.commands.registerCommand('reqlan.writePlan', async () => {
@@ -115,22 +134,151 @@ async function maybePromptCursorSkillsInstall(context: vscode.ExtensionContext):
     }
 }
 
+async function ensureIndex(submodule: AnalyticalSubmodule): Promise<void> {
+    if (!submodule.index.isReady) {
+        await submodule.index.syncWorkspace();
+    }
+}
+
+interface EditorFocus {
+    editor: vscode.TextEditor;
+    fileUri: string;
+    line: number;
+    selectionRange?: { startLine: number; endLine: number };
+}
+
+function isRqEditor(editor: vscode.TextEditor | undefined): editor is vscode.TextEditor {
+    if (!editor || !vscode.workspace.getWorkspaceFolder(editor.document.uri)) {
+        return false;
+    }
+    return editor.document.languageId === 'reqlan'
+        || editor.document.uri.fsPath.replace(/\\/g, '/').endsWith('.rq');
+}
+
+function getEditorFocus(): EditorFocus | undefined {
+    const editor = vscode.window.activeTextEditor;
+    if (!isRqEditor(editor)) {
+        return undefined;
+    }
+    const selection = editor.selection;
+    return {
+        editor,
+        fileUri: toIndexFileUri(editor.document.uri),
+        line: selection.active.line,
+        selectionRange: selection.isEmpty
+            ? undefined
+            : { startLine: selection.start.line, endLine: selection.end.line }
+    };
+}
+
+async function resolveIdeaForChat(submodule: AnalyticalSubmodule): Promise<IdeaSummary | undefined> {
+    await ensureIndex(submodule);
+    const focus = getEditorFocus();
+    if (focus) {
+        const ideas = await submodule.index.indexStore.listIdeasInFileWithRanges(focus.fileUri);
+        if (focus.selectionRange) {
+            const inSelection = ideasInSelectionRange(
+                ideas,
+                focus.selectionRange.startLine,
+                focus.selectionRange.endLine
+            );
+            if (inSelection.length === 1) {
+                return inSelection[0];
+            }
+            if (inSelection.length > 1) {
+                return pickFromIdeas(inSelection, 'Select an idea from the selection');
+            }
+        }
+        const atCursor = findIdeaAtLine(ideas, focus.line)
+            ?? await submodule.index.indexStore.getIdeaAtLine(focus.fileUri, focus.line);
+        if (atCursor) {
+            return atCursor;
+        }
+        if (ideas.length > 0) {
+            const nearCursor = [...ideas].sort(
+                (a, b) => Math.abs(a.lineStart - focus.line) - Math.abs(b.lineStart - focus.line)
+            );
+            return pickFromIdeas(nearCursor, 'Select an idea to add to chat');
+        }
+    }
+    return pickIdea(submodule, 'Select an idea to add to chat');
+}
+
+async function resolveIdeasetForChat(submodule: AnalyticalSubmodule): Promise<IdeaSummary | undefined> {
+    await ensureIndex(submodule);
+    const focus = getEditorFocus();
+    let preferred: IdeaSummary[] = [];
+    if (focus) {
+        const ideasets = await submodule.index.indexStore.listIdeasetsInFileWithRanges(focus.fileUri);
+        preferred = ideasets;
+        if (focus.selectionRange) {
+            const inSelection = ideasInSelectionRange(
+                ideasets,
+                focus.selectionRange.startLine,
+                focus.selectionRange.endLine
+            );
+            if (inSelection.length === 1) {
+                return inSelection[0];
+            }
+            if (inSelection.length > 1) {
+                return pickFromIdeas(inSelection, 'Select an ideaset from the selection');
+            }
+        }
+        const atCursor = findIdeaAtLine(ideasets, focus.line)
+            ?? await submodule.index.indexStore.getIdeasetAtLine(focus.fileUri, focus.line);
+        if (atCursor) {
+            return atCursor;
+        }
+        if (ideasets.length === 1) {
+            return ideasets[0];
+        }
+    }
+    return pickIdeaset(submodule, preferred);
+}
+
+async function resolveRqFileForChat(
+    submodule: AnalyticalSubmodule
+): Promise<{ fileUri: string; relativePath: string } | undefined> {
+    await ensureIndex(submodule);
+    const focus = getEditorFocus();
+    if (focus) {
+        return {
+            fileUri: focus.fileUri,
+            relativePath: vscode.workspace.asRelativePath(focus.editor.document.uri)
+        };
+    }
+    return pickRqFile();
+}
+
+async function pickFromIdeas(
+    ideas: IdeaSummary[],
+    placeHolder: string
+): Promise<IdeaSummary | undefined> {
+    const items = ideas.slice(0, 50).map(idea => ({
+        label: idea.name,
+        description: vscode.workspace.asRelativePath(idea.fileUri),
+        detail: idea.summary,
+        idea
+    }));
+    const picked = await vscode.window.showQuickPick(items, { placeHolder });
+    return picked?.idea;
+}
+
 async function pickIdea(
     submodule: AnalyticalSubmodule,
     placeHolder: string
 ): Promise<IdeaSummary | undefined> {
     const { index, analysers } = submodule;
-    if (!index.isReady) {
-        await index.syncWorkspace();
-    }
+    await ensureIndex(submodule);
 
     const editor = vscode.window.activeTextEditor;
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     let ideas: IdeaSummary[] = [];
     if (editor && vscode.workspace.getWorkspaceFolder(editor.document.uri)) {
         const fileUri = toIndexFileUri(editor.document.uri);
-        if (editor.document.languageId === 'reqlan') {
-            ideas = await index.indexStore.getIdeasInFile(fileUri);
+        if (isRqEditor(editor)) {
+            ideas = (await index.indexStore.getIdeasInFile(fileUri))
+                .filter(idea => idea.kind !== 'ideaset');
         } else {
             const related = await analysers.run<{ fileUri: string }, import('reqlan-analytical').FileRelatedRequirements>(
                 {
@@ -149,7 +297,7 @@ async function pickIdea(
         }
     }
     if (ideas.length === 0) {
-        ideas = await analysers.run<void, IdeaSummary[]>(
+        ideas = (await analysers.run<void, IdeaSummary[]>(
             {
                 store: index.indexStore,
                 analytical: submodule.store,
@@ -157,7 +305,12 @@ async function pickIdea(
             },
             'list_all_ideas',
             undefined
-        );
+        )).filter(idea => idea.kind !== 'ideaset');
+    }
+
+    // Cursor/file already narrowed the set; skip workspace-wide filter unless empty context.
+    if (ideas.length > 0 && ideas.length <= 50 && isRqEditor(editor)) {
+        return pickFromIdeas(ideas, placeHolder);
     }
 
     const query = await vscode.window.showInputBox({
@@ -175,17 +328,84 @@ async function pickIdea(
             'semantic_analysis',
             { query: query.trim(), limit: 20 }
         );
-        filtered = matches.map(match => match.idea);
+        filtered = matches.map(match => match.idea).filter(idea => idea.kind !== 'ideaset');
     }
 
-    const items = filtered.slice(0, 50).map(idea => ({
-        label: idea.name,
-        description: vscode.workspace.asRelativePath(idea.fileUri),
-        detail: idea.summary,
-        idea
+    return pickFromIdeas(filtered, placeHolder);
+}
+
+async function pickIdeaset(
+    submodule: AnalyticalSubmodule,
+    preferred: IdeaSummary[] = []
+): Promise<IdeaSummary | undefined> {
+    await ensureIndex(submodule);
+    const all = (await submodule.index.indexStore.listAllIdeas())
+        .filter(idea => idea.kind === 'ideaset');
+    const preferredIds = new Set(preferred.map(idea => idea.id));
+    const ideasets = [
+        ...preferred,
+        ...all.filter(idea => !preferredIds.has(idea.id))
+    ];
+    if (ideasets.length === 0) {
+        void vscode.window.showInformationMessage('No ideasets found in the workspace.');
+        return undefined;
+    }
+
+    if (preferred.length > 0) {
+        return pickFromIdeas(ideasets, 'Select an ideaset to add to chat');
+    }
+
+    const query = await vscode.window.showInputBox({
+        prompt: 'Filter ideasets (optional)',
+        placeHolder: 'Select an ideaset to add to chat'
+    });
+    const needle = query?.trim().toLowerCase() ?? '';
+    const filtered = needle
+        ? ideasets.filter(idea =>
+            idea.name.toLowerCase().includes(needle)
+            || idea.summary.toLowerCase().includes(needle)
+            || vscode.workspace.asRelativePath(idea.fileUri).toLowerCase().includes(needle))
+        : ideasets;
+
+    return pickFromIdeas(filtered, 'Select an ideaset to add to chat');
+}
+
+async function pickRqFile(): Promise<{ fileUri: string; relativePath: string } | undefined> {
+    const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**', 200);
+    if (files.length === 0) {
+        void vscode.window.showInformationMessage('No .rq files found in the workspace.');
+        return undefined;
+    }
+
+    const query = await vscode.window.showInputBox({
+        prompt: 'Filter .rq files (optional)',
+        placeHolder: 'Select a file to add to chat'
+    });
+    const needle = query?.trim().toLowerCase() ?? '';
+    const entries = files
+        .map(uri => ({
+            uri,
+            relativePath: vscode.workspace.asRelativePath(uri),
+            fileUri: toIndexFileUri(uri)
+        }))
+        .filter(entry => !needle || entry.relativePath.toLowerCase().includes(needle))
+        .slice(0, 50);
+
+    const items = entries.map(entry => ({
+        label: path.basename(entry.relativePath),
+        description: path.dirname(entry.relativePath),
+        entry
     }));
-    const picked = await vscode.window.showQuickPick(items, { placeHolder });
-    return picked?.idea;
+    const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select a .rq file to add to chat'
+    });
+    if (!picked) {
+        return undefined;
+    }
+    return {
+        fileUri: picked.entry.fileUri,
+        relativePath: picked.entry.relativePath
+    };
 }
 
 function formatIdeaContext(idea: IdeaSummary): string {
@@ -198,6 +418,81 @@ function formatIdeaContext(idea: IdeaSummary): string {
         status + tags,
         idea.summary || '(no summary)'
     ].filter(Boolean).join('\n');
+}
+
+async function formatIdeasetContext(
+    submodule: AnalyticalSubmodule,
+    ideaset: IdeaSummary
+): Promise<string> {
+    const base = formatIdeaContext(ideaset);
+    const members = await submodule.index.indexStore
+        .listIdeasetMembers(ideaset.id, 'explicit', ideaset.fileUri)
+        .catch(() => []);
+    if (members.length === 0) {
+        return `${base}\nKind: ideaset`;
+    }
+    const memberLines = members
+        .slice(0, 12)
+        .map(member => `- ${member.name} (${vscode.workspace.asRelativePath(member.fileUri)})`)
+        .join('\n');
+    return `${base}\nKind: ideaset\nMembers:\n${memberLines}`;
+}
+
+async function formatFileContext(
+    submodule: AnalyticalSubmodule,
+    fileUri: string,
+    relativePath: string
+): Promise<string> {
+    const ideas = (await submodule.index.indexStore.getIdeasInFile(fileUri))
+        .filter(idea => idea.kind !== 'ideaset');
+    const ideaLines = ideas
+        .slice(0, 12)
+        .map(idea => `- ${idea.name}: ${idea.summary || '(no summary)'}`)
+        .join('\n');
+    return [
+        `**${relativePath}**`,
+        `${ideas.length} requirement(s) indexed`,
+        ideaLines || '- (no requirements indexed)'
+    ].join('\n');
+}
+
+async function sendIdeaToChat(idea: IdeaSummary): Promise<void> {
+    const contextText = formatIdeaContext(idea);
+    const copied = await copyToClipboard(contextText);
+    const opened = await openChatWithText(`#requirement ${idea.name}\n\n${contextText}`);
+    if (!opened && copied) {
+        void vscode.window.showInformationMessage(
+            'Idea context copied to clipboard. Paste it into chat.'
+        );
+    }
+}
+
+async function sendIdeasetToChat(
+    submodule: AnalyticalSubmodule,
+    ideaset: IdeaSummary
+): Promise<void> {
+    const contextText = await formatIdeasetContext(submodule, ideaset);
+    const copied = await copyToClipboard(contextText);
+    const opened = await openChatWithText(`#requirement ${ideaset.name}\n\n${contextText}`);
+    if (!opened && copied) {
+        void vscode.window.showInformationMessage(
+            'Ideaset context copied to clipboard. Paste it into chat.'
+        );
+    }
+}
+
+async function sendFileToChat(
+    submodule: AnalyticalSubmodule,
+    file: { fileUri: string; relativePath: string }
+): Promise<void> {
+    const contextText = await formatFileContext(submodule, file.fileUri, file.relativePath);
+    const copied = await copyToClipboard(contextText);
+    const opened = await openChatWithText(`#file ${file.relativePath}\n\n${contextText}`);
+    if (!opened && copied) {
+        void vscode.window.showInformationMessage(
+            'File context copied to clipboard. Paste it into chat.'
+        );
+    }
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {

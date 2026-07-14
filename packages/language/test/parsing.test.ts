@@ -52,6 +52,7 @@ describe('Parsing tests', () => {
         const document = await parse(`technology {
     continuous ("live") physics.
     the controller (pixelRatio 1, no WebGL) so webviews work.
+    sources (and contributions), not the whole model.
 }`);
         expect(checkDocumentValid(document)).toBeUndefined();
         const idea = document.parseResult.value.elements
@@ -65,6 +66,7 @@ describe('Parsing tests', () => {
             .join('\n');
         expect(bodyText).toContain('("live")');
         expect(bodyText).toContain('(pixelRatio 1, no WebGL)');
+        expect(bodyText).toContain('sources (and contributions)');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".round_brackets]
@@ -635,6 +637,36 @@ label { body }`);
         expect(plan?.value?.$cstNode?.text).toContain('"Fit to view"');
         expect(attributes.find(attribute => attribute.name === 'tags')?.value?.$type).toBe('ListValue');
         expect(attributes.find(attribute => attribute.name === 'notes')?.value?.$type).toBe('BlockValue');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".round_brackets]
+    test('parses inline comma-separated attribute list values', async () => {
+        const document = await parse(`context_scope_v2 {
+    @status in-progress
+    @tags (context, ui, knowledge, v2)
+    @tests (
+        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/test/context-model.test.ts"]
+    )
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const attributes = [...AstUtils.streamAst(document.parseResult.value)].filter(isAttribute);
+        expect(attributes.map(attribute => attribute.name)).toEqual([
+            'status',
+            'tags',
+            'tests'
+        ]);
+        const tags = attributes.find(attribute => attribute.name === 'tags');
+        expect(tags?.value?.$type).toBe('ListValue');
+        if (tags?.value?.$type === 'ListValue') {
+            expect(tags.value.items).toHaveLength(4);
+            expect(tags.value.items.map(item => item.$cstNode?.text?.trim())).toEqual([
+                'context',
+                'ui',
+                'knowledge',
+                'v2'
+            ]);
+        }
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".attribute_forms]

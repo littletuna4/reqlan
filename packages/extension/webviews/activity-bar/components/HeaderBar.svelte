@@ -11,12 +11,21 @@
         onclick={() => app.setSyncWithEditor(!app.syncWithEditor)}
         title="Follow active editor"
     >Sync</button>
-    <button
-        class="toolbar-button"
-        class:active={app.includeIndirect}
-        onclick={() => app.setIncludeIndirect(!app.includeIndirect)}
-        title="1-hop vs 2-hop neighbourhood"
-    >{app.includeIndirect ? '2-hop' : '1-hop'}</button>
+    <div class="hop-control" title="Graph hop depth for context and panes">
+        <button
+            class="toolbar-button hop-button"
+            disabled={app.globalHopDepth <= app.minHopDepth}
+            onclick={() => app.adjustGlobalHopDepth(-1)}
+            aria-label="Decrease hop depth"
+        >−</button>
+        <span class="hop-value" aria-live="polite">{app.globalHopDepth}</span>
+        <button
+            class="toolbar-button hop-button"
+            disabled={app.globalHopDepth >= app.maxHopDepth}
+            onclick={() => app.adjustGlobalHopDepth(1)}
+            aria-label="Increase hop depth"
+        >+</button>
+    </div>
     <button class="toolbar-button" onclick={() => app.openIdeasSummary('ideas')}>Ideas</button>
     <button class="toolbar-button" onclick={() => app.openIdeasSummary('graph')}>Graph</button>
     {#if app.scope?.focusIdea}

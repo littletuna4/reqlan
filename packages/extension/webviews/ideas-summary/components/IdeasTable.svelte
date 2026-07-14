@@ -140,7 +140,17 @@
     <tbody>
         {#each rows as row (row.id)}
             <tr class="clickable">
-                <td on:click={() => openRow(row)}>{row.title}</td>
+                <td on:click={() => openRow(row)}>
+                    <div class="title-cell">
+                        <span>{row.title}</span>
+                        {#if row.stabilityLabel}
+                            <span
+                                class="stability-cue"
+                                title="Stability cue {Math.round((row.stabilityCue ?? 0) * 100)}% · {row.inboundCount} in · {row.outboundCount} out"
+                            >{row.stabilityLabel} · {Math.round((row.stabilityCue ?? 0) * 100)}%</span>
+                        {/if}
+                    </div>
+                </td>
                 <td on:click={() => openRow(row)}>{row.path}</td>
                 <td class="body-cell" on:click|stopPropagation>
                     <IdeaBodyCell text={row.mainAttribute} />

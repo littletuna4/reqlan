@@ -7,6 +7,8 @@ import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from '.
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
+import { registerNameCatalogSync } from './register-name-catalog-sync.js';
+import { registerImportErrorCommands } from './register-import-error-commands.js';
 import { activateAnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
@@ -21,8 +23,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     try {
         const submodule = await activateAnalyticalSubmodule(context);
+        registerImportErrorCommands(context, submodule.index);
         if (client) {
             registerAttributeCatalogSync(context, submodule.index, () => client);
+            registerNameCatalogSync(context, submodule.index, () => client);
         }
     } catch (error) {
         console.error('[reqlan] Analytical submodule failed to activate:', error);

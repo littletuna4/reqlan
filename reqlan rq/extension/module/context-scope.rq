@@ -1,6 +1,7 @@
 import "./activitybar.rq" as activitybar
 import "./index.rq" as index_reqs
 import "./graph-path.rq" as graph_path_doc
+import "./context-scope-v2.rq" as context_scope_v2
 import "../agents/features-ai.rq" as features_ai
 import "../features-non-rq-code-comment/functional-code-comment-references.rq" as code_comment_refs
 import "../../../packages/extension/src/activity_bar_module/context-model.ts" as context_model
@@ -14,6 +15,7 @@ context_scope {
     The activity bar [activitybar.scope_pane] is the primary surface for inspecting and steering context; [activitybar.context_tray] holds the [manual_context] dimension.
     Token discipline per [features_ai.ai_integration]: show summaries and counts by default; expand a dimension only on intent.
     Parses per ["../../../reqlan rq/language/syntax.rq".reference_wikilink].
+    Decision-oriented v2 (sources → signals → synthesis → views → consumers) and show-don't-tell widgets: [context_scope_v2.context_scope_v2].
 }
 
 any_file_scope {
@@ -74,7 +76,13 @@ reqlan_context_model {
     - [context_footprint] merges enabled dimensions into deduped idea/file sets and an [effective_center_id] for graph/refs panes.
     - [current_file_slice] is the projection used when the current-file lens is expanded. Includes `isRqFile`, `referencingIdeas`, `commentLinkedIdeas`, `folderReferencingIdeas`, and optional `gitChange`.
     - [context_selection] when the user highlights a non-empty range spanning one or more `.rq` ideas ([activitybar.selection_pane]).
-    Host increments `revision` when any dimension changes; webview ignores stale posts by revision.
+    - [global_hop_depth] and [dimension_hop_control] overrides on the model.
+    Host increments `revision` when any dimension or hop depth changes; webview ignores stale posts by revision.
+
+    @tests (
+        ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../packages/extension/src/activity_bar_module/context-model.ts"]
+    )
 }
 
 context_focus {
@@ -84,15 +92,35 @@ context_focus {
     Selection focus applies when the user highlights text spanning one or more ideas ([activitybar.selection_pane]).
 }
 
+
 context_selection {
     Union of ideas whose line ranges overlap the editor selection in a `.rq` file.
     Drives [activitybar.selection_pane] and contributes idea ids to [context_footprint].
 }
 
 context_contribution {
-    Per dimension: id, label, enabled, pinned, weight, ideaCount, fileCount, summary.
+    Per dimension: id, label, enabled, pinned, weight, ideaCount, fileCount, summary, hopDepth, supportsHopControl.
     Disabled dimensions do not add to [context_footprint] but may still show a muted chip with zero count.
     Pinned dimensions stay expanded in [scope_pane_design] until collapsed by the user.
+    Graph-searchable dimensions expose per-lens hop overrides via [dimension_hop_control].
+}
+
+global_hop_depth {
+    Session default hop depth (1-4) stored in [context_session].
+    Drives graph slice expansion, reference list breadth, ancestor chain depth, and composed context export.
+    Surfaced in [activitybar.hop_depth_control] and echoed on [reqlan_context_model].globalHopDepth.
+}
+
+dimension_hop_control {
+    When a graph-searchable dimension lens is expanded in [scope_pane_design], show a local **− / value / +** pair.
+    Applies to [current_file_context], [open_files_context], [file_history_context], [edit_history_context], and [manual_context] — not [workspace_context] or [git_context].
+    Per-dimension override inherits [global_hop_depth] until the user adjusts it; stored in dimensionHopDepth on the session and model.
+    Edge cases match [activitybar.hop_depth_control]: disable − at min, + at max, clamp on apply.
+
+    @tests (
+        ["../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+        ["../../../packages/extension/src/activity_bar_module/context-session.ts"]
+    )
 }
 
 context_footprint {
@@ -105,33 +133,33 @@ context_footprint {
 scope_pane_design {
     The scope pane uses a **focus + lens** layout — not seven stacked lists.
 
-    [focus_hero]
+    @items (
+        focus_hero {
         Always visible when focus is non-none: idea name (or file name), status/tags, path:line, one-line summary.
         For non-.rq files: show git chip and up to four linked requirements inline.
         Primary actions: open source, pin to [manual_context], copy markdown / composed context.
-
-    [lens_strip]
-        A single horizontal strip of dimension chips (icons + short labels + counts).
-        - Filled chip = dimension enabled and contributing to [context_footprint].
-        - Outline chip = disabled or empty.
-        - Click toggles enabled (except workspace, always ambient).
-        - Alt-click or chevron expands that dimension's detail panel below the strip (only one expanded at a time).
-
-    [footprint_line]
-        One muted line under the lens strip: [context_footprint.summaryLine].
-        Replaces listing every dimension's items when collapsed.
-
-    [expanded_lens_panel]
-        Content depends on which lens is expanded:
-        - current_file: for `.rq` — in-file idea list + nested outline; for other files — grouped [file_reference_links], [comment_reference_links], [folder_reference_links].
-        - open_files / file_history / edit_history / git: compact scrollable file rows (max 8 visible); click opens file; **Refs** loads linked requirements lazily via `loadFileLens`.
-        - manual: chips from tray with remove.
-        - workspace: link to [activitybar.workspace_pane] / Ideas Summary — no duplicate index UI.
-
-    [anomaly_strip]
-        Optional row for unresolved refs or index errors affecting focus file — one line, clickable.
-
-    Collapsed default: focus hero + lens strip + footprint line. No outline tree until user expands current_file lens on a `.rq` file.
+        }
+        lens_strip {
+            A single horizontal strip of dimension chips (icons + short labels + counts).
+            - Filled chip = dimension enabled and contributing to [context_footprint].
+            - Outline chip = disabled or empty.
+            - Click toggles enabled (except workspace, always ambient).
+            - Alt-click or chevron expands that dimension's detail panel below the strip (only one expanded at a time).
+        }
+        footprint_line{
+            One muted line under the lens strip: context_footprint.summaryLine.
+            Replaces listing every dimension's items when collapsed.
+        }
+        expanded_lens_panel{
+            Content depends on which lens is expanded:
+            - current_file: for `.rq` — in-file idea list + nested outline; for other files — grouped file_reference_links, comment_reference_links, folder_reference_links.
+            - open_files / file_history / edit_history / git: compact scrollable file rows (max 8 visible); click opens file; **Refs** loads linked requirements lazily via `loadFileLens`.
+            - manual: chips from tray with remove.
+            - workspace: link to activitybar.workspace_pane / Ideas Summary — no duplicate index UI.
+        }
+        anomaly_strip Optional row for unresolved refs or index errors affecting focus file — one line, clickable.
+        Collapsed_default focus hero + lens strip + footprint line. No outline tree until user expands current_file lens on a `.rq` file.
+    )
 }
 
 ai_context_export {

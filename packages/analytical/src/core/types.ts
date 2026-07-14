@@ -57,6 +57,8 @@ export interface IdeaSummary {
     summary: string;
     status?: string;
     tags: string[];
+    gitCreatedAt?: string;
+    gitModifiedAt?: string;
 }
 
 export interface IdeaWithRange extends IdeaSummary {
@@ -174,6 +176,8 @@ export interface IdeaTableRow {
     inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
+    stabilityCue?: number;
+    stabilityLabel?: string;
 }
 
 export type IdeasetKind = 'file' | 'explicit';

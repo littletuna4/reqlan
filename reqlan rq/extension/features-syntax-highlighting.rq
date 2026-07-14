@@ -31,10 +31,23 @@ activity_bar_module {
 reference_code_completion {
   references should code complete the available namespace of ideas
   this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
-  
+  Implemented by ["../../packages/language/src/reqlan-completion-provider.ts"].
+
   @tags (
     autocompletion
     )
+  @tests (
+    ["../../packages/language/test/completion.test.ts:completes idea names for bracket references"]
+    ["../../packages/language/test/completion.test.ts:completes relative import paths"]
+  )
+}
+
+reference_code_completion_sequencing {
+  [reference_code_completion] should be offered, not alphabetically, but by distance, then alphabetically.
+  Implemented by ["../../packages/language/src/reqlan-completion-provider.ts"].
+  @tests (
+    ["../../packages/language/test/completion.test.ts:orders reference completions by distance then alphabetically"]
+  )
 }
 
 attribute_code_completion_main_descriptiption {

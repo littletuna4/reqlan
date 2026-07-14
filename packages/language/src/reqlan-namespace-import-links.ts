@@ -6,6 +6,7 @@ import { AstUtils, GrammarUtils } from 'langium';
 import { isIdea, isModel, isOneLinerIdea, type Import, type LocalReference, type QualifiedReference } from './generated/ast.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
 import { bindingNameSourceRange, resolveImportedFileLink, type ResolvedFileLink } from './reqlan-file-link-resolver.js';
+import type { PathResolveContext } from './reqlan-path-resolve.js';
 
 export function namespaceImportBindingName(reference: LocalReference): string | undefined {
     if (reference.idea) {
@@ -50,7 +51,8 @@ export function isNamespaceImportOnlyReference(reference: LocalReference | Quali
 export function resolveNamespaceImportReferenceLink(
     reference: LocalReference | QualifiedReference,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const document = AstUtils.getDocument(reference);
     const model = document.parseResult.value;
@@ -78,7 +80,8 @@ export function resolveNamespaceImportReferenceLink(
         documents,
         fileSystem,
         importDecl.path,
-        bindingNameSourceRange(pathNode, bindingName)
+        bindingNameSourceRange(pathNode, bindingName),
+        context
     );
 }
 

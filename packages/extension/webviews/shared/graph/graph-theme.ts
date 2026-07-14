@@ -105,6 +105,80 @@ export function graphNodeFill(node: GraphNodeView, centerId?: string): string {
     }
 }
 
+/** Mirror analytical hotspot helpers — keep webview free of analytical runtime deps. */
+export function hotspotBorderWidth(band?: 'low' | 'medium' | 'high'): number {
+    switch (band) {
+        case 'high':
+            return 5;
+        case 'medium':
+            return 3;
+        case 'low':
+            return 2;
+        default:
+            return 2;
+    }
+}
+
+export function hotspotBorderColor(band?: 'low' | 'medium' | 'high'): string {
+    switch (band) {
+        case 'high':
+            return '#f14c4c';
+        case 'medium':
+            return '#cca700';
+        case 'low':
+            return '#89d185';
+        default:
+            return '#3c3c3c';
+    }
+}
+
+export function impactOpacityForHopDistance(distance: number | undefined): number {
+    if (distance === undefined) {
+        return 0.2;
+    }
+    if (distance <= 0) {
+        return 1;
+    }
+    if (distance === 1) {
+        return 0.75;
+    }
+    if (distance === 2) {
+        return 0.45;
+    }
+    return 0.2;
+}
+
+export function hopDistancesFromCenter(
+    centerId: string,
+    edges: { sourceId: string; targetId: string }[]
+): Map<string, number> {
+    const adjacency = new Map<string, Set<string>>();
+    for (const edge of edges) {
+        if (!adjacency.has(edge.sourceId)) {
+            adjacency.set(edge.sourceId, new Set());
+        }
+        if (!adjacency.has(edge.targetId)) {
+            adjacency.set(edge.targetId, new Set());
+        }
+        adjacency.get(edge.sourceId)!.add(edge.targetId);
+        adjacency.get(edge.targetId)!.add(edge.sourceId);
+    }
+    const distances = new Map<string, number>();
+    const queue: string[] = [centerId];
+    distances.set(centerId, 0);
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        const nextDist = (distances.get(current) ?? 0) + 1;
+        for (const neighbour of adjacency.get(current) ?? []) {
+            if (!distances.has(neighbour)) {
+                distances.set(neighbour, nextDist);
+                queue.push(neighbour);
+            }
+        }
+    }
+    return distances;
+}
+
 /** Resolve a CSS color (including var()) against the document for cytoscape stylesheets. */
 export function resolveThemeColor(cssColor: string, fallback: string): string {
     if (typeof document === 'undefined') {

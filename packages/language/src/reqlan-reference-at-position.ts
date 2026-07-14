@@ -24,6 +24,7 @@ import {
     type FileReference,
     type FileSymbolReference
 } from './generated/ast.js';
+import type { PathResolveContext } from './reqlan-path-resolve.js';
 
 export const REQLAN_OPEN_FOLDER_COMMAND = 'reqlan.openFolderReference';
 export const REQLAN_FILE_REFERENCE_AT_REQUEST = 'reqlan/fileReferenceAt';
@@ -37,19 +38,28 @@ export function findFileReferenceAtPosition(
     document: LangiumDocument,
     position: Position,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
+    const pathContext = { ...context, fileSystem: context?.fileSystem ?? fileSystem };
     const commentPart = findCommentReferencePartAt(document, position);
     if (commentPart?.property === 'path' && commentPart.reference.path) {
-        return resolvePathReference(document, commentPart.reference.path, commentPart.reference.range, documents, fileSystem);
+        return resolvePathReference(
+            document,
+            commentPart.reference.path,
+            commentPart.reference.range,
+            documents,
+            fileSystem,
+            pathContext
+        );
     }
     const embeddedReference = findEmbeddedFileReferenceAt(document, position);
     if (embeddedReference) {
-        return resolveEmbeddedFileReferenceLink(embeddedReference, document, documents, fileSystem);
+        return resolveEmbeddedFileReferenceLink(embeddedReference, document, documents, fileSystem, pathContext);
     }
     const fileReference = findFileReferenceNodeAtPosition(document, position);
     if (fileReference) {
-        return resolveFileReferenceLink(fileReference.node, documents, fileSystem);
+        return resolveFileReferenceLink(fileReference.node, documents, fileSystem, pathContext);
     }
     return undefined;
 }
@@ -59,9 +69,10 @@ function resolvePathReference(
     path: string,
     sourceRange: ResolvedFileLink['sourceRange'],
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
-    const targetUri = resolveFileUri(path, document);
+    const targetUri = resolveFileUri(path, document, context);
     const resolution = classifyReferenceUri(targetUri, documents, fileSystem);
     if (resolution === 'missing') {
         return undefined;
@@ -121,13 +132,14 @@ export interface FileReferenceAtRequestResult {
 export function findCommentDefinitionAtPosition(
     document: LangiumDocument,
     position: Position,
-    documents: LangiumDocuments
+    documents: LangiumDocuments,
+    context?: PathResolveContext
 ): LocationLink[] | undefined {
     const commentPart = findCommentReferencePartAt(document, position);
     if (commentPart?.property !== 'idea') {
         return undefined;
     }
-    return resolveCommentDefinitionLinks(commentPart.reference, document, documents);
+    return resolveCommentDefinitionLinks(commentPart.reference, document, documents, context);
 }
 
 export function fileReferenceAtRequestResult(

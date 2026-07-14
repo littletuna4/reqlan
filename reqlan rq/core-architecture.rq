@@ -1,0 +1,169 @@
+import "./language/ontology.rq" as ontology
+import "./language/syntax.rq" as syntax
+import "./extension/scope.rq" as extension_scope
+import "./extension/architecture.rq" as extension_architecture
+import "./development/core.rq" as development_core
+import "./development/build.rq" as development_build
+import "./distribution/distribution.rq" as distribution
+import "./extension/features-graph-analysers.rq" as graph_analysers
+import "./extension/module/activitybar.rq" as activitybar
+import "./extension/module/context-scope.rq" as context_scope_doc
+import "./extension/module/context-scope-v2.rq" as context_scope_v2
+import "./extension/module/webview.rq" as webview_doc
+import "./extension/module/chat-participant.rq" as chat_participant_doc
+import "./extension/features-mutation-hooks.rq" as mutation_hooks
+import "./extension/features-skills-and-mcp.rq" as skills_and_mcp
+import "../packages/language/src/reqlan-module.ts" as language_module
+import "../packages/language/src/reqlan.langium" as reqlan_grammar
+import "../packages/language/src/reqlan-comment.langium" as comment_grammar
+import "../packages/extension/src/extension/main.ts" as extension_main
+import "../packages/extension/src/language/main.ts" as language_server_main
+import "../packages/extension/src/analytical_submodule/index-store/index-service.ts" as index_service
+import "../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../packages/mcp/src/main.ts" as mcp_main
+import "../packages/cli/src/main.ts" as cli_main
+import "../.changeset/config.json" as changeset_config
+
+scope {
+    These requirements describe the cross-package system architecture of the reqlan monorepo:
+    language definition, language server, ideas index, editor product, and companion tools.
+    They are distinct from [extension_scope.scope], which bounds only the VS Code extension and LSP product surface.
+    Language concepts live in [ontology]; syntax truth lives in [syntax]; editor module contracts live under extension/module.
+    Grouped as [workspace_packages], [language_runtime], and [product_map].
+}
+
+monorepo {
+    The workspace is a pnpm monorepo (`packages\*`, extension webviews, and `site`) per ["../pnpm-workspace.yaml"].
+    TypeScript project references build in order language → analytical → mcp → cli → extension per ["../tsconfig.build.json"].
+    Living requirements for the product live in this `reqlan rq` folder.
+    Root orchestration (Langium generate, package builds, Cursor skill sync) lives in ["../package.json"].
+    Why libraries are separate packages (and how Changesets sees them): [package_versioning].
+}
+
+language_package {
+    `packages/language` (`reqlan-language`) is the canonical language definition.
+    It owns Langium grammars, generated AST and parser, scoped linking, validators, and LSP service providers.
+    Public DI entry is [language_module] via `createReqlanServices`.
+    Consumers: [analytical_package], [extension_package] (LSP and index), [cli_package].
+    It is an internal library, not Marketplace-published, per [distribution.version_management] and [package_versioning].
+}
+
+analytical_package {
+    `packages/analytical` (`reqlan-analytical`) is the shared requirement graph index and analysis layer.
+    It extracts ideas and edges from Langium ASTs into a sql.js SQLite store, holds Zustand analytical state, and exposes analysers and an analysis API.
+    Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `HeadlessIndexService`.
+    Consumers: [extension_package] IndexService UI path, [mcp_package].
+    Depends on [language_package]; not Marketplace-published. Version graph role: [package_versioning].
+}
+
+extension_package {
+    `packages/extension` (npm `reqlan`) is the editor product per [distribution.extension_package].
+    It registers `.rq` language support, TextMate grammars, starts the language client, hosts the ideas index in-process, and owns activity bar, Ideas Summary, chat, skills, and mutation hooks.
+    Host entry: [extension_main]. LSP process entry: [language_server_main].
+    Depends on [language_package] and [analytical_package].
+    Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] (zustand) for JS state.
+    This is the one Marketplace/Open VSX shippable; see [package_versioning].
+}
+
+mcp_package {
+    `packages/mcp` (`reqlan-mcp`) is a stdio MCP server over the analytical analysis API — no VS Code host required.
+    Entry: [mcp_main]. Used by Cursor and other MCP clients per [chat_participant_doc.mcp] and [skills_and_mcp.mcp_tools].
+    Ignored by Changesets per [distribution.version_management].
+}
+
+cli_package {
+    `packages/cli` (`reqlan-cli`) is a thin Langium CLI over [language_package] (e.g. generate).
+    Entry: [cli_main]. Internal tool; ignored by Changesets per [distribution.version_management].
+}
+
+site_package {
+    `site` is the marketing / docs Next.js site per [distribution.site_package].
+    It is off the language-service and ideas-index path.
+    Release-driving publishable alongside [extension_package]; see [package_versioning].
+}
+
+package_versioning {
+    Separate workspace packages exist for build isolation and reuse — not because each ships to users on its own.
+    [language_package] and [analytical_package] are leaf libraries shared by LSP, index, MCP, and CLI; they need their own package boundaries for TypeScript project refs and a single grammar/index ownership point.
+    Only two packages drive releases and tags: [extension_package] (`ext/v*`) and [site_package] (`site/v*`) per [distribution.version_management] and [distribution.deployment_flow].
+    Changesets config is [changeset_config]. It ignores [cli_package] and [mcp_package] only.
+    [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension). Tracking here is internal monorepo versioning, not a separate Marketplace publish.
+    Extension webview folders may be private pnpm members (e.g. `@reqlan/ideas-summary-webview`) so Vite/Svelte can own deps; they bundle into extension media and are not Changesets publish targets. Activity-bar UI is not a separate package.json product.
+    Contributors record release intent with a changeset on publishable packages when user-facing behaviour changes; see [distribution.version_management].
+}
+
+grammar_and_parser {
+    Grammar is Langium (Chevrotain), not tree-sitter.
+    Main `.rq` grammar: [reqlan_grammar]. Comment-token grammar for `rq:[…]` in non-`.rq` sources: [comment_grammar].
+    `langium generate` produces AST/grammar modules and TextMate JSON; TextMate is patched and copied into the extension at build time per [development_build.build_prepare].
+    Syntax requirements that the grammar must satisfy live in [syntax]; conceptual units in [ontology.idea], [ontology.ideaset], [ontology.reference], [ontology.import_statement].
+    Services are wired in [language_module].
+}
+
+language_server {
+    The language server is a separate Node process started by the extension host over IPC ([extension_main] → [language_server_main]).
+    It runs [language_module] `createReqlanServices` for live editing: definition, completion, semantic tokens, inlays, document links, validation.
+    It owns open-document language intelligence for `.rq` files (and related language features), not the full-workspace SQLite ideas index.
+    Product expectation for LSP navigation and validation: [extension_scope.lsp_support].
+}
+
+ideas_index {
+    The ideas index is the analytical path: parse with [language_package] → extract ideas/edges → SQLite store.
+    In the editor, [index_service] watches `**\*.rq` and serves UIs, commands, chat, and analysers.
+    Headless (MCP/CLI-adjacent) uses [analysis_runtime].
+    Capability requirements: [graph_analysers.index_ideas], [graph_analysers.index_technology], and sibling analysers in that file.
+    Triggers and git capture notes: ["./extension/module/index.rq"].
+}
+
+runtime_topology {
+    Two Langium runtimes share [language_package] but not one process.
+    - LSP process: live `.rq` editing intelligence via [language_server_main].
+    - Extension host IndexService (and MCP headless index): full-workspace graph for tables, local graph, chat, MCP via [index_service] / [analysis_runtime].
+    Editor ↔ extension host: VS Code APIs and webview postMessage.
+    Editor ↔ LSP: vscode-languageclient IPC.
+    Attribute catalog and similar custom notifications may sync from the index side into the LSP for completions.
+    Stack sketch: [development_core.stack].
+}
+
+extension_surfaces {
+    Product surfaces on [extension_package] are specified in module/feature docs, not here:
+    - Activity bar sidebar: [activitybar.activity_bar]
+    - Composed context model (any workspace file): [context_scope_doc.context_scope]
+    - Context scope v2 (signals, synthesis, show-don't-tell widgets): [context_scope_v2.context_scope_v2]
+    - Ideas Summary tables/graph webview: [webview_doc.webview]
+    - Chat participant `@reqlan` and MCP wrap: [chat_participant_doc.chat_participant], [skills_and_mcp]
+    - Create/split/merge/rename mutation hooks: [mutation_hooks]
+    - Analysers and index behaviour: [graph_analysers]
+}
+
+hierarchy_of_truth {
+    Align with [development_core.hierarchy_of_requirements]:
+    - User request trumps these requirements; these requirements trump current implementation.
+    - Language concepts: [ontology]; syntax rules: [syntax].
+    - Package seams and process topology: this file ([workspace_packages], [language_runtime]).
+    - Editor UI and host contracts: extension/module and features-* files ([product_map]).
+    - Distribution and publishables: [distribution]; internal vs shippable versioning: [package_versioning].
+}
+
+workspace_packages (
+    monorepo,
+    language_package,
+    analytical_package,
+    extension_package,
+    mcp_package,
+    cli_package,
+    site_package,
+    package_versioning
+)
+
+language_runtime (
+    grammar_and_parser,
+    language_server,
+    ideas_index,
+    runtime_topology
+)
+
+product_map (
+    extension_surfaces,
+    hierarchy_of_truth
+)

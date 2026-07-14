@@ -728,3 +728,14 @@ button.member-chip:hover {
     color: var(--vscode-descriptionForeground);
     font-size: 0.85em;
 }
+
+.title-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.stability-cue {
+    font-size: 0.75em;
+    color: var(--vscode-descriptionForeground);
+}
+

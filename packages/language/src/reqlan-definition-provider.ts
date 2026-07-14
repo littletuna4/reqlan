@@ -39,16 +39,23 @@ import {
     type QualifiedReference
 } from './generated/ast.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 
 export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
 
     private readonly documents: ReqlanServices['shared']['workspace']['LangiumDocuments'];
     private readonly fileSystem: FileSystemProvider;
+    private readonly services: ReqlanServices;
 
     constructor(services: ReqlanServices) {
         super(services);
         this.documents = services.shared.workspace.LangiumDocuments;
         this.fileSystem = services.shared.workspace.FileSystemProvider;
+        this.services = services;
+    }
+
+    private pathContext() {
+        return pathResolveContextFromServices(this.services);
     }
 
     override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
@@ -59,7 +66,13 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         if (commentPart?.property === 'idea') {
             return this.createCommentIdeaReferenceLinks(document, commentPart.reference);
         }
-        const fileReference = findFileReferenceAtPosition(document, params.position, this.documents, this.fileSystem);
+        const fileReference = findFileReferenceAtPosition(
+            document,
+            params.position,
+            this.documents,
+            this.fileSystem,
+            this.pathContext()
+        );
         if (fileReference) {
             if (fileReference.resolution === 'folder' || fileReference.resolution === 'missing') {
                 return undefined;
@@ -106,7 +119,12 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     private createNamespaceImportLink(source: CstNode, reference: LocalReference | QualifiedReference): GoToLink | undefined {
-        const resolved = resolveNamespaceImportReferenceLink(reference, this.documents, this.fileSystem);
+        const resolved = resolveNamespaceImportReferenceLink(
+            reference,
+            this.documents,
+            this.fileSystem,
+            this.pathContext()
+        );
         if (!resolved) {
             return undefined;
         }
@@ -149,7 +167,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
                 if (importDecl) {
                     return this.createImportedFileLink(current, importDecl);
                 }
-                const resolved = resolveQualifiedReferencePathLink(container, this.documents);
+                const resolved = resolveQualifiedReferencePathLink(container, this.documents, this.pathContext());
                 if (resolved) {
                     const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri.split('#')[0]));
                     if (targetDocument) {
@@ -179,7 +197,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     private createImportedFileLink(source: CstNode, importDecl: Import): GoToLink | undefined {
-        const resolved = resolveImportPathLink(importDecl, this.documents);
+        const resolved = resolveImportPathLink(importDecl, this.documents, this.pathContext());
         if (!resolved) {
             return undefined;
         }
@@ -191,7 +209,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     private createFileLink(source: CstNode, reference: FileReference | FileSymbolReference): GoToLink | undefined {
-        const resolved = resolveFileReferenceLink(reference, this.documents, this.fileSystem);
+        const resolved = resolveFileReferenceLink(reference, this.documents, this.fileSystem, this.pathContext());
         if (!resolved) {
             return undefined;
         }
@@ -206,7 +224,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         document: LangiumDocument,
         reference: EmbeddedCommentReference
     ): LocationLink[] | undefined {
-        return resolveCommentDefinitionLinks(reference, document, this.documents);
+        return resolveCommentDefinitionLinks(reference, document, this.documents, this.pathContext());
     }
 
     private findAnonymousImportPathLinkAtPosition(document: LangiumDocument, position: Position): GoToLink | undefined {
@@ -219,7 +237,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
             if (!pathNode || offset < pathNode.offset || offset >= pathNode.end) {
                 continue;
             }
-            const resolved = resolveQualifiedReferencePathLink(node, this.documents);
+            const resolved = resolveQualifiedReferencePathLink(node, this.documents, this.pathContext());
             if (!resolved) {
                 continue;
             }

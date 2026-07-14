@@ -8,6 +8,7 @@ import { resolveFileUri } from './reqlan-comment-resolver.js';
 import type { EmbeddedFileReference } from './reqlan-embedded-file-references.js';
 import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-references.js';
 import { findImportedDocument } from './reqlan-imports.js';
+import type { PathResolveContext } from './reqlan-path-resolve.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import {
     findTestLineInText,
@@ -44,6 +45,13 @@ export interface ResolvedFileLink {
     folderFiles?: string[];
 }
 
+function withFileSystem(
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
+): PathResolveContext {
+    return { ...context, fileSystem: context?.fileSystem ?? fileSystem };
+}
+
 export function classifyReferenceUri(
     targetUri: URI,
     documents: LangiumDocuments,
@@ -72,7 +80,8 @@ export function listFolderFileNames(fileSystem: FileSystemProvider, folderUri: U
 export function resolveFileReferenceLink(
     reference: FileReference | FileSymbolReference,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const document = AstUtils.getDocument(reference);
     const parsed = parseFileReferenceString(reference.file);
@@ -80,19 +89,20 @@ export function resolveFileReferenceLink(
     if (!pathNode) {
         return undefined;
     }
-    return resolveParsedFileLink(document, documents, fileSystem, parsed, pathNode);
+    return resolveParsedFileLink(document, documents, fileSystem, parsed, pathNode, context);
 }
 
 export function resolveImportPathLink(
     importDecl: Import,
-    documents: LangiumDocuments
+    documents: LangiumDocuments,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const document = AstUtils.getDocument(importDecl);
     const pathNode = GrammarUtils.findNodeForProperty(importDecl.$cstNode, 'path');
     if (!pathNode) {
         return undefined;
     }
-    const imported = findImportedDocument(importDecl.path, document, documents);
+    const imported = findImportedDocument(importDecl.path, document, documents, context);
     const target = imported?.parseResult.value.$cstNode;
     if (!imported || !target) {
         return undefined;
@@ -106,7 +116,8 @@ export function resolveImportPathLink(
 
 export function resolveQualifiedReferencePathLink(
     reference: QualifiedReference,
-    documents: LangiumDocuments
+    documents: LangiumDocuments,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const pathNode = reference.path?.$refNode;
     if (!pathNode) {
@@ -117,7 +128,7 @@ export function resolveQualifiedReferencePathLink(
     if (!path) {
         return undefined;
     }
-    const imported = findImportedDocument(path, document, documents);
+    const imported = findImportedDocument(path, document, documents, context);
     const target = imported?.parseResult.value.$cstNode;
     if (!imported || !target) {
         return undefined;
@@ -133,7 +144,8 @@ export function resolveMarkdownLinkTargetLink(
     link: MarkdownLink,
     document: LangiumDocument,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const parsedLink = parseMarkdownLink(link.raw);
     if (!parsedLink) {
@@ -156,7 +168,7 @@ export function resolveMarkdownLinkTargetLink(
         }
     };
     const parsed = parseFileReferenceString(parsedLink.target);
-    const targetUri = resolveFileUri(parsed.filePath, document);
+    const targetUri = resolveFileUri(parsed.filePath, document, withFileSystem(fileSystem, context));
     return resolvePathStringLink(document, documents, fileSystem, parsed, targetUri, sourceRange);
 }
 
@@ -164,10 +176,11 @@ export function resolveEmbeddedFileReferenceLink(
     reference: EmbeddedFileReference,
     document: LangiumDocument,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const parsed = parseFileReferenceString(reference.file);
-    const targetUri = resolveFileUri(parsed.filePath, document);
+    const targetUri = resolveFileUri(parsed.filePath, document, withFileSystem(fileSystem, context));
     return resolvePathStringLink(
         document,
         documents,
@@ -183,9 +196,10 @@ export function resolveParsedFileLink(
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider,
     parsed: ParsedFileReference,
-    pathNode: CstNode
+    pathNode: CstNode,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
-    const targetUri = resolveFileUri(parsed.filePath, document);
+    const targetUri = resolveFileUri(parsed.filePath, document, withFileSystem(fileSystem, context));
     const sourceRange = parsed.testName
         ? stringContentRange(pathNode)
         : filePathRangeInStringNode(pathNode, parsed);
@@ -263,9 +277,10 @@ export function resolveImportedFileLink(
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider,
     filePath: string,
-    sourceRange: Range
+    sourceRange: Range,
+    context?: PathResolveContext
 ): ResolvedFileLink | undefined {
-    const targetUri = resolveFileUri(filePath, document);
+    const targetUri = resolveFileUri(filePath, document, withFileSystem(fileSystem, context));
     return resolvePathStringLink(document, documents, fileSystem, { filePath }, targetUri, sourceRange);
 }
 
@@ -306,41 +321,43 @@ function fileStartRange(): Range {
 export function collectFileLinks(
     document: LangiumDocument,
     documents: LangiumDocuments,
-    fileSystem: FileSystemProvider
+    fileSystem: FileSystemProvider,
+    context?: PathResolveContext
 ): ResolvedFileLink[] {
+    const pathContext = withFileSystem(fileSystem, context);
     const links: ResolvedFileLink[] = [];
     const linkedRanges: string[] = [];
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
         if (isFileReference(node) || isFileSymbolReference(node)) {
-            const link = resolveFileReferenceLink(node, documents, fileSystem);
+            const link = resolveFileReferenceLink(node, documents, fileSystem, pathContext);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));
             }
         }
         if ((isLocalReference(node) || isQualifiedReference(node)) && isNamespaceImportOnlyReference(node)) {
-            const link = resolveNamespaceImportReferenceLink(node, documents, fileSystem);
+            const link = resolveNamespaceImportReferenceLink(node, documents, fileSystem, pathContext);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));
             }
         }
         if (isImport(node)) {
-            const link = resolveImportPathLink(node, documents);
+            const link = resolveImportPathLink(node, documents, pathContext);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));
             }
         }
         if (isQualifiedReference(node) && node.path && !node.path.ref) {
-            const link = resolveQualifiedReferencePathLink(node, documents);
+            const link = resolveQualifiedReferencePathLink(node, documents, pathContext);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));
             }
         }
         if (isMarkdownLink(node)) {
-            const link = resolveMarkdownLinkTargetLink(node, document, documents, fileSystem);
+            const link = resolveMarkdownLinkTargetLink(node, document, documents, fileSystem, pathContext);
             if (link) {
                 links.push(link);
                 linkedRanges.push(rangeKey(link.sourceRange));
@@ -352,7 +369,7 @@ export function collectFileLinks(
         if (linkedRanges.includes(key) || links.some(link => rangesOverlap(link.sourceRange, reference.range))) {
             continue;
         }
-        const link = resolveEmbeddedFileReferenceLink(reference, document, documents, fileSystem);
+        const link = resolveEmbeddedFileReferenceLink(reference, document, documents, fileSystem, pathContext);
         if (link) {
             links.push(link);
             linkedRanges.push(key);

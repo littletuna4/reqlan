@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reqlan.dev/schemas/rqconfig.schema.json",
+  "title": "reqlan workspace config",
+  "description": "Optional per-directory Reqlan workspace configuration (.rqconfig.json). The applying file for an .rq document is the nearest ancestor .rqconfig.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "importRoots": {
+      "type": "array",
+      "description": "Import-root alias mappings. Each entry binds an alias string to a directory. When omitted or empty after validation, the default mapping is alias '@' with the workspace folder as root. When several aliases could match a path, the longest alias wins.",
+      "default": [
+        {
+          "alias": "@"
+        }
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["alias"],
+        "properties": {
+          "alias": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Prefix used before '/' in aliased import paths. Example: alias '@' matches '@/reqs/style.rq'."
+          },
+          "root": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Directory this alias resolves against. Relative paths are resolved from the directory containing this .rqconfig.json. Absolute filesystem paths and file:// URIs are also accepted. When omitted, the workspace folder that contains the .rq file is used."
+          }
+        }
+      }
+    }
+  }
+}

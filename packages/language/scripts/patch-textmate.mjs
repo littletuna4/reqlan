@@ -237,8 +237,10 @@ grammar.repository['anonymous-block'] = {
     ]
 };
 
+// Named/nested lists require a newline after '(' (see NamedList / NestedList in reqlan.langium).
+// Same-line prose like `sources (and contributions)` must stay unstyled body text.
 grammar.repository['named-list'] = {
-    begin: `^\\s*(${id})\\s*\\(`,
+    begin: `^\\s*(${id})\\s*\\(\\s*$`,
     beginCaptures: {
         '1': { name: 'entity.name.tag.list.reqlan' }
     },
@@ -249,7 +251,7 @@ grammar.repository['named-list'] = {
 };
 
 grammar.repository['nested-list'] = {
-    begin: '\\(',
+    begin: '\\(\\s*$',
     end: '\\)',
     patterns: [
         { include: '#block-inner' }

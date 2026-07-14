@@ -15,6 +15,8 @@ import {
     GRAPH_EMPHASIS_COLORS,
     GRAPH_NODE_COLORS,
     graphNodeFill,
+    hotspotBorderColor,
+    hotspotBorderWidth,
     resolveThemeColor
 } from './graph-theme.js';
 
@@ -285,6 +287,8 @@ export function buildCytoscapeElements(
                 isExternal: Boolean(node.isExternal),
                 isCenter: node.id === centerId,
                 nodeKind: node.kind,
+                hotspotBand: node.hotspotBand,
+                impactOpacity: 1,
                 ...(parentId ? { parent: parentId } : {}),
                 ...(effectiveGroupIds && effectiveGroupIds.length > 0 ? { groupIds: effectiveGroupIds } : {})
             }
@@ -324,6 +328,10 @@ function childlessBorderWidth(node: cytoscape.NodeSingular): number {
     if (node.selected() || node.data('isCenter')) {
         return GRAPH_EMPHASIS_BORDER.selected;
     }
+    const band = node.data('hotspotBand') as 'low' | 'medium' | 'high' | undefined;
+    if (band) {
+        return hotspotBorderWidth(band);
+    }
     return 2;
 }
 
@@ -340,7 +348,15 @@ function childlessBorderColor(node: cytoscape.NodeSingular, colors: ThemeBorderC
         return colors.linkActive;
     }
     if (node.data('isCenter')) {
+        const band = node.data('hotspotBand') as 'low' | 'medium' | 'high' | undefined;
+        if (band) {
+            return hotspotBorderColor(band);
+        }
         return colors.focusBorder;
+    }
+    const band = node.data('hotspotBand') as 'low' | 'medium' | 'high' | undefined;
+    if (band) {
+        return hotspotBorderColor(band);
     }
     return colors.editorBg;
 }
@@ -436,7 +452,11 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
             selector: 'node:childless',
             style: {
                 'border-width': (node: cytoscape.NodeSingular) => childlessBorderWidth(node),
-                'border-color': (node: cytoscape.NodeSingular) => childlessBorderColor(node, borderColors)
+                'border-color': (node: cytoscape.NodeSingular) => childlessBorderColor(node, borderColors),
+                opacity: (node: cytoscape.NodeSingular) => {
+                    const value = node.data('impactOpacity');
+                    return typeof value === 'number' ? value : 1;
+                }
             }
         },
         {

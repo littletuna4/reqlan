@@ -60,6 +60,14 @@
                 "editor.semanticHighlighting.enabled": true
             }
         },
+        "jsonValidation": [
+            {
+                "fileMatch": [
+                    ".rqconfig.json"
+                ],
+                "url": "./schemas/rqconfig.schema.json"
+            }
+        ],
         "configuration": {
             "title": "Reqlan",
             "properties": {
@@ -234,6 +242,16 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.importError.search",
+                "title": "Search Index for Unresolved Reference",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.importError.createFile",
+                "title": "Create Idea File for Unresolved Reference",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.openFolderReference",
                 "title": "Open Folder Reference"
             },
@@ -261,6 +279,21 @@
             {
                 "command": "reqlan.addToContext",
                 "title": "Add to Context",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addIdeaToChat",
+                "title": "Add Idea to Chat",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addIdeasetToChat",
+                "title": "Add Ideaset to Chat",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addFileToChat",
+                "title": "Add File to Chat",
                 "category": "Reqlan"
             },
             {
@@ -294,6 +327,9 @@
         "onCommand:reqlan.addAgentCommands",
         "onCommand:reqlan.buildRequirement",
         "onCommand:reqlan.addToContext",
+        "onCommand:reqlan.addIdeaToChat",
+        "onCommand:reqlan.addIdeasetToChat",
+        "onCommand:reqlan.addFileToChat",
         "onCommand:reqlan.writePlan",
         "onCommand:reqlan.runPrompt",
         "onCommand:reqlan.openIdeasSummary",
@@ -317,6 +353,7 @@
         "build": "node scripts/build.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "bash scripts/watch.sh",
+        "test": "vitest run",
         "package": "vsce package --no-dependencies",
         "deploy": "vsce publish --no-dependencies",
         "deploy:openvsx": "pnpm dlx ovsx publish ./*.vsix"
@@ -342,7 +379,8 @@
         "concurrently": "~10.0.3",
         "esbuild": "~0.28.1",
         "svelte": "~5.33.14",
-        "vite": "~6.2.5"
+        "vite": "~6.2.5",
+        "vitest": "~3.1.3"
     },
     "vsce": {
         "dependencies": true

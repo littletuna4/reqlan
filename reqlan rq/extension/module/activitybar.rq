@@ -41,12 +41,26 @@ panes {
 header_buttons {
     Cross-pane controls live in a compact header above the pane stack.
     - "Sync with editor" toggle: panes follow the active editor and cursor by default; when off, stay pinned on the last focused idea.
-    - Depth control: 1-hop vs 2-hop neighbourhood (aligns with indirect references in [graphical_graph_doc.graphical_graph] and [commands.toggle_indirect_references]).
+    - [hop_depth_control]: global graph hop depth for context search, graph slice, references, and ancestors — not a boolean toggle.
     - "Open in Ideas Summary": reveal [ideas_summary_panel] with the ideas table filtered to the current file, or the graph tab centred on the current idea.
     - "Export slice": JSON or CSV of the current neighbourhood only (lighter than workspace [commands.export_json] / [commands.export_csv]).
     - "Copy as markdown": copy the focused idea plus parents and reference lists for pasting into chat or PRs.
     - Refresh control tied to index readiness.
     - [info_site_link]
+
+    @tests (
+        ["../../../packages/extension/webviews/activity-bar/components/HeaderBar.svelte"]
+        ["../../../packages/extension/src/activity_bar_module/context-session.ts"]
+    )
+}
+
+hop_depth_control {
+    A **− / value / +** button pair (not a 1-hop/2-hop toggle) sets [context_scope_doc.global_hop_depth].
+    - Minimum hop depth is 1 (direct neighbours only); **−** is disabled at minimum.
+    - Maximum hop depth is capped (default 4 for the activity bar); **+** is disabled at maximum.
+    - Changing global depth rebuilds [reqlan_context_model], refreshes graph/refs/ancestors panes, and updates [context_footprint].
+    - When no [effective_center_id] exists, depth still updates session state; panes refresh when a centre appears.
+    - Legacy `setIncludeIndirect` maps to depth 2/1 for backward compatibility during migration.
 }
 
 info_site_link {

@@ -27,6 +27,7 @@ import { bindCompoundHighlight, syncCompoundSelection } from './graph-cy-highlig
 import { syncGraphElements } from './graph-cy-elements.js';
 import { bindGraphInteractions } from './graph-cy-interactions.js';
 import { graphLog, graphWarn } from './graph-debug.js';
+import { hopDistancesFromCenter, impactOpacityForHopDistance } from './graph-theme.js';
 
 cytoscape.use(fcose);
 cytoscape.use(cola);
@@ -132,6 +133,8 @@ export class GraphCyController {
     private syncGeneration = 0;
     /** Node ids from the last successful slice sync. */
     private lastSyncedNodeSetKey = '';
+    /** Edges from the last synced slice — used for impact-radius fade. */
+    private lastSliceEdges: { sourceId: string; targetId: string }[] = [];
     /** Node ids the viewport was last fitted to; drives auto-reframe on slice changes. */
     private fittedNodeSetKey = '';
     /** False until the first reframe (instant); later reframes animate by default. */
@@ -306,6 +309,7 @@ export class GraphCyController {
         this.cy.$(':selected').unselect();
         this.cy.$id(nodeId).select();
         syncCompoundSelection(this.cy);
+        this.applyImpactRadius(nodeId);
         this.options.onSelect?.(nodeId);
     }
 
@@ -320,7 +324,28 @@ export class GraphCyController {
         }
         compound.select();
         syncCompoundSelection(this.cy);
+        this.clearImpactRadius();
         this.options.onSelect?.(undefined);
+    }
+
+    private applyImpactRadius(centerId: string): void {
+        if (!this.cy) {
+            return;
+        }
+        const distances = hopDistancesFromCenter(centerId, this.lastSliceEdges);
+        this.cy.nodes(':childless').forEach(node => {
+            const distance = distances.get(node.id());
+            node.data('impactOpacity', impactOpacityForHopDistance(distance));
+        });
+    }
+
+    private clearImpactRadius(): void {
+        if (!this.cy) {
+            return;
+        }
+        this.cy.nodes(':childless').forEach(node => {
+            node.data('impactOpacity', 1);
+        });
     }
 
     private bumpSyncGeneration(): number {
@@ -481,6 +506,15 @@ export class GraphCyController {
             }
 
             this.lastSyncedNodeSetKey = computeNodeSetKey(slice);
+            this.lastSliceEdges = slice.edges.map(edge => ({
+                sourceId: edge.sourceId,
+                targetId: edge.targetId
+            }));
+            if (slice.centerId) {
+                this.applyImpactRadius(slice.centerId);
+            } else {
+                this.clearImpactRadius();
+            }
         } catch (error) {
             graphWarn('Graph sync failed', error);
             this.lifecycle = 'idle';

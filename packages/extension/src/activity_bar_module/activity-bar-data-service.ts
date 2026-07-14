@@ -15,6 +15,12 @@ export {
     recordFileVisit,
     setDimensionEnabled,
     setExpandedLens,
-    unpinManualIdea
+    unpinManualIdea,
+    adjustGlobalHopDepth,
+    adjustDimensionHopDepth,
+    effectiveHopDepth,
+    dimensionSupportsHopControl,
+    CONTEXT_MIN_HOP_DEPTH,
+    CONTEXT_MAX_HOP_DEPTH
 } from './context-session.js';
 export type { ContextSessionState } from './context-session.js';

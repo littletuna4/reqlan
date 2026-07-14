@@ -1,8 +1,16 @@
 /**
  * Recompute relative file paths when a referencing file moves to a new directory.
+ * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+ * rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  */
 import { URI, UriUtils } from 'langium';
 import type { Range } from 'vscode-languageserver';
+import {
+    DEFAULT_IMPORT_ROOT_ALIAS,
+    matchImportRootMapping,
+    type ImportRootMapping
+} from './reqlan-path-resolve.js';
 
 export interface PathReference {
     path: string;
@@ -12,6 +20,15 @@ export interface PathReference {
 export interface PathRewriteEdit {
     range: Range;
     newText: string;
+}
+
+export interface PathRewriteOptions {
+    /** Alias mappings; defaults to the single `@` alias. */
+    importRoots?: readonly ImportRootMapping[];
+}
+
+function rewriteImportRoots(options?: PathRewriteOptions): readonly ImportRootMapping[] {
+    return options?.importRoots ?? [{ alias: DEFAULT_IMPORT_ROOT_ALIAS }];
 }
 
 export function relativePathWithoutExtension(dirname: string, targetUri: URI): string {
@@ -24,8 +41,16 @@ export function relativePathWithoutExtension(dirname: string, targetUri: URI): s
     return relativePath;
 }
 
-export function rewriteRelativePath(path: string, oldFileUri: URI, newFileUri: URI): string | undefined {
+export function rewriteRelativePath(
+    path: string,
+    oldFileUri: URI,
+    newFileUri: URI,
+    options?: PathRewriteOptions
+): string | undefined {
     if (!path || path.startsWith('file://')) {
+        return undefined;
+    }
+    if (matchImportRootMapping(path, rewriteImportRoots(options)) !== undefined) {
         return undefined;
     }
     const oldDir = UriUtils.dirname(oldFileUri);
@@ -38,8 +63,13 @@ export function rewriteRelativePath(path: string, oldFileUri: URI, newFileUri: U
     return relativePath === path ? undefined : relativePath;
 }
 
-export function rewriteQuotedPath(path: string, oldFileUri: URI, newFileUri: URI): string | undefined {
-    const rewritten = rewriteRelativePath(path, oldFileUri, newFileUri);
+export function rewriteQuotedPath(
+    path: string,
+    oldFileUri: URI,
+    newFileUri: URI,
+    options?: PathRewriteOptions
+): string | undefined {
+    const rewritten = rewriteRelativePath(path, oldFileUri, newFileUri, options);
     return rewritten === undefined ? undefined : JSON.stringify(rewritten);
 }
 
@@ -47,11 +77,12 @@ export function buildPathRewriteEdits(
     references: PathReference[],
     oldFileUri: URI,
     newFileUri: URI,
-    formatReplacement: (path: string, newPath: string, range: Range) => string | undefined
+    formatReplacement: (path: string, newPath: string, range: Range) => string | undefined,
+    options?: PathRewriteOptions
 ): PathRewriteEdit[] {
     const edits: PathRewriteEdit[] = [];
     for (const reference of references) {
-        const newPath = rewriteRelativePath(reference.path, oldFileUri, newFileUri);
+        const newPath = rewriteRelativePath(reference.path, oldFileUri, newFileUri, options);
         if (newPath === undefined) {
             continue;
         }

@@ -23,6 +23,7 @@ import {
 import { findFromImportSpecifierByBinding, specifierBindingName } from './reqlan-import-bindings.js';
 import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 
 export class ReqlanScopeComputation extends DefaultScopeComputation {
@@ -44,10 +45,12 @@ export class ReqlanScopeComputation extends DefaultScopeComputation {
 export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     protected readonly documents: ReqlanServices['shared']['workspace']['LangiumDocuments'];
+    private readonly services: ReqlanServices;
 
     constructor(services: ReqlanServices) {
         super(services);
         this.documents = services.shared.workspace.LangiumDocuments;
+        this.services = services;
     }
 
     override getScope(context: ReferenceInfo): Scope {
@@ -288,7 +291,12 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private findImportedDocument(path: string, document: LangiumDocument): LangiumDocument | undefined {
-        return findImportedDocument(path, document, this.documents);
+        return findImportedDocument(
+            path,
+            document,
+            this.documents,
+            pathResolveContextFromServices(this.services)
+        );
     }
 
     private documentForQualifiedReference(

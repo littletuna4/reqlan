@@ -89,7 +89,11 @@ export interface IdeaTableRow {
     inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
+    /** Thin context-scope v2 card cue from ref fanout. */
+    stabilityCue?: number;
+    stabilityLabel?: string;
 }
+
 
 export interface IdeasetMemberRow {
     name: string;
@@ -146,7 +150,9 @@ export interface GraphViewQuery {
     pathFilter?: string;
     statusFilter?: string;
     tagFilter?: string;
+    /** @deprecated Prefer hopDepth */
     includeIndirect: boolean;
+    hopDepth?: number;
     maxNodes?: number;
 }
 
@@ -160,6 +166,8 @@ export interface GraphNodeView {
     status?: string;
     tags: string[];
     isExternal?: boolean;
+    /** Context-scope v2 hotspot overlay band for churn/risk. */
+    hotspotBand?: 'low' | 'medium' | 'high';
 }
 
 export interface GraphEdgeView {

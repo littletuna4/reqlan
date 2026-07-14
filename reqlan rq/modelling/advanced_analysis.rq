@@ -1,0 +1,4 @@
+markov_chain {
+    graph traveral should be tracked to inform a markov chain model of the graph.
+    @idea
+}

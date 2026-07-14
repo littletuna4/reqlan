@@ -20,8 +20,16 @@ import {
 } from './shared/messages.js';
 import type { IdeasSummaryNavigateIntent } from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
-import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
-import { buildGraphViewSlice, GRAPH_MAX_NODES, type GraphViewSlice as AnalyticalGraphViewSlice } from 'reqlan-analytical';
+import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
+import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import {
+    buildFocusSignals,
+    buildGraphViewSlice,
+    GRAPH_MAX_NODES,
+    hotspotBandFromRisk,
+    synthesizeFocusContext,
+    type GraphViewSlice as AnalyticalGraphViewSlice
+} from 'reqlan-analytical';
 
 const VIEW_TYPE = 'reqlan.ideasSummary';
 
@@ -240,7 +248,7 @@ export class IdeasSummaryPanel {
                     break;
                 }
                 case 'openIdea':
-                    await openIdea(message.fileUri, message.line, message.column);
+                    await openIndexFile(message.fileUri, message.line, message.column);
                     break;
                 case 'dumpFullGraph':
                     await this.sendFullGraph();
@@ -416,7 +424,7 @@ export class IdeasSummaryPanel {
             });
             this.post({
                 type: 'graphSlice',
-                slice: toGraphSliceView(slice)
+                slice: await toGraphSliceView(store, slice)
             });
         } catch (error) {
             if (generation !== this.graphSliceGeneration) {
@@ -468,12 +476,38 @@ function hasGraphFilters(query: GraphViewQuery): boolean {
     );
 }
 
-function toGraphSliceView(slice: AnalyticalGraphViewSlice): GraphViewSlice {
+async function toGraphSliceView(
+    store: AnalyticalSubmodule['index']['indexStore'],
+    slice: AnalyticalGraphViewSlice
+): Promise<GraphViewSlice> {
+    let hotspotBand: 'low' | 'medium' | 'high' | undefined;
+    if (slice.centerId) {
+        const center = await store.getIdea(slice.centerId);
+        const refs = await store.listReferencesForIdea(slice.centerId);
+        const inbound = refs.filter(row => row.direction === 'inbound').length;
+        const outbound = refs.filter(row => row.direction === 'outbound').length;
+        const unresolved = await store.countUnresolvedForIdea(slice.centerId);
+        const parents = (await store.listAncestorChain(slice.centerId, 1)).length;
+        const synthesis = synthesizeFocusContext(
+            buildFocusSignals({
+                focusIdeaId: slice.centerId,
+                status: center?.status,
+                parentCount: parents,
+                inboundCount: inbound,
+                outboundCount: outbound,
+                unresolvedCount: unresolved,
+                createdAt: center?.gitCreatedAt,
+                modifiedAt: center?.gitModifiedAt
+            })
+        );
+        hotspotBand = hotspotBandFromRisk(synthesis.aiRisk);
+    }
     return {
         ...slice,
         nodes: slice.nodes.map(node => ({
             ...node,
-            path: node.isExternal ? node.fileUri : vscode.workspace.asRelativePath(node.fileUri)
+            path: node.isExternal ? node.fileUri : vscode.workspace.asRelativePath(node.fileUri),
+            hotspotBand: node.id === slice.centerId ? hotspotBand : undefined
         }))
     };
 }
@@ -567,11 +601,3 @@ function clampPage(page: number, total: number, pageSize: number): number {
     return Math.min(Math.max(0, page), maxPage);
 }
 
-async function openIdea(fileUri: string, line: number, column = 0): Promise<void> {
-    const uri = resolveIndexFileUri(fileUri);
-    const document = await vscode.workspace.openTextDocument(uri);
-    const editor = await vscode.window.showTextDocument(document);
-    const position = new vscode.Position(line, column);
-    editor.selection = new vscode.Selection(position, position);
-    editor.revealRange(new vscode.Range(position, position));
-}

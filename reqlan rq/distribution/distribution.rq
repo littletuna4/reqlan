@@ -1,4 +1,4 @@
-import "../phonebook.rq" as phonebook_reqs
+import "@/reqlan_rq/phonebook.rq" as phonebook_reqs
 
 stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
@@ -91,4 +91,11 @@ workflow_deduplication {
   Azure DevOps is the authoritative extension publishing workflow per ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
   The site remains deployed by GitHub Actions per ["./distribution.rq".site_distribution].
   Versioning and tag creation are owned by GitHub Actions per ["./distribution.rq".deployment_flow].
+}
+
+
+grammar_linguist {
+ The grammar should be updated to use 
+ https://github.com/github-linguist/linguist
+ Acceptance is dependent on maturity and usage.
 }

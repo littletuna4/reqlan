@@ -25,6 +25,7 @@ export { listAllIdeasAnalyser } from './analysis/list-ideas-analyser.js';
 export { fileRelatedAnalyser } from './analysis/file-related-analyser.js';
 export { deprecationImpactAnalyser } from './analysis/deprecation-impact-analyser.js';
 export { gitDatesAnalyser } from './analysis/git-dates-analyser.js';
+export type { GitDateInfo } from './analysis/git-dates-analyser.js';
 export { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
 export { localGraphAnalyser } from './analysis/local-graph-analyser.js';
 export { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
@@ -55,7 +56,10 @@ export {
     GRAPH_MAX_NODES,
     buildGraphFilterWhereClause,
     buildGraphViewSlice,
-    toGraphNodeView
+    toGraphNodeView,
+    CONTEXT_MIN_HOP_DEPTH,
+    CONTEXT_MAX_HOP_DEPTH,
+    clampGraphHopDepth
 } from './index-store/webview-graph-queries.js';
 export {
     ACTIVITY_BAR_MAX_NODES,
@@ -86,8 +90,43 @@ export type {
 export {
     CONTEXT_DIMENSION_LABELS,
     CONTEXT_DIMENSION_WEIGHTS,
+    CONTEXT_GRAPH_SEARCH_DIMENSIONS,
     DEFAULT_ENABLED_DIMENSIONS
 } from './core/context-model.js';
+export {
+    buildAiReadiness,
+    buildContextFingerprint,
+    buildFocusSignals,
+    emptyContextSignals,
+    emptyContextSynthesis,
+    formatAiReadinessMarkdown,
+    formatFingerprintMarkdown,
+    formatSynthesisMarkdown,
+    hopDistancesFromCenter,
+    hotspotBandFromRisk,
+    hotspotBorderColor,
+    hotspotBorderWidth,
+    impactOpacityForHopDistance,
+    requirementCardCue,
+    synthesizeFocusContext,
+    thinChurnIntensity,
+    timelineMilestones
+} from './core/context-signals.js';
+export type {
+    AiReadiness,
+    ContextCoverageLevel,
+    ContextFingerprintAxes,
+    ContextHotspotBand,
+    ContextRiskLevel,
+    ContextSignals,
+    ContextSynthesis,
+    DevelopmentHistorySignals,
+    FocusSignalInput,
+    LifecycleSignals,
+    QualitySignals,
+    RelationshipSignals,
+    RiskSignals
+} from './core/context-signals.js';
 export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
 export type { IdeaReferenceStore } from './core/idea-references.js';
 export * from './core/types.js';

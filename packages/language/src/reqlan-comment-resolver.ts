@@ -2,12 +2,16 @@
  * Locates and parses rq:[target] references embedded in source-file comments.
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
-import { AstUtils, URI, UriUtils } from 'langium';
+import { AstUtils, URI } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';
 import { LocationLink } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findImportedDocument } from './reqlan-imports.js';
 import { isIdea, isModel, isOneLinerIdea } from './generated/ast.js';
+import {
+    resolveDocumentPathUri,
+    type PathResolveContext
+} from './reqlan-path-resolve.js';
 import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
 
 export interface EmbeddedCommentReference {
@@ -311,10 +315,11 @@ export function findCommentReferencePartAt(
 export function resolveCommentReferenceIdea(
     reference: EmbeddedCommentReference,
     document: LangiumDocument,
-    documents: LangiumDocuments
+    documents: LangiumDocuments,
+    context?: PathResolveContext
 ) {
     if (reference.path) {
-        const imported = findImportedDocument(reference.path, document, documents);
+        const imported = findImportedDocument(reference.path, document, documents, context);
         const model = imported?.parseResult.value;
         if (!imported || !isModel(model)) {
             return undefined;
@@ -341,9 +346,10 @@ export function resolveCommentReferenceIdea(
 export function resolveCommentDefinitionLinks(
     reference: EmbeddedCommentReference,
     document: LangiumDocument,
-    documents: LangiumDocuments
+    documents: LangiumDocuments,
+    context?: PathResolveContext
 ): LocationLink[] | undefined {
-    const idea = resolveCommentReferenceIdea(reference, document, documents);
+    const idea = resolveCommentReferenceIdea(reference, document, documents, context);
     const ideaNode = idea?.$cstNode;
     const targetDocument = idea ? documents.getDocument(AstUtils.getDocument(idea).uri) : undefined;
     if (!ideaNode || !targetDocument) {
@@ -357,6 +363,10 @@ export function resolveCommentDefinitionLinks(
     )];
 }
 
-export function resolveFileUri(path: string, document: LangiumDocument) {
-    return UriUtils.resolvePath(UriUtils.dirname(document.uri), path);
+export function resolveFileUri(
+    path: string,
+    document: LangiumDocument,
+    context?: PathResolveContext
+) {
+    return resolveDocumentPathUri(path, document, context);
 }

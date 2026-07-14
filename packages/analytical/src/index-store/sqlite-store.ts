@@ -204,7 +204,8 @@ export class SqliteIndexStore {
 
     async getIdea(id: string): Promise<IdeaSummary | undefined> {
         const row = await get<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
+                   git_created_at, git_modified_at
             FROM ideas WHERE id = ?
         `, id);
         return row ? this.toSummary(row) : undefined;
@@ -221,7 +222,8 @@ export class SqliteIndexStore {
 
     async getIdeaAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
         const row = await get<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
+                   git_created_at, git_modified_at
             FROM ideas
             WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind != 'ideaset'
             ORDER BY line_start DESC
@@ -230,11 +232,39 @@ export class SqliteIndexStore {
         return row ? this.toSummary(row) : undefined;
     }
 
+    /** Innermost ideaset whose line range contains `line` (0-based). */
+    async getIdeasetAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
+        const row = await get<SummaryRow>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
+                   git_created_at, git_modified_at
+            FROM ideas
+            WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind = 'ideaset'
+            ORDER BY line_start DESC
+            LIMIT 1
+        `, fileUri, line, line);
+        return row ? this.toSummary(row) : undefined;
+    }
+
     async listIdeasInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
         const rows = await all<SummaryRowWithEnd>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json
+            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
+                   git_created_at, git_modified_at
             FROM ideas
             WHERE file_uri = ? AND kind != 'ideaset'
+            ORDER BY line_start ASC
+        `, fileUri);
+        return rows.map(row => ({
+            ...this.toSummary(row),
+            lineEnd: row.line_end
+        }));
+    }
+
+    async listIdeasetsInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
+        const rows = await all<SummaryRowWithEnd>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
+                   git_created_at, git_modified_at
+            FROM ideas
+            WHERE file_uri = ? AND kind = 'ideaset'
             ORDER BY line_start ASC
         `, fileUri);
         return rows.map(row => ({
@@ -291,6 +321,38 @@ export class SqliteIndexStore {
         for (const row of inbound) {
             rows.push(toInboundReferenceListRow(row));
         }
+        return rows;
+    }
+
+    async listReferencesWithinHopDepth(ideaId: string, hopDepth: number): Promise<ReferenceListRow[]> {
+        const depth = Math.max(1, Math.round(hopDepth));
+        const edgeIds = new Set<string>();
+        const rows: ReferenceListRow[] = [];
+        const visited = new Set<string>();
+        let frontier = [ideaId];
+
+        for (let level = 0; level < depth && frontier.length > 0; level += 1) {
+            const nextFrontier = new Set<string>();
+            for (const id of frontier) {
+                if (visited.has(id)) {
+                    continue;
+                }
+                visited.add(id);
+                for (const row of await this.listReferencesForIdea(id)) {
+                    if (!edgeIds.has(row.edgeId)) {
+                        edgeIds.add(row.edgeId);
+                        rows.push(row);
+                    }
+                    const neighbor =
+                        row.direction === 'inbound' ? row.sourceIdeaId : row.targetIdeaId;
+                    if (neighbor && !visited.has(neighbor)) {
+                        nextFrontier.add(neighbor);
+                    }
+                }
+            }
+            frontier = [...nextFrontier];
+        }
+
         return rows;
     }
 
@@ -734,7 +796,9 @@ export class SqliteIndexStore {
             lineStart: row.line_start,
             summary: row.summary,
             status: ideaStatus(attributes),
-            tags: ideaTags(attributes)
+            tags: ideaTags(attributes),
+            gitCreatedAt: row.git_created_at ?? undefined,
+            gitModifiedAt: row.git_modified_at ?? undefined
         };
     }
 
@@ -896,6 +960,8 @@ interface SummaryRow {
     line_start: number;
     summary: string;
     attributes_json: string;
+    git_created_at?: string | null;
+    git_modified_at?: string | null;
 }
 
 interface IdeaPageRow {
@@ -945,6 +1011,10 @@ function toIdeaTableRow(
 ): IdeaTableRow {
     const attributes = parseAttributes(row.attributes_json);
     const otherAttributeItems = formatOtherAttributeItems(attributes);
+    const fanout = row.inbound_count + row.outbound_count;
+    const stabilityCue = Math.min(1, Math.max(0, 1 - fanout / 24));
+    const stabilityLabel =
+        stabilityCue >= 0.75 ? 'Stable' : stabilityCue >= 0.45 ? 'Active' : 'High churn risk';
     return {
         id: row.id,
         title: row.name,
@@ -959,7 +1029,9 @@ function toIdeaTableRow(
         outboundReferences,
         inboundReferences,
         fileUri: row.file_uri,
-        lineStart: row.line_start
+        lineStart: row.line_start,
+        stabilityCue,
+        stabilityLabel
     };
 }
 
