@@ -1,5 +1,17 @@
 # reqlan
 
+## 1.0.0
+
+### Major Changes
+
+- 931fc87: build fix
+
+### Patch Changes
+
+- Updated dependencies [931fc87]
+  - reqlan-language@1.0.0
+  - reqlan-analytical@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes
