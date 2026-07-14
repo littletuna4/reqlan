@@ -384,6 +384,7 @@ idea4 {
         hellos
     }
     @boolean_attribute true
+    @prose_attribute hello
     @ideaset_attribute (
         [idea1],
         [idea2],
