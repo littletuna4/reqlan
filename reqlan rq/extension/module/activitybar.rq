@@ -199,6 +199,7 @@ component_list {
 minigraph_file_reference_links {
     when the user clicks on a file reference link in the miniature graph, we should open the file in the editor
     if the file is defined as relative, it should be opened relative to the defining file, not the workspace root
+    Fixed in [graph_analysers.local_graph_analysis]: external file nodes now resolve their path against the defining file's folder (via the edge source id) when the slice is built, so a workspace-relative path is handed to the editor open action.
     @bugfix
-    @todo
+    @status done
 }
