@@ -28,6 +28,17 @@
                 "color": "terminal.ansiYellow",
                 "id": "eye"
             }
+        },
+        {
+            "label": "Run Extension (new window)",
+            "command": "cursor --extensionDevelopmentPath=\"${workspaceFolder}/packages/extension\" \"${workspaceFolder}/reqlan-debug.code-workspace\"",
+            "type": "shell",
+            "detail": "Launch the reqlan extension in an Extension Development Host window (equivalent to the 'Run Extension' launch config). Uses the 'cursor' CLI so it works inside a Cursor Remote-WSL session; change to 'code' if running in a native VS Code + Remote-WSL setup.",
+            "problemMatcher": [],
+            "icon": {
+                "color": "terminal.ansiBlue",
+                "id": "vscode"
+            }
         }
     ]
 }

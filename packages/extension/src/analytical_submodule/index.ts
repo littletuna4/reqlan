@@ -58,8 +58,16 @@ export async function activateAnalyticalSubmodule(
     analysers.register(localGraphAnalyser);
     analysers.register(semanticSearchAnalyser);
 
-    await index.activate(context);
     const submodule = { store, index, analysers };
+
+    // Register all VS Code contributions synchronously, BEFORE any async startup
+    // work. This makes the activity bar webview view provider available
+    // immediately so VS Code can resolve (and paint) the "Context" view even
+    // while the index — and, in the caller, the language server — are still
+    // starting. The provider tolerates a not-yet-ready index and reacts to
+    // readiness via its status/catalog subscriptions. Previously these ran only
+    // after `await index.activate()` (and the awaited language-client start in
+    // the caller), so a slow or hanging startup left the sidebar permanently blank.
     registerAnalyticalCommands(context, submodule);
     registerActivityBarModule(context, submodule);
     registerChatParticipantModule(context, submodule);
@@ -74,5 +82,7 @@ export async function activateAnalyticalSubmodule(
         }
     });
 
-    return { store, index, analysers };
+    await index.activate(context);
+
+    return submodule;
 }

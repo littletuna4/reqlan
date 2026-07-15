@@ -9,27 +9,35 @@ import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hi
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
-import { activateAnalyticalSubmodule } from '../analytical_submodule/index.js';
+import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
 
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     registerReferenceInlayHintsToggle(context);
+
+    // Activate analytical features first. This registers the activity bar webview
+    // view provider synchronously, so the "Context" sidebar renders regardless of
+    // the language server's health — a slow or hanging `client.start()` must never
+    // block the view provider from being registered.
+    let submodule: AnalyticalSubmodule | undefined;
+    try {
+        submodule = await activateAnalyticalSubmodule(context);
+        registerImportErrorCommands(context, submodule.index);
+    } catch (error) {
+        console.error('[reqlan] Analytical submodule failed to activate:', error);
+    }
+
     try {
         client = await startLanguageClient(context);
     } catch (error) {
         console.error('[reqlan] Language client failed to start:', error);
     }
-    try {
-        const submodule = await activateAnalyticalSubmodule(context);
-        registerImportErrorCommands(context, submodule.index);
-        if (client) {
-            registerAttributeCatalogSync(context, submodule.index, () => client);
-            registerNameCatalogSync(context, submodule.index, () => client);
-        }
-    } catch (error) {
-        console.error('[reqlan] Analytical submodule failed to activate:', error);
+
+    if (client && submodule) {
+        registerAttributeCatalogSync(context, submodule.index, () => client);
+        registerNameCatalogSync(context, submodule.index, () => client);
     }
 }
 

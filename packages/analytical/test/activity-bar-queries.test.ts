@@ -270,4 +270,50 @@ auto_reframe {
         expect(slice.truncated).toBe(true);
         await store.close();
     });
+
+    test('buildGraphViewSlice resolves relative file-reference nodes against the defining file', async () => {
+        const definingFile = 'reqlan rq/extension/module/activitybar.rq';
+        const store = await openTestStore();
+        const center = ideaId(definingFile, 'center');
+        const targetFile = '../../../packages/extension/src/foo.ts';
+        const ideas: IdeaRecord[] = [
+            {
+                id: center,
+                name: 'center',
+                kind: 'block',
+                fileUri: definingFile,
+                lineStart: 0,
+                lineEnd: 1,
+                summary: '',
+                attributesJson: '{}',
+                contentHash: 'center'
+            }
+        ];
+        const edges: EdgeRecord[] = [
+            {
+                id: `${center}->file_reference:${targetFile}`,
+                sourceId: center,
+                targetFile,
+                kind: 'file_reference',
+                label: targetFile,
+                isResolved: true
+            }
+        ];
+        await store.upsertDocument(definingFile, 'refhash', ideas, edges);
+
+        const slice = await buildGraphViewSlice(store, {
+            centerId: center,
+            includeIndirect: false,
+            maxNodes: 40
+        });
+
+        const fileNode = slice.nodes.find(node => node.isExternal);
+        expect(fileNode).toBeDefined();
+        // Node id stays keyed on the raw target so its edge still resolves...
+        expect(fileNode?.id).toBe(`file:${targetFile}`);
+        // ...but the openable path is anchored to the defining file's folder,
+        // not the workspace root.
+        expect(fileNode?.fileUri).toBe('packages/extension/src/foo.ts');
+        await store.close();
+    });
 });

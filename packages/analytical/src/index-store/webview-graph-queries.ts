@@ -1,3 +1,4 @@
+import { posix } from 'node:path';
 import type { EdgeRecord, IdeaSummary } from '../core/types.js';
 import { attributeJsonPath } from './webview-table-queries.js';
 import type { SqliteIndexStore } from './sqlite-store.js';
@@ -107,6 +108,31 @@ function externalNodeId(targetFile: string): string {
     return `file:${targetFile}`;
 }
 
+/** The defining file portion of an idea id (`<fileUri>#<name>`). */
+function definingFilePath(sourceId: string): string {
+    const separator = sourceId.lastIndexOf('#');
+    return separator >= 0 ? sourceId.slice(0, separator) : sourceId;
+}
+
+/**
+ * File references are authored relative to the file that defines them, not the
+ * workspace root, so `targetFile` alone cannot be opened reliably (e.g. a
+ * `../../foo.ts` reference would otherwise be resolved against the workspace
+ * root). Resolve it against the defining file's folder so the node carries a
+ * workspace-relative path that "open file" actions can honour.
+ */
+function resolveReferencedFilePath(targetFile: string, sourceId: string): string {
+    const target = targetFile.replace(/\\/g, '/');
+    if (target.includes('://') || posix.isAbsolute(target)) {
+        return targetFile;
+    }
+    const definingFile = definingFilePath(sourceId).replace(/\\/g, '/');
+    if (!definingFile || definingFile.includes('://') || posix.isAbsolute(definingFile)) {
+        return targetFile;
+    }
+    return posix.join(posix.dirname(definingFile), target);
+}
+
 function toGraphEdgeView(edge: EdgeRecord): GraphEdgeView | undefined {
     const targetId = edge.targetId ?? (edge.targetFile ? externalNodeId(edge.targetFile) : undefined);
     if (!targetId) {
@@ -121,12 +147,12 @@ function toGraphEdgeView(edge: EdgeRecord): GraphEdgeView | undefined {
     };
 }
 
-function externalGraphNode(targetFile: string, label?: string): GraphNodeView {
+function externalGraphNode(targetFile: string, sourceId: string, label?: string): GraphNodeView {
     return {
         id: externalNodeId(targetFile),
         name: label ?? targetFile,
         kind: 'file',
-        fileUri: targetFile,
+        fileUri: resolveReferencedFilePath(targetFile, sourceId),
         lineStart: 0,
         tags: [],
         isExternal: true
@@ -319,7 +345,7 @@ function finalizeSlice(
         if (!edge.targetId && edge.targetFile) {
             const externalId = externalNodeId(edge.targetFile);
             if (!graphNodes.has(externalId)) {
-                graphNodes.set(externalId, externalGraphNode(edge.targetFile, edge.label));
+                graphNodes.set(externalId, externalGraphNode(edge.targetFile, edge.sourceId, edge.label));
             }
         }
         const view = toGraphEdgeView(edge);

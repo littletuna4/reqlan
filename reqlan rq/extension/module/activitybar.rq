@@ -194,3 +194,11 @@ component_list {
     - ExportSliceButton, CreateStubReference action
     - Full workspace export via [commands.export_json] / [commands.export_csv]
 }
+
+
+minigraph_file_reference_links {
+    when the user clicks on a file reference link in the miniature graph, we should open the file in the editor
+    if the file is defined as relative, it should be opened relative to the defining file, not the workspace root
+    @bugfix
+    @todo
+}

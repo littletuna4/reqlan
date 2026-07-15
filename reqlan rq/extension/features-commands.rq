@@ -43,3 +43,8 @@ add_to_chat {
     Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick. Opens chat with #requirement / #file context, with clipboard fallback.
     @status done
 }
+
+open_a_random_requirement {
+    as it sounds
+    @todo
+    }
