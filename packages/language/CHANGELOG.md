@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 1.0.1
+
+### Patch Changes
+
+- b8a50cd: minor fixes
+
 ## 1.0.0
 
 ### Major Changes

@@ -1,5 +1,13 @@
 # reqlan-analytical
 
+## 0.1.4
+
+### Patch Changes
+
+- b8a50cd: minor fixes
+- Updated dependencies [b8a50cd]
+  - reqlan-language@1.0.1
+
 ## 0.1.3
 
 ### Patch Changes
