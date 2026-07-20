@@ -1,7 +1,7 @@
 {
     "name": "reqlan",
     "description": "Language support for the reqlan language",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "displayName": "reqlan toolset",
     "icon": "media/logo.png",
     "type": "module",

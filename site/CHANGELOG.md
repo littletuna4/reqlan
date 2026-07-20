@@ -1,5 +1,11 @@
 # site
 
+## 0.3.0
+
+### Minor Changes
+
+- e56ac74: onboarding, index corruption recovery, syntax edge case support, inlay hint development
+
 ## 0.2.2
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 1.1.0
+
+### Minor Changes
+
+- e56ac74: onboarding, index corruption recovery, syntax edge case support, inlay hint development
+
 ## 1.0.1
 
 ### Patch Changes
