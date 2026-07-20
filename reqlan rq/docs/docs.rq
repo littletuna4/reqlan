@@ -1,1 +1,5 @@
 docs_reqs the project requirements should all be documented in the [the reqlan rq folder of this repo](../../reqlan rq)
+
+export_docs_tag the "@docs" tag should be used to mark files as included in the docs.
+
+

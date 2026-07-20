@@ -26,6 +26,14 @@ extension_readme_build {
     Requirement: ["../distribution/distribution.rq".extension_readme].
 }
 
+onboarding_rq_build {
+    Generate `packages/extension/media/thanks-for-installing.rq` from ["../../packages/extension/templates/thanks-for-installing.template.rq"] before VSIX packaging.
+    Phonebook links are resolved from ["../../scripts/phonebook.ts"] via ["../../packages/extension/scripts/onboarding-rq-build.ts"].
+    Invoked as `pnpm run build:onboarding` in [extension_build_script], before host bundling.
+    The source template under `templates/` is excluded from the VSIX; the built file under `media/` is bundled for runtime onboarding.
+    Requirement: ["../extension/onboarding/page-thanks-for-installing.rq".installation_event].
+}
+
 build_prepare {
     Copy TextMate grammars from the language package into extension syntaxes.
     Sync Cursor agent skills from extension sources into `.cursor/skills`.

@@ -1,0 +1,17 @@
+nested_curly_braces {
+    if there is a prose block containing curly braces, {such as this one} they should be treated as part of the prose.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:keeps inline prose brace pairs as text"]
+    )
+}
+
+one_liner_curly_brace_context this should {be acceptable} as well
+
+closing_nested_curly_braces {
+    if, for some reason, there is a prose block containing only closing curly braces, they should be escaped and allowed \} like this.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:allows escaped closing brace in body prose"]
+    )
+}

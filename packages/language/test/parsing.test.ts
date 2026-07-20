@@ -69,6 +69,55 @@ describe('Parsing tests', () => {
         expect(bodyText).toContain('sources (and contributions)');
     });
 
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
+    test('keeps inline prose brace pairs as text', async () => {
+        const document = await parse(`nested_curly_braces {
+    if there is a prose block containing curly braces, {such as this one} they should be treated as part of the prose.
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements
+            .filter(isIdea)
+            .find(candidate => candidate.name === 'nested_curly_braces');
+        expect(idea).toBeDefined();
+        const bodyText = idea!.elements
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(bodyText).toContain('{such as this one}');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".one_liner_curly_brace_context]
+    test('keeps inline braces in one-liner body as text', async () => {
+        const document = await parse('one_liner_curly_brace_context this should {be acceptable} as well');
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const oneLiner = document.parseResult.value.elements.find(isOneLinerIdea);
+        expect(oneLiner?.name).toBe('one_liner_curly_brace_context');
+        expect(oneLiner?.$cstNode?.text).toBe('one_liner_curly_brace_context this should {be acceptable} as well');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".closing_nested_curly_braces]
+    test('allows escaped closing brace in body prose', async () => {
+        const document = await parse(`closing_nested_curly_braces {
+    if, for some reason, there is a prose block containing only closing curly braces, they should be escaped and allowed \\} like this.
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements
+            .filter(isIdea)
+            .find(candidate => candidate.name === 'closing_nested_curly_braces');
+        expect(idea).toBeDefined();
+        const bodyText = idea!.elements
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(bodyText).toContain('\\}');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
+    test('parse syntax-edge-cases.rq', async () => {
+        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax-edge-cases.rq'), 'utf8'));
+        expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".round_brackets]
     test('keeps inline braces in body prose as text', async () => {
         const document = await parse(`reframe_animation {
@@ -169,7 +218,7 @@ demo {
         expect(bracketReferences).toHaveLength(2);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".import_from]
+    // rq:["../../../reqlan rq/language/imports.rq".import_from]
     test('parse example sub idea.rq', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'sub idea.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
@@ -238,7 +287,7 @@ second_idea line two`);
         expect(isIdea(idea) && idea.name).toBe('myidea');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".import_from]
+    // rq:["../../../reqlan rq/language/imports.rq".import_from]
     test('parses from-import example line inside an attribute block value', async () => {
         const document = await parse(`import_from {
     From-import syntax uses from, a quoted path, import, and an idea name.
@@ -251,13 +300,13 @@ second_idea line two`);
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".keywords]
+    // rq:["../../../reqlan rq/language/imports.rq".import_keywords]
     test('parse import keywords in idea body text', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'exampleimport2.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".keywords]
+    // rq:["../../../reqlan rq/language/imports.rq".import_keywords]
     test('parse body text containing from import as words', async () => {
         const document = await parse(`demo {
             copy from import as needed.
@@ -548,7 +597,7 @@ my_multi_line_idea_with_appostrophe {
 
     // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('parse features-syntax.rq', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/features-syntax.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.map(element => element.name)).toContain('sensible_alias_support');
     });

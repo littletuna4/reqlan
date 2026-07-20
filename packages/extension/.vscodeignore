@@ -3,6 +3,7 @@
 src/**
 webviews/**
 scripts/**
+templates/**
 node_modules/**
 esbuild.mjs
 watch-syntax.mjs

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
@@ -8,6 +8,7 @@ import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from 'reqlan-language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
+import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
 import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
 import {
@@ -187,7 +188,7 @@ describe('Linking tests', () => {
         expect(pathLink.target.path?.error).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
     test('go to definition on import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -222,7 +223,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
     test('go to definition on wikilink import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -253,7 +254,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
     test('go to definition on wikilink idea still opens idea declaration', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -285,7 +286,7 @@ describe('Linking tests', () => {
         expect(importedDocument.textDocument.getText(links![0].targetSelectionRange!)).toBe('myimportableIdea');
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
     test('rename finds import path declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -312,7 +313,7 @@ describe('Linking tests', () => {
         expect(pathTexts.length).toBeGreaterThanOrEqual(2);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
     test('rename finds import alias declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['exampleimport2.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -337,7 +338,7 @@ describe('Linking tests', () => {
         expect(texts.filter(text => text === 'exampleimport2').length).toBeGreaterThanOrEqual(2);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".sensible_graph_resolution]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_graph_resolution]
     test('import idea reference resolves to imported file when local idea shares name', async () => {
         const subreqs = services.shared.workspace.LangiumDocumentFactory.fromString(
             'myidea imported body',
@@ -365,7 +366,7 @@ describe('Linking tests', () => {
         expect(fromImport?.specifiers[0]?.idea.ref).not.toBe(localIdea);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
     test('rename finds all idea references including wikilinks', async () => {
         document = await parse(`alpha {
     see [[beta]]
@@ -468,7 +469,7 @@ later_member {
         expect(unresolved).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('resolve anonymous import in bracket reference without import statement', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -499,7 +500,7 @@ later_member {
         expect(AstUtils.getDocument(bracketRef.target.idea.ref!).uri.path).toContain('ontology.rq');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import path opens source file', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -545,7 +546,7 @@ later_member {
         expect(links?.[0].targetUri).toBe(ontology.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import idea opens idea declaration', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -581,10 +582,10 @@ later_member {
         expect(ontology.textDocument.getText(links![0].targetSelectionRange!)).toBe('attribute');
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('document links resolve test file references to the matching test', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const featuresPath = join(repoDir, 'reqlan rq/extension/features-syntax.rq');
+        const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
         const validatingPath = join(repoDir, 'packages/language/test/validating.test.ts');
         const testName = 'reports duplicate when local idea shares imported idea name';
         const testLine = findTestLineInText(readFileSync(validatingPath, 'utf8'), testName);
@@ -621,7 +622,7 @@ later_member {
         expect(definitions?.[0].targetSelectionRange?.start.line).toBe(testLine);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('classifyReferenceUri treats existing directories as folders', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -645,7 +646,7 @@ later_member {
         expect(resolution).toBe('folder');
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('folder file references resolve without reading the directory as a file', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);  
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -674,7 +675,93 @@ later_member {
         expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    test('empty file references produce document links and warning diagnostics', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/file-ref-targets');
+        mkdirSync(fixturesDir, { recursive: true });
+        const sourcePath = join(fixturesDir, 'source.rq');
+        const emptyPath = join(fixturesDir, 'empty.ts');
+        writeFileSync(emptyPath, '');
+        try {
+            const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+                s`
+                    empty_reference {
+                        see ["./empty.ts"]
+                    }
+                `,
+                URI.parse(pathToFileURL(sourcePath).href)
+            ) as LangiumDocument<Model>;
+            fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+            await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+            const linkProvider = new ReqlanDocumentLinkProvider(fileServices.Reqlan);
+            const links = linkProvider.getDocumentLinks(document, {
+                textDocument: { uri: document.textDocument.uri }
+            });
+            expect(links.some(link => link.target?.includes('empty.ts'))).toBe(true);
+
+            const warnings = (document.diagnostics ?? []).filter(
+                diagnostic => diagnostic.message === 'Referenced file is empty.'
+            );
+            expect(warnings).toHaveLength(1);
+            expect(warnings[0]?.severity).toBe(2);
+
+            const definitions = await fileServices.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
+                textDocument: { uri: document.textDocument.uri },
+                position: { line: 1, character: 12 }
+            });
+            expect(definitions).toHaveLength(1);
+            expect(definitions?.[0].targetUri).toContain('empty.ts');
+        } finally {
+            unlinkSync(emptyPath);
+        }
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    test('parse-error file references produce document links and warning diagnostics', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/file-ref-targets');
+        mkdirSync(fixturesDir, { recursive: true });
+        const sourcePath = join(fixturesDir, 'source.rq');
+        const brokenPath = join(fixturesDir, 'broken.rq');
+        writeFileSync(brokenPath, 'from "x" import');
+        const targetDoc = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            'from "x" import',
+            URI.parse(pathToFileURL(brokenPath).href)
+        );
+        try {
+            const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+                s`
+                    broken_reference {
+                        see ["./broken.rq"]
+                    }
+                `,
+                URI.parse(pathToFileURL(sourcePath).href)
+            ) as LangiumDocument<Model>;
+            fileServices.shared.workspace.LangiumDocuments.addDocument(targetDoc);
+            fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+            await fileServices.shared.workspace.DocumentBuilder.build([targetDoc, document], { validation: true });
+
+            expect(targetDoc.parseResult.parserErrors.length).toBeGreaterThan(0);
+
+            const linkProvider = new ReqlanDocumentLinkProvider(fileServices.Reqlan);
+            const links = linkProvider.getDocumentLinks(document, {
+                textDocument: { uri: document.textDocument.uri }
+            });
+            expect(links.some(link => link.target?.includes('broken.rq'))).toBe(true);
+
+            const warnings = (document.diagnostics ?? []).filter(
+                diagnostic => diagnostic.message === 'Referenced file has parse errors.'
+            );
+            expect(warnings).toHaveLength(1);
+            expect(warnings[0]?.severity).toBe(2);
+        } finally {
+            unlinkSync(brokenPath);
+        }
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('missing file references do not produce document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -724,7 +811,7 @@ later_member {
         expect(links?.[0]?.targetUri).toBe(rqDoc.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('resolve namespace import references to files', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const targetPath = join(repoDir, 'packages/extension/webviews/ideas-summary/components/IndexPanel.svelte');
@@ -762,7 +849,7 @@ later_member {
         expect(link?.targetUri).toContain('IndexPanel.svelte');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".import_namespace]
+    // rq:["../../../reqlan rq/language/imports.rq".import_namespace]
     test('namespace import bracket reference links only the alias name', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const targetPath = join(repoDir, 'packages/extension/src/activity_bar_module/context-model.ts');
@@ -816,7 +903,7 @@ later_member {
         expect(definitions?.[0].targetSelectionRange?.start).toEqual({ line: 0, character: 0 });
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('does not report linking error for anonymous import path only', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const corePath = join(repoDir, 'site/reqs/core.rq');
@@ -840,7 +927,7 @@ later_member {
         expect(importPathErrors).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('does not report linking error for anonymous import path with idea', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq/language');
         const fileServices = createReqlanServices(NodeFileSystem);
@@ -865,10 +952,10 @@ later_member {
         expect(importPathErrors).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
     test('does not report linking error for @tests file references with test name suffix', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const featuresPath = join(repoDir, 'reqlan rq/extension/features-syntax.rq');
+        const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             readFileSync(featuresPath, 'utf8'),
             URI.parse(pathToFileURL(featuresPath).href)

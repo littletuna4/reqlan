@@ -202,7 +202,7 @@ describe('Completion', () => {
         expect(labels.some(label => String(label).includes('exampleimport'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
     test('completes import-root alias paths', async () => {
         services = createReqlanServices(NodeFileSystem);

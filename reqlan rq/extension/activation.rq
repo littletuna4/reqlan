@@ -1,0 +1,43 @@
+import "./scope.rq" as scope
+
+activation {
+    VS Code loads the extension host entry at ["../../packages/extension/src/extension/main.ts"] when an activation event in ["../../packages/extension/package.json"] matches.
+    The exported `activate(context)` function is the single activation entry point for [scope.vscode_extension].
+}
+
+activation_events {
+    Activation is declared in `contributes.activationEvents` in ["../../packages/extension/package.json"].
+    - `onStartupFinished` — activate after the workbench finishes starting; ensures first-run onboarding can run without opening a `.rq` file first.
+    - `onLanguage:reqlan` — activate when a reqlan document is opened.
+    - `onLanguage:python`, `onLanguage:javascript`, `onLanguage:typescript`, `onLanguage:typescriptreact` — activate for comment-reference and glue-semantics support in those languages.
+    - `onView:reqlan.activityBar` — activate when the Reqlan activity bar view is opened.
+    - `onChatParticipant:reqlan.reqlan` — activate when the @reqlan chat participant is used.
+    - `onCommand:reqlan.*` — activate when listed Reqlan palette commands run before the extension has loaded.
+    There is no separate `onInstall` hook; install-time behaviour runs on the first activation after install.
+}
+
+activation_sequence {
+    `activate` runs the following phases in ["../../packages/extension/src/extension/main.ts"]:
+    1. Register reference inlay-hint configuration synchronously.
+    2. Await [analytical_submodule_activation] — registers commands, activity bar, chat, webviews, AI commands, and mutation hooks before awaiting index startup.
+    3. Register import-error quick-fix commands when the analytical submodule started.
+    4. Await language-client startup for LSP features.
+    5. Register attribute and name catalog sync when both the language client and index are available.
+    6. Invoke [onboarding_check] without awaiting it, so onboarding cannot block activation.
+    Submodule and language-client failures are logged and do not prevent later phases from running.
+}
+
+analytical_submodule_activation {
+    Analytical submodule startup is implemented in ["../../packages/extension/src/analytical_submodule/index.ts"].
+    VS Code contributions (commands, activity bar provider, chat participant, webviews, AI commands, mutation hooks) register synchronously at the start of `activateAnalyticalSubmodule`.
+    Index activation is awaited afterward so the sidebar can render while indexing continues.
+}
+
+onboarding_check {
+    Post-install onboarding is checked on every activation, not via a dedicated install event.
+    ["./onboarding/page-thanks-for-installing.rq".installation_event_trigger] is satisfied because `activate` always calls ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
+    The check reads global state key `onboarding` via ["../../packages/extension/src/extension/onboarding-state.ts"]:
+    - `onboardingMessageShown` — when false, open the built ["../../packages/extension/media/thanks-for-installing.rq"] as an untitled `.rq` editor.
+    - `lastVersion` — updated each activation after the message has been shown so future releases can detect extension updates.
+    The call is fire-and-forget; errors are logged and do not fail activation.
+}

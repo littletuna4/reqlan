@@ -110,40 +110,22 @@ const markdownLink = (text: string, offset: number): RegExpExecArray | null => {
 
 const topLevelBlockOpener = /(?:^|\n)[ \t]*(?:[A-Za-z_.][\w.]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*$/;
 
-function scanStructuralBraceDepth(text: string, offset: number): number {
-    let depth = 0;
-    for (let index = 0; index < offset; index++) {
-        if (text[index] === '{') {
-            const before = text.slice(0, index).replace(/[ \t]+$/, '');
-            const openDepth = depth;
-            if (openDepth === 0 && topLevelBlockOpener.test(before)) {
-                depth++;
-            } else if (/@\w+(?::)?\s*$/.test(before)) {
-                depth++;
-            } else if (openDepth >= 1 && isLineStartAt(text, index)) {
-                depth++;
-            } else if (openDepth >= 1 && /[A-Za-z_]\w*\s*$/.test(before)) {
-                const after = text.slice(index + 1);
-                if (/^[ \t]*(?:\r?\n|$)/.test(after)) {
-                    depth++;
-                }
-            }
-        } else if (text[index] === '}') {
-            const after = text.slice(index + 1);
-            if (!/^[^ \t\r\n]/.test(after)) {
-                depth--;
-            }
-        }
+function isEscapedAt(text: string, offset: number): boolean {
+    let backslashes = 0;
+    for (let index = offset - 1; index >= 0 && text[index] === '\\'; index--) {
+        backslashes++;
     }
-    return depth;
+    return backslashes % 2 === 1;
 }
 
-function isStructuralOpenBraceAt(text: string, offset: number): boolean {
+function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: number): boolean {
     if (text[offset] !== '{') {
         return false;
     }
+    if (isEscapedAt(text, offset)) {
+        return false;
+    }
     const before = text.slice(0, offset).replace(/[ \t]+$/, '');
-    const depth = scanStructuralBraceDepth(text, offset);
 
     if (depth === 0 && topLevelBlockOpener.test(before)) {
         return true;
@@ -165,8 +147,32 @@ function isStructuralCloseBraceAt(text: string, offset: number): boolean {
     if (text[offset] !== '}') {
         return false;
     }
+    if (isEscapedAt(text, offset)) {
+        return false;
+    }
     const after = text.slice(offset + 1);
-    return !/^[^ \t\r\n]/.test(after);
+    const restOfLine = after.split(/\r?\n/, 1)[0] ?? '';
+    return restOfLine.trim().length === 0;
+}
+
+function scanStructuralBraceDepth(text: string, offset: number): number {
+    let depth = 0;
+    for (let index = 0; index < offset; index++) {
+        if (text[index] === '{') {
+            if (isStructuralOpenBraceAtDepth(text, index, depth)) {
+                depth++;
+            }
+        } else if (text[index] === '}') {
+            if (isStructuralCloseBraceAt(text, index)) {
+                depth--;
+            }
+        }
+    }
+    return depth;
+}
+
+function isStructuralOpenBraceAt(text: string, offset: number): boolean {
+    return isStructuralOpenBraceAtDepth(text, offset, scanStructuralBraceDepth(text, offset));
 }
 
 const structuralOpenBrace = (text: string, offset: number): RegExpExecArray | null => {

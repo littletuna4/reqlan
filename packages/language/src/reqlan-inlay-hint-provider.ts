@@ -1,8 +1,7 @@
 /**
  * Inlay hints showing inbound references on idea declarations as a computed attribute.
  */
-import type { AstNode, LangiumDocument } from 'langium';
-import { GrammarUtils } from 'langium';
+import { AstUtils, GrammarUtils, type AstNode, type LangiumDocument } from 'langium';
 import { AbstractInlayHintProvider } from 'langium/lsp';
 import type { CancellationToken } from 'vscode-languageserver';
 import { InlayHintKind, type InlayHint, type InlayHintParams } from 'vscode-languageserver';
@@ -12,8 +11,8 @@ import {
     isOneLinerIdea
 } from './generated/ast.js';
 import {
-    collectInboundReferencingNames,
-    formatInboundReferencesInlayLabel,
+    buildInboundReferencesInlayLabel,
+    collectInboundReferencers,
     type ReferencedDeclaration
 } from './reqlan-inbound-reference-inlay-label.js';
 import {
@@ -65,8 +64,13 @@ export class ReqlanInlayHintProvider extends AbstractInlayHintProvider {
         if (!nameNode?.range) {
             return;
         }
-        const referencers = collectInboundReferencingNames(this.services, declaration);
-        const formatted = formatInboundReferencesInlayLabel(referencers);
+        const referencers = collectInboundReferencers(this.services, declaration);
+        const document = AstUtils.getDocument(declaration);
+        const formatted = buildInboundReferencesInlayLabel(
+            referencers,
+            document.textDocument.uri,
+            declaration.name
+        );
         if (!formatted) {
             return;
         }
@@ -75,7 +79,7 @@ export class ReqlanInlayHintProvider extends AbstractInlayHintProvider {
                 line: nameNode.range.end.line,
                 character: nameNode.range.end.character
             },
-            label: formatted.label,
+            label: formatted.labelParts,
             tooltip: formatted.tooltip,
             kind: InlayHintKind.Type,
             paddingLeft: true

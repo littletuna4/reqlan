@@ -9,6 +9,8 @@ import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hi
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
+import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js';
+import { registerOnboardingCommands } from './register-onboarding-commands.js';
 import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
@@ -16,6 +18,7 @@ let client: LanguageClient | undefined;
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     registerReferenceInlayHintsToggle(context);
+    registerOnboardingCommands(context);
 
     // Activate analytical features first. This registers the activity bar webview
     // view provider synchronously, so the "Context" sidebar renders regardless of
@@ -39,6 +42,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         registerAttributeCatalogSync(context, submodule.index, () => client);
         registerNameCatalogSync(context, submodule.index, () => client);
     }
+
+    void openThanksForInstallingIfNeeded(context).catch(error => {
+        console.error('[reqlan] Failed to open thanks-for-installing page:', error);
+    });
 }
 
 // This function is called when the extension is deactivated.

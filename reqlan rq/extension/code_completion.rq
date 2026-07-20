@@ -1,0 +1,3 @@
+code_completion {
+    string and namespaces should code complete nicely based on the currnet files' path and the resolved import config.
+}

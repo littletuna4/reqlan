@@ -178,7 +178,7 @@ LocalReference:
     | ideaset=[IdeaSet:ReferenceName];
 
 // ---------------------------------------------------------------------------
-// import_from, import_namespace, import_qualified
+// import_from, import_namespace, import_qualified — see imports.rq
 // ---------------------------------------------------------------------------
 
 Import:

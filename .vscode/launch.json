@@ -10,6 +10,9 @@
             "type": "extensionHost",
             "request": "launch",
             "args": [
+                // Cursor ignores --user-data-dir and --profile-temp for extensionHost launches;
+                // the dev host shares globalState with your main profile. Onboarding resets in
+                // ExtensionMode.Development instead — see onboarding-state.ts.
                 "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
                 "${workspaceFolder}/reqlan-debug.code-workspace"
             ],

@@ -37,12 +37,15 @@ import {
 
 export type ReferenceResolution = 'file' | 'folder' | 'missing';
 
+export type FileLinkTargetIssue = 'empty' | 'parse-error';
+
 export interface ResolvedFileLink {
     sourceRange: Range;
     targetUri: string;
     targetRange?: Range;
     resolution?: ReferenceResolution;
     folderFiles?: string[];
+    targetIssue?: FileLinkTargetIssue;
 }
 
 function withFileSystem(
@@ -57,7 +60,7 @@ export function classifyReferenceUri(
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider
 ): ReferenceResolution {
-    if (documents.getDocument(targetUri)) {
+    if (findTargetDocument(targetUri, documents)) {
         return 'file';
     }
     if (!fileSystem.existsSync(targetUri)) {
@@ -227,9 +230,10 @@ function resolvePathStringLink(
         };
     }
     const text = readTargetText(targetUri, documents, fileSystem);
-    if (!text) {
+    if (text === undefined) {
         return undefined;
     }
+    const targetIssue = detectFileLinkTargetIssue(text, findTargetDocument(targetUri, documents));
     let targetRange: Range | undefined;
     if (parsed.testName) {
         const line = findTestLineInText(text, parsed.testName);
@@ -245,12 +249,53 @@ function resolvePathStringLink(
         sourceRange,
         targetUri: targetUri.toString(),
         targetRange,
-        resolution: 'file'
+        resolution: 'file',
+        targetIssue
     };
 }
 
+export function detectFileLinkTargetIssue(
+    text: string,
+    targetDocument: LangiumDocument | undefined
+): FileLinkTargetIssue | undefined {
+    if (text.length === 0) {
+        return 'empty';
+    }
+    if (targetDocument && targetDocument.parseResult.parserErrors.length > 0) {
+        return 'parse-error';
+    }
+    return undefined;
+}
+
+export function fileLinkTargetIssueMessage(issue: FileLinkTargetIssue): string {
+    switch (issue) {
+        case 'empty':
+            return 'Referenced file is empty.';
+        case 'parse-error':
+            return 'Referenced file has parse errors.';
+    }
+}
+
+function findTargetDocument(targetUri: URI, documents: LangiumDocuments): LangiumDocument | undefined {
+    const direct = documents.getDocument(targetUri);
+    if (direct) {
+        return direct;
+    }
+    const normalizedTarget = normalizeUriPath(targetUri);
+    for (const document of documents.all) {
+        if (normalizeUriPath(document.uri) === normalizedTarget) {
+            return document;
+        }
+    }
+    return undefined;
+}
+
+function normalizeUriPath(uri: URI): string {
+    return decodeURIComponent(uri.path).replace(/\\/g, '/');
+}
+
 function readTargetText(targetUri: URI, documents: LangiumDocuments, fileSystem: FileSystemProvider): string | undefined {
-    const targetDocument = documents.getDocument(targetUri);
+    const targetDocument = findTargetDocument(targetUri, documents);
     if (targetDocument) {
         return targetDocument.textDocument.getText();
     }

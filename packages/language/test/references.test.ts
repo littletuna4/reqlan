@@ -45,7 +45,7 @@ describe('Comment and file reference utilities', () => {
         expect(sample[0]?.file).toContain('validating.test.ts');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('unquotes reqlan string literals for anonymous import paths', () => {
         expect(unquoteReqlanString('"./ontology.rq"')).toBe('./ontology.rq');
         expect(unquoteReqlanString('./ontology.rq')).toBe('./ontology.rq');

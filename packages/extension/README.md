@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
 </p>
 
-# reqlan support
+# reqlan toolset
 
 Language support for the reqlan language
 
@@ -22,6 +22,15 @@ Language support for the reqlan language
 - [Contact](mailto:reqlan@tony.is-a.dev)
 
 ## Changelog
+
+### 1.0.1
+
+#### Patch Changes
+
+- b8a50cd: minor fixes
+- Updated dependencies [b8a50cd]
+  - reqlan-analytical@0.1.4
+  - reqlan-language@1.0.1
 
 ### 1.0.0
 

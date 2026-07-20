@@ -19,7 +19,7 @@ syntax_hovering {
 
 comment_support {
     The extension should recognise reqlan references embedded in comments of arbitrary source files.
-    Comment reference syntax should follow the form `rq:"./reqfile.rq".idea_name` in line comments.
+    Comment reference syntax should follow the form `rq:"../reqfile.rq".idea_name` in line comments.
     Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
     Arbitrary file references should be supported from both .rq files and comment references.
 }
@@ -34,7 +34,19 @@ code_completion {
 
 refactor_support the ideas should support renaming, moving, and deleting.
 
-file_references a file refence should act as link in the editor
+file_references {
+    A file reference should act as a link in the editor.
+    If the target file is empty or has a parse error, the link should remain available and clickable, but should show a warning underline.
+
+    Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../packages/language/src/reqlan-document-link-provider.ts"], ["../../../packages/language/src/reqlan-definition-provider.ts"], and ["../../../packages/language/src/reqlan-validator.ts"].
+    @tests (
+        ["../../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
+        ["../../../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
+        ["../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/linking.test.ts:missing file references do not produce document links"]
+    )
+}
 
 
 sensible_alias_support {
@@ -44,19 +56,19 @@ sensible_alias_support {
         duplicate_error {
             should be raised if the idea has the same name as any other idea in the context.
             @tests (
-                ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
-                ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
             )
             }
         sensible_graph_resolution {
             the imported namespace should not be assosciated with the new idea: e.g.
             ```rq
-            from "subreqs.rq" import myidea as myideaalias
+            from "../subreqs.rq" import myidea as myideaalias
             myidea this a new idea. maybe it references [myideaalias]
             ```
             `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
             @tests (
-                "../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"
+                "../../../packages/language/test/linking.test.ts"
             )
             }
     )
@@ -68,7 +80,15 @@ at_sign_in_idea_text_block{
     so @this_is_not_an_attribute
     @this_is_an_attribute
     @tests (
-        ["../../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
-        ["../../packages/language/test/parsing.test.ts:backslash before @ at line start keeps it as body text"]
+        ["../../../packages/language/test/parsing.test.ts"]
+        ["../../../packages/language/test/parsing.test.ts"]
     )
+}
+
+code_completion_import_file_paths {
+    import files should code complete nicely based on the current file's path; and the resolved import config.
+    it should support normal "../string/paths"; and if "@/the-paths/are-@-aliased"
+    ["../configuration.rq"]
+    ["../../language/imports.rq"]
+    ["../code_completion.rq"]
 }

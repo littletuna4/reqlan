@@ -148,7 +148,7 @@ describe('rqconfig schema edges', () => {
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('multiple importRoots map aliases to different roots', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/.rqconfig.json', {
@@ -176,7 +176,7 @@ describe('rqconfig schema edges', () => {
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('longest alias wins when mappings overlap', () => {
         expect(matchImportRootMapping('@pkg/x.rq', [
             { alias: '@' },
@@ -297,7 +297,7 @@ describe('rqconfig applied to path resolution', () => {
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('aliased path uses relative root from applying config', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/.rqconfig.json', {
@@ -312,7 +312,7 @@ describe('rqconfig applied to path resolution', () => {
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('aliased path uses workspace folder when root is omitted', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/.rqconfig.json', {

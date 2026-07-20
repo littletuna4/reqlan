@@ -1,4 +1,5 @@
 import "@/reqlan_rq/phonebook.rq" as phonebook_reqs
+import "@/reqlan_rq/"
 
 stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan

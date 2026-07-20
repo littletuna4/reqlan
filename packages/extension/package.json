@@ -2,7 +2,7 @@
     "name": "reqlan",
     "description": "Language support for the reqlan language",
     "version": "1.0.1",
-    "displayName": "reqlan support",
+    "displayName": "reqlan toolset",
     "icon": "media/logo.png",
     "type": "module",
     "publisher": "reqlan",
@@ -242,6 +242,16 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.showOnboarding",
+                "title": "Show Onboarding",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.openInboundReferencesSummary",
+                "title": "Open Inbound References Summary",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.importError.search",
                 "title": "Search Index for Unresolved Reference",
                 "category": "Reqlan"
@@ -323,6 +333,7 @@
         }
     },
     "activationEvents": [
+        "onStartupFinished",
         "onCommand:reqlan.installCursorSkills",
         "onCommand:reqlan.addAgentCommands",
         "onCommand:reqlan.buildRequirement",
@@ -335,6 +346,8 @@
         "onCommand:reqlan.openIdeasSummary",
         "onView:reqlan.activityBar",
         "onCommand:reqlan.toggleReferenceInlayHints",
+        "onCommand:reqlan.showOnboarding",
+        "onCommand:reqlan.openInboundReferencesSummary",
         "onChatParticipant:reqlan.reqlan",
         "onLanguage:reqlan",
         "onLanguage:python",
@@ -344,10 +357,11 @@
     ],
     "main": "./out/extension/main.cjs",
     "scripts": {
-        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp",
+        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp media/thanks-for-installing.rq",
         "vscode:prepublish": "pnpm run build",
         "build:media": "node scripts/generate-media.mjs",
         "build:readme": "pnpm exec tsx scripts/generate-readme.ts",
+        "build:onboarding": "pnpm exec tsx scripts/generate-onboarding-rq.ts",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
         "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts",
         "build": "node scripts/build.mjs",

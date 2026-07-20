@@ -19,6 +19,10 @@ const steps = [
         command: 'pnpm run build:readme',
     },
     {
+        name: 'generate onboarding rq for VSIX packaging',
+        command: 'pnpm run build:onboarding',
+    },
+    {
         name: 'prepare syntaxes and sync Cursor skills',
         command: 'pnpm run build:prepare',
     },

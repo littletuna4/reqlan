@@ -3,7 +3,7 @@
  * Uses a bundled asm.js build so VSIX installs do not depend on native modules.
  */
 import initSqlJs from 'sql.js/dist/sql-asm.js';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { BASE_MIGRATIONS, SCHEMA_VERSION, VERSION_MIGRATIONS } from './schema.js';
 import type {
@@ -82,6 +82,21 @@ export class SqliteIndexStore {
 
     async close(): Promise<void> {
         await closeDatabase(this.db);
+    }
+
+    /** Close the in-memory database without writing back to disk. */
+    closeWithoutPersist(): void {
+        this.db.db.close();
+    }
+
+    static async deleteDatabaseFile(dbPath: string): Promise<void> {
+        try {
+            await unlink(dbPath);
+        } catch (error) {
+            if (!isMissingFileError(error)) {
+                throw error;
+            }
+        }
     }
 
     async getDocumentHash(fileUri: string): Promise<string | undefined> {

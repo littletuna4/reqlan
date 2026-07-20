@@ -6,7 +6,7 @@ import { findCommentReferencesInText } from '../src/reqlan-comment-resolver.js';
 export const RQ = {
     core: '../../../reqlan rq/development/core.rq',
     syntax: '../../../reqlan rq/language/syntax.rq',
-    featuresSyntax: '../../../reqlan rq/extension/features-syntax.rq',
+    featuresSyntax: '../../../reqlan rq/extension/syntax/features-syntax.rq',
     commentRefs: '../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq',
     syntaxHighlighting: '../../../reqlan rq/extension/features-syntax-highlighting.rq'
 } as const;

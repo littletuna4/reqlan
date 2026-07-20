@@ -125,14 +125,27 @@ export class IndexService {
     }
 
     async clearAndRebuildIndex(): Promise<boolean> {
-        if (!this.sqlite) {
-            return false;
-        }
         if (this.syncInFlight) {
             await this.syncInFlight;
         }
+        const dbPath = join(this.storagePath, 'ideas-index.sqlite');
         const analytical = this.analytical.getState();
-        await this.sqlite.clearAll();
+
+        if (this.sqlite) {
+            this.sqlite.closeWithoutPersist();
+            this.sqlite = undefined;
+        }
+        await SqliteIndexStore.deleteDatabaseFile(dbPath);
+
+        try {
+            this.sqlite = await SqliteIndexStore.open(dbPath);
+        } catch (error) {
+            analytical.dispatchIndex('fail');
+            analytical.recordIndexError('Failed to reopen idea index after reset', error, { phase: 'open' });
+            this.notifyStatusUpdated();
+            return false;
+        }
+
         analytical.clearFileIndexIssues();
         analytical.clearLastError();
         analytical.setIndexReady({ ideaCount: 0, edgeCount: 0 });

@@ -31,9 +31,9 @@
         },
         {
             "label": "Run Extension (new window)",
-            "command": "cursor --extensionDevelopmentPath=\"${workspaceFolder}/packages/extension\" \"${workspaceFolder}/reqlan-debug.code-workspace\"",
+            "command": "cursor \"${workspaceFolder}/reqlan-debug.code-workspace\"",
             "type": "shell",
-            "detail": "Launch the reqlan extension in an Extension Development Host window (equivalent to the 'Run Extension' launch config). Uses the 'cursor' CLI so it works inside a Cursor Remote-WSL session; change to 'code' if running in a native VS Code + Remote-WSL setup.",
+            "detail": "Open the debug workspace in Cursor. For extension development with an isolated profile, use the 'Run Extension' launch config (F5) instead — the Cursor WSL CLI ignores --user-data-dir, --profile-temp, and --extensionDevelopmentPath.",
             "problemMatcher": [],
             "icon": {
                 "color": "terminal.ansiBlue",

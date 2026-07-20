@@ -1,12 +1,18 @@
 import type { AstNode, ValidationAcceptor, ValidationChecks } from 'langium';
+import { AstUtils } from 'langium';
 import type { ReqlanAstType } from './generated/ast.js';
 import {
     isIdea,
     isOneLinerIdea,
     type Model
 } from './generated/ast.js';
+import {
+    collectFileLinks,
+    fileLinkTargetIssueMessage
+} from './reqlan-file-link-resolver.js';
 import { importBindings, importedIdeaNames } from './reqlan-import-bindings.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 
 /**
  * Registers validation hooks for the requirement graph AST.
@@ -25,9 +31,12 @@ export function registerValidationChecks(services: ReqlanServices) {
  */
 export class ReqlanValidator {
 
+    constructor(private readonly services: ReqlanServices) {}
+
     checkModelDuplicates(model: Model, accept: ValidationAcceptor): void {
         this.checkDuplicateImportBindings(model, accept);
         this.checkDuplicateIdeaNames(model, accept);
+        this.checkFileReferenceTargets(model, accept);
     }
 
     checkDuplicateImportBindings(model: Model, accept: ValidationAcceptor): void {
@@ -76,6 +85,25 @@ export class ReqlanValidator {
                 continue;
             }
             seen.set(name, element);
+        }
+    }
+
+    checkFileReferenceTargets(model: Model, accept: ValidationAcceptor): void {
+        const document = AstUtils.getDocument(model);
+        const { shared } = this.services;
+        for (const link of collectFileLinks(
+            document,
+            shared.workspace.LangiumDocuments,
+            shared.workspace.FileSystemProvider,
+            pathResolveContextFromServices(this.services)
+        )) {
+            if (!link.targetIssue) {
+                continue;
+            }
+            accept('warning', fileLinkTargetIssueMessage(link.targetIssue), {
+                node: model,
+                range: link.sourceRange
+            });
         }
     }
 }

@@ -1,7 +1,7 @@
 /**
  * Code completion for references, import paths, file paths, and attributes.
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
- * rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion]
  * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
  */

@@ -17,3 +17,5 @@ syntaxes/
 
 .cursor/
 .pnpm-store/
+
+*.secret.rq

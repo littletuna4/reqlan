@@ -23,7 +23,7 @@ activity_bar_module {
     - the current idea
     - ideas referencing the current idea/selection
     - a local graph
-  see ["./module/activitybar.rq"] for more details.
+  see ["../module/activitybar.rq"] for more details.
 }
 
 
@@ -31,23 +31,26 @@ activity_bar_module {
 reference_code_completion {
   references should code complete the available namespace of ideas
   this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
-  Implemented by ["../../packages/language/src/reqlan-completion-provider.ts"].
+  Implemented by ["../../../packages/language/src/reqlan-completion-provider.ts"].
 
   @tags (
     autocompletion
     )
   @tests (
-    ["../../packages/language/test/completion.test.ts:completes idea names for bracket references"]
-    ["../../packages/language/test/completion.test.ts:completes relative import paths"]
+    ["../../../packages/language/test/completion.test.ts"]
+    ["../../../packages/language/test/completion.test.ts"]
   )
+  ["../code_completion.rq"]
+
 }
 
 reference_code_completion_sequencing {
   [reference_code_completion] should be offered, not alphabetically, but by distance, then alphabetically.
-  Implemented by ["../../packages/language/src/reqlan-completion-provider.ts"].
+  Implemented by ["../../../packages/language/src/reqlan-completion-provider.ts"].
   @tests (
-    ["../../packages/language/test/completion.test.ts:orders reference completions by distance then alphabetically"]
+    ["../../../packages/language/test/completion.test.ts"]
   )
+  ["../code_completion.rq".code_completion]
 }
 
 attribute_code_completion_main_descriptiption {
@@ -61,7 +64,22 @@ subsquently, values of the attribute key should be completed based on the values
 }
 
 
-view_referenes_as_inlay_hints {
+view_references_as_inlay_hints {
   References should be shown as inlay hints in the editor.
   This should be a toggleable setting, which should be available in the command palette.
+  N-lines (configurable setting) of hints should be shown below the idea.
+  Implemented by ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-settings.ts"], and ["../../../packages/extension/src/extension/register-reference-inlay-hints.ts"].
+  @status incomplete
+  @tests (
+    ["../../../packages/language/test/inlay-hints.test.ts"]
+  )
+}
+
+traceable_inlay_hints {
+  Inlay hints should be traceable, i.e. if a user clicks a specific idea reference, it should open that idea, if a user clicks the all references hint, it should open a search webview with the idea preselected/targets prefiltered
+  Implemented by ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"], and ["../../../packages/extension/src/webview_module/register-webview.ts"].
+  @status done
+  @tests (
+    ["../../../packages/language/test/inlay-hints.test.ts"]
+  )
 }

@@ -1,0 +1,37 @@
+import "../../phonebook.rq" as phonebook_reqs
+import "@/reqlan_rq/extension/activation.rq" as activation
+
+installation_event {
+    On installation of the extension a reqlan file should be opened showing:
+    - A welcome message
+    - links to site, github, docs etc.
+    - A guide to the extension and the reqlan language
+    - A thanks to sponsors
+    Implemented via ["../../packages/extension/templates/thanks-for-installing.template.rq"] built at package time into ["../../packages/extension/media/thanks-for-installing.rq"] by ["../../packages/extension/scripts/onboarding-rq-build.ts"] with links from [phonebook_reqs.phonebook], then opened once on first activation by ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
+    Activation state is stored in extension global state key `onboarding` with `onboardingMessageShown` and `lastVersion` per ["../../packages/extension/src/extension/onboarding-state.ts"].
+    VS Code persists `globalState` in the extension global storage directory (`globalStorage/reqlan.reqlan/state.vscdb` under the editor user data folder).
+    @status done
+}
+
+show_onboarding_command {
+    A [command_palette] action should reopen the built onboarding page on demand.
+    Command: Show Onboarding (category Reqlan, id `reqlan.showOnboarding`).
+    Implemented by ["../../packages/extension/src/extension/register-onboarding-commands.ts"] calling [open_onboarding_page].
+    Does not reset [onboarding_state].
+    @status done
+}
+
+open_onboarding_page {
+    Opens ["../../packages/extension/media/thanks-for-installing.rq"] as an untitled `.rq` editor via ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
+}
+
+onboarding_state {
+    Onboarding persistence uses VS Code `ExtensionContext.globalState` under key `onboarding` in ["../../packages/extension/src/extension/onboarding-state.ts"].
+    Fields: `onboardingMessageShown`, `lastVersion`.
+}
+
+installation_event_trigger {
+    The installation event should be checked and triggered at extension [activation.activation].
+    Verified: ["../../packages/extension/src/extension/main.ts"] calls `openThanksForInstallingIfNeeded` at the end of `activate`, and [activation.onboarding_check] documents the gating behaviour.
+    @status done
+}

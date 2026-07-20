@@ -165,6 +165,13 @@ export class IdeasSummaryPanel {
                 search: intent.pathFilter
             };
         }
+        if (intent.referenceFilters?.length) {
+            this.ideasQuery = {
+                ...this.ideasQuery,
+                page: 0,
+                referenceFilters: intent.referenceFilters
+            };
+        }
         if (intent.centerId || intent.includeIndirect !== undefined || intent.pathFilter) {
             this.graphQuery = {
                 ...this.graphQuery,

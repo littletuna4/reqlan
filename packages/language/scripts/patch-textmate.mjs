@@ -211,7 +211,7 @@ grammar.repository['top-level-idea-block'] = {
         '1': { name: 'entity.name.type.idea.reqlan' },
         '2': { name: 'entity.name.type.idea.reqlan' }
     },
-    end: '\\}',
+    end: '^\\s*\\}',
     patterns: [
         { include: '#block-inner' }
     ]
@@ -223,15 +223,16 @@ grammar.repository['named-block-item'] = {
         '1': { name: 'entity.name.type.idea.reqlan' },
         '2': { name: 'entity.name.type.idea.reqlan' }
     },
-    end: '\\}',
+    end: '^\\s*\\}',
     patterns: [
         { include: '#block-inner' }
     ]
 };
 
+// Attribute blocks and line-start anonymous blocks only — inline prose like `{such as this}` stays plain text.
 grammar.repository['anonymous-block'] = {
-    begin: '\\{',
-    end: '\\}',
+    begin: '(?<=@\\w+\\s*)\\{|^\\s*\\{',
+    end: '\\}(?=\\s*$)',
     patterns: [
         { include: '#block-inner' }
     ]

@@ -1,7 +1,7 @@
 /**
  * Recompute relative file paths when a referencing file moves to a new directory.
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
- * rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  */
 import { URI, UriUtils } from 'langium';

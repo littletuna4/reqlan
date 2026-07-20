@@ -210,6 +210,7 @@ export interface IdeasSummaryNavigateIntent {
     centerId?: string;
     pathFilter?: string;
     includeIndirect?: boolean;
+    referenceFilters?: ReferenceFilter[];
 }
 
 export type WebviewToExtensionMessage =

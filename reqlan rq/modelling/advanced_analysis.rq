@@ -2,3 +2,8 @@ markov_chain {
     graph traveral should be tracked to inform a markov chain model of the graph.
     @idea
 }
+
+centroid_search {
+    allow user or agent to specify multiple nodes, and then to rank matches by lowest distance.
+    @idea
+}

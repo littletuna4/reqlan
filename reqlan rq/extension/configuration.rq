@@ -34,7 +34,7 @@ configuration_import_roots {
     When `importRoots` is omitted, empty, or has no valid entries, the default is one mapping with alias `@` and no explicit root.
     When several aliases could match a path, the longest alias wins.
     Invalid or unreadable JSON, and a non-array `importRoots` value, fall back to defaults (or no loaded config for discovery, then defaults at resolve time).
-    Path resolution, rewrite skip, and completion use these mappings; see ["../language/syntax.rq".configuration_import_root_alias].
+    Path resolution, rewrite skip, and completion use these mappings; see ["../language/imports.rq".configuration_import_root_alias].
     Implemented by ["../../packages/language/src/reqlan-path-resolve.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-completion-provider.ts"].
     @tests (
         ["../../packages/language/test/rqconfig.test.ts:empty object uses default alias mapping"]

@@ -39,7 +39,7 @@ export type ReqlanServices = LangiumServices & ReqlanAddedServices
  */
 export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & ReqlanAddedServices> = {
     validation: {
-        ReqlanValidator: () => new ReqlanValidator()
+        ReqlanValidator: services => new ReqlanValidator(services)
     },
     references: {
         Linker: services => new ReqlanLinker(services),

@@ -263,6 +263,14 @@ export class AppState {
                     };
                     this.loadIdeas(this.ideas.query);
                 }
+                if (intent.referenceFilters?.length) {
+                    this.ideas.query = {
+                        ...this.ideas.query,
+                        page: 0,
+                        referenceFilters: intent.referenceFilters
+                    };
+                    this.loadIdeas(this.ideas.query);
+                }
                 if (intent.centerId || intent.includeIndirect !== undefined || intent.pathFilter) {
                     this.graph.query = {
                         ...this.graph.query,

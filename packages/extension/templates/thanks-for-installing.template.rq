@@ -1,0 +1,30 @@
+welcome {
+    Thank you for installing the reqlan toolset.
+    This page introduces the extension, the reqlan language, and where to learn more.
+}
+
+resources {
+    - Project site: {{SITE_URL}}
+    - Documentation and quickstart: {{QUICKSTART_URL}}
+    - Source repository: {{GITHUB_URL}}
+    - Visual Studio Marketplace: {{VSC_URL}}
+    - Open VSX Registry: {{OPENVSX_URL}}
+}
+
+extension_overview {
+    The reqlan extension provides language support for `.rq` requirement files in VS Code and compatible editors.
+    Use the Reqlan activity bar to inspect neighbourhood context, reference lists, and graph slices for the active requirement.
+    In chat, invoke `@reqlan` with `/rq-search` to explore requirements across the workspace.
+}
+
+language_overview {
+    Requirements are expressed as named ideas with prose, attributes, and cross-references.
+    Ideas may use block `{ ... }` syntax or concise one-line declarations.
+    Reference related ideas with wiki links and bracket notation, and link to implementation with file references such as `["./auth.ts".login]`.
+    Syntax reference and examples are available at {{SITE_URL}}.
+}
+
+acknowledgements {
+    - LLMs
+    - PKMs
+}

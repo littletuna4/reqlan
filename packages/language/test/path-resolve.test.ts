@@ -13,7 +13,7 @@ import {
 } from 'reqlan-language';
 
 describe('import root alias', () => {
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('matchImportRootAlias requires alias then slash', () => {
         expect(matchImportRootAlias('@/reqs/style.rq', '@')).toBe('reqs/style.rq');
         expect(matchImportRootAlias('@reqs/style.rq', '@')).toBeUndefined();
@@ -21,7 +21,7 @@ describe('import root alias', () => {
         expect(matchImportRootAlias('#/x.rq', '#')).toBe('x.rq');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('findWorkspaceFolderUri picks the longest matching folder', () => {
         const nested = URI.parse('file:///ws/pkg');
         const root = URI.parse('file:///ws');
@@ -29,7 +29,7 @@ describe('import root alias', () => {
         expect(findWorkspaceFolderUri(document, [root, nested])?.toString()).toBe(nested.toString());
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('resolves import-root alias against the workspace folder', () => {
         const workspace = URI.parse('file:///workspace');
         const document = createSourceTextDocument('file:///workspace/pkg/a.rq', 'idea body');
@@ -40,7 +40,7 @@ describe('import root alias', () => {
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/shared.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('leaves non-aliased relative paths document-relative', () => {
         const document = createSourceTextDocument('file:///workspace/pkg/a.rq', 'idea body');
         const resolved = resolveImportUri('./shared.rq', document, {
@@ -71,7 +71,7 @@ describe('import root alias', () => {
         expect(rootConfig?.importRoots[0]?.rootUri?.toString()).toBe(URI.parse('file:///workspace/lib').toString());
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('resolves using config importRoots mapping', () => {
         const document = createSourceTextDocument('file:///workspace/pkg/a.rq', 'idea body');
         const resolved = resolveDocumentPathUri('~/target.rq', document, {
@@ -86,7 +86,7 @@ describe('import root alias', () => {
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/lib/target.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
     test('rewrite leaves aliased paths unchanged', () => {
@@ -99,7 +99,7 @@ describe('import root alias', () => {
         expect(rewriteRelativePath('./other.rq', oldFile, newFile)).toBe('../a/other.rq');
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('services construct with EmptyFileSystem', () => {
         expect(() => createReqlanServices(EmptyFileSystem)).not.toThrow();
     });
