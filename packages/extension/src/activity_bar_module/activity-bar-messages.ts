@@ -46,6 +46,7 @@ export type ActivityBarToExtensionMessage =
     | { type: 'loadFileLens'; fileUri: string; requestId?: number }
     | { type: 'openIdeasSummary'; intent: IdeasSummaryIntent }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
+    | { type: 'createStubIdea'; sourceIdeaId: string; refText: string }
     | { type: 'setSyncWithEditor'; enabled: boolean }
     | { type: 'setPinnedFocus'; ideaId?: string }
     | { type: 'setIncludeIndirect'; enabled: boolean }
@@ -81,4 +82,19 @@ export type ExtensionToActivityBarMessage =
           pinnedFocusId?: string;
       }
     | { type: 'phonebookLinks'; links: PhonebookLinkView[] }
-    | { type: 'error'; message: string; requestId?: number };
+    | { type: 'bootstrapComplete' }
+    | {
+          type: 'error';
+          message: string;
+          requestId?: number;
+          scope?: ActivityBarErrorScope;
+      };
+
+/** Where an activity-bar error should surface in the UI. */
+export type ActivityBarErrorScope =
+    | 'bootstrap'
+    | 'index'
+    | 'context'
+    | 'graph'
+    | 'references'
+    | 'ancestors';

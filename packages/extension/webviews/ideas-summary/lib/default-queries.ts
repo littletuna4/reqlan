@@ -41,6 +41,8 @@ export function defaultReferencesQuery(): ReferencesTableQuery {
 
 export function defaultGraphQuery(): GraphViewQuery {
     return {
-        includeIndirect: false
+        includeIndirect: false,
+        maxNodes: 120,
+        truncationBasis: 'path'
     };
 }

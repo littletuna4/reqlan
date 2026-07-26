@@ -129,7 +129,11 @@ development_history_signals {
     release version, commits, authors, change frequency/velocity, historical
     and semantic hotspots, last meaningful modification, first introduction,
     ownership concentration, refactor/merge likelihood, stability score.
-    
+
+    First UI consumer beyond create/modify dates: [context_scope_v1.git_context]
+    / ["activitybar-panels/current_context_scope.rq".git_history_lens] —
+    focus commit trail and authors; working-tree staging demoted to secondary.
+
     @development_history {
         creation_date, last_modified, edit_frequency, authors, commit_count,
         time_since_touched, active_development, historical_hotspot,
@@ -294,6 +298,8 @@ dependency_pulse {
 
     Consumes [requirement_signals] and [relationship_signals].
     Surfaced on focus hero and graph node details.
+    Click any arm or the centre toggles a reference table below the compass
+    (Dir / Role / Idea / Status) per ["../activitybar-panels/current_context_scope.rq".dependency_pulse_table].
 
     @status incomplete
     @tags (widget, dependencies)
@@ -511,6 +517,7 @@ context_fingerprint {
     Files, Requirements, History, Architecture, Git, Diagnostics, Coverage.
     Lets the user see expansion when LLM reports "context expanded"
     ([context_scope_v1.ai_context_export], [features_ai.ai_integration]).
+    Hover/info/drill-down affordances: ["./activitybar-panels/current_context_scope.rq".tooltip_detail], ["./activitybar-panels/current_context_scope.rq".fingerprint_axis_drilldown].
 
     @status incomplete
     @tags (widget, context, ai)

@@ -23,6 +23,18 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.2.0
+
+#### Minor Changes
+
+- e5389ba: Improve import ergonomics and code completion.
+
+#### Patch Changes
+
+- Updated dependencies [e5389ba]
+  - reqlan-language@1.2.0
+  - reqlan-analytical@0.2.1
+
 ### 1.1.0
 
 #### Minor Changes

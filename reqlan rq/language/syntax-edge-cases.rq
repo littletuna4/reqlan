@@ -1,8 +1,15 @@
 nested_curly_braces {
     if there is a prose block containing curly braces, {such as this one} they should be treated as part of the prose.
+    Matching braces that end a line — including adjacent pairs like {{SITE_URL}} — stay in the body; they must not close the enclosing idea.
+    A lone `}` on its own line still closes the structural block so an unbalanced prose `{` cannot swallow the idea closer.
 
     @tests (
         ["../../packages/language/test/parsing.test.ts:keeps inline prose brace pairs as text"]
+        ["../../packages/language/test/parsing.test.ts:keeps end-of-line matching prose braces as text"]
+        ["../../packages/language/test/parsing.test.ts:parse thanks-for-installing template"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
     )
 }
 

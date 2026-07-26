@@ -4,18 +4,24 @@
 import { AstUtils, type LangiumDocument } from 'langium';
 import {
     findEmbeddedFileReferencesInText,
+    findNamespaceImportByAlias,
     isAttribute,
     isBodyLine,
     isBracketReference,
     isIdea,
     isIdeaSet,
+    isLocalReference,
     isMarkdownLink,
     isModel,
+    isNamespaceImportOnlyReference,
     isOneLinerIdea,
+    isQualifiedReference,
     isRichTextPart,
     isScalarValue,
     isWikiLink,
+    namespaceImportBindingName,
     parseMarkdownLink,
+    unquoteReqlanString,
     type Attribute,
     type BodyLine,
     type Idea,
@@ -294,6 +300,50 @@ function unresolvedIdeaName(target: ReferenceTarget): string | undefined {
     return idea.$refText ?? idea.name;
 }
 
+/**
+ * Bare `[alias]` refs to namespace imports target the imported file (same as the editor),
+ * not an idea — emit a file_reference edge using the shared namespace-import classifier.
+ */
+function namespaceAliasFileEdge(
+    sourceId: string,
+    target: ReferenceTarget,
+    meta: Pick<EdgeRecord, 'sourceLine' | 'snippet'>
+): EdgeRecord | undefined {
+    if (!isLocalReference(target) && !isQualifiedReference(target)) {
+        return undefined;
+    }
+    if (!isNamespaceImportOnlyReference(target)) {
+        return undefined;
+    }
+    const document = AstUtils.getDocument(target);
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return undefined;
+    }
+    const bindingName = isQualifiedReference(target)
+        ? target.qualifier?.$refText
+        : namespaceImportBindingName(target);
+    if (!bindingName) {
+        return undefined;
+    }
+    const importDecl = isQualifiedReference(target)
+        ? target.qualifier?.ref
+        : findNamespaceImportByAlias(model.imports, bindingName);
+    if (!importDecl?.path) {
+        return undefined;
+    }
+    const targetFile = unquoteReqlanString(importDecl.path);
+    return {
+        id: edgeId(sourceId, 'file_reference', targetFile),
+        sourceId,
+        targetFile,
+        kind: 'file_reference',
+        label: bindingName,
+        ...meta,
+        isResolved: true
+    };
+}
+
 function referenceToEdge(
     sourceId: string,
     target: ReferenceTarget,
@@ -314,6 +364,10 @@ function referenceToEdge(
             ...meta,
             isResolved: true
         };
+    }
+    const namespaceFile = namespaceAliasFileEdge(sourceId, target, meta);
+    if (namespaceFile) {
+        return namespaceFile;
     }
     const unresolved = unresolvedIdeaName(target);
     if (unresolved) {

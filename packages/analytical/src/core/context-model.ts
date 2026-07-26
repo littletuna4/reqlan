@@ -121,11 +121,33 @@ export interface ContextFileLensDetail {
 /** @deprecated Use CurrentFileSlice — kept for wire compat during migration */
 export type ActivityBarScope = CurrentFileSlice;
 
+/** One commit from focus-scoped `git log` for the git history lens. */
+export interface GitFocusCommit {
+    hash: string;
+    shortHash: string;
+    subject: string;
+    author: string;
+    authoredAt: string;
+}
+
+export interface GitAuthorRollup {
+    name: string;
+    commitCount: number;
+}
+
 export interface GitContextSlice {
     branch?: string;
+    headShort?: string;
     unstagedCount: number;
     stagedCount: number;
     changedFiles: ContextFileEntry[];
+    /** Recent commits touching the focus file / idea line range. */
+    focusCommits: GitFocusCommit[];
+    topAuthors: GitAuthorRollup[];
+    /** Collapsed lens summary, e.g. "main · 3 commits · 2 authors". */
+    summary: string;
+    /** Focus-hero cue, e.g. "2d ago · main". */
+    historyCue?: string;
 }
 
 export interface WorkspaceContextSlice {

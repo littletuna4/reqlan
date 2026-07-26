@@ -5,6 +5,7 @@
     import TableToolbar from './TableToolbar.svelte';
     import GraphControls from './GraphControls.svelte';
     import GraphKeyPanel from './GraphKeyPanel.svelte';
+    import GraphControlPanel from './GraphControlPanel.svelte';
     import { GraphCyController } from '../lib/graph-cy-controller.js';
     import { graphLog } from '../lib/graph-debug.js';
     import {
@@ -13,7 +14,11 @@
         folderPathCompoundBasis,
         type CompoundBasis
     } from '../lib/graph-cytoscape.js';
-    import { GRAPH_LEGEND_ITEMS } from '../lib/graph-theme.js';
+    import {
+        DEFAULT_PHYSICS_SETTINGS,
+        type GraphPhysicsSettings
+    } from '../lib/graph-physics.js';
+    import { GRAPH_LEGEND_ITEMS, type GraphNodeTypeId } from '../lib/graph-theme.js';
 
     interface Props {
         compoundBasis?: CompoundBasis;
@@ -30,6 +35,7 @@
     let rendering = $derived(app.graph.rendering);
     let error = $derived(app.graph.error);
     let indexReady = $derived(app.index.status?.ready ?? false);
+    let ui = $derived(app.graph.ui);
 
     const compoundBasisOptions = GRAPH_COMPOUND_BASIS_OPTIONS;
 
@@ -39,17 +45,31 @@
     // which handles the "slice already cached" remount case.
     let controller: GraphCyController | undefined = $state();
     let selectedId: string | undefined = $state();
-    let showKey = $state(false);
-    let layoutId = $state(DEFAULT_LAYOUT_ID);
-    let useCompound = $state(false);
-    let compoundBasisId = $state('folder-path');
-    let animatePhysics = $state(false);
+
+    // Key + Controls state lives in app.graph.ui (workspace-persisted).
+    let showKey = $derived(ui.showKey);
+    let showControls = $derived(ui.showControls);
+    let hiddenNodeTypes = $derived(ui.hiddenNodeTypes as GraphNodeTypeId[]);
+    let layoutId = $derived(ui.layoutId || DEFAULT_LAYOUT_ID);
+    let useCompound = $derived(ui.useCompound);
+    let compoundBasisId = $derived(ui.compoundBasisId);
+    let animatePhysics = $derived(ui.animatePhysics);
+    let physicsSettings = $derived<GraphPhysicsSettings>({
+        ...DEFAULT_PHYSICS_SETTINGS,
+        ...ui.physics
+    });
 
     // Non-reactive sync guards — plain let keeps them out of signal tracking,
     // preventing reactive loops when queueSync writes pendingSyncKey.
     let lastSyncedKey = '';
     let pendingSyncKey = '';
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
+    let maxNodesTimer: ReturnType<typeof setTimeout> | undefined;
+    // Last values pushed to the controller — avoid setLayoutId on unrelated UI patches.
+    let lastControllerLayout = '';
+    let lastControllerAnimate: boolean | undefined;
+    let lastControllerPhysicsKey = '';
+    let lastControllerHiddenKey = '';
 
     const legendItems = GRAPH_LEGEND_ITEMS;
 
@@ -62,6 +82,8 @@
     );
     let activeCompoundBasis = $derived(activeBasisOption?.compoundBasis ?? compoundBasis);
     let activeGroupBasis = $derived(activeBasisOption?.groupBasis);
+    let maxNodes = $derived(query.maxNodes ?? ui.maxNodes);
+    let truncationBasis = $derived(query.truncationBasis ?? ui.truncationBasis);
     let graphDataKey = $derived(slice
         ? [
             slice.nodes.map(node => node.id).join('\u0000'),
@@ -116,6 +138,45 @@
         );
     });
 
+    // Apply workspace UI to the cytoscape controller when those fields change
+    // (including the first restore after graphUiState). Unrelated patches (panel
+    // open toggles) must not restart layout.
+    $effect(() => {
+        if (!controller) {
+            return;
+        }
+        void app.graph.uiHydrated;
+        const nextLayout = ui.layoutId;
+        const nextAnimate = ui.animatePhysics;
+        const nextPhysics = ui.physics;
+        const nextHidden = ui.hiddenNodeTypes;
+        const physicsKey = [
+            nextPhysics.gravity,
+            nextPhysics.repulsion,
+            nextPhysics.linkStrength,
+            nextPhysics.linkDistance,
+            nextPhysics.damping
+        ].join('\u0000');
+        const hiddenKey = nextHidden.join('\u0000');
+
+        if (nextLayout !== lastControllerLayout) {
+            lastControllerLayout = nextLayout;
+            controller.setLayoutId(nextLayout);
+        }
+        if (nextAnimate !== lastControllerAnimate) {
+            lastControllerAnimate = nextAnimate;
+            controller.setAnimatePhysics(nextAnimate);
+        }
+        if (physicsKey !== lastControllerPhysicsKey) {
+            lastControllerPhysicsKey = physicsKey;
+            controller.setPhysicsSettings({ ...DEFAULT_PHYSICS_SETTINGS, ...nextPhysics });
+        }
+        if (hiddenKey !== lastControllerHiddenKey) {
+            lastControllerHiddenKey = hiddenKey;
+            controller.setHiddenNodeTypes(nextHidden);
+        }
+    });
+
     let loadingStatus = $derived(
         loading ? 'Loading graph…' :
         error ? error :
@@ -166,25 +227,77 @@
     }
 
     function handleLayoutChange(layout: string): void {
-        layoutId = layout;
-        controller?.setLayoutId(layout);
+        app.patchGraphUi({ layoutId: layout });
     }
 
     function toggleCompound(): void {
-        useCompound = !useCompound;
+        app.patchGraphUi({ useCompound: !ui.useCompound });
     }
 
     function handleCompoundBasisChange(basisId: string): void {
-        compoundBasisId = basisId;
+        app.patchGraphUi({ compoundBasisId: basisId });
     }
 
     function toggleAnimatePhysics(): void {
-        animatePhysics = !animatePhysics;
-        controller?.setAnimatePhysics(animatePhysics);
+        app.patchGraphUi({ animatePhysics: !ui.animatePhysics });
+    }
+
+    function handleMaxNodesChange(value: number): void {
+        app.patchGraphUi({ maxNodes: value });
+        const next = { ...query, maxNodes: value };
+        clearTimeout(maxNodesTimer);
+        maxNodesTimer = setTimeout(() => emitQuery(next), 250);
+    }
+
+    function handleTruncationBasisChange(basis: 'path' | 'git-modified' | 'git-created'): void {
+        app.patchGraphUi({ truncationBasis: basis });
+        emitQuery({ ...query, truncationBasis: basis });
+    }
+
+    function handlePhysicsSettingsChange(partial: Partial<GraphPhysicsSettings>): void {
+        app.patchGraphUi({
+            physics: {
+                gravity: partial.gravity ?? ui.physics.gravity,
+                repulsion: partial.repulsion ?? ui.physics.repulsion,
+                linkStrength: partial.linkStrength ?? ui.physics.linkStrength,
+                linkDistance: partial.linkDistance ?? ui.physics.linkDistance,
+                damping: partial.damping ?? ui.physics.damping
+            }
+        });
+    }
+
+    function resetPhysicsSettings(): void {
+        const physics = {
+            gravity: DEFAULT_PHYSICS_SETTINGS.gravity,
+            repulsion: DEFAULT_PHYSICS_SETTINGS.repulsion,
+            linkStrength: DEFAULT_PHYSICS_SETTINGS.linkStrength,
+            linkDistance: DEFAULT_PHYSICS_SETTINGS.linkDistance,
+            damping: DEFAULT_PHYSICS_SETTINGS.damping
+        };
+        app.patchGraphUi({ physics });
+        lastControllerPhysicsKey = [
+            physics.gravity,
+            physics.repulsion,
+            physics.linkStrength,
+            physics.linkDistance,
+            physics.damping
+        ].join('\u0000');
+        controller?.resetPhysicsSettings();
     }
 
     function toggleKey(): void {
-        showKey = !showKey;
+        app.patchGraphUi({ showKey: !ui.showKey });
+    }
+
+    function toggleNodeType(typeId: GraphNodeTypeId): void {
+        const next = ui.hiddenNodeTypes.includes(typeId)
+            ? ui.hiddenNodeTypes.filter(id => id !== typeId)
+            : [...ui.hiddenNodeTypes, typeId];
+        app.patchGraphUi({ hiddenNodeTypes: next });
+    }
+
+    function toggleControls(): void {
+        app.patchGraphUi({ showControls: !ui.showControls });
     }
 
     function handleGraphRendered(): void {
@@ -202,7 +315,8 @@
             loading: app.graph.loading,
             containerSize: container
                 ? { w: container.clientWidth, h: container.clientHeight }
-                : null
+                : null,
+            uiHydrated: app.graph.uiHydrated
         });
 
         controller = new GraphCyController({
@@ -228,9 +342,12 @@
         controller.init();
         lastSyncedKey = '';
         pendingSyncKey = '';
+        // Prefer AppState's graphUiState-driven requestGraph so restored maxNodes /
+        // truncationBasis are applied first. Only force-retry errors here; cold loads
+        // wait for uiHydrated unless the tab remounts with a slice already present.
         if (app.graph.error) {
             app.requestGraph({ force: true });
-        } else if (!app.graph.slice && !app.graph.loading) {
+        } else if (app.graph.uiHydrated && !app.graph.slice && !app.graph.loading) {
             app.requestGraph();
         }
         queueMicrotask(() => queueSync('mount-microtask'));
@@ -239,8 +356,13 @@
 
     onDestroy(() => {
         clearTimeout(searchTimer);
+        clearTimeout(maxNodesTimer);
         controller?.destroy();
         controller = undefined;
+        lastControllerLayout = '';
+        lastControllerAnimate = undefined;
+        lastControllerPhysicsKey = '';
+        lastControllerHiddenKey = '';
         graphLog('GraphView destroy');
     });
 </script>
@@ -249,21 +371,15 @@
     <TableToolbar search={query.search ?? ''} placeholder="Search ideas, paths…" on:search={handleSearch}>
         <GraphControls
             {query}
-            {layoutId}
-            {animatePhysics}
-            {useCompound}
-            {compoundBasisId}
             {showKey}
+            {showControls}
             on:pathFilter={(event) => handleFilterChange('pathFilter', event.detail)}
             on:statusFilter={(event) => handleFilterChange('statusFilter', event.detail)}
             on:tagFilter={(event) => handleFilterChange('tagFilter', event.detail)}
             on:toggleIndirect={toggleIndirect}
-            on:layoutChange={(event) => handleLayoutChange(event.detail)}
-            on:toggleAnimatePhysics={toggleAnimatePhysics}
-            on:toggleCompound={toggleCompound}
-            on:compoundBasisChange={(event) => handleCompoundBasisChange(event.detail)}
             on:clearCenter={clearCenter}
             on:toggleKey={toggleKey}
+            on:toggleControls={toggleControls}
             on:reframeView={() => controller?.reframeToViewport()}
         />
     </TableToolbar>
@@ -274,7 +390,7 @@
         {:else if slice}
             {slice.nodes.length} nodes, {slice.edges.length} edges
             {#if slice.truncated}
-                · truncated to {query.maxNodes ?? 120} nodes
+                · truncated to {maxNodes} nodes
             {/if}
             {#if slice.totalMatching !== undefined && !slice.centerId}
                 · {slice.totalMatching} matching ideas
@@ -284,8 +400,34 @@
         {/if}
     </div>
 
-    <div class="graph-surface" bind:this={container}>
-        <GraphKeyPanel items={legendItems} open={showKey} on:close={() => (showKey = false)} />
+    <div class="graph-surface-wrap">
+        <div class="graph-surface" bind:this={container}></div>
+        <GraphControlPanel
+            open={showControls}
+            {layoutId}
+            {animatePhysics}
+            {useCompound}
+            {compoundBasisId}
+            {maxNodes}
+            {truncationBasis}
+            {physicsSettings}
+            on:close={() => app.patchGraphUi({ showControls: false })}
+            on:layoutChange={(event) => handleLayoutChange(event.detail)}
+            on:toggleAnimatePhysics={toggleAnimatePhysics}
+            on:toggleCompound={toggleCompound}
+            on:compoundBasisChange={(event) => handleCompoundBasisChange(event.detail)}
+            on:maxNodesChange={(event) => handleMaxNodesChange(event.detail)}
+            on:truncationBasisChange={(event) => handleTruncationBasisChange(event.detail)}
+            on:physicsSettingsChange={(event) => handlePhysicsSettingsChange(event.detail)}
+            on:resetPhysicsSettings={resetPhysicsSettings}
+        />
+        <GraphKeyPanel
+            items={legendItems}
+            open={showKey}
+            hiddenTypes={hiddenNodeTypes}
+            on:close={() => app.patchGraphUi({ showKey: false })}
+            on:toggleType={(event) => toggleNodeType(event.detail)}
+        />
         {#if !loading && !error && slice && slice.nodes.length === 0}
             <div class="graph-empty">
                 No nodes match the current filters. Try clearing filters or open a .rq file to focus its local graph.

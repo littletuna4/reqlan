@@ -7,4 +7,6 @@ if (!target) {
     throw new Error('Missing #app mount point');
 }
 
+// Replace shell HTML placeholder so Svelte owns the content area.
+target.replaceChildren();
 mount(App, { target });

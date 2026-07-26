@@ -3,6 +3,7 @@
     import { app } from './state/app.svelte.js';
     import { setAppContext } from './state/context.js';
     import HeaderBar from './components/HeaderBar.svelte';
+    import BootstrapStatus from './components/BootstrapStatus.svelte';
     import ScopePane from './components/ScopePane.svelte';
     import SelectionPane from './components/SelectionPane.svelte';
     import ReferenceListsPane from './components/ReferenceListsPane.svelte';
@@ -36,15 +37,27 @@
 
     const disposeApp = app.init();
     onDestroy(disposeApp);
+
+    let phase = $derived(app.contentPhase);
+    let showWorkspace = $derived(
+        phase === 'ready' || phase === 'waiting_index' || (phase === 'error' && Boolean(app.indexStatus))
+    );
 </script>
 
 <div class="activity-bar">
     <HeaderBar />
-    <WorkspacePane expanded={paneState.workspace} onToggle={handlePaneToggle} />
-    <ScopePane expanded={paneState.scope} onToggle={handlePaneToggle} />
-    <SelectionPane expanded={paneState.selection ?? true} onToggle={handlePaneToggle} />
-    <ReferenceListsPane expanded={paneState.references} onToggle={handlePaneToggle} />
-    <MiniatureGraphPane expanded={paneState.graph} onToggle={handlePaneToggle} />
-    <ParentNodesPane expanded={paneState.parents} onToggle={handlePaneToggle} />
-    <ContextTray expanded={paneState.tray} onToggle={handlePaneToggle} />
+    {#if phase !== 'ready'}
+        <BootstrapStatus {phase} />
+    {/if}
+    {#if showWorkspace}
+        <WorkspacePane expanded={paneState.workspace} onToggle={handlePaneToggle} />
+    {/if}
+    {#if phase === 'ready'}
+        <ScopePane expanded={paneState.scope} onToggle={handlePaneToggle} />
+        <SelectionPane expanded={paneState.selection ?? true} onToggle={handlePaneToggle} />
+        <ReferenceListsPane expanded={paneState.references} onToggle={handlePaneToggle} />
+        <MiniatureGraphPane expanded={paneState.graph} onToggle={handlePaneToggle} />
+        <ParentNodesPane expanded={paneState.parents} onToggle={handlePaneToggle} />
+        <ContextTray expanded={paneState.tray} onToggle={handlePaneToggle} />
+    {/if}
 </div>

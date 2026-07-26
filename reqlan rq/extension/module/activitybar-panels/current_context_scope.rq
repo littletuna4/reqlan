@@ -1,0 +1,181 @@
+import "../../features-commands.rq" as commands
+import "../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte" as ScopePane
+import "../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte" as ReferenceListsPane
+import "../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
+import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte" as ContextFingerprint
+import "../../../../packages/extension/webviews/activity-bar/components/widgets/DependencyPulse.svelte" as DependencyPulse
+import "../../../../packages/analytical/src/core/context-signals.ts" as context_signals
+import "../context-scope-v2.rq" as context_scope_v2
+
+current_file_pane {
+    Primary contextual pane when a .rq file is active. Sub-sections may collapse independently.
+
+    [scope_pane]
+    [reference_lists_pane]
+    [parent_nodes_pane]
+}
+
+scope_pane {
+    Composed context inspector per ["../context-scope.rq".scope_pane_design].
+    Built from ["../context-scope.rq".reqlan_context_model]; not a flat file list.
+    See ["../context-scope.rq".context_dimensions] for workspace, current file, open files, file history, edit history, manual, and git lenses.
+    Git lens: [git_history_lens] (history-first, not staging mirror).
+    Legacy file-only fields live in ["../context-scope.rq".current_file_context] / currentFile slice when the current-file lens is expanded.
+    Implemented by [ScopePane].
+}
+
+git_history_lens {
+    Expanded git dimension in [scope_pane]: focus-centric development history, not a Source Control duplicate.
+    Layout:
+    - Header: branch name, HEAD short hash, muted summary (e.g. "main · 3 commits · 2 authors").
+    - Focus history (primary): up to ~8 commits touching the focus file / idea line range — relative time, short hash, subject, author.
+      Prefer `git log -L` for `.rq` ideas; fall back to path log. Non-.rq uses path `--follow`.
+    - Authors: compact chip row of top authors from that log window.
+    - Working tree (secondary, collapsed by default): dirty staged/unstaged paths for caution/footprint only.
+    Focus hero: history cue (last commit age / branch), not `git: staged|unstaged`.
+    Fingerprint Git axis and drilldown list commits/authors (dirty paths secondary) per [fingerprint_axis_drilldown] and [tooltip_detail].
+    Aligns with ["../context-scope.rq".git_context] and [context_scope_v2.development_history_signals].
+    Implemented by [ScopePane] [ContextFingerprint].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte"]
+        ["../../../../packages/extension/src/activity_bar_module/git-context.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/git-context-helpers.ts"]
+        ["../../../../packages/analytical/src/core/context-model.ts"]
+        ["../../../../packages/analytical/src/core/context-signals.ts"]
+    )
+    @status done
+}
+
+reference_lists_pane {
+    Actionable inbound and outbound reference lists for the focused idea.
+    - Inbound: ideas that reference the focus (edges to the focus).
+    - Outbound: ideas and files the focus references (edges from the focus).
+    - Group entries by edge kind (dependency, related to, file ref, incompatible, etc.) in collapsible sections.
+    - Show a short snippet or source line explaining why each edge exists where available.
+    - Text filter scoped to this pane only (not the full ui-sql layer).
+    - "Add to context" pins an idea into [context_tray] for Copilot / @reqlan workflows.
+    - [reference_resolution_parity]: panel resolution must match the editor file view.
+    - [unresolved_reference_create]: unresolved idea targets get a create affordance, not a dead file link.
+    Implemented by [ReferenceListsPane].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
+        ["../../../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../../../packages/analytical/test/idea-extractor-namespace-refs.test.ts"]
+    )
+}
+
+reference_resolution_parity {
+    Reference resolution for the activity-bar references pane must use the same shared rules as the editor
+    (document links / go-to-definition), not a second ad-hoc classifier.
+    - Bare namespace-alias bracket refs such as `[ActivityBarApp]` that open a file in the editor must index as
+      resolved `file_reference` edges (import path), not unresolved idea refs — per ["../../language/imports.rq".import_namespace].
+    - Quoted file paths and markdown file links use the same file-target treatment as the language file-link resolver
+      in ["../../../../packages/language/src/reqlan-file-link-resolver.ts"] /
+      ["../../../../packages/language/src/reqlan-namespace-import-links.ts"].
+    - File targets are opened relative to the defining `.rq` file (same path join as the miniature graph), not the workspace root.
+    - If a target resolves in the file view, it must resolve (and be openable) in [reference_lists_pane].
+    Implemented by ["../../../../packages/analytical/src/index-store/idea-extractor.ts"],
+    ["../../../../packages/analytical/src/core/file-reference-resolve.ts"],
+    [ReferenceListsPane].
+    @tests (
+        ["../../../../packages/analytical/test/idea-extractor-namespace-refs.test.ts"]
+        ["../../../../packages/analytical/test/file-reference-resolve.test.ts"]
+        ["../../../../packages/language/test/linking.test.ts:does not report linking error for bare namespace alias references"]
+    )
+    @status done
+}
+
+unresolved_reference_create {
+    When an outbound reference remains unresolved after shared resolution (missing idea, not a file/namespace-alias target):
+    - Do **not** treat the label as a file path or navigate to a non-existent file.
+    - Show an unresolved badge and a **+** control with tooltip "Create idea".
+    - Activating **+** opens create-idea (reuse [commands.pallete_function_create_todo] when available;
+      until then, the existing import-error create-file flow prefilled with the reference name and source document).
+    Implemented by [ReferenceListsPane] and the activity-bar host message handler.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+parent_nodes_pane {
+    Upstream context for the focused idea.
+    - Ancestor chain as a breadcrumb with a configurable depth limit (not only immediate parents).
+    - Status rollup for ancestors (e.g. counts by @status).
+    - "What blocks completion?" surfaces upstream ideas whose @status is not done or in-progress.
+}
+
+selection_pane {
+    When the user selects text spanning one or more `.rq` ideas (["../context-scope.rq".context_selection]).
+    - List selected ideas with Focus and Pin actions.
+    - Contributes selection idea ids to ["../context-scope.rq".context_footprint] and may pair with ["../graph-path.rq".graph_path_walk] as path endpoints.
+    - Hidden when there is no non-empty multi-line selection overlapping ideas.
+}
+
+context_tray {
+    A small pinned set of ideas carried across panes for AI context — the ["../context-scope.rq".manual_context] dimension.
+    - Chips for pinned ideas with remove control.
+    - "Clear tray" and "Copy tray as markdown" actions.
+    - Tray contents are included when invoking @reqlan context or divide-and-conquer flows per [commands.divide_and_conquer].
+}
+
+context_panes_loading {
+    Ready panes: [scope_pane], [reference_lists_pane], and [parent_nodes_pane] show per-request loading and error, distinct from empty.
+}
+
+context_content_styling {
+    Pane bodies must not grow unbounded. Nested lists use [NestedSection] (collapse + scroll) under [CollapsiblePane].
+    Priority: [scope_pane]; [reference_lists_pane] kind groups; also selection/parents.
+    [ScopePane] [ReferenceListsPane]
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
+    )
+    @status done
+}
+
+tooltip_detail {
+    Scope pane tooltips are detailed enough to explain *what* a meter means and *why it matters*.
+    - [scope_pane] widgets (stability, dependency pulse, timeline, churn, lens chips, footprint line) expose granular hover copy on the control and its sub-items.
+    - [ContextFingerprint] has an ⓘ info button with semantic scoring help, per-axis hover copy, and [fingerprint_axis_drilldown].
+    - Scoring copy is sourced from [context_signals] (`CONTEXT_FINGERPRINT_HELP`, `CONTEXT_FINGERPRINT_AXIS_HELP`, `buildContextFingerprint`) so UI stays aligned with [context_scope_v2.context_fingerprint] and [context_scope_v2.ai_readiness_gauge].
+    Implemented by [ContextFingerprint] [ScopePane].
+    @tests (
+        ["../../../../packages/analytical/src/core/context-signals.ts"]
+        ["../../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+    )
+    @status done
+}
+
+fingerprint_axis_drilldown {
+    Each [ContextFingerprint] axis row (Files, Requirements, History, Architecture, Git, Diagnostics, Coverage) is clickable.
+    Clicking a row toggles a compact contributor table below it (Source, Item, Detail) listing what filled that axis — e.g. which lenses included a file, which ideas are in the footprint, git focus commits/authors (dirty paths secondary), anomalies, or relationship edges.
+    Table rows open/focus the related idea or file when actionable. Empty axes show a short “why care / how to fill” message.
+    Mirrors the interaction pattern of [dependency_pulse_table]. Aligns with [context_scope_v2.context_fingerprint] and [tooltip_detail].
+    Implemented by [ContextFingerprint] [ScopePane].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+    )
+    @status done
+}
+
+dependency_pulse_table {
+    The focus-hero [DependencyPulse] compass (↑ parents, → outbound, ← inbound, ↓ dependents, ● centre) is clickable.
+    Clicking any arm or the centre toggles a compact reference table below with Dir, Role, Idea, and Status.
+    Rows open/focus the related idea. Duplicates of always-on inbound/outbound lists are omitted from the hero; the current-file lens still lists them.
+    Aligns with [context_scope_v2.dependency_pulse].
+    Implemented by [DependencyPulse] [ScopePane].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/widgets/DependencyPulse.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
+    )
+    @status done
+}
+

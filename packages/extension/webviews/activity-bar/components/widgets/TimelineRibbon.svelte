@@ -27,10 +27,17 @@
 </script>
 
 {#if milestones.length > 0}
-    <div class="timeline-ribbon" title="Lifecycle milestones">
+    <div
+        class="timeline-ribbon"
+        title="Lifecycle ribbon: when this idea was created vs last edited vs now. Helps judge whether you are mid-change or revisiting old policy."
+    >
         <div class="ribbon-track"></div>
         {#each milestones as milestone (milestone.id)}
-            <div class="ribbon-mark" style="left: {leftPct(milestone.at)}%" title="{milestone.label}">
+            <div
+                class="ribbon-mark"
+                style="left: {leftPct(milestone.at)}%"
+                title="{milestone.label} on {milestone.at.toISOString().slice(0, 10)} — relative position on the idea’s lifecycle span."
+            >
                 <span class="ribbon-tick">▲</span>
                 <span class="ribbon-label">{milestone.label}</span>
             </div>

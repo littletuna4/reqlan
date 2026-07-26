@@ -19,6 +19,7 @@ export {
     resolveWorkspaceFileUri,
     toWorkspaceRelativePath
 } from './core/workspace-paths.js';
+export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
 export type { Analyser, AnalyserContext } from './analysis/analyser-registry.js';
 export { AnalyserRegistry } from './analysis/analyser-registry.js';
 export { listAllIdeasAnalyser } from './analysis/list-ideas-analyser.js';
@@ -50,11 +51,15 @@ export type {
     GraphViewQuery,
     GraphViewSlice,
     GraphNodeView,
-    GraphEdgeView
+    GraphEdgeView,
+    GraphTruncationBasis
 } from './index-store/webview-graph-queries.js';
 export {
     GRAPH_MAX_NODES,
+    GRAPH_NODES_HARD_CAP,
+    GRAPH_TRUNCATION_BASIS_OPTIONS,
     buildGraphFilterWhereClause,
+    buildGraphTruncationOrderClause,
     buildGraphViewSlice,
     toGraphNodeView,
     CONTEXT_MIN_HOP_DEPTH,
@@ -79,7 +84,9 @@ export type {
     ContextFileEntry,
     ContextFocus,
     ContextFootprint,
+    GitAuthorRollup,
     GitContextSlice,
+    GitFocusCommit,
     WorkspaceContextSlice
 } from './core/types.js';
 export type {
@@ -97,8 +104,11 @@ export {
     buildAiReadiness,
     buildContextFingerprint,
     buildFocusSignals,
+    CONTEXT_FINGERPRINT_AXIS_HELP,
+    CONTEXT_FINGERPRINT_HELP,
     emptyContextSignals,
     emptyContextSynthesis,
+    fingerprintAxisTooltip,
     formatAiReadinessMarkdown,
     formatFingerprintMarkdown,
     formatSynthesisMarkdown,

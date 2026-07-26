@@ -17,6 +17,8 @@ export * from './reqlan-completion-provider.js';
 export * from './reqlan-path-completion.js';
 export * from './reqlan-code-action-provider.js';
 export * from './reqlan-import-edits.js';
+export * from './reqlan-import-bindings.js';
+export * from './reqlan-namespace-import-links.js';
 export * from './reqlan-name-catalog.js';
 export * from './reqlan-workspace-attribute-catalog.js';
 export * from './reqlan-inlay-hint-settings.js';

@@ -1,0 +1,34 @@
+import "../webview.rq" as webview_doc
+import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte" as WorkspacePane
+import "../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
+import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../../packages/extension/webviews/activity-bar/lib/group-file-issues.ts" as group_file_issues
+
+workspace_pane {
+    Workspace-wide index health, errors, and activity — without duplicating the full Index tab in [webview_doc.index_panel].
+    - State badge with idea and reference counts; file issue count when non-zero.
+    - Sync progress while indexing.
+    - Global and per-file error details with phase and cause.
+    - Clickable file issue list opens the source location in the editor.
+    - Recent index activity log.
+    - Refresh, clear & rebuild, and "Open index tab" hand off to [ideas_summary_panel].
+    Implemented by [WorkspacePane].
+}
+
+workspace_loading {
+    Index sync progress belongs in [workspace_pane]; do not treat "index not ready" as a hard global error during cold start.
+    Host posts index health on view resolve and on `ready`; soft-waits when the index is not ready instead of erroring the whole bar.
+    Waiting for index: use [workspace_pane] sync progress affordance.
+}
+
+workspace_content_styling {
+    Pane bodies must not grow unbounded. Nested lists use [NestedSection] (collapse + scroll) under [CollapsiblePane].
+    File→errors grouping via [group_file_issues] in [WorkspacePane].
+    @tests (
+        ["../../../../packages/extension/test/group-file-issues.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
+    )
+    @status done
+}

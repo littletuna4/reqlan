@@ -23,12 +23,16 @@ import type {
     AncestorChainResult
 } from '../core/types.js';
 import { BLOCKING_STATUSES, ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
+import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
 import type {
     IdeasTableQuery,
     IdeasetsTableQuery,
     ReferencesTableQuery
 } from './webview-table-queries.js';
-import type { GraphViewQuery } from './webview-graph-queries.js';
+import {
+    buildGraphTruncationOrderClause,
+    type GraphViewQuery
+} from './webview-graph-queries.js';
 import {
     attributeValuesForKeys,
     buildIdeasetsOrderClause,
@@ -547,6 +551,7 @@ export class SqliteIndexStore {
         limit: number
     ): Promise<{ candidates: IdeaSummary[]; totalMatching: number }> {
         const { sql, params } = buildGraphFilterWhereClause(query);
+        const orderSql = buildGraphTruncationOrderClause(query.truncationBasis);
         const totalMatching = (await get<{ count: number }>(
             this.db,
             `SELECT COUNT(*) as count FROM ideas i WHERE ${sql}`,
@@ -556,7 +561,7 @@ export class SqliteIndexStore {
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json
             FROM ideas i
             WHERE ${sql}
-            ORDER BY i.file_uri ASC, i.line_start ASC
+            ORDER BY ${orderSql}
             LIMIT ?
         `, ...params, limit);
         return {
@@ -1177,7 +1182,11 @@ interface ReferenceListSqlRow {
 
 function toOutboundReferenceListRow(row: ReferenceListSqlRow): ReferenceListRow {
     const targetName = row.target_name ?? row.label ?? row.target_file ?? 'unknown';
-    const targetPath = row.target_uri ?? row.target_file ?? '';
+    const rawTargetPath = row.target_uri ?? row.target_file ?? '';
+    const targetPath =
+        !row.target_uri && row.target_file
+            ? resolveReferencedFilePath(row.target_file, row.source_id)
+            : rawTargetPath;
     return {
         edgeId: row.edge_id,
         direction: 'outbound',

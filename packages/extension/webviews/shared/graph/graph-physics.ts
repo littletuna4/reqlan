@@ -63,11 +63,21 @@ export class GraphPhysicsSimulation {
 
     constructor(
         private readonly cy: cytoscape.Core,
-        private readonly settings: GraphPhysicsSettings = DEFAULT_PHYSICS_SETTINGS
+        private readonly settings: GraphPhysicsSettings = { ...DEFAULT_PHYSICS_SETTINGS }
     ) {}
 
     get isActive(): boolean {
         return this.active;
+    }
+
+    /** Mutate live force parameters; wakes a running sim so changes take effect immediately. */
+    updateSettings(partial: Partial<GraphPhysicsSettings>): void {
+        Object.assign(this.settings, partial);
+        this.wake();
+    }
+
+    getSettings(): GraphPhysicsSettings {
+        return { ...this.settings };
     }
 
     start(): void {

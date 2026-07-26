@@ -952,6 +952,37 @@ later_member {
         expect(importPathErrors).toHaveLength(0);
     });
 
+    // rq:["../../../reqlan rq/language/imports.rq".import_namespace]
+    test('does not report linking error for bare namespace alias references', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const svelteTarget = join(repoDir, 'packages/extension/webviews/activity-bar/components/NestedSection.svelte')
+            .replace(/\\/g, '/');
+        const rqTarget = join(repoDir, 'reqlan rq/brand.rq');
+        const brand = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(rqTarget, 'utf8'),
+            URI.parse(pathToFileURL(rqTarget).href)
+        ) as LangiumDocument<Model>;
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import "${svelteTarget}" as NestedSection
+                import "${rqTarget.replace(/\\/g, '/')}" as brand
+                styling {
+                    Nested lists use [NestedSection] per [brand].
+                }
+            `,
+            URI.parse(pathToFileURL(join(repoDir, 'reqlan rq/extension/module/namespace-alias.rq')).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(brand);
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([brand, document], { validation: true });
+
+        const unresolvedErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference to IdeaDeclaration')
+        );
+        expect(unresolvedErrors).toHaveLength(0);
+    });
+
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
     test('does not report linking error for @tests file references with test name suffix', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);

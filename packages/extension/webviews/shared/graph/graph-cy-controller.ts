@@ -21,7 +21,11 @@ import {
     type LayoutFixedNode,
     type LayoutRunMode
 } from './graph-cytoscape.js';
-import { GraphPhysicsSimulation } from './graph-physics.js';
+import {
+    DEFAULT_PHYSICS_SETTINGS,
+    GraphPhysicsSimulation,
+    type GraphPhysicsSettings
+} from './graph-physics.js';
 import { graphHasGroupConstraints, resolveGroupContainerOverlaps } from './graph-groups.js';
 import { bindCompoundHighlight, syncCompoundSelection } from './graph-cy-highlight.js';
 import { syncGraphElements } from './graph-cy-elements.js';
@@ -121,6 +125,8 @@ export class GraphCyController {
         compoundBasis: () => []
     };
     private draggingCount = 0;
+    /** Node types hidden via the key panel; applied as data('typeHidden') flags. */
+    private hiddenNodeTypes: ReadonlySet<string> = new Set();
     // Tracks nodes for which at least one onNodeDrag event fired, so that a bare
     // click (grab + free with no movement) is not treated as a drag. Clicks must
     // never disturb the simulation.
@@ -130,6 +136,7 @@ export class GraphCyController {
     private lifecycle: GraphLifecycle = 'uninitialized';
     private animatePhysics = false;
     private layoutId = DEFAULT_LAYOUT_ID;
+    private readonly physicsSettings: GraphPhysicsSettings = { ...DEFAULT_PHYSICS_SETTINGS };
     private syncGeneration = 0;
     /** Node ids from the last successful slice sync. */
     private lastSyncedNodeSetKey = '';
@@ -241,6 +248,51 @@ export class GraphCyController {
         if (this.lifecycle === 'physics') {
             this.lifecycle = 'idle';
         }
+    }
+
+    setPhysicsSettings(partial: Partial<GraphPhysicsSettings>): void {
+        Object.assign(this.physicsSettings, partial);
+        this.physics?.updateSettings(partial);
+    }
+
+    resetPhysicsSettings(): void {
+        Object.assign(this.physicsSettings, DEFAULT_PHYSICS_SETTINGS);
+        this.physics?.updateSettings(DEFAULT_PHYSICS_SETTINGS);
+    }
+
+    getPhysicsSettings(): GraphPhysicsSettings {
+        return { ...this.physicsSettings };
+    }
+
+    /**
+     * Hide/show node types (per the key panel legend). Client-side visibility only:
+     * the slice keeps the nodes; matching nodes get data('typeHidden') and the
+     * stylesheet turns them display:none, which also hides their edges.
+     */
+    setHiddenNodeTypes(types: Iterable<string>): void {
+        this.hiddenNodeTypes = new Set(types);
+        this.applyHiddenNodeTypes();
+    }
+
+    private applyHiddenNodeTypes(): void {
+        const cy = this.cy;
+        if (!cy) {
+            return;
+        }
+        cy.batch(() => {
+            cy.nodes(':childless').forEach(node => {
+                const type = node.data('nodeType') as string | undefined;
+                node.data('typeHidden', type !== undefined && this.hiddenNodeTypes.has(type));
+            });
+            // Compound containers with no visible member collapse to an empty box —
+            // hide them too so toggled-off groups don't leave stray rectangles.
+            cy.nodes(':parent').forEach(parent => {
+                const anyVisible = parent
+                    .descendants(':childless')
+                    .some(child => !child.data('typeHidden'));
+                parent.data('typeHidden', !anyVisible);
+            });
+        });
     }
 
     syncSlice(slice: GraphViewSlice, options: GraphSyncOptions): void {
@@ -488,6 +540,7 @@ export class GraphCyController {
 
             this.cy.resize();
             this.applySelection(options.selectedId);
+            this.applyHiddenNodeTypes();
             this.lifecycle = 'layouting';
 
             graphLog('elements synced', {
@@ -681,7 +734,7 @@ export class GraphCyController {
         this.stopLayout();
 
         if (!this.physics) {
-            this.physics = new GraphPhysicsSimulation(this.cy);
+            this.physics = new GraphPhysicsSimulation(this.cy, this.physicsSettings);
         }
         if (freshPositions) {
             this.physics.resetVelocities();

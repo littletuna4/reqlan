@@ -2,6 +2,7 @@
     import type { ContextDimensionId, ContextFileEntry, ContextFileLensDetail, IdeaSummary, OutlineNode } from 'reqlan-analytical';
     import { getApp } from '../state/context.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import NestedSection from './NestedSection.svelte';
     import StabilityMeter from './widgets/StabilityMeter.svelte';
     import DependencyPulse from './widgets/DependencyPulse.svelte';
     import TimelineRibbon from './widgets/TimelineRibbon.svelte';
@@ -97,7 +98,7 @@
         return Boolean(dim?.enabled && lensCount(dimId) > 0);
     }
 
-    function fileRows(source: 'open_files' | 'file_history' | 'edit_history' | 'git'): ContextFileEntry[] {
+    function fileRows(source: 'open_files' | 'file_history' | 'edit_history'): ContextFileEntry[] {
         if (!context) {
             return [];
         }
@@ -108,8 +109,36 @@
                 return context.fileHistory;
             case 'edit_history':
                 return context.editHistory;
-            case 'git':
-                return context.git?.changedFiles ?? [];
+        }
+    }
+
+    function commitRelative(iso: string): string {
+        const at = new Date(iso);
+        if (Number.isNaN(at.getTime())) {
+            return '';
+        }
+        const days = Math.floor((Date.now() - at.getTime()) / (24 * 60 * 60 * 1000));
+        if (days <= 0) {
+            return 'today';
+        }
+        if (days === 1) {
+            return '1d';
+        }
+        if (days < 30) {
+            return `${days}d`;
+        }
+        const months = Math.floor(days / 30);
+        if (months < 12) {
+            return `${months}mo`;
+        }
+        return `${Math.floor(days / 365)}y`;
+    }
+
+    async function copyCommitHash(hash: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(hash);
+        } catch {
+            // Clipboard may be unavailable in some hosts.
         }
     }
 
@@ -141,8 +170,10 @@
 </script>
 
 <CollapsiblePane title="Scope" id="scope" {expanded} {onToggle}>
-    {#if !context}
-        <p class="muted">Open a workspace file to see scope.</p>
+    {#if app.contextError}
+        <p class="error-text" role="alert">{app.contextError}</p>
+    {:else if !context}
+        <p class="muted pane-status">Open a workspace file to see scope.</p>
     {:else}
         <div class="scope-focus-hero">
             {#if focusIdea}
@@ -166,9 +197,15 @@
                 {#if synthesis}
                     <StabilityMeter
                         stability={synthesis.stability}
+                        confidence={synthesis.confidence}
+                        aiRisk={synthesis.aiRisk}
+                        coverage={synthesis.coverage}
                         title={synthesis.stability >= 0.75 ? 'Stable' : synthesis.stability >= 0.45 ? 'Moderate' : 'Unstable'}
                     />
-                    <p class="muted synthesis-story">{synthesis.story}</p>
+                    <p
+                        class="muted synthesis-story"
+                        title="Short synthesis of stability, recency, fanout, and broken refs — use it as a gut-check before asking AI to rewrite this idea."
+                    >{synthesis.story}</p>
                 {/if}
                 {#if signals?.relationship}
                     <DependencyPulse
@@ -176,32 +213,17 @@
                         outboundCount={signals.relationship.outboundCount}
                         inboundCount={signals.relationship.inboundCount}
                         dependentCount={signals.relationship.dependentCount}
+                        parents={(app.ancestors?.ancestors ?? []).slice(0, signals.relationship.parentCount)}
+                        inbound={scope.inboundReferencingIdeas ?? []}
+                        outbound={scope.referencedIdeas ?? []}
+                        onOpenIdea={(idea) => app.focusIdea(idea.id)}
                     />
                 {/if}
                 <TimelineRibbon milestones={ribbonMilestones} />
                 <ChurnHeatBar intensity={churnIntensity} title={synthesis?.story ?? 'Churn'} />
-                {#if (scope.inboundReferencingIdeas?.length ?? 0) > 0 || (scope.referencedIdeas?.length ?? 0) > 0}
-                    <div class="focus-refs">
-                        {#if (scope.inboundReferencingIdeas?.length ?? 0) > 0}
-                            <p class="muted">Referenced by</p>
-                            <ul class="list compact-list">
-                                {#each scope.inboundReferencingIdeas ?? [] as idea}
-                                    <li>
-                                        <button class="link" onclick={() => app.focusIdea(idea.id)}>← {idea.name}</button>
-                                    </li>
-                                {/each}
-                            </ul>
-                        {/if}
-                        {#if (scope.referencedIdeas?.length ?? 0) > 0}
-                            <p class="muted">References</p>
-                            <ul class="list compact-list">
-                                {#each scope.referencedIdeas ?? [] as idea}
-                                    <li>
-                                        <button class="link" onclick={() => app.focusIdea(idea.id)}>→ {idea.name}</button>
-                                    </li>
-                                {/each}
-                            </ul>
-                        {/if}
+                {#if context.git?.historyCue}
+                    <div class="chip-row">
+                        <span class="chip" title="Recent git history for this focus">git: {context.git.historyCue}</span>
                     </div>
                 {/if}
                 <div class="section-actions">
@@ -210,20 +232,23 @@
                 </div>
             {:else if scope}
                 <h3>{scope.fileLabel}</h3>
-                {#if scope.gitChange}
-                    <div class="chip-row"><span class="chip">git: {scope.gitChange}</span></div>
+                {#if context.git?.historyCue}
+                    <div class="chip-row">
+                        <span class="chip" title="Recent git history for this file">git: {context.git.historyCue}</span>
+                    </div>
                 {/if}
                 {#if !scope.isRqFile}
                     {@const related = relatedIdeas(scope)}
                     {#if related.length > 0}
-                        <p class="muted">{related.length} linked requirement(s)</p>
-                        <ul class="list compact-list">
-                            {#each related.slice(0, 4) as idea}
-                                <li>
-                                    <button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button>
-                                </li>
-                            {/each}
-                        </ul>
+                        <NestedSection title="Linked requirements" count={related.length} defaultExpanded={true}>
+                            <ul class="list compact-list">
+                                {#each related as idea}
+                                    <li>
+                                        <button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </NestedSection>
                     {:else}
                         <p class="muted">No indexed requirement links for this file yet.</p>
                     {/if}
@@ -243,7 +268,7 @@
                     class:active={lensActive(dim.id)}
                     class:expanded={expandedLens === dim.id}
                     class:disabled={!dim.enabled}
-                    title="{dim.label} — click to toggle, Alt+click to expand"
+                    title="{dim.label}: {dim.summary} Enabled lenses contribute their ideas/files to composed AI context (weight {dim.weight}). Click toggles inclusion in the footprint; Alt+click expands detail."
                     onclick={(event) => toggleDimension(dim.id, event)}
                 >
                     <span class="lens-label">{dim.label}</span>
@@ -252,10 +277,20 @@
             {/each}
         </div>
 
-        <p class="footprint-line muted">{context.footprint.summaryLine}</p>
+        <p
+            class="footprint-line muted"
+            title="Composed context from every enabled lens (current file, open tabs, history, pins, git, …). This is what Copy Context / @reqlan actually ships to the assistant — centre idea: {context.footprint.effectiveCenterId ?? 'none'}."
+        >{context.footprint.summaryLine}</p>
 
         {#if context.fingerprint}
-            <ContextFingerprint axes={context.fingerprint} />
+            <ContextFingerprint
+                axes={context.fingerprint}
+                model={context}
+                parents={(app.ancestors?.ancestors ?? []).slice(0, signals?.relationship?.parentCount ?? 4)}
+                onOpenIdea={(ideaId) => app.focusIdea(ideaId)}
+                onOpenFile={(fileUri, line) => app.openIdea(fileUri, line ?? 0)}
+                onAnomaly={(action) => handleAnomaly(action)}
+            />
         {/if}
         {#if context.aiReadiness}
             <AiReadinessGauge readiness={context.aiReadiness} />
@@ -294,28 +329,31 @@
         {#if expandedLens === 'current_file' && scope}
             {#if !scope.isRqFile}
                 {#if scope.referencingIdeas.length > 0}
-                    <h4>Referenced by</h4>
-                    <ul class="list">
-                        {#each scope.referencingIdeas as idea}
-                            <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
-                        {/each}
-                    </ul>
+                    <NestedSection title="Referenced by" count={scope.referencingIdeas.length} defaultExpanded={true}>
+                        <ul class="list">
+                            {#each scope.referencingIdeas as idea}
+                                <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
                 {/if}
                 {#if scope.commentLinkedIdeas.length > 0}
-                    <h4>rq:[] in this file</h4>
-                    <ul class="list">
-                        {#each scope.commentLinkedIdeas as idea}
-                            <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
-                        {/each}
-                    </ul>
+                    <NestedSection title="rq:[] in this file" count={scope.commentLinkedIdeas.length} defaultExpanded={true}>
+                        <ul class="list">
+                            {#each scope.commentLinkedIdeas as idea}
+                                <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
                 {/if}
                 {#if scope.folderReferencingIdeas.length > 0}
-                    <h4>Folder referenced by</h4>
-                    <ul class="list">
-                        {#each scope.folderReferencingIdeas as idea}
-                            <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
-                        {/each}
-                    </ul>
+                    <NestedSection title="Folder referenced by" count={scope.folderReferencingIdeas.length}>
+                        <ul class="list">
+                            {#each scope.folderReferencingIdeas as idea}
+                                <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
                 {/if}
             {:else}
                 {#if scope.unresolvedCount > 0}
@@ -325,40 +363,43 @@
                         </button>
                     </p>
                 {/if}
-                {#if scope.focusIdea && ((scope.inboundReferencingIdeas?.length ?? 0) > 0 || (scope.referencedIdeas?.length ?? 0) > 0)}
-                    {#if (scope.inboundReferencingIdeas?.length ?? 0) > 0}
-                        <h4>Referenced by</h4>
+                {#if scope.focusIdea && (scope.inboundReferencingIdeas?.length ?? 0) > 0}
+                    <NestedSection title="Referenced by" count={scope.inboundReferencingIdeas!.length}>
                         <ul class="list">
                             {#each scope.inboundReferencingIdeas ?? [] as idea}
                                 <li><button class="link" onclick={() => app.focusIdea(idea.id)}>← {idea.name}</button></li>
                             {/each}
                         </ul>
-                    {/if}
-                    {#if (scope.referencedIdeas?.length ?? 0) > 0}
-                        <h4>References</h4>
+                    </NestedSection>
+                {/if}
+                {#if scope.focusIdea && (scope.referencedIdeas?.length ?? 0) > 0}
+                    <NestedSection title="References" count={scope.referencedIdeas!.length}>
                         <ul class="list">
                             {#each scope.referencedIdeas ?? [] as idea}
                                 <li><button class="link" onclick={() => app.focusIdea(idea.id)}>→ {idea.name}</button></li>
                             {/each}
                         </ul>
-                    {/if}
+                    </NestedSection>
                 {/if}
-                <ul class="list">
-                    {#each scope.ideasInFile as idea}
-                        <li>
-                            <button
-                                class="link"
-                                onclick={() => app.openIdea(idea.fileUri, idea.lineStart)}
-                                ondblclick={() => app.focusIdea(idea.id)}
-                            >{idea.name}</button>
-                            <span class="muted"> L{idea.lineStart + 1}–{idea.lineEnd + 1}</span>
-                        </li>
-                    {/each}
-                </ul>
+                {#if scope.ideasInFile.length > 0}
+                    <NestedSection title="Ideas in file" count={scope.ideasInFile.length} defaultExpanded={true}>
+                        <ul class="list">
+                            {#each scope.ideasInFile as idea}
+                                <li>
+                                    <button
+                                        class="link"
+                                        onclick={() => app.openIdea(idea.fileUri, idea.lineStart)}
+                                        ondblclick={() => app.focusIdea(idea.id)}
+                                    >{idea.name}</button>
+                                    <span class="muted"> L{idea.lineStart + 1}–{idea.lineEnd + 1}</span>
+                                </li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
+                {/if}
                 {#if outlineFlat.length > 0}
-                    <div class="outline">
-                        <h4>Outline</h4>
-                        <ul>
+                    <NestedSection title="Outline" count={outlineFlat.length} defaultExpanded={outlineFlat.length <= 12}>
+                        <ul class="list outline">
                             {#each outlineFlat as entry}
                                 <li style={`padding-left: ${entry.depth * 12}px`}>
                                     <button class="link" onclick={() => app.openIdea(entry.node.id.split('#')[0] ?? scope!.fileUri, entry.node.lineStart)}>
@@ -367,65 +408,151 @@
                                 </li>
                             {/each}
                         </ul>
-                    </div>
+                    </NestedSection>
                 {/if}
             {/if}
         {:else if expandedLens === 'manual'}
             {#if context.manualIdeas.length === 0}
                 <p class="muted">Nothing pinned — use Pin on an idea or the context tray.</p>
             {:else}
-                <div class="chip-row">
-                    {#each context.manualIdeas as idea}
-                        <span class="chip">
-                            {idea.name}
-                            <button onclick={() => app.unpinIdea(idea.id)} aria-label="Remove">×</button>
-                        </span>
-                    {/each}
-                </div>
+                <NestedSection title="Pinned" count={context.manualIdeas.length} defaultExpanded={true} scrollable={false}>
+                    <div class="chip-row">
+                        {#each context.manualIdeas as idea}
+                            <span class="chip">
+                                {idea.name}
+                                <button onclick={() => app.unpinIdea(idea.id)} aria-label="Remove">×</button>
+                            </span>
+                        {/each}
+                    </div>
+                </NestedSection>
             {/if}
         {:else if expandedLens === 'workspace'}
             <p class="muted">
                 {context.workspace.ideaCount} ideas indexed · {context.workspace.edgeCount} edges
             </p>
             <button class="action-button" onclick={() => app.openIdeasSummary('index')}>Open workspace pane</button>
-        {:else if expandedLens && ['open_files', 'file_history', 'edit_history', 'git'].includes(expandedLens)}
-            {@const rows = fileRows(expandedLens)}
+        {:else if expandedLens === 'git'}
+            {@const git = context.git}
+            {#if !git}
+                <p class="muted">No git repository detected.</p>
+            {:else}
+                <p class="muted git-history-header" title="Branch and HEAD for the workspace repository">
+                    {#if git.branch}{git.branch}{:else}detached{/if}
+                    {#if git.headShort}<span class="chip">{git.headShort}</span>{/if}
+                    · {git.summary}
+                </p>
+                {#if (git.focusCommits?.length ?? 0) === 0}
+                    <p class="muted">No commit history for this focus yet.</p>
+                {:else}
+                    <NestedSection title="Focus history" count={git.focusCommits.length} defaultExpanded={true}>
+                        <ul class="list compact-list">
+                            {#each git.focusCommits ?? [] as commit (commit.hash)}
+                                <li>
+                                    <button
+                                        class="link git-commit-row"
+                                        title="{commit.hash} — click to copy hash"
+                                        onclick={() => copyCommitHash(commit.shortHash)}
+                                    >
+                                        <span class="muted">{commitRelative(commit.authoredAt)}</span>
+                                        <span class="chip">{commit.shortHash}</span>
+                                        <span>{commit.subject}</span>
+                                        <span class="muted">{commit.author}</span>
+                                    </button>
+                                </li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
+                {/if}
+                {#if (git.topAuthors?.length ?? 0) > 0}
+                    <div class="chip-row" title="Top authors for this focus path">
+                        {#each git.topAuthors ?? [] as author}
+                            <span class="chip">{author.name} · {author.commitCount}</span>
+                        {/each}
+                    </div>
+                {/if}
+                {#if git.changedFiles.length > 0}
+                    <NestedSection
+                        title="Working tree"
+                        count={git.changedFiles.length}
+                        defaultExpanded={false}
+                    >
+                        <ul class="list">
+                            {#each git.changedFiles as file}
+                                <li>
+                                    <button class="link" onclick={() => app.openIdea(file.fileUri, file.line ?? 0)}>
+                                        {file.fileLabel}
+                                        {#if file.gitChange}
+                                            <span class="chip">git:{file.gitChange}</span>
+                                        {/if}
+                                    </button>
+                                    <button class="action-button" onclick={() => toggleFileLens(file.fileUri)}>Refs</button>
+                                    {#if expandedFileUri === file.fileUri}
+                                        {@const detail = lensDetail(file.fileUri)}
+                                        {#if !detail}
+                                            <p class="muted">Loading linked requirements…</p>
+                                        {:else if detail.relatedIdeas.length === 0 && detail.ideasInFile.length === 0}
+                                            <p class="muted">No linked requirements.</p>
+                                        {:else}
+                                            <ul class="list compact-list">
+                                                {#each detail.relatedIdeas as idea}
+                                                    <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                                                {/each}
+                                                {#each detail.ideasInFile as idea}
+                                                    <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                                                {/each}
+                                            </ul>
+                                        {/if}
+                                    {/if}
+                                </li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
+                {/if}
+            {/if}
+        {:else if expandedLens && ['open_files', 'file_history', 'edit_history'].includes(expandedLens)}
+            {@const rows = fileRows(expandedLens as 'open_files' | 'file_history' | 'edit_history')}
             {#if rows.length === 0}
                 <p class="muted">Nothing in this lens yet.</p>
             {:else}
-                <ul class="list lens-file-list">
-                    {#each rows.slice(0, 8) as file}
-                        <li>
-                            <button class="link" onclick={() => app.openIdea(file.fileUri, file.line ?? 0)}>
-                                {file.fileLabel}
-                                {#if file.gitChange}
-                                    <span class="chip">git:{file.gitChange}</span>
+                <NestedSection
+                    title={context.dimensions.find(dim => dim.id === expandedLens)?.label ?? 'Files'}
+                    count={rows.length}
+                    defaultExpanded={true}
+                >
+                    <ul class="list">
+                        {#each rows as file}
+                            <li>
+                                <button class="link" onclick={() => app.openIdea(file.fileUri, file.line ?? 0)}>
+                                    {file.fileLabel}
+                                    {#if file.gitChange}
+                                        <span class="chip">git:{file.gitChange}</span>
+                                    {/if}
+                                    {#if file.line !== undefined}
+                                        <span class="muted"> :{file.line + 1}</span>
+                                    {/if}
+                                </button>
+                                <button class="action-button" onclick={() => toggleFileLens(file.fileUri)}>Refs</button>
+                                {#if expandedFileUri === file.fileUri}
+                                    {@const detail = lensDetail(file.fileUri)}
+                                    {#if !detail}
+                                        <p class="muted">Loading linked requirements…</p>
+                                    {:else if detail.relatedIdeas.length === 0 && detail.ideasInFile.length === 0}
+                                        <p class="muted">No linked requirements.</p>
+                                    {:else}
+                                        <ul class="list compact-list">
+                                            {#each detail.relatedIdeas as idea}
+                                                <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                                            {/each}
+                                            {#each detail.ideasInFile as idea}
+                                                <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
+                                            {/each}
+                                        </ul>
+                                    {/if}
                                 {/if}
-                                {#if file.line !== undefined}
-                                    <span class="muted"> :{file.line + 1}</span>
-                                {/if}
-                            </button>
-                            <button class="action-button" onclick={() => toggleFileLens(file.fileUri)}>Refs</button>
-                            {#if expandedFileUri === file.fileUri}
-                                {@const detail = lensDetail(file.fileUri)}
-                                {#if !detail}
-                                    <p class="muted">Loading linked requirements…</p>
-                                {:else if detail.relatedIdeas.length === 0 && detail.ideasInFile.length === 0}
-                                    <p class="muted">No linked requirements.</p>
-                                {:else}
-                                    <ul class="list compact-list">
-                                        {#each detail.relatedIdeas as idea}
-                                            <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
-                                        {/each}
-                                        {#each detail.ideasInFile as idea}
-                                            <li><button class="link" onclick={() => app.focusIdea(idea.id)}>{idea.name}</button></li>
-                                        {/each}
-                                    </ul>
-                                {/if}
-                            {/if}
-                        </li>
-                    {/each}
-                </ul>
+                            </li>
+                        {/each}
+                    </ul>
+                </NestedSection>
             {/if}
         {/if}
     {/if}

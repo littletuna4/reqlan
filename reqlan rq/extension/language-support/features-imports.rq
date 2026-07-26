@@ -1,5 +1,5 @@
 from "./language-server-errors.rq" import general_errors
-from "@/reqlan rq/extension/code_completion.rq" import code_completion
+from "../vsc-primitives.rq" import code_completion, code_actions, quick_fixes
 
 remote_imports {
     Reqlan files should support importing requirements from remote urls.
@@ -20,6 +20,8 @@ import_error {
         - Search the index for matching ideas, ideasets, or files (QuickPick), then insert an import
         - Create the idea in a new .rq file and import it
     [general_errors]
+    [code_actions]
+    [quick_fixes]
     
     @tests (
         ["../../../packages/language/test/code-actions.test.ts"]
@@ -43,6 +45,7 @@ implicit_file_extension {
 
 import_code_completion {
     Import path code completion for `import` / `from` strings (and shared anonymous paths).
+    [code_completion]
     [import_code_completion_explicit_extension]
     [import_code_completion_path_segments]
     [import_code_completion_substring_match]

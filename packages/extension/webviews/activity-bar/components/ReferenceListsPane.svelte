@@ -2,6 +2,8 @@
     import type { ReferenceListRow } from 'reqlan-analytical';
     import { getApp } from '../state/context.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import NestedSection from './NestedSection.svelte';
+    import PaneStatus from './PaneStatus.svelte';
 
     interface Props {
         expanded: boolean;
@@ -14,12 +16,14 @@
     let kinds = $derived(payload ? Object.keys(payload.grouped).sort() : []);
 
     function openReference(row: ReferenceListRow): void {
-        if (row.targetPath.startsWith('file:') || row.targetPath.includes('/')) {
-            app.openIdea(row.targetPath, row.targetLine ?? 0);
+        if (!row.isResolved || !row.targetPath) {
             return;
         }
-        const fileUri = row.direction === 'inbound' ? row.targetPath : row.targetPath;
-        app.openIdea(fileUri, row.targetLine ?? 0);
+        app.openIdea(row.targetPath, row.targetLine ?? 0);
+    }
+
+    function createUnresolved(row: ReferenceListRow): void {
+        app.createStubIdea(row.sourceIdeaId, row.label);
     }
 </script>
 
@@ -34,19 +38,38 @@
         <input type="checkbox" bind:checked={app.brokenOnly} onchange={() => app.onReferencesFilterChange()} />
         Broken only
     </label>
-    {#if !payload || payload.rows.length === 0}
-        <p class="muted">No references for the focused idea.</p>
-    {:else}
+    <PaneStatus
+        loading={app.referencesLoading}
+        error={app.referencesError}
+        empty={!payload || payload.rows.length === 0}
+        loadingText="Loading references…"
+        emptyText="No references for the focused idea."
+    >
         {#each kinds as kind}
-            <div class="ref-group">
-                <h4>{kind} ({payload.grouped[kind]?.length ?? 0})</h4>
+            {@const rows = payload?.grouped[kind] ?? []}
+            <NestedSection title={kind} count={rows.length} defaultExpanded={kinds.length <= 2}>
                 <ul class="list">
-                    {#each payload.grouped[kind] ?? [] as row}
+                    {#each rows as row}
                         <li>
-                            <button class="link" onclick={() => openReference(row)}>
-                                {row.direction === 'inbound' ? '← ' : '→ '}{row.label}
-                                {#if !row.isResolved}<span class="badge">unresolved</span>{/if}
-                            </button>
+                            {#if row.isResolved}
+                                <button class="link" onclick={() => openReference(row)}>
+                                    {row.direction === 'inbound' ? '← ' : '→ '}{row.label}
+                                </button>
+                            {:else}
+                                <span class="unresolved-label">
+                                    {row.direction === 'inbound' ? '← ' : '→ '}{row.label}
+                                    <span class="badge">unresolved</span>
+                                </span>
+                                {#if row.direction === 'outbound'}
+                                    <button
+                                        type="button"
+                                        class="create-idea-button"
+                                        title="Create idea"
+                                        aria-label="Create idea {row.label}"
+                                        onclick={() => createUnresolved(row)}
+                                    >+</button>
+                                {/if}
+                            {/if}
                             {#if row.snippet}
                                 <div class="muted">{row.snippet}</div>
                             {/if}
@@ -61,7 +84,36 @@
                         </li>
                     {/each}
                 </ul>
-            </div>
+            </NestedSection>
         {/each}
-    {/if}
+    </PaneStatus>
 </CollapsiblePane>
+
+<style>
+    .unresolved-label {
+        display: inline;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .create-idea-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-left: 0.25rem;
+        padding: 0;
+        border: 1px solid var(--vscode-button-border, transparent);
+        border-radius: 2px;
+        background: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        cursor: pointer;
+        font-size: 0.85rem;
+        line-height: 1;
+        vertical-align: middle;
+    }
+
+    .create-idea-button:hover {
+        background: var(--vscode-button-secondaryHoverBackground);
+    }
+</style>

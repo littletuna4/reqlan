@@ -15,6 +15,7 @@ import {
     GRAPH_EMPHASIS_COLORS,
     GRAPH_NODE_COLORS,
     graphNodeFill,
+    graphNodeTypeId,
     hotspotBorderColor,
     hotspotBorderWidth,
     resolveThemeColor
@@ -287,6 +288,7 @@ export function buildCytoscapeElements(
                 isExternal: Boolean(node.isExternal),
                 isCenter: node.id === centerId,
                 nodeKind: node.kind,
+                nodeType: graphNodeTypeId(node, centerId),
                 hotspotBand: node.hotspotBand,
                 impactOpacity: 1,
                 ...(parentId ? { parent: parentId } : {}),
@@ -464,6 +466,14 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
             style: {
                 'background-opacity': 0.85,
                 shape: 'round-rectangle'
+            }
+        },
+        // Key-panel node-type toggles: hiding a node also hides its connected edges
+        // (cytoscape only renders edges whose both endpoints are visible).
+        {
+            selector: 'node[?typeHidden]',
+            style: {
+                display: 'none'
             }
         },
         {

@@ -3,7 +3,10 @@ import {
     buildAiReadiness,
     buildContextFingerprint,
     buildFocusSignals,
+    CONTEXT_FINGERPRINT_AXIS_HELP,
+    CONTEXT_FINGERPRINT_HELP,
     emptyContextSignals,
+    fingerprintAxisTooltip,
     formatAiReadinessMarkdown,
     formatFingerprintMarkdown,
     formatSynthesisMarkdown,
@@ -107,14 +110,66 @@ describe('fingerprint and readiness', () => {
             ideaCount: 3,
             historyCount: 2,
             hasArchitectureHint: true,
+            gitCommitCount: 4,
+            gitAuthorCount: 2,
             gitChangeCount: 1,
             anomalyCount: 0,
             coverage: synthesis.coverage
         });
+        expect(fingerprint.git).toBeGreaterThan(0.3);
         const readiness = buildAiReadiness(signals, synthesis);
         expect(formatSynthesisMarkdown(synthesis)).toContain('Stability');
         expect(formatFingerprintMarkdown(fingerprint)).toContain('Files');
         expect(formatAiReadinessMarkdown(readiness)).toContain('AI readiness');
+    });
+
+    test('exposes semantic help for fingerprint axes', () => {
+        expect(CONTEXT_FINGERPRINT_HELP).toContain('evidence');
+        expect(CONTEXT_FINGERPRINT_AXIS_HELP.files).toContain('open tabs');
+        expect(CONTEXT_FINGERPRINT_AXIS_HELP.git).toContain('development history');
+        expect(CONTEXT_FINGERPRINT_AXIS_HELP.diagnostics).toContain('unresolved refs');
+        expect(fingerprintAxisTooltip('requirements', 0.5)).toContain('Partially filled');
+        expect(fingerprintAxisTooltip('architecture', 0.7)).toContain('Well filled');
+    });
+
+    test('fingerprint git axis weights history over dirty tree', () => {
+        const historyHeavy = buildContextFingerprint({
+            fileCount: 0,
+            ideaCount: 0,
+            historyCount: 0,
+            hasArchitectureHint: false,
+            gitCommitCount: 6,
+            gitAuthorCount: 3,
+            gitChangeCount: 0,
+            anomalyCount: 0,
+            coverage: 'unknown'
+        });
+        const dirtyOnly = buildContextFingerprint({
+            fileCount: 0,
+            ideaCount: 0,
+            historyCount: 0,
+            hasArchitectureHint: false,
+            gitCommitCount: 0,
+            gitAuthorCount: 0,
+            gitChangeCount: 8,
+            anomalyCount: 0,
+            coverage: 'unknown'
+        });
+        expect(historyHeavy.git).toBeGreaterThan(dirtyOnly.git);
+    });
+
+    test('buildFocusSignals carries commit authors', () => {
+        const signals = buildFocusSignals({
+            focusIdeaId: 'a',
+            parentCount: 0,
+            inboundCount: 0,
+            outboundCount: 0,
+            unresolvedCount: 0,
+            commitCount: 3,
+            authors: ['Ada', 'Bob']
+        });
+        expect(signals.developmentHistory?.commitCount).toBe(3);
+        expect(signals.developmentHistory?.authors).toEqual(['Ada', 'Bob']);
     });
 });
 

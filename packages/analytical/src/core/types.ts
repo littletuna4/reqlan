@@ -112,7 +112,9 @@ export type {
     ContextIdeaEntry,
     ContextProvenance,
     ContextReferencesSlice,
+    GitAuthorRollup,
     GitContextSlice,
+    GitFocusCommit,
     WorkspaceContextSlice
 } from './context-model.js';
 

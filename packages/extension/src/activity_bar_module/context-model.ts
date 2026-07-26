@@ -230,7 +230,9 @@ export class ContextModelBuilder {
             outboundCount: currentFile?.referencedIdeas?.length ?? 0,
             unresolvedCount: currentFile?.unresolvedCount ?? 0,
             createdAt: focusIdea?.gitCreatedAt,
-            modifiedAt: focusIdea?.gitModifiedAt
+            modifiedAt: focusIdea?.gitModifiedAt,
+            commitCount: input.git?.focusCommits?.length,
+            authors: input.git?.topAuthors?.map(author => author.name)
         });
         const synthesis = centerId ? synthesizeFocusContext(signals) : undefined;
         const fingerprint = buildContextFingerprint({
@@ -238,6 +240,8 @@ export class ContextModelBuilder {
             ideaCount: footprint.ideaIds.length,
             historyCount: fileHistory.length + editHistory.length,
             hasArchitectureHint: (currentFile?.referencedIdeas?.length ?? 0) > 0 || parentCount > 0,
+            gitCommitCount: input.git?.focusCommits?.length ?? 0,
+            gitAuthorCount: input.git?.topAuthors?.length ?? 0,
             gitChangeCount: input.git?.changedFiles.length ?? 0,
             anomalyCount: anomalies.length,
             coverage: synthesis?.coverage ?? 'unknown'
@@ -459,10 +463,11 @@ export class ContextModelBuilder {
                     summary = ideaCount === 0 ? 'Nothing pinned' : `${ideaCount} pinned`;
                     break;
                 case 'git':
-                    fileCount = input.git?.changedFiles.length ?? 0;
-                    summary = input.git
-                        ? `${input.git.unstagedCount + input.git.stagedCount} changed`
-                        : 'No repo';
+                    fileCount =
+                        (input.git?.focusCommits.length || 0) > 0
+                            ? input.git!.focusCommits.length
+                            : (input.git?.changedFiles.length ?? 0);
+                    summary = input.git?.summary ?? 'No repo';
                     break;
             }
 

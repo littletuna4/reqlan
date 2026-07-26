@@ -1,7 +1,9 @@
 <script lang="ts">
     import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
     import { getApp } from '../state/context.js';
+    import { groupFileIssuesByFile } from '../lib/group-file-issues.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import NestedSection from './NestedSection.svelte';
 
     interface Props {
         expanded: boolean;
@@ -11,6 +13,7 @@
 
     const app = getApp();
     let status = $derived(app.indexStatus);
+    let issueGroups = $derived(status ? groupFileIssuesByFile(status.fileIssues) : []);
 
     function formatTime(at: number): string {
         return new Date(at).toLocaleTimeString();
@@ -34,7 +37,7 @@
 
 <CollapsiblePane title="Workspace" id="workspace" {expanded} {onToggle}>
     {#if !status}
-        <p class="muted">Waiting for workspace index…</p>
+        <p class="muted pane-status" role="status">Waiting for workspace index…</p>
     {:else}
         <dl class="workspace-stats">
             <div class="workspace-stat">
@@ -69,70 +72,91 @@
         {/if}
 
         {#if isGlobalError(status.lastError) && status.lastError}
-            <p class="workspace-subheading">Global error</p>
-            <p class="error-text">{status.lastError.summary}</p>
-            <dl class="error-detail">
-                {#if status.lastError.phase}
-                    <dt class="muted">Phase</dt>
-                    <dd>{status.lastError.phase}</dd>
-                {/if}
-                {#if status.lastError.cause}
-                    <dt class="muted">Cause</dt>
-                    <dd>{status.lastError.cause}</dd>
-                {/if}
-            </dl>
+            <NestedSection title="Global error" defaultExpanded={true} scrollable={false}>
+                <p class="error-text">{status.lastError.summary}</p>
+                <dl class="error-detail">
+                    {#if status.lastError.phase}
+                        <dt class="muted">Phase</dt>
+                        <dd>{status.lastError.phase}</dd>
+                    {/if}
+                    {#if status.lastError.cause}
+                        <dt class="muted">Cause</dt>
+                        <dd>{status.lastError.cause}</dd>
+                    {/if}
+                </dl>
+            </NestedSection>
         {/if}
 
-        {#if status.fileIssues.length > 0}
-            <p class="workspace-subheading">Index errors ({status.fileIssues.length})</p>
-            <p class="muted">Issues from the most recent index run. Click a row to open the file.</p>
-            <ul class="issue-list">
-                {#each status.fileIssues as issue (issue.fileUri + ':' + issue.line + ':' + issue.column)}
-                    <li>
-                        <button type="button" class="issue-row" onclick={() => openIssue(issue)}>
-                            <span class="issue-location">{issue.location}</span>
-                            <span class="issue-phase muted">{issue.phase}</span>
-                            <span class="issue-message">{issue.message}</span>
-                            {#if issue.cause}
-                                <span class="issue-cause muted">{issue.cause}</span>
-                            {/if}
-                            {#if issue.ideaNames?.length}
-                                <span class="issue-ideas muted">{issue.ideaNames.join(', ')}</span>
-                            {/if}
-                        </button>
-                    </li>
+        {#if issueGroups.length > 0}
+            <NestedSection
+                title="Index errors"
+                count={status.fileIssues.length}
+                defaultExpanded={true}
+                scrollable={false}
+            >
+                <p class="muted">Grouped by file. Click a row to open.</p>
+                {#each issueGroups as group (group.fileUri)}
+                    <NestedSection
+                        title={group.label}
+                        count={group.issues.length}
+                        defaultExpanded={issueGroups.length <= 3}
+                    >
+                        <ul class="issue-list">
+                            {#each group.issues as issue (issue.fileUri + ':' + issue.line + ':' + issue.column)}
+                                <li>
+                                    <button type="button" class="issue-row" onclick={() => openIssue(issue)}>
+                                        <span class="issue-location">L{issue.line + 1}:{issue.column + 1}</span>
+                                        <span class="issue-phase muted">{issue.phase}</span>
+                                        <span class="issue-message">{issue.message}</span>
+                                        {#if issue.cause}
+                                            <span class="issue-cause muted">{issue.cause}</span>
+                                        {/if}
+                                        {#if issue.ideaNames?.length}
+                                            <span class="issue-ideas muted">{issue.ideaNames.join(', ')}</span>
+                                        {/if}
+                                    </button>
+                                </li>
+                            {/each}
+                        </ul>
+                    </NestedSection>
                 {/each}
-            </ul>
+            </NestedSection>
         {:else if status.ready}
             <p class="muted">No index errors in the workspace.</p>
         {/if}
 
         {#if status.lastError && status.lastError.file}
-            <p class="workspace-subheading">File error</p>
-            <p class="error-text">{status.lastError.summary}</p>
-            <dl class="error-detail">
-                <dt class="muted">File</dt>
-                <dd>{status.lastError.file}</dd>
-                {#if status.lastError.ideas?.length}
-                    <dt class="muted">Ideas</dt>
-                    <dd>{status.lastError.ideas.join(', ')}</dd>
-                {/if}
-            </dl>
+            <NestedSection title="File error" defaultExpanded={true} scrollable={false}>
+                <p class="error-text">{status.lastError.summary}</p>
+                <dl class="error-detail">
+                    <dt class="muted">File</dt>
+                    <dd>{status.lastError.file}</dd>
+                    {#if status.lastError.ideas?.length}
+                        <dt class="muted">Ideas</dt>
+                        <dd>{status.lastError.ideas.join(', ')}</dd>
+                    {/if}
+                </dl>
+            </NestedSection>
         {/if}
 
-        <p class="workspace-subheading">Recent activity</p>
-        <ul class="activity-list">
-            {#if status.recentActivity.length === 0}
-                <li class="muted">No recent activity</li>
-            {:else}
-                {#each status.recentActivity as item (item.at + item.detail)}
-                    <li>
-                        <strong>{item.label}</strong> — {item.detail}
-                        <div class="activity-time muted">{formatTime(item.at)}</div>
-                    </li>
-                {/each}
-            {/if}
-        </ul>
+        <NestedSection
+            title="Recent activity"
+            count={status.recentActivity.length}
+            defaultExpanded={status.recentActivity.length > 0 && status.recentActivity.length <= 5}
+        >
+            <ul class="activity-list">
+                {#if status.recentActivity.length === 0}
+                    <li class="muted">No recent activity</li>
+                {:else}
+                    {#each status.recentActivity as item (item.at + item.detail)}
+                        <li>
+                            <strong>{item.label}</strong> — {item.detail}
+                            <div class="activity-time muted">{formatTime(item.at)}</div>
+                        </li>
+                    {/each}
+                {/if}
+            </ul>
+        </NestedSection>
 
         <div class="section-actions">
             <button class="action-button" onclick={() => app.refreshIndex()}>Refresh</button>

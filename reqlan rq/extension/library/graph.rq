@@ -117,4 +117,5 @@ physics_options {
         - the options for the physics should be exposed to the user in a menu too.
     - user can select whether to use live physics/animation
     - live physics uses the custom graph-physics simulation; cola remains selectable as a batch layout in the layout dropdown
+    - Ideas Summary exposes layout, live-physics, and force sliders in ["../../../packages/extension/webviews/ideas-summary/components/GraphControlPanel.svelte"]
 }

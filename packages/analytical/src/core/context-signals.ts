@@ -23,6 +23,10 @@ export interface DevelopmentHistorySignals {
     ageDays?: number;
     /** Whole days since modifiedAt; undefined when unknown. */
     timeSinceTouchedDays?: number;
+    /** Focus-scoped commit count from git history (when collected). */
+    commitCount?: number;
+    /** Top author names for the focus path / line range. */
+    authors?: string[];
 }
 
 export interface LifecycleSignals {
@@ -87,6 +91,8 @@ export interface FocusSignalInput {
     unresolvedCount: number;
     createdAt?: string;
     modifiedAt?: string;
+    commitCount?: number;
+    authors?: string[];
     now?: Date;
 }
 
@@ -163,7 +169,9 @@ export function buildFocusSignals(input: FocusSignalInput): ContextSignals {
             createdAt: input.createdAt,
             modifiedAt: input.modifiedAt,
             ageDays,
-            timeSinceTouchedDays
+            timeSinceTouchedDays,
+            commitCount: input.commitCount,
+            authors: input.authors
         },
         lifecycle: {
             createdAt: input.createdAt,
@@ -290,21 +298,62 @@ export function buildContextFingerprint(input: {
     ideaCount: number;
     historyCount: number;
     hasArchitectureHint: boolean;
-    gitChangeCount: number;
+    /** @deprecated Prefer gitCommitCount / gitAuthorCount; dirty-tree count is secondary. */
+    gitChangeCount?: number;
+    gitCommitCount?: number;
+    gitAuthorCount?: number;
     anomalyCount: number;
     coverage: ContextCoverageLevel;
 }): ContextFingerprintAxes {
     const coverageScore =
         input.coverage === 'complete' ? 1 : input.coverage === 'partial' ? 0.55 : 0.15;
+    const commitScore = clamp01((input.gitCommitCount ?? 0) / 6);
+    const authorScore = clamp01((input.gitAuthorCount ?? 0) / 3);
+    const dirtyScore = clamp01((input.gitChangeCount ?? 0) / 8);
+    const gitRichness = clamp01(0.55 * commitScore + 0.25 * authorScore + 0.2 * dirtyScore);
     return {
         files: clamp01(input.fileCount / 12),
         requirements: clamp01(input.ideaCount / 12),
         history: clamp01(input.historyCount / 12),
         architecture: input.hasArchitectureHint ? 0.7 : 0.2,
-        git: clamp01(input.gitChangeCount / 8),
+        git: gitRichness,
         diagnostics: clamp01(1 - input.anomalyCount / 5),
         coverage: coverageScore
     };
+}
+
+/** Overview of why context fingerprint / health bars matter for developers. */
+export const CONTEXT_FINGERPRINT_HELP = [
+    'Fingerprint answers: “what kinds of evidence is AI / Copilot actually getting from this session?”',
+    'Bars fill as you enable lenses, open related files, pin ideas, and connect requirements in the graph — thin bars mean the assistant is guessing from a narrow slice.',
+    'Use this before copying context or asking for a change: expand the empty axes that matter for the task (e.g. git history when judging ownership or recency, requirements when editing policy).'
+].join(' ');
+
+/** Per-axis semantic help for scope-pane tooltips and the fingerprint info panel. */
+export const CONTEXT_FINGERPRINT_AXIS_HELP: Record<keyof ContextFingerprintAxes, string> = {
+    files:
+        'Files: how much implementation surface is in composed context. Comes from enabled lenses — the active editor, other open tabs, recent navigation/edits, and git-changed paths. Low means the assistant mostly sees the current file; raise it by opening related code or enabling those lenses before you ask for a cross-file change.',
+    requirements:
+        'Requirements: how much of the idea graph is in play. Ideas arrive from the focused .rq block, linked requirements on the current file, pins in the context tray, and nearby graph hops. Care when this is thin: the model may invent behaviour that is not grounded in written intent.',
+    history:
+        'History: session trail of where you have been and typed. Navigation history and edit history (not git log) tell the assistant what you were just working on. Useful for “continue what I was doing”; empty if you jumped straight to a file with no prior trail.',
+    architecture:
+        'Architecture: whether focus has structural graph anchors — parents or outbound requirement refs. High means the idea sits in a known hierarchy/dependency shape; low means isolated intent with little surrounding design for the assistant to respect.',
+    git: 'Git: development history around the focus — recent commits, authors, and branch. Helps the assistant judge ownership, recency, and who last touched this area. Dirty working-tree paths are a secondary caution signal. Empty when no focus history is available or the git lens is off.',
+    diagnostics:
+        'Diagnostics: health of the focused context — unresolved refs and other anomalies. High means clean; dropping means broken links or index issues that will poison AI answers until you fix or filter them.',
+    coverage:
+        'Coverage: whether relationships around the focus are known enough to reason about impact. Unknown/thin means few inbound/outbound edges; partial means some graph evidence exists. Care before large refactors when this is thin.'
+};
+
+export function fingerprintAxisTooltip(
+    key: keyof ContextFingerprintAxes,
+    value: number
+): string {
+    const pct = Math.round(clamp01(value) * 100);
+    const fill =
+        pct >= 70 ? 'Well filled' : pct >= 35 ? 'Partially filled' : 'Thin — expand this dimension if the task needs it';
+    return `${CONTEXT_FINGERPRINT_AXIS_HELP[key]} (${fill}: ${pct}%).`;
 }
 
 export function buildAiReadiness(

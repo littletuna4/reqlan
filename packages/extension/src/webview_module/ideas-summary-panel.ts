@@ -18,6 +18,11 @@ import {
     type ReferencesTableQuery,
     type WebviewToExtensionMessage
 } from './shared/messages.js';
+import {
+    GRAPH_UI_WORKSPACE_STATE_KEY,
+    normalizeGraphUiState,
+    type GraphUiPersistedState
+} from './shared/graph-ui-state.js';
 import type { IdeasSummaryNavigateIntent } from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
@@ -26,6 +31,7 @@ import {
     buildFocusSignals,
     buildGraphViewSlice,
     GRAPH_MAX_NODES,
+    GRAPH_NODES_HARD_CAP,
     hotspotBandFromRisk,
     synthesizeFocusContext,
     type GraphViewSlice as AnalyticalGraphViewSlice
@@ -58,7 +64,8 @@ const DEFAULT_REFERENCES_QUERY: ReferencesTableQuery = {
 
 const DEFAULT_GRAPH_QUERY: GraphViewQuery = {
     includeIndirect: false,
-    maxNodes: GRAPH_MAX_NODES
+    maxNodes: GRAPH_MAX_NODES,
+    truncationBasis: 'path'
 };
 
 export class IdeasSummaryPanel {
@@ -121,6 +128,12 @@ export class IdeasSummaryPanel {
         initialIntent?: IdeasSummaryNavigateIntent
     ) {
         this.activationGeneration = activationGeneration;
+        const restoredUi = this.readGraphUiState();
+        this.graphQuery = {
+            ...this.graphQuery,
+            maxNodes: restoredUi.maxNodes,
+            truncationBasis: restoredUi.truncationBasis
+        };
         this.panel = vscode.window.createWebviewPanel(
             VIEW_TYPE,
             'Reqlan Ideas Summary',
@@ -202,6 +215,7 @@ export class IdeasSummaryPanel {
         try {
             switch (message.type) {
                 case 'ready':
+                    this.postGraphUiState();
                     void this.sendIndexStatus();
                     void this.bootstrapData();
                     break;
@@ -260,6 +274,9 @@ export class IdeasSummaryPanel {
                 case 'dumpFullGraph':
                     await this.sendFullGraph();
                     break;
+                case 'persistGraphUiState':
+                    await this.persistGraphUiState(message.state);
+                    break;
             }
         } catch (error) {
             if (message.type === 'loadGraph') {
@@ -277,6 +294,32 @@ export class IdeasSummaryPanel {
 
     private post(message: ExtensionToWebviewMessage): void {
         void this.panel.webview.postMessage(message);
+    }
+
+    private readGraphUiState(): GraphUiPersistedState {
+        return normalizeGraphUiState(this.context.workspaceState.get(GRAPH_UI_WORKSPACE_STATE_KEY));
+    }
+
+    private postGraphUiState(): void {
+        const state = this.readGraphUiState();
+        // Keep host query budget in sync so the first loadGraph uses restored values
+        // even if the webview posts before it applies graphUiState locally.
+        this.graphQuery = {
+            ...this.graphQuery,
+            maxNodes: state.maxNodes,
+            truncationBasis: state.truncationBasis
+        };
+        this.post({ type: 'graphUiState', state });
+    }
+
+    private async persistGraphUiState(raw: unknown): Promise<void> {
+        const state = normalizeGraphUiState(raw);
+        this.graphQuery = {
+            ...this.graphQuery,
+            maxNodes: state.maxNodes,
+            truncationBasis: state.truncationBasis
+        };
+        await this.context.workspaceState.update(GRAPH_UI_WORKSPACE_STATE_KEY, state);
     }
 
     private async refreshIndexData(): Promise<void> {
@@ -463,6 +506,10 @@ export class IdeasSummaryPanel {
 }
 
 function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
+    const truncationBasis =
+        query.truncationBasis === 'git-modified' || query.truncationBasis === 'git-created'
+            ? query.truncationBasis
+            : 'path';
     return {
         centerId: query.centerId?.trim() || undefined,
         search: query.search?.trim() || undefined,
@@ -470,7 +517,8 @@ function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
         statusFilter: query.statusFilter?.trim() || undefined,
         tagFilter: query.tagFilter?.trim() || undefined,
         includeIndirect: Boolean(query.includeIndirect),
-        maxNodes: Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), 200)
+        maxNodes: Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), GRAPH_NODES_HARD_CAP),
+        truncationBasis
     };
 }
 

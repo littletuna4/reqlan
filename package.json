@@ -10,6 +10,7 @@
         "watch": "concurrently -n langium,tsc,ext -c magenta,blue,green \"pnpm run langium:watch\" \"tsc -b tsconfig.build.json --watch\" \"pnpm --filter ./packages/extension run watch\"",
         "sync:cursor": "node scripts/sync-cursor-ai.mjs",
         "build": "pnpm run langium:generate && tsc -b tsconfig.build.json && pnpm -r run build && pnpm run sync:cursor",
+        "build:ext": "pnpm run langium:generate && tsc -b tsconfig.build.json && pnpm -r --filter './packages/**' run build && pnpm run sync:cursor",
         "build:clean": "pnpm run clean && pnpm run build",
         "langium:generate": "pnpm --filter ./packages/language run langium:generate",
         "langium:watch": "pnpm --filter ./packages/language run langium:watch",

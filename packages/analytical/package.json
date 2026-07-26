@@ -8,10 +8,19 @@
     },
     "main": "./out/index.js",
     "types": "./out/index.d.ts",
+    "sideEffects": false,
     "exports": {
         ".": {
             "types": "./out/index.d.ts",
             "default": "./out/index.js"
+        },
+        "./context-model": {
+            "types": "./out/core/context-model.d.ts",
+            "default": "./out/core/context-model.js"
+        },
+        "./context-signals": {
+            "types": "./out/core/context-signals.d.ts",
+            "default": "./out/core/context-signals.js"
         }
     },
     "scripts": {

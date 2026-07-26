@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { FileRelatedRequirements, GitDateInfo, IdeaSummary } from 'reqlan-analytical';
 import { CONTEXT_MAX_HOP_DEPTH, CONTEXT_MIN_HOP_DEPTH } from 'reqlan-analytical';
+import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from 'reqlan-language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri, resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
@@ -88,6 +89,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             void this.handleMessage(message as ActivityBarToExtensionMessage);
         });
 
+        void this.postIndexHealth();
         void this.ensureData();
         this.postPhonebookLinks();
         this.postTray();
@@ -147,14 +149,47 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.post({ type: 'tray', tray: { pinned: [...this.contextSession.manualIdeas] } });
     }
 
-    private buildContextInput(editor: vscode.TextEditor) {
+    private async buildContextInput(editor: vscode.TextEditor) {
         const snapshot = this.submodule.index.getStatusSnapshot();
         const relativePath = (uri: string) => vscode.workspace.asRelativePath(uri);
         const fileUri = toIndexFileUri(editor.document.uri);
         const line = editor.selection.active.line;
-        const git = collectGitContext(relativePath);
-        const selection = editor.selection;
         const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const selection = editor.selection;
+
+        let lineStart: number | undefined;
+        let lineEnd: number | undefined;
+        let useLineHistory = false;
+        try {
+            const store = this.submodule.index.indexStore;
+            const ideasInFile = await store.listIdeasInFileWithRanges(fileUri);
+            let idea = this.pinnedFocusId
+                ? ideasInFile.find(entry => entry.id === this.pinnedFocusId)
+                : undefined;
+            idea ??= ideasInFile.find(
+                entry => entry.lineStart <= line && line <= entry.lineEnd
+            );
+            if (idea) {
+                lineStart = idea.lineStart;
+                lineEnd = idea.lineEnd;
+                useLineHistory = true;
+            } else if (fileUri.endsWith('.rq')) {
+                lineStart = line;
+                lineEnd = line;
+                useLineHistory = true;
+            }
+        } catch {
+            // History falls back to path log.
+        }
+
+        const git = await collectGitContext({
+            relativePath,
+            workspaceRoot,
+            focusFileUri: fileUri,
+            lineStart,
+            lineEnd,
+            useLineHistory
+        });
 
         return {
             session: this.contextSession,
@@ -240,6 +275,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     this.postTray();
                     this.postEditorContext();
                     await this.refreshFromEditor();
+                    this.post({ type: 'bootstrapComplete' });
                     break;
                 case 'loadScope':
                     await this.loadScope(message.fileUri, message.line, requestId);
@@ -257,7 +293,8 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         this.post({
                             type: 'error',
                             message: 'No idea to centre the graph on.',
-                            requestId
+                            requestId,
+                            scope: 'graph'
                         });
                     }
                     break;
@@ -323,7 +360,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     if (!data || !editor) {
                         break;
                     }
-                    const model = await data.build(this.buildContextInput(editor));
+                    const model = await data.build(await this.buildContextInput(editor));
                     this.post({
                         type: 'contextMarkdown',
                         text: await data.buildContextMarkdown(model)
@@ -363,6 +400,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'openIdea':
                     await openIndexFile(message.fileUri, message.line, message.column);
+                    break;
+                case 'createStubIdea':
+                    await this.createStubIdea(message.sourceIdeaId, message.refText);
                     break;
                 case 'setSyncWithEditor':
                     this.syncWithEditor = message.enabled;
@@ -418,7 +458,8 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             this.post({
                 type: 'error',
                 message: error instanceof Error ? error.message : 'Activity bar request failed.',
-                requestId
+                requestId,
+                scope: scopeForMessage(message)
             });
         }
     }
@@ -429,11 +470,12 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     ): Promise<import('reqlan-analytical').ReqlanContextModel | undefined> {
         const data = await this.ensureData();
         if (!data) {
-            this.post({ type: 'error', message: 'Index is not ready yet.', requestId });
+            // Cold start: index sync in progress — wait via indexHealth, not a hard error.
+            await this.postIndexHealth();
             return undefined;
         }
         await this.ensureFocusGitDates(editor);
-        const model = await data.build(this.buildContextInput(editor));
+        const model = await data.build(await this.buildContextInput(editor));
         this.post({ type: 'context', model, requestId });
         this.post({ type: 'scope', scope: model.currentFile, requestId });
         const focusId = model.footprint.effectiveCenterId;
@@ -493,6 +535,27 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         await this.loadContext(fakeEditor, requestId);
     }
 
+    private async createStubIdea(sourceIdeaId: string, refText: string): Promise<void> {
+        const name = refText.trim();
+        if (!name) {
+            return;
+        }
+        const idea = await this.submodule.index.indexStore.getIdea(sourceIdeaId);
+        if (!idea) {
+            void vscode.window.showWarningMessage('Could not locate the source idea for create.');
+            return;
+        }
+        const documentUri = resolveIndexFileUri(idea.fileUri).toString();
+        await vscode.commands.executeCommand(REQLAN_IMPORT_ERROR_CREATE_COMMAND, {
+            documentUri,
+            refText: name,
+            range: {
+                start: { line: Math.max(0, idea.lineStart), character: 0 },
+                end: { line: Math.max(0, idea.lineStart), character: 0 }
+            }
+        });
+    }
+
     private async loadReferences(
         ideaId: string,
         requestId?: number,
@@ -500,6 +563,13 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     ): Promise<void> {
         const data = await this.ensureData();
         if (!data) {
+            await this.postIndexHealth();
+            this.post({
+                type: 'error',
+                message: 'Index is not ready yet.',
+                requestId,
+                scope: 'references'
+            });
             return;
         }
         const hopDepth = effectiveHopDepth(this.contextSession, 'current_file');
@@ -514,10 +584,12 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     ): Promise<void> {
         const data = await this.ensureData();
         if (!data) {
+            await this.postIndexHealth();
             this.post({
                 type: 'error',
                 message: 'Index is not ready yet.',
-                requestId
+                requestId,
+                scope: 'graph'
             });
             return;
         }
@@ -536,6 +608,13 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     ): Promise<void> {
         const data = await this.ensureData();
         if (!data) {
+            await this.postIndexHealth();
+            this.post({
+                type: 'error',
+                message: 'Index is not ready yet.',
+                requestId,
+                scope: 'ancestors'
+            });
             return;
         }
         const result = await data.loadAncestors(ideaId, maxDepth);
@@ -551,6 +630,30 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         pinManualIdea(this.contextSession, idea);
         this.postTray();
         void this.refreshFromEditor();
+    }
+}
+
+function scopeForMessage(
+    message: ActivityBarToExtensionMessage
+): import('./activity-bar-messages.js').ActivityBarErrorScope | undefined {
+    switch (message.type) {
+        case 'loadGraph':
+            return 'graph';
+        case 'loadReferences':
+            return 'references';
+        case 'loadAncestors':
+            return 'ancestors';
+        case 'loadScope':
+        case 'loadFileLens':
+        case 'copyScopeMarkdown':
+        case 'copyContextMarkdown':
+            return 'context';
+        case 'refreshIndex':
+        case 'clearAndRebuildIndex':
+        case 'loadIndexHealth':
+            return 'index';
+        default:
+            return 'bootstrap';
     }
 }
 

@@ -1,0 +1,33 @@
+import "../../features-graph-analysers.rq" as graph_analysers
+import "../../library/graph.rq" as graph_lib
+import "../graphical_graph.rq" as graphical_graph_doc
+import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte" as MiniGraphCanvas
+
+miniature_graph_pane {
+    A small interactive graph centred on the cursor idea (or the file's first idea when the caret is outside any block).
+    Consumes [graph_lib.graph_library] with sidebar-appropriate defaults; slices from [graph_analysers.local_graph_analysis].
+    - Default depth 1; +/- controls expand or collapse neighbourhood depth without opening Ideas Summary.
+    - Pan, zoom, and drag per [graph_lib.view_controls].
+    - [graph_lib.manual_reframe] — "Fit to view" in [MiniGraphCanvas]; same API as the full graph tab.
+    - [graph_lib.auto_reframe] and [graph_lib.reframe_animation] when the neighbourhood node set changes (instant first fit, animated afterward).
+    - No full layout/physics menus here (defer to [graphical_graph_doc.graphical_graph]).
+    - Single-click a node opens its source; double-click or "Focus" recentres the slice on that idea.
+    - Edge kinds styled like the full graph (including dashed file-reference edges).
+    - When nodes are truncated per [graphical_graph_doc.node_truncation], show "+N more" with a control to open the centred slice in Ideas Summary.
+    - "Open in Graph tab" hands off centerId and query state to [ideas_summary_panel].
+    Mount cytoscape only while this sub-pane is visible per [graph_lib.graph_cy_controller].
+}
+
+minigraph_file_reference_links {
+    when the user clicks on a file reference link in the miniature graph, we should open the file in the editor
+    if the file is defined as relative, it should be opened relative to the defining file, not the workspace root
+    Fixed in [graph_analysers.local_graph_analysis]: external file nodes now resolve their path against the defining file's folder (via the edge source id) when the slice is built, so a workspace-relative path is handed to the editor open action.
+    @bugfix
+    @status done
+}
+
+minigraph_loading {
+    Graph slice waits stay in [miniature_graph_pane], not a second global overlay.
+    Show per-request loading and error, distinct from empty.
+}

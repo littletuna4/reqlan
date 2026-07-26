@@ -1,5 +1,6 @@
 import type { ExtensionToWebviewMessage } from '../../../src/webview_module/shared/messages.js';
 import type {
+    GraphUiPersistedState,
     GraphViewQuery,
     GraphViewSlice,
     IdeaTableRow,
@@ -10,6 +11,10 @@ import type {
     ReferenceTableRow,
     ReferencesTableQuery
 } from '../../../src/webview_module/shared/messages.js';
+import {
+    DEFAULT_GRAPH_UI_STATE,
+    normalizeGraphUiState
+} from '../../../src/webview_module/shared/graph-ui-state.js';
 import { createDebounced } from '../lib/debounce.js';
 import {
     defaultGraphQuery,
@@ -56,7 +61,11 @@ export class AppState {
         slice: undefined as GraphViewSlice | undefined,
         loading: false,
         rendering: false,
-        error: undefined as string | undefined
+        error: undefined as string | undefined,
+        /** Key + Controls panel state; hydrated from workspaceState via graphUiState. */
+        ui: { ...DEFAULT_GRAPH_UI_STATE, physics: { ...DEFAULT_GRAPH_UI_STATE.physics }, hiddenNodeTypes: [] as GraphUiPersistedState['hiddenNodeTypes'] },
+        /** True after the extension has delivered graphUiState at least once. */
+        uiHydrated: false
     });
 
     dump = $state({
@@ -70,6 +79,7 @@ export class AppState {
     private ideasSearchDebounce = createDebounced((query: IdeasTableQuery) => this.loadIdeas(query), 250);
     private ideasetsSearchDebounce = createDebounced((query: IdeasetsTableQuery) => this.loadIdeasets(query), 250);
     private referencesSearchDebounce = createDebounced((query: ReferencesTableQuery) => this.loadReferences(query), 250);
+    private graphUiPersistDebounce = createDebounced(() => this.flushGraphUiPersist(), 200);
 
     setStatus(message: string, error: boolean): void {
         this.tab.statusText = message;
@@ -181,6 +191,54 @@ export class AppState {
         this.graph.rendering = false;
     }
 
+    /**
+     * Merge Key/Controls UI fields, sync node-budget into the graph query, and
+     * debounce-persist to ExtensionContext.workspaceState.
+     */
+    patchGraphUi(partial: Partial<GraphUiPersistedState>): GraphUiPersistedState {
+        const next = normalizeGraphUiState({
+            ...this.graph.ui,
+            ...partial,
+            physics: partial.physics
+                ? { ...this.graph.ui.physics, ...partial.physics }
+                : this.graph.ui.physics,
+            hiddenNodeTypes: partial.hiddenNodeTypes ?? this.graph.ui.hiddenNodeTypes
+        });
+        this.graph.ui = next;
+        if (
+            this.graph.query.maxNodes !== next.maxNodes ||
+            this.graph.query.truncationBasis !== next.truncationBasis
+        ) {
+            this.graph.query = {
+                ...this.graph.query,
+                maxNodes: next.maxNodes,
+                truncationBasis: next.truncationBasis
+            };
+        }
+        if (this.graph.uiHydrated) {
+            this.graphUiPersistDebounce.schedule();
+        }
+        return next;
+    }
+
+    private applyGraphUiState(raw: unknown): void {
+        const state = normalizeGraphUiState(raw);
+        this.graph.ui = state;
+        this.graph.uiHydrated = true;
+        this.graph.query = {
+            ...this.graph.query,
+            maxNodes: state.maxNodes,
+            truncationBasis: state.truncationBasis
+        };
+    }
+
+    private flushGraphUiPersist(): void {
+        if (!this.graph.uiHydrated) {
+            return;
+        }
+        postToExtension({ type: 'persistGraphUiState', state: this.graph.ui });
+    }
+
     exportGraph(): void {
         this.dump.output = 'Loading full graph…';
         this.dump.visible = true;
@@ -250,6 +308,12 @@ export class AppState {
                     edges: JSON.parse(message.edgesJson)
                 }, null, 2);
                 break;
+            case 'graphUiState':
+                this.applyGraphUiState(message.state);
+                if (this.tab.activeTab === 'graph') {
+                    this.requestGraph();
+                }
+                break;
             case 'navigate': {
                 const intent = message.intent;
                 if (intent.activeTab) {
@@ -311,9 +375,8 @@ export class AppState {
 
         requestAnimationFrame(() => {
             postToExtension({ type: 'ready' });
-            if (this.tab.activeTab === 'graph') {
-                this.requestGraph();
-            }
+            // Graph load waits for graphUiState so Key/Controls (incl. node budget)
+            // restore from workspaceState before the first loadGraph.
         });
 
         this.extensionConnectTimer = setTimeout(() => {
@@ -332,6 +395,9 @@ export class AppState {
             this.ideasSearchDebounce.cancel();
             this.ideasetsSearchDebounce.cancel();
             this.referencesSearchDebounce.cancel();
+            this.graphUiPersistDebounce.cancel();
+            // Flush any pending UI persist so a quick panel close still saves.
+            this.flushGraphUiPersist();
         };
     }
 }

@@ -1,0 +1,8 @@
+import "./module/context-scope.rq" as context_scope
+
+git_based_history {
+    there should be a code lens button for viewing an idea history through git.
+    Should accept close matches and likeley file moves
+    should consume the same state as the [context_scope]
+    @idea
+}

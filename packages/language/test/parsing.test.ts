@@ -86,6 +86,47 @@ describe('Parsing tests', () => {
         expect(bodyText).toContain('{such as this one}');
     });
 
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
+    test('keeps end-of-line matching prose braces as text', async () => {
+        const document = await parse(`resources {
+    - Project site: {{SITE_URL}}
+    - Docs: {{QUICKSTART_URL}}
+}
+next_idea still here`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const resources = document.parseResult.value.elements
+            .filter(isIdea)
+            .find(candidate => candidate.name === 'resources');
+        expect(resources).toBeDefined();
+        const bodyText = resources!.elements
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(bodyText).toContain('{{SITE_URL}}');
+        expect(bodyText).toContain('{{QUICKSTART_URL}}');
+        expect(document.parseResult.value.elements.some(
+            element => isOneLinerIdea(element) && element.name === 'next_idea'
+        )).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
+    // rq:["../../../reqlan rq/extension/onboarding/page-thanks-for-installing.rq".installation_event]
+    test('parse thanks-for-installing template', async () => {
+        const templatePath = join(repoDir, 'packages/extension/templates/thanks-for-installing.template.rq');
+        const document = await parse(readFileSync(templatePath, 'utf8'));
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements
+            .filter(isIdea)
+            .map(idea => idea.name);
+        expect(names).toEqual([
+            'welcome',
+            'resources',
+            'extension_overview',
+            'language_overview',
+            'acknowledgements'
+        ]);
+    });
+
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".one_liner_curly_brace_context]
     test('keeps inline braces in one-liner body as text', async () => {
         const document = await parse('one_liner_curly_brace_context this should {be acceptable} as well');

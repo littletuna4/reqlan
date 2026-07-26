@@ -24,7 +24,7 @@ export interface ElementDiffResult {
 }
 
 /** Data fields that can change without altering graph structure. */
-const MUTABLE_DATA_KEYS = ['label', 'color', 'isCenter', 'isExternal', 'nodeKind'] as const;
+const MUTABLE_DATA_KEYS = ['label', 'color', 'isCenter', 'isExternal', 'nodeKind', 'nodeType'] as const;
 
 function isEdgeDefinition(element: ElementDefinition): boolean {
     return element.data.source !== undefined && element.data.target !== undefined;

@@ -4,9 +4,12 @@ idea_index_triggers {
 
 
 git_information_capture {
-    - the git state at the requirements should be captured and stored/accessible from in the index state as well.
-        - view ownership
-        - view creator (name and email)
-        - view edit frequency
-        - create an adjacency score based on the edit state and frequency of neighbours and their scores.
+    Capture and surface git development history for requirements and files — not only working-tree staging status.
+    On-demand / index-accessible:
+        - ownership and top authors (name; email when available)
+        - creator (first introduction) and last meaningful modification
+        - edit frequency / commit count for the focus path or idea line range
+        - recent commit trail (subject, author, authoredAt, short hash) for the ["context-scope.rq".git_context] lens
+    Future: adjacency score from edit state and frequency of neighbours.
+    Feeds ["context-scope-v2.rq".development_history_signals] and ["activitybar-panels/current_context_scope.rq".git_history_lens].
 }

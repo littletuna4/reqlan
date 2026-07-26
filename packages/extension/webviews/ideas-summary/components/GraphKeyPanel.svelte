@@ -1,11 +1,22 @@
 <script lang="ts">
     import { createEventDispatcher, onDestroy } from 'svelte';
-    import { GRAPH_LEGEND_CSS_COLORS, type GraphLegendItem } from '../lib/graph-theme.js';
+    import {
+        GRAPH_LEGEND_CSS_COLORS,
+        type GraphLegendItem,
+        type GraphNodeTypeId
+    } from '../lib/graph-theme.js';
+    import {
+        clampPanelPosition,
+        observeSurfaceResize,
+        readSurfaceBounds
+    } from '../lib/graph-float-panel.js';
 
     export let items: GraphLegendItem[] = [];
     export let open = false;
+    /** Node types currently hidden in the graph; rows for these render dimmed. */
+    export let hiddenTypes: readonly GraphNodeTypeId[] = [];
 
-    const dispatch = createEventDispatcher<{ close: void }>();
+    const dispatch = createEventDispatcher<{ close: void; toggleType: GraphNodeTypeId }>();
 
     let panelEl: HTMLDivElement;
     let panelX: number | undefined;
@@ -13,31 +24,35 @@
     let dragging = false;
     let dragPointerId: number | undefined;
     let dragOrigin = { x: 0, y: 0, panelX: 0, panelY: 0 };
-
-    function clamp(value: number, min: number, max: number): number {
-        return Math.min(Math.max(value, min), max);
-    }
-
-    function surfaceBounds(): { width: number; height: number; left: number; top: number } | undefined {
-        const surface = panelEl?.parentElement;
-        if (!surface) {
-            return undefined;
-        }
-        const rect = surface.getBoundingClientRect();
-        return { width: rect.width, height: rect.height, left: rect.left, top: rect.top };
-    }
+    let disconnectResize: (() => void) | undefined;
 
     function ensurePosition(): void {
         if (!panelEl || panelX !== undefined) {
             return;
         }
-        const bounds = surfaceBounds();
+        const bounds = readSurfaceBounds(panelEl);
         if (!bounds) {
             return;
         }
         const panelRect = panelEl.getBoundingClientRect();
         panelX = panelRect.left - bounds.left;
         panelY = panelRect.top - bounds.top;
+    }
+
+    function attachResizeObserver(): void {
+        disconnectResize?.();
+        disconnectResize = undefined;
+        if (!panelEl) {
+            return;
+        }
+        disconnectResize = observeSurfaceResize(
+            panelEl,
+            () => ({ x: panelX, y: panelY }),
+            (x, y) => {
+                panelX = x;
+                panelY = y;
+            }
+        );
     }
 
     function onHandlePointerDown(event: PointerEvent): void {
@@ -48,7 +63,7 @@
         event.stopPropagation();
         ensurePosition();
 
-        const bounds = surfaceBounds();
+        const bounds = readSurfaceBounds(panelEl);
         if (!bounds || panelX === undefined || panelY === undefined) {
             return;
         }
@@ -69,24 +84,21 @@
             return;
         }
 
-        const bounds = surfaceBounds();
+        const bounds = readSurfaceBounds(panelEl);
         if (!bounds || !panelEl) {
             return;
         }
 
-        const panelRect = panelEl.getBoundingClientRect();
         const dx = event.clientX - dragOrigin.x;
         const dy = event.clientY - dragOrigin.y;
-        panelX = clamp(
+        const next = clampPanelPosition(
+            panelEl,
             dragOrigin.panelX + dx,
-            0,
-            Math.max(0, bounds.width - panelRect.width)
-        );
-        panelY = clamp(
             dragOrigin.panelY + dy,
-            0,
-            Math.max(0, bounds.height - panelRect.height)
+            bounds
         );
+        panelX = next.x;
+        panelY = next.y;
     }
 
     function onHandlePointerUp(event: PointerEvent): void {
@@ -100,8 +112,17 @@
         }
     }
 
+    $: if (open && panelEl) {
+        attachResizeObserver();
+    } else {
+        disconnectResize?.();
+        disconnectResize = undefined;
+    }
+
     onDestroy(() => {
         dragging = false;
+        disconnectResize?.();
+        disconnectResize = undefined;
     });
 </script>
 
@@ -138,8 +159,17 @@
             {#each items as item (item.label)}
                 <li class="graph-key-item">
                     {#if item.kind === 'node'}
-                        <span class="graph-key-swatch" style:background={item.color}></span>
-                        <span>{item.label}</span>
+                        <button
+                            type="button"
+                            class="graph-key-toggle"
+                            class:graph-key-toggle-hidden={hiddenTypes.includes(item.typeId)}
+                            aria-pressed={!hiddenTypes.includes(item.typeId)}
+                            title="Toggle {item.label} visibility"
+                            on:click|stopPropagation={() => dispatch('toggleType', item.typeId)}
+                        >
+                            <span class="graph-key-swatch" style:background={item.color}></span>
+                            <span class="graph-key-toggle-label">{item.label}</span>
+                        </button>
                     {:else if item.kind === 'compound'}
                         <span class="graph-key-compound"></span>
                         <span>{item.label}</span>

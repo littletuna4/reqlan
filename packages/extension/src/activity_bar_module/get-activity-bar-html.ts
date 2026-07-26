@@ -21,9 +21,20 @@ export function getActivityBarHtml(webview: vscode.Webview, extensionUri: vscode
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reqlan Context</title>
   <link rel="stylesheet" href="${styleUri}">
+  <style>
+    .shell-loading {
+      margin: 0;
+      padding: 12px 10px;
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      color: var(--vscode-descriptionForeground);
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="app">
+    <p class="shell-loading" role="status" aria-live="polite">Loading Reqlan…</p>
+  </div>
   <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

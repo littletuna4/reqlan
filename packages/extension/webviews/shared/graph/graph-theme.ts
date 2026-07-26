@@ -46,10 +46,14 @@ export const GRAPH_LEGEND_CSS_COLORS = {
     groupSelected: GRAPH_EMPHASIS_COLORS.selected.css
 } as const;
 
+/** Node type ids the key panel can toggle; priority matches graphNodeFill. */
+export type GraphNodeTypeId = 'block' | 'oneliner' | 'ideaset' | 'focus' | 'external';
+
 export interface GraphLegendNodeItem {
     kind: 'node';
     label: string;
     color: string;
+    typeId: GraphNodeTypeId;
 }
 
 export interface GraphLegendEdgeItem {
@@ -76,17 +80,35 @@ export type GraphLegendItem =
     | GraphLegendGroupEmphasisItem;
 
 export const GRAPH_LEGEND_ITEMS: GraphLegendItem[] = [
-    { kind: 'node', label: 'Block idea', color: GRAPH_LEGEND_CSS_COLORS.block },
-    { kind: 'node', label: 'One-liner', color: GRAPH_LEGEND_CSS_COLORS.oneliner },
-    { kind: 'node', label: 'Ideaset', color: GRAPH_LEGEND_CSS_COLORS.ideaset },
-    { kind: 'node', label: 'Focused idea', color: GRAPH_LEGEND_CSS_COLORS.focus },
-    { kind: 'node', label: 'External file', color: GRAPH_LEGEND_CSS_COLORS.external },
+    { kind: 'node', label: 'Block idea', color: GRAPH_LEGEND_CSS_COLORS.block, typeId: 'block' },
+    { kind: 'node', label: 'One-liner', color: GRAPH_LEGEND_CSS_COLORS.oneliner, typeId: 'oneliner' },
+    { kind: 'node', label: 'Ideaset', color: GRAPH_LEGEND_CSS_COLORS.ideaset, typeId: 'ideaset' },
+    { kind: 'node', label: 'Focused idea', color: GRAPH_LEGEND_CSS_COLORS.focus, typeId: 'focus' },
+    { kind: 'node', label: 'External file', color: GRAPH_LEGEND_CSS_COLORS.external, typeId: 'external' },
     { kind: 'compound', label: 'Folder group (container)' },
     { kind: 'group-emphasis', label: 'Group hover — member border', variant: 'hover' },
     { kind: 'group-emphasis', label: 'Group selected — member border', variant: 'selected' },
     { kind: 'edge', label: 'Reference', variant: 'solid' },
     { kind: 'edge', label: 'External file reference', variant: 'dashed' }
 ];
+
+/** Classify a node into a legend/toggle type; same priority order as graphNodeFill. */
+export function graphNodeTypeId(node: GraphNodeView, centerId?: string): GraphNodeTypeId {
+    if (node.isExternal) {
+        return 'external';
+    }
+    if (node.id === centerId) {
+        return 'focus';
+    }
+    switch (node.kind) {
+        case 'oneliner':
+            return 'oneliner';
+        case 'ideaset':
+            return 'ideaset';
+        default:
+            return 'block';
+    }
+}
 
 export function graphNodeFill(node: GraphNodeView, centerId?: string): string {
     if (node.isExternal) {

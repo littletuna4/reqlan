@@ -143,6 +143,12 @@ function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: numbe
     return false;
 }
 
+/**
+ * A `}` closes a structural block only when it is the last non-whitespace on its line
+ * and it is not pairing with an unmatched prose `{` earlier on that line / in the body.
+ * Own-line closers (`}` after only indentation) always close structurally so an
+ * unbalanced prose `{` does not swallow the idea's closing brace.
+ */
 function isStructuralCloseBraceAt(text: string, offset: number): boolean {
     if (text[offset] !== '}') {
         return false;
@@ -152,23 +158,87 @@ function isStructuralCloseBraceAt(text: string, offset: number): boolean {
     }
     const after = text.slice(offset + 1);
     const restOfLine = after.split(/\r?\n/, 1)[0] ?? '';
-    return restOfLine.trim().length === 0;
+    if (restOfLine.trim().length !== 0) {
+        return false;
+    }
+    const { structuralDepth, proseDepth } = scanBraceState(text, offset);
+    if (structuralDepth <= 0) {
+        return false;
+    }
+    if (isLineStartAt(text, offset)) {
+        return true;
+    }
+    return proseDepth === 0;
+}
+
+interface BraceScanState {
+    structuralDepth: number;
+    proseDepth: number;
+}
+
+function scanBraceState(text: string, offset: number): BraceScanState {
+    let structuralDepth = 0;
+    const proseDepthByStructural: number[] = [0];
+
+    const proseDepthAt = (): number => proseDepthByStructural[structuralDepth] ?? 0;
+    const setProseDepth = (value: number): void => {
+        proseDepthByStructural[structuralDepth] = value;
+    };
+
+    for (let index = 0; index < offset; index++) {
+        const char = text[index];
+        if (char === '{') {
+            if (isEscapedAt(text, index)) {
+                continue;
+            }
+            if (isStructuralOpenBraceAtDepth(text, index, structuralDepth)) {
+                structuralDepth++;
+                proseDepthByStructural[structuralDepth] = 0;
+            } else {
+                setProseDepth(proseDepthAt() + 1);
+            }
+            continue;
+        }
+        if (char !== '}') {
+            continue;
+        }
+        if (isEscapedAt(text, index)) {
+            continue;
+        }
+        const after = text.slice(index + 1);
+        const restOfLine = after.split(/\r?\n/, 1)[0] ?? '';
+        const atEndOfLine = restOfLine.trim().length === 0;
+        if (!atEndOfLine) {
+            if (proseDepthAt() > 0) {
+                setProseDepth(proseDepthAt() - 1);
+            }
+            continue;
+        }
+        if (structuralDepth <= 0) {
+            if (proseDepthAt() > 0) {
+                setProseDepth(proseDepthAt() - 1);
+            }
+            continue;
+        }
+        if (isLineStartAt(text, index)) {
+            structuralDepth--;
+            continue;
+        }
+        if (proseDepthAt() > 0) {
+            setProseDepth(proseDepthAt() - 1);
+        } else {
+            structuralDepth--;
+        }
+    }
+
+    return {
+        structuralDepth,
+        proseDepth: proseDepthAt()
+    };
 }
 
 function scanStructuralBraceDepth(text: string, offset: number): number {
-    let depth = 0;
-    for (let index = 0; index < offset; index++) {
-        if (text[index] === '{') {
-            if (isStructuralOpenBraceAtDepth(text, index, depth)) {
-                depth++;
-            }
-        } else if (text[index] === '}') {
-            if (isStructuralCloseBraceAt(text, index)) {
-                depth--;
-            }
-        }
-    }
-    return depth;
+    return scanBraceState(text, offset).structuralDepth;
 }
 
 function isStructuralOpenBraceAt(text: string, offset: number): boolean {

@@ -26,7 +26,7 @@ any_file_scope {
     - [file_reference_links]: `.rq` ideas whose outbound `file_reference` edges target this file path (e.g. `["./apythonfile.py"]`).
     - [folder_reference_links]: `.rq` ideas whose `file_reference` targets a parent folder of this file.
     - [comment_reference_links]: ideas resolved from `rq:[…]` tokens in this file's comments per [code_comment_refs.references_in_functional_code_comments].
-    - [git_context]: staged/unstaged status for this file when present in the working tree.
+    - [git_context]: focus-centric git history (recent commits, authors, branch); working-tree dirty badge secondary.
 
   Focus behaviour:
     - `.rq` file with caret in a block → idea focus (unchanged).
@@ -65,7 +65,7 @@ context_dimensions {
     - manual [manual_context]
         User-pinned ideas from [activitybar.context_tray] and explicit "add to context" actions.
     - git [git_context]
-        Working tree and index changes for workspace paths per [index_reqs.git_information_capture]; branch name when available.
+        Focus-centric development history (branch, recent commits, authors) per [index_reqs.git_information_capture]; working-tree changes demoted.
 }
 
 reqlan_context_model {
@@ -153,7 +153,8 @@ scope_pane_design {
         expanded_lens_panel{
             Content depends on which lens is expanded:
             - current_file: for `.rq` — in-file idea list + nested outline; for other files — grouped file_reference_links, comment_reference_links, folder_reference_links.
-            - open_files / file_history / edit_history / git: compact scrollable file rows (max 8 visible); click opens file; **Refs** loads linked requirements lazily via `loadFileLens`.
+            - open_files / file_history / edit_history: compact scrollable file rows (max 8 visible); click opens file; **Refs** loads linked requirements lazily via `loadFileLens`.
+            - git: history-first panel per [activitybar.git_history_lens] — branch/HEAD header, focus commit trail, authors; dirty working tree nested secondary.
             - manual: chips from tray with remove.
             - workspace: link to activitybar.workspace_pane / Ideas Summary — no duplicate index UI.
         }
@@ -199,7 +200,13 @@ manual_context {
 
 git_context {
     weight: 0.7
-    Default enabled when repository detected; staged vs unstaged counts in summary; per-file `gitChange` on active file and git lens rows.
+    Default enabled when repository detected.
+    Primary: focus-centric git history — branch, HEAD short hash, recent commits touching the focus file/idea, top authors.
+    Summary prefers history richness (e.g. "main · 3 commits · 2 authors"), not staged/unstaged counts.
+    Working-tree dirty files remain available as a demoted nested section and optional footprint contributors.
+    Focus hero shows a history cue (last commit age / branch) instead of a staged/unstaged chip.
+    Consumes [index_reqs.git_information_capture] and ["context-scope-v2.rq".development_history_signals].
+    UI: [activitybar.git_history_lens].
 }
 
 implementation_priority {

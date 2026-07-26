@@ -1,6 +1,8 @@
 <script lang="ts">
     import { getApp } from '../state/context.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import NestedSection from './NestedSection.svelte';
+    import PaneStatus from './PaneStatus.svelte';
 
     interface Props {
         expanded: boolean;
@@ -13,31 +15,38 @@
 </script>
 
 <CollapsiblePane title="Parents" id="parents" {expanded} {onToggle}>
-    {#if !result || result.ancestors.length === 0}
-        <p class="muted">No upstream reference parents.</p>
-    {:else}
-        <p class="muted">Status rollup: {Object.entries(result.statusRollup).map(([k, v]) => `${k}:${v}`).join(', ')}</p>
-        <ul class="list">
-            {#each result.ancestors as ancestor, index}
-                <li>
-                    <button class="link" onclick={() => app.openIdea(ancestor.fileUri, ancestor.lineStart)}>
-                        {index + 1}. {ancestor.name}
-                    </button>
-                    <span class="muted"> ({ancestor.status ?? 'unspecified'})</span>
-                </li>
-            {/each}
-        </ul>
-        {#if result.blocking.length > 0}
-            <h4>Blocks completion</h4>
+    <PaneStatus
+        loading={app.ancestorsLoading}
+        error={app.ancestorsError}
+        empty={!result || result.ancestors.length === 0}
+        loadingText="Loading ancestors…"
+        emptyText="No upstream reference parents."
+    >
+        <p class="muted">Status rollup: {Object.entries(result?.statusRollup ?? {}).map(([k, v]) => `${k}:${v}`).join(', ')}</p>
+        <NestedSection title="Ancestors" count={result?.ancestors.length ?? 0} defaultExpanded={true}>
             <ul class="list">
-                {#each result.blocking as blocker}
+                {#each result?.ancestors ?? [] as ancestor, index}
                     <li>
-                        <button class="link" onclick={() => app.openIdea(blocker.fileUri, blocker.lineStart)}>
-                            {blocker.name}
+                        <button class="link" onclick={() => app.openIdea(ancestor.fileUri, ancestor.lineStart)}>
+                            {index + 1}. {ancestor.name}
                         </button>
+                        <span class="muted"> ({ancestor.status ?? 'unspecified'})</span>
                     </li>
                 {/each}
             </ul>
+        </NestedSection>
+        {#if (result?.blocking.length ?? 0) > 0}
+            <NestedSection title="Blocks completion" count={result?.blocking.length ?? 0} defaultExpanded={true}>
+                <ul class="list">
+                    {#each result?.blocking ?? [] as blocker}
+                        <li>
+                            <button class="link" onclick={() => app.openIdea(blocker.fileUri, blocker.lineStart)}>
+                                {blocker.name}
+                            </button>
+                        </li>
+                    {/each}
+                </ul>
+            </NestedSection>
         {/if}
-    {/if}
+    </PaneStatus>
 </CollapsiblePane>

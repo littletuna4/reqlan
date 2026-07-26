@@ -3,6 +3,21 @@
  * per ["../../../../../reqlan rq/extension/module/webview.rq"]
  */
 
+import type { GraphUiPersistedState } from './graph-ui-state.js';
+
+export type {
+    GraphUiNodeTypeId,
+    GraphUiPersistedState,
+    GraphUiPhysicsPersisted,
+    GraphUiTruncationBasis
+} from './graph-ui-state.js';
+export {
+    DEFAULT_GRAPH_UI_PHYSICS,
+    DEFAULT_GRAPH_UI_STATE,
+    GRAPH_UI_WORKSPACE_STATE_KEY,
+    normalizeGraphUiState
+} from './graph-ui-state.js';
+
 export const IDEAS_PAGE_SIZE = 50;
 export const IDEASETS_PAGE_SIZE = 50;
 export const REFERENCES_PAGE_SIZE = 50;
@@ -154,6 +169,8 @@ export interface GraphViewQuery {
     includeIndirect: boolean;
     hopDepth?: number;
     maxNodes?: number;
+    /** When the matching set exceeds maxNodes, which ordering decides who stays. */
+    truncationBasis?: 'path' | 'git-modified' | 'git-created';
 }
 
 export interface GraphNodeView {
@@ -224,7 +241,8 @@ export type WebviewToExtensionMessage =
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'requestWebviewReload' }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
-    | { type: 'dumpFullGraph' };
+    | { type: 'dumpFullGraph' }
+    | { type: 'persistGraphUiState'; state: GraphUiPersistedState };
 
 export type ExtensionToWebviewMessage =
     | { type: 'indexStatus'; status: IndexStatusView }
@@ -235,4 +253,5 @@ export type ExtensionToWebviewMessage =
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }
     | { type: 'navigate'; intent: IdeasSummaryNavigateIntent }
     | { type: 'fullGraph'; ideaCount: number; edgeCount: number; ideasJson: string; edgesJson: string }
+    | { type: 'graphUiState'; state: GraphUiPersistedState }
     | { type: 'error'; message: string; requestId?: number };
