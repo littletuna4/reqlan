@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 1.3.0
+
+### Minor Changes
+
+- 4b9d33b: brevity improvements in activitybar. graph interactivity improvements. various syntactic fixes
+
 ## 1.2.0
 
 ### Minor Changes

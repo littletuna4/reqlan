@@ -1,5 +1,17 @@
 # reqlan
 
+## 1.3.0
+
+### Minor Changes
+
+- 4b9d33b: brevity improvements in activitybar. graph interactivity improvements. various syntactic fixes
+
+### Patch Changes
+
+- Updated dependencies [4b9d33b]
+  - reqlan-analytical@0.3.0
+  - reqlan-language@1.3.0
+
 ## 1.2.0
 
 ### Minor Changes
