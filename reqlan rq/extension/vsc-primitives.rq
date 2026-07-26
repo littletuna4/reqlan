@@ -1,0 +1,9 @@
+codelens {}
+
+code_completion {}
+
+inlay_hints {}
+
+code_actions {}
+
+quick_fixes {}

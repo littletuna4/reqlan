@@ -11,11 +11,14 @@ import {
     fileLinkTargetIssueMessage
 } from './reqlan-file-link-resolver.js';
 import { importBindings, importedIdeaNames } from './reqlan-import-bindings.js';
+import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 /**
  * Registers validation hooks for the requirement graph AST.
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
@@ -28,6 +31,7 @@ export function registerValidationChecks(services: ReqlanServices) {
 
 /**
  * Custom validations for Reqlan documents.
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  */
 export class ReqlanValidator {
 
@@ -36,6 +40,7 @@ export class ReqlanValidator {
     checkModelDuplicates(model: Model, accept: ValidationAcceptor): void {
         this.checkDuplicateImportBindings(model, accept);
         this.checkDuplicateIdeaNames(model, accept);
+        this.checkImportTargets(model, accept);
         this.checkFileReferenceTargets(model, accept);
     }
 
@@ -88,6 +93,35 @@ export class ReqlanValidator {
         }
     }
 
+    /**
+     * Error underline when an `import` / `from` path does not resolve to a file.
+     * Missing imported ideas are reported by the linker as unresolved references.
+     */
+    checkImportTargets(model: Model, accept: ValidationAcceptor): void {
+        const document = AstUtils.getDocument(model);
+        const { shared } = this.services;
+        const pathContext = pathResolveContextFromServices(this.services);
+        for (const importDecl of model.imports) {
+            const path = unquoteReqlanString(importDecl.path);
+            if (!path || isRemoteImportPath(path)) {
+                continue;
+            }
+            if (isResolvableImportPath(
+                path,
+                document,
+                shared.workspace.LangiumDocuments,
+                shared.workspace.FileSystemProvider,
+                pathContext
+            )) {
+                continue;
+            }
+            accept('error', `Could not resolve import '${path}'.`, {
+                node: importDecl,
+                property: 'path'
+            });
+        }
+    }
+
     checkFileReferenceTargets(model: Model, accept: ValidationAcceptor): void {
         const document = AstUtils.getDocument(model);
         const { shared } = this.services;
@@ -109,3 +143,7 @@ export class ReqlanValidator {
 }
 
 type ImportBindingSource = ReturnType<typeof importBindings>[number];
+
+function isRemoteImportPath(path: string): boolean {
+    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(path);
+}

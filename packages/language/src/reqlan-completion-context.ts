@@ -28,6 +28,7 @@ export type CompletionSite =
     | 'attribute_key'
     | 'attribute_value'
     | 'reference'
+    | 'anonymous_import_path'
     | 'default';
 
 export interface AttributeKeyContext {
@@ -49,12 +50,22 @@ export interface ReferencePrefixContext {
     replaceEnd: Position;
 }
 
+export interface AnonymousImportPathContext {
+    prefix: string;
+    delimiter: '"' | "'";
+    replaceStart: Position;
+    replaceEnd: Position;
+}
+
 export function getCompletionSite(document: LangiumDocument, position: Position): CompletionSite {
     if (getAttributeKeyContext(document, position)) {
         return 'attribute_key';
     }
     if (getAttributeValueContext(document, position)) {
         return 'attribute_value';
+    }
+    if (getAnonymousImportPathContext(document, position)) {
+        return 'anonymous_import_path';
     }
     if (getReferencePrefixContext(document, position)) {
         return 'reference';
@@ -63,6 +74,36 @@ export function getCompletionSite(document: LangiumDocument, position: Position)
         return 'main_description';
     }
     return 'default';
+}
+
+/**
+ * Quoted path inside a bracket reference, e.g. `["@/…` or `['./foo`.
+ * Text-based so incomplete/unclosed strings still complete like import paths.
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
+ */
+export function getAnonymousImportPathContext(
+    document: LangiumDocument,
+    position: Position
+): AnonymousImportPathContext | undefined {
+    if (isMarkdownLinkLabelPosition(document, position) || linePrefixBeforeMarkdownLinkTarget(document, position)) {
+        return undefined;
+    }
+    const line = document.textDocument.getText({
+        start: { line: position.line, character: 0 },
+        end: { line: position.line, character: position.character }
+    });
+    const match = /(?:^|[^[])\[(["'])([^"']*)$/.exec(line);
+    if (!match) {
+        return undefined;
+    }
+    const delimiter = match[1] as '"' | "'";
+    const prefix = match[2] ?? '';
+    return {
+        prefix,
+        delimiter,
+        replaceStart: { line: position.line, character: position.character - prefix.length },
+        replaceEnd: position
+    };
 }
 
 export function getAttributeKeyContext(
@@ -162,7 +203,7 @@ export function getAttributeValueContext(
 }
 
 export function isInMainDescriptionProse(document: LangiumDocument, position: Position): boolean {
-    if (getReferencePrefixContext(document, position)) {
+    if (getAnonymousImportPathContext(document, position) || getReferencePrefixContext(document, position)) {
         return false;
     }
     const linePrefix = document.textDocument.getText({

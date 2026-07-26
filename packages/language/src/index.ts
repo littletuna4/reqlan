@@ -14,6 +14,7 @@ export * from './reqlan-reference-at-position.js';
 export * from './reqlan-attribute-catalog.js';
 export * from './reqlan-completion-context.js';
 export * from './reqlan-completion-provider.js';
+export * from './reqlan-path-completion.js';
 export * from './reqlan-code-action-provider.js';
 export * from './reqlan-import-edits.js';
 export * from './reqlan-name-catalog.js';

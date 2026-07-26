@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { beforeAll, describe, expect, test } from 'vitest';
-import { EmptyFileSystem, type LangiumDocument } from 'langium';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { afterEach, beforeAll, describe, expect, test } from 'vitest';
+import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
-import { parseHelper } from 'langium/test';
+import { NodeFileSystem } from 'langium/node';
+import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from 'reqlan-language';
 import { createReqlanServices, isModel } from 'reqlan-language';
 
@@ -17,6 +18,13 @@ beforeAll(async () => {
     services = createReqlanServices(EmptyFileSystem);
     const doParse = parseHelper<Model>(services.Reqlan);
     parse = (input: string) => doParse(input, { validation: true });
+});
+
+afterEach(async () => {
+    const documents = services.shared.workspace.LangiumDocuments.all.toArray();
+    if (documents.length > 0) {
+        clearDocuments(services.shared, documents);
+    }
 });
 
 describe('Validating', () => {
@@ -70,6 +78,76 @@ describe('Validating', () => {
         );
         expect(duplicateErrors).toHaveLength(1);
         expect(duplicateErrors[0].range.start.line).toBe(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+    test('reports an error when an import path file does not exist', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const importerUri = URI.parse(pathToFileURL(join(exampleDir, 'missing-import.rq')).href);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'import "./does-not-exist.rq" as missing\n',
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missingFileErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve import './does-not-exist.rq'.")
+        );
+        expect(missingFileErrors.length).toBeGreaterThanOrEqual(1);
+        expect(missingFileErrors[0]?.severity).toBe(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+    test('reports an error when a from-import path file does not exist', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const importerUri = URI.parse(pathToFileURL(join(exampleDir, 'missing-from-import.rq')).href);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'from "./does-not-exist.rq" import ghost\n',
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missingFileErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve import './does-not-exist.rq'.")
+        );
+        expect(missingFileErrors.length).toBeGreaterThanOrEqual(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+    test('reports an error when an imported idea does not exist in the target file', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const targetUri = URI.parse(pathToFileURL(join(exampleDir, 'exampleimport.rq')).href);
+        const target = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(exampleDir, 'exampleimport.rq'), 'utf8'),
+            targetUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(target);
+        const importerUri = URI.parse(pathToFileURL(join(exampleDir, 'missing-idea-import.rq')).href);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'from "./exampleimport.rq" import missing_idea\n',
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([target, document], { validation: true });
+
+        const missingIdeaErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve reference to IdeaDeclaration named 'missing_idea'.")
+        );
+        expect(missingIdeaErrors.length).toBeGreaterThanOrEqual(1);
+        expect(missingIdeaErrors[0]?.severity).toBe(1);
+        const missingFileErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve import')
+        );
+        expect(missingFileErrors).toHaveLength(0);
     });
 });
 

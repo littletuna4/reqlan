@@ -25,5 +25,6 @@ language_overview {
 }
 
 acknowledgements {
-    Thank you to the sponsors and contributors who support continued development of reqlan.
+    - LLMs
+    - PKMs
 }

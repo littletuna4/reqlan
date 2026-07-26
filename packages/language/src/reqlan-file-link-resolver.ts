@@ -7,7 +7,7 @@ import type { Range } from 'vscode-languageserver';
 import { resolveFileUri } from './reqlan-comment-resolver.js';
 import type { EmbeddedFileReference } from './reqlan-embedded-file-references.js';
 import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-references.js';
-import { findImportedDocument } from './reqlan-imports.js';
+import { findImportedDocument, resolveExistingImportUri } from './reqlan-imports.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import {
@@ -325,7 +325,7 @@ export function resolveImportedFileLink(
     sourceRange: Range,
     context?: PathResolveContext
 ): ResolvedFileLink | undefined {
-    const targetUri = resolveFileUri(filePath, document, withFileSystem(fileSystem, context));
+    const targetUri = resolveExistingImportUri(filePath, document, documents, fileSystem, context);
     return resolvePathStringLink(document, documents, fileSystem, { filePath }, targetUri, sourceRange);
 }
 

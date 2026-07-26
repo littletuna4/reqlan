@@ -1,4 +1,5 @@
 from "./language-server-errors.rq" import general_errors
+from "@/reqlan rq/extension/code_completion.rq" import code_completion
 
 remote_imports {
     Reqlan files should support importing requirements from remote urls.
@@ -10,8 +11,6 @@ remote_imports {
 from_import_syntax {
     Multiple symbols should be allowd to be be imported with `from "path" import symbol1, symbol2, symbol3` syntax.
 }
-
-
 
 import_error {
     "Could not resolve reference" errors offer Quick Fix code actions (lightbulb and editor right-click Quick Fix).
@@ -26,4 +25,104 @@ import_error {
         ["../../../packages/language/test/code-actions.test.ts"]
         ["../../../packages/language/test/import-edits.test.ts"]
     )
+}
+
+implicit_file_extension {
+    The import statements should not require an extension, i.e. it should assume ".rq" unless otherwise specified.
+    An extensionless path resolves to the ".rq" file first, then to a literal extensionless file.
+    A path that already carries any extension is resolved exactly as written.
+    @implementation (
+        ["../../../packages/language/src/reqlan-imports.ts"]
+        ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/implicit-import-extension.test.ts"]
+    )
+}
+
+
+import_code_completion {
+    Import path code completion for `import` / `from` strings (and shared anonymous paths).
+    [import_code_completion_explicit_extension]
+    [import_code_completion_path_segments]
+    [import_code_completion_substring_match]
+    [import_code_completion_ranking]
+    [anonymous_reference_code_completion]
+}
+
+import_code_completion_explicit_extension {
+    Completions insert paths with an explicit `.rq` extension. [implicit_file_extension]
+    Hand-written imports may still omit the extension; completion prefers the written form with `.rq`.
+
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
+}
+
+import_code_completion_path_segments {
+    In a folder context, show next path segments (directories with a trailing `/`).
+    After `../`, offer `../path/` before nested `../path/file.rq`.
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
+}
+
+import_code_completion_substring_match {
+    Filter path candidates by search within the path, not only a starts-with prefix.
+    Typing `path` should match `../../parent/path.rq`.
+    Typing `hellopath` should match `../../hello/inbetween/path/file.rq` (characters matched in order across path segments).
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
+}
+
+import_does_not_exist_error {
+    Imports show an underline error when the target file does not exist.
+    Imports also show an underline error when a named imported idea does not exist in the target file.
+    [general_errors]
+    @tests (
+        ["../../../packages/language/test/validating.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-validator.ts"]
+    )
+}
+
+import_code_completion_ranking {
+    Rank import path completions by directory proximity (hop count from the completing file's directory to the candidate's directory), then directories before files, then path alphabetically.
+    Example: typing `../` ranks `../close.rq` before `../../../path.rq`.
+    Emit sortText for that order, and set filterText so the editor does not re-rank by label fuzzy score over proximity.
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
+}
+
+anonymous_reference_code_completion {
+    Anonymous imports should share the same code completion
+    e.g. ["@/reqlan rq/extension/code_completion.rq"] should complete the same as `import "@/reqlan rq/extension/code_completion.rq" as code_completion`. they should share the same code and logic
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-completion-context.ts"]
+    )
+    
 }

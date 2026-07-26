@@ -4,9 +4,12 @@
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion]
  * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
  */
-import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
-import { AstUtils, UriUtils, stream } from 'langium';
+import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
+import { AstUtils, stream } from 'langium';
 import type { MaybePromise } from 'langium';
 import {
     DefaultCompletionProvider,
@@ -31,16 +34,20 @@ import {
 import { AttributeCatalogStore, ENDORSED_ATTRIBUTE_KEYS } from './reqlan-attribute-catalog.js';
 import {
     findContainingIdea,
+    getAnonymousImportPathContext,
     getAttributeKeyContext,
     getAttributeValueContext,
     getCompletionSite,
     getReferencePrefixContext
 } from './reqlan-completion-context.js';
 import {
-    pathResolveContextFromServices,
-    resolveImportRootUri,
-    resolveRqConfig
-} from './reqlan-path-resolve.js';
+    collectPathCompletionCandidates,
+    comparePathCompletionCandidates,
+    pathCompletionFilterText,
+    pathCompletionSortText,
+    type PathCompletionCandidate
+} from './reqlan-path-completion.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { referenceIdea } from './reqlan-references.js';
 import { collectWorkspaceAttributeCatalog } from './reqlan-workspace-attribute-catalog.js';
 import type { ReqlanServices } from './reqlan-module.js';
@@ -81,6 +88,9 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         if (site === 'attribute_value') {
             return this.completeAttributeValues(document, params);
         }
+        if (site === 'anonymous_import_path') {
+            return this.completeAnonymousImportPath(document, params);
+        }
         if (site === 'reference') {
             return this.completeReferenceNames(document, params);
         }
@@ -93,12 +103,9 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         next: Parameters<DefaultCompletionProvider['completionFor']>[1],
         acceptor: CompletionAcceptor
     ): MaybePromise<void> {
-        if (next.property === 'path') {
+        if (next.property === 'path' || next.property === 'file') {
+            // Import paths and anonymous bracket paths share the same candidate logic.
             this.completeImportPath(context, acceptor);
-            return;
-        }
-        if (next.property === 'file') {
-            this.completeFilePath(context, acceptor);
             return;
         }
         return super.completionFor(context, next, acceptor);
@@ -231,32 +238,42 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         return LspCompletionList.create(items, true);
     }
 
+    private completeAnonymousImportPath(document: LangiumDocument, params: CompletionParams): CompletionList {
+        const context = getAnonymousImportPathContext(document, params.position);
+        if (!context) {
+            return LspCompletionList.create([], true);
+        }
+        const candidates = this.collectImportPathCandidates(document, context.prefix)
+            .sort((left, right) => comparePathCompletionCandidates(document, left, right));
+        const items = candidates.map(candidate => ({
+            label: candidate.path,
+            kind: candidate.isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
+            textEdit: {
+                newText: candidate.path,
+                range: {
+                    start: context.replaceStart,
+                    end: context.replaceEnd
+                }
+            },
+            sortText: pathCompletionSortText(document, candidate),
+            filterText: pathCompletionFilterText(context.prefix, candidate)
+        }));
+        return LspCompletionList.create(items, true);
+    }
+
     private completeImportPath(context: CompletionContext, acceptor: CompletionAcceptor): void {
-        this.completeQuotedPath(context, acceptor, this.collectPathCandidates(context.document, '.rq'));
-    }
-
-    private completeFilePath(context: CompletionContext, acceptor: CompletionAcceptor): void {
-        this.completeQuotedPath(context, acceptor, this.collectPathCandidates(context.document));
-    }
-
-    private completeQuotedPath(
-        context: CompletionContext,
-        acceptor: CompletionAcceptor,
-        candidates: string[]
-    ): void {
         const text = context.textDocument.getText();
         const existingText = text.substring(context.tokenOffset, context.offset);
-        let paths = candidates;
         let range = {
             start: context.position,
             end: context.position
         };
+        let prefix = '';
         if (existingText.length > 0) {
             const delimiter = reqlanStringDelimiter(existingText);
-            const unquoted = delimiter
+            prefix = delimiter
                 ? existingText.slice(1, existingText.endsWith(delimiter) ? -1 : undefined)
                 : existingText;
-            paths = paths.filter(path => path.startsWith(unquoted));
             const quoteOffset = delimiter ? 1 : 0;
             const start = context.textDocument.positionAt(context.tokenOffset + quoteOffset);
             const end = context.textDocument.positionAt(
@@ -264,153 +281,35 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             );
             range = { start, end };
         }
-        for (const path of paths) {
+        const candidates = this.collectImportPathCandidates(context.document, prefix)
+            .sort((left, right) => comparePathCompletionCandidates(context.document, left, right));
+        for (const candidate of candidates) {
             const delimiter = reqlanStringDelimiter(existingText);
             const opening = delimiter ?? '"';
             const needsClosing = !delimiter || !existingText.endsWith(delimiter);
             const closing = needsClosing ? opening : '';
             acceptor(context, {
-                label: path,
+                label: candidate.path,
                 textEdit: {
-                    newText: `${delimiter ? '' : opening}${path}${closing}`,
+                    newText: `${delimiter ? '' : opening}${candidate.path}${closing}`,
                     range
                 },
-                kind: CompletionItemKind.File,
-                sortText: '0'
+                kind: candidate.isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
+                sortText: pathCompletionSortText(context.document, candidate),
+                filterText: pathCompletionFilterText(prefix, candidate)
             });
         }
     }
 
-    private collectPathCandidates(document: LangiumDocument, extensionFilter?: string): string[] {
-        const paths = new Set([
-            ...this.collectRelativePathCandidates(document, extensionFilter),
-            ...this.collectAliasedPathCandidates(document, extensionFilter)
-        ]);
-        return [...paths].sort((left, right) => left.localeCompare(right));
-    }
-
-    private collectRelativePathCandidates(document: LangiumDocument, extensionFilter?: string): string[] {
-        const dirname = UriUtils.dirname(document.uri).toString();
-        const paths = new Set<string>();
-        for (const doc of this.documents.all.toArray()) {
-            if (UriUtils.equals(doc.uri, document.uri)) {
-                continue;
-            }
-            if (extensionFilter && !doc.uri.path.endsWith(extensionFilter)) {
-                continue;
-            }
-            paths.add(this.relativePathWithoutExtension(dirname, doc.uri));
-        }
-        const sourceDir = UriUtils.dirname(document.uri);
-        if (this.fileSystem.existsSync(sourceDir)) {
-            this.collectDirectoryPaths(sourceDir, dirname, paths, extensionFilter);
-        }
-        return [...paths];
-    }
-
-    private collectAliasedPathCandidates(document: LangiumDocument, extensionFilter?: string): string[] {
-        const pathContext = pathResolveContextFromServices(this.services);
-        const config = resolveRqConfig(document, pathContext);
-        const paths = new Set<string>();
-        for (const mapping of config.importRoots) {
-            const importRoot = resolveImportRootUri(document, pathContext, mapping);
-            if (!importRoot) {
-                continue;
-            }
-            const aliasPrefix = `${mapping.alias}/`;
-            const rootString = importRoot.toString();
-            for (const doc of this.documents.all.toArray()) {
-                if (UriUtils.equals(doc.uri, document.uri)) {
-                    continue;
-                }
-                if (extensionFilter && !doc.uri.path.endsWith(extensionFilter)) {
-                    continue;
-                }
-                const aliased = this.aliasedPathWithoutExtension(rootString, aliasPrefix, doc.uri);
-                if (aliased) {
-                    paths.add(aliased);
-                }
-            }
-            if (this.fileSystem.existsSync(importRoot)) {
-                this.collectAliasedDirectoryPaths(importRoot, rootString, aliasPrefix, paths, extensionFilter);
-            }
-        }
-        return [...paths];
-    }
-
-    private collectDirectoryPaths(
-        directory: URI,
-        sourceDirname: string,
-        paths: Set<string>,
-        extensionFilter?: string
-    ): void {
-        for (const entry of this.fileSystem.readDirectorySync(directory)) {
-            const name = entry.uri.path.split('/').pop() ?? '';
-            if (!name || name.startsWith('.')) {
-                continue;
-            }
-            if (entry.isDirectory) {
-                paths.add(`${this.relativePathWithoutExtension(sourceDirname, entry.uri)}/`);
-                continue;
-            }
-            if (extensionFilter && !name.endsWith(extensionFilter)) {
-                continue;
-            }
-            paths.add(this.relativePathWithoutExtension(sourceDirname, entry.uri));
-        }
-    }
-
-    private collectAliasedDirectoryPaths(
-        directory: URI,
-        rootString: string,
-        aliasPrefix: string,
-        paths: Set<string>,
-        extensionFilter?: string
-    ): void {
-        for (const entry of this.fileSystem.readDirectorySync(directory)) {
-            const name = entry.uri.path.split('/').pop() ?? '';
-            if (!name || name.startsWith('.')) {
-                continue;
-            }
-            if (entry.isDirectory) {
-                const aliased = this.aliasedPathWithoutExtension(rootString, aliasPrefix, entry.uri);
-                if (aliased) {
-                    paths.add(`${aliased}/`);
-                }
-                continue;
-            }
-            if (extensionFilter && !name.endsWith(extensionFilter)) {
-                continue;
-            }
-            const aliased = this.aliasedPathWithoutExtension(rootString, aliasPrefix, entry.uri);
-            if (aliased) {
-                paths.add(aliased);
-            }
-        }
-    }
-
-    private relativePathWithoutExtension(dirname: string, targetUri: URI): string {
-        const uriString = targetUri.toString();
-        const uriWithoutExt = uriString.slice(0, uriString.length - UriUtils.extname(targetUri).length);
-        let relativePath = UriUtils.relative(dirname, uriWithoutExt);
-        if (!relativePath.startsWith('.')) {
-            relativePath = `./${relativePath}`;
-        }
-        return relativePath;
-    }
-
-    private aliasedPathWithoutExtension(
-        rootString: string,
-        aliasPrefix: string,
-        targetUri: URI
-    ): string | undefined {
-        const uriString = targetUri.toString();
-        const uriWithoutExt = uriString.slice(0, uriString.length - UriUtils.extname(targetUri).length);
-        const relativePath = UriUtils.relative(rootString, uriWithoutExt);
-        if (!relativePath || relativePath.startsWith('..')) {
-            return undefined;
-        }
-        return `${aliasPrefix}${relativePath}`;
+    /** Shared candidate set for `import "…"` / `from "…"` and anonymous `["…"]` paths. */
+    private collectImportPathCandidates(document: LangiumDocument, prefix: string): PathCompletionCandidate[] {
+        return collectPathCompletionCandidates(
+            document,
+            this.documents,
+            this.fileSystem,
+            pathResolveContextFromServices(this.services),
+            { extensionFilter: '.rq', prefix }
+        );
     }
 
     private collectUsedAttributeKeys(document: LangiumDocument): string[] {
