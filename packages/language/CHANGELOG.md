@@ -1,5 +1,11 @@
 # reqlan-language
 
+## 1.2.0
+
+### Minor Changes
+
+- e5389ba: Improve import ergonomics and code completion.
+
 ## 1.1.0
 
 ### Minor Changes

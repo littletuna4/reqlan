@@ -1,5 +1,11 @@
 # site
 
+## 0.4.0
+
+### Minor Changes
+
+- e5389ba: Improve import ergonomics and code completion.
+
 ## 0.3.0
 
 ### Minor Changes
