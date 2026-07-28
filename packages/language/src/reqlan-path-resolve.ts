@@ -17,11 +17,19 @@ export interface ImportRootMapping {
 }
 
 export type RqExportScope = 'workspace' | 'currentFile';
+export type RqExportRuntimeMode = 'interactive' | 'document' | 'print';
+export type RqExportClusterStrategy = 'deterministic' | 'hybrid';
 
 export interface RqHtmlExportConfig {
     printEntryFileName?: string;
     includeRequirementsPage?: boolean;
     includeGraphPage?: boolean;
+    runtimeMode?: RqExportRuntimeMode;
+    clusterStrategy?: RqExportClusterStrategy;
+    includeIdeaPages?: boolean;
+    includeFilePages?: boolean;
+    includeClusterPages?: boolean;
+    includePrintPages?: boolean;
 }
 
 export interface RqExportConfig {
@@ -225,6 +233,24 @@ function parseHtmlExportConfig(raw: unknown): RqHtmlExportConfig | undefined {
     }
     if (typeof record.includeGraphPage === 'boolean') {
         config.includeGraphPage = record.includeGraphPage;
+    }
+    if (record.runtimeMode === 'interactive' || record.runtimeMode === 'document' || record.runtimeMode === 'print') {
+        config.runtimeMode = record.runtimeMode;
+    }
+    if (record.clusterStrategy === 'deterministic' || record.clusterStrategy === 'hybrid') {
+        config.clusterStrategy = record.clusterStrategy;
+    }
+    if (typeof record.includeIdeaPages === 'boolean') {
+        config.includeIdeaPages = record.includeIdeaPages;
+    }
+    if (typeof record.includeFilePages === 'boolean') {
+        config.includeFilePages = record.includeFilePages;
+    }
+    if (typeof record.includeClusterPages === 'boolean') {
+        config.includeClusterPages = record.includeClusterPages;
+    }
+    if (typeof record.includePrintPages === 'boolean') {
+        config.includePrintPages = record.includePrintPages;
     }
     return Object.keys(config).length > 0 ? config : undefined;
 }

@@ -69,6 +69,32 @@
             "includeGraphPage": {
               "type": "boolean",
               "description": "Whether to emit the graph page."
+            },
+            "runtimeMode": {
+              "type": "string",
+              "enum": ["interactive", "document", "print"],
+              "description": "Default HTML export runtime mode."
+            },
+            "clusterStrategy": {
+              "type": "string",
+              "enum": ["deterministic", "hybrid"],
+              "description": "Default cluster generation strategy for HTML export."
+            },
+            "includeIdeaPages": {
+              "type": "boolean",
+              "description": "Whether to emit dedicated page-per-idea detail pages."
+            },
+            "includeFilePages": {
+              "type": "boolean",
+              "description": "Whether to emit dedicated file detail pages."
+            },
+            "includeClusterPages": {
+              "type": "boolean",
+              "description": "Whether to emit cluster detail pages."
+            },
+            "includePrintPages": {
+              "type": "boolean",
+              "description": "Whether to emit static printable pages in addition to the interactive site."
             }
           }
         }

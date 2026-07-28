@@ -287,6 +287,7 @@ describe('rqconfig schema edges', () => {
         expect(loadApplyingRqConfig(URI.parse('file:///workspace'), fs)).toEqual(defaultRqConfig());
     });
 
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
     test('export config resolves relative outputFolder and html defaults', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/pkg/.rqconfig.json', {
@@ -297,7 +298,13 @@ describe('rqconfig schema edges', () => {
                 html: {
                     printEntryFileName: 'report',
                     includeRequirementsPage: false,
-                    includeGraphPage: true
+                    includeGraphPage: true,
+                    runtimeMode: 'interactive',
+                    clusterStrategy: 'hybrid',
+                    includeIdeaPages: true,
+                    includeFilePages: true,
+                    includeClusterPages: true,
+                    includePrintPages: true
                 }
             }
         });
@@ -309,7 +316,13 @@ describe('rqconfig schema edges', () => {
             html: {
                 printEntryFileName: 'report',
                 includeRequirementsPage: false,
-                includeGraphPage: true
+                includeGraphPage: true,
+                runtimeMode: 'interactive',
+                clusterStrategy: 'hybrid',
+                includeIdeaPages: true,
+                includeFilePages: true,
+                includeClusterPages: true,
+                includePrintPages: true
             }
         });
     });

@@ -1,6 +1,61 @@
 html_export {
     The extension should support building documentation as html from the requirement graph.
     Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
+    [html_export_multi_file]
+    [html_export_internal_links]
+    [html_export_search]
+    [html_export_list_views]
+    [html_export_idea_pages]
+    [html_export_cluster_pages]
+    [html_export_graph_page]
+    [html_export_printable_pages]
+    [html_export_runtime_modes]
+}
+
+html_export_multi_file {
+    Html export should generate a multi-file static site rather than a single document.
+    The export should include page families for overview, ideas, files, clusters, graph, data, and print-focused pages.
+}
+
+html_export_internal_links {
+    Every exported idea should have a stable html page path and stable in-page anchors.
+    References, breadcrumbs, search results, graph nodes, cluster members, and file listings should link to html pages rather than only showing text labels.
+}
+
+html_export_search {
+    The interactive html export should provide a global search bar and page-local search bars.
+    Search should work offline from generated data bundled with the export.
+}
+
+html_export_list_views {
+    Html export should provide searchable list views for ideas, files, references, and clusters.
+    List views should preserve the usability of the current ideas summary tables with counts, sorting, filters, and quick navigation.
+}
+
+html_export_idea_pages {
+    Html export should generate a dedicated page per idea.
+    Idea pages should include summary, attributes, inbound references, outbound references, nearby context, and links to related ideas, files, clusters, graph views, and printable forms.
+}
+
+html_export_cluster_pages {
+    Html export should support cluster pages that group related ideas.
+    Deterministic clusters should at least include file, folder, tag, and status groupings.
+    Optional computed clusters should use graph or semantic analysis when available without making export correctness depend on them.
+}
+
+html_export_graph_page {
+    Html export should provide an interactive graph page with search, filters, and links back into idea and cluster pages.
+    The graph should support scoped views for workspace, file, cluster, and idea contexts.
+}
+
+html_export_printable_pages {
+    Html export should provide static printable pages alongside the interactive site.
+    Print pages should not depend on the interactive javascript bundle.
+}
+
+html_export_runtime_modes {
+    Html export should support a richer interactive site mode and a leaner document or print-oriented mode from the same export manifest.
+    Template identifiers should select real rendering behavior rather than metadata only.
 }
 
 json_export {

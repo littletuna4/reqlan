@@ -57,24 +57,47 @@ describe('html export pipeline', () => {
             scope: 'workspace' as const,
             includeRequirementsPage: true,
             includeGraphPage: true,
-            printEntryFileName: 'print.html'
+            printEntryFileName: 'print.html',
+            runtimeMode: 'interactive' as const,
+            clusterStrategy: 'hybrid' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeClusterPages: true,
+            includePrintPages: true
         };
         const snapshot = await buildExportSnapshot(store, request);
         expect(snapshot.counts.ideas).toBe(2);
         expect(snapshot.byStatus).toEqual({ done: 1, todo: 1 });
         expect(snapshot.byTag.export).toBe(2);
+        expect(snapshot.counts.clusters).toBeGreaterThan(0);
 
         const result = await writeHtmlExport(snapshot, request);
         const indexHtml = await readFile(result.indexFilePath, 'utf8');
+        const ideasIndexHtml = await readFile(result.ideasIndexFilePath!, 'utf8');
+        const filesIndexHtml = await readFile(result.filesIndexFilePath!, 'utf8');
+        const clustersIndexHtml = await readFile(result.clustersIndexFilePath!, 'utf8');
         const requirementsHtml = await readFile(result.requirementsFilePath!, 'utf8');
         const graphHtml = await readFile(result.graphFilePath!, 'utf8');
         const exportJson = await readFile(result.dataFilePath, 'utf8');
+        const alphaIdeaHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.path), 'utf8');
+        const alphaPrintHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.printablePath!), 'utf8');
+        const firstCluster = snapshot.clusters[0]!;
+        const clusterPrintHtml = await readFile(join(result.outputDir, firstCluster.page.printablePath!), 'utf8');
 
         expect(indexHtml).toContain('workspace-report');
-        expect(indexHtml).toContain('./requirements.html');
+        expect(indexHtml).toContain('Highlighted Clusters');
+        expect(ideasIndexHtml).toContain('Filter ideas');
+        expect(filesIndexHtml).toContain('List view by source file');
+        expect(clustersIndexHtml).toContain('Deterministic and computed groupings');
         expect(requirementsHtml).toContain('alpha summary');
         expect(graphHtml).toContain('graph-data');
+        expect(alphaIdeaHtml).toContain('Outbound references');
+        expect(alphaIdeaHtml).toContain('Printable page');
+        expect(alphaPrintHtml).toContain('Printable idea sheet');
+        expect(clusterPrintHtml).toContain('Printable cluster sheet');
         expect(exportJson).toContain('"scope": "workspace"');
+        expect(exportJson).toContain('"clustersById"');
+        expect(exportJson).toContain('"pageOptions"');
 
         await store.close();
     });

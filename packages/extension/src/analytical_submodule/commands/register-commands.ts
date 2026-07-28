@@ -274,6 +274,16 @@ async function promptForExportRequest(
         return undefined;
     }
 
+    const runtimeMode = await promptForRuntimeMode(exportConfig);
+    if (!runtimeMode) {
+        return undefined;
+    }
+
+    const clusterStrategy = await promptForClusterStrategy(exportConfig);
+    if (!clusterStrategy) {
+        return undefined;
+    }
+
     const defaultName = defaultExportName(scope, sourceDocument?.uri);
     const exportName = await vscode.window.showInputBox({
         prompt: `Folder name for the ${format.toUpperCase()} export`,
@@ -301,7 +311,13 @@ async function promptForExportRequest(
         includeRequirementsPage: exportConfig.html?.includeRequirementsPage ?? true,
         includeGraphPage: exportConfig.html?.includeGraphPage ?? true,
         printEntryFileName: exportConfig.html?.printEntryFileName ?? 'print.html',
-        maxGraphNodes: 120
+        maxGraphNodes: 120,
+        runtimeMode,
+        clusterStrategy,
+        includeIdeaPages: exportConfig.html?.includeIdeaPages ?? true,
+        includeFilePages: exportConfig.html?.includeFilePages ?? true,
+        includeClusterPages: exportConfig.html?.includeClusterPages ?? true,
+        includePrintPages: exportConfig.html?.includePrintPages ?? true
     };
 }
 
@@ -350,13 +366,58 @@ async function promptForTemplate(exportConfig: RqExportConfig): Promise<string |
     const items = [{
         label: 'Default',
         description: 'Multi-page HTML export template',
-        detail: 'Overview, requirements, graph, and printable report pages',
+        detail: 'Overview, ideas, files, clusters, graph, search, and printable pages',
         templateId: 'default'
     }];
     const picked = await vscode.window.showQuickPick(items, {
         placeHolder: `Choose export template (default: ${defaultTemplateId})`
     });
     return picked?.templateId;
+}
+
+async function promptForRuntimeMode(exportConfig: RqExportConfig): Promise<'interactive' | 'document' | 'print' | undefined> {
+    const defaultRuntimeMode = exportConfig.html?.runtimeMode ?? 'interactive';
+    const items: Array<vscode.QuickPickItem & { runtimeMode: 'interactive' | 'document' | 'print' }> = [
+        {
+            label: 'Interactive',
+            description: 'Rich static site with search and graph navigation',
+            runtimeMode: 'interactive'
+        },
+        {
+            label: 'Document',
+            description: 'Lean document-focused HTML pages',
+            runtimeMode: 'document'
+        },
+        {
+            label: 'Print',
+            description: 'Printable-first output with simpler navigation',
+            runtimeMode: 'print'
+        }
+    ];
+    const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: `Choose HTML runtime mode (default: ${defaultRuntimeMode})`
+    });
+    return picked?.runtimeMode;
+}
+
+async function promptForClusterStrategy(exportConfig: RqExportConfig): Promise<'deterministic' | 'hybrid' | undefined> {
+    const defaultStrategy = exportConfig.html?.clusterStrategy ?? 'hybrid';
+    const items: Array<vscode.QuickPickItem & { clusterStrategy: 'deterministic' | 'hybrid' }> = [
+        {
+            label: 'Hybrid',
+            description: 'Deterministic clusters plus computed communities',
+            clusterStrategy: 'hybrid'
+        },
+        {
+            label: 'Deterministic',
+            description: 'File, folder, tag, and status clusters only',
+            clusterStrategy: 'deterministic'
+        }
+    ];
+    const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: `Choose cluster strategy (default: ${defaultStrategy})`
+    });
+    return picked?.clusterStrategy;
 }
 
 function defaultExportName(
