@@ -18,13 +18,20 @@ export interface RelationshipSignals {
 
 export interface DevelopmentHistorySignals {
     createdAt?: string;
+    createdBy?: string;
     modifiedAt?: string;
+    modifiedBy?: string;
     /** Whole days since createdAt; undefined when unknown. */
     ageDays?: number;
     /** Whole days since modifiedAt; undefined when unknown. */
     timeSinceTouchedDays?: number;
     /** Focus-scoped commit count from git history (when collected). */
     commitCount?: number;
+    /** Commits per day since introduction; undefined when age is unknown. */
+    changeRate?: number;
+    /** Ratio of focus changeRate to peer median changeRate. */
+    relativeChangeRate?: number;
+    relativeChangeLabel?: 'cold' | 'typical' | 'hot' | 'very_hot';
     /** Top author names for the focus path / line range. */
     authors?: string[];
 }
@@ -90,8 +97,13 @@ export interface FocusSignalInput {
     outboundCount: number;
     unresolvedCount: number;
     createdAt?: string;
+    createdBy?: string;
     modifiedAt?: string;
+    modifiedBy?: string;
     commitCount?: number;
+    changeRate?: number;
+    relativeChangeRate?: number;
+    relativeChangeLabel?: 'cold' | 'typical' | 'hot' | 'very_hot';
     authors?: string[];
     now?: Date;
 }
@@ -167,10 +179,15 @@ export function buildFocusSignals(input: FocusSignalInput): ContextSignals {
         },
         developmentHistory: {
             createdAt: input.createdAt,
+            createdBy: input.createdBy,
             modifiedAt: input.modifiedAt,
+            modifiedBy: input.modifiedBy,
             ageDays,
             timeSinceTouchedDays,
             commitCount: input.commitCount,
+            changeRate: input.changeRate,
+            relativeChangeRate: input.relativeChangeRate,
+            relativeChangeLabel: input.relativeChangeLabel,
             authors: input.authors
         },
         lifecycle: {
@@ -263,6 +280,13 @@ export function synthesizeFocusContext(signals: ContextSignals): ContextSynthesi
         } else {
             stories.push(`Quiet for ${hist.timeSinceTouchedDays}d`);
         }
+    }
+    if (hist?.relativeChangeLabel === 'very_hot') {
+        stories.push('Very high churn versus peers');
+    } else if (hist?.relativeChangeLabel === 'hot') {
+        stories.push('Above-peer churn');
+    } else if (hist?.relativeChangeLabel === 'cold') {
+        stories.push('Below-peer churn');
     }
     if (risk?.highFanout) {
         stories.push('High dependency fanout');

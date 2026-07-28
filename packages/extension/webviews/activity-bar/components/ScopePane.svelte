@@ -134,6 +134,31 @@
         return `${Math.floor(days / 365)}y`;
     }
 
+    function rateLabel(value?: number): string {
+        if (value === undefined || !Number.isFinite(value)) {
+            return 'n/a';
+        }
+        return value >= 1 ? value.toFixed(1) : value.toFixed(2);
+    }
+
+    function relativeChurnLabel(
+        value?: number,
+        band?: 'cold' | 'typical' | 'hot' | 'very_hot'
+    ): string | undefined {
+        if (value === undefined || !band) {
+            return undefined;
+        }
+        const adjective =
+            band === 'very_hot'
+                ? 'very hot'
+                : band === 'hot'
+                    ? 'hot'
+                    : band === 'cold'
+                        ? 'cold'
+                        : 'typical';
+        return `${value.toFixed(1)}x peer median · ${adjective}`;
+    }
+
     async function copyCommitHash(hash: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(hash);
@@ -224,6 +249,23 @@
                 {#if context.git?.historyCue}
                     <div class="chip-row">
                         <span class="chip" title="Recent git history for this focus">git: {context.git.historyCue}</span>
+                    </div>
+                {/if}
+                {#if context.git?.focusStats}
+                    <div class="chip-row">
+                        {#if context.git.focusStats.createdBy || context.git.focusStats.createdAt}
+                            <span class="chip" title="Who introduced this symbol, and when">
+                                created {context.git.focusStats.createdBy ?? 'unknown'}
+                                {#if context.git.focusStats.createdAt}
+                                    · {commitRelative(context.git.focusStats.createdAt)}
+                                {/if}
+                            </span>
+                        {/if}
+                        {#if context.git.focusStats.relativeChangeRate !== undefined}
+                            <span class="chip" title="Relative change rate versus peer symbols in this file">
+                                {relativeChurnLabel(context.git.focusStats.relativeChangeRate, context.git.focusStats.relativeChangeLabel)}
+                            </span>
+                        {/if}
                     </div>
                 {/if}
                 <div class="section-actions">
@@ -441,6 +483,38 @@
                     {#if git.headShort}<span class="chip">{git.headShort}</span>{/if}
                     · {git.summary}
                 </p>
+                {#if git.focusStats}
+                    <div class="git-stats-grid">
+                        {#if git.focusStats.createdBy || git.focusStats.createdAt}
+                            <p class="muted">
+                                Created
+                                {#if git.focusStats.createdBy} by {git.focusStats.createdBy}{/if}
+                                {#if git.focusStats.createdAt} · {commitRelative(git.focusStats.createdAt)}{/if}
+                            </p>
+                        {/if}
+                        {#if git.focusStats.modifiedBy || git.focusStats.modifiedAt}
+                            <p class="muted">
+                                Last changed
+                                {#if git.focusStats.modifiedBy} by {git.focusStats.modifiedBy}{/if}
+                                {#if git.focusStats.modifiedAt} · {commitRelative(git.focusStats.modifiedAt)}{/if}
+                            </p>
+                        {/if}
+                        {#if git.focusStats.commitCount !== undefined}
+                            <p class="muted">
+                                {git.focusStats.commitCount} change{git.focusStats.commitCount === 1 ? '' : 's'}
+                                {#if git.focusStats.changeRate !== undefined}
+                                    · {rateLabel(git.focusStats.changeRate)}/day
+                                {/if}
+                            </p>
+                        {/if}
+                        {#if git.focusStats.relativeChangeRate !== undefined}
+                            <p class="muted">
+                                Relative churn
+                                {relativeChurnLabel(git.focusStats.relativeChangeRate, git.focusStats.relativeChangeLabel)}
+                            </p>
+                        {/if}
+                    </div>
+                {/if}
                 {#if (git.focusCommits?.length ?? 0) === 0}
                     <p class="muted">No commit history for this focus yet.</p>
                 {:else}

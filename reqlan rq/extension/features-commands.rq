@@ -1,5 +1,6 @@
 from "./features-graph-analysers.rq" import local_graph_analysis
 
+import  "./export_functions.rq" as export_functions
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
@@ -18,12 +19,33 @@ get_local_graph {
     A command palette action should get the local graph for the current file or selected idea.
 }
 
-export_json {
-    A command palette action should export the requirement graph to json.
+decompose {
+    A command pallete action for decomposition. Should replace an idea with a reference to a new file that holds the old contents.
+    Should accept multiple inputs and put them in a list.
+    e.g. ```.rq
+    idea1 {
+        content
+    }
+
+    idea2 {
+        content
+    }
+    ```
+    to (ideainputname, defaulting to concatenation)
+    ```.rq
+    import "./idea1_idea2.rq" as idea1_idea2
+    idea1_idea2 {
+        [idea1_idea2.idea1]
+        [idea1_idea2.idea2]
+    }
+    
+    ```
+
+    @todo
 }
 
-export_csv {
-    A command palette action should export requirements to csv with tags flattened for quick filtering.
+exports {
+    graph should be exportable via the [export_functions]
 }
 
 divide_and_conquer {
@@ -48,3 +70,4 @@ open_a_random_requirement {
     as it sounds
     @todo
     }
+

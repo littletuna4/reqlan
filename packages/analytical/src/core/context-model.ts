@@ -135,6 +135,28 @@ export interface GitAuthorRollup {
     commitCount: number;
 }
 
+export interface GitPeerChangeRate {
+    ideaId: string;
+    name: string;
+    commitCount: number;
+    ageDays?: number;
+    changeRate?: number;
+}
+
+export interface GitFocusStats {
+    symbolName?: string;
+    createdAt?: string;
+    createdBy?: string;
+    modifiedAt?: string;
+    modifiedBy?: string;
+    commitCount?: number;
+    ageDays?: number;
+    changeRate?: number;
+    relativeChangeRate?: number;
+    relativeChangeLabel?: 'cold' | 'typical' | 'hot' | 'very_hot';
+    peers?: GitPeerChangeRate[];
+}
+
 export interface GitContextSlice {
     branch?: string;
     headShort?: string;
@@ -144,6 +166,8 @@ export interface GitContextSlice {
     /** Recent commits touching the focus file / idea line range. */
     focusCommits: GitFocusCommit[];
     topAuthors: GitAuthorRollup[];
+    /** Lifecycle and churn metrics for the focused symbol when available. */
+    focusStats?: GitFocusStats;
     /** Collapsed lens summary, e.g. "main · 3 commits · 2 authors". */
     summary: string;
     /** Focus-hero cue, e.g. "2d ago · main". */

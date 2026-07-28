@@ -228,6 +228,16 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.exportHtml",
+                "title": "Export HTML",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.exportPdf",
+                "title": "Export PDF",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.refreshActivityBar",
                 "title": "Refresh",
                 "icon": "$(refresh)"
@@ -344,6 +354,8 @@
         "onCommand:reqlan.writePlan",
         "onCommand:reqlan.runPrompt",
         "onCommand:reqlan.openIdeasSummary",
+        "onCommand:reqlan.exportHtml",
+        "onCommand:reqlan.exportPdf",
         "onView:reqlan.activityBar",
         "onCommand:reqlan.toggleReferenceInlayHints",
         "onCommand:reqlan.showOnboarding",

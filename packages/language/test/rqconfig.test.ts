@@ -36,11 +36,18 @@ describe('rqconfig schema file', () => {
                         properties?: Record<string, unknown>;
                     };
                 };
+                export?: {
+                    type?: string;
+                };
             };
         };
         expect(schema.properties?.importRoots?.items?.required).toEqual(['alias']);
         expect(schema.properties?.importRoots?.items?.properties).toHaveProperty('alias');
         expect(schema.properties?.importRoots?.items?.properties).toHaveProperty('root');
+        expect(schema.properties).toHaveProperty('export');
+        expect(schema.properties?.export).toMatchObject({
+            type: 'object'
+        });
 
         const packageJson = JSON.parse(
             readFileSync(join(repoDir, 'packages/extension/package.json'), 'utf8')
@@ -240,10 +247,12 @@ describe('rqconfig schema edges', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/.rqconfig.json', {
             importRoots: [{ alias: '~', extra: 1 }],
+            export: { outputFolder: './exports', ignored: true },
             futureFlag: true
         });
         const loaded = loadApplyingRqConfig(URI.parse('file:///workspace'), fs);
         expect(loaded?.importRoots).toEqual([{ alias: '~' }]);
+        expect(loaded?.export?.outputFolder).toBe(URI.parse('file:///workspace/exports').fsPath);
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
@@ -276,6 +285,33 @@ describe('rqconfig schema edges', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/.rqconfig.json', { importRoots: [] });
         expect(loadApplyingRqConfig(URI.parse('file:///workspace'), fs)).toEqual(defaultRqConfig());
+    });
+
+    test('export config resolves relative outputFolder and html defaults', () => {
+        const fs = new VirtualFileSystemProvider();
+        insertConfig(fs, 'file:///workspace/pkg/.rqconfig.json', {
+            export: {
+                outputFolder: './exports',
+                templateId: 'default',
+                scope: 'currentFile',
+                html: {
+                    printEntryFileName: 'report',
+                    includeRequirementsPage: false,
+                    includeGraphPage: true
+                }
+            }
+        });
+        const loaded = loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs);
+        expect(loaded?.export).toEqual({
+            outputFolder: URI.parse('file:///workspace/pkg/exports').fsPath,
+            templateId: 'default',
+            scope: 'currentFile',
+            html: {
+                printEntryFileName: 'report',
+                includeRequirementsPage: false,
+                includeGraphPage: true
+            }
+        });
     });
 });
 

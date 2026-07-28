@@ -16,8 +16,24 @@ export interface ImportRootMapping {
     rootUri?: URI;
 }
 
+export type RqExportScope = 'workspace' | 'currentFile';
+
+export interface RqHtmlExportConfig {
+    printEntryFileName?: string;
+    includeRequirementsPage?: boolean;
+    includeGraphPage?: boolean;
+}
+
+export interface RqExportConfig {
+    outputFolder?: string;
+    templateId?: string;
+    scope?: RqExportScope;
+    html?: RqHtmlExportConfig;
+}
+
 export interface RqConfig {
     importRoots: ImportRootMapping[];
+    export?: RqExportConfig;
 }
 
 export interface PathResolveContext {
@@ -120,24 +136,18 @@ function parseRqConfig(configUri: URI, fileSystem: FileSystemProvider): RqConfig
         return undefined;
     }
     const record = raw as Record<string, unknown>;
-    if (!('importRoots' in record)) {
-        return defaultRqConfig();
-    }
-    if (!Array.isArray(record.importRoots)) {
+    const importRoots = parseImportRoots(record.importRoots, configUri);
+    if (record.importRoots !== undefined && importRoots === undefined) {
         return undefined;
     }
-    const configDir = UriUtils.dirname(configUri);
-    const importRoots: ImportRootMapping[] = [];
-    for (const entry of record.importRoots) {
-        const mapping = parseImportRootEntry(entry, configDir);
-        if (mapping) {
-            importRoots.push(mapping);
-        }
+    const parsedExport = parseExportConfig(record.export, UriUtils.dirname(configUri));
+    const config: RqConfig = {
+        importRoots: importRoots ?? defaultRqConfig().importRoots
+    };
+    if (parsedExport) {
+        config.export = parsedExport;
     }
-    if (importRoots.length === 0) {
-        return defaultRqConfig();
-    }
-    return { importRoots };
+    return config;
 }
 
 function parseImportRootEntry(entry: unknown, configDir: URI): ImportRootMapping | undefined {
@@ -155,6 +165,68 @@ function parseImportRootEntry(entry: unknown, configDir: URI): ImportRootMapping
             : UriUtils.resolvePath(configDir, record.root);
     }
     return mapping;
+}
+
+function parseImportRoots(raw: unknown, configUri: URI): ImportRootMapping[] | undefined {
+    if (raw === undefined) {
+        return undefined;
+    }
+    if (!Array.isArray(raw)) {
+        return undefined;
+    }
+    const configDir = UriUtils.dirname(configUri);
+    const importRoots: ImportRootMapping[] = [];
+    for (const entry of raw) {
+        const mapping = parseImportRootEntry(entry, configDir);
+        if (mapping) {
+            importRoots.push(mapping);
+        }
+    }
+    return importRoots.length > 0 ? importRoots : defaultRqConfig().importRoots;
+}
+
+function parseExportConfig(raw: unknown, configDir: URI): RqExportConfig | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return undefined;
+    }
+    const record = raw as Record<string, unknown>;
+    const config: RqExportConfig = {};
+
+    if (typeof record.outputFolder === 'string' && record.outputFolder.trim().length > 0) {
+        config.outputFolder = isAbsoluteUriOrPath(record.outputFolder)
+            ? toDirectoryUri(record.outputFolder).fsPath
+            : UriUtils.resolvePath(configDir, record.outputFolder).fsPath;
+    }
+    if (typeof record.templateId === 'string' && record.templateId.trim().length > 0) {
+        config.templateId = record.templateId.trim();
+    }
+    if (record.scope === 'workspace' || record.scope === 'currentFile') {
+        config.scope = record.scope;
+    }
+    const html = parseHtmlExportConfig(record.html);
+    if (html) {
+        config.html = html;
+    }
+
+    return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function parseHtmlExportConfig(raw: unknown): RqHtmlExportConfig | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return undefined;
+    }
+    const record = raw as Record<string, unknown>;
+    const config: RqHtmlExportConfig = {};
+    if (typeof record.printEntryFileName === 'string' && record.printEntryFileName.trim().length > 0) {
+        config.printEntryFileName = record.printEntryFileName.trim();
+    }
+    if (typeof record.includeRequirementsPage === 'boolean') {
+        config.includeRequirementsPage = record.includeRequirementsPage;
+    }
+    if (typeof record.includeGraphPage === 'boolean') {
+        config.includeGraphPage = record.includeGraphPage;
+    }
+    return Object.keys(config).length > 0 ? config : undefined;
 }
 
 function isAbsoluteUriOrPath(value: string): boolean {

@@ -86,7 +86,9 @@ export type {
     ContextFootprint,
     GitAuthorRollup,
     GitContextSlice,
+    GitFocusStats,
     GitFocusCommit,
+    GitPeerChangeRate,
     WorkspaceContextSlice
 } from './core/types.js';
 export type {
@@ -149,3 +151,13 @@ export {
 export type { AnalysisRuntime, AnalysisRuntimeOptions } from './create-runtime.js';
 export { AnalysisApi } from './analysis-api.js';
 export type { InteractionDescriptor, RequirementMatch } from './analysis-api.js';
+export { buildExportSnapshot } from './export/build-export-snapshot.js';
+export { writeHtmlExport } from './export/write-html-export.js';
+export type {
+    ExportCounts,
+    ExportFormat,
+    ExportRequest,
+    ExportResult,
+    ExportScope,
+    ExportSnapshot
+} from './export/types.js';

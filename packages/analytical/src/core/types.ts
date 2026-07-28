@@ -115,6 +115,8 @@ export type {
     GitAuthorRollup,
     GitContextSlice,
     GitFocusCommit,
+    GitFocusStats,
+    GitPeerChangeRate,
     WorkspaceContextSlice
 } from './context-model.js';
 

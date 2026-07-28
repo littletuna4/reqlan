@@ -229,9 +229,14 @@ export class ContextModelBuilder {
             inboundCount: currentFile?.inboundReferencingIdeas?.length ?? 0,
             outboundCount: currentFile?.referencedIdeas?.length ?? 0,
             unresolvedCount: currentFile?.unresolvedCount ?? 0,
-            createdAt: focusIdea?.gitCreatedAt,
-            modifiedAt: focusIdea?.gitModifiedAt,
-            commitCount: input.git?.focusCommits?.length,
+            createdAt: input.git?.focusStats?.createdAt ?? focusIdea?.gitCreatedAt,
+            createdBy: input.git?.focusStats?.createdBy,
+            modifiedAt: input.git?.focusStats?.modifiedAt ?? focusIdea?.gitModifiedAt,
+            modifiedBy: input.git?.focusStats?.modifiedBy,
+            commitCount: input.git?.focusStats?.commitCount ?? input.git?.focusCommits?.length,
+            changeRate: input.git?.focusStats?.changeRate,
+            relativeChangeRate: input.git?.focusStats?.relativeChangeRate,
+            relativeChangeLabel: input.git?.focusStats?.relativeChangeLabel,
             authors: input.git?.topAuthors?.map(author => author.name)
         });
         const synthesis = centerId ? synthesizeFocusContext(signals) : undefined;

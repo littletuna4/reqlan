@@ -34,12 +34,20 @@ describe('buildFocusSignals', () => {
             outboundCount: 3,
             unresolvedCount: 1,
             createdAt: '2024-01-01T00:00:00Z',
+            createdBy: 'Ada',
             modifiedAt: '2026-07-13T00:00:00Z',
+            modifiedBy: 'Bob',
+            changeRate: 0.4,
+            relativeChangeRate: 2.2,
+            relativeChangeLabel: 'hot',
             now
         });
         expect(signals.relationship?.parentCount).toBe(2);
         expect(signals.relationship?.dependentCount).toBe(3);
         expect(signals.developmentHistory?.timeSinceTouchedDays).toBe(1);
+        expect(signals.developmentHistory?.createdBy).toBe('Ada');
+        expect(signals.developmentHistory?.modifiedBy).toBe('Bob');
+        expect(signals.developmentHistory?.relativeChangeLabel).toBe('hot');
         expect(signals.risk?.unresolvedRefs).toBe(true);
         expect(signals.risk?.recentlyTouched).toBe(true);
     });
@@ -83,12 +91,14 @@ describe('synthesizeFocusContext', () => {
             unresolvedCount: 2,
             createdAt: '2026-06-01T00:00:00Z',
             modifiedAt: '2026-07-13T00:00:00Z',
+            relativeChangeRate: 3.2,
+            relativeChangeLabel: 'very_hot',
             now: new Date('2026-07-14T00:00:00Z')
         });
         const synthesis = synthesizeFocusContext(signals);
         expect(synthesis.stability).toBeLessThan(0.5);
         expect(synthesis.aiRisk).toBe('high');
-        expect(synthesis.story.toLowerCase()).toMatch(/unstable|fanout|unresolved/);
+        expect(synthesis.story.toLowerCase()).toMatch(/unstable|fanout|unresolved|churn/);
     });
 });
 

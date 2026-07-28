@@ -1,0 +1,21 @@
+
+export_configurability {
+    exports should be built in mind with a print menu that will available for user configuration.
+    The initial export should accept a user prompt input for a file name.
+}
+
+export_csv { 
+    A command palette action should export requirements to csv with tags flattened for quick filtering.
+}
+
+export_JSON {
+     A command palette action should export requirements to json.
+}
+
+export_html {
+    A command palette action should export requirements to html. (as a single file or as multiple files.)
+}
+
+export_pdf {
+    A command palette action should export requirements to pdf (preserving links.)
+}

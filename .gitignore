@@ -19,3 +19,5 @@ syntaxes/
 .pnpm-store/
 
 *.secret.rq
+
+/export/

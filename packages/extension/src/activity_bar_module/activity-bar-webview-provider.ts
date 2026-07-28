@@ -160,6 +160,22 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         let lineStart: number | undefined;
         let lineEnd: number | undefined;
         let useLineHistory = false;
+        let focusIdea:
+            | {
+                  id: string;
+                  name: string;
+                  lineStart: number;
+                  lineEnd: number;
+              }
+            | undefined;
+        let peerIdeas:
+            | Array<{
+                  id: string;
+                  name: string;
+                  lineStart: number;
+                  lineEnd: number;
+              }>
+            | undefined;
         try {
             const store = this.submodule.index.indexStore;
             const ideasInFile = await store.listIdeasInFileWithRanges(fileUri);
@@ -170,6 +186,18 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 entry => entry.lineStart <= line && line <= entry.lineEnd
             );
             if (idea) {
+                focusIdea = {
+                    id: idea.id,
+                    name: idea.name,
+                    lineStart: idea.lineStart,
+                    lineEnd: idea.lineEnd
+                };
+                peerIdeas = ideasInFile.map(entry => ({
+                    id: entry.id,
+                    name: entry.name,
+                    lineStart: entry.lineStart,
+                    lineEnd: entry.lineEnd
+                }));
                 lineStart = idea.lineStart;
                 lineEnd = idea.lineEnd;
                 useLineHistory = true;
@@ -188,7 +216,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             focusFileUri: fileUri,
             lineStart,
             lineEnd,
-            useLineHistory
+            useLineHistory,
+            focusIdea,
+            peerIdeas
         });
 
         return {

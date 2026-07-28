@@ -197,6 +197,48 @@ describe('ContextModelBuilder', () => {
         expect(markdown).toContain('## AI readiness');
     });
 
+    test('prefers git focus stats over indexed git dates', async () => {
+        const store = createMockStore();
+        store.seed(
+            mockIdea('a.rq#a', 'a.rq', 0, {
+                gitCreatedAt: '2020-01-01T00:00:00Z',
+                gitModifiedAt: '2020-01-02T00:00:00Z'
+            })
+        );
+        const builder = new ContextModelBuilder(store as never, uri => uri);
+        const model = await builder.build({
+            session: createContextSession(),
+            fileUri: 'a.rq',
+            line: 0,
+            openFileUris: [],
+            git: {
+                branch: 'main',
+                headShort: 'abc1234',
+                stagedCount: 0,
+                unstagedCount: 0,
+                changedFiles: [],
+                focusCommits: [],
+                topAuthors: [],
+                focusStats: {
+                    createdAt: '2024-01-01T00:00:00Z',
+                    createdBy: 'Ada',
+                    modifiedAt: '2026-07-01T00:00:00Z',
+                    modifiedBy: 'Bob',
+                    commitCount: 4,
+                    changeRate: 0.2,
+                    relativeChangeRate: 1.8,
+                    relativeChangeLabel: 'hot'
+                },
+                summary: 'main · 4 commits · 2 authors',
+                historyCue: 'today · main'
+            },
+            workspace: { ready: true, ideaCount: 1, edgeCount: 0 }
+        });
+        expect(model.signals?.developmentHistory?.createdAt).toBe('2024-01-01T00:00:00Z');
+        expect(model.signals?.developmentHistory?.createdBy).toBe('Ada');
+        expect(model.signals?.developmentHistory?.relativeChangeLabel).toBe('hot');
+    });
+
     test('omits signals when focus is none', async () => {
         const store = createMockStore();
         const builder = new ContextModelBuilder(store as never, uri => uri);

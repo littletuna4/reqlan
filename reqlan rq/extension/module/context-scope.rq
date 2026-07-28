@@ -132,6 +132,8 @@ context_footprint {
 
 scope_pane_design {
     The scope pane uses a **focus + lens** layout — not seven stacked lists.
+    The experience should feel more like a wiki than a table: surfaced ideas, files, folders, commits, authors, and related context should prefer rich cross-links and drill-in navigation over flat tabular presentation.
+    Grouping should adapt to available context rather than staying fixed: file-heavy views may group by folder/path, development-history views may group by git recency / authorship / churn, and mixed views should choose the most explanatory structure for the current focus.
 
     @items (
         focus_hero {
@@ -200,6 +202,7 @@ manual_context {
 
 git_context {
     weight: 0.7
+    Should detect symbol lifecycle using symbol identity rather than line history for creation: who introduced the symbol, when it was introduced, who last meaningfully changed it, the total number of changes, and the relative change rate versus peer symbols.
     Default enabled when repository detected.
     Primary: focus-centric git history — branch, HEAD short hash, recent commits touching the focus file/idea, top authors.
     Summary prefers history richness (e.g. "main · 3 commits · 2 authors"), not staged/unstaged counts.

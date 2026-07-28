@@ -31,6 +31,48 @@
           }
         }
       }
+    },
+    "export": {
+      "type": "object",
+      "description": "Optional export defaults used by Reqlan export commands. These values provide defaults for prompt-driven exports and can be overridden per run.",
+      "additionalProperties": false,
+      "properties": {
+        "outputFolder": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default output directory for exported files. Relative paths resolve from the directory containing this .rqconfig.json."
+        },
+        "templateId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default export template identifier."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["workspace", "currentFile"],
+          "description": "Default export scope."
+        },
+        "html": {
+          "type": "object",
+          "description": "HTML export defaults.",
+          "additionalProperties": false,
+          "properties": {
+            "printEntryFileName": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Filename for the printable HTML entry page used by HTML and PDF export flows."
+            },
+            "includeRequirementsPage": {
+              "type": "boolean",
+              "description": "Whether to emit the requirements listing page."
+            },
+            "includeGraphPage": {
+              "type": "boolean",
+              "description": "Whether to emit the graph page."
+            }
+          }
+        }
+      }
     }
   }
 }
