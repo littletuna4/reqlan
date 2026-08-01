@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.5.6
+
+### Patch Changes
+
+- d440fbe: deployment improvements. add npm package references to deployement.
+
 ## 1.5.5
 
 ### Patch Changes

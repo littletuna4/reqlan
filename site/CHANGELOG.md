@@ -1,5 +1,11 @@
 # site
 
+## 0.7.1
+
+### Patch Changes
+
+- d440fbe: deployment improvements. add npm package references to deployement.
+
 ## 0.7.0
 
 ### Minor Changes
