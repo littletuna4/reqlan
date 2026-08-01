@@ -4,18 +4,10 @@ import {
     readOnboardingStateForActivation,
     writeOnboardingState,
 } from './onboarding-state.js';
+import { OnboardingPanel } from './onboarding-panel.js';
 
-const ONBOARDING_PATH = ['media', 'thanks-for-installing.rq'] as const;
-
-export async function openOnboardingPage(context: vscode.ExtensionContext): Promise<void> {
-    const onboardingUri = vscode.Uri.joinPath(context.extensionUri, ...ONBOARDING_PATH);
-    const onboardingBytes = await vscode.workspace.fs.readFile(onboardingUri);
-
-    const document = await vscode.workspace.openTextDocument({
-        content: onboardingBytes.toString(),
-        language: 'reqlan',
-    });
-    await vscode.window.showTextDocument(document, { preview: false });
+export function openOnboardingPage(context: vscode.ExtensionContext): void {
+    OnboardingPanel.show(context);
 }
 
 export async function openThanksForInstallingIfNeeded(
@@ -35,7 +27,7 @@ export async function openThanksForInstallingIfNeeded(
         return;
     }
 
-    await openOnboardingPage(context);
+    openOnboardingPage(context);
 
     await writeOnboardingState(context, {
         onboardingMessageShown: true,

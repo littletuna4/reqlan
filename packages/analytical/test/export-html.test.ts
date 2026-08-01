@@ -72,6 +72,7 @@ describe('html export pipeline', () => {
             includeFilePages: true,
             includeCodeFilePages: true,
             includeClusterPages: true,
+            includeAttributePages: true,
             includePrintPages: true
         };
         const snapshot = await buildExportSnapshot(store, request);
@@ -82,6 +83,7 @@ describe('html export pipeline', () => {
         expect(snapshot.codeFiles).toHaveLength(1);
         expect(snapshot.codeFiles[0]?.fileUri).toBe('reqs/src/app.ts');
         expect(snapshot.pageOptions.includeCodeFilePages).toBe(true);
+        expect(snapshot.pageOptions.includeAttributePages).toBe(true);
 
         const result = await writeHtmlExport(snapshot, request);
         const indexHtml = await readFile(result.indexFilePath, 'utf8');
@@ -96,6 +98,8 @@ describe('html export pipeline', () => {
         const alphaIdeaHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.path), 'utf8');
         const alphaPrintHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.printablePath!), 'utf8');
         const codeFileHtml = await readFile(join(result.outputDir, snapshot.codeFiles[0]!.page.path), 'utf8');
+        const statusAttribute = snapshot.attributesByKey.status!;
+        const statusAttributeHtml = await readFile(join(result.outputDir, statusAttribute.page.path), 'utf8');
         const firstCluster = snapshot.clusters[0]!;
         const clusterPrintHtml = await readFile(join(result.outputDir, firstCluster.page.printablePath!), 'utf8');
 
@@ -116,7 +120,19 @@ describe('html export pipeline', () => {
         expect(attributesIndexHtml).toContain('Filter attributes');
         expect(attributesIndexHtml).toContain('status');
         expect(attributesIndexHtml).toContain('tags');
+        expect(attributesIndexHtml).toContain('attributes/status.html');
         expect(snapshot.attributes.some(attribute => attribute.key === 'status')).toBe(true);
+        expect(statusAttribute.page.path).toBe('attributes/status.html');
+        expect(statusAttributeHtml).toContain('Attribute detail');
+        expect(statusAttributeHtml).toContain('Value distribution');
+        expect(statusAttributeHtml).toContain('distribution-fill');
+        expect(statusAttributeHtml).toContain('Ideas with this attribute');
+        expect(statusAttributeHtml).toContain('todo');
+        expect(statusAttributeHtml).toContain('done');
+        expect(statusAttributeHtml).toContain('50%');
+        expect(statusAttributeHtml).toContain('alpha');
+        expect(statusAttributeHtml).toContain('beta');
+        expect(stylesCss).toContain('.distribution-fill');
         expect(requirementsHtml).toContain('alpha links to [beta]');
         expect(graphHtml).toContain('graph-data');
         expect(graphHtml).toContain('data-graph-fit');
@@ -127,6 +143,7 @@ describe('html export pipeline', () => {
         expect(alphaIdeaHtml).toContain('Printable page');
         expect(alphaIdeaHtml).toContain('../assets/search-index.js');
         expect(alphaIdeaHtml).toContain('Browse all attributes');
+        expect(alphaIdeaHtml).toContain('../attributes/status.html');
         expect(alphaIdeaHtml).toMatch(/"pageUrl": "\.\/ideas\/[^"]+"/);
         expect(alphaIdeaHtml).toContain('"isSubject": true');
         expect(alphaIdeaHtml).toContain('"attributeKeys"');
@@ -135,9 +152,11 @@ describe('html export pipeline', () => {
         expect(codeFileHtml).toContain('alpha');
         expect(appJs).toContain('wireTables');
         expect(appJs).toContain('column-filter');
+        expect(appJs).toContain('table-filter-toggle');
         expect(appJs).toContain('sort-button');
         expect(appJs).toContain('compareSortValues');
         expect(stylesCss).toContain('.column-filter');
+        expect(stylesCss).toContain('.table-filter-toggle');
         expect(stylesCss).toContain('.sort-button');
         expect(stylesCss).toContain('.sortable-th');
         expect(stylesCss).toContain('.idea-ref');
@@ -159,15 +178,337 @@ describe('html export pipeline', () => {
         expect(exportJson).toContain('"clustersById"');
         expect(exportJson).toContain('"pageOptions"');
         expect(exportJson).toContain('"attributes"');
+        expect(exportJson).toContain('"attributesByKey"');
         expect(exportJson).toContain('"codeFiles"');
         expect(exportJson).toContain('"includeCodeFilePages"');
+        expect(exportJson).toContain('"includeAttributePages"');
         expect(stylesCss).toContain('--rust:');
         expect(stylesCss).toContain('--accent:');
         expect(stylesCss).not.toContain('radial-gradient');
+        expect(stylesCss).toContain('.scroll-window');
+        expect(stylesCss).toContain('body[data-runtime-mode="interactive"] .scroll-window');
+        expect(stylesCss).toContain('--scroll-window-max');
+        expect(indexHtml).toContain('data-runtime-mode="interactive"');
+        expect(indexHtml).toContain('class="scroll-window"');
+        expect(alphaIdeaHtml).toContain('class="scroll-window"');
+        expect(statusAttributeHtml).toContain('class="scroll-window"');
         expect(appJs).toContain('__REQLAN_SEARCH_INDEX__');
         expect(searchIndexJs).toContain('__REQLAN_SEARCH_INDEX__');
         expect(searchIndexJs).toContain('alpha');
         expect(searchIndexJs).toContain('code-file');
+        expect(searchIndexJs).toContain('attributes/status.html');
+
+        await store.close();
+    });
+
+    test('document runtime mode keeps scroll windows unconstrained by interactive max-height selectors', async () => {
+        const store = await openTestStore();
+        const fileA = 'reqs/a.rq';
+        const ideaA: IdeaRecord = {
+            id: ideaId(fileA, 'alpha'),
+            name: 'alpha',
+            kind: 'block',
+            fileUri: fileA,
+            lineStart: 0,
+            lineEnd: 2,
+            summary: 'alpha summary',
+            attributesJson: '{"status":"todo","tags":["export"]}',
+            contentHash: 'a'
+        };
+        await store.upsertDocument(fileA, 'hash-a', [ideaA], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'document-report',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            runtimeMode: 'document' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeCodeFilePages: true,
+            includeClusterPages: true,
+            includeAttributePages: true,
+            includePrintPages: true
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        const result = await writeHtmlExport(snapshot, request);
+        const indexHtml = await readFile(result.indexFilePath, 'utf8');
+        const stylesCss = await readFile(join(result.outputDir, 'assets/styles.css'), 'utf8');
+        const ideaHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.path), 'utf8');
+
+        expect(indexHtml).toContain('data-runtime-mode="document"');
+        expect(ideaHtml).toContain('class="scroll-window"');
+        expect(stylesCss).toContain('body[data-runtime-mode="interactive"] .scroll-window');
+        expect(stylesCss).not.toMatch(/body\[data-runtime-mode="document"\]\s*\.scroll-window\s*\{[^}]*max-height/);
+
+        await store.close();
+    });
+
+    test('links summary refs by idea name and renders string attribute values', async () => {
+        const store = await openTestStore();
+        const fileA = 'reqs/a.rq';
+        const fileB = 'reqs/b.rq';
+        const ideaA: IdeaRecord = {
+            id: ideaId(fileA, 'alpha'),
+            name: 'alpha',
+            kind: 'block',
+            fileUri: fileA,
+            lineStart: 0,
+            lineEnd: 4,
+            summary: 'See [beta] and also [missing_ref] here.',
+            attributesJson: JSON.stringify({
+                status: 'pending',
+                tags: ['ui', 'export'],
+                notes: 'hello world',
+                plan: 'do the thing',
+                tests: ['["./app.ts"]']
+            }),
+            contentHash: 'a'
+        };
+        const ideaB: IdeaRecord = {
+            id: ideaId(fileB, 'beta'),
+            name: 'beta',
+            kind: 'block',
+            fileUri: fileB,
+            lineStart: 0,
+            lineEnd: 2,
+            summary: 'beta summary',
+            attributesJson: '{}',
+            contentHash: 'b'
+        };
+        // No edges — export must still link [beta] by name lookup.
+        await store.upsertDocument(fileA, 'hash-a', [ideaA], []);
+        await store.upsertDocument(fileB, 'hash-b', [ideaB], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'attr-ref-report',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            runtimeMode: 'interactive' as const,
+            clusterStrategy: 'hybrid' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeCodeFilePages: true,
+            includeClusterPages: true,
+            includeAttributePages: true,
+            includePrintPages: true
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        const result = await writeHtmlExport(snapshot, request);
+        const alphaIdeaHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.path), 'utf8');
+
+        expect(alphaIdeaHtml).toMatch(/<a class="idea-ref idea-ref--idea"[^>]*href="[^"]*"[^>]*>beta<\/a>/);
+        expect(alphaIdeaHtml).toContain('class="idea-ref idea-ref--unresolved"');
+        expect(alphaIdeaHtml).toContain('pending');
+        expect(alphaIdeaHtml).toContain('hello world');
+        expect(alphaIdeaHtml).toContain('do the thing');
+        expect(alphaIdeaHtml).toContain('ui, export');
+        expect(alphaIdeaHtml).not.toMatch(/<td>notes<\/td>\s*<td>(true|—|false)<\/td>/);
+        expect(snapshot.ideasById[ideaA.id]!.attributes.notes).toBe('hello world');
+        expect(snapshot.ideasById[ideaA.id]!.attributes.tags).toEqual(['ui', 'export']);
+
+        await store.close();
+    });
+
+    test('workspace graph includes every idea even when maxGraphNodes is below idea count', async () => {
+        const store = await openTestStore();
+        const ideaCount = 150;
+        const fileUri = 'reqs/many.rq';
+        const ideas: IdeaRecord[] = Array.from({ length: ideaCount }, (_, index) => ({
+            id: ideaId(fileUri, `idea_${index}`),
+            name: `idea_${index}`,
+            kind: 'block',
+            fileUri,
+            lineStart: index * 3,
+            lineEnd: index * 3 + 2,
+            summary: `summary ${index}`,
+            attributesJson: '{}',
+            contentHash: `h${index}`
+        }));
+        const ideaset: IdeaRecord = {
+            id: ideaId(fileUri, 'group_set'),
+            name: 'group_set',
+            kind: 'ideaset',
+            fileUri,
+            lineStart: ideaCount * 3,
+            lineEnd: ideaCount * 3 + 4,
+            summary: 'contains members',
+            attributesJson: '{}',
+            contentHash: 'ideaset'
+        };
+        const edges: EdgeRecord[] = [{
+            id: 'member-0',
+            sourceId: ideaset.id,
+            targetId: ideas[0]!.id,
+            kind: 'ideaset_member',
+            isResolved: true
+        }];
+        await store.upsertDocument(fileUri, 'hash-many', [...ideas, ideaset], edges);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'large-graph-report',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            maxGraphNodes: 120,
+            runtimeMode: 'interactive' as const,
+            clusterStrategy: 'deterministic' as const,
+            includeIdeaPages: false,
+            includeFilePages: false,
+            includeCodeFilePages: false,
+            includeClusterPages: false,
+            includeAttributePages: false,
+            includePrintPages: false
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        const result = await writeHtmlExport(snapshot, request);
+        const graphHtml = await readFile(result.graphFilePath!, 'utf8');
+        const appJs = await readFile(join(result.outputDir, 'assets/app.js'), 'utf8');
+        const ideaNodes = snapshot.graphs.workspace.nodes.filter(node => !node.isExternal);
+        const ideasetNodes = ideaNodes.filter(node => node.kind === 'ideaset');
+
+        expect(snapshot.counts.ideas).toBe(ideaCount + 1);
+        expect(ideaNodes).toHaveLength(ideaCount + 1);
+        expect(ideasetNodes).toHaveLength(1);
+        expect(ideasetNodes[0]?.name).toBe('group_set');
+        expect(snapshot.graphs.workspace.truncated).toBe(false);
+        expect(graphHtml).toContain('data-graph-toggle-ideasets');
+        expect(graphHtml).toContain('Hide ideasets');
+        expect(appJs).toContain('hideIdeasets');
+        expect(appJs).toContain('Show ideasets');
+        expect(new Set(ideaNodes.map(node => node.name))).toEqual(
+            new Set([...ideas.map(idea => idea.name), ideaset.name])
+        );
+
+        await store.close();
+    });
+
+    test('excludeSecretFiles omits ideas hosted in *.secret.rq', async () => {
+        const store = await openTestStore();
+        const publicFile = 'reqs/public.rq';
+        const secretFile = 'reqs/private.secret.rq';
+        const publicIdea: IdeaRecord = {
+            id: ideaId(publicFile, 'visible'),
+            name: 'visible',
+            kind: 'block',
+            fileUri: publicFile,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'public idea',
+            attributesJson: '{}',
+            contentHash: 'p'
+        };
+        const secretIdea: IdeaRecord = {
+            id: ideaId(secretFile, 'hidden'),
+            name: 'hidden',
+            kind: 'block',
+            fileUri: secretFile,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'secret idea',
+            attributesJson: '{}',
+            contentHash: 's'
+        };
+        await store.upsertDocument(publicFile, 'hash-p', [publicIdea], []);
+        await store.upsertDocument(secretFile, 'hash-s', [secretIdea], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'public-only',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            excludeSecretFiles: true,
+            includeIdeaPages: false,
+            includeFilePages: false,
+            includeCodeFilePages: false,
+            includeClusterPages: false,
+            includeAttributePages: false,
+            includePrintPages: false
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        expect(snapshot.counts.ideas).toBe(1);
+        expect(snapshot.ideas.map(idea => idea.name)).toEqual(['visible']);
+        expect(snapshot.graphs.workspace.nodes.some(node => node.name === 'hidden')).toBe(false);
+
+        await store.close();
+    });
+
+    test('urlBase and headerLink produce root-relative hrefs and topbar home link', async () => {
+        const store = await openTestStore();
+        const fileA = 'reqs/a.rq';
+        const ideaA: IdeaRecord = {
+            id: ideaId(fileA, 'alpha'),
+            name: 'alpha',
+            kind: 'block',
+            fileUri: fileA,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'alpha summary',
+            attributesJson: '{}',
+            contentHash: 'a'
+        };
+        await store.upsertDocument(fileA, 'hash-a', [ideaA], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'mounted-report',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            runtimeMode: 'interactive' as const,
+            clusterStrategy: 'deterministic' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeCodeFilePages: true,
+            includeClusterPages: true,
+            includeAttributePages: true,
+            includePrintPages: true,
+            urlBase: '/reqlan/spec',
+            headerLink: { href: '/reqlan/', label: 'reqlan' }
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        const result = await writeHtmlExport(snapshot, request);
+        const indexHtml = await readFile(result.indexFilePath, 'utf8');
+        const ideaHtml = await readFile(join(result.outputDir, snapshot.ideas[0]!.page.path), 'utf8');
+
+        expect(snapshot.urlBase).toBe('/reqlan/spec');
+        expect(snapshot.headerLink).toEqual({ href: '/reqlan/', label: 'reqlan' });
+        expect(indexHtml).toContain('class="brand-link" href="/reqlan/"');
+        expect(indexHtml).toContain('>reqlan</a>');
+        expect(indexHtml).toContain('href="/reqlan/spec/assets/styles.css"');
+        expect(indexHtml).toContain('src="/reqlan/spec/assets/app.js"');
+        expect(indexHtml).toContain('src="/reqlan/spec/assets/search-index.js"');
+        expect(indexHtml).toContain('data-search-index="/reqlan/spec/data/search.json"');
+        expect(indexHtml).toContain('href="/reqlan/spec/ideas.html"');
+        expect(ideaHtml).toContain('href="/reqlan/spec/assets/styles.css"');
+        expect(ideaHtml).toContain('href="/reqlan/spec/ideas.html"');
+        expect(ideaHtml).toContain('class="brand-link" href="/reqlan/"');
+        expect(await readFile(join(result.outputDir, 'assets/styles.css'), 'utf8')).toContain('.brand-link');
 
         await store.close();
     });

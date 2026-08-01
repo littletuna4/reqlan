@@ -9,8 +9,10 @@ Shared requirement graph index and analysers for reqlan
 ## Features
 
 - Headless requirement graph index (sql.js) over parsed `.rq` workspaces
+- Shared application memory under `<workspace>/.reqlan` (ideas-index.sqlite) for extension, CLI, and MCP
 - Analysers for semantic search, file context, local graphs, and completion status
-- `AnalysisApi` façade shared by the CLI and MCP server
+- `AnalysisApi` façade shared by the CLI and MCP server (including `exportHtml`)
+- Multi-file HTML export pipeline (`exportHtml` / `buildExportSnapshot`) for docs and the public `/spec` site path
 - Context-model helpers for composing focused requirement context
 
 ## Install
@@ -28,6 +30,14 @@ npm install @reqlan/analytical
 - [Contact](mailto:reqlan@tony.is-a.dev)
 
 ## Changelog
+
+### 0.4.1
+
+#### Patch Changes
+
+- 1790ce1: Update the landers.
+- Updated dependencies [1790ce1]
+  - @reqlan/language@1.4.1
 
 ### 0.4.0
 

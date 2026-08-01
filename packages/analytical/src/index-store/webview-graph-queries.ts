@@ -47,6 +47,10 @@ export interface GraphViewQuery {
     /** Neighbourhood hop depth from center (1 = direct edges only). */
     hopDepth?: number;
     maxNodes?: number;
+    /** When true, do not clamp maxNodes to GRAPH_NODES_HARD_CAP (HTML export workspace graphs). */
+    ignoreHardCap?: boolean;
+    /** When true, include ideaset nodes in unfocused seed lists (HTML export). Default excludes them. */
+    includeIdeasets?: boolean;
     /** When the matching set exceeds maxNodes, which ordering decides who stays. */
     truncationBasis?: GraphTruncationBasis;
 }
@@ -82,8 +86,12 @@ export interface GraphViewSlice {
 }
 
 export function buildGraphFilterWhereClause(query: GraphViewQuery): { sql: string; params: unknown[] } {
-    const clauses = ["i.kind != 'ideaset'"];
+    const clauses: string[] = [];
     const params: unknown[] = [];
+
+    if (!query.includeIdeasets) {
+        clauses.push("i.kind != 'ideaset'");
+    }
 
     if (query.search?.trim()) {
         const pattern = `%${query.search.trim()}%`;
@@ -115,7 +123,7 @@ export function buildGraphFilterWhereClause(query: GraphViewQuery): { sql: strin
         params.push(path, `%${tag}%`, path, tag);
     }
 
-    return { sql: clauses.join(' AND '), params };
+    return { sql: clauses.length > 0 ? clauses.join(' AND ') : '1=1', params };
 }
 
 export function toGraphNodeView(idea: IdeaSummary): GraphNodeView {
@@ -164,7 +172,8 @@ export async function buildGraphViewSlice(
     store: SqliteIndexStore,
     query: GraphViewQuery
 ): Promise<GraphViewSlice> {
-    const maxNodes = Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), GRAPH_NODES_HARD_CAP);
+    const requested = Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES);
+    const maxNodes = query.ignoreHardCap ? requested : Math.min(requested, GRAPH_NODES_HARD_CAP);
     const depth = clampGraphHopDepth(query.hopDepth ?? (query.includeIndirect ? 2 : 1));
 
     if (query.centerId) {
@@ -186,6 +195,41 @@ export async function buildGraphViewSlice(
     const truncated = candidates.length > maxNodes;
     const seedNodes = truncated ? candidates.slice(0, maxNodes) : candidates;
     return collectSliceFromSeeds(store, query, seedNodes, depth, maxNodes, truncated, totalMatching);
+}
+
+/**
+ * Build a graph that contains exactly the given idea ids (including ideasets) plus
+ * external file nodes for outbound file_reference edges. Used by HTML export so the
+ * workspace graph matches the export idea list rather than the interactive UI budget.
+ */
+export async function buildGraphSliceForIdeaIds(
+    store: SqliteIndexStore,
+    ideaIds: readonly string[],
+    options: { maxNodes?: number } = {}
+): Promise<GraphViewSlice> {
+    const uniqueIds = [...new Set(ideaIds)];
+    const maxNodes = Math.max(1, options.maxNodes ?? uniqueIds.length);
+    const query: GraphViewQuery = {
+        includeIndirect: true,
+        maxNodes,
+        ignoreHardCap: true,
+        includeIdeasets: true
+    };
+    if (uniqueIds.length === 0) {
+        return {
+            query,
+            depth: 1,
+            truncated: false,
+            totalMatching: 0,
+            nodes: [],
+            edges: []
+        };
+    }
+    const truncated = uniqueIds.length > maxNodes;
+    const seedIds = truncated ? uniqueIds.slice(0, maxNodes) : uniqueIds;
+    const seedNodes = await store.getIdeasByIds(seedIds);
+    // Depth 1: keep the export scope closed — do not pull out-of-scope neighbours.
+    return collectSliceFromSeeds(store, query, seedNodes, 1, maxNodes, truncated, uniqueIds.length);
 }
 
 async function expandFromCenter(

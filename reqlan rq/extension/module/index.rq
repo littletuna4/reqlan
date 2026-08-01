@@ -1,3 +1,17 @@
+import "../../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../../packages/mcp/src/server.ts" as mcp_server
+import "../../../packages/extension/src/analytical_submodule/index.ts" as analytical_submodule
+
+application_memory {
+    Workspace-local application memory for reqlan tools lives under `<workspace>/.reqlan/`.
+    This folder is shared by the VS Code extension, ["../../cli/cli_package.rq".cli_package], and MCP ([mcp_server]) — not VS Code `globalStorageUri` / extension-private storage.
+    The ideas graph index (["../features-graph-analysers.rq".index_ideas] / ["../features-graph-analysers.rq".index_technology]) persists as `ideas-index.sqlite` inside that directory.
+    Path resolution is owned by [application_memory_impl] (`resolveApplicationMemoryPath`); consumers must use it (or `REQLAN_INDEX_PATH` override) so tools read and write the same store.
+    Extension wiring: [analytical_submodule]. CLI/MCP headless runtime defaults to the same path via `createAnalysisRuntime`.
+    Aligns with ["../../cli/cli_package.rq".function_parity]: shared analytical memory, not host-only state.
+    @status done
+}
+
 idea_index_triggers {
     should refresh automatically on file change
 }

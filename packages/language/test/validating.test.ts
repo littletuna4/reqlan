@@ -149,6 +149,49 @@ describe('Validating', () => {
         );
         expect(missingFileErrors).toHaveLength(0);
     });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+    test('reports local diagnostic for from-as mistaken import', async () => {
+        services = createReqlanServices(EmptyFileSystem);
+        const localParse = parseHelper<Model>(services.Reqlan);
+        const document = await localParse(s`
+            from "./example.rq" as example_alias
+            later_idea body text
+        `, { validation: true });
+
+        expect(document.parseResult.parserErrors).toHaveLength(0);
+        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        const syntaxErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Invalid syntax: use `import "./example.rq" as example_alias`')
+        );
+        expect(syntaxErrors).toHaveLength(1);
+        expect(syntaxErrors[0].range.start.line).toBe(0);
+        const cascadeEof = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Expecting token of type 'EOF'")
+        );
+        expect(cascadeEof).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+    test('reports local diagnostic for unquoted from-import', async () => {
+        services = createReqlanServices(EmptyFileSystem);
+        const localParse = parseHelper<Model>(services.Reqlan);
+        const document = await localParse(s`
+            from example.rq import symbol1
+            later_idea body text
+        `, { validation: true });
+
+        expect(document.parseResult.parserErrors).toHaveLength(0);
+        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        const syntaxErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Invalid from-import: expected a quoted path')
+        );
+        expect(syntaxErrors).toHaveLength(1);
+        expect(syntaxErrors[0].range.start.line).toBe(0);
+    });
 });
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {

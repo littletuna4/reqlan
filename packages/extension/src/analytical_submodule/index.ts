@@ -1,7 +1,7 @@
 /**
  * Analytical submodule: idea graph index and analysers for the reqlan extension.
  */
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import {
     AnalyserRegistry,
     createAnalyticalStore,
@@ -11,6 +11,7 @@ import {
     gitDatesAnalyser,
     listAllIdeasAnalyser,
     localGraphAnalyser,
+    resolveApplicationMemoryPath,
     semanticSearchAnalyser,
     type AnalyticalStore
 } from '@reqlan/analytical';
@@ -46,7 +47,12 @@ export async function activateAnalyticalSubmodule(
     context: vscode.ExtensionContext
 ): Promise<AnalyticalSubmodule> {
     const store = createAnalyticalStore();
-    const storagePath = context.globalStorageUri.fsPath;
+    // Shared application memory under `<workspace>/.reqlan` (same path as CLI/MCP).
+    // Fall back to extension globalStorage only when no folder is open.
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const storagePath = workspaceRoot
+        ? resolveApplicationMemoryPath(workspaceRoot)
+        : context.globalStorageUri.fsPath;
     const index = new IndexService(store, storagePath);
     const analysers = new AnalyserRegistry();
 

@@ -19,16 +19,12 @@ const steps = [
         command: 'pnpm run build:readme',
     },
     {
-        name: 'generate onboarding rq for VSIX packaging',
-        command: 'pnpm run build:onboarding',
-    },
-    {
         name: 'prepare syntaxes and sync Cursor skills',
         command: 'pnpm run build:prepare',
     },
     {
-        name: 'bundle Svelte webviews (ideas-summary, activity-bar)',
-        command: 'npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts',
+        name: 'bundle Svelte webviews (ideas-summary, activity-bar, onboarding)',
+        command: 'npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts',
     },
     {
         name: 'type-check extension TypeScript sources',

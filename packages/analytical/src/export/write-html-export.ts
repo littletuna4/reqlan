@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { ExportRequest, ExportResult, ExportSnapshot } from './types.js';
 import { APP_JS, SHARED_STYLES, buildSearchIndexScript } from './html-export-assets.js';
 import {
+    renderAttributeDetailPage,
     renderClusterDetailPage,
     renderClustersIndexPage,
     renderCodeFileDetailPage,
@@ -54,6 +55,7 @@ export async function writeHtmlExport(
         mkdir(join(outputDir, 'files'), { recursive: true }),
         mkdir(join(outputDir, 'code-files'), { recursive: true }),
         mkdir(join(outputDir, 'clusters'), { recursive: true }),
+        mkdir(join(outputDir, 'attributes'), { recursive: true }),
         mkdir(join(outputDir, 'print/ideas'), { recursive: true }),
         mkdir(join(outputDir, 'print/files'), { recursive: true }),
         mkdir(join(outputDir, 'print/code-files'), { recursive: true }),
@@ -147,6 +149,11 @@ export async function writeHtmlExport(
             if (cluster.page.printablePath) {
                 writes.push(writeFile(join(outputDir, cluster.page.printablePath), renderPrintClusterPage(snapshot, cluster), 'utf8'));
             }
+        }
+    }
+    if (!isPrintMode && snapshot.pageOptions.includeAttributePages) {
+        for (const attribute of snapshot.attributes) {
+            writes.push(writeFile(join(outputDir, attribute.page.path), renderAttributeDetailPage(snapshot, attribute), 'utf8'));
         }
     }
 

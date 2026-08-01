@@ -1,4 +1,7 @@
 
+import "./features-html-export.rq" as html_export
+import "./features-export.rq" as features_export
+
 export_configurability {
     exports should be built in mind with a print menu that will available for user configuration.
     The initial export should accept a user prompt input for a file name.
@@ -6,14 +9,18 @@ export_configurability {
 
 export_csv { 
     A command palette action should export requirements to csv with tags flattened for quick filtering.
+    [features_export.csv_export]
 }
 
 export_JSON {
      A command palette action should export requirements to json.
+     [features_export.json_export]
 }
 
 export_html {
-    A command palette action should export requirements to html. (as a single file or as multiple files.)
+    A command palette action should export requirements to html.
+    [html_export.html_export]
+    Host options for embedded mounts include [html_export.html_export_header_link] and [html_export.html_export_url_base].
 }
 
 export_pdf {

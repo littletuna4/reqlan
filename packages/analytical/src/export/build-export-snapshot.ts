@@ -3,7 +3,14 @@ import type {
     IdeaSummary
 } from '../core/types.js';
 import { parseAttributes } from '../core/types.js';
-import { buildGraphViewSlice, type GraphEdgeView, type GraphNodeView, type GraphViewSlice } from '../index-store/webview-graph-queries.js';
+import {
+    buildGraphSliceForIdeaIds,
+    buildGraphViewSlice,
+    GRAPH_MAX_NODES,
+    type GraphEdgeView,
+    type GraphNodeView,
+    type GraphViewSlice
+} from '../index-store/webview-graph-queries.js';
 import type { SqliteIndexStore } from '../index-store/sqlite-store.js';
 import type {
     ExportClusterKind,
@@ -11,6 +18,7 @@ import type {
     ExportAttributeRecord,
     ExportCodeFileRecord,
     ExportFileRecord,
+    ExportHeaderLink,
     ExportIdeaRecord,
     ExportManifest,
     ExportPageInfo,
@@ -18,7 +26,8 @@ import type {
     ExportSearchDocument,
     ExportSnapshot
 } from './types.js';
-import { formatAttributeValue, slugAttributeKey } from './html-export-utils.js';
+import { formatAttributeValue, normalizeUrlBase, slugAttributeKey } from './html-export-utils.js';
+import { isSecretRqPath } from './secret-rq.js';
 
 export async function buildExportSnapshot(
     store: SqliteIndexStore,
@@ -27,19 +36,25 @@ export async function buildExportSnapshot(
     const title = buildExportTitle(request);
     const runtimeMode = request.runtimeMode ?? 'interactive';
     const clusterStrategy = request.clusterStrategy ?? 'hybrid';
+    const urlBase = normalizeUrlBase(request.urlBase);
+    const headerLink = normalizeHeaderLink(request.headerLink);
     const pageOptions = {
         includeIdeaPages: request.includeIdeaPages !== false,
         includeFilePages: request.includeFilePages !== false,
         includeCodeFilePages: request.includeCodeFilePages !== false,
         includeClusterPages: request.includeClusterPages !== false,
+        includeAttributePages: request.includeAttributePages !== false,
         includePrintPages: request.includePrintPages !== false,
         includeRequirementsPage: request.includeRequirementsPage,
         includeGraphPage: request.includeGraphPage
     };
     const manifest = buildManifest(request);
-    const baseIdeas = request.scope === 'currentFile'
+    const scopedIdeas = request.scope === 'currentFile'
         ? await buildScopedIdeas(store, request)
         : await store.listAllIdeas();
+    const baseIdeas = request.excludeSecretFiles
+        ? scopedIdeas.filter(idea => !isSecretRqPath(idea.fileUri))
+        : scopedIdeas;
     const byStatus = rollupStatuses(baseIdeas);
     const byTag = rollupTags(baseIdeas);
     const allFiles = [...new Set(baseIdeas.map(idea => idea.fileUri))].sort();
@@ -71,10 +86,14 @@ export async function buildExportSnapshot(
         runtimeMode,
         clusterStrategy,
         pageOptions,
+        urlBase,
+        headerLink,
         manifest,
         counts: {
             ideas: ideaRecords.length,
-            edges: request.scope === 'currentFile' ? graphs.workspace.edges.length : counts.edges,
+            edges: request.scope === 'currentFile' || request.excludeSecretFiles
+                ? graphs.workspace.edges.length
+                : counts.edges,
             files: fileRecords.length,
             clusters: clusterRecords.length
         },
@@ -88,6 +107,7 @@ export async function buildExportSnapshot(
         clusters: clusterRecords,
         clustersById: Object.fromEntries(clusterRecords.map(cluster => [cluster.id, cluster])),
         attributes: attributeRecords,
+        attributesByKey: Object.fromEntries(attributeRecords.map(attribute => [attribute.key, attribute])),
         graphs,
         searchDocuments,
         byStatus,
@@ -324,27 +344,28 @@ async function buildGraphCatalog(
     files: ExportFileRecord[],
     clusters: ExportClusterRecord[]
 ) {
-    const workspace = request.scope === 'currentFile'
-        ? await buildGraphSliceForIdeas(store, request, ideas.map(idea => idea.id))
-        : await buildGraphViewSlice(store, {
-            includeIndirect: true,
-            maxNodes: request.maxGraphNodes
-        });
+    const neighborhoodBudget = request.maxGraphNodes ?? GRAPH_MAX_NODES;
+    // Workspace graph must mirror the export idea list (blocks, oneliners, and ideasets).
+    const workspace = await buildGraphSliceForIdeaIds(
+        store,
+        ideas.map(idea => idea.id),
+        { maxNodes: Math.max(neighborhoodBudget, ideas.length) }
+    );
     const byIdeaId = Object.fromEntries(await Promise.all(ideas.map(async idea => [
         idea.id,
         await buildGraphViewSlice(store, {
             centerId: idea.id,
             includeIndirect: true,
-            maxNodes: request.maxGraphNodes
+            maxNodes: neighborhoodBudget
         })
     ])));
     const byFileId = Object.fromEntries(await Promise.all(files.map(async file => [
         file.id,
-        await buildGraphSliceForIdeas(store, request, file.ideas.map(idea => idea.id))
+        await buildGraphSliceForIdeas(store, request, file.ideas.map(idea => idea.id), neighborhoodBudget)
     ])));
     const byClusterId = Object.fromEntries(await Promise.all(clusters.map(async cluster => [
         cluster.id,
-        await buildGraphSliceForIdeas(store, request, cluster.ideaIds)
+        await buildGraphSliceForIdeas(store, request, cluster.ideaIds, neighborhoodBudget)
     ])));
     return { workspace, byIdeaId, byFileId, byClusterId };
 }
@@ -358,19 +379,21 @@ function buildExportTitle(request: ExportRequest): string {
 async function buildGraphSliceForIdeas(
     store: SqliteIndexStore,
     request: ExportRequest,
-    ideaIds: string[]
+    ideaIds: string[],
+    maxNodes = request.maxGraphNodes ?? GRAPH_MAX_NODES
 ): Promise<GraphViewSlice> {
     const slices = await Promise.all(ideaIds.map(ideaId => buildGraphViewSlice(store, {
         centerId: ideaId,
         includeIndirect: true,
-        maxNodes: request.maxGraphNodes
+        maxNodes,
+        ignoreHardCap: maxNodes > GRAPH_MAX_NODES
     })));
-    return mergeGraphSlices(slices, request.maxGraphNodes);
+    return mergeGraphSlices(slices, Math.max(maxNodes, ideaIds.length));
 }
 
 function mergeGraphSlices(
     slices: GraphViewSlice[],
-    maxNodes = 120
+    maxNodes = GRAPH_MAX_NODES
 ): GraphViewSlice {
     const nodes = new Map<string, GraphNodeView>();
     const edges = new Map<string, GraphEdgeView>();
@@ -500,7 +523,7 @@ function buildSearchDocuments(
             title: attribute.key,
             kind: 'attribute',
             summary: `${attribute.ideaCount} ideas · ${attribute.values.length} values`,
-            url: `./attributes.html#attr-${slugAttributeKey(attribute.key)}`,
+            url: attribute.page.url,
             tags: ['attribute'],
             pathTokens: [attribute.key],
             keywords: attribute.values.map(value => value.value)
@@ -526,18 +549,22 @@ function buildAttributeRecords(ideas: ExportIdeaRecord[]): ExportAttributeRecord
         }
     }
     return [...byKey.entries()]
-        .map(([key, bucket]) => ({
-            key,
-            ideaCount: bucket.ideaIds.size,
-            ideaIds: [...bucket.ideaIds].sort(),
-            values: [...bucket.values.entries()]
-                .map(([value, ideaIds]) => ({
-                    value,
-                    count: ideaIds.size,
-                    ideaIds: [...ideaIds].sort()
-                }))
-                .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))
-        }))
+        .map(([key, bucket]) => {
+            const slug = slugAttributeKey(key);
+            return {
+                key,
+                ideaCount: bucket.ideaIds.size,
+                ideaIds: [...bucket.ideaIds].sort(),
+                values: [...bucket.values.entries()]
+                    .map(([value, ideaIds]) => ({
+                        value,
+                        count: ideaIds.size,
+                        ideaIds: [...ideaIds].sort()
+                    }))
+                    .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value)),
+                page: buildPageInfo(key, `attributes/${slug}.html`)
+            };
+        })
         .sort((left, right) => right.ideaCount - left.ideaCount || left.key.localeCompare(right.key));
 }
 
@@ -738,4 +765,13 @@ function slugify(value: string): string {
 function ensureHtmlFileName(value: string): string {
     const trimmed = value.trim();
     return trimmed.toLowerCase().endsWith('.html') ? trimmed : `${trimmed}.html`;
+}
+
+function normalizeHeaderLink(link: ExportHeaderLink | undefined): ExportHeaderLink | undefined {
+    const href = link?.href?.trim();
+    const label = link?.label?.trim();
+    if (!href || !label) {
+        return undefined;
+    }
+    return { href, label };
 }

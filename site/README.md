@@ -24,9 +24,13 @@ pnpm build
 
 This runs a single static export pipeline:
 
-1. Pre-render syntax highlights (Shiki)
-2. Export all routes with `next build` into `out/`
-3. Verify every required static page exists in `out/`
+1. Build `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli`
+2. Validate showcase `.rq` blocks and pre-render syntax highlights (Shiki)
+3. Export all Next.js routes with `next build` into `out/`
+4. Export the workspace requirement graph (non-secret) under `out/spec/` via `reqlan export`
+   - Uses `--url-base` (honours `SITE_BASE_PATH`) so `/spec` works with or without a trailing slash
+   - Adds a topbar header link back to the marketing site home
+5. Verify every required static page exists in `out/`
 
 Production builds use `SITE_BASE_PATH=/reqlan` in CI. Output is written to `out/`.
 

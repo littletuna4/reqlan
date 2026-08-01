@@ -305,6 +305,7 @@ describe('rqconfig schema edges', () => {
                     includeFilePages: true,
                     includeCodeFilePages: true,
                     includeClusterPages: true,
+                    includeAttributePages: true,
                     includePrintPages: true
                 }
             }
@@ -324,6 +325,7 @@ describe('rqconfig schema edges', () => {
                 includeFilePages: true,
                 includeCodeFilePages: true,
                 includeClusterPages: true,
+                includeAttributePages: true,
                 includePrintPages: true
             }
         });

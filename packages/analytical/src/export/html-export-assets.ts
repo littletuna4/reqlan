@@ -28,13 +28,16 @@ body {
 }
 a { color: var(--accent-strong); text-decoration: none; }
 a:hover { color: var(--accent); }
-main.layout { max-width: 1360px; margin: 0 auto; padding: 1.5rem; }
+main.layout {
+    max-width: 1360px; margin: 0 auto; padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 1.5rem;
+}
 .topbar {
     position: sticky; top: 0; z-index: 10;
-    background: var(--bg-elev); border-bottom: 1px solid var(--line); margin: 0 -1.5rem 1.5rem;
+    background: var(--bg-elev); border-bottom: 1px solid var(--line); margin: 0 -1.5rem;
     padding: 0.9rem 1.5rem;
 }
-.topbar-inner, .hero, .split, .grid, .detail-grid { display: grid; gap: 1rem; }
+.topbar-inner, .hero, .split, .grid, .detail-grid { display: grid; gap: 1.5rem; }
 .topbar-inner { grid-template-columns: 1.3fr auto; align-items: center; }
 .nav { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
 .nav a {
@@ -46,11 +49,35 @@ main.layout { max-width: 1360px; margin: 0 auto; padding: 1.5rem; }
     background: color-mix(in srgb, var(--rust) 28%, var(--bg-raised));
     color: var(--fg); border-color: var(--rust);
 }
-.hero { grid-template-columns: 2fr 1fr; margin-bottom: 1.5rem; }
-.grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.split, .detail-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.nav a.brand-link {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg);
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    padding-left: 0.15rem;
+    padding-right: 0.9rem;
+}
+.nav a.brand-link:hover {
+    color: var(--accent);
+    border-color: transparent;
+    background: transparent;
+}
+.hero { grid-template-columns: 2fr 1fr; }
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+    gap: 1.5rem;
+    row-gap: 1.5rem;
+    column-gap: 1.5rem;
+}
+.split, .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1.5rem;
+}
 .panel, .metric, .card, .table-shell, .graph-shell, .print-card, .search-result {
-    background: var(--bg-soft);
+    background: var(--bg-raised);
     border: 1px solid var(--line);
     border-radius: 10px;
 }
@@ -59,20 +86,23 @@ main.layout { max-width: 1360px; margin: 0 auto; padding: 1.5rem; }
 .metric-link, .metric > span, .metric > strong {
     display: flex; flex-direction: column; gap: 0.35rem; padding: 1rem; color: inherit;
 }
-.metric-link:hover { background: var(--bg-raised); }
+.metric-link:hover { background: color-mix(in srgb, var(--accent) 10%, var(--bg-raised)); }
 .metric-label, .subtle, .eyebrow, .breadcrumbs { color: var(--muted); }
 .metric-value { font-size: 1.75rem; color: var(--accent-strong); }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--rust); }
-.page-header { margin-bottom: 1rem; }
+.page-header { display: grid; gap: 0.55rem; }
+.page-header h1 { margin: 0; }
+.page-header .eyebrow { margin: 0; }
+.page-header .subtle { margin: 0; }
 .toolbar {
     display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;
     margin-bottom: 0.9rem;
 }
-.toolbar .actions, .pill-row, .breadcrumbs { display: flex; gap: 0.55rem; flex-wrap: wrap; align-items: center; }
+.toolbar .actions, .pill-row, .breadcrumbs { display: flex; gap: 0.75rem; row-gap: 0.85rem; flex-wrap: wrap; align-items: center; }
 .chip, .pill {
     display: inline-flex; align-items: center; gap: 0.35rem;
     padding: 0.28rem 0.6rem; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg-raised); color: var(--muted);
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
 }
 a.pill:hover { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .graph-controls-bar {
@@ -84,8 +114,9 @@ a.pill:hover { color: var(--accent-strong); border-color: color-mix(in srgb, var
     padding: 0.8rem;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: var(--bg-raised);
+    background: var(--bg);
 }
+.graph-shell > .pill-row { margin-bottom: 0.9rem; }
 .graph-filter {
     flex: 1 1 180px;
     min-width: 160px;
@@ -125,6 +156,23 @@ th, td {
 th { color: var(--muted); font-size: 0.94rem; }
 tbody tr:hover { background: var(--bg-raised); }
 .table-shell { overflow-x: auto; }
+.scroll-window {
+    --scroll-window-max: min(28rem, 50vh);
+}
+body[data-runtime-mode="interactive"] .scroll-window {
+    max-height: var(--scroll-window-max);
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+}
+body[data-runtime-mode="interactive"] .scroll-window > table {
+    margin: 0;
+}
+body[data-runtime-mode="interactive"] .scroll-window .entity-list,
+body[data-runtime-mode="interactive"] .scroll-window .rollup-list {
+    padding: 0.75rem;
+}
 .sortable-th { padding: 0.45rem 0.4rem; }
 .sort-button {
     display: inline-flex; align-items: center; gap: 0.35rem;
@@ -136,6 +184,29 @@ tbody tr:hover { background: var(--bg-raised); }
 .sort-button.sort-active { color: var(--accent-strong); }
 .sort-indicator { color: var(--faint); font-size: 0.8em; min-width: 1em; }
 .sort-button.sort-active .sort-indicator { color: var(--accent-strong); }
+.table-filter-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.25rem; height: 2.25rem; padding: 0;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg-raised); color: var(--muted); cursor: pointer;
+}
+.table-filter-toggle:hover { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.table-filter-toggle.is-active {
+    color: var(--fg);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-raised));
+}
+.table-filter-toggle.has-filters:not(.is-active) {
+    color: var(--accent-strong);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.table-filter-toggle svg { width: 1rem; height: 1rem; display: block; }
+.table-filter-actions {
+    display: flex; justify-content: flex-end; gap: 0.55rem;
+    margin-bottom: 0.65rem;
+}
+.column-filter-row { display: none; }
+.column-filter-row.is-open { display: table-row; }
 .column-filter-row th {
     padding: 0.35rem 0.4rem 0.75rem; border-bottom: 1px solid var(--line); font-weight: 400;
 }
@@ -148,18 +219,50 @@ tbody tr:hover { background: var(--bg-raised); }
     border-color: var(--accent);
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
 }
-.entity-list { display: grid; gap: 0.85rem; }
+body[data-runtime-mode="interactive"] .scroll-window thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bg-raised);
+    box-shadow: 0 1px 0 var(--line);
+}
+body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is-open th {
+    position: sticky;
+    top: 2.65rem;
+    z-index: 1;
+    background: var(--bg-raised);
+    box-shadow: 0 1px 0 var(--line);
+}
+.entity-list { display: grid; gap: 1.5rem; }
 .entity-card {
-    border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; background: var(--bg-raised);
+    border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; background: var(--bg);
     color: inherit;
 }
 .entity-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-.entity-card h3, .panel h2, .table-shell h2, .graph-shell h2 { margin-top: 0; }
+.entity-card h3, .entity-card p { margin: 0; }
+.entity-card p + p, .entity-card strong + p, .entity-card h3 + p { margin-top: 0.35rem; }
+.panel > h2, .table-shell > h2, .graph-shell > h2, .print-card > h3 { margin-top: 0; margin-bottom: 0.75rem; }
+.toolbar h2 { margin: 0; }
 .rollup-list { display: grid; gap: 0.5rem; }
 .rollup-list div {
     display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem;
 }
 .rollup-list dd { margin: 0; }
+.distribution-track {
+    height: 0.7rem;
+    min-width: 6rem;
+    border-radius: 999px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+}
+.distribution-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent-strong));
+    min-width: 0;
+}
 .graph-root svg {
     width: 100%; min-height: 620px; background: var(--bg); border-radius: 10px; border: 1px solid var(--line);
 }
@@ -173,6 +276,7 @@ tbody tr:hover { background: var(--bg-raised); }
     transition: fill 180ms ease, stroke 180ms ease, r 180ms ease;
 }
 .graph-root .external circle { fill: var(--rust-muted); stroke: color-mix(in srgb, var(--rust) 50%, transparent); }
+.graph-root .ideaset circle { fill: color-mix(in srgb, #d18616 78%, white); stroke: #d18616; }
 .graph-root .subject circle {
     fill: var(--rust);
     stroke: var(--accent-strong);
@@ -212,7 +316,6 @@ tbody tr:hover { background: var(--bg-raised); }
 .search-results { display: grid; gap: 0.7rem; margin-top: 1rem; }
 .search-result:hover { border-color: var(--accent-dim); }
 .hidden { display: none !important; }
-.breadcrumbs { margin-bottom: 0.65rem; }
 .breadcrumbs a { color: var(--muted); }
 .breadcrumbs a:hover { color: var(--accent-strong); }
 .section-link { font-size: 0.92rem; }
@@ -261,10 +364,20 @@ pre.code-like {
 @media print {
     :root { color-scheme: light; }
     body { background: white; color: black; }
-    .topbar, .searchbar, .toolbar .actions, .graph-shell .toolbar, .column-filter-row, .hide-on-print { display: none !important; }
+    .topbar, .searchbar, .toolbar .actions, .graph-shell .toolbar, .column-filter-row, .table-filter-toggle, .table-filter-actions, .hide-on-print { display: none !important; }
     .sort-button { cursor: default; }
     .panel, .metric, .card, .table-shell, .graph-shell, .print-card, .search-result, .entity-card {
         background: white; color: black; border-color: #cbd5e1; box-shadow: none;
+    }
+    .scroll-window {
+        max-height: none !important;
+        overflow: visible !important;
+        border: none !important;
+        background: transparent !important;
+    }
+    .scroll-window thead th {
+        position: static !important;
+        box-shadow: none !important;
     }
     a { color: black; text-decoration: underline; }
     .print-break-avoid { break-inside: avoid; }
@@ -378,6 +491,44 @@ function isPlaceholderRow(row) {
     return [...row.cells].some(cell => Number(cell.colSpan || 1) > 1);
 }
 
+const FILTER_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>';
+
+function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState) {
+    const shell = table.closest('.table-shell') || table.parentElement;
+    const toolbar = shell ? shell.querySelector(':scope > .toolbar') : null;
+    let actions = toolbar ? toolbar.querySelector('.actions') : null;
+    if (toolbar && !actions) {
+        actions = document.createElement('div');
+        actions.className = 'actions';
+        toolbar.appendChild(actions);
+    }
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'actions table-filter-actions';
+        table.parentElement?.insertBefore(actions, table);
+    }
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'table-filter-toggle';
+    toggle.setAttribute('aria-label', 'Toggle column filters');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('title', 'Column filters');
+    toggle.innerHTML = FILTER_ICON_SVG;
+    toggle.addEventListener('click', () => {
+        const open = !filterRow.classList.contains('is-open');
+        filterRow.classList.toggle('is-open', open);
+        toggle.classList.toggle('is-active', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        syncToggleState();
+        if (open) {
+            filterInputs[0]?.focus();
+        }
+    });
+    actions.appendChild(toggle);
+    return toggle;
+}
+
 function wireTables(root) {
     const tables = root.querySelectorAll('table');
     const tableControllers = [];
@@ -396,6 +547,12 @@ function wireTables(root) {
         let sortIndex = -1;
         let sortDir = 'asc';
         const filterInputs = [];
+        let filterToggle = null;
+        const syncToggleState = () => {
+            if (!filterToggle) return;
+            const hasFilters = filterInputs.some(input => input.value.trim());
+            filterToggle.classList.toggle('has-filters', hasFilters);
+        };
         const controller = {
             table,
             tbody,
@@ -418,6 +575,7 @@ function wireTables(root) {
                     });
                     row.classList.toggle('hidden', !(matchesGlobal && matchesColumns));
                 }
+                syncToggleState();
             }
         };
 
@@ -483,6 +641,7 @@ function wireTables(root) {
             filterRow.appendChild(cell);
         });
         thead.appendChild(filterRow);
+        filterToggle = ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState);
         tableControllers.push(controller);
     }
 
@@ -855,6 +1014,7 @@ function wireGraph(root) {
                 const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 const classes = ['node'];
                 if (node.isExternal) classes.push('external');
+                if (node.kind === 'ideaset') classes.push('ideaset');
                 if (node.isSubject || node.id === graph.centerId) classes.push('subject');
                 group.setAttribute('class', classes.join(' '));
                 group.dataset.nodeId = node.id;
@@ -990,6 +1150,7 @@ function wireGraph(root) {
             const statusQuery = lower(statusSelect?.value?.trim());
             const tagQuery = lower(tagSelect?.value?.trim());
             if (hideExternal && node.isExternal) return false;
+            if (hideIdeasets && node.kind === 'ideaset') return false;
             const haystack = [node.name, node.kind, node.fileUri, node.status || '', ...(node.tags || [])].map(lower).join(' ');
             if (query && !haystack.includes(query)) return false;
             if (pathQuery && !lower(node.fileUri).includes(pathQuery)) return false;
@@ -1017,6 +1178,12 @@ function wireGraph(root) {
             toggleExternal.textContent = hideExternal ? 'Show external' : 'Hide external';
             refresh();
         });
+        toggleIdeasets?.addEventListener('click', () => {
+            hideIdeasets = !hideIdeasets;
+            toggleIdeasets.classList.toggle('is-active', hideIdeasets);
+            toggleIdeasets.textContent = hideIdeasets ? 'Show ideasets' : 'Hide ideasets';
+            refresh();
+        });
         togglePhysics?.addEventListener('click', () => {
             livePhysics = !livePhysics;
             togglePhysics.classList.toggle('is-active', livePhysics);
@@ -1036,8 +1203,11 @@ function wireGraph(root) {
             if (statusSelect) statusSelect.value = '';
             if (tagSelect) tagSelect.value = '';
             hideExternal = false;
+            hideIdeasets = false;
             toggleExternal?.classList.remove('is-active');
+            toggleIdeasets?.classList.remove('is-active');
             if (toggleExternal) toggleExternal.textContent = 'Hide external';
+            if (toggleIdeasets) toggleIdeasets.textContent = 'Hide ideasets';
             positions.clear();
             velocities.clear();
             pinnedIds.clear();

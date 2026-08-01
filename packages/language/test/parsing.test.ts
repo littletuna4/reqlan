@@ -242,6 +242,41 @@ next_idea still here`);
         ]);
     });
 
+    // rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+    test('malformed from-as import keeps later ideas parseable', async () => {
+        const document = await parse(`from "../../../x.ts" as application_memory_impl
+import "../../../y.ts" as mcp_server
+
+application_memory {
+    hello world
+}
+
+idea_index_triggers {
+    should refresh
+}
+`);
+        expect(document.parseResult.parserErrors).toHaveLength(0);
+        expect(document.parseResult.value.elements.map(element => element.name)).toEqual([
+            'application_memory',
+            'idea_index_triggers'
+        ]);
+        expect(document.parseResult.value.imports).toHaveLength(2);
+        const mistaken = document.parseResult.value.imports.find(isFromImport);
+        expect(mistaken?.path).toBe('../../../x.ts');
+        expect(mistaken?.alias).toBe('application_memory_impl');
+        expect(mistaken?.specifiers).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+    test('unquoted from-import keeps later ideas parseable', async () => {
+        const document = await parse(`from example.rq import symbol1
+later_idea body text
+`);
+        expect(document.parseResult.parserErrors).toHaveLength(0);
+        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        expect(document.parseResult.value.imports.some(entry => entry.$type === 'InvalidFromImport')).toBe(true);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
     test('parse single-quoted import paths and idea names', async () => {
         const document = await parse(`from './example.rq' import symbol1

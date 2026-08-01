@@ -8,6 +8,7 @@ import {
     isFromImportSpecifier,
     isIdea,
     isIdeaSet,
+    isInvalidFromImport,
     isLocalReference,
     isModel,
     isNamespaceImport,
@@ -20,7 +21,7 @@ import {
     type Model,
     type QualifiedReference
 } from './generated/ast.js';
-import { findFromImportSpecifierByBinding, specifierBindingName } from './reqlan-import-bindings.js';
+import { findFromImportSpecifierByBinding, importPathOf, specifierBindingName } from './reqlan-import-bindings.js';
 import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
@@ -202,9 +203,12 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         if (!isModel(model)) {
             return new StreamScope(stream([]));
         }
-        const descriptions = model.imports.map(importDecl =>
-            this.descriptions.createDescription(importDecl, importDecl.path, document)
-        );
+        const descriptions = model.imports.flatMap(importDecl => {
+            const path = importPathOf(importDecl);
+            return path
+                ? [this.descriptions.createDescription(importDecl, path, document)]
+                : [];
+        });
         return new StreamScope(stream(descriptions));
     }
 
@@ -305,7 +309,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
 }
 
 function importAlias(entry: Import): string | undefined {
-    if (isFromImport(entry)) {
+    if (isFromImport(entry) || isInvalidFromImport(entry)) {
         return undefined;
     }
     return entry.alias;

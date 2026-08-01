@@ -12,6 +12,12 @@ export type ExportRuntimeMode = 'interactive' | 'document' | 'print';
 export type ExportClusterStrategy = 'deterministic' | 'hybrid';
 export type ExportClusterKind = 'file' | 'folder' | 'tag' | 'status' | 'community';
 
+/** Optional chrome link shown in the export topbar (e.g. back to a parent site). */
+export interface ExportHeaderLink {
+    href: string;
+    label: string;
+}
+
 export interface ExportRequest {
     format: ExportFormat;
     outputDir: string;
@@ -30,7 +36,21 @@ export interface ExportRequest {
     includeFilePages?: boolean;
     includeCodeFilePages?: boolean;
     includeClusterPages?: boolean;
+    includeAttributePages?: boolean;
     includePrintPages?: boolean;
+    /**
+     * When true, omit ideas hosted in `*.secret.rq` files (and their local graph
+     * footprint) from the export. Used for public site / published specs.
+     */
+    excludeSecretFiles?: boolean;
+    /**
+     * Absolute URL prefix for the export mount (e.g. `/spec` or `/reqlan/spec`).
+     * When set, page and asset hrefs are root-relative so static hosts resolve
+     * correctly with or without a trailing slash on directory URLs.
+     */
+    urlBase?: string;
+    /** Optional topbar link back to a parent site or home page. */
+    headerLink?: ExportHeaderLink;
 }
 
 export interface ExportCounts {
@@ -81,6 +101,7 @@ export interface ExportPageOptions {
     includeFilePages: boolean;
     includeCodeFilePages: boolean;
     includeClusterPages: boolean;
+    includeAttributePages: boolean;
     includePrintPages: boolean;
     includeRequirementsPage: boolean;
     includeGraphPage: boolean;
@@ -155,6 +176,7 @@ export interface ExportAttributeRecord {
     ideaCount: number;
     values: ExportAttributeValueRecord[];
     ideaIds: string[];
+    page: ExportPageInfo;
 }
 
 export interface ExportGraphCatalog {
@@ -174,6 +196,9 @@ export interface ExportSnapshot {
     runtimeMode: ExportRuntimeMode;
     clusterStrategy: ExportClusterStrategy;
     pageOptions: ExportPageOptions;
+    /** Normalized mount prefix when request.urlBase was set (no trailing slash). */
+    urlBase?: string;
+    headerLink?: ExportHeaderLink;
     manifest: ExportManifest;
     counts: ExportCounts;
     ideas: ExportIdeaRecord[];
@@ -186,6 +211,7 @@ export interface ExportSnapshot {
     clusters: ExportClusterRecord[];
     clustersById: Record<string, ExportClusterRecord>;
     attributes: ExportAttributeRecord[];
+    attributesByKey: Record<string, ExportAttributeRecord>;
     graphs: ExportGraphCatalog;
     searchDocuments: ExportSearchDocument[];
     byStatus: Record<string, number>;

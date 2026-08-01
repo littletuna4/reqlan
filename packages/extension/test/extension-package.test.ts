@@ -3,9 +3,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
-import { ONBOARDING_OUTPUT_REL, ONBOARDING_TEMPLATE_REL } from '../scripts/onboarding-rq-build.ts';
-
 const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ONBOARDING_TEMPLATE_REL = 'templates/thanks-for-installing.template.rq';
+const ONBOARDING_WEBVIEW_MEDIA_REL = 'media/webviews/onboarding';
 
 function vscodeIgnorePatterns(): string[] {
     return readFileSync(join(extensionRoot, '.vscodeignore'), 'utf8')
@@ -33,17 +33,21 @@ function isIgnoredByVsce(relativePath: string, patterns: string[]): boolean {
 }
 
 describe('extension VSIX packaging', () => {
-    test('build.mjs generates onboarding rq before bundling', () => {
+    test('build.mjs bundles onboarding webview with other webviews', () => {
         const buildScript = readFileSync(join(extensionRoot, 'scripts/build.mjs'), 'utf8');
 
-        expect(buildScript).toContain('build:onboarding');
-        expect(buildScript.indexOf('build:onboarding')).toBeLessThan(buildScript.indexOf('node esbuild.mjs'));
+        expect(buildScript).toContain('webviews/onboarding/vite.config.ts');
+        expect(buildScript).not.toContain('build:onboarding');
+        expect(buildScript.indexOf('webviews/onboarding/vite.config.ts')).toBeLessThan(
+            buildScript.indexOf('node esbuild.mjs'),
+        );
     });
 
-    test('built onboarding rq is packaged and the source template is excluded', () => {
+    test('onboarding webview media is packaged and the source template is excluded', () => {
         const patterns = vscodeIgnorePatterns();
 
         expect(isIgnoredByVsce(ONBOARDING_TEMPLATE_REL, patterns)).toBe(true);
-        expect(isIgnoredByVsce(ONBOARDING_OUTPUT_REL, patterns)).toBe(false);
+        expect(isIgnoredByVsce(ONBOARDING_WEBVIEW_MEDIA_REL, patterns)).toBe(false);
+        expect(isIgnoredByVsce(`${ONBOARDING_WEBVIEW_MEDIA_REL}/main.js`, patterns)).toBe(false);
     });
 });

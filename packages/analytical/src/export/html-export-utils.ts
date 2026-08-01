@@ -28,9 +28,30 @@ export function stringifyJson(value: unknown): string {
     return JSON.stringify(value, null, 2).replace(/</g, '\\u003c');
 }
 
-export function hrefFor(currentPath: string, targetPath: string): string {
+/** Normalize an export mount prefix to a leading-slash path without a trailing slash. */
+export function normalizeUrlBase(urlBase?: string): string | undefined {
+    const trimmed = urlBase?.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+    const withoutTrailing = trimmed.replace(/\/+$/, '');
+    if (withoutTrailing.length === 0) {
+        return undefined;
+    }
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(withoutTrailing) || withoutTrailing.startsWith('/')) {
+        return withoutTrailing;
+    }
+    return `/${withoutTrailing}`;
+}
+
+export function hrefFor(currentPath: string, targetPath: string, urlBase?: string): string {
+    const base = normalizeUrlBase(urlBase);
+    const cleanedTarget = targetPath.replace(/^\.\//, '').replace(/^\/+/, '');
+    if (base) {
+        return cleanedTarget ? `${base}/${cleanedTarget}` : `${base}/`;
+    }
     const fromSegments = currentPath.split('/').filter(Boolean);
-    const toSegments = targetPath.split('/').filter(Boolean);
+    const toSegments = cleanedTarget.split('/').filter(Boolean);
     const fromDir = fromSegments.slice(0, -1);
     while (fromDir.length > 0 && toSegments.length > 0 && fromDir[0] === toSegments[0]) {
         fromDir.shift();
@@ -94,8 +115,8 @@ export function renderOptionalTagsCell(idea: { tags?: readonly string[] | null }
     return tags.length > 0 ? escapeHtml(tags.join(', ')) : '';
 }
 
-export function pageHref(currentPath: string, page: ExportPageInfo): string {
-    return hrefFor(currentPath, page.path);
+export function pageHref(currentPath: string, page: ExportPageInfo, urlBase?: string): string {
+    return hrefFor(currentPath, page.path, urlBase);
 }
 
 /** Resolve a hosting .rq file or outbound code-file page for a path or graph node id. */
@@ -121,6 +142,30 @@ export function resolveExportFilePage(
     const codeFile = snapshot.codeFiles.find(file => file.fileUri === fileUri);
     if (codeFile) {
         return { page: codeFile.page, kind: 'code-file' };
+    }
+    const normalized = fileUri.replace(/\\/g, '/');
+    const bySuffix = [...snapshot.files, ...snapshot.codeFiles].find(file => {
+        const candidate = file.fileUri.replace(/\\/g, '/');
+        return candidate === normalized
+            || candidate.endsWith(`/${normalized}`)
+            || candidate.endsWith(normalized)
+            || normalized.endsWith(`/${candidate}`)
+            || normalized.endsWith(candidate);
+    });
+    if (bySuffix) {
+        const kind = snapshot.filesById[bySuffix.id] ? 'file' : 'code-file';
+        return { page: bySuffix.page, kind };
+    }
+    const base = fileBaseName(fileUri).toLowerCase();
+    if (base) {
+        const byName = [...snapshot.files, ...snapshot.codeFiles].filter(file =>
+            fileBaseName(file.fileUri).toLowerCase() === base
+        );
+        if (byName.length === 1) {
+            const match = byName[0]!;
+            const kind = snapshot.filesById[match.id] ? 'file' : 'code-file';
+            return { page: match.page, kind };
+        }
     }
     return undefined;
 }
@@ -179,9 +224,21 @@ function fileBaseName(path: string): string {
     return segments[segments.length - 1] || cleaned;
 }
 
-function summaryRefDisplayName(raw: string): string {
+function summaryRefInner(raw: string): { isWiki: boolean; inner: string; target: string } {
     const isWiki = raw.startsWith('[[') && raw.endsWith(']]');
     const inner = isWiki ? raw.slice(2, -2) : raw.slice(1, -1);
+    let target = inner.trim();
+    if (isWiki) {
+        const pipe = inner.indexOf('|');
+        if (pipe >= 0) {
+            target = inner.slice(0, pipe).trim();
+        }
+    }
+    return { isWiki, inner, target };
+}
+
+function summaryRefDisplayName(raw: string): string {
+    const { isWiki, inner, target } = summaryRefInner(raw);
     if (isWiki) {
         const pipe = inner.indexOf('|');
         if (pipe >= 0) {
@@ -191,7 +248,6 @@ function summaryRefDisplayName(raw: string): string {
             }
         }
     }
-    const target = isWiki && inner.includes('|') ? inner.slice(0, inner.indexOf('|')).trim() : inner.trim();
     const quoted = /^["'](.+)["']$/.exec(target);
     if (quoted?.[1]) {
         return fileBaseName(quoted[1]);
@@ -200,56 +256,92 @@ function summaryRefDisplayName(raw: string): string {
     return segments[segments.length - 1] || target || raw;
 }
 
-function matchOutboundRef(idea: ExportIdeaRecord, raw: string, displayName: string) {
-    const outbound = idea.references.outbound;
-    const bySnippet = outbound.find(row => row.snippet === raw);
-    if (bySnippet) {
-        return bySnippet;
-    }
-    const needle = displayName.toLowerCase();
-    return outbound.find(row => {
-        const labels = [row.label, row.targetName, fileBaseName(row.targetPath)]
-            .filter(Boolean)
-            .map(value => String(value).toLowerCase());
-        return labels.includes(needle);
-    });
+function summaryRefFilePath(raw: string): string | undefined {
+    const { target } = summaryRefInner(raw);
+    const quoted = /^["'](.+)["']$/.exec(target);
+    return quoted?.[1]?.trim() || undefined;
 }
 
-function summaryRefTooltip(
-    row: ReturnType<typeof matchOutboundRef>,
-    displayName: string,
-    linkedIdea?: ExportIdeaRecord
-): string {
-    if (linkedIdea) {
-        return `${linkedIdea.fileUri} · ${linkedIdea.name}`;
+type ExportRefRow = ExportIdeaRecord['references']['outbound'][number];
+
+function findIdeaByRefName(snapshot: ExportSnapshot, raw: string, displayName: string): ExportIdeaRecord | undefined {
+    const { target } = summaryRefInner(raw);
+    const qualified = target.split('.').map(part => part.trim()).filter(Boolean);
+    const ideaName = (qualified.at(-1) || displayName).toLowerCase();
+    if (!ideaName) {
+        return undefined;
     }
-    if (row?.targetPath) {
-        if (row.targetName && row.targetName !== row.targetPath) {
-            return `${row.targetPath} · ${row.targetName}`;
+    const matches = snapshot.ideas.filter(candidate => candidate.name.toLowerCase() === ideaName);
+    if (matches.length === 1) {
+        return matches[0];
+    }
+    if (matches.length > 1 && qualified.length > 1) {
+        const qualifier = qualified.slice(0, -1).join('.').toLowerCase();
+        const narrowed = matches.filter(candidate => {
+            const path = candidate.fileUri.toLowerCase();
+            return path.includes(qualifier) || path.includes(qualifier.replace(/\./g, '/'));
+        });
+        if (narrowed.length === 1) {
+            return narrowed[0];
         }
-        return row.targetPath;
     }
-    if (row && !row.isResolved) {
-        return `Unresolved reference: ${displayName}`;
-    }
-    return displayName;
+    return undefined;
 }
 
 /**
- * Render an idea body/summary with styled inline refs: linked idea/file names and destination tooltips.
+ * Render text that may contain wiki/bracket refs as styled links to export pages.
  */
-export function renderIdeaSummaryHtml(
+export function renderTextWithRefsHtml(
     snapshot: ExportSnapshot,
     currentPath: string,
-    idea: ExportIdeaRecord,
-    emptyMessage = 'No summary provided.'
+    text: string,
+    options?: {
+        idea?: ExportIdeaRecord;
+        emptyMessage?: string;
+    }
 ): string {
-    const summary = idea.summary?.trim();
-    if (!summary) {
-        return escapeHtml(emptyMessage);
+    const source = text?.trim();
+    if (!source) {
+        return escapeHtml(options?.emptyMessage ?? '');
     }
 
     const used = new WeakSet<object>();
+    const takeRow = (raw: string, displayName: string): ExportRefRow | undefined => {
+        if (!options?.idea) {
+            return undefined;
+        }
+        const matches = [
+            ...options.idea.references.outbound,
+            ...options.idea.references.unresolved,
+            ...options.idea.references.inbound
+        ].filter(row =>
+            row.snippet === raw
+            || [row.label, row.targetName, fileBaseName(row.targetPath)]
+                .filter(Boolean)
+                .map(value => String(value).toLowerCase())
+                .includes(displayName.toLowerCase())
+        );
+        const unused = matches.find(row => !used.has(row));
+        const row = unused ?? matches[0];
+        if (row) {
+            used.add(row);
+        }
+        return row;
+    };
+
+    const ideaFromRow = (row: ExportRefRow | undefined): ExportIdeaRecord | undefined => {
+        if (!row) {
+            return undefined;
+        }
+        if (row.targetIdeaId && snapshot.ideasById[row.targetIdeaId]) {
+            return snapshot.ideasById[row.targetIdeaId];
+        }
+        if (row.direction === 'inbound' && snapshot.ideasById[row.sourceIdeaId]) {
+            return snapshot.ideasById[row.sourceIdeaId];
+        }
+        return undefined;
+    };
+
     const renderLine = (line: string): string => {
         let html = '';
         let lastIndex = 0;
@@ -261,31 +353,26 @@ export function renderIdeaSummaryHtml(
             lastIndex = index + raw.length;
 
             const displayName = summaryRefDisplayName(raw);
-            let row = matchOutboundRef(idea, raw, displayName);
-            if (row && used.has(row)) {
-                row = idea.references.outbound.find(candidate =>
-                    !used.has(candidate)
-                    && (candidate.snippet === raw
-                        || [candidate.label, candidate.targetName].includes(displayName))
-                ) ?? row;
-            }
-            if (row) {
-                used.add(row);
-            }
-
-            const linkedIdea = row?.targetIdeaId ? snapshot.ideasById[row.targetIdeaId] : undefined;
-            const fileTarget = !linkedIdea && row?.targetPath
-                ? resolveExportFilePage(snapshot, { fileUri: row.targetPath })
+            const row = takeRow(raw, displayName);
+            const linkedIdea = ideaFromRow(row) ?? findIdeaByRefName(snapshot, raw, displayName);
+            const filePath = summaryRefFilePath(raw) ?? (!linkedIdea ? row?.targetPath : undefined);
+            const fileTarget = !linkedIdea && filePath
+                ? resolveExportFilePage(snapshot, { fileUri: filePath })
                 : undefined;
-            const title = summaryRefTooltip(row, displayName, linkedIdea);
+
             const label = linkedIdea?.name
-                ?? (fileTarget ? fileBaseName(row!.targetPath) : displayName);
+                ?? (fileTarget ? fileBaseName(filePath ?? displayName) : displayName);
+            const title = linkedIdea
+                ? `${linkedIdea.fileUri} · ${linkedIdea.name}`
+                : filePath || row?.targetPath || (
+                    row && !row.isResolved ? `Unresolved reference: ${displayName}` : displayName
+                );
 
             let href: string | undefined;
             if (linkedIdea && snapshot.pageOptions.includeIdeaPages) {
-                href = pageHref(currentPath, linkedIdea.page);
+                href = pageHref(currentPath, linkedIdea.page, snapshot.urlBase);
             } else if (fileTarget && filePageEnabled(snapshot, fileTarget.kind)) {
-                href = pageHref(currentPath, fileTarget.page);
+                href = pageHref(currentPath, fileTarget.page, snapshot.urlBase);
             }
 
             const className = [
@@ -305,8 +392,57 @@ export function renderIdeaSummaryHtml(
         return html;
     };
 
-    return summary
+    return source
         .split('\n')
         .map(line => renderLine(line))
         .join('<br>');
+}
+
+/**
+ * Render an idea body/summary with styled inline refs: linked idea/file names and destination tooltips.
+ */
+export function renderIdeaSummaryHtml(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    idea: ExportIdeaRecord,
+    emptyMessage = 'No summary provided.'
+): string {
+    return renderTextWithRefsHtml(snapshot, currentPath, idea.summary ?? '', {
+        idea,
+        emptyMessage
+    });
+}
+
+/** Render an attribute value, linking any embedded idea/file refs to export pages. */
+export function renderAttributeValueHtml(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    value: unknown,
+    idea?: ExportIdeaRecord
+): string {
+    if (value === true) {
+        return 'true';
+    }
+    if (value === false) {
+        return 'false';
+    }
+    if (value == null) {
+        return '—';
+    }
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            return '—';
+        }
+        return value
+            .map(item => renderTextWithRefsHtml(snapshot, currentPath, String(item), { idea }))
+            .join(', ');
+    }
+    if (typeof value === 'object') {
+        return escapeHtml(JSON.stringify(value));
+    }
+    const text = String(value);
+    if (!text.trim()) {
+        return '—';
+    }
+    return renderTextWithRefsHtml(snapshot, currentPath, text, { idea });
 }

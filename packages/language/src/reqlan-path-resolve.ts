@@ -30,6 +30,7 @@ export interface RqHtmlExportConfig {
     includeFilePages?: boolean;
     includeCodeFilePages?: boolean;
     includeClusterPages?: boolean;
+    includeAttributePages?: boolean;
     includePrintPages?: boolean;
 }
 
@@ -252,6 +253,9 @@ function parseHtmlExportConfig(raw: unknown): RqHtmlExportConfig | undefined {
     }
     if (typeof record.includeClusterPages === 'boolean') {
         config.includeClusterPages = record.includeClusterPages;
+    }
+    if (typeof record.includeAttributePages === 'boolean') {
+        config.includeAttributePages = record.includeAttributePages;
     }
     if (typeof record.includePrintPages === 'boolean') {
         config.includePrintPages = record.includePrintPages;

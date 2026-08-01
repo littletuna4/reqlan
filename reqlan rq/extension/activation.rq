@@ -37,7 +37,7 @@ onboarding_check {
     Post-install onboarding is checked on every activation, not via a dedicated install event.
     ["./onboarding/page-thanks-for-installing.rq".installation_event_trigger] is satisfied because `activate` always calls ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
     The check reads global state key `onboarding` via ["../../packages/extension/src/extension/onboarding-state.ts"]:
-    - `onboardingMessageShown` — when false, open the built ["../../packages/extension/media/thanks-for-installing.rq"] as an untitled `.rq` editor.
+    - `onboardingMessageShown` — when false, open the onboarding webview panel via ["../../packages/extension/src/extension/onboarding-panel.ts"].
     - `lastVersion` — updated each activation after the message has been shown so future releases can detect extension updates.
     The call is fire-and-forget; errors are logged and do not fail activation.
 }

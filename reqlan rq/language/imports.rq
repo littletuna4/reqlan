@@ -18,6 +18,25 @@ import_from {
     )
 }
 
+import_error_recovery {
+    A malformed import must not invalidate the rest of the file.
+    Recoverable invalid `from` shapes parse as local import nodes with a line-level diagnostic:
+    - `from "path" as alias` (mistaken namespace form) — suggest `import "path" as alias` or `from "path" import <idea>`
+    - bare `from "path"` — require the `import <idea>` clause
+    - `from` without a quoted path — consume the remainder of the line as an invalid import
+    Later imports and top-level ideas continue to parse and link normally.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:malformed from-as import keeps later ideas parseable"]
+        ["../../packages/language/test/validating.test.ts:reports local diagnostic for from-as mistaken import"]
+        ["../../packages/language/test/validating.test.ts:reports local diagnostic for unquoted from-import"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+    )
+}
+
 import_namespace {
     Namespace import syntax uses import and a quoted path.
     Namespace import may include an alias using as.

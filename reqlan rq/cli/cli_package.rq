@@ -1,9 +1,12 @@
 from "../language/ontology.rq" import extension
+from "../extension/module/index.rq" import application_memory
+import "../extension/features-html-export.rq" as html_export
 
 cli_package {
     `packages/cli` (`@reqlan/cli`) is the Clipanion CLI published to npm as the `reqlan` (and `rq`) binary.
     It depends on `@reqlan/analytical` for workspace analysis and `@reqlan/language` for single-file parse.
     Entry: ["../../packages/cli/src/main.ts"].
+    Analysis commands reuse [application_memory] (`<workspace>/.reqlan`) so the CLI shares the ideas index with the extension and MCP.
 }
 
 commands {
@@ -11,9 +14,14 @@ commands {
     - `parse <file>` — parse one `.rq` file via `@reqlan/language`; print diagnostics or an AST summary (`--json` for machine output).
     - `analyse` / `analyze` — file (`--file`), idea (`--idea`), or workspace completion (default) via `AnalysisApi`.
     - `search <query>` — semantic search via `AnalysisApi.searchRequirements`.
+    - `export` / `export html` — multi-file HTML site via `AnalysisApi.exportHtml` ([html_export.html_export]).
+      `--exclude-secret` omits `*.secret.rq`.
+      `--url-base` mounts root-relative hrefs per [html_export.html_export_url_base].
+      `--header-href` / `--header-label` set the topbar home link per [html_export.html_export_header_link].
 }
 
 function_parity {
     CLI shares headless function definitions with MCP and other tools through `@reqlan/analytical` `AnalysisApi`, not VS Code host APIs from [extension].
+    On-disk index storage follows [application_memory] (same `.reqlan` path as the extension); optional override via `REQLAN_INDEX_PATH`.
     @status done
 }

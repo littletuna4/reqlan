@@ -7,6 +7,8 @@ import type {
     SemanticMatch
 } from './core/types.js';
 import type { AnalysisRuntime } from './create-runtime.js';
+import { exportHtml } from './export/export-html.js';
+import type { ExportRequest, ExportResult } from './export/types.js';
 
 export interface RequirementMatch {
     idea: IdeaSummary;
@@ -111,6 +113,20 @@ export class AnalysisApi {
         );
     }
 
+    /**
+     * Export the indexed requirement graph as a multi-file static HTML site.
+     * Headless entry point shared by CLI and site build.
+     */
+    async exportHtml(request: Omit<ExportRequest, 'workspaceRoot'> & {
+        workspaceRoot?: string;
+    }): Promise<ExportResult> {
+        await this.ensureReady();
+        return exportHtml(this.runtime.index.indexStore, {
+            ...request,
+            workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
+        });
+    }
+
     async resolveRequirementReference(name?: string): Promise<IdeaSummary[]> {
         await this.ensureReady();
         const query = name?.trim() ?? '';
@@ -178,6 +194,15 @@ export class AnalysisApi {
                 name: 'completion_status',
                 description: 'Summarise completion and deprecation status across the workspace graph.',
                 parameters: {}
+            },
+            {
+                name: 'export_html',
+                description: 'Export the requirement graph as a multi-file static HTML site.',
+                parameters: {
+                    outputDir: 'Parent directory for the export folder',
+                    exportName: 'Export folder name',
+                    excludeSecretFiles: 'Optional: omit *.secret.rq files'
+                }
             },
             {
                 name: 'list_interactions',

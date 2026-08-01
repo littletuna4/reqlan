@@ -19,6 +19,12 @@ export {
     resolveWorkspaceFileUri,
     toWorkspaceRelativePath
 } from './core/workspace-paths.js';
+export {
+    APPLICATION_MEMORY_DIR,
+    IDEAS_INDEX_FILENAME,
+    resolveApplicationMemoryPath,
+    resolveIdeasIndexDbPath
+} from './core/application-memory.js';
 export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
 export type { Analyser, AnalyserContext } from './analysis/analyser-registry.js';
 export { AnalyserRegistry } from './analysis/analyser-registry.js';
@@ -61,6 +67,7 @@ export {
     buildGraphFilterWhereClause,
     buildGraphTruncationOrderClause,
     buildGraphViewSlice,
+    buildGraphSliceForIdeaIds,
     toGraphNodeView,
     CONTEXT_MIN_HOP_DEPTH,
     CONTEXT_MAX_HOP_DEPTH,
@@ -152,12 +159,17 @@ export type { AnalysisRuntime, AnalysisRuntimeOptions } from './create-runtime.j
 export { AnalysisApi } from './analysis-api.js';
 export type { InteractionDescriptor, RequirementMatch } from './analysis-api.js';
 export { buildExportSnapshot } from './export/build-export-snapshot.js';
+export { exportHtml } from './export/export-html.js';
 export { writeHtmlExport } from './export/write-html-export.js';
+export { isSecretRqPath } from './export/secret-rq.js';
 export type {
     ExportCounts,
+    ExportClusterStrategy,
     ExportFormat,
+    ExportHeaderLink,
     ExportRequest,
     ExportResult,
+    ExportRuntimeMode,
     ExportScope,
     ExportSnapshot
 } from './export/types.js';

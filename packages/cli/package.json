@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/cli",
-    "description": "CLI for parsing and analysing reqlan requirement graphs",
+    "description": "CLI for parsing, analysing, and exporting reqlan requirement graphs",
     "version": "0.1.1",
     "type": "module",
     "license": "AGPL-3.0-only",

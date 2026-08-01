@@ -1,13 +1,20 @@
 from "./features-graph.rq" import graph_design
+from "./module/index.rq" import application_memory
 import "../packages/language/src/reqlan-comment.langium" as comment_grammar
+import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as index_service
 
 index_ideas {
     The extension should maintain an index of all ideas across the workspace for fast lookup and navigation.
-    The index should update incrementally as .rq files change.    
+    The index should update incrementally as .rq files change.
+    Persistence lives in [application_memory], shared with CLI and MCP — not VS Code extension storage.
 }
 
 index_technology {
-    the [index_ideas] graph database should be built with a sqlite database at context.globalStorageUri. aligned with [graph_design]
+    The [index_ideas] graph database is sql.js SQLite, aligned with [graph_design].
+    On-disk location is [application_memory] (`<workspace>/.reqlan/ideas-index.sqlite`), not `context.globalStorageUri`.
+    Implementation: [application_memory_impl], [index_service], and headless [analysis_runtime] for CLI/MCP.
 }
 
 indexing_incrementality indexing should be incremental

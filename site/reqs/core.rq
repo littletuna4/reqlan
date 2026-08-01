@@ -1,5 +1,7 @@
 import "../../reqlan rq/distribution/distribution.rq" as distribution_reqs
 import "../../reqlan rq/phonebook.rq" as phonebook_reqs
+import "../../reqlan rq/extension/features-html-export.rq" as html_export
+import "../../reqlan rq/cli/cli_package.rq" as cli_package
 import "./icons.rq" as icon_reqs
 
 site {
@@ -10,6 +12,21 @@ simple_lightweight_and_static {
     must be fully statically exported for GitHub Pages.
     All routes, including showcase detail pages, are generated at build time.
     The deploy workflow must upload only static HTML, JS, and assets from site/out.
+    Build also embeds the workspace requirement graph under `/spec` per [spec_html_export].
+}
+
+spec_html_export {
+    The site static build exports the workspace requirement graph (excluding `*.secret.rq`) under `out/spec/` via `reqlan export`.
+    It must pass [html_export.html_export_url_base] for `/spec` (honouring `SITE_BASE_PATH`, e.g. `/reqlan/spec` in production) so `/spec` loads with or without a trailing slash.
+    It must pass [html_export.html_export_header_link] pointing at the marketing site home so readers can leave the embedded spec and return to the parent site.
+    Pipeline: ["../scripts/build-static.mts"] → ["../scripts/export-spec.mts"] → ["../scripts/verify-static-export.mts"].
+    Host options come from [html_export.html_export] / CLI [cli_package.commands].
+    @status done
+    @implementation (
+        ["../scripts/export-spec.mts"]
+        ["../scripts/verify-static-export.mts"]
+        ["../scripts/build-static.mts"]
+    )
 }
 
 workflow {
@@ -55,6 +72,7 @@ logo {
 
 assets {
     this site is published in in gh pages at the "/reqlan" path. Any assets in the /public folder should be referenced as "/reqlan/assets/...".
+    Embedded spec export hrefs follow the same base via [spec_html_export] / [html_export.html_export_url_base].
 }
 
 brand {

@@ -12,6 +12,7 @@ import {
     type QualifiedReference,
     type ReferenceTarget
 } from './generated/ast.js';
+import { importPathOf } from './reqlan-import-bindings.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 export function referenceImport(target: ReferenceTarget): Reference<Import> | undefined {
@@ -40,10 +41,10 @@ export function referenceFilePath(target: ReferenceTarget): string | undefined {
 
 export function qualifiedReferenceImportPath(reference: QualifiedReference): string | undefined {
     if (reference.qualifier?.ref) {
-        return reference.qualifier.ref.path;
+        return importPathOf(reference.qualifier.ref);
     }
     if (reference.path?.ref) {
-        return reference.path.ref.path;
+        return importPathOf(reference.path.ref);
     }
     if (reference.path?.$refText) {
         return unquoteReqlanString(reference.path.$refText);

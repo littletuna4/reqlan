@@ -5,6 +5,7 @@ import { AstUtils, type LangiumDocument } from 'langium';
 import {
     findEmbeddedFileReferencesInText,
     findNamespaceImportByAlias,
+    importPathOf,
     isAttribute,
     isBracketReference,
     isIdea,
@@ -15,6 +16,8 @@ import {
     isNamespaceImportOnlyReference,
     isOneLinerIdea,
     isQualifiedReference,
+    isBlockValue,
+    isListValue,
     isScalarValue,
     isWikiLink,
     namespaceImportBindingName,
@@ -146,12 +149,52 @@ function attributeValue(attribute: Attribute): string | string[] | boolean {
         return true;
     }
     if (isScalarValue(attribute.value)) {
-        return attribute.value.parts
-            .map(part => typeof part === 'string' ? part : '')
-            .join('')
-            .trim();
+        return normalizeAttributeText(attribute.value.$cstNode?.text)
+            || inlinePartsText(attribute.value.parts);
+    }
+    if (isListValue(attribute.value)) {
+        return attribute.value.items
+            .map(item => normalizeAttributeText(item.$cstNode?.text))
+            .filter((item): item is string => Boolean(item));
+    }
+    if (isBlockValue(attribute.value)) {
+        const raw = attribute.value.$cstNode?.text ?? '';
+        const inner = raw.replace(/^\{\s*/, '').replace(/\s*\}$/, '').trim();
+        return inner.replace(/\r\n/g, '\n');
     }
     return true;
+}
+
+/** Prefer source text; fall back to AST part fields for scalar-like nodes. */
+function inlinePartsText(parts: ReadonlyArray<unknown>): string {
+    return parts
+        .map(part => {
+            if (typeof part === 'string') {
+                return part;
+            }
+            if (!part || typeof part !== 'object') {
+                return '';
+            }
+            const node = part as {
+                text?: string;
+                inlineCode?: string;
+                $cstNode?: { text?: string };
+            };
+            if (typeof node.text === 'string' && node.text.length > 0) {
+                return node.text;
+            }
+            if (typeof node.inlineCode === 'string' && node.inlineCode.length > 0) {
+                return node.inlineCode;
+            }
+            return node.$cstNode?.text ?? '';
+        })
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizeAttributeText(text: string | undefined): string {
+    return text?.replace(/\s+/g, ' ').trim() ?? '';
 }
 
 function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRecord[]): void {
@@ -252,10 +295,11 @@ function namespaceAliasFileEdge(
     const importDecl = isQualifiedReference(target)
         ? target.qualifier?.ref
         : findNamespaceImportByAlias(model.imports, bindingName);
-    if (!importDecl?.path) {
+    const rawPath = importDecl ? importPathOf(importDecl) : undefined;
+    if (!rawPath) {
         return undefined;
     }
-    const targetFile = unquoteReqlanString(importDecl.path);
+    const targetFile = unquoteReqlanString(rawPath);
     return {
         id: edgeId(sourceId, 'file_reference', targetFile),
         sourceId,

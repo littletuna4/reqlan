@@ -7,6 +7,7 @@ import type { Range } from 'vscode-languageserver';
 import { resolveFileUri } from './reqlan-comment-resolver.js';
 import type { EmbeddedFileReference } from './reqlan-embedded-file-references.js';
 import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-references.js';
+import { importPathOf } from './reqlan-import-bindings.js';
 import { findImportedDocument, resolveExistingImportUri } from './reqlan-imports.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
@@ -100,12 +101,16 @@ export function resolveImportPathLink(
     documents: LangiumDocuments,
     context?: PathResolveContext
 ): ResolvedFileLink | undefined {
+    const path = importPathOf(importDecl);
+    if (!path) {
+        return undefined;
+    }
     const document = AstUtils.getDocument(importDecl);
     const pathNode = GrammarUtils.findNodeForProperty(importDecl.$cstNode, 'path');
     if (!pathNode) {
         return undefined;
     }
-    const imported = findImportedDocument(importDecl.path, document, documents, context);
+    const imported = findImportedDocument(path, document, documents, context);
     const target = imported?.parseResult.value.$cstNode;
     if (!imported || !target) {
         return undefined;

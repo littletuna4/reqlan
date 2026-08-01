@@ -200,13 +200,19 @@ LocalReference:
 
 // ---------------------------------------------------------------------------
 // import_from, import_namespace, import_qualified — see imports.rq
+// InvalidFromImport recovers unquoted/malformed `from` lines so later ideas still parse.
+// FromImport allows a mistaken `from "path" as alias` shape for a local diagnostic
+// (valid form still requires `import` + idea specifiers).
 // ---------------------------------------------------------------------------
 
 Import:
-    FromImport | NamespaceImport | QualifiedImport;
+    FromImport | NamespaceImport | QualifiedImport | InvalidFromImport;
 
 FromImport:
-    'from' path=STRING 'import' specifiers+=FromImportSpecifier (',' specifiers+=FromImportSpecifier)*;
+    'from' path=STRING (
+        'import' specifiers+=FromImportSpecifier (',' specifiers+=FromImportSpecifier)*
+      | 'as' alias=ID
+    )?;
 
 FromImportSpecifier:
     idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
@@ -216,6 +222,16 @@ NamespaceImport:
 
 QualifiedImport:
     'import' path=STRING '.' ideaset=ID '.' idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
+
+// `from` not followed by a quoted path — consume the rest of the line.
+InvalidFromImport:
+    'from' head=InvalidImportHeadToken tokens+=InvalidImportToken*;
+
+InvalidImportHeadToken returns string:
+    ID | WORD | NUMBER | OTHER | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
+
+InvalidImportToken returns string:
+    ID | STRING | WORD | NUMBER | OTHER | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
 
 // ---------------------------------------------------------------------------
 // comments, string_literals

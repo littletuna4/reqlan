@@ -2,23 +2,28 @@ import "../../phonebook.rq" as phonebook_reqs
 import "@/reqlan_rq/extension/activation.rq" as activation
 
 installation_event {
-    On installation of the extension a reqlan file should be opened showing:
+    On installation of the extension a webview should be opened showing:
     - A welcome message
-    - links to site, github, docs etc.
-    - A guide to the extension and the reqlan language
+    - Resolved links to site, github, docs etc. (not template placeholders)
+    - A syntax-highlighted example `.rq` with real URLs (clickable) from ["../../packages/extension/templates/thanks-for-installing.template.rq"] after placeholder substitution
+    - A control to open that example as an untitled `.rq` editor beside the webview
+    - Short tips for the activity bar and `@reqlan` chat
     - A thanks to sponsors
-    Implemented via ["../../packages/extension/templates/thanks-for-installing.template.rq"] built at package time into ["../../packages/extension/media/thanks-for-installing.rq"] by ["../../packages/extension/scripts/onboarding-rq-build.ts"] with links from [phonebook_reqs.phonebook], then opened once on first activation by ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
-    The template uses build-time placeholders such as {{SITE_URL}}; those matching braces are body prose per ["../language/syntax-edge-cases.rq".nested_curly_braces] and must parse without errors.
+    Implemented as a Svelte webview under ["../../packages/extension/webviews/onboarding/"] bundled to ["../../packages/extension/media/webviews/onboarding/"] and opened once on first activation by ["../../packages/extension/src/extension/open-thanks-for-installing.ts"] via ["../../packages/extension/src/extension/onboarding-panel.ts"].
+    Resource links and template values are resolved at runtime from [phonebook_reqs.phonebook] through ["../../packages/extension/src/shared/phonebook.ts"] and posted to the webview; the example block imports ["../../packages/extension/templates/thanks-for-installing.template.rq"] via Vite `?raw` and substitutes `{{…}}` placeholders before display.
+    Highlighting uses the onboarding tokenizer in ["../../packages/extension/webviews/onboarding/lib/rq-highlight.ts"].
+    The source template still uses placeholders such as {{SITE_URL}}; those matching braces are body prose per ["../language/syntax-edge-cases.rq".nested_curly_braces] and must parse without errors.
     Activation state is stored in extension global state key `onboarding` with `onboardingMessageShown` and `lastVersion` per ["../../packages/extension/src/extension/onboarding-state.ts"].
     VS Code persists `globalState` in the extension global storage directory (`globalStorage/reqlan.reqlan-extension/state.vscdb` under the editor user data folder).
     @status done
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse thanks-for-installing template"]
+        ["../../packages/extension/test/onboarding-rq-highlight.test.ts"]
     )
 }
 
 show_onboarding_command {
-    A [command_palette] action should reopen the built onboarding page on demand.
+    A [command_palette] action should reopen the onboarding webview on demand.
     Command: Show Onboarding (category Reqlan, id `reqlan.showOnboarding`).
     Implemented by ["../../packages/extension/src/extension/register-onboarding-commands.ts"] calling [open_onboarding_page].
     Does not reset [onboarding_state].
@@ -26,7 +31,7 @@ show_onboarding_command {
 }
 
 open_onboarding_page {
-    Opens ["../../packages/extension/media/thanks-for-installing.rq"] as an untitled `.rq` editor via ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
+    Opens the onboarding webview panel (`reqlan.onboarding`) via ["../../packages/extension/src/extension/open-thanks-for-installing.ts"] and ["../../packages/extension/src/extension/onboarding-panel.ts"].
 }
 
 onboarding_state {

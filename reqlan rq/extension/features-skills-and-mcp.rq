@@ -1,5 +1,6 @@
 mcp_tools {
     The extension or companion server should expose mcp tools for ai and automation clients.
+    Headless index storage follows ["./module/index.rq".application_memory] (`<workspace>/.reqlan`), shared with the extension and CLI.
 }
 
 mcp_tools_prompt {

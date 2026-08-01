@@ -1,6 +1,5 @@
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { createAnalyticalStore, type AnalyticalStore } from './core/analytical-store.js';
+import { resolveApplicationMemoryPath } from './core/application-memory.js';
 import { AnalyserRegistry } from './analysis/analyser-registry.js';
 import { listAllIdeasAnalyser } from './analysis/list-ideas-analyser.js';
 import { fileRelatedAnalyser } from './analysis/file-related-analyser.js';
@@ -13,6 +12,7 @@ import { HeadlessIndexService } from './headless-index-service.js';
 
 export interface AnalysisRuntimeOptions {
     workspaceRoot: string;
+    /** Override application-memory directory; default is `<workspace>/.reqlan`. */
     storagePath?: string;
 }
 
@@ -30,7 +30,7 @@ export interface AnalysisRuntime {
 
 export function createAnalysisRuntime(options: AnalysisRuntimeOptions): AnalysisRuntime {
     const store = createAnalyticalStore();
-    const storagePath = options.storagePath ?? join(tmpdir(), 'reqlan-analytical');
+    const storagePath = resolveApplicationMemoryPath(options.workspaceRoot, options.storagePath);
     const index = new HeadlessIndexService(store, storagePath, options.workspaceRoot);
     const analysers = new AnalyserRegistry();
 

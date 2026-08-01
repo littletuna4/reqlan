@@ -4,7 +4,7 @@
 import type { CstNode, FileSystemProvider, LangiumDocuments } from 'langium';
 import { AstUtils, GrammarUtils } from 'langium';
 import { isIdea, isModel, isOneLinerIdea, type Import, type LocalReference, type QualifiedReference } from './generated/ast.js';
-import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
+import { findNamespaceImportByAlias, importPathOf } from './reqlan-import-bindings.js';
 import { bindingNameSourceRange, resolveImportedFileLink, type ResolvedFileLink } from './reqlan-file-link-resolver.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 
@@ -62,15 +62,16 @@ export function resolveNamespaceImportReferenceLink(
     if (!importDecl || !isNamespaceImportBinding(importDecl, bindingName)) {
         return undefined;
     }
+    const path = importPathOf(importDecl);
     const pathNode = referencePathNode(reference, importDecl);
-    if (!pathNode) {
+    if (!path || !pathNode) {
         return undefined;
     }
     return resolveImportedFileLink(
         document,
         documents,
         fileSystem,
-        importDecl.path,
+        path,
         bindingNameSourceRange(pathNode, bindingName),
         context
     );

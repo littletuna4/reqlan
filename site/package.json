@@ -27,6 +27,7 @@
     "devDependencies": {
         "@iconify-icons/mdi": "^1.2.48",
         "@iconify-icons/simple-icons": "^1.2.74",
+        "@reqlan/language": "workspace:*",
         "@tailwindcss/postcss": "^4",
         "@types/node": "^20",
         "@types/react": "^19",
@@ -40,7 +41,6 @@
         "to-ico": "^1.1.5",
         "tsx": "^4.20.6",
         "typescript": "^5",
-        "typescript-eslint": "^8.46.2",
-        "@reqlan/language": "workspace:*"
+        "typescript-eslint": "^8.46.2"
     }
 }

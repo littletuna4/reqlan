@@ -7,6 +7,7 @@ import type { AnalyticalStore } from './core/analytical-store.js';
 import { normalizeIndexedDocument, resolveWorkspaceFileUri } from './core/workspace-paths.js';
 import { extractIndexedDocument } from './index-store/idea-extractor.js';
 import { SqliteIndexStore } from './index-store/sqlite-store.js';
+import { isSecretRqPath } from './export/secret-rq.js';
 
 export class HeadlessIndexService {
     private sqlite?: SqliteIndexStore;
@@ -161,7 +162,7 @@ export class HeadlessIndexService {
                 await this.walkDirectory(fullPath, results);
                 continue;
             }
-            if (entry.isFile() && entry.name.endsWith('.rq')) {
+            if (entry.isFile() && entry.name.endsWith('.rq') && !isSecretRqPath(entry.name)) {
                 results.push(fullPath);
             }
         }

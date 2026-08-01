@@ -40,6 +40,7 @@ export const siteContent = {
     { id: "syntax", label: "Syntax" },
     { id: "example", label: "Example" },
     { id: "showcase", label: "Showcases", href: "/showcase" },
+    { id: "spec", label: "Spec", href: "/spec" },
     { id: "contact", label: "Links" },
   ] satisfies NavItem[],
 

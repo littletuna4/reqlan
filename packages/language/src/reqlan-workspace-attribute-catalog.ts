@@ -3,7 +3,14 @@
  */
 import type { LangiumDocuments } from 'langium';
 import { AstUtils } from 'langium';
-import { isAttribute, isModel, isScalarValue, type Attribute } from './generated/ast.js';
+import {
+    isAttribute,
+    isBlockValue,
+    isListValue,
+    isModel,
+    isScalarValue,
+    type Attribute
+} from './generated/ast.js';
 import type { AttributeCatalog } from './reqlan-attribute-catalog.js';
 
 export function collectWorkspaceAttributeCatalog(documents: LangiumDocuments): AttributeCatalog {
@@ -41,22 +48,50 @@ function valuesForAttribute(attribute: Attribute): string[] {
         return [];
     }
     if (isScalarValue(attribute.value)) {
-        const text = attribute.value.parts
-            .map(part => typeof part === 'string' ? part : '')
-            .join('')
-            .trim();
+        const text = normalizeCatalogText(attribute.value.$cstNode?.text)
+            || inlineCatalogParts(attribute.value.parts);
         return text ? [text] : [];
     }
-    if (attribute.value.$type === 'ListValue') {
-        return attribute.value.items.flatMap(item => {
-            if (item.$type === 'OneLinerListItem') {
-                return item.body.content
-                    .map(part => typeof part === 'string' ? part : '')
-                    .join('')
-                    .trim();
-            }
-            return [];
-        }).filter(Boolean);
+    if (isListValue(attribute.value)) {
+        return attribute.value.items
+            .map(item => normalizeCatalogText(item.$cstNode?.text))
+            .filter(Boolean);
+    }
+    if (isBlockValue(attribute.value)) {
+        const raw = attribute.value.$cstNode?.text ?? '';
+        const inner = raw.replace(/^\{\s*/, '').replace(/\s*\}$/, '').trim();
+        return inner ? [inner.replace(/\s+/g, ' ')] : [];
     }
     return [];
+}
+
+function normalizeCatalogText(text: string | undefined): string {
+    return text?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+function inlineCatalogParts(parts: ReadonlyArray<unknown>): string {
+    return parts
+        .map(part => {
+            if (typeof part === 'string') {
+                return part;
+            }
+            if (!part || typeof part !== 'object') {
+                return '';
+            }
+            const node = part as {
+                text?: string;
+                inlineCode?: string;
+                $cstNode?: { text?: string };
+            };
+            if (typeof node.text === 'string' && node.text.length > 0) {
+                return node.text;
+            }
+            if (typeof node.inlineCode === 'string' && node.inlineCode.length > 0) {
+                return node.inlineCode;
+            }
+            return node.$cstNode?.text ?? '';
+        })
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
 }

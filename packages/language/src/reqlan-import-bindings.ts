@@ -1,10 +1,13 @@
 import type { AstNode } from 'langium';
 import {
     isFromImport,
+    isInvalidFromImport,
     isNamespaceImport,
     isQualifiedImport,
+    type FromImport,
     type FromImportSpecifier,
-    type Import
+    type Import,
+    type InvalidFromImport
 } from './generated/ast.js';
 
 export interface ImportBinding {
@@ -13,12 +16,31 @@ export interface ImportBinding {
     property: 'alias' | 'idea';
 }
 
+export type PathBearingImport = Exclude<Import, InvalidFromImport>;
+
 export function specifierBindingName(specifier: FromImportSpecifier): string | undefined {
     return specifier.alias ?? specifier.idea.$refText;
 }
 
+/** True when a from-import has the required `import <idea>` clause. */
+export function isWellFormedFromImport(importDecl: FromImport): boolean {
+    return importDecl.specifiers.length > 0;
+}
+
+export function isPathBearingImport(importDecl: Import): importDecl is PathBearingImport {
+    return !isInvalidFromImport(importDecl);
+}
+
+export function importPathOf(importDecl: Import): string | undefined {
+    return isPathBearingImport(importDecl) ? importDecl.path : undefined;
+}
+
 export function importBindings(importDecl: Import): ImportBinding[] {
     if (isFromImport(importDecl)) {
+        // Mistaken `from "path" as alias` (no idea specifiers) must not bind a name.
+        if (!isWellFormedFromImport(importDecl)) {
+            return [];
+        }
         return importDecl.specifiers.flatMap(specifier => {
             const name = specifierBindingName(specifier);
             if (!name) {
@@ -30,6 +52,9 @@ export function importBindings(importDecl: Import): ImportBinding[] {
                 property: specifier.alias ? 'alias' as const : 'idea' as const
             }];
         });
+    }
+    if (isInvalidFromImport(importDecl)) {
+        return [];
     }
     if (isQualifiedImport(importDecl)) {
         const name = importDecl.alias ?? importDecl.idea.$refText;

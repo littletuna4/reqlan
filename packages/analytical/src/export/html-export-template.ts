@@ -1,4 +1,5 @@
 import type {
+    ExportAttributeRecord,
     ExportClusterRecord,
     ExportCodeFileRecord,
     ExportFileRecord,
@@ -17,6 +18,7 @@ import {
     ideaTags,
     pageHref,
     relatedClusters,
+    renderAttributeValueHtml,
     renderDefinitionList,
     renderIdeaSummaryHtml,
     renderMetric,
@@ -24,10 +26,20 @@ import {
     renderOptionalStatusParagraph,
     renderOptionalTagsCell,
     renderOptionalTagsParagraph,
+    renderTextWithRefsHtml,
     resolveExportFilePage,
     slugAttributeKey,
     stringifyJson
 } from './html-export-utils.js';
+
+
+function exportHref(snapshot: ExportSnapshot, currentPath: string, targetPath: string): string {
+    return hrefFor(currentPath, targetPath, snapshot.urlBase);
+}
+
+function exportPageHref(snapshot: ExportSnapshot, currentPath: string, pageInfo: ExportPageInfo): string {
+    return pageHref(currentPath, pageInfo, snapshot.urlBase);
+}
 
 interface RenderOptions {
     currentPath: string;
@@ -42,7 +54,7 @@ interface RenderOptions {
 export function renderHomePage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.home.path;
     const highlightClusters = snapshot.clusters.slice(0, 8).map(cluster => `
-        <a class="entity-card" href="${escapeHtml(pageHref(currentPath, cluster.page))}">
+        <a class="entity-card" href="${escapeHtml(exportPageHref(snapshot, currentPath, cluster.page))}">
             <div class="pill-row">
                 <span class="pill">${escapeHtml(cluster.kind)}</span>
                 <span class="pill">${cluster.counts.ideas} ideas</span>
@@ -68,29 +80,29 @@ export function renderHomePage(snapshot: ExportSnapshot): string {
             </div>
         </header>
         <section class="grid">
-            ${renderMetric('Ideas', String(snapshot.counts.ideas), pageHref(currentPath, snapshot.manifest.ideasIndex))}
-            ${renderMetric('References', String(snapshot.counts.edges), pageHref(currentPath, snapshot.manifest.graph))}
-            ${renderMetric('Files', String(snapshot.counts.files), pageHref(currentPath, snapshot.manifest.filesIndex))}
-            ${renderMetric('Code files', String(snapshot.codeFiles.length), pageHref(currentPath, snapshot.manifest.codeFilesIndex))}
-            ${renderMetric('Clusters', String(snapshot.counts.clusters), pageHref(currentPath, snapshot.manifest.clustersIndex))}
-            ${renderMetric('Attributes', String(snapshot.attributes.length), pageHref(currentPath, snapshot.manifest.attributesIndex))}
+            ${renderMetric('Ideas', String(snapshot.counts.ideas), exportPageHref(snapshot, currentPath, snapshot.manifest.ideasIndex))}
+            ${renderMetric('References', String(snapshot.counts.edges), exportPageHref(snapshot, currentPath, snapshot.manifest.graph))}
+            ${renderMetric('Files', String(snapshot.counts.files), exportPageHref(snapshot, currentPath, snapshot.manifest.filesIndex))}
+            ${renderMetric('Code files', String(snapshot.codeFiles.length), exportPageHref(snapshot, currentPath, snapshot.manifest.codeFilesIndex))}
+            ${renderMetric('Clusters', String(snapshot.counts.clusters), exportPageHref(snapshot, currentPath, snapshot.manifest.clustersIndex))}
+            ${renderMetric('Attributes', String(snapshot.attributes.length), exportPageHref(snapshot, currentPath, snapshot.manifest.attributesIndex))}
         </section>
         <section class="split">
             <div class="panel">
                 <h2>Status Rollup</h2>
-                ${renderDefinitionList(snapshot.byStatus)}
+                <div class="scroll-window">${renderDefinitionList(snapshot.byStatus)}</div>
             </div>
             <div class="panel">
                 <h2>Tags</h2>
-                ${renderDefinitionList(snapshot.byTag)}
+                <div class="scroll-window">${renderDefinitionList(snapshot.byTag)}</div>
             </div>
         </section>
         <section class="panel">
             <div class="toolbar">
                 <h2>Highlighted Clusters</h2>
                 <div class="actions">
-                    <a class="pill" href="${escapeHtml(pageHref(currentPath, snapshot.manifest.printHome))}">Printable report</a>
-                    <a class="pill" href="${escapeHtml(pageHref(currentPath, snapshot.manifest.dataExport))}">Snapshot JSON</a>
+                    <a class="pill" href="${escapeHtml(exportPageHref(snapshot, currentPath, snapshot.manifest.printHome))}">Printable report</a>
+                    <a class="pill" href="${escapeHtml(exportPageHref(snapshot, currentPath, snapshot.manifest.dataExport))}">Snapshot JSON</a>
                 </div>
             </div>
             <div class="entity-list">${highlightClusters}</div>
@@ -114,7 +126,7 @@ export function renderIdeasIndexPage(snapshot: ExportSnapshot): string {
             <td>${escapeHtml(idea.fileUri)}</td>
             <td>${renderOptionalStatusCell(idea)}</td>
             <td>${renderOptionalTagsCell(idea)}</td>
-            <td>${escapeHtml(idea.summary || '—')}</td>
+            <td>${renderIdeaSummaryHtml(snapshot, currentPath, idea, '—')}</td>
             <td>${idea.references.inbound.length}/${idea.references.outbound.length}</td>
         </tr>
     `).join('');
@@ -159,7 +171,7 @@ export function renderFilesIndexPage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.filesIndex.path;
     const rows = snapshot.files.map(file => `
         <tr data-filter-row="files" data-filter-text="${escapeHtml([file.name, file.fileUri, Object.keys(file.tags).join(' ')].join(' '))}">
-            <td><strong>${snapshot.pageOptions.includeFilePages ? `<a href="${escapeHtml(pageHref(currentPath, file.page))}">${escapeHtml(file.name)}</a>` : escapeHtml(file.name)}</strong></td>
+            <td><strong>${snapshot.pageOptions.includeFilePages ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, file.page))}">${escapeHtml(file.name)}</a>` : escapeHtml(file.name)}</strong></td>
             <td>${escapeHtml(file.directory || '.')}</td>
             <td>${file.ideas.length}</td>
             <td>${file.edgeCount}</td>
@@ -200,7 +212,7 @@ export function renderCodeFilesIndexPage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.codeFilesIndex.path;
     const rows = snapshot.codeFiles.map(file => `
         <tr data-filter-row="codeFiles" data-filter-text="${escapeHtml([file.name, file.fileUri, file.labels.join(' ')].join(' '))}">
-            <td><strong>${snapshot.pageOptions.includeCodeFilePages ? `<a href="${escapeHtml(pageHref(currentPath, file.page))}">${escapeHtml(file.name)}</a>` : escapeHtml(file.name)}</strong></td>
+            <td><strong>${snapshot.pageOptions.includeCodeFilePages ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, file.page))}">${escapeHtml(file.name)}</a>` : escapeHtml(file.name)}</strong></td>
             <td>${escapeHtml(file.directory || '.')}</td>
             <td>${file.referencingIdeaIds.length}</td>
             <td>${escapeHtml(file.labels.join(', ') || '—')}</td>
@@ -240,7 +252,7 @@ export function renderClustersIndexPage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.clustersIndex.path;
     const rows = snapshot.clusters.map(cluster => `
         <tr data-filter-row="clusters" data-filter-text="${escapeHtml([cluster.label, cluster.kind, cluster.description].join(' '))}">
-            <td><strong>${snapshot.pageOptions.includeClusterPages ? `<a href="${escapeHtml(pageHref(currentPath, cluster.page))}">${escapeHtml(cluster.label)}</a>` : escapeHtml(cluster.label)}</strong></td>
+            <td><strong>${snapshot.pageOptions.includeClusterPages ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, cluster.page))}">${escapeHtml(cluster.label)}</a>` : escapeHtml(cluster.label)}</strong></td>
             <td>${escapeHtml(cluster.kind)}</td>
             <td>${cluster.counts.ideas}</td>
             <td>${cluster.counts.files}</td>
@@ -285,22 +297,15 @@ export function renderAttributesIndexPage(snapshot: ExportSnapshot): string {
             .slice(0, 6)
             .map(entry => `${entry.value} (${entry.count})`)
             .join('; ');
-        const ideaLinks = attribute.ideaIds.slice(0, 8).map(ideaId => {
-            const idea = snapshot.ideasById[ideaId];
-            if (!idea) {
-                return '';
-            }
-            return snapshot.pageOptions.includeIdeaPages
-                ? `<a href="${escapeHtml(pageHref(currentPath, idea.page))}">${escapeHtml(idea.name)}</a>`
-                : escapeHtml(idea.name);
-        }).filter(Boolean).join(', ');
+        const keyCell = snapshot.pageOptions.includeAttributePages
+            ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, attribute.page))}">${escapeHtml(attribute.key)}</a>`
+            : escapeHtml(attribute.key);
         return `
         <tr id="${escapeHtml(anchor)}" data-filter-row="attributes" data-filter-text="${escapeHtml([attribute.key, valueSummary, attribute.ideaIds.join(' ')].join(' '))}">
-            <td><strong>${escapeHtml(attribute.key)}</strong></td>
+            <td><strong>${keyCell}</strong></td>
             <td>${attribute.ideaCount}</td>
             <td>${attribute.values.length}</td>
             <td>${escapeHtml(valueSummary || '—')}</td>
-            <td>${ideaLinks || '—'}${attribute.ideaIds.length > 8 ? ` <span class="subtle">+${attribute.ideaIds.length - 8} more</span>` : ''}</td>
         </tr>`;
     }).join('');
     return renderShell({
@@ -313,20 +318,104 @@ export function renderAttributesIndexPage(snapshot: ExportSnapshot): string {
             <header class="page-header">
                 <p class="eyebrow">Attributes</p>
                 <h1>${escapeHtml(snapshot.title)}</h1>
-                <p class="subtle">Every attribute key in this export with values and linked ideas.</p>
+                <p class="subtle">Every attribute key in this export with values and idea counts.</p>
             </header>
             <section class="table-shell">
                 <div class="toolbar">
                     <h2>Attributes</h2>
                     <div class="actions">
-                        <input class="searchbar" type="search" placeholder="Filter attributes by key, value, or idea" data-filter-input="attributes" />
+                        <input class="searchbar" type="search" placeholder="Filter attributes by key or value" data-filter-input="attributes" />
                     </div>
                 </div>
                 <table>
                     <thead>
-                        <tr><th>Attribute</th><th>Ideas</th><th>Values</th><th>Value summary</th><th>Ideas</th></tr>
+                        <tr><th>Attribute</th><th>Ideas</th><th>Values</th><th>Value summary</th></tr>
                     </thead>
-                    <tbody>${rows || '<tr><td colspan="5" class="subtle">No attributes declared.</td></tr>'}</tbody>
+                    <tbody>${rows || '<tr><td colspan="4" class="subtle">No attributes declared.</td></tr>'}</tbody>
+                </table>
+            </section>
+        `
+    });
+}
+
+export function renderAttributeDetailPage(snapshot: ExportSnapshot, attribute: ExportAttributeRecord): string {
+    const currentPath = attribute.page.path;
+    const ideas = attribute.ideaIds
+        .map(ideaId => snapshot.ideasById[ideaId])
+        .filter((idea): idea is ExportIdeaRecord => Boolean(idea));
+    const totalIdeas = attribute.ideaCount || 1;
+    const valueRows = attribute.values.map(entry => {
+        const percent = Math.round((entry.count / totalIdeas) * 1000) / 10;
+        const width = Math.max(entry.count > 0 ? 1.5 : 0, Math.min(100, (entry.count / totalIdeas) * 100));
+        const filterText = [entry.value, String(entry.count), `${percent}%`, ...entry.ideaIds].join(' ');
+        return `
+            <tr data-filter-row="attributeValues" data-filter-text="${escapeHtml(filterText)}">
+                <td>${escapeHtml(entry.value)}</td>
+                <td>
+                    <div class="distribution-track" title="${escapeHtml(`${entry.count} of ${attribute.ideaCount} ideas (${percent}%)`)}" role="img" aria-label="${escapeHtml(`${entry.value}: ${entry.count} ideas, ${percent}%`)}">
+                        <span class="distribution-fill" style="width: ${width}%"></span>
+                    </div>
+                </td>
+                <td>${entry.count}</td>
+                <td>${percent}%</td>
+            </tr>`;
+    }).join('');
+    const ideaRows = ideas.map(idea => {
+        const value = formatAttributeValue(idea.attributes[attribute.key]) || '(empty)';
+        const filterText = [idea.name, value, ideaStatus(idea) ?? '', ideaTags(idea).join(' '), idea.summary].join(' ');
+        return `
+            <tr data-filter-row="attributeIdeas" data-filter-text="${escapeHtml(filterText)}">
+                <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
+                <td>${escapeHtml(value)}</td>
+                <td>${renderOptionalStatusCell(idea)}</td>
+                <td>${renderOptionalTagsCell(idea)}</td>
+                <td>${escapeHtml(idea.summary)}</td>
+            </tr>`;
+    }).join('');
+    return renderShell({
+        currentPath,
+        activeNav: 'attributes',
+        title: `${snapshot.title} - ${attribute.key}`,
+        snapshot,
+        includeGlobalSearch: snapshot.runtimeMode === 'interactive',
+        breadcrumbs: [
+            { label: 'Attributes', href: exportPageHref(snapshot, currentPath, snapshot.manifest.attributesIndex) },
+            { label: attribute.key }
+        ],
+        body: `
+            <header class="page-header">
+                <p class="eyebrow">Attribute detail</p>
+                <h1>${escapeHtml(attribute.key)}</h1>
+                <p class="subtle">${attribute.ideaCount} ideas · ${attribute.values.length} distinct values</p>
+            </header>
+            <section class="grid">
+                ${renderMetric('Ideas', String(attribute.ideaCount))}
+                ${renderMetric('Values', String(attribute.values.length))}
+            </section>
+            <section class="table-shell">
+                <div class="toolbar">
+                    <h2>Value distribution</h2>
+                    <div class="actions">
+                        <input class="searchbar" type="search" placeholder="Filter values" data-filter-input="attributeValues" />
+                    </div>
+                </div>
+                <div class="scroll-window">
+                    <table>
+                        <thead><tr><th>Value</th><th>Distribution</th><th>Ideas</th><th>Share</th></tr></thead>
+                        <tbody>${valueRows || '<tr><td colspan="4" class="subtle">No values.</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="table-shell">
+                <div class="toolbar">
+                    <h2>Ideas with this attribute</h2>
+                    <div class="actions">
+                        <input class="searchbar" type="search" placeholder="Filter ideas by name, value, status, or tags" data-filter-input="attributeIdeas" />
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th>Idea</th><th>Value</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
+                    <tbody>${ideaRows || '<tr><td colspan="5" class="subtle">No ideas declare this attribute.</td></tr>'}</tbody>
                 </table>
             </section>
         `
@@ -340,7 +429,7 @@ export function renderGraphPage(snapshot: ExportSnapshot): string {
     const tags = Object.keys(snapshot.byTag).sort();
     const clusters = snapshot.clusters.slice(0, 16).map(cluster =>
         snapshot.pageOptions.includeClusterPages
-            ? `<a class="pill" href="${escapeHtml(pageHref(currentPath, cluster.page))}">${escapeHtml(cluster.label)}</a>`
+            ? `<a class="pill" href="${escapeHtml(exportPageHref(snapshot, currentPath, cluster.page))}">${escapeHtml(cluster.label)}</a>`
             : `<span class="pill">${escapeHtml(cluster.label)}</span>`
     ).join('');
     return renderShell({
@@ -359,7 +448,7 @@ export function renderGraphPage(snapshot: ExportSnapshot): string {
                 <div class="toolbar">
                     <h2>Reference graph</h2>
                     <div class="actions">
-                        <a class="pill" href="${escapeHtml(pageHref(currentPath, snapshot.manifest.dataGraph))}">Graph JSON</a>
+                        <a class="pill" href="${escapeHtml(exportPageHref(snapshot, currentPath, snapshot.manifest.dataGraph))}">Graph JSON</a>
                     </div>
                 </div>
                 <div class="graph-controls-bar" data-graph-controls="graph-data">
@@ -374,6 +463,7 @@ export function renderGraphPage(snapshot: ExportSnapshot): string {
                         ${tags.map(tag => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`).join('')}
                     </select>
                     <button type="button" class="graph-action" data-graph-toggle-external="true">Hide external</button>
+                    <button type="button" class="graph-action" data-graph-toggle-ideasets="true">Hide ideasets</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
                     <button type="button" class="graph-action" data-graph-fit>Fit</button>
                     <button type="button" class="graph-action" data-graph-reset>Reset</button>
@@ -399,7 +489,7 @@ export function renderIdeaDetailPage(snapshot: ExportSnapshot, idea: ExportIdeaR
         snapshot,
         includeGlobalSearch: snapshot.runtimeMode === 'interactive',
         breadcrumbs: [
-            { label: 'Ideas', href: pageHref(currentPath, snapshot.manifest.ideasIndex) },
+            { label: 'Ideas', href: exportPageHref(snapshot, currentPath, snapshot.manifest.ideasIndex) },
             { label: idea.name }
         ],
         body: `
@@ -423,9 +513,9 @@ export function renderIdeaDetailPage(snapshot: ExportSnapshot, idea: ExportIdeaR
                 <div class="panel print-break-avoid">
                     <h2>Navigation</h2>
                     <div class="entity-list">
-                        ${parentFile ? renderMaybeLinkedCard(snapshot.pageOptions.includeFilePages, pageHref(currentPath, parentFile.page), 'Source file', parentFile.fileUri) : ''}
-                        ${clusters.map(cluster => renderMaybeLinkedCard(snapshot.pageOptions.includeClusterPages, pageHref(currentPath, cluster.page), cluster.label, `${cluster.kind} cluster`)).join('')}
-                        ${idea.page.printablePath && snapshot.pageOptions.includePrintPages ? `<a class="entity-card" href="${escapeHtml(hrefFor(currentPath, idea.page.printablePath))}"><strong>Printable page</strong><p class="subtle">Static print-friendly idea sheet.</p></a>` : ''}
+                        ${parentFile ? renderMaybeLinkedCard(snapshot.pageOptions.includeFilePages, exportPageHref(snapshot, currentPath, parentFile.page), 'Source file', parentFile.fileUri) : ''}
+                        ${clusters.map(cluster => renderMaybeLinkedCard(snapshot.pageOptions.includeClusterPages, exportPageHref(snapshot, currentPath, cluster.page), cluster.label, `${cluster.kind} cluster`)).join('')}
+                        ${idea.page.printablePath && snapshot.pageOptions.includePrintPages ? `<a class="entity-card" href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.printablePath))}"><strong>Printable page</strong><p class="subtle">Static print-friendly idea sheet.</p></a>` : ''}
                     </div>
                 </div>
             </section>
@@ -436,13 +526,15 @@ export function renderIdeaDetailPage(snapshot: ExportSnapshot, idea: ExportIdeaR
                 </div>
                 <div class="panel print-break-avoid">
                     <h2>Ancestor context</h2>
-                    <div class="entity-list">
-                        ${idea.ancestors.ancestors.map(ancestor => {
-                            const linked = snapshot.ideasById[ancestor.id];
-                            return linked
-                                ? renderMaybeLinkedCard(snapshot.pageOptions.includeIdeaPages, pageHref(currentPath, linked.page), ancestor.name, ancestor.summary)
-                                : '';
-                        }).join('') || '<p class="subtle">No ancestor chain recorded.</p>'}
+                    <div class="scroll-window">
+                        <div class="entity-list">
+                            ${idea.ancestors.ancestors.map(ancestor => {
+                                const linked = snapshot.ideasById[ancestor.id];
+                                return linked
+                                    ? renderMaybeLinkedCard(snapshot.pageOptions.includeIdeaPages, exportPageHref(snapshot, currentPath, linked.page), ancestor.name, ancestor.summary)
+                                    : '';
+                            }).join('') || '<p class="subtle">No ancestor chain recorded.</p>'}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -474,7 +566,7 @@ export function renderFileDetailPage(snapshot: ExportSnapshot, file: ExportFileR
         snapshot,
         includeGlobalSearch: snapshot.runtimeMode === 'interactive',
         breadcrumbs: [
-            { label: 'Files', href: pageHref(currentPath, snapshot.manifest.filesIndex) },
+            { label: 'Files', href: exportPageHref(snapshot, currentPath, snapshot.manifest.filesIndex) },
             { label: file.name }
         ],
         body: `
@@ -497,24 +589,28 @@ export function renderFileDetailPage(snapshot: ExportSnapshot, file: ExportFileR
                             <input class="searchbar" type="search" placeholder="Filter file ideas" data-filter-input="fileIdeas" />
                         </div>
                     </div>
-                    <table>
-                        <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
-                        <tbody>
-                            ${file.ideas.map(idea => `
-                                <tr data-filter-row="fileIdeas" data-filter-text="${escapeHtml([idea.name, idea.summary, ideaStatus(idea) ?? '', ideaTags(idea).join(' ')].join(' '))}">
-                                    <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
-                                    <td>${renderOptionalStatusCell(idea)}</td>
-                                    <td>${renderOptionalTagsCell(idea)}</td>
-                                    <td>${escapeHtml(idea.summary)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                    <div class="scroll-window">
+                        <table>
+                            <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
+                            <tbody>
+                                ${file.ideas.map(idea => `
+                                    <tr data-filter-row="fileIdeas" data-filter-text="${escapeHtml([idea.name, idea.summary, ideaStatus(idea) ?? '', ideaTags(idea).join(' ')].join(' '))}">
+                                        <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
+                                        <td>${renderOptionalStatusCell(idea)}</td>
+                                        <td>${renderOptionalTagsCell(idea)}</td>
+                                        <td>${escapeHtml(idea.summary)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="panel">
                     <h2>Related clusters</h2>
-                    <div class="entity-list">
-                        ${clusterLinks.map(cluster => renderMaybeLinkedCard(snapshot.pageOptions.includeClusterPages, pageHref(currentPath, cluster.page), cluster.label, cluster.kind)).join('') || '<p class="subtle">No related clusters.</p>'}
+                    <div class="scroll-window">
+                        <div class="entity-list">
+                            ${clusterLinks.map(cluster => renderMaybeLinkedCard(snapshot.pageOptions.includeClusterPages, exportPageHref(snapshot, currentPath, cluster.page), cluster.label, cluster.kind)).join('') || '<p class="subtle">No related clusters.</p>'}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -544,7 +640,7 @@ export function renderCodeFileDetailPage(snapshot: ExportSnapshot, file: ExportC
         snapshot,
         includeGlobalSearch: snapshot.runtimeMode === 'interactive',
         breadcrumbs: [
-            { label: 'Code files', href: pageHref(currentPath, snapshot.manifest.codeFilesIndex) },
+            { label: 'Code files', href: exportPageHref(snapshot, currentPath, snapshot.manifest.codeFilesIndex) },
             { label: file.name }
         ],
         body: `
@@ -564,19 +660,21 @@ export function renderCodeFileDetailPage(snapshot: ExportSnapshot, file: ExportC
                         <input class="searchbar" type="search" placeholder="Filter referencing ideas" data-filter-input="codeFileIdeas" />
                     </div>
                 </div>
-                <table>
-                    <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
-                    <tbody>
-                        ${referencingIdeas.map(idea => `
-                            <tr data-filter-row="codeFileIdeas" data-filter-text="${escapeHtml([idea.name, idea.summary, ideaStatus(idea) ?? '', ideaTags(idea).join(' ')].join(' '))}">
-                                <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
-                                <td>${renderOptionalStatusCell(idea)}</td>
-                                <td>${renderOptionalTagsCell(idea)}</td>
-                                <td>${escapeHtml(idea.summary)}</td>
-                            </tr>
-                        `).join('') || '<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>'}
-                    </tbody>
-                </table>
+                <div class="scroll-window">
+                    <table>
+                        <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
+                        <tbody>
+                            ${referencingIdeas.map(idea => `
+                                <tr data-filter-row="codeFileIdeas" data-filter-text="${escapeHtml([idea.name, idea.summary, ideaStatus(idea) ?? '', ideaTags(idea).join(' ')].join(' '))}">
+                                    <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
+                                    <td>${renderOptionalStatusCell(idea)}</td>
+                                    <td>${renderOptionalTagsCell(idea)}</td>
+                                    <td>${escapeHtml(idea.summary)}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
             </section>
             ${file.labels.length > 0 ? `
                 <section class="panel">
@@ -601,7 +699,7 @@ export function renderClusterDetailPage(snapshot: ExportSnapshot, cluster: Expor
         snapshot,
         includeGlobalSearch: snapshot.runtimeMode === 'interactive',
         breadcrumbs: [
-            { label: 'Clusters', href: pageHref(currentPath, snapshot.manifest.clustersIndex) },
+            { label: 'Clusters', href: exportPageHref(snapshot, currentPath, snapshot.manifest.clustersIndex) },
             { label: cluster.label }
         ],
         body: `
@@ -622,19 +720,21 @@ export function renderClusterDetailPage(snapshot: ExportSnapshot, cluster: Expor
                         <input class="searchbar" type="search" placeholder="Filter cluster members" data-filter-input="clusterIdeas" />
                     </div>
                 </div>
-                <table>
-                    <thead><tr><th>Idea</th><th>File</th><th>Status</th><th>Summary</th></tr></thead>
-                    <tbody>
-                        ${members.map(idea => `
-                            <tr data-filter-row="clusterIdeas" data-filter-text="${escapeHtml([idea.name, idea.fileUri, ideaStatus(idea) ?? '', idea.summary].join(' '))}">
-                                <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
-                                <td>${escapeHtml(idea.fileUri)}</td>
-                                <td>${renderOptionalStatusCell(idea)}</td>
-                                <td>${escapeHtml(idea.summary)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div class="scroll-window">
+                    <table>
+                        <thead><tr><th>Idea</th><th>File</th><th>Status</th><th>Summary</th></tr></thead>
+                        <tbody>
+                            ${members.map(idea => `
+                                <tr data-filter-row="clusterIdeas" data-filter-text="${escapeHtml([idea.name, idea.fileUri, ideaStatus(idea) ?? '', idea.summary].join(' '))}">
+                                    <td>${renderIdeaAnchor(snapshot, currentPath, idea, idea.name)}</td>
+                                    <td>${escapeHtml(idea.fileUri)}</td>
+                                    <td>${renderOptionalStatusCell(idea)}</td>
+                                    <td>${escapeHtml(idea.summary)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
             </section>
             <section class="graph-shell print-break-avoid">
                 <div class="toolbar"><h2>Cluster graph</h2></div>
@@ -654,7 +754,7 @@ export function renderPrintHomePage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.printHome.path;
     const cards = snapshot.ideas.map(idea => `
         <article class="print-card print-break-avoid">
-            <h3>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(hrefFor(currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</h3>
+            <h3>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</h3>
             <p class="subtle">${escapeHtml(idea.fileUri)}</p>
             <p>${renderIdeaSummaryHtml(snapshot, currentPath, idea, '—')}</p>
             ${renderOptionalStatusParagraph(idea)}
@@ -680,7 +780,7 @@ export function renderPrintHomePage(snapshot: ExportSnapshot): string {
             </section>
             <section class="panel print-break-avoid">
                 <h2>Status rollup</h2>
-                ${renderDefinitionList(snapshot.byStatus)}
+                <div class="scroll-window">${renderDefinitionList(snapshot.byStatus)}</div>
             </section>
             <section class="entity-list">${cards}</section>
         `
@@ -704,7 +804,7 @@ export function renderPrintIdeaPage(snapshot: ExportSnapshot, idea: ExportIdeaRe
                 <p class="idea-summary">${renderIdeaSummaryHtml(snapshot, currentPath, idea)}</p>
                 ${renderOptionalStatusParagraph(idea)}
                 ${renderOptionalTagsParagraph(idea)}
-                ${snapshot.pageOptions.includeIdeaPages ? `<p><strong>Interactive page:</strong> <a href="${escapeHtml(hrefFor(currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a></p>` : ''}
+                ${snapshot.pageOptions.includeIdeaPages ? `<p><strong>Interactive page:</strong> <a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a></p>` : ''}
             </section>
         `
     });
@@ -729,7 +829,7 @@ export function renderPrintFilePage(snapshot: ExportSnapshot, file: ExportFileRe
                     <tbody>
                         ${file.ideas.map(idea => `
                             <tr>
-                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(hrefFor(currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
+                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
                                 <td>${renderOptionalStatusCell(idea)}</td>
                                 <td>${renderOptionalTagsCell(idea)}</td>
                                 <td>${escapeHtml(idea.summary)}</td>
@@ -764,7 +864,7 @@ export function renderPrintCodeFilePage(snapshot: ExportSnapshot, file: ExportCo
                     <tbody>
                         ${referencingIdeas.map(idea => `
                             <tr>
-                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(hrefFor(currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
+                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
                                 <td>${renderOptionalStatusCell(idea)}</td>
                                 <td>${renderOptionalTagsCell(idea)}</td>
                                 <td>${escapeHtml(idea.summary)}</td>
@@ -799,7 +899,7 @@ export function renderPrintClusterPage(snapshot: ExportSnapshot, cluster: Export
                     <tbody>
                         ${members.map(idea => `
                             <tr>
-                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(hrefFor(currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
+                                <td>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</td>
                                 <td>${escapeHtml(idea.fileUri)}</td>
                                 <td>${renderOptionalStatusCell(idea)}</td>
                                 <td>${escapeHtml(idea.summary)}</td>
@@ -822,31 +922,45 @@ function renderReferenceSection(
     return `
         <section class="table-shell print-break-avoid" id="${escapeHtml(id)}">
             <div class="toolbar"><h2>${escapeHtml(title)}</h2></div>
-            <table>
-                <thead><tr><th>Kind</th><th>Idea</th><th>Path</th><th>Snippet</th></tr></thead>
-                <tbody>
-                    ${rows.map(row => {
-                        const linked = row.direction === 'inbound'
-                            ? snapshot.ideasById[row.sourceIdeaId]
-                            : (row.targetIdeaId ? snapshot.ideasById[row.targetIdeaId] : undefined);
-                        const label = row.direction === 'inbound' ? row.label || row.targetName : row.targetName;
-                        const fileTarget = row.direction === 'outbound' && !linked
-                            ? resolveExportFilePage(snapshot, { fileUri: row.targetPath })
-                            : undefined;
-                        const pathCell = fileTarget && filePageEnabled(snapshot, fileTarget.kind)
-                            ? `<a href="${escapeHtml(pageHref(currentPath, fileTarget.page))}">${escapeHtml(row.targetPath)}</a>`
-                            : escapeHtml(row.targetPath);
-                        return `
-                            <tr>
-                                <td>${escapeHtml(row.kind)}</td>
-                                <td>${linked ? renderIdeaAnchor(snapshot, currentPath, linked, linked.name) : escapeHtml(label)}</td>
-                                <td>${pathCell}</td>
-                                <td>${escapeHtml(row.snippet || '—')}</td>
-                            </tr>
-                        `;
-                    }).join('') || '<tr><td colspan="4" class="subtle">No references.</td></tr>'}
-                </tbody>
-            </table>
+            <div class="scroll-window">
+                <table>
+                    <thead><tr><th>Kind</th><th>Idea</th><th>Path</th><th>Snippet</th></tr></thead>
+                    <tbody>
+                        ${rows.map(row => {
+                            const linked = row.direction === 'inbound'
+                                ? snapshot.ideasById[row.sourceIdeaId]
+                                : (row.targetIdeaId ? snapshot.ideasById[row.targetIdeaId] : undefined);
+                            const label = row.direction === 'inbound' ? row.label || row.targetName : row.targetName;
+                            const fileTarget = row.direction === 'outbound' && !linked
+                                ? resolveExportFilePage(snapshot, { fileUri: row.targetPath })
+                                : undefined;
+                            const pathCell = fileTarget && filePageEnabled(snapshot, fileTarget.kind)
+                                ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, fileTarget.page))}">${escapeHtml(row.targetPath)}</a>`
+                                : escapeHtml(row.targetPath);
+                            const ideaCell = linked
+                                ? renderIdeaAnchor(snapshot, currentPath, linked, linked.name)
+                                : (fileTarget && filePageEnabled(snapshot, fileTarget.kind)
+                                    ? `<a class="idea-ref idea-ref--file" href="${escapeHtml(exportPageHref(snapshot, currentPath, fileTarget.page))}">${escapeHtml(label)}</a>`
+                                    : escapeHtml(label));
+                            const snippetCell = row.snippet
+                                ? renderTextWithRefsHtml(
+                                    snapshot,
+                                    currentPath,
+                                    row.snippet,
+                                    { idea: snapshot.ideasById[row.sourceIdeaId] }
+                                )
+                                : '—';
+                            return `
+                                <tr>
+                                    <td>${escapeHtml(row.kind)}</td>
+                                    <td>${ideaCell}</td>
+                                    <td>${pathCell}</td>
+                                    <td>${snippetCell}</td>
+                                </tr>`;
+                        }).join('') || '<tr><td colspan="4" class="subtle">None</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
         </section>
     `;
 }
@@ -909,28 +1023,36 @@ function renderIdeaAttributes(snapshot: ExportSnapshot, currentPath: string, ide
         return '<p class="subtle">No attributes declared.</p>';
     }
     const rows = entries.map(([key, value]) => {
-        const href = `${pageHref(currentPath, snapshot.manifest.attributesIndex)}#attr-${slugAttributeKey(key)}`;
+        const attribute = snapshot.attributesByKey[key];
+        const href = attribute && snapshot.pageOptions.includeAttributePages
+            ? exportPageHref(snapshot, currentPath, attribute.page)
+            : `${exportPageHref(snapshot, currentPath, snapshot.manifest.attributesIndex)}#attr-${slugAttributeKey(key)}`;
         return `
             <tr>
                 <td><a href="${escapeHtml(href)}">${escapeHtml(key)}</a></td>
-                <td>${escapeHtml(formatAttributeValue(value) || '—')}</td>
+                <td>${renderAttributeValueHtml(snapshot, currentPath, value, idea)}</td>
             </tr>`;
     }).join('');
     return `
-        <table>
-            <thead><tr><th>Key</th><th>Value</th></tr></thead>
-            <tbody>${rows}</tbody>
-        </table>
-        <p class="subtle"><a href="${escapeHtml(pageHref(currentPath, snapshot.manifest.attributesIndex))}">Browse all attributes</a></p>
+        <div class="scroll-window">
+            <table>
+                <thead><tr><th>Key</th><th>Value</th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+        <p class="subtle"><a href="${escapeHtml(exportPageHref(snapshot, currentPath, snapshot.manifest.attributesIndex))}">Browse all attributes</a></p>
     `;
 }
 
 function renderShell(options: RenderOptions): string {
-    const stylesheetHref = hrefFor(options.currentPath, 'assets/styles.css');
-    const appHref = hrefFor(options.currentPath, 'assets/app.js');
-    const searchIndexScriptHref = hrefFor(options.currentPath, 'assets/search-index.js');
-    const searchHref = hrefFor(options.currentPath, options.snapshot.manifest.dataSearch.path);
+    const stylesheetHref = exportHref(options.snapshot, options.currentPath, 'assets/styles.css');
+    const appHref = exportHref(options.snapshot, options.currentPath, 'assets/app.js');
+    const searchIndexScriptHref = exportHref(options.snapshot, options.currentPath, 'assets/search-index.js');
+    const searchHref = exportHref(options.snapshot, options.currentPath, options.snapshot.manifest.dataSearch.path);
     const includeGlobalSearch = options.includeGlobalSearch && options.snapshot.runtimeMode === 'interactive';
+    const headerLink = options.snapshot.headerLink
+        ? `<a class="brand-link" href="${escapeHtml(options.snapshot.headerLink.href)}">${escapeHtml(options.snapshot.headerLink.label)}</a>`
+        : '';
     const navLinks = [
         navLink(options, 'overview', options.snapshot.manifest.home, true),
         navLink(options, 'ideas', options.snapshot.manifest.ideasIndex, true),
@@ -959,11 +1081,11 @@ function renderShell(options: RenderOptions): string {
     <title>${escapeHtml(options.title)}</title>
     <link rel="stylesheet" href="${escapeHtml(stylesheetHref)}" />
 </head>
-<body data-search-index="${escapeHtml(searchHref)}">
+<body data-runtime-mode="${escapeHtml(options.snapshot.runtimeMode)}" data-search-index="${escapeHtml(searchHref)}">
     <main class="layout">
         <header class="topbar">
             <div class="topbar-inner">
-                <div class="nav">${navLinks}</div>
+                <div class="nav">${headerLink}${navLinks}</div>
                 ${includeGlobalSearch ? `
                     <div>
                         <input class="searchbar" type="search" placeholder="Search ideas, files, clusters, tags, statuses" data-global-search />
@@ -988,7 +1110,7 @@ function navLink(
     if (!enabled) {
         return '';
     }
-    const href = pageHref(options.currentPath, page);
+    const href = exportPageHref(options.snapshot, options.currentPath, page);
     const activeClass = options.activeNav === navId ? 'active' : '';
     return `<a class="${activeClass}" href="${escapeHtml(href)}">${escapeHtml(page.title)}</a>`;
 }
@@ -1001,6 +1123,6 @@ function renderMaybeLinkedCard(enabled: boolean, href: string, title: string, su
 
 function renderIdeaAnchor(snapshot: ExportSnapshot, currentPath: string, idea: ExportIdeaRecord, label: string): string {
     return snapshot.pageOptions.includeIdeaPages
-        ? `<a href="${escapeHtml(pageHref(currentPath, idea.page))}">${escapeHtml(label)}</a>`
+        ? `<a href="${escapeHtml(exportPageHref(snapshot, currentPath, idea.page))}">${escapeHtml(label)}</a>`
         : escapeHtml(label);
 }

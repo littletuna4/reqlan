@@ -32,6 +32,8 @@ reqlan search <query> [--limit <n>] [--cwd <dir>] [--json]
 
 Set `REQLAN_WORKSPACE` or pass `--cwd` to override the workspace root.
 
+The ideas index is shared application memory at `<workspace>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and MCP). Override the storage directory with `REQLAN_INDEX_PATH` when needed.
+
 ## Links
 
 - [{{SITE_LABEL}}]({{SITE_URL}})

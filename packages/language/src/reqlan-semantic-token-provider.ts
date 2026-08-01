@@ -14,6 +14,7 @@ import {
     isIdea,
     isIdeaSet,
     isImport,
+    isInvalidFromImport,
     isLocalReference,
     isMarkdownLink,
     isQualifiedImport,
@@ -21,6 +22,7 @@ import {
     isOneLinerIdea,
     type Import
 } from './generated/ast.js';
+import { isWellFormedFromImport } from './reqlan-import-bindings.js';
 
 export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
 
@@ -84,8 +86,12 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
         }
         if (isImport(node)) {
             highlightImportKeywords(node, acceptor);
-            acceptor({ node, property: 'path', type: SemanticTokenTypes.string, modifier: SemanticTokenModifiers.declaration });
-            if (!isFromImport(node) && node.alias) {
+            if (!isInvalidFromImport(node)) {
+                acceptor({ node, property: 'path', type: SemanticTokenTypes.string, modifier: SemanticTokenModifiers.declaration });
+            }
+            if (isFromImport(node) && node.alias) {
+                acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace });
+            } else if (!isFromImport(node) && !isInvalidFromImport(node) && node.alias) {
                 acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
             }
         }
@@ -103,11 +109,23 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
 }
 
 function highlightImportKeywords(node: Import, acceptor: SemanticTokenAcceptor): void {
-    if (isFromImport(node)) {
+    if (isFromImport(node) || isInvalidFromImport(node)) {
         acceptor({ node, keyword: 'from', type: SemanticTokenTypes.keyword });
     }
+    if (isFromImport(node)) {
+        if (isWellFormedFromImport(node)) {
+            acceptor({ node, keyword: 'import', type: SemanticTokenTypes.keyword });
+        }
+        if (node.alias) {
+            acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
+        }
+        return;
+    }
+    if (isInvalidFromImport(node)) {
+        return;
+    }
     acceptor({ node, keyword: 'import', type: SemanticTokenTypes.keyword });
-    if (!isFromImport(node) && node.alias) {
+    if (node.alias) {
         acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
     }
 }

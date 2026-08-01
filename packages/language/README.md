@@ -29,6 +29,12 @@ npm install @reqlan/language
 
 ## Changelog
 
+### 1.4.1
+
+#### Patch Changes
+
+- 1790ce1: Update the landers.
+
 ### 1.4.0
 
 #### Minor Changes

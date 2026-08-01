@@ -96,6 +96,10 @@
               "type": "boolean",
               "description": "Whether to emit cluster detail pages."
             },
+            "includeAttributePages": {
+              "type": "boolean",
+              "description": "Whether to emit dedicated pages for each attribute key. Defaults to true."
+            },
             "includePrintPages": {
               "type": "boolean",
               "description": "Whether to emit static printable pages in addition to the interactive site."

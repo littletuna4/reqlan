@@ -2,7 +2,9 @@ import type { AstNode, ValidationAcceptor, ValidationChecks } from 'langium';
 import { AstUtils } from 'langium';
 import type { ReqlanAstType } from './generated/ast.js';
 import {
+    isFromImport,
     isIdea,
+    isInvalidFromImport,
     isOneLinerIdea,
     type Model
 } from './generated/ast.js';
@@ -10,7 +12,12 @@ import {
     collectFileLinks,
     fileLinkTargetIssueMessage
 } from './reqlan-file-link-resolver.js';
-import { importBindings, importedIdeaNames } from './reqlan-import-bindings.js';
+import {
+    importBindings,
+    importPathOf,
+    importedIdeaNames,
+    isWellFormedFromImport
+} from './reqlan-import-bindings.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
@@ -19,6 +26,7 @@ import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 /**
  * Registers validation hooks for the requirement graph AST.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
@@ -32,6 +40,7 @@ export function registerValidationChecks(services: ReqlanServices) {
 /**
  * Custom validations for Reqlan documents.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  */
 export class ReqlanValidator {
 
@@ -40,8 +49,40 @@ export class ReqlanValidator {
     checkModelDuplicates(model: Model, accept: ValidationAcceptor): void {
         this.checkDuplicateImportBindings(model, accept);
         this.checkDuplicateIdeaNames(model, accept);
+        this.checkImportSyntax(model, accept);
         this.checkImportTargets(model, accept);
         this.checkFileReferenceTargets(model, accept);
+    }
+
+    /**
+     * Local diagnostics for recoverable but invalid import shapes.
+     * Keeps the rest of the file parseable — see import_error_recovery.
+     */
+    checkImportSyntax(model: Model, accept: ValidationAcceptor): void {
+        for (const importDecl of model.imports) {
+            if (isInvalidFromImport(importDecl)) {
+                accept('error', 'Invalid from-import: expected a quoted path, then `import <idea>`.', {
+                    node: importDecl
+                });
+                continue;
+            }
+            if (!isFromImport(importDecl) || isWellFormedFromImport(importDecl)) {
+                continue;
+            }
+            if (importDecl.alias) {
+                accept(
+                    'error',
+                    `Invalid syntax: use \`import "${unquoteReqlanString(importDecl.path)}" as ${importDecl.alias}\` for a namespace import, or \`from "${unquoteReqlanString(importDecl.path)}" import <idea>\`.`,
+                    { node: importDecl }
+                );
+                continue;
+            }
+            accept(
+                'error',
+                `Invalid from-import: expected \`from "${unquoteReqlanString(importDecl.path)}" import <idea>\`.`,
+                { node: importDecl }
+            );
+        }
     }
 
     checkDuplicateImportBindings(model: Model, accept: ValidationAcceptor): void {
@@ -102,7 +143,14 @@ export class ReqlanValidator {
         const { shared } = this.services;
         const pathContext = pathResolveContextFromServices(this.services);
         for (const importDecl of model.imports) {
-            const path = unquoteReqlanString(importDecl.path);
+            if (isInvalidFromImport(importDecl)) {
+                continue;
+            }
+            if (isFromImport(importDecl) && !isWellFormedFromImport(importDecl)) {
+                continue;
+            }
+            const rawPath = importPathOf(importDecl);
+            const path = rawPath ? unquoteReqlanString(rawPath) : undefined;
             if (!path || isRemoteImportPath(path)) {
                 continue;
             }

@@ -30,6 +30,7 @@ import {
     isFileSymbolReference,
     isFromImport,
     isImport,
+    isInvalidFromImport,
     isLocalReference,
     isQualifiedReference,
     type FileReference,
@@ -308,7 +309,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
 }
 
 function isImportPathTarget(node: unknown, targetCst: CstNode): node is Import {
-    if (!isImport(node)) {
+    if (!isImport(node) || isInvalidFromImport(node)) {
         return false;
     }
     if (isFromImport(node) || !node.alias) {
