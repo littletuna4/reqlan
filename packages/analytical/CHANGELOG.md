@@ -1,5 +1,16 @@
 # @reqlan/analytical
 
+## 0.5.0
+
+### Minor Changes
+
+- 627d502: updates to cli, site export, site (showing spec), replace welcome screen, temp remove old extension name.
+
+### Patch Changes
+
+- Updated dependencies [627d502]
+  - @reqlan/language@1.5.0
+
 ## 0.4.1
 
 ### Patch Changes
