@@ -35,7 +35,7 @@ import {
     hotspotBandFromRisk,
     synthesizeFocusContext,
     type GraphViewSlice as AnalyticalGraphViewSlice
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 
 const VIEW_TYPE = 'reqlan.ideasSummary';
 

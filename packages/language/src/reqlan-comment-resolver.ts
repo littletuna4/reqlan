@@ -28,8 +28,8 @@ export function createSourceTextDocument(uri: string, text: string): LangiumDocu
 }
 
 const COMMENT_REFERENCE_PATTERN = /rq:\s*\[([^\]]+)\]/g;
-const QUALIFIED_TARGET_PATTERN = new RegExp(`^(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\.\\s*([_a-zA-Z][\\w_]*)(?:\\s*\\.\\s*([_a-zA-Z][\\w_]*))?$`);
-const LOCAL_TARGET_PATTERN = /^([_a-zA-Z][\w_]*)$/;
+const QUALIFIED_TARGET_PATTERN = new RegExp(`^(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\.\\s*([_a-zA-Z][\\w-]*)(?:\\s*\\.\\s*([_a-zA-Z][\\w-]*))?$`);
+const LOCAL_TARGET_PATTERN = /^([_a-zA-Z][\w-]*)$/;
 
 interface CommentSpan {
     start: number;

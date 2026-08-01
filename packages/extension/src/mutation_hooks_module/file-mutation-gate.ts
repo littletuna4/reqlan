@@ -1,5 +1,5 @@
 import type * as vscode from 'vscode';
-import type { SqliteIndexStore } from 'reqlan-analytical';
+import type { SqliteIndexStore } from '@reqlan/analytical';
 import { basename } from 'node:path';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 

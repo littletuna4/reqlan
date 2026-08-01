@@ -11,8 +11,8 @@ reqlan is a structured language for composing a graph of natural language ideas 
 ## Links
 
 - [Site](https://tony.is-a.dev/reqlan)
-- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan)
-- [Open VSX](https://open-vsx.org/extension/reqlan/reqlan)
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
+- [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
 - [Contact](mailto:reqlan@tony.is-a.dev)
 

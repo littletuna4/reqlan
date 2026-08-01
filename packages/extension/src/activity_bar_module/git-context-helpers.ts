@@ -1,4 +1,4 @@
-import type { GitAuthorRollup, GitFocusCommit } from 'reqlan-analytical';
+import type { GitAuthorRollup, GitFocusCommit } from '@reqlan/analytical';
 
 /** Parse `git log` null-delimited records (hash, short, subject, author, authoredAt). */
 export function parseGitLogRecords(stdout: string): GitFocusCommit[] {

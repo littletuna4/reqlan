@@ -69,5 +69,28 @@ add_to_chat {
 open_a_random_requirement {
     as it sounds
     @todo
-    }
+}
 
+
+search_code_actions {
+    when cursor is in a [reference], there shouls be a code action to search for references to that idea.
+    it should also allow wrapping a selected string, or the word at the cursor when in idea-body prose, as a new [reference].
+    it should open up a webview modal that shows a search dialog that allows the user to search for potential references.
+    the search menu should preserve/show the context of the would-be reference: the rest of the containing idea, with styling, and with the selected text pulsing / styled prominently.
+    it should support fuzzy/partial searching. it should list the closest matches in a paginated view.
+    selecting the idea should fill/replace the reference (or wrap the selection as [name]) and an import (if required) appropiately
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-idea-reference-site.ts"]
+        ["../../packages/language/src/reqlan-reference-search-site.ts"]
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/extension/reference-search-panel.ts"]
+        ["../../packages/extension/src/extension/reference-search-import-path.ts"]
+        ["../../packages/extension/src/extension/reference-search-scoring.ts"]
+        ["../../packages/extension/src/extension/register-import-error-commands.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/code-actions.test.ts"]
+        ["../../packages/extension/test/reference-search.test.ts"]
+    )
+}

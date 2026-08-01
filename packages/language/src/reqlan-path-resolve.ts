@@ -28,6 +28,7 @@ export interface RqHtmlExportConfig {
     clusterStrategy?: RqExportClusterStrategy;
     includeIdeaPages?: boolean;
     includeFilePages?: boolean;
+    includeCodeFilePages?: boolean;
     includeClusterPages?: boolean;
     includePrintPages?: boolean;
 }
@@ -245,6 +246,9 @@ function parseHtmlExportConfig(raw: unknown): RqHtmlExportConfig | undefined {
     }
     if (typeof record.includeFilePages === 'boolean') {
         config.includeFilePages = record.includeFilePages;
+    }
+    if (typeof record.includeCodeFilePages === 'boolean') {
+        config.includeCodeFilePages = record.includeCodeFilePages;
     }
     if (typeof record.includeClusterPages === 'boolean') {
         config.includeClusterPages = record.includeClusterPages;

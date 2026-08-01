@@ -1,30 +1,564 @@
+// Showcase content plan for the marketing site.
+// Objective: demonstrate, with precision and taste, the highest-value edges
+// of the reqlan toolset — with examples in different domains.
 
 showcase {
-    Showcase some ideas of using reqlan:
-    - A complex control system sequencing that considers semantics.
-    - Some glue semantics that explains how one File
-    - A module interface requirements file that links to other modules.
-    - An agentic planning system
-    - a compliance system
-    - a scattered hardcoded docs reference.
-    - a feature implementation tracking system
-    - a test explaination system (via for e.g. ts comments above text strings - understanding semantically what a test proves)
-    - arbitrary attribute handling.
-    - static connection between two dependent, but unrelated systems in a codebase.
-    - todo triage system - catch an idea, and add it to a todo list
-    - `@docs` attribute to -> .md files or html wiki export.
-    - antipatterns:
-        - using .rq ideas for data instead of pointers to data.
+    Every showcase demonstrates a mechanism, not a metaphor.
+    Domain problem, the .rq that binds it, the real artifact in another language
+    it binds to, and the thing the tooling hands back.
 
- @implementaion ["@/reqlan/site/src/app/showcase"]
+    Content is authored in TS objects per [showcase_module], not generated from this file at runtime.
+    This file is the source of truth for intent, ordering, and editorial rules.
+
+    @implementation (
+        ["@/site/src/content/showcases.ts"]
+        ["@/site/src/app/showcase"]
+        ["@/site/src/views/ShowcaseListPage.tsx"]
+        ["@/site/src/views/ShowcaseDetailPage.tsx"]
+    )
+    @status done
+    @tags (
+        site
+        showcase
+        content
+    )
 }
+
+// --- thesis & editorial rules -------------------------------------------------
+
+showcase_thesis {
+    Current showcases demonstrate the syntax, not the toolset.
+    A reader who finishes them thinks: you can write sentences in curly brackets.
+    Nothing shows what you get back — no query and answer, no diagnostic, no graph, no round trip.
+
+    The upgrade thesis:
+    every showcase demonstrates one mechanism against a real domain problem.
+    Code in, artifact out. No showcase ships without a payoff block.
+}
+
+showcase_problems {
+    Three concrete failures of the current set:
+
+    Invalid reqlan.
+    Samples use illegal attribute forms (colon-list tags, pipe-scalar plans,
+    nested reference objects) that do not parse against the langium grammar.
+    For a language project, shipping invalid samples on the marketing site is an own-goal.
+    ```rq
+    // these do NOT parse — do not ship
+    @tags: (iec-61131, critical)
+    @plan: |
+      1. step
+    @references: ({ [x] })
+    ```
+
+    Prose dressed as semantics.
+    A file ref followed by the word "implements" and an idea ref reads like a typed
+    relation, but "implements" is body text. Reqlan has five edge kinds
+    (references, file_reference, ideaset_member, import, comment_link)
+    and none are user-declared. We imply a feature that does not exist while
+    hiding the ones that do.
+
+    Vapor features.
+    Graph showcase tells people to run Reqlan: Export JSON, which is not registered.
+    The docs-attribute page is built around an attribute with no special tooling.
+}
+
+every_rq_block_must_parse {
+    Every language-"rq" block in showcases.ts must parse against the langium grammar.
+    Prefer enforcement via a build step that runs the real parser over content.
+    aligns with [phase_1_parse_gate]
+}
+
+every_showcase_ends_in_a_payoff {
+    A diagnostic, a query response, a coverage report, or a graph.
+    If there is no tooling output, it is not a showcase.
+}
+
+one_worked_example_per_page {
+    Consistent identifiers across every block on a page.
+    The reader should trace one name from requirement to source to test to
+    search result without re-orienting.
+}
+
+diagrams_are_never_dressed_as_code {
+    ASCII arrow diagrams must not sit inside language-"rq" blocks.
+    They get their own visually distinct block kind.
+    aligns with [showcase_module]
+}
+
+showcase_rules {
+    Four editorial rules. Enforced in content and, where possible, at build time.
+    See [every_rq_block_must_parse], [every_showcase_ends_in_a_payoff],
+    [one_worked_example_per_page], [diagrams_are_never_dressed_as_code].
+
+    @tags (
+        editorial
+        rules
+    )
+}
+
+showcase_rules_set (
+    every_rq_block_must_parse,
+    every_showcase_ends_in_a_payoff,
+    one_worked_example_per_page,
+    diagrams_are_never_dressed_as_code
+)
+
+// --- features worth demonstrating --------------------------------------------
+
+features_tier_1 {
+    The reasons to adopt. All verified as shipping today.
+
+    @subreqs (
+        sub_file_binding {
+            Symbol refs ["auth.ts".login], line ranges ["adc.cL#41-58"],
+            and test-name anchors ["x.test.ts:rejects expired token"].
+            Requirements attach to code at symbol granularity, in any language.
+        }
+        bidirectional_comment_links {
+            rq-comment refs in TS, Python, C, ST, etc.
+            Code points back, with working document links.
+        }
+        refs_break_loudly {
+            Unresolved references are error diagnostics with quick-fix code actions.
+            File moves prompt to rewrite every inbound ref.
+            The anti-rot argument — currently demonstrated nowhere.
+        }
+        mcp_as_shaped_context {
+            search_requirements, file_context, local_graph, summarize_subtree.
+            Hand an agent six ideas and their edges instead of forty files.
+        }
+    )
+    @tags (
+        features
+        tier-1
+    )
+}
+
+features_tier_2 {
+    The depth. Also shipping.
+
+    @subreqs (
+        imports_aliases_and_root_config {
+            Imports, aliases, and root-alias config.
+            Ideasets as a module's published surface.
+        }
+        attribute_grammar_breadth {
+            Flags, negated flags, block values, nested and named lists.
+            Arbitrary at-keys as a domain dialect.
+        }
+        completion_and_deprecation_analysers {
+            Reqlan: Completion Status and Reqlan: Deprecation Impact —
+            real shipped analysers nobody is showing.
+        }
+        cytoscape_graph_view {
+            Status/tag filters and the indirect-reference depth toggle.
+        }
+        html_multipage_export {
+            HTML multi-page export as an actual deliverable.
+        }
+    )
+    @tags (
+        features
+        tier-2
+    )
+}
+
+features_not_demonstrated {
+    Deliberately not demonstrated — they do not exist yet.
+    Typed relation kinds, reference wildcards, hover cards, autoformatting,
+    JSON/CSV export palette commands, PDF binary, vector-embedding search.
+    Keyword-scored search must not be marketed as semantic search / embeddings.
+}
+
+// --- the eleven showcases ----------------------------------------------------
+
+agent_context_showcase {
+    Flagship. Context for the agent, not the repo.
+    An agent answers a question about session expiry.
+    Show the repo-dump cost, then MCP file_context returning six ideas and their
+    edges, then the plan the agent writes.
+    Absorbs former agentic-planning and feature-tracking pages.
+
+    @domain ai-tooling
+    @mechanism (
+        mcp_tools
+        token_discipline
+    )
+    @tier flagship
+    @status done
+    @tags (
+        ai
+        mcp
+        planning
+    )
+}
+
+interlock_showcase {
+    Flagship. The interlock that must not fail.
+    A safety requirement bound to ["./plc/interlock.stL#41-58"] by symbol and
+    line range, to a vitest case by test name, with an rq-comment in the ST
+    source pointing back.
+    Domain: industrial control / IEC 61131.
+
+    @domain industrial-control
+    @mechanism (
+        symbol_refs
+        line_ranges
+        test_anchors
+        comment_links
+    )
+    @tier flagship
+    @status done
+    @tags (
+        industrial
+        safety
+        sequencing
+    )
+}
+
+broken_links_showcase {
+    Flagship. Links that break loudly.
+    Someone renames a file. Show the diagnostic, the quick-fix menu, and the
+    rewritten refs. This is the argument against a wiki.
+    Domain: refactor safety, any stack.
+
+    @domain refactor-safety
+    @mechanism (
+        unresolved_ref_diagnostics
+        code_actions
+        file_mutation_hooks
+    )
+    @tier flagship
+    @status done
+    @tags (
+        diagnostics
+        refactor
+    )
+}
+
+firmware_cloud_contract_showcase {
+    Flagship. The contract between firmware and cloud.
+    A 10 Hz sample rate and a 50 ms ingest deadline: one invariant, two
+    codebases, neither of which can express it alone.
+    Absorbs half of former glue-semantics and static-connection.
+
+    @domain embedded-backend
+    @mechanism (
+        cross_stack_file_refs
+        idea_as_connective_tissue
+        inbound_reference_inlay_hints
+    )
+    @tier flagship
+    @status done
+    @tags (
+        integration
+        cross-stack
+        embedded
+    )
+}
+
+audit_trail_showcase {
+    Depth. An audit trail you can export.
+    Custom clause / evidence / verified_by attributes, then Completion Status
+    showing the coverage gap, then HTML export as the auditor's deliverable.
+    Domain: regulated software — IEC 62304 or SOC 2.
+    Absorbs former compliance page.
+
+    @domain regulated-software
+    @mechanism (
+        custom_attributes
+        completion_status
+        html_export
+    )
+    @tier depth
+    @status done
+    @tags (
+        compliance
+        audit
+        export
+    )
+}
+
+module_surface_showcase {
+    Depth. A module's published surface.
+    billing/interface.rq exports an ideaset; checkout.rq imports only that;
+    reaching past the boundary is an unresolved-import error.
+    Ideasets-as-public-API is undemonstrated today.
+    Absorbs half of former glue-semantics and module-interface.
+
+    @domain monorepo-architecture
+    @mechanism (
+        ideasets
+        imports
+        unresolved_import_diagnostics
+    )
+    @tier depth
+    @status done
+    @tags (
+        modularity
+        imports
+        ideasets
+    )
+}
+
+test_proves_showcase {
+    Depth. What this test actually proves.
+    Keep the intent of the former test-explanation page; upgrade it with a real
+    test-name anchor and the reverse direction from test file back to intent.
+
+    @domain testing
+    @mechanism (
+        test_name_anchors
+        comment_links
+        bidirectional_traceability
+    )
+    @tier depth
+    @status done
+    @tags (
+        testing
+        traceability
+    )
+}
+
+legacy_archaeology_showcase {
+    Depth. Archaeology on inherited code.
+    An undocumented function, an rq-comment seeded into it, @deprecated on the
+    old path, then Deprecation Impact listing everything that breaks.
+    Absorbs former scattered-docs page.
+
+    @domain legacy-migration
+    @mechanism (
+        comment_links
+        deprecated_attribute
+        deprecation_impact
+    )
+    @tier depth
+    @status done
+    @tags (
+        legacy
+        discovery
+        deprecation
+    )
+}
+
+graph_view_showcase {
+    Depth. See the whole graph.
+    Needs real captured screenshots or a short loop from the actual Cytoscape
+    view — not fake ASCII arrows dressed as .rq.
+    Aligns with [diagrams_are_never_dressed_as_code].
+
+    @domain extension-ui
+    @mechanism (
+        cytoscape_graph
+        status_tag_filters
+        indirect_reference_toggle
+    )
+    @tier depth
+    @status done
+    @tags (
+        extension
+        graph
+    )
+}
+
+attribute_dialect_showcase {
+    Depth. Attributes as a domain dialect.
+    The full attribute grammar: flags, negated flags, block values, nested and
+    named lists — forms nobody currently knows about.
+    Absorbs former arbitrary-attributes page.
+
+    @domain hardware-manufacturing
+    @mechanism (
+        attribute_flags
+        negated_flags
+        block_values
+        nested_lists
+    )
+    @tier depth
+    @status done
+    @tags (
+        attributes
+        extensibility
+    )
+}
+
+antipatterns_showcase {
+    Depth. Three ways to write .rq badly.
+    Data instead of pointers, prose restating code, one monolithic file.
+    Showing negative space is a taste signal.
+    Absorbs former data-not-ideas page; expands it.
+
+    @domain craft
+    @mechanism (
+        pointers_not_data
+        editorial_taste
+    )
+    @tier depth
+    @status done
+    @tags (
+        antipattern
+        craft
+    )
+}
+
+showcase_set (
+    agent_context_showcase,
+    interlock_showcase,
+    broken_links_showcase,
+    firmware_cloud_contract_showcase,
+    audit_trail_showcase,
+    module_surface_showcase,
+    test_proves_showcase,
+    legacy_archaeology_showcase,
+    graph_view_showcase,
+    attribute_dialect_showcase,
+    antipatterns_showcase
+)
+
+absorbed_and_dropped {
+    Absorbed into the eleven:
+    glue-semantics splits into [firmware_cloud_contract_showcase] and [module_surface_showcase].
+    agentic-planning and feature-tracking fold into [agent_context_showcase].
+    compliance becomes [audit_trail_showcase].
+    scattered-docs becomes [legacy_archaeology_showcase].
+    test-explanation upgrades into [test_proves_showcase].
+    arbitrary-attributes upgrades into [attribute_dialect_showcase].
+    static-connection upgrades into [firmware_cloud_contract_showcase].
+    data-not-ideas expands into [antipatterns_showcase].
+    graph-traversal upgrades into [graph_view_showcase].
+    control-system-sequencing upgrades into [interlock_showcase].
+    module-interface upgrades into [module_surface_showcase].
+
+    Dropped:
+    todo-triage — too thin; triage is a byproduct of [agent_context_showcase], not a page.
+    docs-attribute — sells tooling that does not exist; file refs to markdown belong inside other pages.
+}
+
+// --- module / content schema -------------------------------------------------
 
 showcase_module {
-    showcases should be standardised/typed with a short version, tags, a long version (full tsx objects), exist in a list and as a full page.
+    Showcases are standardised and typed in TS content objects.
+    Short version (list card): id, title, summary, tags, mechanism badge.
+    Long version (detail page): full blocks array including payoff.
+
+    Exist as a list page and as a full page per slug.
+    Routes: /showcase/ and /showcase/[slug]/ — static export.
+
+    Block kinds needed beyond today's code | features union:
+    callout — the one-sentence point of the page
+    exchange — query + response, terminal-styled
+    diagnostic — editor-style error with quick-fixes
+    diagram — visually distinct from code; never language-"rq"
+    caption / mechanism fields on the showcase object
+
+    Copy stays minimal and show-don't-tell, aligned with site copy rules.
+    @implementation ["@/site/src/content/showcases.ts"]
+    @status done
 }
 
-extension_features_showcase {
-    - graphical graph traversal
-    - ...
+showcase_languages {
+    .rq blocks use the custom site tokenizer.
+    Non-.rq blocks need Shiki coverage beyond today's ts / md / py —
+    add st, c, json, yaml for the flagship domains.
+    aligns with [phase_1_parse_gate]
 }
 
+// --- delivery plan -----------------------------------------------------------
+
+phase_0_honesty_audit {
+    In parallel with content rewrite. Fix what the honesty audit surfaced.
+
+    @subreqs (
+        tags_list_indexing_gap {
+            List-form tags parse but store true instead of a tag array
+            in the idea extractor, so half of real-world tag usage never reaches the index.
+        }
+        inbound_references_command {
+            reqlan.openInboundReferencesSummary is declared in package.json with no handler.
+        }
+        typo_cleanup {
+            Former implementaion typo in this file — corrected to implementation.
+        }
+    )
+    @status pending
+    @tags (
+        tooling
+        honesty
+    )
+}
+
+phase_1_parse_gate {
+    Make dishonesty impossible.
+    Add a build step that runs the Langium parser over every language-"rq" block
+    in showcases.ts and fails on parse errors or unresolved local refs.
+    Do this first so the rewrite cannot reintroduce the current problem.
+    Also expand Shiki language set per [showcase_languages].
+
+    @status done
+    @priority P0
+}
+
+phase_2_content_schema {
+    Extend ShowcaseBlock union and Showcase type per [showcase_module].
+    Presentation polish can follow in [phase_5_detail_layout]; schema first.
+
+    @status done
+}
+
+phase_3_reqs_as_truth {
+    This file is the source of truth: one idea per showcase with mechanism,
+    domain, and status; [showcase_set] listing them; refs into showcases.ts.
+    Reqlan's own showcase plan is tracked in reqlan.
+
+    @status done
+}
+
+phase_4_write_the_eleven {
+    Write the eleven, one at a time, each validated by [phase_1_parse_gate]
+    before moving on.
+    Flagships first — [agent_context_showcase], [interlock_showcase],
+    [broken_links_showcase], [firmware_cloud_contract_showcase] —
+    so the format can be judged before committing to all eleven.
+
+    @status done
+    @plan {
+        order (
+            agent_context_showcase
+            interlock_showcase
+            broken_links_showcase
+            firmware_cloud_contract_showcase
+            audit_trail_showcase
+            module_surface_showcase
+            test_proves_showcase
+            legacy_archaeology_showcase
+            graph_view_showcase
+            attribute_dialect_showcase
+            antipatterns_showcase
+        )
+    }
+}
+
+phase_5_detail_layout {
+    Detail page layout: beats with captions, mechanism badges distinct from tags,
+    and cross-block highlighting of the shared identifier.
+
+    @status done
+}
+
+phase_6_capture_media {
+    Capture real media from the extension for [broken_links_showcase]
+    (diagnostics / quick-fix) and [graph_view_showcase] (Cytoscape).
+
+    @status done
+}
+
+showcase_plan (
+    phase_0_honesty_audit,
+    phase_1_parse_gate,
+    phase_2_content_schema,
+    phase_3_reqs_as_truth,
+    phase_4_write_the_eleven,
+    phase_5_detail_layout,
+    phase_6_capture_media
+)

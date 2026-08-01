@@ -12,7 +12,7 @@ import {
     matchImportRootMapping,
     resolveDocumentPathUri,
     resolveRqConfig
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -303,6 +303,7 @@ describe('rqconfig schema edges', () => {
                     clusterStrategy: 'hybrid',
                     includeIdeaPages: true,
                     includeFilePages: true,
+                    includeCodeFilePages: true,
                     includeClusterPages: true,
                     includePrintPages: true
                 }
@@ -321,6 +322,7 @@ describe('rqconfig schema edges', () => {
                 clusterStrategy: 'hybrid',
                 includeIdeaPages: true,
                 includeFilePages: true,
+                includeCodeFilePages: true,
                 includeClusterPages: true,
                 includePrintPages: true
             }

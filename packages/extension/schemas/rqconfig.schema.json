@@ -86,7 +86,11 @@
             },
             "includeFilePages": {
               "type": "boolean",
-              "description": "Whether to emit dedicated file detail pages."
+              "description": "Whether to emit dedicated pages for reqlan files that host ideas. Defaults to true."
+            },
+            "includeCodeFilePages": {
+              "type": "boolean",
+              "description": "Whether to emit dedicated pages for outbound file_reference (code) targets. Defaults to true."
             },
             "includeClusterPages": {
               "type": "boolean",

@@ -16,8 +16,8 @@ Language support for the reqlan language
 ## Links
 
 - [Site](https://tony.is-a.dev/reqlan)
-- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan)
-- [Open VSX](https://open-vsx.org/extension/reqlan/reqlan)
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
+- [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
 - [Contact](mailto:reqlan@tony.is-a.dev)
 
@@ -32,8 +32,8 @@ Language support for the reqlan language
 #### Patch Changes
 
 - Updated dependencies [4b9d33b]
-  - reqlan-analytical@0.3.0
-  - reqlan-language@1.3.0
+  - @reqlan/analytical@0.3.0
+  - @reqlan/language@1.3.0
 
 ### 1.2.0
 
@@ -44,8 +44,8 @@ Language support for the reqlan language
 #### Patch Changes
 
 - Updated dependencies [e5389ba]
-  - reqlan-language@1.2.0
-  - reqlan-analytical@0.2.1
+  - @reqlan/language@1.2.0
+  - @reqlan/analytical@0.2.1
 
 ### 1.1.0
 
@@ -56,8 +56,8 @@ Language support for the reqlan language
 #### Patch Changes
 
 - Updated dependencies [e56ac74]
-  - reqlan-analytical@0.2.0
-  - reqlan-language@1.1.0
+  - @reqlan/analytical@0.2.0
+  - @reqlan/language@1.1.0
 
 ### 1.0.1
 
@@ -65,8 +65,8 @@ Language support for the reqlan language
 
 - b8a50cd: minor fixes
 - Updated dependencies [b8a50cd]
-  - reqlan-analytical@0.1.4
-  - reqlan-language@1.0.1
+  - @reqlan/analytical@0.1.4
+  - @reqlan/language@1.0.1
 
 ### 1.0.0
 
@@ -77,8 +77,8 @@ Language support for the reqlan language
 #### Patch Changes
 
 - Updated dependencies [931fc87]
-  - reqlan-language@1.0.0
-  - reqlan-analytical@0.1.3
+  - @reqlan/language@1.0.0
+  - @reqlan/analytical@0.1.3
 
 ### 0.1.2
 
@@ -86,8 +86,8 @@ Language support for the reqlan language
 
 - fcb99a0: Various vibed changes
 - Updated dependencies [fcb99a0]
-  - reqlan-analytical@0.1.2
-  - reqlan-language@0.1.2
+  - @reqlan/analytical@0.1.2
+  - @reqlan/language@0.1.2
 
 ### 0.1.1
 
@@ -95,8 +95,8 @@ Language support for the reqlan language
 
 - d9f43be: remove :memory:
 - Updated dependencies [d9f43be]
-  - reqlan-analytical@0.1.1
-  - reqlan-language@0.1.1
+  - @reqlan/analytical@0.1.1
+  - @reqlan/language@0.1.1
 
 ### 0.1.0
 
@@ -108,8 +108,8 @@ Language support for the reqlan language
 
 - ea699c2: Add file icon; add refactor support; chat participant bug fixes.
 - Updated dependencies [65840f4]
-  - reqlan-analytical@0.1.0
-  - reqlan-language@0.1.0
+  - @reqlan/analytical@0.1.0
+  - @reqlan/language@0.1.0
 
 ### 0.0.11
 
@@ -117,8 +117,8 @@ Language support for the reqlan language
 
 - a6c2066: Branding change
 - Updated dependencies [a6c2066]
-  - reqlan-analytical@0.0.5
-  - reqlan-language@0.0.5
+  - @reqlan/analytical@0.0.5
+  - @reqlan/language@0.0.5
 
 ### 0.0.10
 
@@ -126,8 +126,8 @@ Language support for the reqlan language
 
 - 020cd59: Fix blocking build issues and update some of the physics
 - Updated dependencies [020cd59]
-  - reqlan-language@0.0.4
-  - reqlan-analytical@0.0.4
+  - @reqlan/language@0.0.4
+  - @reqlan/analytical@0.0.4
 
 ### 0.0.9
 
@@ -135,8 +135,8 @@ Language support for the reqlan language
 
 - 66e5027: updates to animation behaviour; and some grammar/language tweaks
 - Updated dependencies [66e5027]
-  - reqlan-language@0.0.3
-  - reqlan-analytical@0.0.3
+  - @reqlan/language@0.0.3
+  - @reqlan/analytical@0.0.3
 
 ### 0.0.8
 
@@ -146,5 +146,5 @@ Language support for the reqlan language
 - d50f988: test increment of \*
 - Updated dependencies [f6bae00]
 - Updated dependencies [d50f988]
-  - reqlan-analytical@0.0.2
-  - reqlan-language@0.0.2
+  - @reqlan/analytical@0.0.2
+  - @reqlan/language@0.0.2

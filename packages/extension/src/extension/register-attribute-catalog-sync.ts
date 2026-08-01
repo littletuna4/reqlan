@@ -4,7 +4,7 @@
 import {
     REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION,
     type AttributeCatalog
-} from 'reqlan-language';
+} from '@reqlan/language';
 import type * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';

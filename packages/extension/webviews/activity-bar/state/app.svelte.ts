@@ -9,7 +9,7 @@ import type {
     ContextFileLensDetail,
     IdeaSummary,
     ReqlanContextModel
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
 import type { PhonebookLinkView, ReferenceListsPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';
 import { buildReferencesPayloadFromCurrentFile, groupReferences } from '../../../src/activity_bar_module/context-helpers.js';

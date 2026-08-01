@@ -15,7 +15,7 @@
         readSurfaceBounds
     } from '../lib/graph-float-panel.js';
 
-    /** Mirrors GRAPH_NODES_HARD_CAP from reqlan-analytical (webview cannot import that package). */
+    /** Mirrors GRAPH_NODES_HARD_CAP from @reqlan/analytical (webview cannot import that package). */
     const GRAPH_NODES_HARD_CAP = 1000;
 
     export let open = false;

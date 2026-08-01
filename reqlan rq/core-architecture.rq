@@ -41,23 +41,23 @@ monorepo {
 }
 
 language_package {
-    `packages/language` (`reqlan-language`) is the canonical language definition.
+    `packages/language` (`@reqlan/language`) is the canonical language definition.
     It owns Langium grammars, generated AST and parser, scoped linking, validators, and LSP service providers.
     Public DI entry is [language_module] via `createReqlanServices`.
     Consumers: [analytical_package], [extension_package] (LSP and index), [cli_package].
-    It is an internal library, not Marketplace-published, per [distribution.version_management] and [package_versioning].
+    Published to npm as a library dependency of [analytical_package] and [cli_package]; not Marketplace-published. See [distribution.version_management] and [package_versioning].
 }
 
 analytical_package {
-    `packages/analytical` (`reqlan-analytical`) is the shared requirement graph index and analysis layer.
+    `packages/analytical` (`@reqlan/analytical`) is the shared requirement graph index and analysis layer.
     It extracts ideas and edges from Langium ASTs into a sql.js SQLite store, holds Zustand analytical state, and exposes analysers and an analysis API.
     Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `HeadlessIndexService`.
-    Consumers: [extension_package] IndexService UI path, [mcp_package].
-    Depends on [language_package]; not Marketplace-published. Version graph role: [package_versioning].
+    Consumers: [extension_package] IndexService UI path, [mcp_package], [cli_package].
+    Depends on [language_package]. Published to npm alongside [cli_package]; version graph role: [package_versioning].
 }
 
 extension_package {
-    `packages/extension` (npm `reqlan`) is the editor product per [distribution.extension_package].
+    `packages/extension` (npm `reqlan-extension`) is the editor product per [distribution.extension_package].
     It registers `.rq` language support, TextMate grammars, starts the language client, hosts the ideas index in-process, and owns activity bar, Ideas Summary, chat, skills, and mutation hooks.
     Host entry: [extension_main]. LSP process entry: [language_server_main].
     Depends on [language_package] and [analytical_package].
@@ -68,12 +68,12 @@ extension_package {
 mcp_package {
     `packages/mcp` (`reqlan-mcp`) is a stdio MCP server over the analytical analysis API — no VS Code host required.
     Entry: [mcp_main]. Used by Cursor and other MCP clients per [chat_participant_doc.mcp] and [skills_and_mcp.mcp_tools].
-    Ignored by Changesets per [distribution.version_management].
+    Ignored by Changesets and `private` (not an npm publishable) per [distribution.version_management].
 }
 
 cli_package {
-    `packages/cli` (`reqlan-cli`) is a thin Langium CLI over [language_package] (e.g. generate).
-    Entry: [cli_main]. Internal tool; ignored by Changesets per [distribution.version_management].
+    `packages/cli` (`@reqlan/cli`) is a Clipanion CLI over [language_package] (parse) and [analytical_package] (`AnalysisApi` for analyse/search).
+    Entry: [cli_main]. Binary name `reqlan` (alias `rq`). Published to npm with language and analytical per [package_versioning] and [distribution.version_management].
 }
 
 site_package {
@@ -83,11 +83,14 @@ site_package {
 }
 
 package_versioning {
-    Separate workspace packages exist for build isolation and reuse — not because each ships to users on its own.
+    Separate workspace packages exist for build isolation and reuse — not because each ships to every channel.
     [language_package] and [analytical_package] are leaf libraries shared by LSP, index, MCP, and CLI; they need their own package boundaries for TypeScript project refs and a single grammar/index ownership point.
-    Only two packages drive releases and tags: [extension_package] (`ext/v*`) and [site_package] (`site/v*`) per [distribution.version_management] and [distribution.deployment_flow].
-    Changesets config is [changeset_config]. It ignores [cli_package] and [mcp_package] only.
-    [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension). Tracking here is internal monorepo versioning, not a separate Marketplace publish.
+    Release-driving channels:
+    - Marketplace/Open VSX: [extension_package] (`ext/v*`)
+    - GitHub Pages: [site_package] (`site/v*`)
+    - npm registry: [language_package], [analytical_package], and [cli_package] via Changesets `changeset publish`
+    Changesets config is [changeset_config]. It ignores [mcp_package] only.
+    [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension and CLI).
     Extension webview folders may be private pnpm members (e.g. `@reqlan/ideas-summary-webview`) so Vite/Svelte can own deps; they bundle into extension media and are not Changesets publish targets. Activity-bar UI is not a separate package.json product.
     Contributors record release intent with a changeset on publishable packages when user-facing behaviour changes; see [distribution.version_management].
 }

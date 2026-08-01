@@ -1,14 +1,25 @@
 {
-    "name": "reqlan-analytical",
+    "name": "@reqlan/analytical",
     "description": "Shared requirement graph index and analysers for reqlan",
     "version": "0.3.0",
     "type": "module",
+    "license": "AGPL-3.0-only",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/littletuna4/reqlan.git"
+    },
     "engines": {
         "node": ">=20.10.0"
     },
+    "files": [
+        "out"
+    ],
     "main": "./out/index.js",
     "types": "./out/index.d.ts",
     "sideEffects": false,
+    "publishConfig": {
+        "access": "public"
+    },
     "exports": {
         ".": {
             "types": "./out/index.d.ts",
@@ -34,8 +45,8 @@
     },
     "dependencies": {
         "langium": "~4.3.0",
-        "reqlan-language": "workspace:*",
         "sql.js": "^1.14.1",
-        "zustand": "~5.0.8"
+        "zustand": "~5.0.8",
+        "@reqlan/language": "workspace:*"
     }
 }

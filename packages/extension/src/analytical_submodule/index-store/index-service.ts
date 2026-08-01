@@ -3,7 +3,7 @@
  */
 import { URI, type LangiumDocument } from 'langium';
 import { NodeFileSystem } from 'langium/node';
-import { createReqlanServices } from 'reqlan-language';
+import { createReqlanServices } from '@reqlan/language';
 import { join } from 'node:path';
 import * as vscode from 'vscode';
 import {
@@ -13,7 +13,7 @@ import {
     toFileIndexIssueView,
     toIndexErrorDetail,
     type AnalyticalStore
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import type { IndexStatusSnapshot, IndexSyncProgress } from './index-status.js';
 import { collectParseIssues, fileIssue, fileIssueFromError, unnamedIdeaIssues, validIdeas } from './index-parse-issues.js';
 import { recordCaughtFileIssue } from './index-file-error.js';

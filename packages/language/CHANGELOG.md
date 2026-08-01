@@ -1,4 +1,4 @@
-# reqlan-language
+# @reqlan/language
 
 ## 1.3.0
 

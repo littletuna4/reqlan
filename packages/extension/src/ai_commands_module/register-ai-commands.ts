@@ -4,7 +4,7 @@
  */
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { IdeaSummary, SemanticMatch } from 'reqlan-analytical';
+import type { IdeaSummary, SemanticMatch } from '@reqlan/analytical';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import {
@@ -280,7 +280,7 @@ async function pickIdea(
             ideas = (await index.indexStore.getIdeasInFile(fileUri))
                 .filter(idea => idea.kind !== 'ideaset');
         } else {
-            const related = await analysers.run<{ fileUri: string }, import('reqlan-analytical').FileRelatedRequirements>(
+            const related = await analysers.run<{ fileUri: string }, import('@reqlan/analytical').FileRelatedRequirements>(
                 {
                     store: index.indexStore,
                     analytical: submodule.store,

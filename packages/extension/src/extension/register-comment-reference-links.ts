@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { findCommentReferencesInText } from 'reqlan-language';
+import { findCommentReferencesInText } from '@reqlan/language';
 
 const COMMENT_REFERENCE_LANGUAGES = [
     'python',

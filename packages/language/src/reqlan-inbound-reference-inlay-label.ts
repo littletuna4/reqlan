@@ -28,6 +28,10 @@ export type ReferencedDeclaration = IdeaDeclaration | IdeaSet;
 
 const MAX_INLINE_NAMES = 3;
 
+/**
+ * Collect inbound idea referencers from the whole Langium workspace index
+ * (every indexed `.rq` document), not only the declaration's file.
+ */
 export function collectInboundReferencers(
     services: ReqlanServices,
     declaration: ReferencedDeclaration
@@ -36,6 +40,7 @@ export function collectInboundReferencers(
     const locator = services.workspace.AstNodeLocator;
     const referencers = new Map<string, InboundReferencer>();
 
+    // findReferences without documentUri walks IndexManager across the workspace.
     for (const reference of services.references.References.findReferences(declaration, { includeDeclaration: false }).toArray()) {
         const sourceDocument = documents.getDocument(reference.sourceUri);
         if (!sourceDocument) {
@@ -46,7 +51,7 @@ export function collectInboundReferencers(
             continue;
         }
         const referrer = enclosingReferrerDeclaration(sourceNode);
-        if (!referrer || referrer.name === declaration.name) {
+        if (!referrer || isSameDeclaration(referrer, declaration)) {
             continue;
         }
         const location = locationForReferrer(referrer);
@@ -79,6 +84,16 @@ function enclosingReferrerDeclaration(node: AstNode): ReferencedDeclaration | un
         current = current.$container;
     }
     return undefined;
+}
+
+function isSameDeclaration(left: ReferencedDeclaration, right: ReferencedDeclaration): boolean {
+    if (left === right) {
+        return true;
+    }
+    if (left.name !== right.name) {
+        return false;
+    }
+    return AstUtils.getDocument(left).uri.toString() === AstUtils.getDocument(right).uri.toString();
 }
 
 function locationForReferrer(referrer: ReferencedDeclaration): Location | undefined {

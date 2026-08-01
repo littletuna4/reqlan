@@ -35,12 +35,12 @@ importers:
 
   packages/analytical:
     dependencies:
+      '@reqlan/language':
+        specifier: workspace:*
+        version: link:../language
       langium:
         specifier: ~4.3.0
         version: 4.3.0
-      reqlan-language:
-        specifier: workspace:*
-        version: link:../language
       sql.js:
         specifier: ^1.14.1
         version: 1.14.1
@@ -54,21 +54,31 @@ importers:
 
   packages/cli:
     dependencies:
-      chalk:
-        specifier: ~5.6.2
-        version: 5.6.2
-      commander:
-        specifier: ~15.0.0
-        version: 15.0.0
+      '@reqlan/analytical':
+        specifier: workspace:*
+        version: link:../analytical
+      '@reqlan/language':
+        specifier: workspace:*
+        version: link:../language
+      clipanion:
+        specifier: 3.2.1
+        version: 3.2.1(typanion@3.14.0)
       langium:
         specifier: ~4.3.0
         version: 4.3.0
-      reqlan-language:
-        specifier: workspace:*
-        version: link:../language
+    devDependencies:
+      shx:
+        specifier: ~0.4.0
+        version: 0.4.0
 
   packages/extension:
     dependencies:
+      '@reqlan/analytical':
+        specifier: workspace:*
+        version: link:../analytical
+      '@reqlan/language':
+        specifier: workspace:*
+        version: link:../language
       cytoscape:
         specifier: ^3.33.1
         version: 3.34.0
@@ -81,12 +91,6 @@ importers:
       langium:
         specifier: ~4.3.0
         version: 4.3.0
-      reqlan-analytical:
-        specifier: workspace:*
-        version: link:../analytical
-      reqlan-language:
-        specifier: workspace:*
-        version: link:../language
       vscode-languageclient:
         specifier: ~10.0.0
         version: 10.0.0
@@ -170,7 +174,7 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.29.0(zod@3.25.76)
-      reqlan-analytical:
+      '@reqlan/analytical':
         specifier: workspace:*
         version: link:../analytical
       zod:
@@ -223,6 +227,9 @@ importers:
       '@iconify-icons/simple-icons':
         specifier: ^1.2.74
         version: 1.2.74
+      '@reqlan/language':
+        specifier: workspace:*
+        version: link:../packages/language
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.2
@@ -241,6 +248,9 @@ importers:
       eslint-plugin-react-hooks:
         specifier: ^7.0.1
         version: 7.1.1(eslint@9.39.4(jiti@2.7.0))
+      langium:
+        specifier: ~4.3.0
+        version: 4.3.0
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -1934,6 +1944,11 @@ packages:
 
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
+
+  clipanion@3.2.1:
+    resolution: {integrity: sha512-dYFdjLb7y1ajfxQopN05mylEpK9ZX0sO1/RfMXdfmwjlIsPkbh4p7A682x++zFPLDCo1x3p82dtljHf5cW2LKA==}
+    peerDependencies:
+      typanion: '*'
 
   cliui@9.0.1:
     resolution: {integrity: sha512-k7ndgKhwoQveBL+/1tqGJYNz097I7WOvwbmmU2AR5+magtbjPWQTS1C5vzGkBC8Ym8UWRzfKUzUUqFLypY4Q+w==}
@@ -3951,6 +3966,9 @@ packages:
 
   tweetnacl@0.14.5:
     resolution: {integrity: sha512-KXXFFdAbFXY4geFIwoyNK+f5Z1b7swfXABfL7HXCmoIWMKU3dmS26672A4EeQtDzLKy7SXmfBu51JolvEKwtGA==}
+
+  typanion@3.14.0:
+    resolution: {integrity: sha512-ZW/lVMRabETuYCd9O9ZvMhAh8GslSqaUjxmK/JLPCh6l73CvLBiuXswj/+7LdnWOgYsQ130FqLzFz5aGT4I3Ug==}
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -6012,6 +6030,10 @@ snapshots:
     optional: true
 
   client-only@0.0.1: {}
+
+  clipanion@3.2.1(typanion@3.14.0):
+    dependencies:
+      typanion: 3.14.0
 
   cliui@9.0.1:
     dependencies:
@@ -8161,6 +8183,8 @@ snapshots:
   tunnel@0.0.6: {}
 
   tweetnacl@0.14.5: {}
+
+  typanion@3.14.0: {}
 
   type-check@0.4.0:
     dependencies:

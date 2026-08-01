@@ -6,8 +6,8 @@ import { AstUtils, EmptyFileSystem, GrammarUtils, URI, type LangiumDocument } fr
 import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
-import type { LocalReference, Model, QualifiedReference } from 'reqlan-language';
-import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from 'reqlan-language';
+import type { LocalReference, Model, QualifiedReference } from '@reqlan/language';
+import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
 import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
 import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';

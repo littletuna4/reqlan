@@ -1,6 +1,8 @@
 /**
  * Quick fixes for unresolved references: add import, rewrite qualified ref, search, create.
+ * Also offers a search code action when the cursor is inside a [reference] / [[wikilink]].
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
@@ -24,9 +26,11 @@ import {
     type NameCatalogEntry,
     type NameCatalogKind
 } from './reqlan-name-catalog.js';
+import { findReferenceSearchSite, buildContextForRange } from './reqlan-reference-search-site.js';
 
 export const REQLAN_IMPORT_ERROR_SEARCH_COMMAND = 'reqlan.importError.search';
 export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile';
+export const REQLAN_SEARCH_REFERENCE_COMMAND = 'reqlan.searchReference';
 
 const MAX_IMPORT_SUGGESTIONS = 5;
 
@@ -41,6 +45,20 @@ export interface ImportErrorCommandArgs {
     documentUri: string;
     refText: string;
     range: Diagnostic['range'];
+}
+
+/** Args for reference search webview (replace existing ref or wrap prose). */
+export interface SearchReferenceCommandArgs {
+    documentUri: string;
+    refText: string;
+    range: Diagnostic['range'];
+    mode: 'replace' | 'wrap';
+    context?: {
+        ideaName: string;
+        before: string;
+        target: string;
+        after: string;
+    };
 }
 
 interface SymbolMatch {
@@ -66,7 +84,58 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
         for (const diagnostic of params.context.diagnostics) {
             actions.push(...this.actionsForDiagnostic(document, diagnostic));
         }
+        const searchFromCursor = this.createSearchReferenceAction(document, params);
+        if (searchFromCursor) {
+            actions.push(searchFromCursor);
+        }
         return actions;
+    }
+
+    /**
+     * When the cursor/selection is inside a [reference], or on prose that can
+     * become one, offer a search action that opens the idea-search webview.
+     */
+    private createSearchReferenceAction(
+        document: LangiumDocument,
+        params: CodeActionParams
+    ): CodeActionLike | undefined {
+        const site = findReferenceSearchSite(document, params.range);
+        if (!site) {
+            return undefined;
+        }
+        // Avoid duplicating the linking-error search action on the same range.
+        const alreadyHasSearch = site.mode === 'replace' && params.context.diagnostics.some(diagnostic => {
+            const data = diagnostic.data as LinkingDiagnosticData | undefined;
+            return data?.code === DocumentValidator.LinkingError
+                && data.refText === site.refText
+                && rangesOverlap(diagnostic.range, site.range);
+        });
+        if (alreadyHasSearch) {
+            return undefined;
+        }
+        const args: SearchReferenceCommandArgs = {
+            documentUri: document.textDocument.uri,
+            refText: site.refText,
+            range: site.range,
+            mode: site.mode,
+            context: site.context
+        };
+        const title = site.mode === 'wrap'
+            ? (site.refText
+                ? `Wrap '${site.refText}' as idea reference…`
+                : 'Wrap selection as idea reference…')
+            : (site.refText
+                ? `Search for idea to replace '${site.refText}'…`
+                : 'Search for idea reference…');
+        return {
+            title,
+            kind: CodeActionKind.Refactor,
+            command: {
+                title: 'Search for idea reference',
+                command: REQLAN_SEARCH_REFERENCE_COMMAND,
+                arguments: [args]
+            }
+        };
     }
 
     private actionsForDiagnostic(
@@ -220,18 +289,20 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
         diagnostic: Diagnostic,
         refText: string
     ): CodeActionLike {
-        const args: ImportErrorCommandArgs = {
+        const args: SearchReferenceCommandArgs = {
             documentUri: document.textDocument.uri,
             refText,
-            range: diagnostic.range
+            range: diagnostic.range,
+            mode: 'replace',
+            context: buildContextForRange(document, diagnostic.range)
         };
         return {
-            title: `Search index for '${refText}'…`,
+            title: `Search for idea to replace '${refText}'…`,
             kind: CodeActionKind.QuickFix,
             diagnostics: [diagnostic],
             command: {
-                title: `Search index for '${refText}'`,
-                command: REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
+                title: `Search for idea to replace '${refText}'`,
+                command: REQLAN_SEARCH_REFERENCE_COMMAND,
                 arguments: [args]
             }
         };
@@ -262,6 +333,22 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
 
 function isResolvableIdeaProperty(property: string | undefined): boolean {
     return property === 'idea' || property === 'ideaset' || property === 'members';
+}
+
+function rangesOverlap(
+    left: { start: { line: number; character: number }; end: { line: number; character: number } },
+    right: { start: { line: number; character: number }; end: { line: number; character: number } }
+): boolean {
+    if (left.end.line < right.start.line || right.end.line < left.start.line) {
+        return false;
+    }
+    if (left.end.line === right.start.line && left.end.character < right.start.character) {
+        return false;
+    }
+    if (right.end.line === left.start.line && right.end.character < left.start.character) {
+        return false;
+    }
+    return true;
 }
 
 function nodeTypeToKind(type: string): NameCatalogKind | undefined {

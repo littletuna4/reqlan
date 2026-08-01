@@ -1,4 +1,4 @@
-import type { CurrentFileSlice, IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from 'reqlan-analytical';
+import type { CurrentFileSlice, IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from '@reqlan/analytical';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 
 export function buildOutlineFromIdeas(ideas: IdeaWithRange[]): OutlineNode[] {

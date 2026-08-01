@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { AstUtils, EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, VirtualFileSystemProvider } from 'langium/test';
-import type { Model } from 'reqlan-language';
+import type { Model } from '@reqlan/language';
 import {
     createReqlanServices,
     createSourceTextDocument,
@@ -13,7 +13,7 @@ import {
     isQualifiedReference,
     isResolvableImportPath,
     resolveExistingImportUri
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 let services: ReturnType<typeof createReqlanServices>;
 

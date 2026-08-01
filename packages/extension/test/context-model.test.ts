@@ -6,7 +6,7 @@ import {
     setDimensionEnabled
 } from '../src/activity_bar_module/context-session.js';
 import { ContextModelBuilder, ActivityBarDataService } from '../src/activity_bar_module/context-model.js';
-import type { IdeaSummary } from 'reqlan-analytical';
+import type { IdeaSummary } from '@reqlan/analytical';
 
 function mockIdea(id: string, fileUri: string, lineStart: number, extra?: Partial<IdeaSummary>): IdeaSummary {
     return {

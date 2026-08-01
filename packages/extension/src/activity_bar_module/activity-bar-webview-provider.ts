@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import type { FileRelatedRequirements, GitDateInfo, IdeaSummary } from 'reqlan-analytical';
-import { CONTEXT_MAX_HOP_DEPTH, CONTEXT_MIN_HOP_DEPTH } from 'reqlan-analytical';
-import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from 'reqlan-language';
+import type { FileRelatedRequirements, GitDateInfo, IdeaSummary } from '@reqlan/analytical';
+import { CONTEXT_MAX_HOP_DEPTH, CONTEXT_MIN_HOP_DEPTH } from '@reqlan/analytical';
+import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri, resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
@@ -497,7 +497,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private async loadContext(
         editor: vscode.TextEditor,
         requestId?: number
-    ): Promise<import('reqlan-analytical').ReqlanContextModel | undefined> {
+    ): Promise<import('@reqlan/analytical').ReqlanContextModel | undefined> {
         const data = await this.ensureData();
         if (!data) {
             // Cold start: index sync in progress — wait via indexHealth, not a hard error.

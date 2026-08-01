@@ -7,7 +7,7 @@ import type {
     IdeaSummary,
     ReferenceListRow,
     ReqlanContextModel
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import type { GraphViewQuery, GraphViewSlice, IdeasSummaryNavigateIntent, IndexStatusView } from '../webview_module/shared/messages.js';
 
 export type IdeasSummaryIntent = IdeasSummaryNavigateIntent;
@@ -53,11 +53,11 @@ export type ActivityBarToExtensionMessage =
     | { type: 'adjustGlobalHopDepth'; delta: number }
     | {
           type: 'adjustDimensionHopDepth';
-          dimension: import('reqlan-analytical').ContextDimensionId;
+          dimension: import('@reqlan/analytical').ContextDimensionId;
           delta: number;
       }
-    | { type: 'toggleContextDimension'; dimension: import('reqlan-analytical').ContextDimensionId; enabled: boolean }
-    | { type: 'setExpandedLens'; dimension?: import('reqlan-analytical').ContextDimensionId }
+    | { type: 'toggleContextDimension'; dimension: import('@reqlan/analytical').ContextDimensionId; enabled: boolean }
+    | { type: 'setExpandedLens'; dimension?: import('@reqlan/analytical').ContextDimensionId }
     | { type: 'openPhonebookLink'; linkId: string };
 
 export type ExtensionToActivityBarMessage =
@@ -71,14 +71,14 @@ export type ExtensionToActivityBarMessage =
     | { type: 'trayMarkdown'; text: string }
     | { type: 'scopeMarkdown'; text: string }
     | { type: 'contextMarkdown'; text: string }
-    | { type: 'fileLensDetail'; detail: import('reqlan-analytical').ContextFileLensDetail; requestId?: number }
+    | { type: 'fileLensDetail'; detail: import('@reqlan/analytical').ContextFileLensDetail; requestId?: number }
     | {
           type: 'editorContext';
           syncWithEditor: boolean;
           globalHopDepth: number;
           minHopDepth: number;
           maxHopDepth: number;
-          dimensionHopDepth: Partial<Record<import('reqlan-analytical').ContextDimensionId, number>>;
+          dimensionHopDepth: Partial<Record<import('@reqlan/analytical').ContextDimensionId, number>>;
           pinnedFocusId?: string;
       }
     | { type: 'phonebookLinks'; links: PhonebookLinkView[] }

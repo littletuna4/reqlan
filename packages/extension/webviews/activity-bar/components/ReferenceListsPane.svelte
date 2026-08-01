@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { ReferenceListRow } from 'reqlan-analytical';
+    import type { ReferenceListRow } from '@reqlan/analytical';
     import { getApp } from '../state/context.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
     import NestedSection from './NestedSection.svelte';

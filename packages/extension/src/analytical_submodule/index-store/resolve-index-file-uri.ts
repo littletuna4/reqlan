@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { resolveWorkspaceFileUri, toWorkspaceRelativePath } from 'reqlan-analytical';
+import { resolveWorkspaceFileUri, toWorkspaceRelativePath } from '@reqlan/analytical';
 
 function joinWorkspaceRelative(workspaceFolder: vscode.Uri, relativePath: string): vscode.Uri {
     const segments = relativePath.replace(/\\/g, '/').split('/').filter(segment => segment.length > 0);

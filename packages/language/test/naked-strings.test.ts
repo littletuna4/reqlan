@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem } from 'langium';
-import { createReqlanServices } from 'reqlan-language';
+import { createReqlanServices } from '@reqlan/language';
 
 let services: ReturnType<typeof createReqlanServices>;
 

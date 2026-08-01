@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseHelper } from 'langium/test';
-import { createReqlanServices, type Model } from 'reqlan-language';
+import { createReqlanServices, type Model } from '@reqlan/language';
 import { extractIndexedDocument } from '../src/index-store/idea-extractor.js';
 import { SqliteIndexStore } from '../src/index-store/sqlite-store.js';
 import { buildGraphViewSlice } from '../src/index-store/webview-graph-queries.js';

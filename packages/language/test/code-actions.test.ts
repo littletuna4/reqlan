@@ -7,16 +7,18 @@ import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { clearDocuments, parseHelper } from 'langium/test';
 import { expandToString as s } from 'langium/generate';
 import type { CodeAction } from 'vscode-languageserver';
-import type { Model } from 'reqlan-language';
+import type { Model } from '@reqlan/language';
 import {
     collectImportErrorCodeActions,
     createReqlanServices,
+    findIdeaReferenceAtPosition,
+    findReferenceSearchSite,
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
-    REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
+    REQLAN_SEARCH_REFERENCE_COMMAND,
     ReqlanCodeActionProvider,
     sharedNameCatalog,
     type NameCatalog
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 let services: ReturnType<typeof createReqlanServices>;
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -75,7 +77,7 @@ describe('Import error code actions', () => {
 
         expect(titles.some(title => title.includes('Add import from') && title.includes('shared.rq'))).toBe(true);
         expect(titles.some(title => title.includes('Change to') && title.includes('shared_idea'))).toBe(true);
-        expect(titles).toContain(`Search index for 'shared_idea'…`);
+        expect(titles).toContain(`Search for idea to replace 'shared_idea'…`);
         expect(titles).toContain(`Create 'shared_idea' in a new file and import it…`);
 
         const addImport = actions.find(action => action.title.includes('Add import from'));
@@ -122,8 +124,8 @@ describe('Import error code actions', () => {
         const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
         const actions = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
 
-        const search = actions.find(action => action.title.startsWith('Search index'));
-        expect(search?.command?.command).toBe(REQLAN_IMPORT_ERROR_SEARCH_COMMAND);
+        const search = actions.find(action => action.title.startsWith('Search for idea'));
+        expect(search?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
         expect(search?.command?.arguments?.[0]).toMatchObject({
             refText: 'missing_target',
             documentUri: document.textDocument.uri
@@ -131,6 +133,119 @@ describe('Import error code actions', () => {
 
         const create = actions.find(action => action.title.startsWith('Create'));
         expect(create?.command?.command).toBe(REQLAN_IMPORT_ERROR_CREATE_COMMAND);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('offers search code action when cursor is inside a resolved reference', async () => {
+        const document = await parse(s`
+            alpha {
+                target idea
+            }
+            consumer {
+                See [alpha] for details.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const refOffset = text.indexOf('[alpha]') + 2;
+        const position = document.textDocument.positionAt(refOffset);
+        const site = findIdeaReferenceAtPosition(document, position);
+        expect(site?.refText).toBe('alpha');
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const search = actions.find(action => action.title.includes('Search for idea'));
+        expect(search?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
+        expect(search?.command?.arguments?.[0]).toMatchObject({
+            refText: 'alpha',
+            documentUri: document.textDocument.uri,
+            mode: 'replace'
+        });
+        expect(search?.command?.arguments?.[0]).toHaveProperty('context.ideaName', 'consumer');
+        expect(search?.command?.arguments?.[0]).toHaveProperty('context.target', 'alpha');
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('offers wrap code action for a prose selection', async () => {
+        const document = await parse(s`
+            consumer {
+                Turn showcase into a reference later.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const start = text.indexOf('showcase');
+        const end = start + 'showcase'.length;
+        const range = {
+            start: document.textDocument.positionAt(start),
+            end: document.textDocument.positionAt(end)
+        };
+
+        const site = findReferenceSearchSite(document, range);
+        expect(site?.mode).toBe('wrap');
+        expect(site?.refText).toBe('showcase');
+        expect(site?.context?.ideaName).toBe('consumer');
+        expect(site?.context?.target).toBe('showcase');
+        expect(site?.context?.before).toContain('Turn ');
+        expect(site?.context?.after).toContain(' into a reference');
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range,
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const wrap = actions.find(action => action.title.includes('Wrap'));
+        expect(wrap?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
+        expect(wrap?.command?.arguments?.[0]).toMatchObject({
+            mode: 'wrap',
+            refText: 'showcase'
+        });
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('wraps the word under the cursor when selection is empty', async () => {
+        const document = await parse(s`
+            consumer {
+                Mention showcase in prose.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('showcase') + 3;
+        const position = document.textDocument.positionAt(offset);
+        const site = findReferenceSearchSite(document, { start: position, end: position });
+        expect(site?.mode).toBe('wrap');
+        expect(site?.refText).toBe('showcase');
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('findIdeaReferenceAtPosition locates wiki-link targets', async () => {
+        const document = await parse(s`
+            alpha {
+                body
+            }
+            consumer {
+                See [[alpha|Alias]] here.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const text = document.textDocument.getText();
+        const refOffset = text.indexOf('[[alpha') + 3;
+        const site = findIdeaReferenceAtPosition(
+            document,
+            document.textDocument.positionAt(refOffset)
+        );
+        expect(site?.refText).toBe('alpha');
+        expect(site?.kind).toBe('wikilink');
     });
 
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]

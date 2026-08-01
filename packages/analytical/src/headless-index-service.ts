@@ -1,6 +1,6 @@
 import { URI, type LangiumDocument } from 'langium';
 import { NodeFileSystem } from 'langium/node';
-import { createReqlanServices } from 'reqlan-language';
+import { createReqlanServices } from '@reqlan/language';
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import type { AnalyticalStore } from './core/analytical-store.js';

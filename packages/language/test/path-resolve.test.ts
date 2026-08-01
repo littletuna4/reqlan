@@ -10,7 +10,7 @@ import {
     resolveDocumentPathUri,
     resolveImportUri,
     rewriteRelativePath
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 describe('import root alias', () => {
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]

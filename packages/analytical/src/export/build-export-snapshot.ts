@@ -8,6 +8,8 @@ import type { SqliteIndexStore } from '../index-store/sqlite-store.js';
 import type {
     ExportClusterKind,
     ExportClusterRecord,
+    ExportAttributeRecord,
+    ExportCodeFileRecord,
     ExportFileRecord,
     ExportIdeaRecord,
     ExportManifest,
@@ -16,6 +18,7 @@ import type {
     ExportSearchDocument,
     ExportSnapshot
 } from './types.js';
+import { formatAttributeValue, slugAttributeKey } from './html-export-utils.js';
 
 export async function buildExportSnapshot(
     store: SqliteIndexStore,
@@ -27,6 +30,7 @@ export async function buildExportSnapshot(
     const pageOptions = {
         includeIdeaPages: request.includeIdeaPages !== false,
         includeFilePages: request.includeFilePages !== false,
+        includeCodeFilePages: request.includeCodeFilePages !== false,
         includeClusterPages: request.includeClusterPages !== false,
         includePrintPages: request.includePrintPages !== false,
         includeRequirementsPage: request.includeRequirementsPage,
@@ -42,11 +46,19 @@ export async function buildExportSnapshot(
     const ideaRecords = await buildIdeaRecords(store, baseIdeas);
     const ideaById = new Map(ideaRecords.map(idea => [idea.id, idea]));
     const fileRecords = buildFileRecords(ideaRecords, request);
+    const codeFileRecords = buildCodeFileRecords(ideaRecords, fileRecords);
     const clusterRecords = buildClusterRecords(ideaRecords, fileRecords, clusterStrategy);
     finalizeClusterCounts(clusterRecords, ideaById);
     attachClusterMembership(ideaRecords, clusterRecords);
     const graphs = await buildGraphCatalog(store, request, ideaRecords, fileRecords, clusterRecords);
-    const searchDocuments = buildSearchDocuments(ideaRecords, fileRecords, clusterRecords);
+    const attributeRecords = buildAttributeRecords(ideaRecords);
+    const searchDocuments = buildSearchDocuments(
+        ideaRecords,
+        fileRecords,
+        codeFileRecords,
+        clusterRecords,
+        attributeRecords
+    );
     const counts = await store.counts();
 
     return {
@@ -71,8 +83,11 @@ export async function buildExportSnapshot(
         ideasById: Object.fromEntries(ideaRecords.map(idea => [idea.id, idea])),
         files: fileRecords,
         filesById: Object.fromEntries(fileRecords.map(file => [file.id, file])),
+        codeFiles: codeFileRecords,
+        codeFilesById: Object.fromEntries(codeFileRecords.map(file => [file.id, file])),
         clusters: clusterRecords,
         clustersById: Object.fromEntries(clusterRecords.map(cluster => [cluster.id, cluster])),
+        attributes: attributeRecords,
         graphs,
         searchDocuments,
         byStatus,
@@ -177,6 +192,63 @@ function buildFileRecords(
                 statuses: rollupStatuses(fileIdeas),
                 tags: rollupTags(fileIdeas)
             } satisfies ExportFileRecord;
+        })
+        .sort((left, right) => left.fileUri.localeCompare(right.fileUri));
+}
+
+function buildCodeFileRecords(
+    ideas: ExportIdeaRecord[],
+    files: ExportFileRecord[]
+): ExportCodeFileRecord[] {
+    const hostingUris = new Set(files.map(file => file.fileUri));
+    const groups = new Map<string, { ideaIds: Set<string>; labels: Set<string> }>();
+
+    for (const idea of ideas) {
+        for (const row of [...idea.references.outbound, ...idea.references.unresolved]) {
+            if (row.kind !== 'file_reference') {
+                continue;
+            }
+            const fileUri = row.targetPath.trim();
+            if (!fileUri || hostingUris.has(fileUri)) {
+                continue;
+            }
+            let bucket = groups.get(fileUri);
+            if (!bucket) {
+                bucket = { ideaIds: new Set(), labels: new Set() };
+                groups.set(fileUri, bucket);
+            }
+            bucket.ideaIds.add(idea.id);
+            if (row.label.trim()) {
+                bucket.labels.add(row.label.trim());
+            }
+            if (row.targetName.trim()) {
+                bucket.labels.add(row.targetName.trim());
+            }
+        }
+    }
+
+    return [...groups.entries()]
+        .map(([fileUri, group]) => {
+            const segments = fileUri.split('/').filter(Boolean);
+            const name = segments.at(-1) ?? fileUri;
+            const directory = segments.slice(0, -1).join('/');
+            return {
+                id: fileRecordId(fileUri),
+                fileUri,
+                name,
+                directory,
+                page: buildPageInfo(
+                    name,
+                    `code-files/${slugify(fileUri)}.html`,
+                    `print/code-files/${slugify(fileUri)}.html`
+                ),
+                printPage: buildPageInfo(
+                    `${name} print`,
+                    `print/code-files/${slugify(fileUri)}.html`
+                ),
+                referencingIdeaIds: [...group.ideaIds].sort(),
+                labels: [...group.labels].sort()
+            } satisfies ExportCodeFileRecord;
         })
         .sort((left, right) => left.fileUri.localeCompare(right.fileUri));
 }
@@ -340,6 +412,8 @@ function buildManifest(request: ExportRequest): ExportManifest {
         ideasIndex: buildPageInfo('Ideas', 'ideas.html'),
         filesIndex: buildPageInfo('Files', 'files.html'),
         clustersIndex: buildPageInfo('Clusters', 'clusters.html'),
+        attributesIndex: buildPageInfo('Attributes', 'attributes.html'),
+        codeFilesIndex: buildPageInfo('Code files', 'code-files.html'),
         graph: buildPageInfo('Graph', 'graph.html'),
         printHome: buildPageInfo('Print', printFileName),
         dataExport: buildPageInfo('Export data', 'data/export.json'),
@@ -366,7 +440,9 @@ function buildPageInfo(
 function buildSearchDocuments(
     ideas: ExportIdeaRecord[],
     files: ExportFileRecord[],
-    clusters: ExportClusterRecord[]
+    codeFiles: ExportCodeFileRecord[],
+    clusters: ExportClusterRecord[],
+    attributes: ExportAttributeRecord[]
 ): ExportSearchDocument[] {
     const documents: ExportSearchDocument[] = [];
     for (const idea of ideas) {
@@ -394,6 +470,18 @@ function buildSearchDocuments(
             keywords: file.ideas.map(idea => idea.name)
         });
     }
+    for (const file of codeFiles) {
+        documents.push({
+            id: file.id,
+            title: file.name,
+            kind: 'code-file',
+            summary: `${file.referencingIdeaIds.length} outbound references · ${file.fileUri}`,
+            url: file.page.url,
+            tags: ['file_reference', ...file.labels],
+            pathTokens: file.fileUri.split('/').filter(Boolean),
+            keywords: [...file.labels, ...file.referencingIdeaIds]
+        });
+    }
     for (const cluster of clusters) {
         documents.push({
             id: cluster.id,
@@ -406,7 +494,51 @@ function buildSearchDocuments(
             keywords: cluster.ideaIds
         });
     }
+    for (const attribute of attributes) {
+        documents.push({
+            id: `attribute:${attribute.key}`,
+            title: attribute.key,
+            kind: 'attribute',
+            summary: `${attribute.ideaCount} ideas · ${attribute.values.length} values`,
+            url: `./attributes.html#attr-${slugAttributeKey(attribute.key)}`,
+            tags: ['attribute'],
+            pathTokens: [attribute.key],
+            keywords: attribute.values.map(value => value.value)
+        });
+    }
     return documents.sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function buildAttributeRecords(ideas: ExportIdeaRecord[]): ExportAttributeRecord[] {
+    const byKey = new Map<string, {
+        ideaIds: Set<string>;
+        values: Map<string, Set<string>>;
+    }>();
+    for (const idea of ideas) {
+        for (const [key, rawValue] of Object.entries(idea.attributes)) {
+            const bucket = byKey.get(key) ?? { ideaIds: new Set<string>(), values: new Map() };
+            bucket.ideaIds.add(idea.id);
+            const formatted = formatAttributeValue(rawValue) || '(empty)';
+            const ideasForValue = bucket.values.get(formatted) ?? new Set<string>();
+            ideasForValue.add(idea.id);
+            bucket.values.set(formatted, ideasForValue);
+            byKey.set(key, bucket);
+        }
+    }
+    return [...byKey.entries()]
+        .map(([key, bucket]) => ({
+            key,
+            ideaCount: bucket.ideaIds.size,
+            ideaIds: [...bucket.ideaIds].sort(),
+            values: [...bucket.values.entries()]
+                .map(([value, ideaIds]) => ({
+                    value,
+                    count: ideaIds.size,
+                    ideaIds: [...ideaIds].sort()
+                }))
+                .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value))
+        }))
+        .sort((left, right) => right.ideaCount - left.ideaCount || left.key.localeCompare(right.key));
 }
 
 function collectAttributeKeywords(attributes: IdeaAttributeMap): string[] {

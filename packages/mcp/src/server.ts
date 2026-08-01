@@ -7,7 +7,7 @@ import {
     createAnalysisRuntime,
     deactivateAnalysisRuntime,
     type IdeaSummary
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 
 function resolveWorkspaceRoot(): string {
     const fromEnv = process.env.REQLAN_WORKSPACE?.trim();

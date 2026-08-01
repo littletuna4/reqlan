@@ -64,14 +64,8 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             return;
         }
         if (isLocalReference(node)) {
-            if (node.ideaset) {
-                acceptor({ node, property: 'ideaset', type: SemanticTokenTypes.namespace });
-            }
             if (node.idea) {
                 acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
-            }
-            if (node.attribute) {
-                acceptor({ node, property: 'attribute', type: SemanticTokenTypes.property });
             }
             return;
         }

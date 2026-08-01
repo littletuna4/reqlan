@@ -10,7 +10,7 @@ installation_event {
     Implemented via ["../../packages/extension/templates/thanks-for-installing.template.rq"] built at package time into ["../../packages/extension/media/thanks-for-installing.rq"] by ["../../packages/extension/scripts/onboarding-rq-build.ts"] with links from [phonebook_reqs.phonebook], then opened once on first activation by ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
     The template uses build-time placeholders such as {{SITE_URL}}; those matching braces are body prose per ["../language/syntax-edge-cases.rq".nested_curly_braces] and must parse without errors.
     Activation state is stored in extension global state key `onboarding` with `onboardingMessageShown` and `lastVersion` per ["../../packages/extension/src/extension/onboarding-state.ts"].
-    VS Code persists `globalState` in the extension global storage directory (`globalStorage/reqlan.reqlan/state.vscdb` under the editor user data folder).
+    VS Code persists `globalState` in the extension global storage directory (`globalStorage/reqlan.reqlan-extension/state.vscdb` under the editor user data folder).
     @status done
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse thanks-for-installing template"]

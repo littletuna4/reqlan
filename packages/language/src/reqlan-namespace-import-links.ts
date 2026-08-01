@@ -9,13 +9,7 @@ import { bindingNameSourceRange, resolveImportedFileLink, type ResolvedFileLink 
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 
 export function namespaceImportBindingName(reference: LocalReference): string | undefined {
-    if (reference.idea) {
-        return reference.idea.$refText;
-    }
-    if (reference.ideaset) {
-        return reference.ideaset.$refText;
-    }
-    return undefined;
+    return reference.idea?.$refText;
 }
 
 export function isNamespaceImportOnlyReference(reference: LocalReference | QualifiedReference): boolean {
@@ -35,9 +29,6 @@ export function isNamespaceImportOnlyReference(reference: LocalReference | Quali
         return false;
     }
     if (reference.idea?.ref) {
-        return false;
-    }
-    if (reference.ideaset?.ref) {
         return false;
     }
     if (model.elements.some(element =>
@@ -97,8 +88,5 @@ function referencePathNode(reference: LocalReference | QualifiedReference, impor
     if (reference.idea?.$refNode) {
         return reference.idea.$refNode;
     }
-    if (reference.ideaset?.$refNode) {
-        return reference.ideaset.$refNode;
-    }
-    return GrammarUtils.findNodeForProperty(reference.$cstNode, reference.idea !== undefined ? 'idea' : 'ideaset');
+    return GrammarUtils.findNodeForProperty(reference.$cstNode, 'idea');
 }

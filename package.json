@@ -17,6 +17,7 @@
         "test": "pnpm --filter ./packages/language run test && pnpm --filter ./packages/analytical run test && pnpm --filter ./packages/extension run test",
         "changeset": "changeset",
         "version-packages": "changeset version",
+        "release:npm": "changeset publish",
         "build:readme": "pnpm exec tsx scripts/generate-root-readme.ts"
     },
     "devDependencies": {

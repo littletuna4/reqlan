@@ -14,7 +14,7 @@ import { phonebookLinks, type PhonebookLink } from "@/lib/phonebook";
 
 export type LinkItem = PhonebookLink;
 
-export type CodeLanguage = "rq" | "ts" | "md" | "py";
+export type CodeLanguage = "rq" | "ts" | "md" | "py" | "st" | "c" | "json" | "yaml";
 
 export type MotivationTab = {
   id: string;
@@ -111,7 +111,7 @@ export const siteContent = {
         ],
         code: `Reqlan: List All Ideas
 Reqlan: Get Local Graph
-Reqlan: Export JSON`,
+Reqlan: Export HTML`,
       },
       {
         id: "extension-ai",

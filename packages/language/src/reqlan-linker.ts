@@ -61,10 +61,7 @@ export class ReqlanLinker extends DefaultLinker {
         if (!isLocalReference(container)) {
             return false;
         }
-        if (refInfo.property !== 'idea' && refInfo.property !== 'ideaset') {
-            return false;
-        }
-        if (container.idea !== undefined && container.ideaset !== undefined) {
+        if (refInfo.property !== 'idea') {
             return false;
         }
         const model = AstUtils.getDocument(container).parseResult.value;

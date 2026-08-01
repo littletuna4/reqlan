@@ -36,7 +36,7 @@ export const extensionMeta = {
   displayName: extensionPackage.displayName,
 } as const;
 
-export const vsixDownloadUrl = `https://open-vsx.org/api/reqlan/reqlan/${extensionVersion}/file/reqlan.reqlan-${extensionVersion}.vsix`;
+export const vsixDownloadUrl = `https://open-vsx.org/api/reqlan/${extensionPackage.name}/${extensionVersion}/file/${extensionId}-${extensionVersion}.vsix`;
 
 export const installActions: InstallAction[] = [
   {
@@ -46,9 +46,9 @@ export const installActions: InstallAction[] = [
     tagline: "rq-* skills and MCP sync for Cursor chat.",
     icon: { set: "mdi", name: "cursor-default-click" },
     kind: "deeplink",
-    href: "cursor:extension/reqlan.reqlan",
-    deepLink: "cursor:extension/reqlan.reqlan",
-    cli: "cursor --install-extension reqlan.reqlan",
+    href: `cursor:extension/${extensionId}`,
+    deepLink: `cursor:extension/${extensionId}`,
+    cli: `cursor --install-extension ${extensionId}`,
     steps: [
       "Open the Extensions view (Ctrl+Shift+X / Cmd+Shift+X).",
       'Search for "reqlan" and install reqlan support.',
@@ -69,7 +69,7 @@ export const installActions: InstallAction[] = [
     kind: "external",
     href: vsc.href,
     deepLink: `vscode:extension/${extensionId}`,
-    cli: "code --install-extension reqlan.reqlan",
+    cli: `code --install-extension ${extensionId}`,
     steps: [
       "Open the Extensions view (Ctrl+Shift+X / Cmd+Shift+X).",
       'Search for "reqlan" and install reqlan support.',

@@ -15,15 +15,24 @@ file_layout {
 
 idea_name {
     Idea names are identifiers or double-quoted strings.
-    Unquoted names follow identifier rules, for example myidea.
+    Unquoted names follow identifier rules and may use letters, digits, underscores, and dashes, for example myidea, my_idea, or dash-or_underscore_delimited-idea.
     Quoted names allow spaces and other characters when wrapped in double quotes.
     Idea names must be unique within their ideaset or file.
     Idea names should not use reserved keywords.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse dash and underscore delimited idea names"]
+    )
 }
 
 simple_idea {
     A one-liner idea is written as a name followed by unstructured body text on the same line.
+    A name-only idea is a one-liner with just the name and no body text.
     One-liner ideas do not use curly braces and do not continue onto subsequent lines.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse name-only ideas without a body"]
+    )
 }
 
 block_idea {
@@ -289,6 +298,10 @@ references_to_subidea {
     It should be acceptable to reference [example_ideaset.subidea1]
 }
 
+
+dash-or_undersore_delimited-idea it should be possible to use dash or underscore delimited idea names.
+
+name_only_ideas_it_should_be_possible_to_use_name_only_ideas_without_a_body
 
 //--- syntax 2 brainstorming ---
 /*

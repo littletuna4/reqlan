@@ -13,6 +13,29 @@
   color: var(--color-aqua-bright);
 }
 
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.mechanism {
+  color: var(--color-aqua-bright);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.domain {
+  color: var(--color-text-faint);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 .detailTags {
   display: flex;
   flex-wrap: wrap;
@@ -44,4 +67,126 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+.callout {
+  margin: 0 0 0.25rem;
+  padding: 0.875rem 1rem;
+  border-left: 2px solid var(--color-aqua);
+  background: color-mix(in srgb, var(--color-aqua) 8%, var(--color-surface));
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.caption {
+  margin: 0.125rem 0 0;
+  color: var(--color-text-faint);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.exchange {
+  overflow-x: auto;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: #0c0a09;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.65;
+}
+
+.exchangeQuery {
+  margin: 0 0 0.75rem;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+.exchangePrompt {
+  color: var(--color-aqua-bright);
+  user-select: none;
+}
+
+.exchangeResponse {
+  margin: 0;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}
+
+.diagnostic,
+.diagnosticWarning {
+  padding: 0.875rem 1rem;
+  border: 1px solid color-mix(in srgb, #e07070 45%, var(--color-border));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, #e07070 10%, var(--color-surface));
+}
+
+.diagnosticWarning {
+  border-color: color-mix(in srgb, #e8a66a 45%, var(--color-border));
+  background: color-mix(in srgb, #e8a66a 10%, var(--color-surface));
+}
+
+.diagnosticMessage {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.diagnosticSeverity {
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: #e07070;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+}
+
+.diagnosticWarning .diagnosticSeverity {
+  color: #e8a66a;
+}
+
+.diagnosticFixes {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  padding-top: 0.625rem;
+}
+
+.diagnosticFixes li {
+  position: relative;
+  padding-left: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.diagnosticFixes li + li {
+  margin-top: 0.25rem;
+}
+
+.diagnosticFixes li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--color-aqua);
+  font-size: 0.75rem;
+}
+
+.diagram {
+  margin: 0;
+  overflow-x: auto;
+  padding: 1.25rem 1.5rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-surface-raised) 60%, transparent);
+  color: var(--color-text-muted);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  white-space: pre;
 }

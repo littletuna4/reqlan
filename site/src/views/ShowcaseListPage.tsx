@@ -11,8 +11,8 @@ export function ShowcaseListPage() {
         <header className={styles.header}>
           <h1 className={shared.sectionTitle}>Showcases</h1>
           <p className={styles.intro}>
-            Typed examples of reqlan in real workflows — short summaries here,
-            full requirement snippets on each page.
+            One mechanism per page, across domains — code in, tooling payoff
+            out. Short summaries here; full worked examples on each page.
           </p>
         </header>
 

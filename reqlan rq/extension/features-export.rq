@@ -1,3 +1,7 @@
+from "./library/graph.rq" import layout_physics
+from "./library/graph.rq" import view_controls
+from "./library/graph.rq" import manual_reframe
+
 html_export {
     The extension should support building documentation as html from the requirement graph.
     Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
@@ -6,35 +10,92 @@ html_export {
     [html_export_search]
     [html_export_list_views]
     [html_export_idea_pages]
+    [html_export_file_pages]
+    [html_export_code_reference_pages]
     [html_export_cluster_pages]
     [html_export_graph_page]
+    [html_export_attributes_index]
     [html_export_printable_pages]
     [html_export_runtime_modes]
 }
 
 html_export_multi_file {
     Html export should generate a multi-file static site rather than a single document.
-    The export should include page families for overview, ideas, files, clusters, graph, data, and print-focused pages.
+    The export should include page families for overview, ideas, files, code files, clusters, attributes, graph, data, and print-focused pages.
 }
 
 html_export_internal_links {
     Every exported idea should have a stable html page path and stable in-page anchors.
-    References, breadcrumbs, search results, graph nodes, cluster members, and file listings should link to html pages rather than only showing text labels.
+    References, breadcrumbs, search results, graph nodes, cluster members, attribute listings, file listings, and code-file listings should link to html pages rather than only showing text labels.
+    Graph node links must follow [html_export_graph_links].
 }
 
 html_export_search {
     The interactive html export should provide a global search bar and page-local search bars.
     Search should work offline from generated data bundled with the export.
+    Attribute keys and values should be searchable alongside ideas, files, code files, and clusters.
 }
 
 html_export_list_views {
-    Html export should provide searchable list views for ideas, files, references, and clusters.
+    Html export should provide searchable list views for ideas, files, code files, references, clusters, and attributes.
     List views should preserve the usability of the current ideas summary tables with counts, sorting, filters, and quick navigation.
+    Every interactive table column should be sortable by header click and filterable with a per-column filter, in addition to any page-level search bar.
+    [html_export_attributes_index]
+    [html_export_file_pages]
+    [html_export_code_reference_pages]
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
 }
 
 html_export_idea_pages {
     Html export should generate a dedicated page per idea.
     Idea pages should include summary, attributes, inbound references, outbound references, nearby context, and links to related ideas, files, clusters, graph views, and printable forms.
+    Status and tags are nullable attributes: render them only when present.
+}
+
+html_export_file_pages {
+    Html export should generate dedicated pages for reqlan source files that host ideas in the export scope.
+    File pages should list hosted ideas, related clusters, and a local graph view when available.
+    Emission defaults on and is controllable via includeFilePages so page families can be flagged in or out without changing the export pipeline shape.
+    Graph nodes and idea source-file links for hosting files should resolve to these pages when enabled.
+    @implementation (
+        ["../../packages/analytical/src/export/types.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../packages/extension/schemas/rqconfig.schema.json"]
+        ["../../packages/extension/src/analytical_submodule/commands/register-commands.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_code_reference_pages {
+    Html export should generate dedicated pages for outbound file_reference targets that are not idea-hosting reqlan files already covered by [html_export_file_pages].
+    Code-file pages should list referencing ideas and reference labels, and participate in search and navigation.
+    Emission defaults on and is controllable via includeCodeFilePages so this page family can be flagged in or out later.
+    Outbound reference path cells and graph external file nodes should link to these pages when enabled.
+    @implementation (
+        ["../../packages/analytical/src/export/types.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../packages/extension/schemas/rqconfig.schema.json"]
+        ["../../packages/extension/src/analytical_submodule/commands/register-commands.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../packages/language/test/rqconfig.test.ts"]
+    )
 }
 
 html_export_cluster_pages {
@@ -43,14 +104,109 @@ html_export_cluster_pages {
     Optional computed clusters should use graph or semantic analysis when available without making export correctness depend on them.
 }
 
+html_export_attributes_index {
+    Html export should provide a searchable attributes index page listing every attribute key used in the export scope.
+    Each attribute entry should summarize distinct values, idea counts, and link to ideas that declare the attribute.
+    @implementation (
+        ["../../packages/analytical/src/export/types.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
 html_export_graph_page {
     Html export should provide an interactive graph page with search, filters, and links back into idea and cluster pages.
     The graph should support scoped views for workspace, file, cluster, and idea contexts.
+    [html_export_graph_links]
+    [html_export_graph_layout]
+    [html_export_graph_animation]
+    [html_export_graph_subject]
+    [html_export_graph_labels]
+    [html_export_graph_interaction]
+    [html_export_graph_metadata]
+}
+
+html_export_graph_links {
+    Graph node hrefs must resolve to idea pages from every export page depth, including nested idea, file, and cluster pages.
+    Node urls should be export-root-relative so path segments such as ideas/ are not dropped when resolving from nested pages.
+    External file nodes should resolve to [html_export_file_pages] or [html_export_code_reference_pages] when those page families are enabled.
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_graph_layout {
+    The interactive export graph should lay out nodes so labels and circles do not heavily overlap.
+    Initial placement should settle with the same Obsidian-style force model as [layout_physics] (central gravity, edge springs, inverse-square repulsion).
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
+    )
+}
+
+html_export_graph_animation {
+    Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/extension/webviews/shared/graph/graph-physics.ts"].
+    A Live physics toggle pauses and resumes the same simulation state (default off); when off, the graph batch-settles then sleeps.
+    Simulation should converge and sleep when calm, waking on filter changes or when Live physics is turned back on, aligned with [layout_physics].
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
+    )
+}
+
+html_export_graph_subject {
+    When a graph view has a subject or center idea, that node should be visually distinct from peers and externals.
+    Subject styling should use the brand rust accent against cyan peer nodes.
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+}
+
+html_export_graph_labels {
+    Export graph node labels must show the full idea name without character truncation.
+    Wrapping is allowed; ellipsis truncation of display names is not.
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_graph_interaction {
+    The interactive export graph should support dragging nodes and panning or zooming the viewport, aligned with [view_controls] and [manual_reframe].
+    Click-through to idea pages must remain available after drag via click-versus-drag discrimination.
+    A Fit control should reframe the viewport to the current node set without restarting layout or clearing live physics state.
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+    )
+}
+
+html_export_graph_metadata {
+    Graph nodes in the HTML export should surface tags, status, and attribute keys on or beside the node, not only as filter inputs.
+    Attribute values declared on the idea should be reachable from the graph via the idea page and on-node attribute key summary.
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+    )
 }
 
 html_export_printable_pages {
     Html export should provide static printable pages alongside the interactive site.
     Print pages should not depend on the interactive javascript bundle.
+    Status and tags are nullable: when absent, printable sheets must omit those fields rather than inventing placeholders such as unspecified or empty dashes.
 }
 
 html_export_runtime_modes {

@@ -10,7 +10,7 @@ import {
     isRichTextPart,
     type Model,
     type OneLinerIdea
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 let parse: ReturnType<typeof parseHelper<Model>>;
 
@@ -28,7 +28,7 @@ async function expectValid(input: string): Promise<LangiumDocument<Model>> {
 }
 
 function oneLinerText(idea: OneLinerIdea): string {
-    return idea.body.content
+    return (idea.body?.content ?? [])
         .filter((part): part is string => typeof part === 'string')
         .join('');
 }
@@ -42,7 +42,7 @@ function blockBodyText(document: LangiumDocument<Model>): string {
                 return part;
             }
             if (isRichTextPart(part) && part.$type === 'RichTextPart') {
-                return part.text ?? part.inlineCode ?? part.punct ?? '';
+                return part.text ?? part.inlineCode ?? '';
             }
             return '';
         })

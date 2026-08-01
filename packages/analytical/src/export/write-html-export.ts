@@ -1,17 +1,21 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ExportRequest, ExportResult, ExportSnapshot } from './types.js';
-import { APP_JS, SHARED_STYLES } from './html-export-assets.js';
+import { APP_JS, SHARED_STYLES, buildSearchIndexScript } from './html-export-assets.js';
 import {
     renderClusterDetailPage,
     renderClustersIndexPage,
+    renderCodeFileDetailPage,
+    renderCodeFilesIndexPage,
     renderFileDetailPage,
     renderFilesIndexPage,
     renderGraphPage,
     renderHomePage,
     renderIdeaDetailPage,
     renderIdeasIndexPage,
+    renderAttributesIndexPage,
     renderPrintClusterPage,
+    renderPrintCodeFilePage,
     renderPrintFilePage,
     renderPrintHomePage,
     renderPrintIdeaPage
@@ -32,7 +36,9 @@ export async function writeHtmlExport(
     const indexFilePath = join(outputDir, snapshot.manifest.home.path);
     const ideasIndexFilePath = join(outputDir, snapshot.manifest.ideasIndex.path);
     const filesIndexFilePath = join(outputDir, snapshot.manifest.filesIndex.path);
+    const codeFilesIndexFilePath = join(outputDir, snapshot.manifest.codeFilesIndex.path);
     const clustersIndexFilePath = join(outputDir, snapshot.manifest.clustersIndex.path);
+    const attributesIndexFilePath = join(outputDir, snapshot.manifest.attributesIndex.path);
     const printFilePath = join(outputDir, printFileName);
     const requirementsFilePath = request.includeRequirementsPage
         ? join(outputDir, 'requirements.html')
@@ -46,15 +52,18 @@ export async function writeHtmlExport(
     await Promise.all([
         mkdir(join(outputDir, 'ideas'), { recursive: true }),
         mkdir(join(outputDir, 'files'), { recursive: true }),
+        mkdir(join(outputDir, 'code-files'), { recursive: true }),
         mkdir(join(outputDir, 'clusters'), { recursive: true }),
         mkdir(join(outputDir, 'print/ideas'), { recursive: true }),
         mkdir(join(outputDir, 'print/files'), { recursive: true }),
+        mkdir(join(outputDir, 'print/code-files'), { recursive: true }),
         mkdir(join(outputDir, 'print/clusters'), { recursive: true })
     ]);
 
     const writes: Promise<unknown>[] = [
         writeFile(join(assetsDir, 'styles.css'), SHARED_STYLES, 'utf8'),
         writeFile(join(assetsDir, 'app.js'), APP_JS, 'utf8'),
+        writeFile(join(assetsDir, 'search-index.js'), buildSearchIndexScript(snapshot.searchDocuments), 'utf8'),
         writeFile(dataFilePath, stringifyJson(snapshot), 'utf8'),
         writeFile(join(dataDir, 'graph.json'), stringifyJson(snapshot.graphs.workspace), 'utf8'),
         writeFile(join(dataDir, 'search.json'), stringifyJson(snapshot.searchDocuments), 'utf8'),
@@ -87,9 +96,13 @@ export async function writeHtmlExport(
         if (snapshot.pageOptions.includeFilePages) {
             writes.push(writeFile(filesIndexFilePath, renderFilesIndexPage(snapshot), 'utf8'));
         }
+        if (snapshot.pageOptions.includeCodeFilePages) {
+            writes.push(writeFile(codeFilesIndexFilePath, renderCodeFilesIndexPage(snapshot), 'utf8'));
+        }
         if (snapshot.pageOptions.includeClusterPages) {
             writes.push(writeFile(clustersIndexFilePath, renderClustersIndexPage(snapshot), 'utf8'));
         }
+        writes.push(writeFile(attributesIndexFilePath, renderAttributesIndexPage(snapshot), 'utf8'));
     }
 
     if (!isPrintMode && snapshot.pageOptions.includeIdeaPages) {
@@ -112,6 +125,16 @@ export async function writeHtmlExport(
     if (snapshot.pageOptions.includePrintPages) {
         for (const file of snapshot.files) {
             writes.push(writeFile(join(outputDir, file.printPage.path), renderPrintFilePage(snapshot, file), 'utf8'));
+        }
+    }
+    if (!isPrintMode && snapshot.pageOptions.includeCodeFilePages) {
+        for (const file of snapshot.codeFiles) {
+            writes.push(writeFile(join(outputDir, file.page.path), renderCodeFileDetailPage(snapshot, file), 'utf8'));
+        }
+    }
+    if (snapshot.pageOptions.includePrintPages && snapshot.pageOptions.includeCodeFilePages) {
+        for (const file of snapshot.codeFiles) {
+            writes.push(writeFile(join(outputDir, file.printPage.path), renderPrintCodeFilePage(snapshot, file), 'utf8'));
         }
     }
     if (!isPrintMode && snapshot.pageOptions.includeClusterPages) {
@@ -138,7 +161,9 @@ export async function writeHtmlExport(
         dataFilePath,
         ideasIndexFilePath,
         filesIndexFilePath,
+        codeFilesIndexFilePath: snapshot.pageOptions.includeCodeFilePages ? codeFilesIndexFilePath : undefined,
         clustersIndexFilePath,
+        attributesIndexFilePath,
         manifestFilePath
     };
 }

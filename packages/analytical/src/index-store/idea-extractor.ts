@@ -6,7 +6,6 @@ import {
     findEmbeddedFileReferencesInText,
     findNamespaceImportByAlias,
     isAttribute,
-    isBodyLine,
     isBracketReference,
     isIdea,
     isIdeaSet,
@@ -16,20 +15,17 @@ import {
     isNamespaceImportOnlyReference,
     isOneLinerIdea,
     isQualifiedReference,
-    isRichTextPart,
     isScalarValue,
     isWikiLink,
     namespaceImportBindingName,
     parseMarkdownLink,
+    summarizeIdeaDeclaration,
     unquoteReqlanString,
     type Attribute,
-    type BodyLine,
-    type Idea,
     type IdeaDeclaration,
     type Model,
-    type OneLinerIdea,
     type ReferenceTarget
-} from 'reqlan-language';
+} from '@reqlan/language';
 import {
     edgeId,
     ideaId,
@@ -103,7 +99,7 @@ function toIdeaRecord(
         fileUri,
         lineStart: range?.start.line ?? 0,
         lineEnd: range?.end.line ?? 0,
-        summary: summarizeIdea(idea),
+        summary: summarizeIdeaDeclaration(idea),
         attributesJson: JSON.stringify(attributes),
         contentHash: ''
     };
@@ -158,77 +154,6 @@ function attributeValue(attribute: Attribute): string | string[] | boolean {
     return true;
 }
 
-function summarizeOneLinerPart(part: OneLinerIdea['body']['content'][number]): string {
-    if (typeof part === 'string') {
-        return part;
-    }
-    if (isMarkdownLink(part)) {
-        return parseMarkdownLink(part.raw)?.label ?? part.raw;
-    }
-    if (isWikiLink(part) || isBracketReference(part)) {
-        return '[ref]';
-    }
-    return '';
-}
-
-function summarizeRichTextPart(part: BodyLine['parts'][number]): string {
-    if (typeof part === 'string') {
-        return part;
-    }
-    if (isRichTextPart(part) && part.$type === 'RichTextPart') {
-        return part.text ?? part.inlineCode ?? part.punct ?? part.lparen ?? part.rparen ?? '';
-    }
-    if (isMarkdownLink(part)) {
-        return parseMarkdownLink(part.raw)?.label ?? part.raw;
-    }
-    if (isWikiLink(part) || isBracketReference(part)) {
-        return '[ref]';
-    }
-    return '';
-}
-
-function summarizeOneLinerBody(idea: OneLinerIdea): string {
-    return idea.body.content
-        .map(summarizeOneLinerPart)
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function joinRichTextParts(parts: BodyLine['parts']): string {
-    return parts
-        .map(summarizeRichTextPart)
-        .filter(part => part.length > 0)
-        .join(' ')
-        .replace(/\s+([.,!?;:])/g, '$1')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function summarizeBlockIdeaBody(idea: Idea): string {
-    const lines: string[] = [];
-    for (const element of idea.elements) {
-        if (!isBodyLine(element)) {
-            continue;
-        }
-        const line = joinRichTextParts(element.parts);
-        if (line) {
-            lines.push(line);
-        }
-    }
-    return lines.join('\n');
-}
-
-function summarizeIdea(idea: IdeaDeclaration): string {
-    if (isOneLinerIdea(idea)) {
-        return summarizeOneLinerBody(idea);
-    }
-    if (isIdea(idea)) {
-        return summarizeBlockIdeaBody(idea);
-    }
-    return '';
-}
-
 function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRecord[]): void {
     const sourceId = ideaId(fileUri, idea.name);
     for (const node of AstUtils.streamAst(idea)) {
@@ -261,15 +186,13 @@ function collectReferenceEdges(model: Model, fileUri: string): EdgeRecord[] {
         if (!isWikiLink(node) && !isBracketReference(node)) {
             continue;
         }
-        const container = node.$container;
-        let sourceName: string | undefined;
-        if (container && (isIdea(container) || isOneLinerIdea(container))) {
-            sourceName = container.name;
-        }
-        if (!sourceName) {
+        const owningIdea = AstUtils.getContainerOfType(node, (candidate): candidate is IdeaDeclaration =>
+            isIdea(candidate) || isOneLinerIdea(candidate)
+        );
+        if (!owningIdea) {
             continue;
         }
-        const edge = referenceToEdge(ideaId(fileUri, sourceName), node.target, fileUri, node);
+        const edge = referenceToEdge(ideaId(fileUri, owningIdea.name), node.target, fileUri, node);
         if (edge) {
             edges.push(edge);
         }

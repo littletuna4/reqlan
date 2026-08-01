@@ -9,7 +9,7 @@ import {
     CONTEXT_MIN_HOP_DEPTH,
     type ContextDimensionId,
     type IdeaSummary
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 
 const MAX_HISTORY = 12;
 

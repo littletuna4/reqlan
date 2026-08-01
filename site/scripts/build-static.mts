@@ -16,6 +16,9 @@ function run(command: string, args: string[]): void {
   }
 }
 
+console.log("Validating showcase .rq blocks…");
+run("tsx", ["scripts/validate-showcase-rq.mts"]);
+
 console.log("Generating syntax highlights…");
 run("tsx", ["scripts/generate-highlights.mts"]);
 

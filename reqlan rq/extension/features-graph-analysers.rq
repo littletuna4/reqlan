@@ -1,4 +1,6 @@
 from "./features-graph.rq" import graph_design
+import "../packages/language/src/reqlan-comment.langium" as comment_grammar
+
 index_ideas {
     The extension should maintain an index of all ideas across the workspace for fast lookup and navigation.
     The index should update incrementally as .rq files change.    
@@ -16,6 +18,11 @@ indexing_trigger_auto indexing should be triggered by automatic indexing when th
 
 list_all_ideas {
     The extension should provide a command to list all ideas in the workspace with file location and summary.
+}
+
+index_comment_reference_inclusion {
+    The [comment_grammar.comment] comments should be included as a node type in the index
+    @todo
 }
 
 file_related_requirements {

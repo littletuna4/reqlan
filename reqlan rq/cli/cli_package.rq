@@ -1,0 +1,19 @@
+from "../language/ontology.rq" import extension
+
+cli_package {
+    `packages/cli` (`@reqlan/cli`) is the Clipanion CLI published to npm as the `reqlan` (and `rq`) binary.
+    It depends on `@reqlan/analytical` for workspace analysis and `@reqlan/language` for single-file parse.
+    Entry: ["../../packages/cli/src/main.ts"].
+}
+
+commands {
+    Minimal commands:
+    - `parse <file>` — parse one `.rq` file via `@reqlan/language`; print diagnostics or an AST summary (`--json` for machine output).
+    - `analyse` / `analyze` — file (`--file`), idea (`--idea`), or workspace completion (default) via `AnalysisApi`.
+    - `search <query>` — semantic search via `AnalysisApi.searchRequirements`.
+}
+
+function_parity {
+    CLI shares headless function definitions with MCP and other tools through `@reqlan/analytical` `AnalysisApi`, not VS Code host APIs from [extension].
+    @status done
+}

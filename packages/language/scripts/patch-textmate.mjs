@@ -12,7 +12,7 @@ const grammar = JSON.parse(readFileSync(grammarPath, 'utf8'));
 grammar.repository ??= {};
 
 const importPath = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
-const id = '[A-Za-z_]\\w*';
+const id = '[A-Za-z_][\\w-]*';
 const quotedName = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 const ideaName = `(?:(${id})|(${quotedName}))`;
 
@@ -128,7 +128,7 @@ grammar.patterns.unshift({ include: '#comments' });
 
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
-    match: '^\\s*(@)\\s*([A-Za-z_]\\w*)',
+    match: '^\\s*(@)\\s*([A-Za-z_][\\w-]*)',
     captures: {
         '1': { name: 'punctuation.definition.attribute.reqlan' },
         '2': { name: 'entity.name.tag.attribute.reqlan' }
@@ -163,7 +163,7 @@ grammar.repository['idea-bracket-references'] = {
 
 grammar.repository['bracket-references'] = {
     name: 'markup.underline.link.reqlan',
-    match: '\\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')(?:\\.[A-Za-z_]\\w*)*\\]',
+    match: '\\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')(?:\\.[A-Za-z_][\\w-]*)*\\]',
     captures: {
         '1': { name: 'string.other.link.reqlan' }
     }
@@ -231,7 +231,7 @@ grammar.repository['named-block-item'] = {
 
 // Attribute blocks and line-start anonymous blocks only — inline prose like `{such as this}` stays plain text.
 grammar.repository['anonymous-block'] = {
-    begin: '(?<=@\\w+\\s*)\\{|^\\s*\\{',
+    begin: '(?<=@[A-Za-z_][\\w-]*\\s*)\\{|^\\s*\\{',
     end: '\\}(?=\\s*$)',
     patterns: [
         { include: '#block-inner' }
@@ -261,6 +261,12 @@ grammar.repository['nested-list'] = {
 
 grammar.repository['top-level-one-liner-idea'] = {
     patterns: [
+        {
+            match: `^(${id}|${quotedName})\\s*$`,
+            captures: {
+                '1': { name: 'entity.name.type.idea.reqlan' }
+            }
+        },
         {
             begin: `^(${id}|${quotedName})(\\s+)`,
             beginCaptures: {

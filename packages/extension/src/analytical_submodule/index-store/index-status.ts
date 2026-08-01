@@ -1,5 +1,5 @@
-import type { DocumentUpdate, IndexErrorDetail, IndexState, WorkspaceFileChange } from 'reqlan-analytical';
-import type { FileIndexIssueView } from 'reqlan-analytical';
+import type { DocumentUpdate, IndexErrorDetail, IndexState, WorkspaceFileChange } from '@reqlan/analytical';
+import type { FileIndexIssueView } from '@reqlan/analytical';
 
 export interface IndexSyncProgress {
     processed: number;

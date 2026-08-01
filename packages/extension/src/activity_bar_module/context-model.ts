@@ -38,7 +38,7 @@ import {
     type ContextFileLensDetail,
     type ContextReferencesSlice,
     type WorkspaceContextSlice
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import type { GraphViewQuery, GraphViewSlice } from '../webview_module/shared/messages.js';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 import type { ContextSessionState } from './context-session.js';

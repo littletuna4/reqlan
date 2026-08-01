@@ -6,7 +6,7 @@ import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { NodeFileSystem } from 'langium/node';
 import { clearDocuments, parseHelper } from 'langium/test';
-import type { Model } from 'reqlan-language';
+import type { Model } from '@reqlan/language';
 import {
     createReqlanServices,
     getAnonymousImportPathContext,
@@ -16,7 +16,7 @@ import {
     ReqlanCompletionProvider,
     sharedAttributeCatalog,
     type AttributeCatalog
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const exampleDir = join(repoDir, 'example_rq_project');

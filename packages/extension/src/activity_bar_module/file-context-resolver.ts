@@ -2,7 +2,7 @@
  * Resolves requirement links for any workspace file (not only .rq).
  */
 import { dirname, posix } from 'node:path';
-import { findCommentReferencesInText } from 'reqlan-language';
+import { findCommentReferencesInText } from '@reqlan/language';
 import {
     ideaId,
     resolveWorkspaceFileUri,
@@ -10,7 +10,7 @@ import {
     type IdeaSummary,
     type IdeaWithRange,
     type SqliteIndexStore
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 
 export interface ResolvedFileContext extends FileRelatedRequirements {
     commentLinkedIdeas: IdeaSummary[];

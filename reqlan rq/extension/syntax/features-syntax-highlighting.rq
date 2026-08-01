@@ -83,3 +83,29 @@ traceable_inlay_hints {
     ["../../../packages/language/test/inlay-hints.test.ts"]
   )
 }
+
+inbound_inlay_hints_whole_graph {
+  Inbound references shown in [view_references_as_inlay_hints] should include referencers from the whole requirement graph across the workspace, not only ideas declared in the current file.
+  Implemented by ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"].
+  @status done
+  @tests (
+    ["../../../packages/language/test/inlay-hints.test.ts"]
+  )
+  [view_references_as_inlay_hints]
+  [traceable_inlay_hints]
+}
+
+code_lens_reference_types {
+  References should have a ["../vsc-primitives.rq".codelens] button.
+  The button should be togleable in settings.
+  The button should the classification of the reference. e.g. 'open reqlan file', "open {extension} file', 'open folder', 'open idea'
+  Clicking the CodeLens should open a reference card with summary stats — not navigate, because references already act as editor links.
+  The card should offer open / reveal / file-selector actions when useful.
+  Folders should be handled by focusing on the ide explorer, or by opening a file selector.
+  Some summary stats should be shown for references - e.g. last edited, count of references, count of referencers, etc.
+  Implemented by ["../../../packages/language/src/reqlan-code-lens-provider.ts"], ["../../../packages/language/src/reqlan-reference-code-lens.ts"], ["../../../packages/language/src/reqlan-code-lens-settings.ts"], ["../../../packages/extension/src/extension/register-reference-code-lens.ts"], and ["../../../packages/extension/src/extension/reference-code-lens-card.ts"].
+  @status done
+  @tests (
+    ["../../../packages/language/test/code-lens.test.ts"]
+  )
+}

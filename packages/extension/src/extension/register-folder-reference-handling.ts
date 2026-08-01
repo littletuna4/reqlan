@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { LanguageClient, LanguageClientOptions } from 'vscode-languageclient/node';
 import { State } from 'vscode-languageclient/node';
-import { REQLAN_FILE_REFERENCE_AT_REQUEST, REQLAN_OPEN_FOLDER_COMMAND } from 'reqlan-language';
+import { REQLAN_FILE_REFERENCE_AT_REQUEST, REQLAN_OPEN_FOLDER_COMMAND } from '@reqlan/language';
 
 export interface FileReferenceAtResponse {
     sourceRange: {

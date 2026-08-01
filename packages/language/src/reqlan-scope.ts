@@ -111,14 +111,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         }
         if (isLocalReference(container)) {
             const document = AstUtils.getDocument(container);
-            if (context.property === 'ideaset') {
-                return this.scopeForIdeasets(document);
-            }
             if (context.property === 'idea') {
-                const ideasetRef = container.ideaset?.ref;
-                if (ideasetRef && isIdeaSet(ideasetRef)) {
-                    return this.scopeForIdeasetMembers(ideasetRef, document);
-                }
                 return this.scopeForFileIdeas(document);
             }
         }

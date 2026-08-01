@@ -1,4 +1,4 @@
-# reqlan-analytical
+# @reqlan/analytical
 
 ## 0.3.0
 
@@ -9,14 +9,14 @@
 ### Patch Changes
 
 - Updated dependencies [4b9d33b]
-  - reqlan-language@1.3.0
+  - @reqlan/language@1.3.0
 
 ## 0.2.1
 
 ### Patch Changes
 
 - Updated dependencies [e5389ba]
-  - reqlan-language@1.2.0
+  - @reqlan/language@1.2.0
 
 ## 0.2.0
 
@@ -27,7 +27,7 @@
 ### Patch Changes
 
 - Updated dependencies [e56ac74]
-  - reqlan-language@1.1.0
+  - @reqlan/language@1.1.0
 
 ## 0.1.4
 
@@ -35,14 +35,14 @@
 
 - b8a50cd: minor fixes
 - Updated dependencies [b8a50cd]
-  - reqlan-language@1.0.1
+  - @reqlan/language@1.0.1
 
 ## 0.1.3
 
 ### Patch Changes
 
 - Updated dependencies [931fc87]
-  - reqlan-language@1.0.0
+  - @reqlan/language@1.0.0
 
 ## 0.1.2
 
@@ -50,7 +50,7 @@
 
 - fcb99a0: Various vibed changes
 - Updated dependencies [fcb99a0]
-  - reqlan-language@0.1.2
+  - @reqlan/language@0.1.2
 
 ## 0.1.1
 
@@ -58,7 +58,7 @@
 
 - d9f43be: remove :memory:
 - Updated dependencies [d9f43be]
-  - reqlan-language@0.1.1
+  - @reqlan/language@0.1.1
 
 ## 0.1.0
 
@@ -69,7 +69,7 @@
 ### Patch Changes
 
 - Updated dependencies [65840f4]
-  - reqlan-language@0.1.0
+  - @reqlan/language@0.1.0
 
 ## 0.0.5
 
@@ -77,21 +77,21 @@
 
 - a6c2066: Branding change
 - Updated dependencies [a6c2066]
-  - reqlan-language@0.0.5
+  - @reqlan/language@0.0.5
 
 ## 0.0.4
 
 ### Patch Changes
 
 - Updated dependencies [020cd59]
-  - reqlan-language@0.0.4
+  - @reqlan/language@0.0.4
 
 ## 0.0.3
 
 ### Patch Changes
 
 - Updated dependencies [66e5027]
-  - reqlan-language@0.0.3
+  - @reqlan/language@0.0.3
 
 ## 0.0.2
 
@@ -101,4 +101,4 @@
 - d50f988: test increment of \*
 - Updated dependencies [f6bae00]
 - Updated dependencies [d50f988]
-  - reqlan-language@0.0.2
+  - @reqlan/language@0.0.2

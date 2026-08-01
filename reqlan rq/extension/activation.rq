@@ -11,14 +11,14 @@ activation_events {
     - `onLanguage:reqlan` — activate when a reqlan document is opened.
     - `onLanguage:python`, `onLanguage:javascript`, `onLanguage:typescript`, `onLanguage:typescriptreact` — activate for comment-reference and glue-semantics support in those languages.
     - `onView:reqlan.activityBar` — activate when the Reqlan activity bar view is opened.
-    - `onChatParticipant:reqlan.reqlan` — activate when the @reqlan chat participant is used.
+    - `onChatParticipant:reqlan.reqlan-extension` — activate when the @reqlan chat participant is used.
     - `onCommand:reqlan.*` — activate when listed Reqlan palette commands run before the extension has loaded.
     There is no separate `onInstall` hook; install-time behaviour runs on the first activation after install.
 }
 
 activation_sequence {
     `activate` runs the following phases in ["../../packages/extension/src/extension/main.ts"]:
-    1. Register reference inlay-hint configuration synchronously.
+    1. Register reference inlay-hint and CodeLens configuration/commands synchronously.
     2. Await [analytical_submodule_activation] — registers commands, activity bar, chat, webviews, AI commands, and mutation hooks before awaiting index startup.
     3. Register import-error quick-fix commands when the analytical submodule started.
     4. Await language-client startup for LSP features.

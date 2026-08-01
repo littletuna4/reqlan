@@ -11,6 +11,13 @@ export function ShowcaseCard({ showcase }: ShowcaseCardProps) {
 
   return (
     <article className={styles.card}>
+      <div className={styles.cardMeta}>
+        <span className={styles.mechanism}>{showcase.mechanism}</span>
+        {showcase.tier === "flagship" ? (
+          <span className={styles.tier}>flagship</span>
+        ) : null}
+      </div>
+
       <div className={styles.cardTags}>
         {showcase.tags.map((tag) => (
           <span key={tag} className={styles.tag}>

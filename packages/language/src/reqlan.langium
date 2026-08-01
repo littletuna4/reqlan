@@ -25,7 +25,7 @@ TopLevelElement:
 // ---------------------------------------------------------------------------
 
 OneLinerIdea:
-    name=IdeaName body=OneLinerBody;
+    name=IdeaName body=OneLinerBody?;
 
 OneLinerBody:
     content+=(MarkdownLink | BracketReference | WikiLink | OneLinerText)+;
@@ -57,16 +57,18 @@ ReferenceName returns string:
 // ---------------------------------------------------------------------------
 
 BodyElement:
-    Attribute | MarkdownLink | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BodyLine;
+    Attribute | CodeSnippet | NamedList | NestedList | BodyLine;
 
 BodyLine:
     parts+=RichTextPart+;
 
+// PlainText already includes PlainPunctuation — do not also offer a punct= alt
+// (that overlap is an LL ambiguity Chevrotain reports at parser construction).
 RichTextPart:
-    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation | lparen='(' | rparen=')';
+    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | lparen='(' | rparen=')';
 
 InlineTextPart:
-    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText | punct=PlainPunctuation;
+    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=PlainText;
 
 CodeSnippet:
     raw=CODE_FENCE;
@@ -78,8 +80,9 @@ CodeSnippet:
 OneLinerText returns string:
     WORD | ID | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
 
+// PlainText must not include INLINE_CODE — that terminal is its own RichTextPart/InlineTextPart alt.
 PlainText returns string:
-    WORD | ID | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | OTHER | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
 
 PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
@@ -88,20 +91,36 @@ PlainPunctuation returns string:
 // attribute_marker, attribute_forms, attribute_values
 // ---------------------------------------------------------------------------
 
+// `!` is either the negated flag or absent — never the start of a value.
+// `:` is the legacy scalar separator and must not also start a ScalarValue.
 Attribute:
-    '@' name=ID (negated?='!')? (':'? value=AttributeValue)?;
+    '@' name=ID (
+        negated?='!'
+      | ':' value=AttributeValue
+      | value=AttributeValue
+    )?;
 
 AttributeValue:
     BlockValue | ListValue | ScalarValue;
 
 ScalarValue:
-    parts+=InlineTextPart+;
+    parts+=NonBangInlineTextPart parts+=InlineTextPart*;
+
+NonBangInlineTextPart:
+    MarkdownLink | WikiLink | BracketReference | inlineCode=INLINE_CODE | text=NonBangPlainText;
+
+// No '!' (negated flag) and no leading ':' (attribute separator).
+NonBangPlainText returns string:
+    WORD | ID | NUMBER | OTHER | NonBangPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
+
+NonBangPunctuation returns string:
+    '.' | ',' | ';' | '?' | '-';
 
 BlockValue:
     '{' (NL* elements+=BlockElement)* NL* '}';
 
 BlockElement:
-    Attribute | MarkdownLink | WikiLink | BracketReference | CodeSnippet | NamedList | NestedList | BlockLine;
+    Attribute | CodeSnippet | NamedList | NestedList | BlockLine;
 
 BlockLine:
     parts+=RichTextPart+;
@@ -153,29 +172,31 @@ WikiLink:
     '[[' target=ReferenceTarget ('|' alias+=AliasPart+)? ']]';
 
 AliasPart:
-    text=PlainText | punct=PlainPunctuation;
+    text=PlainText;
 
 BracketReference:
     '[' target=ReferenceTarget ']';
 
+// Order and shape chosen so alternatives do not share a common LL prefix:
+// - QualifiedReference covers STRING.ID / ID.ID (incl. idea.attribute surface form)
+// - FileSymbolReference only for STRING.ID.ID.ID+ (3+ symbol segments)
+// - FileReference is bare STRING
+// - LocalReference is a bare local name
 ReferenceTarget:
-    QualifiedReference | LocalReference | FileSymbolReference | FileReference;
+    QualifiedReference | FileSymbolReference | FileReference | LocalReference;
 
 FileReference:
     file=STRING;
 
 FileSymbolReference:
-    file=STRING '.' symbols+=ID ('.' symbols+=ID)*;
+    file=STRING '.' symbols+=ID '.' symbols+=ID '.' symbols+=ID ('.' symbols+=ID)*;
 
 QualifiedReference:
     (path=[Import:STRING] | qualifier=[Import:ID]) '.'
     (ideaset=[IdeaSet:ReferenceName] '.')? idea=[IdeaDeclaration:ReferenceName];
 
 LocalReference:
-    ideaset=[IdeaSet:ReferenceName] '.' idea=[IdeaDeclaration:ReferenceName]
-    | idea=[IdeaDeclaration:ReferenceName] '.' attribute=ID
-    | idea=[IdeaDeclaration:ReferenceName]
-    | ideaset=[IdeaSet:ReferenceName];
+    idea=[IdeaDeclaration:ReferenceName];
 
 // ---------------------------------------------------------------------------
 // import_from, import_namespace, import_qualified — see imports.rq
@@ -206,7 +227,7 @@ hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
 hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 
 terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
-terminal ID: /[_a-zA-Z][\w_]*/;
+terminal ID: /[_a-zA-Z][\w-]*/;
 terminal STRING: /"(\\.|[^"\\\r\n])*"|'(\\.|[^'\\\r\n])*'/;
 terminal NUMBER: /\d+/;
 terminal WORD: /[A-Za-z_][\w']*/;

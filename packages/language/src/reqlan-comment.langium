@@ -19,5 +19,5 @@ QualifiedCommentReference:
 LocalCommentReference:
     idea=ID;
 
-terminal ID: /[_a-zA-Z][\w_]*/;
+terminal ID: /[_a-zA-Z][\w-]*/;
 terminal STRING: /"(\\.|[^"\\])*"/;

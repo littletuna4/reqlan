@@ -6,6 +6,7 @@ import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
+import { registerReferenceCodeLens } from './register-reference-code-lens.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
@@ -18,6 +19,7 @@ let client: LanguageClient | undefined;
 // This function is called when the extension is activated.
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     registerReferenceInlayHintsToggle(context);
+    registerReferenceCodeLens(context);
     registerOnboardingCommands(context);
 
     // Activate analytical features first. This registers the activity bar webview

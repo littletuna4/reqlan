@@ -10,18 +10,25 @@ const reqlanTheme = createCssVariablesTheme({
   variablePrefix: "--code-",
 });
 
-const SHIKI_LANGS: Record<Exclude<CodeLanguage, "rq">, string> = {
+/** Shiki lang ids for every non-.rq CodeLanguage. ST maps to Pascal (closest). */
+export const SHIKI_LANGS: Record<Exclude<CodeLanguage, "rq">, string> = {
   ts: "typescript",
   md: "markdown",
   py: "python",
+  st: "pascal",
+  c: "c",
+  json: "json",
+  yaml: "yaml",
 };
+
+const SHIKI_LANG_IDS = [...new Set(Object.values(SHIKI_LANGS))];
 
 let highlighter: Highlighter | null = null;
 
 export async function initHighlighter(): Promise<void> {
   highlighter = await createHighlighter({
     themes: [reqlanTheme],
-    langs: ["typescript", "markdown", "python"],
+    langs: SHIKI_LANG_IDS,
   });
 }
 

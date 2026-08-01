@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { AiReadiness } from 'reqlan-analytical';
+    import type { AiReadiness } from '@reqlan/analytical';
 
     interface Props {
         readiness: AiReadiness;

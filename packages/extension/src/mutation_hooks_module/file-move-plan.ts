@@ -3,7 +3,7 @@ import {
     buildPathRewriteEdits,
     findPathReferencesInMovedFile,
     type PathRewriteEdit
-} from 'reqlan-language';
+} from '@reqlan/language';
 import * as vscode from 'vscode';
 
 export interface FileMoveChange {

@@ -1,7 +1,8 @@
 {
-    "name": "reqlan",
+    "name": "reqlan-extension",
     "description": "Language support for the reqlan language",
     "version": "1.3.0",
+    "private": true,
     "displayName": "reqlan toolset",
     "icon": "media/logo.png",
     "type": "module",
@@ -75,6 +76,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Show inbound references as a @referenced-by inlay attribute on idea declarations in .rq editors."
+                },
+                "reqlan.referencesCodeLens.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links."
                 }
             }
         },
@@ -128,7 +134,7 @@
         ],
         "chatParticipants": [
             {
-                "id": "reqlan.reqlan",
+                "id": "reqlan.reqlan-extension",
                 "name": "reqlan",
                 "fullName": "Reqlan",
                 "description": "Ask about requirements, search the graph, or attach #requirement / #file context.",
@@ -252,6 +258,16 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.toggleReferenceCodeLens",
+                "title": "Toggle Reference CodeLens",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.openReferenceCodeLens",
+                "title": "Open Reference CodeLens Card",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.showOnboarding",
                 "title": "Show Onboarding",
                 "category": "Reqlan"
@@ -264,6 +280,11 @@
             {
                 "command": "reqlan.importError.search",
                 "title": "Search Index for Unresolved Reference",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.searchReference",
+                "title": "Search Idea Reference",
                 "category": "Reqlan"
             },
             {
@@ -358,9 +379,11 @@
         "onCommand:reqlan.exportPdf",
         "onView:reqlan.activityBar",
         "onCommand:reqlan.toggleReferenceInlayHints",
+        "onCommand:reqlan.toggleReferenceCodeLens",
+        "onCommand:reqlan.openReferenceCodeLens",
         "onCommand:reqlan.showOnboarding",
         "onCommand:reqlan.openInboundReferencesSummary",
-        "onChatParticipant:reqlan.reqlan",
+        "onChatParticipant:reqlan.reqlan-extension",
         "onLanguage:reqlan",
         "onLanguage:python",
         "onLanguage:javascript",
@@ -389,12 +412,12 @@
         "cytoscape-cola": "^2.5.1",
         "cytoscape-fcose": "^2.2.0",
         "langium": "~4.3.0",
-        "reqlan-analytical": "workspace:*",
-        "reqlan-language": "workspace:*",
         "vscode-languageclient": "~10.0.0",
         "vscode-languageserver": "~10.0.0",
         "vscode-languageserver-textdocument": "~1.0.12",
-        "zustand": "~5.0.8"
+        "zustand": "~5.0.8",
+        "@reqlan/analytical": "workspace:*",
+        "@reqlan/language": "workspace:*"
     },
     "devDependencies": {
         "@sveltejs/vite-plugin-svelte": "~5.0.3",

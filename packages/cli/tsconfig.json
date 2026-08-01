@@ -8,6 +8,9 @@
     "references": [
         {
             "path": "../language/tsconfig.src.json"
+        },
+        {
+            "path": "../analytical/tsconfig.json"
         }
     ],
     "include": [

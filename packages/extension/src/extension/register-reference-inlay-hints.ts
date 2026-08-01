@@ -2,7 +2,7 @@
  * Command palette toggle for reference inlay hints in .rq editors.
  */
 import * as vscode from 'vscode';
-import { REQLAN_REFERENCE_INLAY_HINTS_SETTING } from 'reqlan-language';
+import { REQLAN_REFERENCE_INLAY_HINTS_SETTING } from '@reqlan/language';
 
 export function registerReferenceInlayHintsToggle(context: vscode.ExtensionContext): void {
     context.subscriptions.push(

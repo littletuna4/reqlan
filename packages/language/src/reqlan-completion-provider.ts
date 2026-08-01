@@ -25,7 +25,6 @@ import {
     isBracketReference,
     isIdea,
     isIdeaSet,
-    isLocalReference,
     isModel,
     isOneLinerIdea,
     isQualifiedReference,
@@ -393,9 +392,6 @@ function referencedNames(target: Parameters<typeof referenceIdea>[0]): string[] 
     const idea = referenceIdea(target);
     if (idea) {
         names.push(idea.ref?.name ?? idea.$refText);
-    }
-    if (isLocalReference(target) && target.ideaset) {
-        names.push(target.ideaset.ref?.name ?? target.ideaset.$refText);
     }
     if (isQualifiedReference(target) && target.ideaset) {
         names.push(target.ideaset.ref?.name ?? target.ideaset.$refText);

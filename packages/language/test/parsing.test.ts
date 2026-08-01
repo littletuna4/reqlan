@@ -5,8 +5,8 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem, AstUtils, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { parseHelper } from 'langium/test';
-import type { Model, OneLinerIdea } from 'reqlan-language';
-import { createReqlanServices, isAttribute, isBracketReference, isCodeSnippet, isFileReference, isFromImport, isBodyLine, isIdea, isModel, isOneLinerIdea, isScalarValue } from 'reqlan-language';
+import type { Model, OneLinerIdea } from '@reqlan/language';
+import { createReqlanServices, isAttribute, isBracketReference, isCodeSnippet, isFileReference, isFromImport, isBodyLine, isIdea, isModel, isOneLinerIdea, isScalarValue } from '@reqlan/language';
 import { getReferencePrefixContext } from '../src/reqlan-completion-context.js';
 import { isMarkdownLinkLabelPosition } from '../src/reqlan-markdown-links.js';
 
@@ -22,7 +22,7 @@ beforeAll(async () => {
 });
 
 function oneLinerText(idea: OneLinerIdea): string {
-    return idea.body.content
+    return (idea.body?.content ?? [])
         .filter((part): part is string => typeof part === 'string')
         .join(' ')
         .replace(/\s+/g, ' ')
@@ -300,6 +300,45 @@ my_second_idea this is a blob of text`);
         ]);
         expect(oneLinerText(oneLiners[0]!)).toBe('ideas should support one liners');
         expect(oneLinerText(oneLiners[1]!)).toBe('this is a blob of text');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".idea_name]
+    // rq:["../../../reqlan rq/language/syntax.rq".dash-or_undersore_delimited-idea]
+    test('parse dash and underscore delimited idea names', async () => {
+        const document = await parse(`dash-or_undersore_delimited-idea it should be possible to use dash or underscore delimited idea names.
+my_underscored_idea body text
+kebab-case-idea {
+    block body
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const oneLiners = document.parseResult.value.elements.filter(isOneLinerIdea);
+        expect(oneLiners.map(idea => idea.name)).toEqual([
+            'dash-or_undersore_delimited-idea',
+            'my_underscored_idea'
+        ]);
+        expect(oneLinerText(oneLiners[0]!).replace(/\s+\./g, '.')).toBe(
+            'it should be possible to use dash or underscore delimited idea names.'
+        );
+        const block = document.parseResult.value.elements.find(isIdea);
+        expect(block?.name).toBe('kebab-case-idea');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
+    // rq:["../../../reqlan rq/language/syntax.rq".name_only_ideas_it_should_be_possible_to_use_name_only_ideas_without_a_body]
+    test('parse name-only ideas without a body', async () => {
+        const document = await parse(`name_only_ideas_it_should_be_possible_to_use_name_only_ideas_without_a_body
+another_name_only
+with_body has text`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const oneLiners = document.parseResult.value.elements.filter(isOneLinerIdea);
+        expect(oneLiners.map(idea => idea.name)).toEqual([
+            'name_only_ideas_it_should_be_possible_to_use_name_only_ideas_without_a_body',
+            'another_name_only',
+            'with_body'
+        ]);
+        expect(oneLiners[0]?.body).toBeUndefined();
+        expect(oneLiners[1]?.body).toBeUndefined();
+        expect(oneLinerText(oneLiners[2]!)).toBe('has text');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
@@ -651,7 +690,7 @@ myidea {
 }`);
         expect(checkDocumentValid(document)).toBeUndefined();
         const oneLiner = document.parseResult.value.elements.find(isOneLinerIdea);
-        const markdownLink = oneLiner?.body.content.find(part => typeof part !== 'string' && part.$type === 'MarkdownLink');
+        const markdownLink = oneLiner?.body?.content.find(part => typeof part !== 'string' && part.$type === 'MarkdownLink');
         expect(markdownLink && 'raw' in markdownLink && markdownLink.raw).toBe('[the label](path/here)');
         const bracketReferences = [...AstUtils.streamAst(document.parseResult.value)]
             .filter(isBracketReference);
@@ -668,7 +707,7 @@ myidea {
         const document = await parse(readFileSync(join(repoDir, 'reqlan rq/docs/docs.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         const oneLiner = document.parseResult.value.elements.find(isOneLinerIdea);
-        const markdownLink = oneLiner?.body.content.find(part => typeof part !== 'string' && part.$type === 'MarkdownLink');
+        const markdownLink = oneLiner?.body?.content.find(part => typeof part !== 'string' && part.$type === 'MarkdownLink');
         expect(markdownLink && 'raw' in markdownLink && markdownLink.raw).toBe(
             '[the reqlan rq folder of this repo](../../reqlan rq)'
         );
@@ -815,7 +854,7 @@ label { body }`);
         const body = idea?.elements[0];
         expect(body?.$type).toBe('BodyLine');
         if (body?.$type === 'BodyLine') {
-            const text = body.parts.map(part => part.text ?? part.punct ?? '').join('');
+            const text = body.parts.map(part => part.text ?? '').join('');
             expect(text).toContain('@');
             expect(text).toContain('this_is_not_an_attribute');
         }
@@ -843,7 +882,7 @@ label { body }`);
         const body = idea?.elements[0];
         expect(body?.$type).toBe('BodyLine');
         if (body?.$type === 'BodyLine') {
-            const text = body.parts.map(part => part.text ?? part.punct ?? '').join('');
+            const text = body.parts.map(part => part.text ?? '').join('');
             expect(text).toContain('@');
             expect(text).toContain('escaped_attribute');
         }

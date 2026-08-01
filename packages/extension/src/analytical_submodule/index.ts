@@ -13,7 +13,7 @@ import {
     localGraphAnalyser,
     semanticSearchAnalyser,
     type AnalyticalStore
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import { IndexService } from './index-store/index-service.js';
 import { registerAnalyticalCommands } from './commands/register-commands.js';
 import { registerActivityBarModule } from '../activity_bar_module/index.js';
@@ -32,9 +32,9 @@ export type {
     IndexState,
     WorkspaceChange,
     WorkspaceFileChange
-} from 'reqlan-analytical';
-export type { Analyser, AnalyserContext } from 'reqlan-analytical';
-export * from 'reqlan-analytical';
+} from '@reqlan/analytical';
+export type { Analyser, AnalyserContext } from '@reqlan/analytical';
+export * from '@reqlan/analytical';
 
 export interface AnalyticalSubmodule {
     store: AnalyticalStore;

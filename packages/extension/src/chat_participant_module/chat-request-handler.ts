@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { AnalyserContext, AnalyserRegistry, FileRelatedRequirements, GraphSlice, IdeaSummary, SemanticMatch } from 'reqlan-analytical';
+import type { AnalyserContext, AnalyserRegistry, FileRelatedRequirements, GraphSlice, IdeaSummary, SemanticMatch } from '@reqlan/analytical';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 

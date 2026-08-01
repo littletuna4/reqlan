@@ -1,4 +1,4 @@
-import type { IndexErrorPhase } from 'reqlan-analytical';
+import type { IndexErrorPhase } from '@reqlan/analytical';
 import type { FileIndexIssueDraft } from './index-parse-issues.js';
 import { fileIssueFromError } from './index-parse-issues.js';
 

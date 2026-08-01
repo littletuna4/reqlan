@@ -1,41 +1,26 @@
-import type { Model } from 'reqlan-language';
-import { createReqlanServices, ReqlanLanguageMetaData } from 'reqlan-language';
-import chalk from 'chalk';
-import { Command } from 'commander';
-import { extractAstNode } from './util.js';
-import { generateJavaScript } from './generator.js';
-import { NodeFileSystem } from 'langium/node';
-import * as url from 'node:url';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+import { Cli, Builtins } from 'clipanion';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { ParseCommand } from './commands/parse.js';
+import { AnalyseCommand } from './commands/analyse.js';
+import { SearchCommand } from './commands/search.js';
 
-const packagePath = path.resolve(__dirname, '..', 'package.json');
-const packageContent = await fs.readFile(packagePath, 'utf-8');
-
-export const generateAction = async (fileName: string, opts: GenerateOptions): Promise<void> => {
-    const services = createReqlanServices(NodeFileSystem).Reqlan;
-    const model = await extractAstNode<Model>(fileName, services);
-    const generatedFilePath = generateJavaScript(model, fileName, opts.destination);
-    console.log(chalk.green(`JavaScript code generated successfully: ${generatedFilePath}`));
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf8')) as {
+    version: string;
 };
 
-export type GenerateOptions = {
-    destination?: string;
-}
+const cli = new Cli({
+    binaryLabel: 'reqlan',
+    binaryName: 'reqlan',
+    binaryVersion: packageJson.version
+});
 
-export default function(): void {
-    const program = new Command();
+cli.register(Builtins.HelpCommand);
+cli.register(Builtins.VersionCommand);
+cli.register(ParseCommand);
+cli.register(AnalyseCommand);
+cli.register(SearchCommand);
 
-    program.version(JSON.parse(packageContent).version);
-
-    const fileExtensions = ReqlanLanguageMetaData.fileExtensions.join(', ');
-    program
-        .command('generate')
-        .argument('<file>', `source file (possible file extensions: ${fileExtensions})`)
-        .option('-d, --destination <dir>', 'destination directory of generating')
-        .description('generates JavaScript code that prints "Hello, {name}!" for each greeting in a source file')
-        .action(generateAction);
-
-    program.parse(process.argv);
-}
+await cli.runExit(process.argv.slice(2));

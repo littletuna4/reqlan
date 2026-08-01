@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
-import { AstUtils, EmptyFileSystem, type LangiumDocument } from 'langium';
+import { AstUtils, EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { InlayHint, InlayHintLabelPart } from 'vscode-languageserver';
@@ -9,7 +9,7 @@ import {
     referenceInlayHintsEnabled,
     REQLAN_REFERENCE_INLAY_HINTS_SETTING,
     type Model
-} from 'reqlan-language';
+} from '@reqlan/language';
 import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from '../src/reqlan-inlay-hint-settings.js';
 import {
     buildInboundReferencesInlayLabel,
@@ -283,4 +283,106 @@ describe('Reference inlay hints', () => {
 
         expect(hints).toEqual([]);
     });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    test('includes inbound referencers from other workspace files via from-import', async () => {
+        const factory = services.shared.workspace.LangiumDocumentFactory;
+        const docs = services.shared.workspace.LangiumDocuments;
+        const targetDoc = factory.fromString(
+            s`
+                target {
+                    body
+                }
+            `,
+            URI.parse('file:///tmp/inlay-target.rq')
+        ) as LangiumDocument<Model>;
+        const sourceDoc = factory.fromString(
+            s`
+                from "inlay-target.rq" import target
+
+                source {
+                    see [target]
+                }
+            `,
+            URI.parse('file:///tmp/inlay-source.rq')
+        ) as LangiumDocument<Model>;
+        docs.addDocument(targetDoc);
+        docs.addDocument(sourceDoc);
+        await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
+        setReferenceInlayHintsEnabled(true);
+
+        const hints = await getInlayHintsForDocument(targetDoc);
+
+        expect(hints).toHaveLength(1);
+        expect(hintLabelText(hints![0])).toBe('@referenced-by: (source)');
+        const sourcePart = hintLabelParts(hints![0]).find(part => part.value === 'source');
+        expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    test('includes inbound referencers from other workspace files via anonymous path', async () => {
+        const factory = services.shared.workspace.LangiumDocumentFactory;
+        const docs = services.shared.workspace.LangiumDocuments;
+        const targetDoc = factory.fromString(
+            s`
+                target {
+                    body
+                }
+            `,
+            URI.parse('file:///tmp/inlay-anon-target.rq')
+        ) as LangiumDocument<Model>;
+        const sourceDoc = factory.fromString(
+            s`
+                source {
+                    see ["inlay-anon-target.rq".target]
+                }
+            `,
+            URI.parse('file:///tmp/inlay-anon-source.rq')
+        ) as LangiumDocument<Model>;
+        docs.addDocument(targetDoc);
+        docs.addDocument(sourceDoc);
+        await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
+        setReferenceInlayHintsEnabled(true);
+
+        const hints = await getInlayHintsForDocument(targetDoc);
+
+        expect(hints).toHaveLength(1);
+        expect(hintLabelText(hints![0])).toBe('@referenced-by: (source)');
+        const sourcePart = hintLabelParts(hints![0]).find(part => part.value === 'source');
+        expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    test('includes same-named referencers from other files', async () => {
+        const factory = services.shared.workspace.LangiumDocumentFactory;
+        const docs = services.shared.workspace.LangiumDocuments;
+        const targetDoc = factory.fromString(
+            s`
+                shared {
+                    body
+                }
+            `,
+            URI.parse('file:///tmp/inlay-shared-target.rq')
+        ) as LangiumDocument<Model>;
+        const sourceDoc = factory.fromString(
+            s`
+                shared {
+                    see ["inlay-shared-target.rq".shared]
+                }
+            `,
+            URI.parse('file:///tmp/inlay-shared-source.rq')
+        ) as LangiumDocument<Model>;
+        docs.addDocument(targetDoc);
+        docs.addDocument(sourceDoc);
+        await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
+        setReferenceInlayHintsEnabled(true);
+
+        const hints = await getInlayHintsForDocument(targetDoc);
+
+        expect(hints).toHaveLength(1);
+        expect(hintLabelText(hints![0])).toBe('@referenced-by: (shared)');
+        const sharedPart = hintLabelParts(hints![0]).find(part => part.value === 'shared');
+        expect(sharedPart?.location?.uri).toBe(sourceDoc.uri.toString());
+    });
+
 });

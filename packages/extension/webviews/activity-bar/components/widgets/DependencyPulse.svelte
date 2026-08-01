@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { IdeaSummary } from 'reqlan-analytical';
+    import type { IdeaSummary } from '@reqlan/analytical';
 
     interface Props {
         parentCount: number;

@@ -108,7 +108,7 @@ const markdownLink = (text: string, offset: number): RegExpExecArray | null => {
     return null;
 };
 
-const topLevelBlockOpener = /(?:^|\n)[ \t]*(?:[A-Za-z_.][\w.]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*$/;
+const topLevelBlockOpener = /(?:^|\n)[ \t]*(?:[A-Za-z_.][\w.-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*$/;
 
 function isEscapedAt(text: string, offset: number): boolean {
     let backslashes = 0;
@@ -130,13 +130,13 @@ function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: numbe
     if (depth === 0 && topLevelBlockOpener.test(before)) {
         return true;
     }
-    if (/@\w+(?::)?\s*$/.test(before)) {
+    if (/@[A-Za-z_][\w-]*(?::)?\s*$/.test(before)) {
         return true;
     }
     if (depth >= 1 && isLineStartAt(text, offset)) {
         return true;
     }
-    if (depth >= 1 && /[A-Za-z_]\w*\s*$/.test(before) && !isLineStartAt(text, offset)) {
+    if (depth >= 1 && /[A-Za-z_][\w-]*\s*$/.test(before) && !isLineStartAt(text, offset)) {
         const after = text.slice(offset + 1);
         return /^[ \t]*(?:\r?\n|$)/.test(after);
     }
@@ -307,7 +307,7 @@ function topLevelFromKeyword(text: string, offset: number): RegExpExecArray | nu
         return null;
     }
     const next = text[offset + 4];
-    if (next !== undefined && /[\w_]/.test(next)) {
+    if (next !== undefined && /[\w-]/.test(next)) {
         return null;
     }
     if (braceDepthBefore(text, offset) !== 0 || !isLineStartAt(text, offset)) {
@@ -321,7 +321,7 @@ function topLevelImportKeyword(text: string, offset: number): RegExpExecArray | 
         return null;
     }
     const next = text[offset + 6];
-    if (next !== undefined && /[\w_]/.test(next)) {
+    if (next !== undefined && /[\w-]/.test(next)) {
         return null;
     }
     if (braceDepthBefore(text, offset) !== 0) {
@@ -342,14 +342,14 @@ function topLevelAsKeyword(text: string, offset: number): RegExpExecArray | null
         return null;
     }
     const next = text[offset + 2];
-    if (next !== undefined && /[\w_]/.test(next)) {
+    if (next !== undefined && /[\w-]/.test(next)) {
         return null;
     }
     if (braceDepthBefore(text, offset) !== 0) {
         return null;
     }
     const before = text.slice(0, offset).replace(/[ \t]+$/, '');
-    if (/(?:[_a-zA-Z][\w_]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/.test(before)) {
+    if (/(?:[_a-zA-Z][\w-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/.test(before)) {
         return makeMatch(text, offset, 2);
     }
     return null;

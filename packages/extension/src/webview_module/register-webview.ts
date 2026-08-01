@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { ideaId } from 'reqlan-analytical';
-import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from 'reqlan-language';
+import { ideaId } from '@reqlan/analytical';
+import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { IdeasSummaryPanel } from './ideas-summary-panel.js';
 

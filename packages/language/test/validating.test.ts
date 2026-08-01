@@ -6,8 +6,8 @@ import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { NodeFileSystem } from 'langium/node';
 import { clearDocuments, parseHelper } from 'langium/test';
-import type { Model } from 'reqlan-language';
-import { createReqlanServices, isModel } from 'reqlan-language';
+import type { Model } from '@reqlan/language';
+import { createReqlanServices, isModel } from '@reqlan/language';
 
 const exampleDir = join(dirname(fileURLToPath(import.meta.url)), '../../../example_rq_project');
 

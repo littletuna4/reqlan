@@ -12,12 +12,12 @@ import type {
     GraphSlice,
     IdeaSummary,
     SemanticMatch
-} from 'reqlan-analytical';
+} from '@reqlan/analytical';
 import type { AnalyticalSubmodule } from '../index.js';
 import { openIndexFile } from '../index-store/open-index-file.js';
 import { toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
-import { buildExportSnapshot, writeHtmlExport } from 'reqlan-analytical';
-import { loadApplyingRqConfig, type RqExportConfig } from 'reqlan-language';
+import { buildExportSnapshot, writeHtmlExport } from '@reqlan/analytical';
+import { loadApplyingRqConfig, type RqExportConfig } from '@reqlan/language';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
@@ -316,6 +316,7 @@ async function promptForExportRequest(
         clusterStrategy,
         includeIdeaPages: exportConfig.html?.includeIdeaPages ?? true,
         includeFilePages: exportConfig.html?.includeFilePages ?? true,
+        includeCodeFilePages: exportConfig.html?.includeCodeFilePages ?? true,
         includeClusterPages: exportConfig.html?.includeClusterPages ?? true,
         includePrintPages: exportConfig.html?.includePrintPages ?? true
     };

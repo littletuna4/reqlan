@@ -25,7 +25,7 @@
     },
     "vsc": {
       "label": "Visual Studio Marketplace",
-      "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan",
+      "href": "https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension",
       "icon": {
         "set": "simple-icons",
         "name": "visualstudiocode"
@@ -33,7 +33,7 @@
     },
     "openvsx": {
       "label": "Open VSX",
-      "href": "https://open-vsx.org/extension/reqlan/reqlan",
+      "href": "https://open-vsx.org/extension/reqlan/reqlan-extension",
       "icon": {
         "set": "simple-icons",
         "name": "vscodium"

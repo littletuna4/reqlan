@@ -17,7 +17,7 @@ import {
     sharedNameCatalog,
     type AttributeCatalog,
     type NameCatalog
-} from 'reqlan-language';
+} from '@reqlan/language';
 
 // Create a connection to the client
 const connection = createConnection(ProposedFeatures.all);

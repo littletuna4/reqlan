@@ -1,4 +1,4 @@
-import type { PathRewriteEdit } from 'reqlan-language';
+import type { PathRewriteEdit } from '@reqlan/language';
 import * as vscode from 'vscode';
 import type { FileMoveChange } from './file-move-plan.js';
 

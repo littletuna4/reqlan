@@ -1,6 +1,6 @@
 import type { LangiumDocument } from 'langium';
-import type { FileIndexIssue, IdeaRecord, IndexErrorPhase } from 'reqlan-analytical';
-import { errorCauseMessage } from 'reqlan-analytical';
+import type { FileIndexIssue, IdeaRecord, IndexErrorPhase } from '@reqlan/analytical';
+import { errorCauseMessage } from '@reqlan/analytical';
 
 export type FileIndexIssueDraft = Omit<FileIndexIssue, 'fileUri' | 'at'>;
 

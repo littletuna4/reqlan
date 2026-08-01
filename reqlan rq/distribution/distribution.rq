@@ -1,5 +1,4 @@
-import "@/reqlan_rq/phonebook.rq" as phonebook_reqs
-import "@/reqlan_rq/"
+import "@/reqlan rq/phonebook.rq" as phonebook_reqs
 
 stopgap {
   Stopgap distribution is at https://marketplace.visualstudio.com/manage/publishers/reqlan
@@ -7,14 +6,28 @@ stopgap {
 
 version_management {
   Package versions are managed with Changesets via ["../../.changeset/config.json"].
-  Only publishable packages participate in release versioning: ["./distribution.rq".extension_package] and ["./distribution.rq".site_package].
-  Internal tools (`reqlan-cli`, `reqlan-mcp`) are ignored by Changesets.
-  Other workspace libraries (`reqlan-language`, `reqlan-analytical`) bump via dependency updates when publishable packages release.
+  Publishable channels:
+  - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
+  - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
+  - npm: `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` via `pnpm run release:npm` (`changeset publish`)
+  Internal tool `reqlan-mcp` is ignored by Changesets and marked `private` so it is never published to npm (distributed with the extension / local MCP config instead).
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
 
+npm_distribution {
+  On release, after Changesets version bumps are committed, the release workflow builds language/analytical/cli and runs `changeset publish` (`pnpm run release:npm`).
+  Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
+  Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
+  Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `release.yml`, allowed action `npm publish`.
+  Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
+  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
+  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip `changeset publish` (as with `reqlan-mcp` and `reqlan-extension`).
+  Published packages declare `publishConfig.access: public`.
+  Implementation: ["../../.github/workflows/release.yml"] and root `release:npm` in ["../../package.json"]. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+}
+
 extension_package {
-  The VS Code extension lives in packages/extension with npm package name `reqlan`.
+  The VS Code extension lives in packages/extension with npm package name `reqlan-extension` (Marketplace / Open VSX id `reqlan.reqlan-extension`).
   Its package.json version is the authoritative Marketplace and Open VSX release version.
 }
 
@@ -25,9 +38,10 @@ site_package {
 
 deployment_flow {
   On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
-  This bumps package.json for each affected publishable package and writes changelogs.
-  The workflow commits the result, creates one annotated tag per bumped package, and pushes the commit and tags back to main.
+  This bumps package.json for each affected package and writes changelogs.
+  The workflow commits the result, creates annotated tags for bumped Marketplace/site packages, and pushes the commit and tags back to main.
   Release tags use `site/v{version}` and `ext/v{version}` where `{version}` is the semver from package.json.
+  After tagging, the workflow builds npm packages and publishes `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` per [npm_distribution] via trusted publishing (OIDC).
   GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site deploy is also invoked directly from the release workflow.
   Optional `RELEASE_PAT` allows tag pushes to trigger downstream workflows for manual reruns and external CI.
   Recursive runs are prevented by skipping the release workflow for release commits.

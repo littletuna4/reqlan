@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { parseHelper } from 'langium/test';
-import { createReqlanServices, type Model } from 'reqlan-language';
+import { createReqlanServices, type Model } from '@reqlan/language';
 import { findRqIgnoreErrorTargetLines } from '../src/reqlan-ignore-error.js';
 
 let parse: ReturnType<typeof parseHelper<Model>>;

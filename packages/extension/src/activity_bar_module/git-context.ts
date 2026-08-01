@@ -10,9 +10,9 @@ import type {
     GitContextSlice,
     GitFocusCommit,
     GitFocusStats
-} from 'reqlan-analytical';
-import { extractIndexedDocument } from 'reqlan-analytical';
-import { createReqlanServices } from 'reqlan-language';
+} from '@reqlan/analytical';
+import { extractIndexedDocument } from '@reqlan/analytical';
+import { createReqlanServices } from '@reqlan/language';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import {
     buildGitSummary,

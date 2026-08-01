@@ -28,6 +28,7 @@ export interface ExportRequest {
     clusterStrategy?: ExportClusterStrategy;
     includeIdeaPages?: boolean;
     includeFilePages?: boolean;
+    includeCodeFilePages?: boolean;
     includeClusterPages?: boolean;
     includePrintPages?: boolean;
 }
@@ -42,7 +43,7 @@ export interface ExportCounts {
 export interface ExportSearchDocument {
     id: string;
     title: string;
-    kind: 'idea' | 'file' | 'cluster';
+    kind: 'idea' | 'file' | 'cluster' | 'attribute' | 'code-file';
     summary: string;
     url: string;
     tags: string[];
@@ -65,6 +66,8 @@ export interface ExportManifest {
     ideasIndex: ExportPageInfo;
     filesIndex: ExportPageInfo;
     clustersIndex: ExportPageInfo;
+    attributesIndex: ExportPageInfo;
+    codeFilesIndex: ExportPageInfo;
     graph: ExportPageInfo;
     printHome: ExportPageInfo;
     dataExport: ExportPageInfo;
@@ -76,6 +79,7 @@ export interface ExportManifest {
 export interface ExportPageOptions {
     includeIdeaPages: boolean;
     includeFilePages: boolean;
+    includeCodeFilePages: boolean;
     includeClusterPages: boolean;
     includePrintPages: boolean;
     includeRequirementsPage: boolean;
@@ -112,6 +116,18 @@ export interface ExportFileRecord {
     tags: Record<string, number>;
 }
 
+/** Outbound file_reference target (code/source or other non-hosting file). */
+export interface ExportCodeFileRecord {
+    id: string;
+    fileUri: string;
+    name: string;
+    directory: string;
+    page: ExportPageInfo;
+    printPage: ExportPageInfo;
+    referencingIdeaIds: string[];
+    labels: string[];
+}
+
 export interface ExportClusterRecord {
     id: string;
     kind: ExportClusterKind;
@@ -126,6 +142,19 @@ export interface ExportClusterRecord {
         inbound: number;
         outbound: number;
     };
+}
+
+export interface ExportAttributeValueRecord {
+    value: string;
+    count: number;
+    ideaIds: string[];
+}
+
+export interface ExportAttributeRecord {
+    key: string;
+    ideaCount: number;
+    values: ExportAttributeValueRecord[];
+    ideaIds: string[];
 }
 
 export interface ExportGraphCatalog {
@@ -152,8 +181,11 @@ export interface ExportSnapshot {
     ideasById: Record<string, ExportIdeaRecord>;
     files: ExportFileRecord[];
     filesById: Record<string, ExportFileRecord>;
+    codeFiles: ExportCodeFileRecord[];
+    codeFilesById: Record<string, ExportCodeFileRecord>;
     clusters: ExportClusterRecord[];
     clustersById: Record<string, ExportClusterRecord>;
+    attributes: ExportAttributeRecord[];
     graphs: ExportGraphCatalog;
     searchDocuments: ExportSearchDocument[];
     byStatus: Record<string, number>;
@@ -171,5 +203,7 @@ export interface ExportResult {
     ideasIndexFilePath?: string;
     filesIndexFilePath?: string;
     clustersIndexFilePath?: string;
+    attributesIndexFilePath?: string;
+    codeFilesIndexFilePath?: string;
     manifestFilePath?: string;
 }

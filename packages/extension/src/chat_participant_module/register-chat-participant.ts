@@ -3,7 +3,7 @@ import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { createChatRequestHandler } from './chat-request-handler.js';
 import { FileReferenceTool, RequirementReferenceTool } from './chat-reference-tools.js';
 
-const PARTICIPANT_ID = 'reqlan.reqlan';
+const PARTICIPANT_ID = 'reqlan.reqlan-extension';
 
 export function registerChatParticipantModule(
     context: vscode.ExtensionContext,

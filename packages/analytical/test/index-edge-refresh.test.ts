@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { describe, expect, test } from 'vitest';
 import { URI } from 'langium';
 import { NodeFileSystem } from 'langium/node';
-import { createReqlanServices } from 'reqlan-language';
+import { createReqlanServices } from '@reqlan/language';
 import { extractIndexedDocument } from '../src/index-store/idea-extractor.js';
 import { normalizeIndexedDocument } from '../src/core/workspace-paths.js';
 import { SqliteIndexStore } from '../src/index-store/sqlite-store.js';

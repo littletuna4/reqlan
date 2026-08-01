@@ -21,6 +21,31 @@
   border-color: color-mix(in srgb, var(--color-aqua) 35%, var(--color-border));
 }
 
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.mechanism {
+  color: var(--color-aqua-bright);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.tier {
+  color: var(--color-rust);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .cardTags {
   display: flex;
   flex-wrap: wrap;

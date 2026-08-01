@@ -1,24 +1,21 @@
 /**
- * Extension-host commands for unresolved-reference quick fixes that need UI.
+ * Extension-host commands for unresolved-reference quick fixes and reference search.
  * rq:["../../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  */
 import * as path from 'node:path';
 import {
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
-    fileBasenameAlias,
+    REQLAN_SEARCH_REFERENCE_COMMAND,
     relativeRqImportPath,
-    type ImportErrorCommandArgs
-} from 'reqlan-language';
+    type ImportErrorCommandArgs,
+    type SearchReferenceCommandArgs
+} from '@reqlan/language';
 import { URI } from 'langium';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
-
-interface SearchPickItem extends vscode.QuickPickItem {
-    fileUri: string;
-    symbolName?: string;
-    matchKind: 'idea' | 'oneliner' | 'ideaset' | 'file';
-}
+import { ReferenceSearchPanel } from './reference-search-panel.js';
 
 export function registerImportErrorCommands(
     context: vscode.ExtensionContext,
@@ -26,12 +23,30 @@ export function registerImportErrorCommands(
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
+            REQLAN_SEARCH_REFERENCE_COMMAND,
+            async (args?: SearchReferenceCommandArgs) => {
+                if (!args?.documentUri || args.range === undefined) {
+                    return;
+                }
+                await ReferenceSearchPanel.show(index, {
+                    documentUri: args.documentUri,
+                    refText: args.refText ?? '',
+                    range: args.range,
+                    mode: args.mode ?? 'replace',
+                    context: args.context
+                });
+            }
+        ),
+        vscode.commands.registerCommand(
             REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
             async (args?: ImportErrorCommandArgs) => {
                 if (!args?.documentUri || !args.refText) {
                     return;
                 }
-                await searchAndApplyImport(index, args);
+                await ReferenceSearchPanel.show(index, {
+                    ...args,
+                    mode: 'replace'
+                });
             }
         ),
         vscode.commands.registerCommand(
@@ -44,93 +59,6 @@ export function registerImportErrorCommands(
             }
         )
     );
-}
-
-async function searchAndApplyImport(
-    index: IndexService,
-    args: ImportErrorCommandArgs
-): Promise<void> {
-    if (!index.isReady) {
-        void vscode.window.showWarningMessage('Reqlan index is not ready yet.');
-        return;
-    }
-
-    const ideas = await index.indexStore.searchByNameOrSummary(args.refText);
-    const picks: SearchPickItem[] = [];
-    const seen = new Set<string>();
-
-    for (const idea of ideas) {
-        const key = `${idea.kind}:${idea.fileUri}:${idea.name}`;
-        if (seen.has(key)) {
-            continue;
-        }
-        seen.add(key);
-        picks.push({
-            label: idea.name,
-            description: idea.kind,
-            detail: vscode.workspace.asRelativePath(idea.fileUri),
-            fileUri: idea.fileUri,
-            symbolName: idea.name,
-            matchKind: idea.kind === 'ideaset' ? 'ideaset' : idea.kind === 'oneliner' ? 'oneliner' : 'idea'
-        });
-    }
-
-    for (const fileUri of await matchIndexedFiles(index, args.refText)) {
-        const key = `file:${fileUri}`;
-        if (seen.has(key)) {
-            continue;
-        }
-        seen.add(key);
-        const base = path.basename(vscode.Uri.parse(fileUri).fsPath, '.rq');
-        picks.push({
-            label: base,
-            description: 'file',
-            detail: vscode.workspace.asRelativePath(fileUri),
-            fileUri,
-            matchKind: 'file'
-        });
-    }
-
-    if (picks.length === 0) {
-        void vscode.window.showInformationMessage(`No index matches for '${args.refText}'.`);
-        return;
-    }
-
-    const selected = await vscode.window.showQuickPick(picks, {
-        title: `Search for '${args.refText}'`,
-        placeHolder: 'Select a matching idea, ideaset, or file'
-    });
-    if (!selected) {
-        return;
-    }
-
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(args.documentUri));
-    const importPath = relativeRqImportPath(URI.parse(args.documentUri), URI.parse(selected.fileUri));
-
-    if (selected.matchKind === 'file' || selected.matchKind === 'ideaset') {
-        await applyNamespaceImportText(document, importPath, fileBasenameAlias(selected.fileUri));
-        return;
-    }
-
-    if (selected.symbolName) {
-        await applyFromImportText(document, importPath, selected.symbolName);
-    }
-}
-
-async function matchIndexedFiles(index: IndexService, query: string): Promise<string[]> {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-        return [];
-    }
-    const ideas = await index.indexStore.listAllIdeas();
-    const files = new Set<string>();
-    for (const idea of ideas) {
-        const base = path.basename(vscode.Uri.parse(idea.fileUri).fsPath, '.rq').toLowerCase();
-        if (base === needle || base.includes(needle)) {
-            files.add(idea.fileUri);
-        }
-    }
-    return [...files];
 }
 
 async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> {
@@ -215,63 +143,4 @@ function findPlainImportInsertLine(text: string): number {
         break;
     }
     return lastImport >= 0 ? lastImport + 1 : 0;
-}
-
-async function applyFromImportText(
-    document: vscode.TextDocument,
-    importPath: string,
-    symbolName: string
-): Promise<void> {
-    const text = document.getText();
-    const fromPattern = new RegExp(
-        `^from\\s+["']${escapeRegExp(importPath)}["']\\s+import\\s+(.+)$`,
-        'm'
-    );
-    const existing = fromPattern.exec(text);
-    const edit = new vscode.WorkspaceEdit();
-    if (existing) {
-        const lineStart = text.slice(0, existing.index).split(/\r?\n/).length - 1;
-        const lineText = document.lineAt(lineStart).text;
-        if (new RegExp(`\\b${escapeRegExp(symbolName)}\\b`).test(lineText)) {
-            return;
-        }
-        edit.replace(
-            document.uri,
-            document.lineAt(lineStart).range,
-            `${lineText.replace(/\s*$/, '')}, ${symbolName}`
-        );
-    } else {
-        const insertLine = findPlainImportInsertLine(text);
-        const suffix = insertLine === 0 ? '\n' : '';
-        edit.insert(
-            document.uri,
-            new vscode.Position(insertLine, 0),
-            `from "${importPath}" import ${symbolName}\n${suffix}`
-        );
-    }
-    await vscode.workspace.applyEdit(edit);
-}
-
-async function applyNamespaceImportText(
-    document: vscode.TextDocument,
-    importPath: string,
-    alias: string
-): Promise<void> {
-    const text = document.getText();
-    if (new RegExp(`^import\\s+["']${escapeRegExp(importPath)}["']`, 'm').test(text)) {
-        return;
-    }
-    const edit = new vscode.WorkspaceEdit();
-    const insertLine = findPlainImportInsertLine(text);
-    const suffix = insertLine === 0 ? '\n' : '';
-    edit.insert(
-        document.uri,
-        new vscode.Position(insertLine, 0),
-        `import "${importPath}" as ${alias}\n${suffix}`
-    );
-    await vscode.workspace.applyEdit(edit);
-}
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

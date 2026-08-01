@@ -6,13 +6,13 @@
         ContextFingerprintAxes,
         IdeaSummary,
         ReqlanContextModel
-    } from 'reqlan-analytical';
-    import { CONTEXT_DIMENSION_LABELS } from 'reqlan-analytical/context-model';
+    } from '@reqlan/analytical';
+    import { CONTEXT_DIMENSION_LABELS } from '@reqlan/analytical/context-model';
     import {
         CONTEXT_FINGERPRINT_AXIS_HELP,
         CONTEXT_FINGERPRINT_HELP,
         fingerprintAxisTooltip
-    } from 'reqlan-analytical/context-signals';
+    } from '@reqlan/analytical/context-signals';
 
     interface Props {
         axes: ContextFingerprintAxes;

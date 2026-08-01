@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: release-main
@@ -35,7 +36,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+          registry-url: https://registry.npmjs.org
+          # Release publishes must not reuse a cached package manager install.
+          package-manager-cache: false
+
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -161,6 +167,20 @@ jobs:
             echo "Pushing tag ${tag}"
             git push origin "refs/tags/${tag}"
           done
+
+      - name: Build npm packages
+        if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
+        run: |
+          pnpm run langium:generate
+          pnpm exec tsc -b tsconfig.build.json
+          pnpm --filter @reqlan/cli run build
+
+      # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
+      # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
+      # GitHub Actions / littletuna4 / reqlan / release.yml / npm publish.
+      - name: Publish npm packages
+        if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
+        run: pnpm run release:npm
 
   deploy-site:
     needs: release

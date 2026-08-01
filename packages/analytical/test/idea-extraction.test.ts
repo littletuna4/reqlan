@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem } from 'langium';
 import { parseHelper } from 'langium/test';
-import { createReqlanServices, type Model } from 'reqlan-language';
+import { createReqlanServices, type Model } from '@reqlan/language';
 import { extractIndexedDocument } from '../src/index-store/idea-extractor.js';
 
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -20,7 +20,8 @@ describe('idea extraction', () => {
         }`);
         const indexed = extractIndexedDocument(document);
         expect(indexed?.ideas[0]?.summary).toContain('It should be a good thing.');
-        expect(indexed?.ideas[0]?.summary).toContain('[ref]');
+        expect(indexed?.ideas[0]?.summary).toContain('[simple_views]');
+        expect(indexed?.ideas[0]?.summary).not.toContain('[ref]');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
