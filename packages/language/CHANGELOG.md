@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.5.2
+
+### Patch Changes
+
+- 9586a97: package publish trigger
+
 ## 1.5.1
 
 ### Patch Changes

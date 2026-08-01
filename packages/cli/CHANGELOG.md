@@ -1,5 +1,14 @@
 # @reqlan/cli
 
+## 0.2.3
+
+### Patch Changes
+
+- 9586a97: package publish trigger
+- Updated dependencies [9586a97]
+  - @reqlan/analytical@0.5.3
+  - @reqlan/language@1.5.2
+
 ## 0.2.2
 
 ### Patch Changes
