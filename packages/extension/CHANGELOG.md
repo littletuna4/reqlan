@@ -1,5 +1,15 @@
 # reqlan-extension
 
+## 1.4.1
+
+### Patch Changes
+
+- 3a051bd: unused name
+- 1790ce1: Update the landers.
+- Updated dependencies [1790ce1]
+  - @reqlan/language@1.4.1
+  - @reqlan/analytical@0.4.1
+
 ## 1.4.0
 
 ### Minor Changes

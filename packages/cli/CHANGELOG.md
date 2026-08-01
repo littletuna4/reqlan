@@ -1,5 +1,14 @@
 # @reqlan/cli
 
+## 0.1.1
+
+### Patch Changes
+
+- 1790ce1: Update the landers.
+- Updated dependencies [1790ce1]
+  - @reqlan/language@1.4.1
+  - @reqlan/analytical@0.4.1
+
 ## 0.1.0
 
 ### Minor Changes
