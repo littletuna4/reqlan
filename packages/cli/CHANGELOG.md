@@ -1,5 +1,12 @@
 # @reqlan/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [4f86d2b]
+  - @reqlan/analytical@0.5.1
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.5.1
+
+### Patch Changes
+
+- 4f86d2b: fix the graph rendering.
+- Updated dependencies [4f86d2b]
+  - @reqlan/analytical@0.5.1
+
 ## 1.5.0
 
 ### Minor Changes

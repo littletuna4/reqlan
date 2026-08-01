@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.5.1
+
+### Patch Changes
+
+- 4f86d2b: fix the graph rendering.
+
 ## 0.5.0
 
 ### Minor Changes

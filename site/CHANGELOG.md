@@ -1,5 +1,11 @@
 # site
 
+## 0.6.1
+
+### Patch Changes
+
+- 4f86d2b: fix the graph rendering.
+
 ## 0.6.0
 
 ### Minor Changes
