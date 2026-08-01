@@ -1,5 +1,11 @@
 # site
 
+## 0.5.0
+
+### Minor Changes
+
+- 8ac3f82: Minor site showcase fixes, extension search functinoality, cli init.
+
 ## 0.4.0
 
 ### Minor Changes

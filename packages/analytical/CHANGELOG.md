@@ -1,5 +1,16 @@
 # @reqlan/analytical
 
+## 0.4.0
+
+### Minor Changes
+
+- 8ac3f82: Minor site showcase fixes, extension search functinoality, cli init.
+
+### Patch Changes
+
+- Updated dependencies [8ac3f82]
+  - @reqlan/language@1.4.0
+
 ## 0.3.0
 
 ### Minor Changes
