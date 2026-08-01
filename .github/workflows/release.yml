@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
   group: release-main
@@ -20,6 +19,7 @@ jobs:
     outputs:
       site_tag: ${{ steps.tags.outputs.site_tag }}
       extension_tag: ${{ steps.tags.outputs.extension_tag }}
+      npm_ref: ${{ steps.tags.outputs.npm_ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,12 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
-          # Release publishes must not reuse a cached package manager install.
-          package-manager-cache: false
-
-      - name: Ensure npm supports trusted publishing
-        run: npm install -g npm@latest
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -77,6 +72,9 @@ jobs:
           const outputs = [
             ['extension_before', readVersion('packages/extension/package.json')],
             ['site_before', readVersion('site/package.json')],
+            ['language_before', readVersion('packages/language/package.json')],
+            ['analytical_before', readVersion('packages/analytical/package.json')],
+            ['cli_before', readVersion('packages/cli/package.json')],
           ];
 
           for (const [name, value] of outputs) {
@@ -113,25 +111,28 @@ jobs:
           const { execFileSync } = require('node:child_process');
 
           const readVersion = (path) => JSON.parse(fs.readFileSync(path, 'utf8')).version;
-          const before = {
-            extension: process.env.EXTENSION_BEFORE,
-            site: process.env.SITE_BEFORE,
-          };
-          const after = {
-            extension: readVersion('packages/extension/package.json'),
-            site: readVersion('site/package.json'),
-          };
+          const packages = [
+            { beforeEnv: 'EXTENSION_BEFORE', path: 'packages/extension/package.json', prefix: 'ext/v' },
+            { beforeEnv: 'SITE_BEFORE', path: 'site/package.json', prefix: 'site/v' },
+            { beforeEnv: 'LANGUAGE_BEFORE', path: 'packages/language/package.json', prefix: 'language/v' },
+            { beforeEnv: 'ANALYTICAL_BEFORE', path: 'packages/analytical/package.json', prefix: 'analytical/v' },
+            { beforeEnv: 'CLI_BEFORE', path: 'packages/cli/package.json', prefix: 'cli/v' },
+          ];
 
           const tags = [];
-          if (before.extension !== after.extension) {
-            tags.push(`ext/v${after.extension}`);
-          }
-          if (before.site !== after.site) {
-            tags.push(`site/v${after.site}`);
+          for (const pkg of packages) {
+            const before = process.env[pkg.beforeEnv];
+            const after = readVersion(pkg.path);
+            if (before !== after) {
+              tags.push(`${pkg.prefix}${after}`);
+            }
           }
 
           if (tags.length === 0) {
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'created=false\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'site_tag=\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'extension_tag=\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'npm_ref=\n');
             process.exit(0);
           }
 
@@ -148,12 +149,22 @@ jobs:
 
           const siteTag = tags.find((tag) => tag.startsWith('site/v')) ?? '';
           const extensionTag = tags.find((tag) => tag.startsWith('ext/v')) ?? '';
+          const npmRef =
+            tags.find((tag) =>
+              tag.startsWith('language/v') ||
+              tag.startsWith('analytical/v') ||
+              tag.startsWith('cli/v'),
+            ) ?? '';
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `site_tag=${siteTag}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `extension_tag=${extensionTag}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `npm_ref=${npmRef}\n`);
           EOF
         env:
           EXTENSION_BEFORE: ${{ steps.versions.outputs.extension_before }}
           SITE_BEFORE: ${{ steps.versions.outputs.site_before }}
+          LANGUAGE_BEFORE: ${{ steps.versions.outputs.language_before }}
+          ANALYTICAL_BEFORE: ${{ steps.versions.outputs.analytical_before }}
+          CLI_BEFORE: ${{ steps.versions.outputs.cli_before }}
 
       - name: Push release commit
         if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
@@ -168,21 +179,6 @@ jobs:
             git push origin "refs/tags/${tag}"
           done
 
-      - name: Build npm packages
-        if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
-        run: |
-          pnpm run langium:generate
-          pnpm exec tsc -b tsconfig.build.json
-          pnpm --filter @reqlan/cli run build
-          pnpm run build:readme
-
-      # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
-      # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
-      # GitHub Actions / littletuna4 / reqlan / release.yml / npm publish.
-      - name: Publish npm packages
-        if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'
-        run: pnpm run release:npm
-
   deploy-site:
     needs: release
     if: needs.release.outputs.site_tag != ''
@@ -192,4 +188,14 @@ jobs:
     permissions:
       contents: read
       pages: write
+      id-token: write
+
+  deploy-npm:
+    needs: release
+    if: needs.release.outputs.npm_ref != ''
+    uses: ./.github/workflows/deploy-npm.yml
+    with:
+      npm_ref: ${{ needs.release.outputs.npm_ref }}
+    permissions:
+      contents: read
       id-token: write

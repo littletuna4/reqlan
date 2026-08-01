@@ -6,24 +6,27 @@ stopgap {
 
 version_management {
   Package versions are managed with Changesets via ["../../.changeset/config.json"].
-  Publishable channels:
+  Publishable channels (each tag-driven):
   - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
-  - npm: `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` via `pnpm run release:npm` (`changeset publish`)
+  - npm: `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` (tagged `language/v*`, `analytical/v*`, `cli/v*`)
   Internal tool `reqlan-mcp` is ignored by Changesets and marked `private` so it is never published to npm (distributed with the extension / local MCP config instead).
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
 
 npm_distribution {
-  On release, after Changesets version bumps are committed, the release workflow builds language/analytical/cli and runs `changeset publish` (`pnpm run release:npm`).
+  npm publishing runs only when a `language/v*`, `analytical/v*`, or `cli/v*` tag is pushed.
+  Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
+  The deploy workflow builds language/analytical/cli and runs `changeset publish` (`pnpm run release:npm`).
+  Before publish, ["../../scripts/skip-already-published.mjs"] marks any language/analytical/cli package whose current version is already on the public npm registry as `private: true` in the CI checkout only (never committed). That avoids the known `@changesets/cli` + pnpm E403 crash when OIDC re-attempts already-published versions ([https://github.com/changesets/changesets/issues/2099]).
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
-  Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `release.yml`, allowed action `npm publish`.
+  Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
   Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
   Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip `changeset publish` (as with `reqlan-mcp` and `reqlan-extension`).
   Published packages declare `publishConfig.access: public`.
-  Implementation: ["../../.github/workflows/release.yml"] and root `release:npm` in ["../../package.json"]. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], and root `release:npm` in ["../../package.json"]. Docs: ["https://docs.npmjs.com/trusted-publishers"].
 }
 
 extension_package {
@@ -39,10 +42,10 @@ site_package {
 deployment_flow {
   On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
   This bumps package.json for each affected package and writes changelogs.
-  The workflow commits the result, creates annotated tags for bumped Marketplace/site packages, and pushes the commit and tags back to main.
-  Release tags use `site/v{version}` and `ext/v{version}` where `{version}` is the semver from package.json.
-  After tagging, the workflow builds npm packages and publishes `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` per [npm_distribution] via trusted publishing (OIDC).
-  GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site deploy is also invoked directly from the release workflow.
+  The workflow commits the result, creates annotated tags for every bumped publishable package, and pushes the commit and tags back to main.
+  Release tags use `site/v{version}`, `ext/v{version}`, `language/v{version}`, `analytical/v{version}`, and `cli/v{version}` where `{version}` is the semver from that package's package.json.
+  Deployment is tag-driven for every channel per ["./distribution.rq".release_tagging]; the release workflow only versions and tags.
+  GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site and npm deploy are also invoked directly from the release workflow.
   Optional `RELEASE_PAT` allows tag pushes to trigger downstream workflows for manual reruns and external CI.
   Recursive runs are prevented by skipping the release workflow for release commits.
   Tag patterns and downstream deploy workflows follow ["./distribution.rq".release_tagging].
@@ -50,11 +53,12 @@ deployment_flow {
 }
 
 release_tagging {
-  Deployment remains tag-driven rather than commit-driven.
+  Deployment is tag-driven rather than commit-driven for every publishable channel.
   Tags are created automatically by ["./distribution.rq".deployment_flow], not manually.
   Site deployments are triggered by Git tags matching `site/v*` via ["./distribution.rq".site_distribution].
   VS Code extension publishing is triggered by Azure DevOps tags matching `ext/v*` via ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
-  The tag suffix after `site/v` or `ext/v` equals the package.json version at that tag.
+  npm publishing is triggered by Git tags matching `language/v*`, `analytical/v*`, or `cli/v*` via ["./distribution.rq".npm_distribution].
+  The tag suffix after the channel prefix (`site/v`, `ext/v`, `language/v`, `analytical/v`, `cli/v`) equals the package.json version at that tag.
 }
 
 npm_package_readme {
@@ -112,6 +116,7 @@ workflow_deduplication {
   Extension publish automation should have a single authoritative workflow to avoid duplicate marketplace releases.
   Azure DevOps is the authoritative extension publishing workflow per ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
   The site remains deployed by GitHub Actions per ["./distribution.rq".site_distribution].
+  npm packages are published by GitHub Actions per ["./distribution.rq".npm_distribution].
   Versioning and tag creation are owned by GitHub Actions per ["./distribution.rq".deployment_flow].
 }
 

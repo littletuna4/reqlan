@@ -1,0 +1,73 @@
+name: Publish npm packages
+
+# Triggered by language/v*, analytical/v*, and cli/v* tags (manual or release.yml)
+# per reqlan rq/distribution/distribution.rq npm_distribution.
+# release.yml also invokes this workflow directly because pushes made
+# with GITHUB_TOKEN do not trigger other workflows.
+
+on:
+  push:
+    tags:
+      - "language/v*"
+      - "analytical/v*"
+      - "cli/v*"
+  workflow_call:
+    inputs:
+      npm_ref:
+        description: Git ref (tag) to check out for the npm publish
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.npm_ref != '' && inputs.npm_ref || github.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          # Publish must not reuse a cached package manager install.
+          package-manager-cache: false
+
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build npm packages
+        run: |
+          pnpm run langium:generate
+          pnpm exec tsc -b tsconfig.build.json
+          pnpm --filter @reqlan/cli run build
+          pnpm run build:readme
+
+      # Avoid changeset+pnpm E403 crash on already-published versions under OIDC
+      # (changesets#2099). Marks those package.json files private in-checkout only.
+      - name: Skip already-published packages
+        run: node scripts/skip-already-published.mjs
+
+      # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
+      # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
+      # GitHub Actions / littletuna4 / reqlan / deploy-npm.yml / npm publish.
+      - name: Publish npm packages
+        run: pnpm run release:npm

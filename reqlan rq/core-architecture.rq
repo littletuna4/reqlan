@@ -88,7 +88,7 @@ package_versioning {
     Release-driving channels:
     - Marketplace/Open VSX: [extension_package] (`ext/v*`)
     - GitHub Pages: [site_package] (`site/v*`)
-    - npm registry: [language_package], [analytical_package], and [cli_package] via Changesets `changeset publish`
+    - npm registry: [language_package], [analytical_package], and [cli_package] (`language/v*`, `analytical/v*`, `cli/v*`) via Changesets `changeset publish`
     Changesets config is [changeset_config]. It ignores [mcp_package] only.
     [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension and CLI).
     Extension webview folders may be private pnpm members (e.g. `@reqlan/ideas-summary-webview`) so Vite/Svelte can own deps; they bundle into extension media and are not Changesets publish targets. Activity-bar UI is not a separate package.json product.
