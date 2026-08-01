@@ -26,6 +26,8 @@
     .rq-block {
         margin: 0;
         padding: 12px 14px;
+        max-width: 100%;
+        min-width: 0;
         overflow-x: auto;
         background: var(--vscode-textCodeBlock-background, var(--vscode-editor-inactiveSelectionBackground));
         border: 1px solid var(--vscode-panel-border, transparent);
@@ -34,15 +36,19 @@
 
     .rq-code {
         display: block;
+        max-width: 100%;
         font-family: var(--vscode-editor-font-family, var(--vscode-font-family));
         font-size: var(--vscode-editor-font-size, 0.9em);
         line-height: 1.55;
-        white-space: pre;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         color: var(--vscode-editor-foreground);
     }
 
     .token {
-        white-space: pre;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
     }
 
     .idea {
@@ -89,6 +95,7 @@
 
     button.token.url {
         appearance: none;
+        display: inline;
         background: none;
         border: none;
         padding: 0;
@@ -97,7 +104,9 @@
         color: var(--vscode-textLink-foreground);
         text-decoration: underline;
         cursor: pointer;
-        white-space: pre;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-all;
     }
 
     button.token.url:hover {

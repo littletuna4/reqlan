@@ -127,12 +127,18 @@
 
 <style>
     .onboarding {
-        max-width: 46rem;
+        max-width: min(46rem, 100%);
+        min-width: 0;
         margin: 0 auto;
         padding: 28px 20px 48px;
         display: flex;
         flex-direction: column;
         gap: 1.85rem;
+    }
+
+    section {
+        min-width: 0;
+        max-width: 100%;
     }
 
     .hero {

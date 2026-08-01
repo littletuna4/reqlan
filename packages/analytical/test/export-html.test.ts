@@ -390,6 +390,7 @@ describe('html export pipeline', () => {
         expect(snapshot.graphs.workspace.truncated).toBe(false);
         expect(graphHtml).toContain('data-graph-toggle-ideasets');
         expect(graphHtml).toContain('Hide ideasets');
+        expect(appJs).toContain("querySelector('[data-graph-toggle-ideasets]')");
         expect(appJs).toContain('hideIdeasets');
         expect(appJs).toContain('Show ideasets');
         expect(new Set(ideaNodes.map(node => node.name))).toEqual(

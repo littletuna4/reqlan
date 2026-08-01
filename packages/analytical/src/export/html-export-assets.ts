@@ -705,11 +705,13 @@ function wireGraph(root) {
         const statusSelect = controls.querySelector('[data-graph-status]');
         const tagSelect = controls.querySelector('[data-graph-tag]');
         const toggleExternal = controls.querySelector('[data-graph-toggle-external]');
+        const toggleIdeasets = controls.querySelector('[data-graph-toggle-ideasets]');
         const togglePhysics = controls.querySelector('[data-graph-toggle-physics]');
         const fitButton = controls.querySelector('[data-graph-fit]');
         const resetButton = controls.querySelector('[data-graph-reset]');
         const statusText = controls.querySelector('[data-graph-status-text]');
         let hideExternal = false;
+        let hideIdeasets = false;
         let livePhysics = false;
         let animationFrame = 0;
         let calmTicks = 0;

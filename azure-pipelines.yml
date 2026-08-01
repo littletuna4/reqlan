@@ -98,19 +98,19 @@ jobs:
           ArtifactName: reqlan-vsix
           publishLocation: Container
 
-      # TEMP: remove stale marketplace listing reqlan.reqlan (not reqlan.reqlan-extension).
-      # Delete this step once the old extension is unpublished.
-      - task: AzureCLI@2
-        displayName: "TEMP: Unpublish reqlan.reqlan"
-        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
-        timeoutInMinutes: 10
-        inputs:
-          azureSubscription: $(AzureMarketplaceServiceConnection)
-          scriptType: pscore
-          scriptLocation: inlineScript
-          inlineScript: |
-            $ErrorActionPreference = "Stop"
-            pnpm --filter ./packages/extension exec vsce unpublish reqlan.reqlan --azure-credential --force
+      # # TEMP: remove stale marketplace listing reqlan.reqlan (not reqlan.reqlan-extension).
+      # # Delete this step once the old extension is unpublished.
+      # - task: AzureCLI@2
+      #   displayName: "TEMP: Unpublish reqlan.reqlan"
+      #   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+      #   timeoutInMinutes: 10
+      #   inputs:
+      #     azureSubscription: $(AzureMarketplaceServiceConnection)
+      #     scriptType: pscore
+      #     scriptLocation: inlineScript
+      #     inlineScript: |
+      #       $ErrorActionPreference = "Stop"
+      #       pnpm --filter ./packages/extension exec vsce unpublish reqlan.reqlan --azure-credential --force
 
       - task: AzureCLI@2
         displayName: Publish extension
