@@ -3,7 +3,7 @@
     "description": "Language support for the reqlan language",
     "version": "1.4.0",
     "private": true,
-    "displayName": "reqlan toolset",
+    "displayName": "reqlan language support",
     "icon": "media/logo.png",
     "type": "module",
     "publisher": "reqlan",
