@@ -1,0 +1,11 @@
+{
+  "name": "reqlan-presentations",
+  "private": true,
+  "description": "Reveal.js tutorial decks for reqlan",
+  "dependencies": {
+    "reveal.js": "^5.2.1"
+  },
+  "scripts": {
+    "vendor": "mkdir -p vendor/reveal.js/plugin/highlight && cp -r node_modules/reveal.js/dist/* vendor/reveal.js/ && cp node_modules/reveal.js/plugin/highlight/highlight.js node_modules/reveal.js/plugin/highlight/highlight.esm.js vendor/reveal.js/plugin/highlight/"
+  }
+}

@@ -1,0 +1,354 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  overflow: visible;
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.crumb {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.35rem;
+}
+
+.crumb a {
+  color: var(--color-aqua);
+  text-decoration: none;
+}
+
+.crumb a:hover {
+  color: var(--color-aqua-bright);
+}
+
+.sep {
+  opacity: 0.55;
+}
+
+.series {
+  color: var(--color-text-muted);
+}
+
+.count {
+  margin-left: 0.35rem;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text-muted) 75%, transparent);
+}
+
+.transport {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+  position: relative;
+  overflow: visible;
+  z-index: 2;
+}
+
+.jump,
+.jumpDisabled,
+.stepBtn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  overflow: visible;
+}
+
+.jump:hover,
+.stepBtn:hover:not(:disabled) {
+  border-color: var(--color-aqua);
+  color: var(--color-aqua-bright);
+  background: color-mix(in srgb, var(--color-aqua) 10%, var(--color-surface));
+}
+
+.jump:focus-visible,
+.stepBtn:focus-visible,
+.step:focus-visible,
+.stepDone:focus-visible,
+.stepCurrent:focus-visible {
+  outline: 2px solid var(--color-aqua);
+  outline-offset: 2px;
+}
+
+.jumpDisabled,
+.stepBtn:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+.stepBtn:disabled {
+  pointer-events: none;
+}
+
+/* Transport tooltips sit below controls so they don't clip the crumb row */
+.jump[data-tooltip]::after,
+.jumpDisabled[data-tooltip]::after,
+.stepBtn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.4rem);
+  bottom: auto;
+  transform: translateX(-50%) translateY(-3px);
+  width: max-content;
+  max-width: min(16rem, calc(100vw - 2rem));
+  padding: 0.35rem 0.55rem;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised, #261f1b);
+  color: var(--color-text);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 40;
+  box-shadow: 0 6px 18px color-mix(in srgb, black 35%, transparent);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+/* Keep edge tooltips on-screen */
+.jump:first-child[data-tooltip]::after,
+.jumpDisabled:first-child[data-tooltip]::after {
+  left: 0;
+  transform: translateX(0) translateY(-3px);
+}
+
+.transport > :last-child[data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: translateX(0) translateY(-3px);
+}
+
+.jump:hover::after,
+.jump:focus-visible::after,
+.jumpDisabled:hover::after,
+.stepBtn:hover:not(:disabled)::after,
+.stepBtn:focus-visible:not(:disabled)::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.jump:first-child:hover::after,
+.jump:first-child:focus-visible::after,
+.jumpDisabled:first-child:hover::after,
+.transport > :last-child:hover::after,
+.transport > :last-child:focus-visible::after {
+  transform: translateX(0) translateY(0);
+}
+
+.stepsBlock {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.25rem;
+}
+
+.track {
+  width: 100%;
+  max-width: 22rem;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-border) 85%, transparent);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-aqua);
+  transition: width 220ms ease;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step,
+.stepDone,
+.stepCurrent {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  color: var(--color-text-muted);
+  line-height: 1;
+  position: relative;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.step:hover,
+.stepDone:hover,
+.stepActive:not(.stepCurrent) {
+  color: var(--color-aqua-bright);
+  border-color: color-mix(in srgb, var(--color-aqua) 50%, var(--color-border));
+  transform: translateY(-1px) scale(1.06);
+}
+
+.stepDone {
+  border-color: color-mix(in srgb, var(--color-aqua) 40%, var(--color-border));
+  color: color-mix(in srgb, var(--color-text-muted) 65%, var(--color-aqua));
+}
+
+.stepCurrent {
+  border-color: var(--color-aqua);
+  background: color-mix(in srgb, var(--color-aqua) 18%, transparent);
+  color: var(--color-aqua-bright);
+  font-weight: 600;
+}
+
+.stepCurrent.stepActive {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-aqua) 18%, transparent);
+}
+
+.lessonLabel {
+  position: relative;
+  height: 1.35rem;
+  width: 100%;
+  max-width: 28rem;
+  overflow: hidden;
+  text-align: center;
+}
+
+.lessonKey {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  animation: lessonIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.lessonOrder {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--color-aqua);
+  font-weight: 600;
+}
+
+.lessonTitle {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.015em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lessonLabel[data-mode="hover"] .lessonTitle {
+  color: var(--color-aqua-bright);
+}
+
+@keyframes lessonIn {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem) scale(0.98);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  height: min(82vh, 960px);
+  min-height: 30rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #120e0c;
+  z-index: 1;
+}
+
+.iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #120e0c;
+}
+
+@media (max-width: 720px) {
+  .transport {
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 0.35rem;
+  }
+
+  .jump,
+  .jumpDisabled,
+  .stepBtn {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.85rem;
+  }
+
+  .lessonTitle {
+    font-size: 0.8rem;
+  }
+
+  .frame {
+    height: min(70vh, 640px);
+    min-height: 20rem;
+  }
+}

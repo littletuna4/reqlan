@@ -1,0 +1,1362 @@
+from "../constitution.rq" import mission_statement, llm_first, vsc_first, general_purpose, simplicity, inspiration
+from "../brand.rq" import brand
+from "../ui.rq" import show_dont_tell
+from "../language/ontology.rq" import idea, ideaset, reference, attribute, cartographic_map
+from "../language/syntax.rq" import simple_idea, block_idea, reference_brackets, reference_wikilink
+from "../language/imports.rq" import import_from, import_namespace
+from "../language/attributes.rq" import attribute_configuration
+from "../extension/onboarding/page-thanks-for-installing.rq" import installation_event
+from "../extension/features-consumption.rq" import graph_view, local_graph_view
+from "../extension/module/activitybar.rq" import activity_bar
+from "../extension/module/context-scope.rq" import context_scope, any_file_scope
+from "../extension/agents/features-ai.rq" import ai_integration, ai_build_requirement, ai_add_to_context, ai_write_plan
+from "../extension/features-skills-and-mcp.rq" import mcp_tools, cursor_skills_install, chat_skill_naming
+from "../extension/features-html-export.rq" import html_export
+from "../extension/features-non-rq-code-comment/functional-code-comment-references.rq" import references_in_functional_code_comments
+from "../cli/cli_package.rq" import cli_package, commands
+from "../docs/docs.rq" import docs_reqs
+from "../phonebook.rq" import phonebook
+
+tutorials {
+    Tutorial media teaches reqlan through short, scripted videos plus copy-pasteable `.rq` examples.
+    Content must reflect [mission_statement]: semantic requirements as code for people working with LLMs, with ergonomic definition and consumption.
+    Two series: [get_started_series] (first-hour fluency) and [advanced_series] (graph craft, AI workflows, distribution).
+    Host on the marketing site and link from extension onboarding per [installation_event] and [phonebook].
+    Visual language follows [brand]; on-screen chrome stays quiet per [show_dont_tell] — narration carries concepts, UI does not lecture.
+    @status draft
+    @tags (
+        marketing
+        media
+        tutorials
+    )
+}
+
+tutorial_philosophy {
+    Every episode must reinforce product philosophy without a lecture dump:
+    - [llm_first]: show token-minimising workflows (search, local slice, add-to-context) before dumping a whole workspace.
+    - [vsc_first]: primary demos live in VS Code / compatible editors with the extension installed.
+    - [general_purpose]: at least one get-started beat and one advanced beat use a non-"enterprise software" framing (personal knowledge, ops checklist, or creative brief).
+    - [simplicity]: start with one-liners and one file; introduce braces, imports, and attributes only when the viewer feels the need.
+    - [inspiration]: name the lineage lightly when useful — Obsidian-style links, ontology nodes, industrial "trace the signal" — never as jargon for its own sake.
+    Prefer show-then-name: write a real idea, link it, open the activity bar, then name the concept.
+}
+
+tutorial_format {
+    Each episode requirement below includes:
+    - Audience and learning outcome
+    - Target runtime
+    - Demo fixture (folder / files the recording opens)
+    - `@example` — runnable `.rq` (and code when needed) the viewer can recreate, fenced as opaque snippets when the sample itself contains braces
+    - `@script` — full spoken VO plus screen directions (VO = voiceover; SCR = what to show). Use SCR: / VO: labels, not bracket tags, so they are not parsed as [reference] links.
+    - Links to the feature requirements the episode proves
+    Episodes are self-contained; series order is recommended, not required after get-started 01–02.
+    Prefer 1080p screen capture with a small inset face cam optional; logo end-card with site / marketplace links from [phonebook].
+}
+
+demo_workspace {
+    Shared recording workspace name: `reqlan-tutorials-demo`.
+    Layout used across episodes unless an episode overrides:
+    ```
+    reqlan-tutorials-demo/
+      reqs/
+        product.rq
+        auth.rq
+      src/
+        login.ts
+      README.md
+    ```
+    Get-started episodes may start empty and grow this tree on camera.
+    Advanced episodes assume the tree exists and extend it.
+    Never record against the reqlan monorepo itself — keep demos small and readable.
+}
+
+// --- Slide packs (Reveal.js) --------------------------------------------------
+
+slide_pack_format {
+    Each published episode that ships a deck declares an `@slides` list.
+    Each slide item is an anonymous block with:
+    - id — stable slide handle
+    - transition — reveal transition name per [slide_transitions]
+    - background — theme key per [slide_visual_system]
+    - kicker / heading / body — on-screen copy (minimal)
+    - code / code_lang — optional fenced snippet shown on the slide
+    - asset — key into [presentation_assets]
+    - fragments — optional comma-separated fragment labels (fade-in)
+    - notes — speaker notes, usually the VO lines from `@script`
+    Deck JSON under ["../../presentations/decks/"] is the runtime source of truth derived from `@slides`.
+    Standalone Reveal shell (optional local serve): ["../../presentations/player/"]
+    Site embed uses the App Router page at `/presentations/player/` (see site tutorials_section / presentation_player_route).
+    Catalog: ["../../presentations/manifest.json"]
+}
+
+slide_visual_system {
+    Brand from [brand]: dark rust base, aqua accent, pink highlight.
+    Quiet chrome per [show_dont_tell] — no dense labels on slides; narration carries detail.
+    Background keys: brand-dark, brand-panel, brand-contrast.
+    Typography: one heading, one short body, optional code block; logo on title and end cards.
+}
+
+slide_transitions {
+    Default deck transition: fade.
+    Use slide for section / series breaks.
+    Use none for side-by-side code-compare beats so the eye stays on the content.
+    Fragment animation: fade-in for try-this prompts and CTAs.
+}
+
+presentation_assets {
+    Shared files live under ["../../presentations/assets/"].
+    Required: logo (copy of ["../../site/public/logo.svg"]).
+    Optional placeholders: montage-ide, activity-bar, chat-search, file-link (SVG or PNG keys referenced from decks).
+}
+
+slide_decks (
+    gs_01_why_reqlan,
+    gs_02_first_idea,
+    gs_03_link_ideas,
+    gs_04_activity_bar,
+    gs_05_chat_search,
+    gs_06_link_code,
+    adv_overview,
+    adv_01_imports_ideasets,
+    adv_02_attributes_status_plans,
+    adv_03_ideas_summary_graph,
+    adv_04_context_and_tokens,
+    adv_05_comment_references,
+    adv_06_html_export,
+    adv_07_cli_and_mcp,
+    adv_08_modelling_patterns
+)
+
+// --- Get started series -------------------------------------------------------
+
+get_started_series (
+    gs_01_why_reqlan,
+    gs_02_first_idea,
+    gs_03_link_ideas,
+    gs_04_activity_bar,
+    gs_05_chat_search,
+    gs_06_link_code
+)
+
+get_started_series_brief {
+    Short "get started" series: six episodes in [get_started_series], about 4–7 minutes each, total under about 35 minutes.
+    Goal: a new user can install reqlan, write ideas, link them, inspect neighbourhood context, ask the chat participant, and point ideas at real files.
+    Tone: calm, concrete, no feature tour laundry lists.
+    End each episode with one "try this" prompt on screen.
+    @status draft
+    @tags (
+        get-started
+    )
+}
+
+gs_01_why_reqlan {
+    Audience: developers or knowledge workers who already talk to LLMs about their project and feel context drift.
+    Outcome: viewer can explain reqlan in one sentence and knows where install / docs live.
+    Runtime: 4–5 min.
+    Related: [mission_statement] [llm_first] [inspiration] [installation_event]
+    @example {
+        ```rq
+        // Shown as a contrast slide, not yet typed in the editor
+        // After: the same intent as three named ideas — preview only
+        login must reject empty passwords
+        session expires after inactivity
+        audit_log records failed attempts
+        ```
+    }
+    @script {
+        SCR: Dark title card: reqlan wordmark + "Get started · 01 · Why requirements as code". Brand palette.
+
+        VO: If you work with language models on real projects, you already write requirements —
+        you just write them into the chat window, over and over.
+
+        SCR: Split: left a bloated chat paste of feature prose; right a tiny `.rq` snippet with three named ideas.
+
+        VO: reqlan is a small language for turning that intent into a graph of named ideas —
+        requirements as code — so you, your teammates, and your tools can find, link, and reuse them.
+
+        SCR: Brief montage: VS Code with a `.rq` file, activity bar logo, Ideas Summary graph nodes drifting gently.
+
+        VO: It borrows habits from knowledge bases and from systems that care about traceability —
+        but the day-one job is simple: name the idea, write the prose, point at related work.
+
+        SCR: Marketplace install page (or Open VSX). Click Install. Open a folder. Onboarding webview appears.
+
+        VO: Install the reqlan extension in VS Code. On first launch you'll get a short welcome —
+        keep the links handy; we'll use them later.
+
+        SCR: End card: one sentence on screen — "Semantic requirements as code, built for LLM workflows."
+        CTA: Install · next episode "Your first idea".
+
+        VO: Next: write your first idea in under a minute.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 01
+            heading Why requirements as code
+            asset logo
+            notes If you work with language models on real projects, you already write requirements — you just write them into the chat window, over and over.
+        }
+        {
+            id contrast
+            transition none
+            background brand-contrast
+            heading Chat dump vs named ideas
+            body Left: bloated prose paste. Right: three named ideas.
+            code_lang rq
+            code login must reject empty passwords / session expires after inactivity / audit_log records failed attempts
+            notes reqlan turns that intent into a graph of named ideas — requirements as code.
+        }
+        {
+            id montage
+            transition fade
+            background brand-panel
+            heading Editor, neighbourhood, graph
+            asset montage-ide
+            notes It borrows habits from knowledge bases and traceability systems — day one is name, prose, related work.
+        }
+        {
+            id install
+            transition slide
+            background brand-panel
+            heading Install the extension
+            body Marketplace or Open VSX. Open a folder. Welcome appears.
+            notes Keep the welcome links handy; we will use them later.
+        }
+        {
+            id end
+            transition fade
+            background brand-dark
+            heading Semantic requirements as code, built for LLM workflows
+            fragments Next: Your first idea
+            asset logo
+            notes Next: write your first idea in under a minute.
+        }
+    )
+}
+
+gs_02_first_idea {
+    Audience: freshly installed users.
+    Outcome: create a `.rq` file; write a one-liner and a block idea; save; see highlighting.
+    Runtime: 5 min.
+    Related: [idea] [simple_idea] [block_idea] [simplicity]
+    Demo: create `reqs/product.rq` from empty folder.
+    @example {
+        ```rq
+        product_name reqlan tutorials demo
+
+        welcome_flow {
+            New users land on a calm welcome screen with one primary action: create an account.
+            Keep copy short; do not list every feature on first paint.
+        }
+        ```
+    }
+    @script {
+        SCR: Empty Explorer. New file `reqs/product.rq`.
+
+        VO: A reqlan file is just text with a `.rq` suffix. Start with the smallest form: a name, then the thought.
+
+        SCR: Type: `product_name reqlan tutorials demo` — pause so highlighting settles.
+
+        VO: That one line is already an idea. The name is a handle you'll reference later.
+            When you need more room, open a block.
+
+        SCR: Type the `welcome_flow` block from the example. Soft zoom on body prose.
+
+        VO: Inside the braces, the first free text is the main description.
+            No ceremony, no required metadata yet — [simplicity] over scaffolding.
+
+        SCR: Save. Briefly show Problems empty / language mode reqlan if visible.
+
+        VO: Save the file. If the extension is active, you get language support immediately.
+            Try this: rename `welcome_flow` to something that matches your own product, and rewrite the sentence in your voice.
+
+        SCR: End card → next: "Link ideas".
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 02
+            heading Your first idea
+            asset logo
+            notes A reqlan file is just text with a .rq suffix. Start with a name, then the thought.
+        }
+        {
+            id one-liner
+            transition none
+            background brand-panel
+            heading Name, then thought
+            code_lang rq
+            code product_name reqlan tutorials demo
+            notes That one line is already an idea. The name is a handle you will reference later.
+        }
+        {
+            id block
+            transition fade
+            background brand-panel
+            heading Open a block when you need room
+            code_lang rq
+            code welcome_flow { New users land on a calm welcome screen with one primary action. }
+            notes Inside the braces, the first free text is the main description. No required metadata yet.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Rename welcome_flow to match your product. Rewrite the sentence in your voice.
+            fragments Next: Link ideas
+            notes Save the file. Language support arrives immediately when the extension is active.
+        }
+    )
+}
+
+gs_03_link_ideas {
+    Audience: users with at least one idea file.
+    Outcome: use bracket references and a wikilink; see go-to-definition / peek if available; understand ideas as a graph.
+    Runtime: 6 min.
+    Related: [reference] [reference_brackets] [reference_wikilink]
+    @example {
+        ```rq
+        welcome_flow {
+            New users land on a calm welcome screen with one primary action: create an account.
+            Success continues into [onboarding_checklist].
+        }
+
+        onboarding_checklist {
+            After account creation, show three optional setup steps.
+            Prefer [[welcome_flow|the welcome screen]] as the way back if they bail early.
+        }
+        ```
+    }
+    @script {
+        SCR: Open `product.rq` with `welcome_flow` already present. Add `onboarding_checklist` and the bracket link.
+
+        VO: Ideas earn power when they point at each other. Square brackets name a neighbour in the graph.
+
+        SCR: Type a bracket link to onboarding_checklist inside welcome_flow. Ctrl/Cmd-click or peek definition.
+
+        VO: Follow the link — you're navigating a graph, not scrolling a document.
+
+        SCR: Add the wikilink with an alias to welcome_flow labeled "the welcome screen".
+
+        VO: Double-bracket wikilinks are familiar if you use tools like Obsidian.
+            The alias is for reading; the target is still the idea name.
+
+        SCR: Optional: open a tiny local graph / activity preview if already discoverable; otherwise stay in editor.
+
+        VO: Try this: add a third idea that both of these depend on — something like `account_model` — and link both ways once.
+
+        SCR: End card → next: "Neighbourhood in the activity bar".
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 03
+            heading Link ideas
+            asset logo
+            notes Ideas earn power when they point at each other.
+        }
+        {
+            id brackets
+            transition none
+            background brand-panel
+            heading Square brackets name a neighbour
+            code_lang rq
+            code Success continues into [onboarding_checklist].
+            notes Follow the link — you are navigating a graph, not scrolling a document.
+        }
+        {
+            id wikilink
+            transition fade
+            background brand-panel
+            heading Wikilinks with an alias
+            code_lang rq
+            code Prefer [[welcome_flow|the welcome screen]] as the way back.
+            notes The alias is for reading; the target is still the idea name.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Add account_model and link both ways once.
+            fragments Next: Activity bar
+            notes Optional: peek the local graph if it is already discoverable.
+        }
+    )
+}
+
+gs_04_activity_bar {
+    Audience: users with a small linked graph.
+    Outcome: open the reqlan activity bar; follow editor focus; copy a slice as markdown; jump to Ideas Summary without fear of a full dump.
+    Runtime: 6–7 min.
+    Related: [activity_bar] [local_graph_view] [llm_first]
+    @example {
+        ```rq
+        // Same product.rq as gs_03; no new syntax required.
+        // Optional third idea if viewer did the try-this:
+        account_model {
+            Accounts need an email and a display name.
+            Referenced by [welcome_flow] and [onboarding_checklist].
+        }
+        ```
+    }
+    @script {
+        SCR: Click the reqlan activity bar icon. Place caret inside `welcome_flow`.
+
+        VO: The activity bar is your neighbourhood view — what sits near the idea under the cursor —
+        not a dump of the whole workspace. That discipline matters when you later hand context to an LLM.
+
+        SCR: Toggle sync-with-editor if needed. Move caret between ideas; panes update. Show hop depth control briefly.
+
+        VO: Sync follows your caret. Hop depth widens or tightens how far references travel.
+            Keep it small while you're learning.
+
+        SCR: Use "Copy as markdown" (or equivalent header action). Paste into a scratch markdown file or chat draft — do not send yet.
+
+        VO: Copy a focused slice when you want to talk to a model.
+            Token-minimising context beats pasting the entire requirements folder — that's [llm_first] in practice.
+
+        SCR: Click through to Ideas Summary filtered / centred on the current idea. Pan once, then close or leave.
+
+        VO: Ideas Summary is for broader navigation when you choose it.
+            Day one: stay local unless you're lost.
+
+        VO: Try this: turn sync off, pin on one idea, click around the editor, then turn sync back on.
+
+        SCR: End card → next: "Ask @reqlan".
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 04
+            heading Neighbourhood in the activity bar
+            asset logo
+            notes The activity bar is your neighbourhood view — not a dump of the whole workspace.
+        }
+        {
+            id sync
+            transition fade
+            background brand-panel
+            heading Sync and hop depth
+            asset activity-bar
+            body Sync follows the caret. Hop depth widens or tightens references.
+            notes Keep hop depth small while you are learning.
+        }
+        {
+            id copy-slice
+            transition none
+            background brand-panel
+            heading Copy a focused slice
+            body Copy as markdown into chat — do not paste the whole requirements folder.
+            notes Token-minimising context beats dumping the workspace.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Turn sync off, pin one idea, click around, then turn sync back on.
+            fragments Next: Ask @reqlan
+            notes Ideas Summary is for broader navigation when you choose it. Day one: stay local.
+        }
+    )
+}
+
+gs_05_chat_search {
+    Audience: users ready to involve AI without abandoning the graph.
+    Outcome: invoke `@reqlan` / `/rq-search` (or installed Cursor skills); find an idea by meaning; optionally add to context / build a requirement.
+    Runtime: 6 min.
+    Related: [ai_integration] [chat_skill_naming] [ai_add_to_context] [ai_build_requirement] [mcp_tools]
+    @example {
+        ```rq
+        password_rules {
+            Passwords must be at least twelve characters and reject empty submissions.
+            Empty submissions are a hard fail on [welcome_flow].
+        }
+        ```
+    }
+    @script {
+        SCR: Ensure `password_rules` exists (type it live if missing). Open chat.
+
+        VO: reqlan meets AI through focused tools — search, scoped context, small builds —
+        not by shoving the whole graph into the prompt.
+
+        SCR: In VS Code Chat: `@reqlan /rq-search password empty`. Or Cursor skill `rq-search` if that is the recording host.
+            Show compact results: name, path, short summary.
+
+        VO: Slash commands and skills use the `rq-` prefix. Search returns a short list on purpose.
+
+        SCR: Run add-to-context / equivalent on `password_rules`. Show that only the selection joins the thread.
+
+        VO: Add what you need. Leave the rest in the index.
+
+        SCR: Optional fifteen seconds: "build new requirement" / `rq-build-requirement` with intent
+            "rate-limit failed logins" — accept or edit the draft into `product.rq`.
+
+        VO: Building a requirement from intent should land as a named idea you keep owning in source control —
+            the model proposes; the `.rq` file remains the source of truth.
+
+        VO: Try this: search for a word that only appears in a body sentence, not in the idea name.
+
+        SCR: End card → next: "Point ideas at code".
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 05
+            heading Ask @reqlan
+            asset logo
+            notes reqlan meets AI through focused tools — not by shoving the whole graph into the prompt.
+        }
+        {
+            id search
+            transition fade
+            background brand-panel
+            heading Search returns a short list
+            asset chat-search
+            body @reqlan /rq-search password empty
+            notes Slash commands and skills use the rq- prefix on purpose.
+        }
+        {
+            id context
+            transition none
+            background brand-panel
+            heading Add only what you need
+            body Add password_rules to context. Leave the rest in the index.
+            notes Building a requirement from intent should land as a named idea you own in source control.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Search for a word that only appears in a body sentence, not in the idea name.
+            fragments Next: Point ideas at code
+            notes The .rq file remains the source of truth.
+        }
+    )
+}
+
+gs_06_link_code {
+    Audience: users with application source beside `reqs/`.
+    Outcome: add a file reference from an idea to implementation; open the file from the graph; see the reverse path when standing in code.
+    Runtime: 6–7 min.
+    Related: [any_file_scope] [context_scope] [reference]
+    @example {
+        ```rq
+        // reqs/auth.rq
+        login_api {
+            POST /login validates credentials and starts a session.
+            Implementation: ["./src/login.ts"]
+            Rejects empty passwords per [password_rules].
+        }
+        ```
+
+        ```ts
+        // src/login.ts (excerpt shown on screen)
+        export async function login(email: string, password: string) {
+          if (!password) throw new Error("empty password"); }
+        ```
+    }
+    @script {
+        SCR: Create `src/login.ts` stub and `reqs/auth.rq` with `login_api` and a file reference.
+
+        VO: Requirements earn their keep when they touch reality.
+            Point an idea at a file with a file reference — the path lives in brackets like any other link.
+
+        SCR: Ctrl/Cmd-click the file reference; land in `login.ts`. Place caret in the file. Show activity bar / scope reacting to non-`.rq` focus.
+
+        VO: Context scope works on any workspace file, not only `.rq` sources.
+            Stand in the implementation and the related requirements should still surface.
+
+        SCR: Brief beat: optional folder reference or second file — keep minimal.
+
+        VO: You now have the get-started loop: name ideas, link them, inspect the neighbourhood,
+            ask the tools with a small slice, and stitch requirements to code.
+
+        SCR: Recap montage (5s): six episode titles. End card: "Advanced series · Imports, attributes, export, agents".
+
+        VO: When you're ready to grow past one file, the advanced series starts with imports and ideasets.
+            Try this before you go: link one more source file your welcome flow actually depends on.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Get started · 06
+            heading Point ideas at code
+            asset logo
+            notes Requirements earn their keep when they touch reality.
+        }
+        {
+            id file-ref
+            transition none
+            background brand-panel
+            heading File references
+            asset file-link
+            code_lang rq
+            code Implementation: ["./src/login.ts"]
+            notes The path lives in brackets like any other link.
+        }
+        {
+            id reverse
+            transition fade
+            background brand-panel
+            heading Stand in the implementation
+            body Context scope works on any workspace file, not only .rq sources.
+            notes Related requirements should still surface from code focus.
+        }
+        {
+            id end
+            transition slide
+            background brand-dark
+            heading Get-started loop complete
+            body Name, link, neighbourhood, small AI slice, stitch to code.
+            fragments Advanced series next
+            notes When you are ready to grow past one file, advanced starts with imports and ideasets.
+        }
+    )
+}
+
+// --- Advanced series ----------------------------------------------------------
+
+advanced_series (
+    adv_01_imports_ideasets,
+    adv_02_attributes_status_plans,
+    adv_03_ideas_summary_graph,
+    adv_04_context_and_tokens,
+    adv_05_comment_references,
+    adv_06_html_export,
+    adv_07_cli_and_mcp,
+    adv_08_modelling_patterns
+)
+
+advanced_series_brief {
+    Advanced series: eight episodes in [advanced_series], about 8–12 minutes each, plus [adv_overview].
+    Assumes get-started fluency (or equivalent).
+    Goal: multi-file graphs, purposeful attributes, cartographic navigation, AI token discipline,
+    code-comment traceability, HTML publishing, headless CLI/MCP, and modelling patterns that stay readable.
+    Include at least one non-software vignette (ops runbook or editorial brief) to honour [general_purpose].
+    Decks: [adv_overview] and adv_01–adv_08 under [slide_decks].
+    @status draft
+    @tags (
+        advanced
+    )
+}
+
+adv_overview {
+    Audience: viewers who finished get-started (or equivalent) and want the map of what comes next.
+    Outcome: name the eight advanced themes and pick a first deep dive.
+    Related: [advanced_series_brief] [general_purpose] [llm_first]
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced
+            heading Beyond one file
+            body Same language. Better judgement about names, links, and prompt size.
+            asset logo
+            notes Advanced reqlan is better judgement about names, links, and what stays out of the prompt.
+        }
+        {
+            id map
+            transition slide
+            background brand-panel
+            heading Eight themes ahead
+            body Imports · attributes · graph maps · context tokens · comment links · HTML export · CLI/MCP · modelling patterns
+            code_lang rq
+            code // from "./auth.rq" import login_api · namespace auth · [auth.session_policy]
+            notes Each theme has its own deck in this series.
+        }
+        {
+            id discipline
+            transition fade
+            background brand-panel
+            heading Carry the discipline forward
+            body Small slices. Maps you choose. Attributes that drive a view — or delete them.
+            code_lang rq
+            code login_api { POST /login… status and tags kept slim }
+            notes Token discipline and cartographic focus carry forward from get-started.
+        }
+        {
+            id next
+            transition fade
+            background brand-dark
+            heading Start with imports
+            body Split ideas across files. Use from-import or a namespace alias — pick what stays readable.
+            fragments Next — Imports and ideasets
+            notes Include a non-software vignette somewhere in the series to honour general-purpose design.
+        }
+    )
+}
+
+adv_01_imports_ideasets {
+    Outcome: split ideas across files; `from`/`import` and namespace import; ideasets as namespaces; resolve qualified references.
+    Runtime: 9 min.
+    Related: [import_from] [import_namespace] [ideaset]
+    @example {
+        ```rq
+        // reqs/auth.rq
+        auth_core (
+            login_api,
+            session_policy
+        )
+
+        login_api {
+            POST /login validates credentials and starts a session.
+            Bound by [session_policy].
+        }
+
+        session_policy {
+            Sessions expire after thirty minutes of inactivity.
+        }
+
+        // reqs/product.rq
+        from "./auth.rq" import login_api
+        import "./auth.rq" as auth
+
+        welcome_flow {
+            Success continues to [login_api].
+            Session rules live under [auth.session_policy].
+        }
+        ```
+    }
+    @script {
+        SCR: Start from get-started demo. Split auth ideas into `auth.rq`. Show broken references in `product.rq`, then add imports.
+
+        VO: One file is a great start. Real projects become a web of files —
+            imports make references honest about where ideas live.
+
+        SCR: Demonstrate from-import of login_api and namespace import of auth with a qualified session_policy reference.
+
+        VO: From-import pulls a single idea. Namespace import gives you a prefix for the whole file.
+            Pick the shape that keeps call sites readable.
+
+        SCR: Wrap auth ideas in an ideaset `auth_core`. Show membership / navigation if visible.
+
+        VO: Ideasets are namespace containers — a way to group without inventing a heavier module system.
+
+        VO: Try this: move `password_rules` into `auth.rq` and fix `product.rq` with the smallest import that works.
+
+        SCR: End card → "Attributes without bloat".
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 01
+            heading Imports and ideasets
+            body One file is a start. Real graphs span files — imports keep links honest.
+            asset logo
+            notes One file is a great start. Real projects become a web of files.
+        }
+        {
+            id from-import
+            transition none
+            background brand-panel
+            heading From-import one idea
+            body Pull a single neighbour when that is all the call site needs.
+            code_lang rq
+            code // from "./auth.rq" import login_api
+            notes From-import pulls a single idea.
+        }
+        {
+            id namespace
+            transition fade
+            background brand-panel
+            heading Namespace the file
+            body Alias the whole module when several ideas travel together.
+            code_lang rq
+            code // import "./auth.rq" as auth · then [auth.session_policy]
+            notes Namespace import gives you a prefix for the whole file.
+        }
+        {
+            id ideaset
+            transition fade
+            background brand-panel
+            heading Ideasets as namespaces
+            body Group related ideas without a heavier module system.
+            code_lang rq
+            code auth_core ( login_api, session_policy )
+            notes Ideasets are namespace containers.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Move password_rules into auth.rq. Fix product.rq with the smallest import that works.
+            fragments Next — Attributes without bloat
+            notes Pick the import shape that keeps call sites readable.
+        }
+    )
+}
+
+adv_02_attributes_status_plans {
+    Outcome: add `@status`, `@tags`, and `@plan` without turning every idea into a form; use write-plan AI lightly; keep attributes slim per project norms.
+    Runtime: 8–10 min.
+    Related: [attribute] [attribute_configuration] [ai_write_plan]
+    @example {
+        ```rq
+        login_api {
+            POST /login validates credentials and starts a session.
+            Implementation: ["./src/login.ts"]
+            @status in-progress
+            @tags (
+                auth
+                security
+            )
+            @plan {
+                goal: ship email/password login for the demo app
+                constraints: must honour [password_rules]; no OAuth in this slice
+                steps: validate input; issue session; add audit on failure
+                open: rate-limit threshold still undecided
+            }
+        }
+        ```
+    }
+    @script {
+        SCR: Open `login_api`. Add `@status` and `@tags` first — pause.
+
+        VO: Attributes are metadata you opt into. reqlan stays unopinionated about which keys you invent —
+            slim attributes beat ceremonial fields you never read.
+
+        SCR: Add `@plan` either by hand or via write-plan / `rq-write-plan`. Edit one line after generation so ownership is visible.
+
+        VO: Plans belong on the idea, in git, next to the prose — not only in a chat transcript.
+            Let the model draft; you keep the plan honest.
+
+        SCR: Quick filter in Ideas Summary or status surfaces by `@status` / tags if available.
+
+        VO: Status and tags earn their keep when they drive a view or a search.
+            If an attribute never appears in how you navigate, delete it.
+
+        VO: Try this: add `@status draft` to one idea you are not ready to implement, and leave its plan empty on purpose.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 02
+            heading Attributes without bloat
+            body Opt into metadata. Slim keys beat ceremonial forms.
+            asset logo
+            notes Attributes are metadata you opt into.
+        }
+        {
+            id status-tags
+            transition none
+            background brand-panel
+            heading Status and tags first
+            body Earn their keep when they drive a view or a search.
+            code_lang rq
+            code status: in-progress / tags: auth, security
+            notes Slim attributes beat ceremonial fields you never read.
+        }
+        {
+            id plan
+            transition fade
+            background brand-panel
+            heading Plans live on the idea
+            body In git, next to the prose — not only in a chat transcript.
+            code_lang rq
+            code plan goal: ship email/password login; honour [password_rules]
+            notes Let the model draft; you keep the plan honest.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Mark one idea @status draft and leave its plan empty on purpose.
+            fragments Next — Ideas Summary graph
+            notes If an attribute never appears in how you navigate, delete it.
+        }
+    )
+}
+
+adv_03_ideas_summary_graph {
+    Outcome: use Ideas Summary graph as a cartographic map — filter, focus, depth, fit-to-view — without loading an unusable full dump.
+    Runtime: 10 min.
+    Related: [graph_view] [cartographic_map] [local_graph_view]
+    @example {
+        ```
+        // No new syntax — use the multi-file demo graph.
+        // On-screen callouts: search box, status filter, indirect references toggle, fit to view.
+        ```
+    }
+    @script {
+        SCR: Open Ideas Summary → Graph. Start from focused idea `welcome_flow`. Pan/zoom once.
+
+        VO: Large graphs overwhelm. Treat this view like a map you curate — a cartographic cut of the territory —
+            not a mandatory god's-eye dump.
+
+        SCR: Filter by path `reqs/auth`, toggle indirect references 1→2 hops, focus another node, Fit to view.
+
+        VO: Search and filters choose the slice. Hop depth is a deliberate trade.
+            Click to read source; double-click or focus to re-centre.
+
+        SCR: Show dashed edge to a code file node if present. Open key/legend briefly; close it.
+
+        VO: External files show up as neighbours you can still reach.
+            When the picture gets noisy, narrow the query — don't increase the node budget first.
+
+        VO: Try this: screenshot a useful focus for a PR description, then reset filters to your default.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 03
+            heading Maps you choose
+            body Ideas Summary is a cartographic cut — not a mandatory full dump.
+            asset logo
+            notes Large graphs overwhelm. Treat this view like a map you curate.
+        }
+        {
+            id focus
+            transition fade
+            background brand-panel
+            heading Start focused
+            body Open on one idea. Pan once. Then decide what else belongs.
+            asset activity-bar
+            notes Start from focused idea welcome_flow.
+        }
+        {
+            id filters
+            transition none
+            background brand-panel
+            heading Filter, then deepen
+            body Path filters and hop depth are deliberate trades — not defaults to max out.
+            code_lang txt
+            code search: welcome_flow / path: reqs/auth / hops: 1 → 2 / Fit to view
+            notes When the picture gets noisy, narrow the query first.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Screenshot a useful focus for a PR, then reset filters to your default.
+            fragments Next — Context and tokens
+            notes External files show up as neighbours you can still reach.
+        }
+    )
+}
+
+adv_04_context_and_tokens {
+    Outcome: steer context dimensions consciously; explain why small slices beat full-graph prompts; practice add-to-context + markdown copy as a habit.
+    Runtime: 10 min.
+    Related: [context_scope] [llm_first] [ai_integration] [ai_add_to_context]
+    @example {
+        ```
+        // Show a bad prompt vs a good prompt on a slide, then perform the good path live.
+        // Bad: "Here's every .rq file in the repo:" + huge paste
+        // Good: copied neighbourhood for login_api + one question
+        ```
+    }
+    @script {
+        SCR: Open activity bar Scope / context tray. With caret on `login_api`, expand one dimension at a time.
+
+        VO: Context is a composed model — current idea, references, files, optional manual pins —
+            not a single blob labelled "the project".
+
+        SCR: Contrast slide: bloated paste vs compact markdown slice. Then copy neighbourhood for `login_api` into chat with one precise question:
+            "What tests are missing for empty password rejection?"
+
+        VO: Token discipline is a product feature and a habit.
+            Summaries and counts first; expand a dimension when you mean to.
+
+        SCR: Pin one extra idea manually; show it in the tray; unpin.
+
+        VO: Manual context is for the exception you're reasoning about now —
+            not a permanent junk drawer.
+
+        VO: Try this: answer the same coding question twice — once with a whole-file paste, once with a neighbourhood slice — and compare the model's focus.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 04
+            heading Context and tokens
+            body Compose a slice. Do not paste the whole project by habit.
+            asset logo
+            notes Context is a composed model — not a single blob labelled the project.
+        }
+        {
+            id contrast
+            transition none
+            background brand-panel
+            heading Bad paste vs good slice
+            body Same question. Different focus for the model.
+            code_lang txt
+            code Bad: paste every .rq file / Good: neighbourhood for login_api + one question
+            notes Token discipline is a product feature and a habit.
+        }
+        {
+            id pins
+            transition fade
+            background brand-panel
+            heading Pins are exceptions
+            body Manual context is for the thing you are reasoning about now — not a junk drawer.
+            asset chat-search
+            notes Summaries and counts first; expand a dimension when you mean to.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Ask once with a whole-file paste, once with a neighbourhood slice. Compare focus.
+            fragments Next — Comment references
+            notes Copy neighbourhood for login_api with one precise question.
+        }
+    )
+}
+
+adv_05_comment_references {
+    Outcome: place rq:[…] comment links in implementation; navigate from code comments to ideas; understand round-trip traceability with file references.
+    Runtime: 8–9 min.
+    Related: [references_in_functional_code_comments] [any_file_scope]
+    @example {
+        ```ts
+        // src/login.ts
+        export async function login(email: string, password: string) {
+          // rq:[password_rules]
+          if (!password) throw new Error("empty password");
+          // rq:["../reqs/auth.rq".login_api] }
+        ```
+    }
+    @script {
+        SCR: Open `login.ts`. Add a comment reference to password_rules above the empty-password guard. Show link underline / navigation.
+
+        VO: File references point requirements at code. Comment references point code back at requirements —
+            same graph, entered from the implementation side.
+
+        SCR: Add a qualified comment link to `login_api`. Flip to activity bar while focused in the TypeScript file.
+
+        VO: The prefix `rq:` marks the token for tooling. It works across languages because it lives in comments.
+
+        SCR: Optional 20s: same pattern in a Python snippet to stress [general_purpose] / any-language comments.
+
+        VO: Try this: add one comment reference in a test file pointing at `password_rules`.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 05
+            heading Comment references
+            body Point code back at requirements — same graph, other door.
+            asset logo
+            notes File references point requirements at code. Comment references reverse the arrow.
+        }
+        {
+            id rq-token
+            transition none
+            background brand-panel
+            heading The rq: token
+            body Lives in comments, so it works across languages.
+            code_lang ts
+            code // rq:[password_rules]
+            notes The prefix rq: marks the token for tooling.
+        }
+        {
+            id round-trip
+            transition fade
+            background brand-panel
+            heading Round-trip traceability
+            body Requirements → files. Files → requirements. Both stay in the graph.
+            code_lang ts
+            code // rq:["../reqs/auth.rq".login_api]
+            asset file-link
+            notes Same graph, entered from the implementation side.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Add one comment reference in a test file pointing at password_rules.
+            fragments Next — HTML export
+            notes Optional: show the same pattern in Python for any-language comments.
+        }
+    )
+}
+
+adv_06_html_export {
+    Outcome: export a multi-page HTML site from the graph; open idea pages and internal links; mention site embedding / url-base only briefly.
+    Runtime: 9–10 min.
+    Related: [html_export] [docs_reqs] [commands]
+    @example {
+        ```
+        // Command palette: Reqlan export HTML (form webview)
+        // Scope: workspace or reqs/
+        // Output: ./docs-site
+        // After export: open index, click through to login_api page, use search if visible
+        ```
+    }
+    @script {
+        SCR: Command Palette → export HTML. Show the form: simple fields first; glance at advanced collapsed section.
+
+        VO: When the graph needs to leave the editor — reviews, stakeholders, a public spec —
+            export builds a static multi-page site from the same ideas you already wrote.
+
+        SCR: Run export. Open the output in a browser. Click an idea, a file page, follow an internal reference.
+
+        VO: Stable pages and links matter: the export is documentation, not a screenshot of the IDE.
+
+        SCR: Optional: CLI one-liner `reqlan export` with the same folder for parity — ten seconds.
+
+        VO: Extension and CLI share the analytical core — pick the host that fits the moment.
+
+        VO: Try this: export with a narrow scope folder and compare page count to a full workspace export.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 06
+            heading Export the graph as HTML
+            body Same ideas. Static pages stakeholders can open.
+            asset logo
+            notes When the graph needs to leave the editor — reviews, stakeholders, a public spec.
+        }
+        {
+            id export
+            transition fade
+            background brand-panel
+            heading Command palette → export
+            body Simple fields first. Advanced options stay collapsed until you need them.
+            code_lang txt
+            code scope: reqs/ / output: ./docs-site / open index → login_api
+            notes Stable pages and links matter — documentation, not an IDE screenshot.
+        }
+        {
+            id parity
+            transition fade
+            background brand-panel
+            heading Extension or CLI
+            body Same analytical core. Pick the host that fits the moment.
+            code_lang bash
+            code reqlan export --out ./docs-site
+            notes Extension and CLI share the analytical core.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Export a narrow folder and compare page count to a full workspace export.
+            fragments Next — CLI and MCP
+            notes Click an idea, a file page, follow an internal reference.
+        }
+    )
+}
+
+adv_07_cli_and_mcp {
+    Outcome: run `reqlan search` / `analyse` in a terminal; explain shared `.reqlan` index; install Cursor skills / MCP when available; show one headless search.
+    Runtime: 10–12 min.
+    Related: [cli_package] [commands] [mcp_tools] [cursor_skills_install] [chat_skill_naming]
+    @example {
+        ```bash
+        npx reqlan search "empty password"
+        npx reqlan analyse --idea login_api
+        npx reqlan parse reqs/auth.rq
+        ```
+    }
+    @script {
+        SCR: Terminal in the demo workspace. Run search, then analyse on `login_api`. Show concise output.
+
+        VO: The CLI speaks to the same analytical API as the extension and MCP tools.
+            Headless CI, local scripts, and editors share one index under `.reqlan` unless you override it.
+
+        SCR: Briefly open `.reqlan` in Explorer — do not deep-dive internals.
+
+        VO: Treat the index as tooling memory, not something you hand-edit.
+
+        SCR: Command Palette: install Cursor skills (if recording in Cursor). Show `.cursor/skills` / mcp config update at a high level.
+            Run one `rq-search` from chat against the same query as the CLI.
+
+        VO: Skills and MCP exist so agents use focused graph operations —
+            search, summarise, interrogate — with the same token discipline as a careful human.
+
+        VO: Try this: wire a CI step that runs `reqlan parse` on `reqs/` and fails the build on diagnostics.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 07
+            heading CLI and MCP
+            body Same graph API — terminal, CI, agents, and the editor.
+            asset logo
+            notes The CLI speaks to the same analytical API as the extension and MCP tools.
+        }
+        {
+            id cli
+            transition none
+            background brand-panel
+            heading Headless search
+            body Concise output. Shared index under .reqlan.
+            code_lang bash
+            code npx reqlan search "empty password"
+            notes Treat the index as tooling memory, not something you hand-edit.
+        }
+        {
+            id agents
+            transition fade
+            background brand-panel
+            heading Skills and MCP
+            body Agents get focused graph ops — search, summarise, interrogate — with token discipline.
+            code_lang txt
+            code /rq-search empty password
+            notes Skills and MCP exist so agents use focused graph operations.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Wire CI to run reqlan parse on reqs/ and fail on diagnostics.
+            fragments Next — Modelling patterns
+            notes Headless CI, local scripts, and editors share one index.
+        }
+    )
+}
+
+adv_08_modelling_patterns {
+    Outcome: leave viewers with durable modelling habits — thin ideas, explicit links, purposeful attributes, maps over dumps — including one non-software example.
+    Runtime: 10–11 min.
+    Related: [simplicity] [general_purpose] [cartographic_map] [mission_statement]
+    @example {
+        ```rq
+        // Vignette B — editorial / ops, still .rq
+        // reqs/newsletter.rq
+        issue_brief {
+            June issue theme: "small tools with sharp edges".
+            Lead piece must cite [interview_lee].
+            @status draft
+            @tags (
+                editorial
+            )
+        }
+
+        interview_lee {
+            Interview with Lee about maintaining a tiny CLI used in production.
+            Assets live under ["./media/interviews/"]
+        }
+
+        production_checklist {
+            Before send: spellcheck, link check, unsubscribe footer, [issue_brief] theme echoed in subject line.
+        }
+        ```
+    }
+    @script {
+        SCR: Title: "Patterns that age well". Quick recap montage of the advanced series (5s).
+
+        VO: Advanced reqlan is not more syntax — it's better judgement about what deserves a name,
+            what deserves a link, and what deserves to stay out of the prompt.
+
+        SCR: Open the newsletter vignette file. Navigate links. Show this is still the same language.
+
+        VO: The language is general-purpose. Software is the common case, not the only case.
+            If you can name a concept and care about its neighbours, it can live in a `.rq` graph.
+
+        SCR: Return to the product demo. On a whiteboard slide (or typed list), four patterns:
+            1. One idea, one job
+            2. Links over duplication
+            3. Attributes that drive a view
+            4. Maps you choose, never mandatory full dumps
+
+        VO: Those four keep you aligned with why the project exists —
+            a structured semantic framework for people working with LLMs, with ergonomic definition and consumption.
+
+        SCR: End card: link pack from [phonebook] — site, docs, marketplace, GitHub. "Write the idea. Link the neighbour. Ship the slice."
+
+        VO: Thanks for watching. Write the idea. Link the neighbour. Ship the slice.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 08
+            heading Patterns that age well
+            body Not more syntax — better judgement about names, links, and prompt size.
+            asset logo
+            notes Advanced reqlan is not more syntax.
+        }
+        {
+            id vignette
+            transition none
+            background brand-panel
+            heading Same language, other domain
+            body Editorial briefs and ops checklists are still named ideas with neighbours.
+            code_lang rq
+            code issue_brief { June theme… cite [interview_lee]. status draft }
+            notes Software is the common case, not the only case.
+        }
+        {
+            id four
+            transition fade
+            background brand-panel
+            heading Four durable habits
+            body Keep the graph readable for people and models alike.
+            code_lang txt
+            code 1. One idea, one job / 2. Links over duplication / 3. Attributes that drive a view / 4. Maps you choose
+            notes A structured semantic framework for people working with LLMs.
+        }
+        {
+            id end
+            transition fade
+            background brand-dark
+            heading Write the idea
+            body Link the neighbour. Ship the slice.
+            asset logo
+            fragments Back to tutorials
+            notes Thanks for watching.
+        }
+    )
+}
+
+// --- Production notes ---------------------------------------------------------
+
+tutorial_production {
+    Recording order: get-started 01→06, then advanced 01→08; pickups allowed out of order.
+    Slide decks for [slide_decks] live under ["../../presentations/"] as Reveal.js JSON plus a shared player shell.
+    Site embeds those decks under /tutorials per the marketing site tutorials section.
+    Each episode may also ship: master video, short vertical teaser (optional), example files under a public examples/tutorials/ tree (path TBD with docs), and a transcript derived from `@script`.
+    Thumbnails: dark rust / aqua; episode index; avoid clutter per [show_dont_tell].
+    Accessibility: burned-in or downloadable captions from the script; avoid conveying unique info by colour alone on graph filters.
+    Keep demos on extension behaviours marked `@status done` in the requirement graph; if a referenced feature is incomplete, note it on-screen as preview or skip that beat.
+    @status draft
+}
+
+tutorial_success_metrics {
+    Qualitative: a viewer can complete the get-started try-this prompts without reading the monorepo.
+    Quantitative (once published): marketplace / site CTR from end cards; completion rate on get-started 01–03; example-repo clones or gist hits.
+    Feedback loop: file issues against this `.rq` file when scripts drift from product behaviour.
+}

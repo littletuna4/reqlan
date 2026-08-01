@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reqlan tutorial</title>
+    <script>
+      // Hosts often rewrite .../player/index.html → .../player (no trailing slash).
+      // Without a directory base, ./theme.css resolves to /presentations/theme.css.
+      (function () {
+        var path = location.pathname;
+        var marker = "/presentations/player";
+        var index = path.indexOf(marker);
+        if (index === -1) return;
+        var base = path.slice(0, index + marker.length) + "/";
+        document.write('<base href="' + base + '">');
+      })();
+    </script>
+    <link rel="stylesheet" href="../vendor/reveal.js/reset.css" />
+    <link rel="stylesheet" href="../vendor/reveal.js/reveal.css" />
+    <link rel="stylesheet" href="./theme.css" />
+  </head>
+  <body>
+    <div id="deck-error" role="alert"></div>
+    <div class="reveal">
+      <div class="slides" id="slides"></div>
+    </div>
+    <script src="./player.js" type="module"></script>
+  </body>
+</html>

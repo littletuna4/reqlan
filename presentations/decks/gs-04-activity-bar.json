@@ -1,0 +1,57 @@
+{
+  "id": "gs-04-activity-bar",
+  "title": "Neighbourhood in the activity bar",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started \u00b7 04",
+        "heading": "Stay local by default",
+        "body": "The activity bar shows what sits near the caret \u2014 not the whole workspace.",
+        "asset": "logo"
+      },
+      "notes": "That discipline matters when you later hand context to an LLM."
+    },
+    {
+      "id": "sync",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Sync and hop depth",
+        "body": "Sync follows the caret. Hop depth widens how far references travel. Keep it small while learning.",
+        "asset": "activity-bar"
+      },
+      "notes": "Keep hop depth small while you are learning."
+    },
+    {
+      "id": "copy-slice",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Copy a focused slice",
+        "body": "Paste into chat on purpose. Do not dump every .rq file.",
+        "code_label": "what you copy",
+        "code": "## welcome_flow\nCalm first screen\u2026\n\u2192 onboarding_checklist\n\u2192 account_model",
+        "code_lang": "md"
+      },
+      "notes": "Token-minimising context beats dumping the workspace."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Turn sync off, pin one idea, click around the editor, then turn sync back on.",
+        "fragments": [
+          "Next \u2014 ask @reqlan"
+        ]
+      },
+      "notes": "Ideas Summary is for broader navigation when you choose it."
+    }
+  ]
+}

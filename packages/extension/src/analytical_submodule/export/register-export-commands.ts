@@ -11,14 +11,15 @@ import {
 import { loadApplyingRqConfig, type RqExportConfig } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../index.js';
 import { toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
+import { ExportFormPanel } from './export-form-panel.js';
 
 export function registerExportCommands(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('reqlan.exportHtml', async () => {
-            await exportRequirements('html', submodule);
+        vscode.commands.registerCommand('reqlan.exportHtml', () => {
+            ExportFormPanel.show(context, submodule);
         }),
         vscode.commands.registerCommand('reqlan.exportPdf', async () => {
             await exportRequirements('pdf', submodule);

@@ -19,6 +19,11 @@
   padding: 3rem 2.5rem 4rem;
 }
 
+.main :global(main[data-wide]) {
+  max-width: min(96rem, 100%);
+  padding: 1rem 1.25rem 1.5rem;
+}
+
 @media (max-width: 768px) {
   .shell {
     flex-direction: column;

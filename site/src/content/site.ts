@@ -36,6 +36,7 @@ export const siteContent = {
 
   nav: [
     { id: "quickstart", label: "Get started", href: "/quickstart" },
+    { id: "tutorials", label: "Tutorials", href: "/tutorials" },
     { id: "motivation", label: "Motivation" },
     { id: "syntax", label: "Syntax" },
     { id: "example", label: "Example" },

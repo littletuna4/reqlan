@@ -1,0 +1,54 @@
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 3rem 2.5rem 4rem;
+}
+
+.pageDeck {
+  flex: 1;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 1.75rem;
+}
+
+.intro {
+  margin: 0.5rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.series {
+  margin-bottom: 2.5rem;
+}
+
+.seriesTitle {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.seriesIntro {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 2rem 1.25rem 3rem;
+  }
+}

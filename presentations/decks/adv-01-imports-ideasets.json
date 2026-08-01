@@ -1,0 +1,70 @@
+{
+  "id": "adv-01-imports-ideasets",
+  "title": "Imports and ideasets",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 01",
+        "heading": "Imports and ideasets",
+        "body": "One file is a start. Real graphs span files — imports keep links honest.",
+        "asset": "logo"
+      },
+      "notes": "One file is a great start. Real projects become a web of files."
+    },
+    {
+      "id": "from-import",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "From-import one idea",
+        "body": "Pull a single neighbour when that is all the call site needs.",
+        "code_label": "reqs/product.rq",
+        "code": "from \"./auth.rq\" import login_api\n\nwelcome_flow {\n    Success continues to [login_api].\n}",
+        "code_lang": "rq"
+      },
+      "notes": "From-import pulls a single idea."
+    },
+    {
+      "id": "namespace",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Namespace the file",
+        "body": "Alias the whole module when several ideas travel together.",
+        "code_label": "qualified reference",
+        "code": "import \"./auth.rq\" as auth\n\nwelcome_flow {\n    Session rules live under [auth.session_policy].\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Namespace import gives you a prefix for the whole file."
+    },
+    {
+      "id": "ideaset",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ideasets as namespaces",
+        "body": "Group related ideas without a heavier module system.",
+        "code_label": "reqs/auth.rq",
+        "code": "auth_core (\n    login_api,\n    session_policy\n)\n\nlogin_api {\n    Bound by [session_policy].\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Ideasets are namespace containers."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Move password_rules into auth.rq. Fix product.rq with the smallest import that works.",
+        "fragments": ["Next — Attributes without bloat"]
+      },
+      "notes": "Pick the import shape that keeps call sites readable."
+    }
+  ]
+}

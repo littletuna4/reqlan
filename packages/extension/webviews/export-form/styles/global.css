@@ -1,0 +1,33 @@
+:root {
+    color-scheme: light dark;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+    background: var(--vscode-editor-background);
+    line-height: 1.5;
+}
+
+button,
+input,
+select {
+    font: inherit;
+    color: inherit;
+}

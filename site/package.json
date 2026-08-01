@@ -4,12 +4,13 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "predev": "tsx scripts/validate-showcase-rq.mts && tsx scripts/generate-highlights.mts",
+        "predev": "tsx scripts/validate-showcase-rq.mts && tsx scripts/sync-presentations.mts && tsx scripts/generate-highlights.mts",
         "dev": "next dev",
         "build": "tsx scripts/build-static.mts",
         "preview": "npx serve out -l 3000",
         "lint": "eslint",
         "validate:showcase": "tsx scripts/validate-showcase-rq.mts",
+        "sync:presentations": "tsx scripts/sync-presentations.mts",
         "generate:images": "node scripts/generate-images.mjs"
     },
     "dependencies": {
@@ -19,12 +20,14 @@
         "clsx": "^2.1.1",
         "motion": "^12.42.2",
         "next": "^15.5.4",
+        "nuqs": "^2.9.4",
         "react": "19.2.4",
         "react-dom": "19.2.4",
         "shiki": "^4.3.1",
         "tailwind-merge": "^3.6.0"
     },
     "devDependencies": {
+        "@eslint/js": "^9.39.1",
         "@iconify-icons/mdi": "^1.2.48",
         "@iconify-icons/simple-icons": "^1.2.74",
         "@reqlan/language": "workspace:*",
@@ -33,7 +36,6 @@
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "eslint": "^9",
-        "@eslint/js": "^9.39.1",
         "eslint-plugin-react-hooks": "^7.0.1",
         "langium": "~4.3.0",
         "sharp": "^0.34.5",

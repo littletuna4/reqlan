@@ -13,11 +13,17 @@ const headerHref = configuredBase ? `${configuredBase}/` : "/";
 const requiredPaths = [
   "index.html",
   "quickstart/index.html",
+  "tutorials/index.html",
+  "tutorials/gs-01-why-reqlan/index.html",
   "showcase/index.html",
   "spec/index.html",
   "spec/graph.html",
   "spec/ideas.html",
   "404.html",
+  "presentations/player/index.html",
+  "presentations/decks/gs-01-why-reqlan.json",
+  "presentations/manifest.json",
+  "presentations/vendor/reveal.js/reveal.js",
   ...showcases.map((showcase) => `showcase/${showcase.id}/index.html`),
 ];
 

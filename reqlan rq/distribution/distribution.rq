@@ -17,8 +17,8 @@ version_management {
 npm_distribution {
   npm publishing runs only when a `language/v*`, `analytical/v*`, or `cli/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language/analytical/cli, then publishes each package as its own matrix leaf (`language`, `analytical`, `cli`) via `pnpm --filter <pkg> publish --access public --no-git-checks`.
-  Before each leaf publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that leaf when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
+  The deploy workflow builds language/analytical/cli once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then cli).
+  Before each package publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that step when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
   Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.

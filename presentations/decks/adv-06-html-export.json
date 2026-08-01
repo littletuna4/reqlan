@@ -1,0 +1,57 @@
+{
+  "id": "adv-06-html-export",
+  "title": "Export the graph as HTML",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 06",
+        "heading": "Export the graph as HTML",
+        "body": "Same ideas. Static pages stakeholders can open.",
+        "asset": "logo"
+      },
+      "notes": "When the graph needs to leave the editor — reviews, stakeholders, a public spec."
+    },
+    {
+      "id": "export",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Command palette → export",
+        "body": "Simple fields first. Advanced options stay collapsed until you need them.",
+        "code_label": "typical run",
+        "code": "scope: reqs/\noutput: ./docs-site\nopen: index.html → login_api",
+        "code_lang": "txt"
+      },
+      "notes": "Stable pages and links matter — documentation, not an IDE screenshot."
+    },
+    {
+      "id": "parity",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Extension or CLI",
+        "body": "Same analytical core. Pick the host that fits the moment.",
+        "code_label": "terminal",
+        "code": "reqlan export --out ./docs-site",
+        "code_lang": "bash"
+      },
+      "notes": "Extension and CLI share the analytical core."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Export a narrow folder and compare page count to a full workspace export.",
+        "fragments": ["Next — CLI and MCP"]
+      },
+      "notes": "Click an idea, a file page, follow an internal reference."
+    }
+  ]
+}

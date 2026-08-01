@@ -6,7 +6,8 @@ html_export {
     The extension should support building documentation as html from the requirement graph.
     Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
     Core export pipeline lives in `@reqlan/analytical` (`exportHtml` / `AnalysisApi.exportHtml`); the extension command palette and CLI (`reqlan export`) are thin hosts.
-    A command palette action should export requirements to html as a multi-file static site (single-file mode remains optional via [html_export_runtime_modes]).
+    A command palette action should open [html_export_form] and export requirements to html as a multi-file static site (single-file mode remains optional via [html_export_runtime_modes]).
+    [html_export_form]
     [html_export_multi_file]
     [html_export_internal_links]
     [html_export_search]
@@ -23,6 +24,27 @@ html_export {
     [html_export_scrollable_lists]
     [html_export_header_link]
     [html_export_url_base]
+}
+
+html_export_form {
+    The extension HTML export command should open a webview form instead of a chain of QuickPick prompts.
+    Simple options: scope, output folder, export name, and runtime mode.
+    Advanced settings should be collapsed by default behind an expandable section (template, cluster strategy, page-family toggles, exclude-secret, url base, header link, print entry, neighbourhood graph node cap).
+    Form defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/`.
+    Saving settings or running export writes that file; reopening the form reloads the last values.
+    Export still calls `@reqlan/analytical` `exportHtml` with an `ExportRequest` built from the form.
+    @status done
+    @implementation (
+        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-form-panel.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-settings.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-form-settings-types.ts"]
+        ["../../packages/extension/webviews/export-form/"]
+    )
+    @tests (
+        ["../../packages/extension/test/export-settings.test.ts"]
+        ["../../packages/extension/test/extension-package.test.ts"]
+    )
 }
 
 html_export_multi_file {

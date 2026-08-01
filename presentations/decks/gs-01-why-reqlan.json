@@ -1,0 +1,75 @@
+{
+  "id": "gs-01-why-reqlan",
+  "title": "Why requirements as code",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started \u00b7 01",
+        "heading": "Stop pasting requirements into chat",
+        "body": "Name them once. Link them. Hand the model a slice \u2014 not the whole repo.",
+        "asset": "logo"
+      },
+      "notes": "If you work with language models on real projects, you already write requirements \u2014 you just write them into the chat window, over and over."
+    },
+    {
+      "id": "contrast",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Same intent, two shapes",
+        "body": "Prose dumps drift. Named ideas stay findable.",
+        "code_label": "chat paste",
+        "code": "Users must log in. Empty passwords fail.\nSessions time out. Failed attempts get logged.\nAlso remember rate limits somehow\u2026",
+        "code_lang": "txt",
+        "code_b_label": "reqs/auth.rq",
+        "code_b": "login must reject empty passwords\nsession expires after inactivity\naudit_log records failed attempts",
+        "code_b_lang": "rq"
+      },
+      "notes": "reqlan turns that intent into a graph of named ideas \u2014 requirements as code."
+    },
+    {
+      "id": "loop",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "The get-started loop",
+        "body": "Write \u2192 link \u2192 inspect neighbourhood \u2192 ask with a small slice \u2192 point at code.",
+        "code_label": "one idea",
+        "code": "welcome_flow {\n    Calm first screen. One primary action.\n    Continues into [onboarding_checklist].\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Day one is name, prose, related work \u2014 not a ceremony of metadata."
+    },
+    {
+      "id": "install",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Install, then open a folder",
+        "body": "VS Code Marketplace or Open VSX. First launch shows a short welcome.",
+        "code_label": "file suffix",
+        "code": "reqs/product.rq",
+        "code_lang": "txt"
+      },
+      "notes": "Keep the welcome links handy; we will use them later."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Requirements as code for LLM work",
+        "body": "Owned in git. Searchable. Small enough to paste on purpose.",
+        "fragments": [
+          "Next \u2014 write your first idea"
+        ]
+      },
+      "notes": "Next: write your first idea in under a minute."
+    }
+  ]
+}

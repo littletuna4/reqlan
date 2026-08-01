@@ -28,17 +28,6 @@ concurrency:
 
 jobs:
   publish:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - id: language
-            filter: "@reqlan/language"
-          - id: analytical
-            filter: "@reqlan/analytical"
-          - id: cli
-            filter: "@reqlan/cli"
-    name: ${{ matrix.id }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -72,14 +61,31 @@ jobs:
           pnpm --filter @reqlan/cli run build
           pnpm run build:readme
 
-      # Skip when this matrix package's version is already on the public registry.
-      - name: Check if already published
-        id: check
-        run: node scripts/skip-already-published.mjs --filter "${{ matrix.filter }}"
-
       # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
       # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
       # GitHub Actions / littletuna4 / reqlan / deploy-npm.yml / npm publish.
-      - name: Publish ${{ matrix.filter }}
-        if: steps.check.outputs.should_publish == 'true'
-        run: pnpm --filter "${{ matrix.filter }}" publish --access public --no-git-checks
+      # Each package is a separate step so already-published versions can skip.
+
+      - name: Check @reqlan/language
+        id: check_language
+        run: node scripts/skip-already-published.mjs --filter "@reqlan/language"
+
+      - name: Publish @reqlan/language
+        if: steps.check_language.outputs.should_publish == 'true'
+        run: pnpm --filter "@reqlan/language" publish --access public --no-git-checks
+
+      - name: Check @reqlan/analytical
+        id: check_analytical
+        run: node scripts/skip-already-published.mjs --filter "@reqlan/analytical"
+
+      - name: Publish @reqlan/analytical
+        if: steps.check_analytical.outputs.should_publish == 'true'
+        run: pnpm --filter "@reqlan/analytical" publish --access public --no-git-checks
+
+      - name: Check @reqlan/cli
+        id: check_cli
+        run: node scripts/skip-already-published.mjs --filter "@reqlan/cli"
+
+      - name: Publish @reqlan/cli
+        if: steps.check_cli.outputs.should_publish == 'true'
+        run: pnpm --filter "@reqlan/cli" publish --access public --no-git-checks

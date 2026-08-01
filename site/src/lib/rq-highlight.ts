@@ -323,3 +323,25 @@ function ideaToken(
     tooltip: "Idea name",
   };
 }
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+/** HTML for Reveal / static slides — same tokenization as RqCode. */
+export function highlightRqHtml(code: string): string {
+  return tokenizeRq(code)
+    .map((token) => {
+      const text = escapeHtml(token.text);
+      if (token.type === "plain") {
+        return text;
+      }
+      const kind = token.type === "file-ref" ? "file-ref" : token.type;
+      return `<span class="rq-tok rq-tok-${kind}">${text}</span>`;
+    })
+    .join("");
+}

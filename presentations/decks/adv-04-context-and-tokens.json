@@ -1,0 +1,58 @@
+{
+  "id": "adv-04-context-and-tokens",
+  "title": "Context and tokens",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 04",
+        "heading": "Context and tokens",
+        "body": "Compose a slice. Do not paste the whole project by habit.",
+        "asset": "logo"
+      },
+      "notes": "Context is a composed model — not a single blob labelled the project."
+    },
+    {
+      "id": "contrast",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Bad paste vs good slice",
+        "body": "Same question. Different focus for the model.",
+        "code_label": "bloated",
+        "code": "Here's every .rq file in the repo:\n(auth.rq, product.rq, … 40KB)\nWhat tests are missing?",
+        "code_lang": "txt",
+        "code_b_label": "neighbourhood",
+        "code_b": "## login_api\nPOST /login… rejects empty passwords.\nrefs: [password_rules] [\"./src/login.ts\"]\n\nWhat tests are missing for empty password rejection?",
+        "code_b_lang": "md"
+      },
+      "notes": "Token discipline is a product feature and a habit."
+    },
+    {
+      "id": "pins",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Pins are exceptions",
+        "body": "Manual context is for the thing you are reasoning about now — not a junk drawer.",
+        "asset": "chat-search"
+      },
+      "notes": "Summaries and counts first; expand a dimension when you mean to."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Ask once with a whole-file paste, once with a neighbourhood slice. Compare focus.",
+        "fragments": ["Next — Comment references"]
+      },
+      "notes": "Copy neighbourhood for login_api with one precise question."
+    }
+  ]
+}

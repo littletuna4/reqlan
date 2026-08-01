@@ -1,0 +1,17 @@
+{
+    "extends": "@tsconfig/svelte/tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "types": ["svelte"]
+    },
+    "include": [
+        "./**/*.ts",
+        "./**/*.svelte.ts",
+        "./**/*.svelte",
+        "../../src/analytical_submodule/export/export-form-messages.ts",
+        "../../src/analytical_submodule/export/export-form-settings-types.ts"
+    ]
+}

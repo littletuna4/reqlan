@@ -1,0 +1,59 @@
+{
+  "id": "gs-06-link-code",
+  "title": "Point ideas at code",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started \u00b7 06",
+        "heading": "Requirements that touch reality",
+        "body": "Point an idea at a file. Stand in the file and see related ideas.",
+        "asset": "logo"
+      },
+      "notes": "Requirements earn their keep when they touch reality."
+    },
+    {
+      "id": "file-ref",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "File references",
+        "body": "Paths live in brackets like any other link.",
+        "code_label": "reqs/auth.rq",
+        "code": "login_api {\n    POST /login validates credentials.\n    Implementation: [\"./src/login.ts\"]\n    Rejects empty passwords per [password_rules].\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Ctrl/Cmd-click the file reference to land in source."
+    },
+    {
+      "id": "reverse",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "From the implementation side",
+        "body": "Context scope works on any workspace file \u2014 not only .rq sources.",
+        "code_label": "src/login.ts",
+        "code": "export async function login(email: string, password: string) {\n  // rq:[password_rules]\n  if (!password) throw new Error(\"empty password\"); }",
+        "code_lang": "ts"
+      },
+      "notes": "Related requirements should still surface from code focus."
+    },
+    {
+      "id": "end",
+      "transition": "slide",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Loop complete",
+        "body": "Name \u2192 link \u2192 neighbourhood \u2192 small AI slice \u2192 stitch to code.",
+        "fragments": [
+          "Advanced \u2014 imports & ideasets"
+        ]
+      },
+      "notes": "When you are ready to grow past one file, advanced starts with imports."
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "id": "gs-02-first-idea",
+  "title": "Your first idea",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started \u00b7 02",
+        "heading": "A .rq file is just text",
+        "body": "Name on the left. Thought on the right. That is already an idea.",
+        "asset": "logo"
+      },
+      "notes": "A reqlan file is just text with a .rq suffix."
+    },
+    {
+      "id": "one-liner",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "One-liner ideas",
+        "body": "Use these for sharp, single-sentence requirements.",
+        "code_label": "reqs/product.rq",
+        "code": "product_name reqlan tutorials demo\nlogin must reject empty passwords",
+        "code_lang": "rq"
+      },
+      "notes": "That one line is already an idea. The name is a handle you will reference later."
+    },
+    {
+      "id": "block",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Blocks when you need room",
+        "body": "First free text inside the braces is the main description. No required metadata.",
+        "code_label": "block idea",
+        "code": "welcome_flow {\n    New users land on a calm welcome screen\n    with one primary action: create an account.\n    Keep copy short on first paint.\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Inside the braces, the first free text is the main description."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Rename welcome_flow to match your product. Rewrite the sentence in your voice. Save.",
+        "code_label": "after rename",
+        "code": "checkout_start {\n    Shoppers see cart total and one Pay button.\n}",
+        "code_lang": "rq",
+        "fragments": [
+          "Next \u2014 link ideas"
+        ]
+      },
+      "notes": "Language support arrives immediately when the extension is active."
+    }
+  ]
+}

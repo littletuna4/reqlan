@@ -1,0 +1,58 @@
+{
+  "id": "adv-08-modelling-patterns",
+  "title": "Patterns that age well",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 08",
+        "heading": "Patterns that age well",
+        "body": "Not more syntax — better judgement about names, links, and prompt size.",
+        "asset": "logo"
+      },
+      "notes": "Advanced reqlan is not more syntax."
+    },
+    {
+      "id": "vignette",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Same language, other domain",
+        "body": "Editorial briefs and ops checklists are still named ideas with neighbours.",
+        "code_label": "reqs/newsletter.rq",
+        "code": "issue_brief {\n    June theme: \"small tools with sharp edges\".\n    Lead piece must cite [interview_lee].\n    @status draft\n    @tags (\n        editorial\n    )\n}\n\nproduction_checklist {\n    Before send: spellcheck, links, [issue_brief] in the subject.\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Software is the common case, not the only case."
+    },
+    {
+      "id": "four",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Four durable habits",
+        "body": "Keep the graph readable for people and models alike.",
+        "code_label": "patterns",
+        "code": "1. One idea, one job\n2. Links over duplication\n3. Attributes that drive a view\n4. Maps you choose — never mandatory dumps",
+        "code_lang": "txt"
+      },
+      "notes": "A structured semantic framework for people working with LLMs."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Write the idea",
+        "body": "Link the neighbour. Ship the slice.",
+        "asset": "logo",
+        "fragments": ["Back to tutorials"]
+      },
+      "notes": "Thanks for watching."
+    }
+  ]
+}

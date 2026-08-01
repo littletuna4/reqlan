@@ -1,0 +1,57 @@
+{
+  "id": "adv-02-attributes-status-plans",
+  "title": "Attributes without bloat",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 02",
+        "heading": "Attributes without bloat",
+        "body": "Opt into metadata. Slim keys beat ceremonial forms.",
+        "asset": "logo"
+      },
+      "notes": "Attributes are metadata you opt into."
+    },
+    {
+      "id": "status-tags",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Status and tags first",
+        "body": "Earn their keep when they drive a view or a search.",
+        "code_label": "login_api",
+        "code": "login_api {\n    POST /login validates credentials.\n    @status in-progress\n    @tags (\n        auth\n        security\n    )\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Slim attributes beat ceremonial fields you never read."
+    },
+    {
+      "id": "plan",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Plans live on the idea",
+        "body": "In git, next to the prose — not only in a chat transcript.",
+        "code_label": "@plan",
+        "code": "@plan {\n    goal: ship email/password login\n    constraints: honour [password_rules]\n    steps: validate; issue session; audit failures\n    open: rate-limit still undecided\n}",
+        "code_lang": "rq"
+      },
+      "notes": "Let the model draft; you keep the plan honest."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Mark one idea @status draft and leave its plan empty on purpose.",
+        "fragments": ["Next — Ideas Summary graph"]
+      },
+      "notes": "If an attribute never appears in how you navigate, delete it."
+    }
+  ]
+}
