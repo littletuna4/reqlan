@@ -1,5 +1,11 @@
 # site
 
+## 0.6.0
+
+### Minor Changes
+
+- 627d502: updates to cli, site export, site (showing spec), replace welcome screen, temp remove old extension name.
+
 ## 0.5.0
 
 ### Minor Changes
