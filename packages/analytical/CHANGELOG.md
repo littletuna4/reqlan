@@ -1,5 +1,13 @@
 # @reqlan/analytical
 
+## 0.5.4
+
+### Patch Changes
+
+- 3e940a2: cicd trigger.
+- Updated dependencies [3e940a2]
+  - @reqlan/language@1.5.3
+
 ## 0.5.3
 
 ### Patch Changes
