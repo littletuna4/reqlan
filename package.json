@@ -18,7 +18,7 @@
         "changeset": "changeset",
         "version-packages": "changeset version",
         "release:npm": "changeset publish",
-        "build:readme": "pnpm exec tsx scripts/generate-root-readme.ts"
+        "build:readme": "pnpm exec tsx scripts/generate-root-readme.ts && pnpm exec tsx scripts/generate-npm-package-readmes.ts"
     },
     "devDependencies": {
         "@changesets/cli": "^2.31.0",

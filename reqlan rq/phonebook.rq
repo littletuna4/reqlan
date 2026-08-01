@@ -17,6 +17,11 @@ extension_readme_links {
     Generation is defined in ["./distribution/distribution.rq".extension_readme].
 }
 
+npm_package_readme_links {
+    Publishable npm package READMEs (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) use the same phonebook link ids as [extension_readme_links].
+    Generation is defined in ["./distribution/distribution.rq".npm_package_readme].
+}
+
 activity_bar_site_link {
     The activity bar Context webview header info control opens phonebook link id `site` per ["./extension/module/activitybar.rq".info_site_link].
 }
