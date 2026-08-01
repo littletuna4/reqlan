@@ -1,5 +1,11 @@
 # site
 
+## 0.6.2
+
+### Patch Changes
+
+- b905cd0: update npm deployement.
+
 ## 0.6.1
 
 ### Patch Changes

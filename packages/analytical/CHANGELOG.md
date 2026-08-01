@@ -1,5 +1,13 @@
 # @reqlan/analytical
 
+## 0.5.2
+
+### Patch Changes
+
+- b905cd0: update npm deployement.
+- Updated dependencies [b905cd0]
+  - @reqlan/language@1.5.1
+
 ## 0.5.1
 
 ### Patch Changes

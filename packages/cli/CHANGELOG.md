@@ -1,5 +1,14 @@
 # @reqlan/cli
 
+## 0.2.2
+
+### Patch Changes
+
+- b905cd0: update npm deployement.
+- Updated dependencies [b905cd0]
+  - @reqlan/analytical@0.5.2
+  - @reqlan/language@1.5.1
+
 ## 0.2.1
 
 ### Patch Changes
