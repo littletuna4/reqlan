@@ -1,3 +1,4 @@
+
 showcase {
     Showcase some ideas of using reqlan:
     - A complex control system sequencing that considers semantics.
@@ -14,6 +15,8 @@ showcase {
     - `@docs` attribute to -> .md files or html wiki export.
     - antipatterns:
         - using .rq ideas for data instead of pointers to data.
+
+ @implementaion ["@/reqlan/site/src/app/showcase"]
 }
 
 showcase_module {
