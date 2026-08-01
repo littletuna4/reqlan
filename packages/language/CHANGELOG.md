@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.5.3
+
+### Patch Changes
+
+- 3e940a2: cicd trigger.
+
 ## 1.5.2
 
 ### Patch Changes
