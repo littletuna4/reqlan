@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.5.5
+
+### Patch Changes
+
+- 0cf3f8d: initilialise tutorial in site.
+
 ## 1.5.4
 
 ### Patch Changes

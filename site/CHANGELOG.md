@@ -1,5 +1,11 @@
 # site
 
+## 0.7.0
+
+### Minor Changes
+
+- 0cf3f8d: initilialise tutorial in site.
+
 ## 0.6.2
 
 ### Patch Changes
