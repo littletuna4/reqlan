@@ -1,15 +1,22 @@
 phonebook {
-    Canonical project links live in ["./phonebook.json"].
-    Modules that need contact, repo, or marketplace URLs should read from there instead of hardcoding values.
+    Canonical project links and publishable npm package URLs live in ["./phonebook.json"].
+    Modules that need contact, repo, marketplace, or npm package URLs should read from there instead of hardcoding values.
     Typed access is shared via ["../scripts/phonebook.ts"] for the site and extension README generator.
 }
 
 phonebook_icons {
     Icon sets and lookup URLs live under the `icons` key in ["./phonebook.json"].
-    Each link icon references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
+    Each link or package icon references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
     Search a set at its `search` URL when renaming or replacing icons.
     The site renders icons with Iconify via the packages listed in each set's `package` field per ["../site/reqs/icons.rq"].
     Registry: ["../site/src/lib/phonebook-icons.ts"].
+}
+
+npm_packages {
+    Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) live under the `packages` key in ["./phonebook.json"].
+    Package ids are `language`, `analytical`, and `cli`.
+    The site Links section renders them under Packages per ["../site/reqs/core.rq".links] / ["../site/reqs/icons.rq".package_icons].
+    Typed helpers: `phonebookPackages`, `getPhonebookPackage` in ["../scripts/phonebook.ts"].
 }
 
 extension_readme_links {

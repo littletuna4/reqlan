@@ -16,7 +16,7 @@ iconify_stack {
 
 phonebook_icon_keys {
     per [phonebook_reqs.phonebook_icons]
-    Each phonebook link carries an `icon` object with `set` and `name`.
+    Each phonebook link or package carries an `icon` object with `set` and `name`.
     Set ids and lookup URLs are canonical in ["../../reqlan rq/phonebook.json"].icons.
     Use each set's `search` URL to find replacement slugs when a name changes or an icon is removed upstream.
     Typed helpers live in [phonebook_script]: `formatPhonebookIconKey`, `getPhonebookIconSearchUrl`.
@@ -24,8 +24,8 @@ phonebook_icon_keys {
 
 icon_registry {
     [phonebook_icon_registry] maps phonebook icon keys to bundled Iconify data.
-    Every link icon in the phonebook must have a matching registry entry; the module throws at startup if one is missing.
-    When adding or changing a link icon in ["../../reqlan rq/phonebook.json"], update the registry import for that slug.
+    Every link and package icon in the phonebook must have a matching registry entry; the module throws at startup if one is missing.
+    When adding or changing an icon in ["../../reqlan rq/phonebook.json"], update the registry import for that slug.
 }
 
 phonebook_icon_component {
@@ -36,6 +36,12 @@ phonebook_icon_component {
 
 link_icons {
     The contact link row in [contact_component] renders an icon beside each phonebook link label.
+    per ["./core.rq".links]
+}
+
+package_icons {
+    The contact Packages row in [contact_component] renders an icon beside each phonebook package label.
+    Package entries come from ["../../reqlan rq/phonebook.json"].packages per [phonebook_reqs.npm_packages].
     per ["./core.rq".links]
 }
 
@@ -52,4 +58,6 @@ current_link_icons {
     - `openvsx` → simple-icons / vscodium (proxy; no Open VSX slug in Simple Icons)
     - `github` → simple-icons / github
     - `email` → mdi / email-outline
+    Package entries under `packages` all use simple-icons / npm:
+    - `language`, `analytical`, `cli`
 }

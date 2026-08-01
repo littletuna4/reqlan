@@ -3,7 +3,7 @@
   "title": "reqlan phonebook",
   "type": "object",
   "additionalProperties": false,
-  "required": ["icons", "links"],
+  "required": ["icons", "links", "packages"],
   "properties": {
     "icons": {
       "type": "object",
@@ -36,31 +36,43 @@
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["label", "href", "icon"],
-        "properties": {
-          "label": {
-            "type": "string",
-            "minLength": 1
-          },
-          "href": {
-            "type": "string",
-            "minLength": 1
-          },
-          "icon": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["set", "name"],
-            "properties": {
-              "set": {
-                "type": "string",
-                "minLength": 1
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1
-              }
+        "$ref": "#/$defs/namedHref"
+      }
+    },
+    "packages": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/namedHref"
+      }
+    }
+  },
+  "$defs": {
+    "namedHref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "href", "icon"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["set", "name"],
+          "properties": {
+            "set": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
             }
           }
         }

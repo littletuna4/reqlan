@@ -55,5 +55,31 @@
         "name": "email-outline"
       }
     }
+  },
+  "packages": {
+    "language": {
+      "label": "@reqlan/language",
+      "href": "https://www.npmjs.com/package/@reqlan/language",
+      "icon": {
+        "set": "simple-icons",
+        "name": "npm"
+      }
+    },
+    "analytical": {
+      "label": "@reqlan/analytical",
+      "href": "https://www.npmjs.com/package/@reqlan/analytical",
+      "icon": {
+        "set": "simple-icons",
+        "name": "npm"
+      }
+    },
+    "cli": {
+      "label": "@reqlan/cli",
+      "href": "https://www.npmjs.com/package/@reqlan/cli",
+      "icon": {
+        "set": "simple-icons",
+        "name": "npm"
+      }
+    }
   }
 }

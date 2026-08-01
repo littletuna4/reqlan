@@ -27,20 +27,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.9.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Detect pending changesets
         id: pending
         run: |
@@ -59,6 +45,23 @@ jobs:
           done
 
           echo "has_pending=false" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        if: steps.pending.outputs.has_pending == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - name: Setup Node
+        if: steps.pending.outputs.has_pending == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.pending.outputs.has_pending == 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: Capture package versions before apply
         if: steps.pending.outputs.has_pending == 'true'

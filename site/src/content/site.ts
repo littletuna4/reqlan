@@ -10,9 +10,15 @@ export type SyntaxExample = {
   language: CodeLanguage;
 };
 
-import { phonebookLinks, type PhonebookLink } from "@/lib/phonebook";
+import {
+  phonebookLinks,
+  phonebookPackages,
+  type PhonebookLink,
+  type PhonebookPackage,
+} from "@/lib/phonebook";
 
 export type LinkItem = PhonebookLink;
+export type PackageItem = PhonebookPackage;
 
 export type CodeLanguage = "rq" | "ts" | "md" | "py" | "st" | "c" | "json" | "yaml";
 
@@ -210,6 +216,7 @@ myidea3 {
 
   contact: {
     links: phonebookLinks satisfies LinkItem[],
+    packages: phonebookPackages satisfies PackageItem[],
   },
 
   footer: {

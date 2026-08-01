@@ -118,5 +118,8 @@ copy {
 
 links {
     per [phonebook_reqs.phonebook]
+    per [phonebook_reqs.npm_packages]
+    Contact shows phonebook `links` then a Packages subsection for phonebook `packages`.
     per [icon_reqs.link_icons]
+    per [icon_reqs.package_icons]
 }

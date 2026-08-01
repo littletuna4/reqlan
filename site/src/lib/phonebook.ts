@@ -17,6 +17,15 @@ export type PhonebookLink = PhonebookLinkEntry & {
   id: PhonebookLinkId;
 };
 
+export type PhonebookPackageId = keyof typeof phonebook.packages;
+
+export type PhonebookPackageEntry =
+  (typeof phonebook.packages)[PhonebookPackageId];
+
+export type PhonebookPackage = PhonebookPackageEntry & {
+  id: PhonebookPackageId;
+};
+
 export const phonebookLinks = (
   Object.entries(phonebook.links) as [PhonebookLinkId, PhonebookLinkEntry][]
 ).map(([id, link]) => ({
@@ -24,10 +33,26 @@ export const phonebookLinks = (
   ...link,
 }));
 
+export const phonebookPackages = (
+  Object.entries(phonebook.packages) as [
+    PhonebookPackageId,
+    PhonebookPackageEntry,
+  ][]
+).map(([id, pkg]) => ({
+  id,
+  ...pkg,
+}));
+
 export function getPhonebookLink<const Id extends PhonebookLinkId>(
   id: Id,
 ): PhonebookLinkEntry & { id: Id } {
   return { id, ...phonebook.links[id] };
+}
+
+export function getPhonebookPackage<const Id extends PhonebookPackageId>(
+  id: Id,
+): PhonebookPackageEntry & { id: Id } {
+  return { id, ...phonebook.packages[id] };
 }
 
 /** Iconify id, e.g. `simple-icons:github`. */

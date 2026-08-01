@@ -14,6 +14,15 @@
   letter-spacing: -0.02em;
 }
 
+.subsectionTitle {
+  margin: 1.75rem 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .featureList {
   list-style: none;
   margin: 0;

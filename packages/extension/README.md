@@ -23,6 +23,56 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.5.5
+
+#### Patch Changes
+
+- 0cf3f8d: initilialise tutorial in site.
+
+### 1.5.4
+
+#### Patch Changes
+
+- Updated dependencies [3e940a2]
+  - @reqlan/analytical@0.5.4
+  - @reqlan/language@1.5.3
+
+### 1.5.3
+
+#### Patch Changes
+
+- Updated dependencies [9586a97]
+  - @reqlan/analytical@0.5.3
+  - @reqlan/language@1.5.2
+
+### 1.5.2
+
+#### Patch Changes
+
+- Updated dependencies [b905cd0]
+  - @reqlan/analytical@0.5.2
+  - @reqlan/language@1.5.1
+
+### 1.5.1
+
+#### Patch Changes
+
+- 4f86d2b: fix the graph rendering.
+- Updated dependencies [4f86d2b]
+  - @reqlan/analytical@0.5.1
+
+### 1.5.0
+
+#### Minor Changes
+
+- 627d502: updates to cli, site export, site (showing spec), replace welcome screen, temp remove old extension name.
+
+#### Patch Changes
+
+- Updated dependencies [627d502]
+  - @reqlan/analytical@0.5.0
+  - @reqlan/language@1.5.0
+
 ### 1.4.1
 
 #### Patch Changes
