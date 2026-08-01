@@ -17,16 +17,16 @@ version_management {
 npm_distribution {
   npm publishing runs only when a `language/v*`, `analytical/v*`, or `cli/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language/analytical/cli and runs `changeset publish` (`pnpm run release:npm`).
-  Before publish, ["../../scripts/skip-already-published.mjs"] marks any language/analytical/cli package whose current version is already on the public npm registry as `private: true` in the CI checkout only (never committed). That avoids the known `@changesets/cli` + pnpm E403 crash when OIDC re-attempts already-published versions ([https://github.com/changesets/changesets/issues/2099]).
+  The deploy workflow builds language/analytical/cli, then publishes each package as its own matrix leaf (`language`, `analytical`, `cli`) via `pnpm --filter <pkg> publish --access public --no-git-checks`.
+  Before each leaf publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that leaf when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
   Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
   Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
-  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip `changeset publish` (as with `reqlan-mcp` and `reqlan-extension`).
+  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`) as with `reqlan-mcp` and `reqlan-extension`. CI publishes per-package and does not use `changeset publish`.
   Published packages declare `publishConfig.access: public`.
-  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], and root `release:npm` in ["../../package.json"]. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
 }
 
 extension_package {

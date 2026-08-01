@@ -28,6 +28,17 @@ concurrency:
 
 jobs:
   publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: language
+            filter: "@reqlan/language"
+          - id: analytical
+            filter: "@reqlan/analytical"
+          - id: cli
+            filter: "@reqlan/cli"
+    name: ${{ matrix.id }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,13 +72,14 @@ jobs:
           pnpm --filter @reqlan/cli run build
           pnpm run build:readme
 
-      # Avoid changeset+pnpm E403 crash on already-published versions under OIDC
-      # (changesets#2099). Marks those package.json files private in-checkout only.
-      - name: Skip already-published packages
-        run: node scripts/skip-already-published.mjs
+      # Skip when this matrix package's version is already on the public registry.
+      - name: Check if already published
+        id: check
+        run: node scripts/skip-already-published.mjs --filter "${{ matrix.filter }}"
 
       # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
       # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
       # GitHub Actions / littletuna4 / reqlan / deploy-npm.yml / npm publish.
-      - name: Publish npm packages
-        run: pnpm run release:npm
+      - name: Publish ${{ matrix.filter }}
+        if: steps.check.outputs.should_publish == 'true'
+        run: pnpm --filter "${{ matrix.filter }}" publish --access public --no-git-checks
