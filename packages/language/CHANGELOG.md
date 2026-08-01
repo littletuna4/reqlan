@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.5.1
+
+### Patch Changes
+
+- b905cd0: update npm deployement.
+
 ## 1.5.0
 
 ### Minor Changes

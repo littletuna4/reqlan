@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.5.2
+
+### Patch Changes
+
+- Updated dependencies [b905cd0]
+  - @reqlan/analytical@0.5.2
+  - @reqlan/language@1.5.1
+
 ## 1.5.1
 
 ### Patch Changes
