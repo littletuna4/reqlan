@@ -1,5 +1,11 @@
 # site
 
+## 0.8.1
+
+### Patch Changes
+
+- 0a5649e: update the site base path, and untrack build artifacts
+
 ## 0.8.0
 
 ### Minor Changes

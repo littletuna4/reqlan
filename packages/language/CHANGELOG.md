@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.6.1
+
+### Patch Changes
+
+- 0a5649e: update the site base path, and untrack build artifacts
+
 ## 1.6.0
 
 ### Minor Changes
