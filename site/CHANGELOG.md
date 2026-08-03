@@ -1,5 +1,11 @@
 # site
 
+## 0.8.2
+
+### Patch Changes
+
+- b1f24a0: apply base_url and trigger build
+
 ## 0.8.1
 
 ### Patch Changes
