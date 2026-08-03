@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/site/public/logo.svg" alt="reqlan logo" width="128" height="128">
 </p>
 
 # reqlan language support
@@ -15,13 +15,25 @@ Language support for the reqlan language
 
 ## Links
 
-- [Site](https://tony.is-a.dev/reqlan)
+- [Site](https://reqlan.com)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
-- [Contact](mailto:reqlan@tony.is-a.dev)
+- [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.6.0
+
+#### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
+#### Patch Changes
+
+- Updated dependencies [54a2536]
+  - @reqlan/analytical@0.6.0
+  - @reqlan/language@1.6.0
 
 ### 1.5.6
 

@@ -55,7 +55,7 @@ const email = getPhonebookLink("email");
 const logoUrl = `${github.href.replace(
   "https://github.com/",
   "https://raw.githubusercontent.com/",
-)}/HEAD/packages/extension/media/logo.png`;
+)}/HEAD/site/public/logo.svg`;
 
 const readme = renderTemplate(readFileSync(templatePath, "utf8"), {
   DISPLAY_NAME: manifest.displayName,

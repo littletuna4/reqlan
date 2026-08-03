@@ -421,7 +421,7 @@
     ],
     "main": "./out/extension/main.cjs",
     "scripts": {
-        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp",
+        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp media/logo.svg",
         "vscode:prepublish": "pnpm run build",
         "build:media": "node scripts/generate-media.mjs",
         "build:readme": "pnpm exec tsx scripts/generate-readme.ts",

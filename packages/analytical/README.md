@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/site/public/logo.svg" alt="reqlan logo" width="128" height="128">
 </p>
 
 # @reqlan/analytical
@@ -11,8 +11,7 @@ Shared requirement graph index and analysers for reqlan
 - Headless requirement graph index (sql.js) over parsed `.rq` workspaces
 - Shared application memory under `<workspace>/.reqlan` (ideas-index.sqlite) for extension, CLI, and MCP
 - Analysers for semantic search, file context, local graphs, and completion status
-- `AnalysisApi` façade shared by the CLI and MCP server (including `exportHtml`)
-- Multi-file HTML export pipeline (`exportHtml` / `buildExportSnapshot`) for docs and the public `/spec` site path
+- `AnalysisApi` façade shared by the CLI and MCP server
 - Context-model helpers for composing focused requirement context
 
 ## Install
@@ -23,13 +22,65 @@ npm install @reqlan/analytical
 
 ## Links
 
-- [Site](https://tony.is-a.dev/reqlan)
+- [Site](https://reqlan.com)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
-- [Contact](mailto:reqlan@tony.is-a.dev)
+- [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 0.6.0
+
+#### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
+#### Patch Changes
+
+- Updated dependencies [54a2536]
+  - @reqlan/language@1.6.0
+
+### 0.5.4
+
+#### Patch Changes
+
+- 3e940a2: cicd trigger.
+- Updated dependencies [3e940a2]
+  - @reqlan/language@1.5.3
+
+### 0.5.3
+
+#### Patch Changes
+
+- 9586a97: package publish trigger
+- Updated dependencies [9586a97]
+  - @reqlan/language@1.5.2
+
+### 0.5.2
+
+#### Patch Changes
+
+- b905cd0: update npm deployement.
+- Updated dependencies [b905cd0]
+  - @reqlan/language@1.5.1
+
+### 0.5.1
+
+#### Patch Changes
+
+- 4f86d2b: fix the graph rendering.
+
+### 0.5.0
+
+#### Minor Changes
+
+- 627d502: updates to cli, site export, site (showing spec), replace welcome screen, temp remove old extension name.
+
+#### Patch Changes
+
+- Updated dependencies [627d502]
+  - @reqlan/language@1.5.0
 
 ### 0.4.1
 

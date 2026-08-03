@@ -62,7 +62,7 @@ jobs:
       - name: Build static site
         working-directory: site
         env:
-          SITE_BASE_PATH: /reqlan
+          SITE_BASE_PATH: /
         run: pnpm run build
 
       - name: Disable Jekyll processing

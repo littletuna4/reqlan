@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/site/public/logo.svg" alt="reqlan logo" width="128" height="128">
 </p>
 
 # @reqlan/language
@@ -21,13 +21,43 @@ npm install @reqlan/language
 
 ## Links
 
-- [Site](https://tony.is-a.dev/reqlan)
+- [Site](https://reqlan.com)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
-- [Contact](mailto:reqlan@tony.is-a.dev)
+- [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.6.0
+
+#### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
+### 1.5.3
+
+#### Patch Changes
+
+- 3e940a2: cicd trigger.
+
+### 1.5.2
+
+#### Patch Changes
+
+- 9586a97: package publish trigger
+
+### 1.5.1
+
+#### Patch Changes
+
+- b905cd0: update npm deployement.
+
+### 1.5.0
+
+#### Minor Changes
+
+- 627d502: updates to cli, site export, site (showing spec), replace welcome screen, temp remove old extension name.
 
 ### 1.4.1
 

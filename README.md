@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/packages/extension/media/logo.png" alt="reqlan logo" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/littletuna4/reqlan/HEAD/site/public/logo.svg" alt="reqlan logo" width="128" height="128">
 </p>
 
 # reqlan
@@ -10,11 +10,11 @@ reqlan is a structured language for composing a graph of natural language ideas 
 
 ## Links
 
-- [Site](https://tony.is-a.dev/reqlan)
+- [Site](https://reqlan.com)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
-- [Contact](mailto:reqlan@tony.is-a.dev)
+- [Contact](mailto:reqlan@reqlan.com)
 
 ## Repository
 
