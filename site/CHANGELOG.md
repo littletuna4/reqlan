@@ -1,5 +1,11 @@
 # site
 
+## 0.8.3
+
+### Patch Changes
+
+- cdf4cea: remove faulty site_base_path arg.
+
 ## 0.8.2
 
 ### Patch Changes
