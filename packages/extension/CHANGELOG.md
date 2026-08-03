@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.6.4
+
+### Patch Changes
+
+- 7ccb4f2: update svg to png
+
 ## 1.6.3
 
 ### Patch Changes
