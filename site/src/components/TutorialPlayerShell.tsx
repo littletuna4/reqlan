@@ -11,8 +11,14 @@ import {
 } from "react";
 import { parseAsInteger, useQueryState } from "nuqs";
 
-import type { TutorialDeck, TutorialNeighbors } from "@/content/tutorial-model";
+import type { TutorialDeck, TutorialNeighbors, TutorialSeries } from "@/content/tutorial-model";
 import { sitePath } from "@/lib/paths";
+import {
+  completionGlyph,
+  completionLabel,
+  type CompletionState,
+} from "@/lib/tutorial-progress";
+import { useTutorialProgress } from "@/lib/use-tutorial-progress";
 import styles from "./TutorialPlayerShell.module.css";
 
 const MSG_SOURCE = "reqlan-tutorial";
@@ -29,20 +35,47 @@ type SlideMeta = {
   canNext: boolean;
 };
 
+export type TutorialCoursePeer = {
+  series: TutorialSeries;
+  title: string;
+  slug: string;
+};
+
 type TutorialPlayerShellProps = {
   tutorial: TutorialDeck;
   neighbors: TutorialNeighbors;
   seriesTitle: string;
+  courses: TutorialCoursePeer[];
 };
 
 export function TutorialPlayerShell({
   tutorial,
   neighbors,
   seriesTitle,
+  courses,
 }: TutorialPlayerShellProps) {
-  const { prev, next, seriesIndex, seriesTotal, seriesDecks } = neighbors;
+  const { prev, next, seriesTotal, seriesDecks } = neighbors;
+  const {
+    getCourseState,
+    getLessonState,
+    isSlideComplete,
+    toggleCourse,
+    toggleLesson,
+    toggleSlide,
+    markSlideComplete,
+  } = useTutorialProgress();
+  const seriesLessonInputs = seriesDecks.map((deck) => ({
+    id: deck.id,
+    slideCount: deck.slideCount,
+  }));
+  const progressUnits = seriesDecks.reduce((sum, deck) => {
+    const state = getLessonState(deck.id, deck.slideCount);
+    if (state === "complete") return sum + 1;
+    if (state === "partial") return sum + 0.5;
+    return sum;
+  }, 0);
   const progressPct =
-    seriesTotal <= 1 ? 100 : ((seriesIndex + 1) / seriesTotal) * 100;
+    seriesTotal <= 0 ? 0 : (progressUnits / seriesTotal) * 100;
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const stepsRef = useRef<HTMLOListElement>(null);
@@ -100,6 +133,10 @@ export function TutorialPlayerShell({
     void setSlide(1);
     setMeta({ total: 0, canPrev: false, canNext: true });
   }, [tutorial.id, setSlide]);
+
+  useEffect(() => {
+    if (slide >= 1) markSlideComplete(tutorial.id, slide);
+  }, [tutorial.id, slide, markSlideComplete]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -166,22 +203,194 @@ export function TutorialPlayerShell({
 
   const slideLabel =
     meta.total > 0 ? `slide ${slide} of ${meta.total}` : "slides";
+  const slideValue =
+    meta.total > 0 ? `${slide}/${meta.total}` : "…";
+  const lessonOrder = String(tutorial.order).padStart(2, "0");
+  const lessonSlideCount =
+    meta.total > 0 ? meta.total : tutorial.slideCount;
+  const courseDone = getCourseState(tutorial.series, seriesLessonInputs);
+  const lessonDone = getLessonState(tutorial.id, lessonSlideCount);
+  const slideDone: CompletionState = isSlideComplete(tutorial.id, slide)
+    ? "complete"
+    : "none";
+  const completedLessonCount = seriesDecks.filter(
+    (deck) => getLessonState(deck.id, deck.slideCount) === "complete",
+  ).length;
+
+  const coursePeers = useMemo(
+    () =>
+      courses.map((course) => ({
+        series: course.series,
+        title: course.title,
+        href: sitePath(`/tutorials/${course.slug}/`),
+        current: course.series === tutorial.series,
+      })),
+    [courses, tutorial.series],
+  );
+
+  const lessonPeers = useMemo(
+    () =>
+      seriesDecks.map((deck) => ({
+        id: deck.id,
+        order: deck.order,
+        title: deck.title,
+        href: sitePath(`/tutorials/${deck.slug}/`),
+        current: deck.id === tutorial.id,
+      })),
+    [seriesDecks, tutorial.id],
+  );
+
+  const slideTotal = Math.max(lessonSlideCount, 1);
+  const goToSlide = useCallback(
+    (index1: number) => {
+      const nextSlide = Math.min(slideTotal, Math.max(1, index1));
+      void setSlide(nextSlide);
+      postToPlayer({ type: "goto", index: nextSlide - 1 });
+    },
+    [postToPlayer, setSlide, slideTotal],
+  );
 
   return (
     <div className={styles.shell} onKeyDown={onChromeKeyDown}>
       <header className={styles.chrome}>
-        <div className={styles.top}>
-          <p className={styles.crumb}>
-            <a href={sitePath("/tutorials/")}>Tutorials</a>
-            <span className={styles.sep} aria-hidden="true">
-              /
-            </span>
-            <span className={styles.series}>{seriesTitle}</span>
-            <span className={styles.count} aria-hidden="true">
-              {seriesIndex + 1}/{seriesTotal}
-            </span>
-          </p>
-        </div>
+        <nav className={styles.crumb} aria-label="Tutorial location">
+          <ol className={styles.crumbList}>
+            <li className={styles.crumbItem} data-tier="root">
+              <span className={styles.crumbRole}>Catalog</span>
+              <a
+                className={`${styles.crumbLink} ${styles.crumbValue}`}
+                href={sitePath("/tutorials/")}
+              >
+                Tutorials
+              </a>
+              <ul className={styles.crumbMenu} role="list">
+                <li>
+                  <a
+                    className={styles.crumbMenuItem}
+                    href={sitePath("/tutorials/")}
+                    aria-current="page"
+                  >
+                    All courses
+                  </a>
+                </li>
+                {coursePeers.map((peer) => (
+                  <li key={peer.series}>
+                    <a
+                      className={styles.crumbMenuItem}
+                      href={peer.href}
+                      aria-current={peer.current ? "page" : undefined}
+                    >
+                      {peer.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+
+            <li className={styles.crumbItem} data-tier="course">
+              <div className={styles.crumbHead}>
+                <CompleteToggle
+                  state={courseDone}
+                  label={seriesTitle}
+                  onToggle={() =>
+                    toggleCourse(tutorial.series, seriesLessonInputs)
+                  }
+                />
+                <span className={styles.crumbRole}>Course</span>
+              </div>
+              <span className={styles.crumbValue}>{seriesTitle}</span>
+              <ul className={styles.crumbMenu} role="list">
+                {coursePeers.map((peer) => (
+                  <li key={peer.series}>
+                    <a
+                      className={styles.crumbMenuItem}
+                      href={peer.href}
+                      aria-current={peer.current ? "true" : undefined}
+                    >
+                      {peer.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+
+            <li
+              className={styles.crumbItem}
+              data-tier="lesson"
+              aria-current="page"
+            >
+              <div className={styles.crumbHead}>
+                <CompleteToggle
+                  state={lessonDone}
+                  label={tutorial.title}
+                  onToggle={() =>
+                    toggleLesson(tutorial.id, lessonSlideCount)
+                  }
+                />
+                <span className={styles.crumbRole}>Lesson</span>
+              </div>
+              <span className={styles.crumbValue}>
+                <span className={styles.crumbOrder}>{lessonOrder}</span>
+                <span className={styles.crumbTitle}>{tutorial.title}</span>
+              </span>
+              <ul className={styles.crumbMenu} role="list">
+                {lessonPeers.map((peer) => (
+                  <li key={peer.id}>
+                    <a
+                      className={styles.crumbMenuItem}
+                      href={peer.href}
+                      aria-current={peer.current ? "page" : undefined}
+                    >
+                      <span className={styles.crumbMenuOrder}>
+                        {String(peer.order).padStart(2, "0")}
+                      </span>
+                      {peer.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+
+            <li
+              className={styles.crumbItem}
+              data-tier="slide"
+              aria-label={slideLabel}
+            >
+              <div className={styles.crumbHead}>
+                <CompleteToggle
+                  state={slideDone}
+                  label={`Slide ${slide}`}
+                  onToggle={() => toggleSlide(tutorial.id, slide)}
+                />
+                <span className={styles.crumbRole}>Slide</span>
+              </div>
+              <span
+                className={`${styles.crumbValue} ${styles.crumbSlide}`}
+                aria-live="polite"
+              >
+                {slideValue}
+              </span>
+              <ul className={styles.crumbMenu} role="list">
+                {Array.from({ length: slideTotal }, (_, i) => {
+                  const n = i + 1;
+                  const current = n === slide;
+                  return (
+                    <li key={n}>
+                      <button
+                        type="button"
+                        className={styles.crumbMenuItem}
+                        aria-current={current ? "true" : undefined}
+                        onClick={() => goToSlide(n)}
+                      >
+                        Slide {n}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          </ol>
+        </nav>
 
         <nav
           className={styles.transport}
@@ -225,10 +434,10 @@ export function TutorialPlayerShell({
             <div
               className={styles.track}
               role="progressbar"
-              aria-valuemin={1}
+              aria-valuemin={0}
               aria-valuemax={seriesTotal}
-              aria-valuenow={seriesIndex + 1}
-              aria-valuetext={`${tutorial.title}, ${seriesIndex + 1} of ${seriesTotal}`}
+              aria-valuenow={completedLessonCount}
+              aria-valuetext={`${completedLessonCount} of ${seriesTotal} lessons complete`}
             >
               <div
                 className={styles.fill}
@@ -241,26 +450,33 @@ export function TutorialPlayerShell({
               className={styles.steps}
               aria-label={`${seriesTitle} lessons`}
             >
-              {seriesDecks.map((deck, i) => {
+              {seriesDecks.map((deck) => {
                 const current = deck.id === tutorial.id;
-                const done = i < seriesIndex;
+                const state = getLessonState(deck.id, deck.slideCount);
                 const active = deck.id === labelId;
+                const stepClass =
+                  current
+                    ? styles.stepCurrent
+                    : state === "complete"
+                      ? styles.stepDone
+                      : state === "partial"
+                        ? styles.stepPartial
+                        : styles.step;
                 return (
                   <li key={deck.id}>
                     <a
                       href={sitePath(`/tutorials/${deck.slug}/`)}
-                      className={[
-                        current
-                          ? styles.stepCurrent
-                          : done
-                            ? styles.stepDone
-                            : styles.step,
-                        active ? styles.stepActive : "",
-                      ]
+                      className={[stepClass, active ? styles.stepActive : ""]
                         .filter(Boolean)
                         .join(" ")}
                       aria-current={current ? "step" : undefined}
-                      aria-label={`Lesson ${deck.order}: ${deck.title}`}
+                      aria-label={`Lesson ${deck.order}: ${deck.title}${
+                        state === "complete"
+                          ? " (complete)"
+                          : state === "partial"
+                            ? " (partial)"
+                            : ""
+                      }`}
                       onMouseEnter={() => setHoveredId(deck.id)}
                       onFocus={() => setHoveredId(deck.id)}
                       onBlur={onStepBlur}
@@ -334,5 +550,30 @@ export function TutorialPlayerShell({
         />
       </div>
     </div>
+  );
+}
+
+function CompleteToggle({
+  state,
+  label,
+  onToggle,
+}: {
+  state: CompletionState;
+  label: string;
+  onToggle: () => void;
+}) {
+  const labels = completionLabel(state, label);
+  return (
+    <button
+      type="button"
+      className={styles.completeToggle}
+      data-complete={state}
+      aria-pressed={state === "complete"}
+      aria-label={labels.aria}
+      title={labels.title}
+      onClick={onToggle}
+    >
+      {completionGlyph(state)}
+    </button>
   );
 }

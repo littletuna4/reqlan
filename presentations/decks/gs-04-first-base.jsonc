@@ -1,0 +1,99 @@
+// Deck: gs-04-first-base — authored JSONC; sync emits runtime decks/gs-04-first-base.json for the player.
+{
+  "id": "gs-04-first-base",
+  "title": "Your first base",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 04",
+        "heading": "Your first base",
+        "asset": "logo"
+      },
+      "notes": "Installing the extension puts reqlan in the editor. It does not create a base."
+    },
+    {
+      "id": "two-layers",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Extension install ≠ base create",
+        "body": "Extension: language support in the editor. Base: .reqlan marker + ideas index boundary."
+      },
+      "notes": "Until the folder has a marker, neighbourhood views have nothing to bind to."
+    },
+    {
+      "id": "create",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Create Base at workspace root",
+        "body": "Command Palette: Reqlan: Create Base — or accept the activity-bar CTA."
+      },
+      "notes": "Accept at reqlan-tutorials-demo root, not a subfolder."
+    },
+    {
+      "id": "marker",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "A base owns .reqlan",
+        "body": "config.json and .rqignore are yours. ideas-index.sqlite is tooling memory.",
+        "code": "reqlan-tutorials-demo/.reqlan/",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Do not hand-edit the index file — the tooling rebuilds it from your .rq sources."
+    },
+    {
+      "id": "same-ideas",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Same ideas, now indexed",
+        "body": "Reopen product.rq. Counts and neighbourhood views wake up."
+      },
+      "notes": "You did not rewrite anything — you marked the graph boundary."
+    },
+    {
+      "id": "cli-parity",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "CLI parity",
+        "body": "Seeds the same .reqlan tree in any empty folder.",
+        "code": "npx reqlan init",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Editor and CLI share the same marker path."
+    },
+    {
+      "id": "nested-teaser",
+      "transition": "fade",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Nested bases — later",
+        "body": "One base is enough for day one. Child bases are separate graphs."
+      },
+      "notes": "We name nested boundaries in Concepts — do not create one on camera."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Confirm .reqlan exists. Open product.rq. Leave caret on an idea.",
+        "fragments": [
+          "Next: Activity bar"
+        ]
+      },
+      "notes": "Watch the activity bar populate once the index activates."
+    }
+  ]
+}

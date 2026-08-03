@@ -1,0 +1,111 @@
+// Deck: adv-08-modelling-patterns — authored JSONC; sync emits runtime decks/adv-08-modelling-patterns.json for the player.
+{
+  "id": "adv-08-modelling-patterns",
+  "title": "Patterns that age well",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 08",
+        "heading": "Patterns that age well",
+        "body": "Not more syntax — better judgement about names, links, and prompt size.",
+        "asset": "logo"
+      },
+      "notes": "Advanced reqlan is not more syntax — it is better judgement."
+    },
+    {
+      "id": "recap-montage",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Series recap",
+        "body": "Imports · attributes · maps · context · comments · export · CLI · patterns",
+        "asset": "montage-ide"
+      },
+      "notes": "Eight themes converge on readable graphs for people and models."
+    },
+    {
+      "id": "vignette",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Same language, other domain",
+        "body": "Editorial briefs and ops checklists are still named ideas with neighbours.",
+        "code": "issue_brief { June theme… cite [interview_lee]. @status draft }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Software is the common case, not the only case."
+    },
+    {
+      "id": "links-not-dupe",
+      "transition": "fade",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Links over duplication",
+        "body": "production_checklist echoes [issue_brief] — does not restate the theme prose.",
+        "code": "[issue_brief] theme echoed in subject line",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "One source of truth. Brackets are cheap; repeated prose is a smell."
+    },
+    {
+      "id": "two-domains-one-base",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Two domains, one base",
+        "body": "Demo workspace mixes product and newsletter. Production may split bases by audience.",
+        "code": "product.rq + newsletter.rq · demo/.reqlan/",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Boundary craft when graphs serve different audiences — not folder hygiene alone."
+    },
+    {
+      "id": "five-habits",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Five durable habits",
+        "body": "Keep the graph readable for people and models alike.",
+        "code": "1. One idea, one job / 2. Links over duplication / 3. One active base / 4. Attributes that drive a view / 5. Maps you choose",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Semantic requirements as code — ergonomic definition and consumption."
+    },
+    {
+      "id": "slim-software",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Slim beats megablocks",
+        "body": "login_api: prose, refs, purposeful attributes — not document everything here.",
+        "code": "login_api { POST /login… [password_rules] @status in-progress }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "If the name needs and, consider splitting the idea."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Write the idea",
+        "body": "Link the neighbour. Ship the slice.",
+        "asset": "logo",
+        "fragments": [
+          "Back to tutorials · site · docs · marketplace"
+        ]
+      },
+      "notes": "Thanks for watching the advanced series."
+    }
+  ]
+}

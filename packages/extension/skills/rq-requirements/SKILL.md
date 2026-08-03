@@ -8,42 +8,54 @@ description: >-
 
 # Reqlan Requirements
 
-Use the reqlan requirement graph instead of guessing from source code alone.
+Use the requirement graph — not source guesses alone.
 
-## When to use
+## Ontology (this repo as example)
 
-- The user mentions requirements, ideas, `.rq` files, or reqlan
-- You need to know what a file is supposed to do according to documented intent
-- You need upstream/downstream impact, references, or completion status
-- You should avoid dumping the full workspace graph into context
+| Concept | Meaning | Example |
+| --- | --- | --- |
+| **idea** | Named unit of intent | `cli_package`, `skills` |
+| **file / ideaset** | Container (file ⇒ implicit ideaset) | `reqlan rq/cli/cli_package.rq` |
+| **base** | `.reqlan` boundary + ideas index | workspace root with `.reqlan/` |
+| **reference** | Link to idea or file | `[cli_package]`, `["./path".idea]` |
+| **attribute** | `@name` metadata; first unmarked text = body | `@status done` |
 
-## Core workflow
+## Special attributes (required when writing)
+
+- `@status` — lifecycle (`draft` \| `pending` \| `in-progress` \| `done` \| …)
+- `@todo` — open gaps / follow-ups
+- `@tests` — quoted test paths proving the idea (`path` or `path:test name`)
+
+Do not bury these in body prose.
+
+## CLI (`reqlan` / `rq`)
+
+Same analytical index as extension/MCP (`<base>/.reqlan`).
+
+`init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `export`/`export html`
+
+`--json` · `--cwd` / `REQLAN_WORKSPACE` · `REQLAN_INDEX_PATH`
+
+## Workflow
 
 1. Prefer focused queries over full-graph dumps.
-2. Start from the active `.rq` file or a named requirement.
-3. Expand scope only when the user asks for broader analysis.
+2. Start from the active `.rq` file or a named idea.
+3. Expand only when asked.
 
-## Available surfaces
+## Surfaces
 
-- **Cursor skills** (this repo): `/rq-requirements`, `/rq-search`, `/rq-build-requirement`, `/rq-search-requirements`, etc.
-- **Cursor MCP** (`.cursor/mcp.json`): `search_requirements`, `file_context`, `local_graph`, `requirement_reference`, `file_reference`
-- **@reqlan chat participant** (VS Code Copilot): `/rq-search`, `/rq-context`, `/rq-graph`, `/rq-related`
-- **Command palette**: `Reqlan: Semantic Search`, `Reqlan: File Related Requirements`, `Reqlan: Open Ideas Summary`
-- **Language model tools** (VS Code): `#requirement` and `#file` references in chat
+- Skills: `/rq-requirements`, `/rq-search`, `/rq-build-requirement`, …
+- MCP: `search_requirements`, `file_context`, `local_graph`, `requirement_reference`, `file_reference`
+- `@reqlan` chat: `/rq-search`, `/rq-context`, `/rq-graph`, `/rq-related`
+- Palette: Semantic Search, File Related Requirements, Ideas Summary
+- LM tools: `#requirement`, `#file`
 
 ## Token discipline
 
-- Return compact summaries: name, path, status, short summary, key references
-- Paginate or limit results (default 5–8 matches)
-- Only export the full graph when the user explicitly requests it
+Compact: name, path, status, one-line summary, key refs. Limit ~5–8 matches. Full graph only on explicit request.
 
-## Writing requirements
+## Writing
 
-When creating or updating requirements:
+Clear name + body. Always `@status` / `@todo` / `@tests` when applicable. Link related ideas. Prefer the most specific existing `.rq` file.
 
-- Use reqlan block syntax with clear names and summaries
-- Add attributes like `@status`, `@tags`, `@plan` when useful
-- Link related ideas with wiki links or bracket references
-- Place new requirements in the most specific existing `.rq` file unless the user directs otherwise
-
-See [search skill](../rq-search/SKILL.md) for search-specific guidance.
+See [search skill](../rq-search/SKILL.md).

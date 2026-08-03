@@ -135,7 +135,17 @@ export async function indexOneFile(deps: IndexOneFileDeps, filePath: string): Pr
         analytical.clearFileIndexIssuesForFile(fileUri);
     }
 
-    analytical.recordDocumentUpdate(fileUri, ideasToPersist.length);
+    analytical.recordDocumentUpdate(
+        fileUri,
+        ideasToPersist.length,
+        ideasToPersist
+            .filter(idea => idea.kind !== 'ideaset')
+            .map(idea => ({
+                id: idea.id,
+                name: idea.name,
+                lineStart: idea.lineStart
+            }))
+    );
     deps.notifyCatalogUpdated();
     return finish('persisted');
 }

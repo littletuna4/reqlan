@@ -214,18 +214,22 @@ html_export_graph_links {
 html_export_graph_layout {
     The interactive export graph should lay out nodes so labels and circles do not heavily overlap.
     Initial placement should settle with the same Obsidian-style force model as [layout_physics] (central gravity, edge springs, inverse-square repulsion).
+    Rendering uses canvas 2d (not SVG DOM) with shared physics from ["../../packages/analytical/src/graph/physics-core.js"].
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/graph/physics-core.js"]
         ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
     )
 }
 
 html_export_graph_animation {
-    Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/extension/webviews/shared/graph/graph-physics.ts"].
+    Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/analytical/src/graph/physics-core.js"] (same module as ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]).
     A Live physics toggle pauses and resumes the same simulation state (default off); when off, the graph batch-settles then sleeps.
     Simulation should converge and sleep when calm, waking on filter changes or when Live physics is turned back on, aligned with [layout_physics].
+    Large graphs use a spatial grid + repulsion cutoff in the shared core; all nodes and full labels remain visible.
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/graph/physics-core.js"]
         ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
     )
 }

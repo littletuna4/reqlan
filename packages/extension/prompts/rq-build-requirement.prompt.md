@@ -18,11 +18,13 @@ Create a new reqlan requirement from the user's intent.
 4. Draft a requirement block with:
    - a concise name
    - a summary line
-   - relevant attributes (`@status`, `@tags`, `@plan` when appropriate)
+   - special attributes: `@status` (required), `@todo` when open work remains, `@tests` when proof exists
+   - other attributes (`@tags`, `@plan`) only when useful
    - links to related requirements already in the graph
 5. Show the draft before editing unless the user asked you to apply it directly.
 
 Keep the requirement small, testable, and aligned with surrounding reqlan style in the target file.
+Do not bury status, todos, or test links in body prose.
 
 User intent:
 

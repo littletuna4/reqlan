@@ -184,6 +184,8 @@ export interface ReferenceTableRow {
     referenceType: string;
     sourceFileUri: string;
     sourceLineStart: number;
+    /** Resolved path used to open the target (file refs and idea targets). */
+    targetFileUri?: string;
 }
 
 export type IndexState =
@@ -252,14 +254,40 @@ export interface OverviewSearchResult {
     sections: OverviewSearchSection[];
 }
 
+/** Coverage metrics for Overview — computed lazily on expand. */
+export interface OverviewCoverageScores {
+    ideaCount: number;
+    rqFileCount: number;
+    eligibleNonRqFileCount: number;
+    referencedEligibleFileCount: number;
+    /** 0–100; null when there are no eligible non-.rq files. */
+    fileCoveragePct: number | null;
+    distinctFileReferenceCount: number;
+    totalLoc: number;
+    /** Ideas per 1000 LOC; null when LOC is 0. */
+    ideasPerKLoc: number | null;
+    /** True when LOC counting hit size caps (totals are lower bounds). */
+    locTruncated: boolean;
+    calculatedAt: number;
+}
+
 export type TimelineEventSource = 'git' | 'index';
 
 export interface TimelineEventView {
     id: string;
     source: TimelineEventSource;
     at: number;
+    /** Short action label: Created / Modified / Reindexed */
     label: string;
+    /** Primary display — idea name */
     detail: string;
+    ideaId?: string;
+    ideaName?: string;
+    summary?: string;
+    status?: string;
+    ideaKind?: string;
+    tags?: string[];
+    path?: string;
     fileUri?: string;
     lineStart?: number;
 }
@@ -350,6 +378,7 @@ export type WebviewToExtensionMessage =
     | { type: 'loadReferences'; query: ReferencesTableQuery }
     | { type: 'loadAttributes'; query: AttributesTableQuery }
     | { type: 'loadTimeline' }
+    | { type: 'loadOverviewCoverage' }
     | { type: 'overviewSearch'; query: string }
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'requestWebviewReload' }
@@ -368,6 +397,7 @@ export type ExtensionToWebviewMessage =
     | { type: 'attributesPage'; query: AttributesTableQuery; total: number; rows: AttributeTableRow[] }
     | { type: 'timelinePage'; events: TimelineEventView[] }
     | { type: 'overviewSearchResult'; result: OverviewSearchResult }
+    | { type: 'overviewCoverage'; scores: OverviewCoverageScores }
     | { type: 'overviewLinks'; links: OverviewLink[] }
     | { type: 'graphLoadProgress'; progress: GraphLoadProgress }
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }

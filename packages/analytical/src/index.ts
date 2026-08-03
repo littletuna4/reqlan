@@ -5,6 +5,7 @@ export type {
     AnalyticalStoreState,
     AnalysisRun,
     DocumentUpdate,
+    DocumentUpdateIdea,
     IndexError,
     FileIndexIssue,
     IndexState,
@@ -99,6 +100,13 @@ export type {
     GraphEdgeView,
     GraphTruncationBasis
 } from './index-store/webview-graph-queries.js';
+export {
+    computeOverviewCoverageScores
+} from './index-store/overview-coverage.js';
+export type {
+    OverviewCoverageScores,
+    ComputeOverviewCoverageOptions
+} from './index-store/overview-coverage.js';
 export {
     GRAPH_MAX_NODES,
     GRAPH_NODES_HARD_CAP,
@@ -242,3 +250,16 @@ export type {
     ExportScope,
     ExportSnapshot
 } from './export/types.js';
+export {
+    DEFAULT_PHYSICS_SETTINGS,
+    ReqlanGraphPhysics,
+    accumulateForces,
+    hashAngle,
+    integrateFromForces,
+    stepPhysics
+} from './graph/physics-core.js';
+export type {
+    PhysicsCoreSettings,
+    PhysicsEdge,
+    PhysicsStepState
+} from './graph/physics-core.js';

@@ -81,17 +81,40 @@ pages {
 overview_page {
     First tab: a workspace overview for the active base.
     - Stats: idea count, reference/edge count, file issues, base readiness (from index status).
+    - Coverage scores: collapsible [overview_coverage_scores] (lazy, non-blocking).
     - Search: live cross-surface search over ideas, ideasets, attributes, and references for the active base;
       results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
     - Export: buttons that open export functionality — Export form / HTML, and PDF ([features_export.export_webview], [features_export] pdf path).
     - Links: project site, support/email, GitHub.
-    - Recent changes preview with a link to [timeline_page].
+    - Recent changes preview (idea names when available) with a link to [timeline_page].
     @todo outstanding-by-status / todos rollup
     @todo deep links into HTML export pages when an export exists
     @implementation (
         [OverviewPanel]
         [ideas_summary_panel]
     )
+}
+
+overview_coverage_scores {
+    Collapsible "Coverage scores" section on [overview_page] / [OverviewPanel].
+    Metrics for the active base (respecting ["../../configuration.rq".configuration_rqignore]):
+    - Ideas / lines-of-code density (idea count over LOC of eligible non-.rq files; also show raw idea count and LOC).
+    - Percent of non-.rq, non-ignored workspace files that have at least one file reference from the index
+      (exact path match after resolve, or under a referenced folder).
+    - Supporting counts: eligible non-.rq files, referenced eligible files, distinct outbound file references, .rq file count.
+    Collapsed by default. Calculate only when the user expands the section (not on Overview open / tab switch).
+    Non-blocking: host work must not stall Overview chrome or other tabs; the section shows a loading state until the result arrives.
+    Recalculate on expand when the active base changes or when the user refreshes; otherwise reuse the last result for the session.
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+        ["../../../../packages/analytical/src/index-store/overview-coverage.ts"]
+    )
+    @test (
+        ["../../../../packages/analytical/test/overview-coverage.test.ts"]
+    )
+    @status done
+    @tags (overview, coverage, metrics)
 }
 
 overview_search {
@@ -106,17 +129,23 @@ overview_search {
 }
 
 timeline_page {
-    Timeline tab lists recent changes for the active base from:
-    - idea git dates already captured in the index (`git_modified_at` / `git_created_at`)
-    - recent index / workspace activity from index status
-    Entries are reverse-chronological, filterable by source (git / index), and clickable to open the related idea or file when available.
-    Full live git log traversal remains out of scope; this surfaces indexed history first.
+    Timeline tab shows the evolution of ideas for the active base — not raw file-index noise.
+    Sources:
+    - Git idea lifecycle from indexed `git_created_at` / `git_modified_at` (created + last edited as separate events when they differ)
+    - Session idea reindex activity (one event per idea persisted, with name / status / summary when available)
+    Opening the tab backfills missing git dates via the `git_dates` analyser (capped batch) so the feed is useful without visiting every idea in the Activity Bar.
+    Reindex must preserve existing git dates across upsert.
+    Entries are reverse-chronological, filterable by source (git / reindexed), and clickable to open the idea.
+    Each event surfaces idea-centric info: name, short summary, status, kind/tags, and path.
+    Full live multi-commit git log browsing remains out of scope; this surfaces indexed idea history first.
     @implementation (
         [TimelinePanel]
         [ideas_summary_panel]
         ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"]
     )
     @status done
+    @tags (timeline, ideas, git)
 }
 
 bases_tab {

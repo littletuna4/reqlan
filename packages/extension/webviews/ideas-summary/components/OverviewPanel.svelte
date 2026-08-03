@@ -3,18 +3,22 @@
      * Overview tab — stats, cross-surface search, export buttons, timeline preview.
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_page]
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_search]
+     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
      */
     import { getApp } from '../state/context.js';
 
     const app = getApp();
 
     let searchDraft = '';
+    let coverageOpen = false;
 
     $: status = app.index.status;
     $: links = app.overview.links;
     $: activity = status?.recentActivity ?? [];
     $: searchResult = app.overview.search;
     $: searching = app.overview.searching;
+    $: coverage = app.overview.coverage;
+    $: coverageLoading = app.overview.coverageLoading;
 
     function onSearchInput(event: Event): void {
         searchDraft = (event.currentTarget as HTMLInputElement).value;
@@ -29,6 +33,36 @@
 
     function formatTime(at: number): string {
         return new Date(at).toLocaleString();
+    }
+
+    function formatPct(value: number | null | undefined): string {
+        if (value == null) {
+            return '—';
+        }
+        return `${value}%`;
+    }
+
+    function formatRatio(value: number | null | undefined): string {
+        if (value == null) {
+            return '—';
+        }
+        return String(value);
+    }
+
+    function formatLoc(value: number): string {
+        return value.toLocaleString();
+    }
+
+    function onCoverageToggle(event: Event): void {
+        const details = event.currentTarget as HTMLDetailsElement;
+        coverageOpen = details.open;
+        if (details.open) {
+            app.loadOverviewCoverage();
+        }
+    }
+
+    function refreshCoverage(): void {
+        app.loadOverviewCoverage(true);
     }
 
     function openHit(hit: {
@@ -133,6 +167,59 @@
             </div>
         </section>
     {/if}
+
+    <section>
+        <details class="overview-coverage" on:toggle={onCoverageToggle}>
+            <summary>
+                <h2>Coverage scores</h2>
+                <span class="subtle">Ideas / LOC density and file-reference coverage</span>
+            </summary>
+            <p class="subtle">
+                Calculated on demand for the active base (non-.rq, non-ignored files). Expand to load.
+            </p>
+            {#if coverageLoading}
+                <p class="subtle">Calculating coverage…</p>
+            {:else if coverage}
+                <div class="overview-search-section-header">
+                    <span class="subtle">
+                        Updated {formatTime(coverage.calculatedAt)}
+                        {#if coverage.locTruncated}
+                            · LOC is a lower bound (size caps)
+                        {/if}
+                    </span>
+                    <button type="button" class="secondary" on:click={refreshCoverage}>Refresh</button>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="label">File coverage</div>
+                        <div class="value">{formatPct(coverage.fileCoveragePct)}</div>
+                        <div class="subtle">
+                            {coverage.referencedEligibleFileCount} / {coverage.eligibleNonRqFileCount} files
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Ideas / kLOC</div>
+                        <div class="value">{formatRatio(coverage.ideasPerKLoc)}</div>
+                        <div class="subtle">
+                            {coverage.ideaCount} ideas · {formatLoc(coverage.totalLoc)} LOC
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">File references</div>
+                        <div class="value">{coverage.distinctFileReferenceCount}</div>
+                        <div class="subtle">Distinct outbound targets</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">.rq files</div>
+                        <div class="value">{coverage.rqFileCount}</div>
+                        <div class="subtle">In active base (non-ignored)</div>
+                    </div>
+                </div>
+            {:else if coverageOpen}
+                <p class="subtle">No coverage data yet.</p>
+            {/if}
+        </details>
+    </section>
 
     <section>
         <h2>Export</h2>

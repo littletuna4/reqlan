@@ -1,0 +1,97 @@
+// Deck: gs-02-first-idea — authored JSONC; sync emits runtime decks/gs-02-first-idea.json for the player.
+{
+  "id": "gs-02-first-idea",
+  "title": "Your first idea",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 02",
+        "heading": "Your first idea",
+        "asset": "logo"
+      },
+      "notes": "A reqlan file is just text with a .rq suffix. Start with a name, then the thought."
+    },
+    {
+      "id": "new-file",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Create reqs/product.rq",
+        "body": "New folder, new file, .rq suffix — that is the whole setup."
+      },
+      "notes": "No base marker yet. The extension works on plain text in an open folder."
+    },
+    {
+      "id": "one-liner",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Name, then thought",
+        "code": "product_name reqlan tutorials demo",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "That one line is already an idea. The name is a handle you will reference later."
+    },
+    {
+      "id": "block",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Open a block when you need room",
+        "code": "welcome_flow { New users land on a calm welcome screen with one primary action: create an account. }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Inside the braces, the first free text is the main description. No required metadata yet."
+    },
+    {
+      "id": "language",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Language mode and highlighting",
+        "body": "Status bar: reqlan. Problems empty. Save to persist."
+      },
+      "notes": "Language support arrives immediately when the extension is active — not a separate compile step."
+    },
+    {
+      "id": "misconception",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "No schema required",
+        "body": "One-liners and blocks are valid on their own. Attributes wait until you need them."
+      },
+      "notes": "You do not need YAML front matter or imports before your first idea exists."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Rename welcome_flow to match your product. Rewrite the sentence in your voice.",
+        "fragments": [
+          "Next: Link ideas"
+        ]
+      },
+      "notes": "Save again so highlighting and index pick up the new name."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Two ideas, one file",
+        "asset": "logo"
+      },
+      "notes": "Next: connect ideas with references."
+    }
+  ]
+}

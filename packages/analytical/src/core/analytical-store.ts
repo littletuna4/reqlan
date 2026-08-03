@@ -29,9 +29,17 @@ export interface FileIndexIssue {
     at: number;
 }
 
+export interface DocumentUpdateIdea {
+    id: string;
+    name: string;
+    lineStart: number;
+}
+
 export interface DocumentUpdate {
     fileUri: string;
     ideaCount: number;
+    /** Ideas persisted in this update — used for idea-centric Timeline events. */
+    ideas?: DocumentUpdateIdea[];
     at: number;
 }
 
@@ -76,7 +84,11 @@ export interface AnalyticalActions {
     clearFileIndexIssues: () => void;
     clearFileIndexIssuesForFile: (fileUri: string) => void;
     clearLastError: () => void;
-    recordDocumentUpdate: (fileUri: string, ideaCount: number) => void;
+    recordDocumentUpdate: (
+        fileUri: string,
+        ideaCount: number,
+        ideas?: DocumentUpdateIdea[]
+    ) => void;
     recordWorkspaceChange: (fileUri: string, change: WorkspaceChange) => void;
     startAnalysis: (analyser: string, params: unknown) => void;
     completeAnalysis: (analyser: string, result: unknown) => void;
@@ -180,11 +192,12 @@ export function createAnalyticalStore(): AnalyticalStore {
             set({ lastError: undefined });
         },
 
-        recordDocumentUpdate(fileUri, ideaCount) {
+        recordDocumentUpdate(fileUri, ideaCount, ideas) {
             set(state => ({
                 documentUpdates: appendActivity(state.documentUpdates, {
                     fileUri,
                     ideaCount,
+                    ideas,
                     at: Date.now()
                 })
             }));

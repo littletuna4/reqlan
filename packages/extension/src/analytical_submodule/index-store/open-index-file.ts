@@ -10,8 +10,13 @@ import { resolveIndexFileUri } from './resolve-index-file-uri.js';
  * already-synced document, then try file:// (local to the remote EH), then
  * the resolved URI, then Quick Open as a last resort.
  */
-export async function openIndexFile(fileUri: string, line = 0, column = 0): Promise<void> {
-    const uri = resolveIndexFileUri(fileUri);
+export async function openIndexFile(
+    fileUri: string,
+    line = 0,
+    column = 0,
+    baseRoot?: string
+): Promise<void> {
+    const uri = resolveIndexFileUri(fileUri, baseRoot);
     const position = new vscode.Position(Math.max(0, line), Math.max(0, column));
     const options: vscode.TextDocumentShowOptions = {
         selection: new vscode.Range(position, position),

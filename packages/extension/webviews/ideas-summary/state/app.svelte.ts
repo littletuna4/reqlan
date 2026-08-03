@@ -12,6 +12,7 @@ import type {
     IndexStatusView,
     OverviewLink,
     OverviewSearchResult,
+    OverviewCoverageScores,
     ReferenceTableRow,
     ReferencesTableQuery,
     TableUiPersistedState,
@@ -55,7 +56,10 @@ export class AppState {
     overview = $state({
         links: [] as OverviewLink[],
         search: undefined as OverviewSearchResult | undefined,
-        searching: false
+        searching: false,
+        coverage: undefined as OverviewCoverageScores | undefined,
+        coverageLoading: false,
+        coverageBaseId: undefined as string | undefined
     });
 
     ideas = $state({
@@ -216,6 +220,25 @@ export class AppState {
     loadTimeline(): void {
         this.timeline.loading = true;
         postToExtension({ type: 'loadTimeline' });
+    }
+
+    /**
+     * Lazy coverage scores — only called when the Overview section is expanded.
+     * per overview_coverage_scores
+     */
+    loadOverviewCoverage(force = false): void {
+        const baseId = this.index.status?.activeBaseId;
+        if (
+            !force
+            && this.overview.coverage
+            && this.overview.coverageBaseId === baseId
+            && !this.overview.coverageLoading
+        ) {
+            return;
+        }
+        this.overview.coverageLoading = true;
+        this.overview.coverageBaseId = baseId;
+        postToExtension({ type: 'loadOverviewCoverage' });
     }
 
     openAttributeInIdeas(key: string): void {
@@ -461,7 +484,13 @@ export class AppState {
         switch (message.type) {
             case 'indexStatus': {
                 const wasReady = this.index.status?.ready ?? false;
+                const previousBaseId = this.index.status?.activeBaseId;
                 this.index.status = message.status;
+                if (message.status.activeBaseId !== previousBaseId) {
+                    this.overview.coverage = undefined;
+                    this.overview.coverageBaseId = undefined;
+                    this.overview.coverageLoading = false;
+                }
                 {
                     const { text, error } = indexStatusText(message.status);
                     this.setStatus(text, error);
@@ -504,6 +533,10 @@ export class AppState {
             case 'overviewSearchResult':
                 this.overview.search = message.result;
                 this.overview.searching = false;
+                break;
+            case 'overviewCoverage':
+                this.overview.coverage = message.scores;
+                this.overview.coverageLoading = false;
                 break;
             case 'overviewLinks':
                 this.overview.links = message.links;
@@ -579,6 +612,12 @@ export class AppState {
                     this.graph.loading = false;
                     this.graph.rendering = false;
                     this.graph.error = message.message;
+                }
+                if (this.overview.coverageLoading) {
+                    this.overview.coverageLoading = false;
+                }
+                if (this.timeline.loading) {
+                    this.timeline.loading = false;
                 }
                 this.setStatus(message.message, true);
                 break;

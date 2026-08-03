@@ -1,0 +1,99 @@
+// Deck: adv-06-html-export — authored JSONC; sync emits runtime decks/adv-06-html-export.json for the player.
+{
+  "id": "adv-06-html-export",
+  "title": "Export the graph as HTML",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 06",
+        "heading": "Export the graph as HTML",
+        "body": "Same ideas. Static pages stakeholders can open.",
+        "asset": "logo"
+      },
+      "notes": "When the graph needs to leave the editor — reviews, stakeholders, a public spec."
+    },
+    {
+      "id": "export-form",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Command palette → export",
+        "body": "Simple fields first. Advanced options stay collapsed until you need them.",
+        "code": "Reqlan: Export HTML · scope: reqs/ · output: ./docs-site",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Scope is a craft choice — narrow for a review, wide for a full spec."
+    },
+    {
+      "id": "scope",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Scope deliberately",
+        "body": "reqs/ vs workspace root — page count should match the question you are answering.",
+        "code": "reqs/ → fewer pages · workspace → full base catalog",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Export reads the active base index — same boundary as search."
+    },
+    {
+      "id": "browse",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Stable pages and links",
+        "body": "index → login_api → password_rules. Bookmarkable documentation.",
+        "code": "docs-site/login_api.html → password_rules.html",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Internal links mirror the graph."
+    },
+    {
+      "id": "cli-parity",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Extension or CLI",
+        "body": "Same analytical core. Pick the host that fits the moment.",
+        "code": "npx reqlan export --out ./docs-site",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Form for exploration. CLI for scripts and CI."
+    },
+    {
+      "id": "index-check",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Empty site? Check the index",
+        "body": "Confirm .reqlan and indexed files — not a separate export format problem.",
+        "code": "demo/.reqlan/ · ideas indexed · active base",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Export expects a populated base index."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Export reqs/ only and compare page count to a full workspace export.",
+        "fragments": [
+          "Next — CLI and MCP"
+        ]
+      },
+      "notes": "Follow an internal reference in the browser before you close the tab."
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+// Deck: gs-05-activity-bar — authored JSONC; sync emits runtime decks/gs-05-activity-bar.json for the player.
+{
+  "id": "gs-05-activity-bar",
+  "title": "Neighbourhood in the activity bar",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 05",
+        "heading": "Neighbourhood in the activity bar",
+        "asset": "logo"
+      },
+      "notes": "The activity bar is your neighbourhood view inside the active base — not a dump of the whole workspace."
+    },
+    {
+      "id": "open",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Open the activity bar",
+        "body": "Click the reqlan icon. Caret on welcome_flow. Confirm active base.",
+        "asset": "activity-bar"
+      },
+      "notes": "Context binds to the active base index — not a merged global graph."
+    },
+    {
+      "id": "sync",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Sync and hop depth",
+        "body": "Sync follows the caret. Hop depth widens or tightens references."
+      },
+      "notes": "Keep hop depth at 1 while you are learning."
+    },
+    {
+      "id": "misconception",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Not every edit needs Ideas Summary",
+        "body": "Activity bar = local while editing. Ideas Summary = broader map when you choose it."
+      },
+      "notes": "Glance and leave — do not treat the graph as a mandatory dashboard."
+    },
+    {
+      "id": "copy-slice",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Copy a focused slice",
+        "body": "Copy as Markdown into a scratch file — not the whole reqs folder."
+      },
+      "notes": "Token-minimising context beats dumping the workspace into chat."
+    },
+    {
+      "id": "ideas-summary",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ideas Summary — glance and leave",
+        "body": "Command Palette: Reqlan: Ideas Summary. Pan once. Close.",
+        "asset": "montage-ide"
+      },
+      "notes": "Use it when you are lost or need a table — not on every keystroke."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Turn sync off, pin welcome_flow, click around, then turn sync back on.",
+        "fragments": [
+          "Next: Ask @reqlan"
+        ]
+      },
+      "notes": "Pinning keeps one idea in view while you explore elsewhere."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Local context first",
+        "asset": "logo"
+      },
+      "notes": "Next: ask the graph with a small slice."
+    }
+  ]
+}

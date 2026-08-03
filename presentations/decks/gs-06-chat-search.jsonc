@@ -1,0 +1,96 @@
+// Deck: gs-06-chat-search — authored JSONC; sync emits runtime decks/gs-06-chat-search.json for the player.
+{
+  "id": "gs-06-chat-search",
+  "title": "Ask @reqlan",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 06",
+        "heading": "Ask @reqlan",
+        "asset": "logo"
+      },
+      "notes": "reqlan meets AI through focused tools — not by shoving the whole graph into the prompt."
+    },
+    {
+      "id": "fixture",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Add password_rules",
+        "code": "password_rules { Passwords must be at least twelve characters… }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Empty submissions are a hard fail on welcome_flow — body text search will find this later."
+    },
+    {
+      "id": "search-vscode",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "VS Code Chat search",
+        "body": "@reqlan /rq-search password empty",
+        "asset": "chat-search"
+      },
+      "notes": "Slash commands use the rq- prefix. Results stay compact on purpose."
+    },
+    {
+      "id": "search-cursor",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Cursor alternate",
+        "body": "Skill: /rq-search password empty — same index, same discipline."
+      },
+      "notes": "Skills mirror chat commands when recording in Cursor."
+    },
+    {
+      "id": "misconception",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Search, then slice — not paste",
+        "body": "Meaning search finds the handle. Add-to-context ships the neighbourhood."
+      },
+      "notes": "Search beats scrolling when the keyword lives in body prose, not the idea name."
+    },
+    {
+      "id": "context",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Add only what you need",
+        "body": "Add password_rules to context. Leave the rest in the index."
+      },
+      "notes": "The .rq file remains the source of truth — the model proposes, you keep ownership."
+    },
+    {
+      "id": "build-optional",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Optional: build a requirement",
+        "body": "/rq-build-requirement rate-limit failed logins → named idea in product.rq"
+      },
+      "notes": "Fifteen seconds on camera — skip if the surface is not ready; note preview on screen."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Search for twelve — a body word, not an idea name.",
+        "fragments": [
+          "Next: Point ideas at code"
+        ]
+      },
+      "notes": "Meaning search should return password_rules without you remembering the handle."
+    }
+  ]
+}

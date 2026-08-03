@@ -1,0 +1,97 @@
+// Deck: adv-02-attributes-status-plans — authored JSONC; sync emits runtime decks/adv-02-attributes-status-plans.json for the player.
+{
+  "id": "adv-02-attributes-status-plans",
+  "title": "Attributes without bloat",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 02",
+        "heading": "Attributes without bloat",
+        "body": "Opt into metadata. Slim keys beat ceremonial forms.",
+        "asset": "logo"
+      },
+      "notes": "Attributes are metadata you opt into. The craft question is whether each key earns navigation value."
+    },
+    {
+      "id": "status-tags",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Status and tags first",
+        "body": "Earn their keep when they drive a view or a search.",
+        "code": "@status in-progress / @tags ( auth security )",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Keep values honest — done on an idea you would not ship is worse than no status."
+    },
+    {
+      "id": "plan",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Plans live on the idea",
+        "body": "In git, next to the prose — not only in a chat transcript.",
+        "code": "@plan { goal: ship login; constraints: honour [password_rules]; open: rate-limit TBD }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Let the model draft structure; you keep constraints and open questions honest."
+    },
+    {
+      "id": "write-plan",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Write-plan as draft",
+        "body": "rq-write-plan proposes; you edit one line so ownership is visible.",
+        "asset": "chat-search"
+      },
+      "notes": "Plans belong in source control, not buried in chat history."
+    },
+    {
+      "id": "filter",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Filter in Ideas Summary",
+        "body": "If you never filter on a tag, stop tagging with it.",
+        "code": "Ideas table · filter @status in-progress · tag auth",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Attributes earn their keep when they drive a view."
+    },
+    {
+      "id": "anti-pattern",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Delete ceremonial keys",
+        "body": "Twelve @-keys vs status, tags, plan — pick the slim shape.",
+        "code": "@owner @priority @sprint @quarter … vs @status @tags @plan",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Common mistake: copying a corporate template onto every idea."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Mark one idea @status draft and leave its plan empty on purpose.",
+        "fragments": [
+          "Next — Ideas Summary graph"
+        ]
+      },
+      "notes": "If an attribute never appears in how you navigate, delete it."
+    }
+  ]
+}

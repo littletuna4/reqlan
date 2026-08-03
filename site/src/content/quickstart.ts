@@ -53,10 +53,10 @@ export const quickstartContent = {
   nextSteps: [
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_02_first_idea]
     "Create or open a `.rq` file in your workspace.",
-    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_05_chat_search]
-    "Use @reqlan in Copilot chat or rq-* skills in Cursor for requirement-aware AI.",
-    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_04_activity_bar]
-    "Open the reqlan activity bar for graph views, idea tables, and exports.",
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_04_first_base]
+    "Create a reqlan base (`.reqlan`) so the ideas index has a home.",
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_05_activity_bar]
+    "Open the reqlan activity bar for neighbourhood context, then try @reqlan / rq-* skills.",
   ],
 } as const;
 

@@ -1,0 +1,112 @@
+// Deck: adv-01-imports-ideasets — authored JSONC; sync emits runtime decks/adv-01-imports-ideasets.json for the player.
+{
+  "id": "adv-01-imports-ideasets",
+  "title": "Imports and ideasets",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 01",
+        "heading": "Imports and ideasets",
+        "body": "One file is a start. Real graphs span files — imports keep links honest.",
+        "asset": "logo"
+      },
+      "notes": "One file is a great start. Real projects become a web of files."
+    },
+    {
+      "id": "split",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Split before sprawl",
+        "body": "Auth ideas in auth.rq. Product ideas stay in product.rq.",
+        "code": "login_api { Bound by [session_policy]. }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Each file is its own ideaspace. Moving ideas changes where the handle lives."
+    },
+    {
+      "id": "from-import",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "From-import one idea",
+        "body": "Pull a single neighbour when that is all the call site needs.",
+        "code": "from \"./auth.rq\" import login_api",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "From-import pulls one idea into scope."
+    },
+    {
+      "id": "namespace",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Namespace the file",
+        "body": "Alias the whole module when several ideas travel together.",
+        "code": "import \"./auth.rq\" as auth · [auth.session_policy]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "If you reference three ideas from auth, namespace usually reads cleaner."
+    },
+    {
+      "id": "ideaset",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ideasets as namespaces",
+        "body": "Group related ideas without a heavier module system.",
+        "code": "auth_core ( login_api, session_policy )",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Ideasets document membership. Imports still control what this file can link to."
+    },
+    {
+      "id": "judgement",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Import the smallest surface",
+        "body": "Six from-imports vs one namespace — pick readability, not completeness.",
+        "code": "from \"./auth.rq\" import a, b, c, d… vs import \"./auth.rq\" as auth",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Common mistake: import everything just in case."
+    },
+    {
+      "id": "base-boundary",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Imports respect base boundaries",
+        "body": "Cross-file links stay inside the active base graph.",
+        "code": "demo/.reqlan/ · auth.rq + product.rq same base",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Imports do not cross nested base boundaries — same discipline as get-started."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Move password_rules into auth.rq. Fix product.rq with the smallest import that works.",
+        "fragments": [
+          "Next — Attributes without bloat"
+        ]
+      },
+      "notes": "Pick the import shape that keeps call sites readable."
+    }
+  ]
+}

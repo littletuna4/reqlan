@@ -217,6 +217,8 @@ export interface ReferenceTableRow {
     referenceType: ReferenceViewType;
     sourceFileUri: string;
     sourceLineStart: number;
+    /** Resolved path used to open the target (file refs and idea targets). */
+    targetFileUri?: string;
 }
 
 export interface FileRelatedRequirements {

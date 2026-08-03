@@ -6,6 +6,9 @@ import { resolveWorkspaceFileUri } from '../core/workspace-paths.js';
 
 const execFileAsync = promisify(execFile);
 
+const GIT_LOG_TIMEOUT_MS = 4_000;
+const LOOKUP_CONCURRENCY = 4;
+
 export interface GitDateInfo {
     ideaId: string;
     createdAt?: string;
@@ -15,16 +18,30 @@ export interface GitDateInfo {
 export const gitDatesAnalyser: Analyser<{ ideaIds?: string[] }, GitDateInfo[]> = {
     id: 'git_dates',
     async run({ store, workspaceRoot }, { ideaIds }) {
-        const ideas = ideaIds
-            ? (await Promise.all(ideaIds.map(id => store.getIdea(id)))).filter((idea): idea is NonNullable<typeof idea> => !!idea)
-            : await store.listAllIdeas();
-        const results: GitDateInfo[] = [];
-        for (const idea of ideas) {
-            const dates = await lookupGitDates(idea.fileUri, idea.lineStart + 1, workspaceRoot);
-            if (dates.createdAt || dates.modifiedAt) {
-                await store.updateGitDates(idea.id, dates.createdAt, dates.modifiedAt);
+        const wanted = ideaIds ? new Set(ideaIds) : undefined;
+        const ideas = (await store.getAllIdeasRaw()).filter(idea => {
+            if (idea.kind === 'ideaset') {
+                return false;
             }
-            results.push({ ideaId: idea.id, ...dates });
+            return wanted ? wanted.has(idea.id) : true;
+        });
+        const results: GitDateInfo[] = [];
+
+        for (let offset = 0; offset < ideas.length; offset += LOOKUP_CONCURRENCY) {
+            const batch = ideas.slice(offset, offset + LOOKUP_CONCURRENCY);
+            const batchResults = await Promise.all(batch.map(async idea => {
+                const dates = await lookupGitDates(
+                    idea.fileUri,
+                    idea.lineStart,
+                    idea.lineEnd,
+                    workspaceRoot
+                );
+                if (dates.createdAt || dates.modifiedAt) {
+                    await store.updateGitDates(idea.id, dates.createdAt, dates.modifiedAt);
+                }
+                return { ideaId: idea.id, ...dates };
+            }));
+            results.push(...batchResults);
         }
         return results;
     }
@@ -32,22 +49,47 @@ export const gitDatesAnalyser: Analyser<{ ideaIds?: string[] }, GitDateInfo[]> =
 
 async function lookupGitDates(
     fileUri: string,
-    line: number,
+    lineStart: number,
+    lineEnd: number,
     workspaceRoot?: string
 ): Promise<{ createdAt?: string; modifiedAt?: string }> {
     const resolvedUri = resolveWorkspaceFileUri(fileUri, workspaceRoot);
     const filePath = resolvedUri.startsWith('file://') ? URI.parse(resolvedUri).fsPath : resolvedUri;
     const cwd = workspaceRoot;
+    const start = Math.min(lineStart, lineEnd) + 1;
+    const end = Math.max(lineStart, lineEnd) + 1;
+
+    try {
+        const { stdout: lineStdout } = await execFileAsync(
+            'git',
+            ['log', '-L', `${start},${end}:${filePath}`, '--format=%aI', '-n', '40'],
+            { cwd, timeout: GIT_LOG_TIMEOUT_MS }
+        );
+        const lineDates = lineStdout
+            .trim()
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+        if (lineDates.length > 0) {
+            return {
+                modifiedAt: lineDates[0],
+                createdAt: lineDates[lineDates.length - 1]
+            };
+        }
+    } catch {
+        // Fall through to file-level dates.
+    }
+
     try {
         const { stdout: createdStdout } = await execFileAsync(
             'git',
             ['log', '--diff-filter=A', '--format=%aI', '-1', '--', filePath],
-            { cwd }
+            { cwd, timeout: GIT_LOG_TIMEOUT_MS }
         );
         const { stdout: modifiedStdout } = await execFileAsync(
             'git',
-            ['log', '-L', `${line},${line}:${filePath}`, '--format=%aI', '-1'],
-            { cwd }
+            ['log', '--format=%aI', '-1', '--', filePath],
+            { cwd, timeout: GIT_LOG_TIMEOUT_MS }
         );
         return {
             createdAt: createdStdout.trim() || undefined,

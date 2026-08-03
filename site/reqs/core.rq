@@ -63,12 +63,13 @@ components {
 
 tutorials_section {
     The site exposes `/tutorials` and `/tutorials/[slug]/` as statically generated pages.
-    Catalog and deck ids come from ["../../presentations/manifest.json"].
+    Catalog and deck ids come from authored ["../../presentations/manifest.jsonc"].
     Each detail page embeds the Reveal player iframe at `/presentations/player/?deck=<id>` using [assets] / SITE_BASE_PATH-aware `sitePath`.
     Each detail page hosts a unified transport chrome (`<<` `<` steps `>` `>>`) that drives slide nav in the embedded player via postMessage, plus lesson jumps.
+    Location hierarchy chrome: [tutorial_location_crumb].
     Blurb and try-this live on the catalog and inside the slides, not as page chrome.
     The player is an App Router page ([presentation_player_route]) so it static-exports under `trailingSlash` without colliding with `public/` HTML.
-    Deck JSON, assets, and vendored Reveal.js are copied from ["../../presentations/"] into `public/presentations/` (player shell excluded).
+    Sync ([sync_presentations]) converts authored deck/catalog JSONC under ["../../presentations/"] into runtime JSON under `public/presentations/`, and copies assets plus vendored Reveal.js (player shell excluded).
     @status done
     @implementation (
         ["../src/app/tutorials/page.tsx"]
@@ -78,11 +79,48 @@ tutorials_section {
         ["../src/components/TutorialPlayerShell.tsx"]
         ["../src/components/PresentationPlayer.tsx"]
         ["../scripts/sync-presentations.mts"]
+        ["../src/lib/parse-jsonc.ts"]
+    )
+}
+
+tutorial_location_crumb {
+    Tutorial detail chrome shows a compact location trail: catalog → course → lesson → slide.
+    Hierarchy must be obvious without a wide single-line title dump.
+    Layout: each tier is a stacked chip — role (and optional completion control) on the top row;
+    title / index value muted underneath. Titles colour up on hover, focus-within, or when the peer menu is open.
+    **Folder navigation:** each tier acts like a path segment / folder. Hover or focus reveals a peer menu
+    for that level of the tree so the user can jump without using the transport row:
+    - catalog → courses (enter first lesson of the chosen course, or the catalog index)
+    - course → peer courses
+    - lesson → peer lessons in the active course
+    - slide → peer slides in the active lesson (updates the embedded player / `?slide=`)
+    Current peer is marked; menus stay keyboard-reachable via focus-within.
+    **Sizing:** the crumb container grows to fit text; wrap before truncating. Ellipsis only as a last resort
+    on very narrow viewports — do not cap chip width so aggressively that titles ellipsize while space remains.
+    Course deep-links also exist at `/tutorials/#course-<series>`; catalog at `/tutorials/`.
+    Slide shows `n/total` and updates live with the embedded player.
+    Completion toggles stay on the role row.
+    The crumb lesson tier always shows the **current** lesson only — it must not share hover/preview
+    state with the transport lesson step dots. Step-dot hover may preview a title near the dots, never in the crumb.
+    @status done
+    @implementation (
+        ["../src/components/TutorialPlayerShell.tsx"]
+        ["../src/components/TutorialPlayerShell.module.css"]
+    )
+}
+
+sync_presentations {
+    `scripts/sync-presentations.mts` reads authored `*.jsonc` decks and `manifest.jsonc`, emits comment-free `*.json` for the static player, and syncs assets/vendor into `public/presentations/`.
+    @status done
+    @implementation (
+        ["../scripts/sync-presentations.mts"]
+        ["../src/lib/parse-jsonc.ts"]
     )
 }
 
 presentation_player_route {
-    `/presentations/player/` is a statically exported Next page that loads deck JSON from `/presentations/decks/` and Reveal from `/presentations/vendor/reveal.js/`.
+    `/presentations/player/` is a statically exported Next page that loads runtime deck JSON from `/presentations/decks/` and Reveal from `/presentations/vendor/reveal.js/`.
+    Runtime JSON is generated from authored JSONC by [sync_presentations].
     It must not use SiteShell; it is iframe-hosted by tutorial detail pages.
     Do not place `public/presentations/player/index.html` — that path is owned by the App Router export.
     @status done

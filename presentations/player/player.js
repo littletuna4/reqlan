@@ -28,6 +28,60 @@ function deckIdFromQuery() {
   return params.get("deck") || "gs-01-why-reqlan";
 }
 
+/** Strip line/block comments outside strings, plus trailing commas. */
+function stripJsonc(text) {
+  let result = "";
+  let i = 0;
+  let inString = false;
+  let quote = "";
+  let escaped = false;
+
+  while (i < text.length) {
+    const c = text[i];
+
+    if (inString) {
+      result += c;
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === quote) inString = false;
+      i += 1;
+      continue;
+    }
+
+    if (c === '"' || c === "'") {
+      inString = true;
+      quote = c;
+      result += c;
+      i += 1;
+      continue;
+    }
+
+    if (c === "/" && text[i + 1] === "/") {
+      i += 2;
+      while (i < text.length && text[i] !== "\n") i += 1;
+      continue;
+    }
+
+    if (c === "/" && text[i + 1] === "*") {
+      i += 2;
+      while (i + 1 < text.length && !(text[i] === "*" && text[i + 1] === "/")) {
+        i += 1;
+      }
+      i += 2;
+      continue;
+    }
+
+    result += c;
+    i += 1;
+  }
+
+  return result.replace(/,(\s*[}\]])/g, "$1");
+}
+
+function parseJsonc(text) {
+  return JSON.parse(stripJsonc(text));
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -133,11 +187,11 @@ async function main() {
 
   let deck;
   try {
-    const response = await fetch(`../decks/${encodeURIComponent(deckId)}.json`);
+    const response = await fetch(`../decks/${encodeURIComponent(deckId)}.jsonc`);
     if (!response.ok) {
       throw new Error(`Deck not found: ${deckId}`);
     }
-    deck = await response.json();
+    deck = parseJsonc(await response.text());
   } catch (error) {
     showError(error instanceof Error ? error.message : String(error));
     return;

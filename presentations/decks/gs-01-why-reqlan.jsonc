@@ -1,0 +1,100 @@
+// Deck: gs-01-why-reqlan — authored JSONC; sync emits runtime decks/gs-01-why-reqlan.json for the player.
+{
+  "id": "gs-01-why-reqlan",
+  "title": "Why requirements as code",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 01",
+        "heading": "Why requirements as code",
+        "asset": "logo"
+      },
+      "notes": "If you work with language models on real projects, you already write requirements — you just write them into the chat window, over and over."
+    },
+    {
+      "id": "problem",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Context drift is familiar",
+        "body": "You paste the same intent into chat again and again."
+      },
+      "notes": "Every new thread starts from scratch unless you rebuild context by hand."
+    },
+    {
+      "id": "contrast",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Chat dump vs named ideas",
+        "body": "Same intent. Two shapes — only one stays findable.",
+        "code_label": "chat paste",
+        "code": "Users must log in. Empty passwords fail.\nSessions time out. Failed attempts get logged.\nAlso remember rate limits somehow…",
+        "code_lang": "txt",
+        "code_b_label": "named ideas",
+        "code_b": "login must reject empty passwords\nsession expires after inactivity\naudit_log records failed attempts",
+        "code_b_lang": "rq"
+      },
+      "notes": "reqlan turns that intent into a graph of named ideas — requirements as code."
+    },
+    {
+      "id": "loop",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Name, prose, neighbours",
+        "body": "Editor language support · activity bar neighbourhood · optional graph map.",
+        "asset": "montage-ide"
+      },
+      "notes": "Day one is name the idea, write the prose, point at related work."
+    },
+    {
+      "id": "misconception",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Not another notes app",
+        "body": "Notes store paragraphs. reqlan stores handles you can link and search."
+      },
+      "notes": "You do not need a schema on day one — you need names your tools can reuse."
+    },
+    {
+      "id": "install",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Install the extension",
+        "body": "Marketplace or Open VSX → Install → Open Folder."
+      },
+      "notes": "Open a workspace folder even if it is empty. The welcome webview appears on first launch."
+    },
+    {
+      "id": "onboarding",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Welcome, not base yet",
+        "body": "Keep docs and marketplace links from the onboarding page."
+      },
+      "notes": "Creating a base with .reqlan comes after you have written a few ideas."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Semantic requirements as code, built for LLM workflows",
+        "asset": "logo",
+        "fragments": [
+          "Next: Your first idea"
+        ]
+      },
+      "notes": "Next: write your first idea in under a minute."
+    }
+  ]
+}

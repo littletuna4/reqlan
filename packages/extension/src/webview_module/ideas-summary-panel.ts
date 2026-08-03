@@ -4,6 +4,7 @@
  * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ontology_aligned_tabs]
  */
 import * as vscode from 'vscode';
+import { join } from 'node:path';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import type { IndexStatusSnapshot } from '@reqlan/analytical';
 import {
@@ -42,6 +43,7 @@ import { getPhonebookLink } from '../shared/phonebook.js';
 import {
     buildFocusSignals,
     buildGraphViewSlice,
+    computeOverviewCoverageScores,
     GRAPH_MAX_NODES,
     GRAPH_NODES_HARD_CAP,
     hotspotBandFromRisk,
@@ -144,6 +146,9 @@ export class IdeasSummaryPanel {
     private bootstrapPromise: Promise<void> | undefined;
     private graphSliceGeneration = 0;
     private graphSlicePending = false;
+    private coverageGeneration = 0;
+    /** Idea ids for which Timeline already attempted git_dates backfill this session. */
+    private readonly timelineGitDatesAttempted = new Set<string>();
 
     private constructor(
         private readonly context: vscode.ExtensionContext,
@@ -310,6 +315,9 @@ export class IdeasSummaryPanel {
                 case 'loadTimeline':
                     await this.sendTimelinePage();
                     break;
+                case 'loadOverviewCoverage':
+                    await this.sendOverviewCoverage();
+                    break;
                 case 'overviewSearch':
                     await this.sendOverviewSearch(message.query);
                     break;
@@ -332,7 +340,12 @@ export class IdeasSummaryPanel {
                     break;
                 }
                 case 'openIdea':
-                    await openIndexFile(message.fileUri, message.line, message.column);
+                    await openIndexFile(
+                        message.fileUri,
+                        message.line,
+                        message.column,
+                        this.submodule.index.getActiveBase()?.descriptor.root
+                    );
                     break;
                 case 'openExternal':
                     await vscode.env.openExternal(vscode.Uri.parse(message.href));
@@ -506,7 +519,8 @@ export class IdeasSummaryPanel {
             status: toIndexStatusView(index.getStatusSnapshot(), {
                 activeBaseId: index.getActiveBaseId(),
                 discoveryEmpty: index.discoveryEmpty,
-                bases
+                bases,
+                baseRoot: index.getActiveBase()?.descriptor.root
             })
         });
         // Never await the graph build on the status path — sync progress must keep flowing.
@@ -527,7 +541,7 @@ export class IdeasSummaryPanel {
         const rows = (await store.listIdeasPage(resolvedQuery))
             .map(row => ({
                 ...row,
-                path: vscode.workspace.asRelativePath(row.path)
+                path: this.toDisplayPath(row.path)
             }));
         this.post({
             type: 'ideasPage',
@@ -549,7 +563,7 @@ export class IdeasSummaryPanel {
         const rows = (await store.listIdeasetsPage(resolvedQuery))
             .map(row => ({
                 ...row,
-                path: vscode.workspace.asRelativePath(row.path)
+                path: this.toDisplayPath(row.path)
             }));
         this.post({
             type: 'ideasetsPage',
@@ -571,8 +585,8 @@ export class IdeasSummaryPanel {
         const rows = (await store.listReferencesPage(resolvedQuery))
             .map(row => ({
                 ...row,
-                sourcePath: vscode.workspace.asRelativePath(row.sourcePath),
-                targetPath: row.targetPath ? vscode.workspace.asRelativePath(row.targetPath) : '—'
+                sourcePath: this.toDisplayPath(row.sourcePath),
+                targetPath: row.targetPath ? this.toDisplayPath(row.targetPath) : '—'
             }));
         this.post({
             type: 'referencesPage',
@@ -580,6 +594,14 @@ export class IdeasSummaryPanel {
             total,
             rows
         });
+    }
+
+    /** Convert an index/base-relative path to a workspace-relative display path. */
+    private toDisplayPath(indexedPath: string): string {
+        return toWorkspaceDisplayPath(
+            indexedPath,
+            this.submodule.index.getActiveBase()?.descriptor.root
+        );
     }
 
     private async sendAttributesPage(): Promise<void> {
@@ -601,51 +623,48 @@ export class IdeasSummaryPanel {
     }
 
     private async sendTimelinePage(): Promise<void> {
-        const indexEvents = (this.submodule.index.getStatusSnapshot().recentDocumentUpdates ?? [])
-            .map(update => ({
-                id: `index:doc:${update.fileUri}:${update.at}`,
-                source: 'index' as const,
-                at: update.at,
-                label: 'Indexed',
-                detail: vscode.workspace.asRelativePath(update.fileUri),
-                fileUri: update.fileUri,
-                lineStart: 0
-            }));
-        const workspaceEvents = (this.submodule.index.getStatusSnapshot().recentWorkspaceChanges ?? [])
-            .map(change => ({
-                id: `index:ws:${change.fileUri}:${change.at}:${change.change}`,
-                source: 'index' as const,
-                at: change.at,
-                label: `File ${change.change}`,
-                detail: vscode.workspace.asRelativePath(change.fileUri),
-                fileUri: change.fileUri,
-                lineStart: 0
-            }));
+        await this.ensureTimelineGitDates();
 
+        const indexEvents = await this.buildIdeaIndexTimelineEvents();
         let gitEvents: Array<{
             id: string;
             source: 'git';
             at: number;
             label: string;
             detail: string;
+            ideaId?: string;
+            ideaName?: string;
+            summary?: string;
+            status?: string;
+            ideaKind?: string;
+            tags?: string[];
+            path?: string;
             fileUri: string;
             lineStart: number;
         }> = [];
 
         if (this.submodule.index.isReady) {
-            const rows = await this.submodule.index.indexStore.listRecentGitIdeaEvents(80);
+            const rows = await this.submodule.index.indexStore.listRecentGitIdeaEvents(100);
             gitEvents = rows
                 .map(row => {
                     const at = Date.parse(row.at);
                     if (!Number.isFinite(at)) {
                         return undefined;
                     }
+                    const path = this.toDisplayPath(row.fileUri);
                     return {
                         id: `git:${row.ideaId}:${row.kind}:${row.at}`,
                         source: 'git' as const,
                         at,
                         label: row.kind === 'created' ? 'Created' : 'Modified',
-                        detail: `${row.name} · ${vscode.workspace.asRelativePath(row.fileUri)}`,
+                        detail: row.name,
+                        ideaId: row.ideaId,
+                        ideaName: row.name,
+                        summary: row.summary,
+                        status: row.status,
+                        ideaKind: row.ideaKind,
+                        tags: row.tags,
+                        path,
                         fileUri: row.fileUri,
                         lineStart: row.lineStart
                     };
@@ -653,11 +672,154 @@ export class IdeasSummaryPanel {
                 .filter((event): event is NonNullable<typeof event> => Boolean(event));
         }
 
-        const events = [...gitEvents, ...indexEvents, ...workspaceEvents]
+        const events = [...gitEvents, ...indexEvents]
             .sort((left, right) => right.at - left.at)
-            .slice(0, 120);
+            .slice(0, 150);
 
         this.post({ type: 'timelinePage', events });
+    }
+
+    /**
+     * Backfill missing idea git dates so Timeline can show evolution.
+     * Caps work per open so the tab stays responsive.
+     */
+    private async ensureTimelineGitDates(): Promise<void> {
+        if (!this.submodule.index.isReady) {
+            return;
+        }
+        const store = this.submodule.index.indexStore;
+        const missing = (await store.listIdeaIdsMissingGitDates(40))
+            .filter(id => !this.timelineGitDatesAttempted.has(id));
+        if (missing.length === 0) {
+            return;
+        }
+        for (const id of missing) {
+            this.timelineGitDatesAttempted.add(id);
+        }
+        const workspaceRoot =
+            this.submodule.index.getActiveBase()?.descriptor.root ??
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        try {
+            await this.submodule.analysers.run<{ ideaIds?: string[] }, unknown>(
+                {
+                    store,
+                    analytical: this.submodule.index.store,
+                    workspaceRoot
+                },
+                'git_dates',
+                { ideaIds: missing }
+            );
+        } catch {
+            // Timeline still shows any dates already present / index idea events.
+        }
+    }
+
+    /** Session index activity expanded to one Timeline event per idea. */
+    private async buildIdeaIndexTimelineEvents(): Promise<Array<{
+        id: string;
+        source: 'index';
+        at: number;
+        label: string;
+        detail: string;
+        ideaId?: string;
+        ideaName?: string;
+        summary?: string;
+        status?: string;
+        ideaKind?: string;
+        tags?: string[];
+        path?: string;
+        fileUri: string;
+        lineStart: number;
+    }>> {
+        const updates = this.submodule.index.getStatusSnapshot().recentDocumentUpdates ?? [];
+        const events: Array<{
+            id: string;
+            source: 'index';
+            at: number;
+            label: string;
+            detail: string;
+            ideaId?: string;
+            ideaName?: string;
+            summary?: string;
+            status?: string;
+            ideaKind?: string;
+            tags?: string[];
+            path?: string;
+            fileUri: string;
+            lineStart: number;
+        }> = [];
+
+        const ideaIds = updates.flatMap(update => (update.ideas ?? []).map(idea => idea.id));
+        const byId = new Map<string, Awaited<ReturnType<typeof this.submodule.index.indexStore.getIdea>>>();
+        if (this.submodule.index.isReady && ideaIds.length > 0) {
+            const ideas = await this.submodule.index.indexStore.getIdeasByIds(ideaIds);
+            for (const idea of ideas) {
+                byId.set(idea.id, idea);
+            }
+        }
+
+        for (const update of updates) {
+            const path = this.toDisplayPath(update.fileUri);
+            const ideas = update.ideas ?? [];
+            if (ideas.length === 0) {
+                continue;
+            }
+            for (const idea of ideas) {
+                const indexed = byId.get(idea.id);
+                events.push({
+                    id: `index:idea:${idea.id}:${update.at}`,
+                    source: 'index',
+                    at: update.at,
+                    label: 'Reindexed',
+                    detail: idea.name,
+                    ideaId: idea.id,
+                    ideaName: idea.name,
+                    summary: indexed?.summary,
+                    status: indexed?.status,
+                    ideaKind: indexed?.kind,
+                    tags: indexed?.tags,
+                    path,
+                    fileUri: update.fileUri,
+                    lineStart: idea.lineStart
+                });
+            }
+        }
+        return events;
+    }
+
+    private async sendOverviewCoverage(): Promise<void> {
+        const generation = ++this.coverageGeneration;
+        const baseRoot = this.submodule.index.getActiveBase()?.descriptor.root;
+        if (!baseRoot || !this.submodule.index.isReady) {
+            this.post({
+                type: 'overviewCoverage',
+                scores: {
+                    ideaCount: 0,
+                    rqFileCount: 0,
+                    eligibleNonRqFileCount: 0,
+                    referencedEligibleFileCount: 0,
+                    fileCoveragePct: null,
+                    distinctFileReferenceCount: 0,
+                    totalLoc: 0,
+                    ideasPerKLoc: null,
+                    locTruncated: false,
+                    calculatedAt: Date.now()
+                }
+            });
+            return;
+        }
+
+        const scores = await computeOverviewCoverageScores({
+            baseRoot,
+            store: this.submodule.index.indexStore,
+            shouldCancel: () => generation !== this.coverageGeneration
+        });
+
+        if (generation !== this.coverageGeneration) {
+            return;
+        }
+
+        this.post({ type: 'overviewCoverage', scores });
     }
 
     private async sendOverviewSearch(rawQuery: string): Promise<void> {
@@ -728,7 +890,7 @@ export class IdeasSummaryPanel {
                         hits: ideasRows.map(row => ({
                             kind: 'idea' as const,
                             title: row.title,
-                            detail: vscode.workspace.asRelativePath(row.path),
+                            detail: this.toDisplayPath(row.path),
                             fileUri: row.fileUri,
                             lineStart: row.lineStart
                         }))
@@ -740,7 +902,7 @@ export class IdeasSummaryPanel {
                         hits: ideasetsRows.map(row => ({
                             kind: 'ideaset' as const,
                             title: row.name,
-                            detail: vscode.workspace.asRelativePath(row.path),
+                            detail: this.toDisplayPath(row.path),
                             fileUri: row.fileUri,
                             lineStart: row.lineStart
                         }))
@@ -763,9 +925,11 @@ export class IdeasSummaryPanel {
                         hits: referencesRows.map(row => ({
                             kind: 'reference' as const,
                             title: `${row.sourceName} → ${row.targetName}`,
-                            detail: `${vscode.workspace.asRelativePath(row.sourcePath)} · ${row.referenceType}`,
-                            fileUri: row.sourceFileUri,
-                            lineStart: row.sourceLineStart
+                            detail: `${this.toDisplayPath(row.sourcePath)} · ${row.referenceType}`,
+                            fileUri: row.referenceType === 'file' && row.targetFileUri
+                                ? row.targetFileUri
+                                : row.sourceFileUri,
+                            lineStart: row.referenceType === 'file' ? 0 : row.sourceLineStart
                         }))
                     }
                 ]
@@ -815,7 +979,11 @@ export class IdeasSummaryPanel {
             });
             this.post({
                 type: 'graphSlice',
-                slice: await toGraphSliceView(store, slice)
+                slice: await toGraphSliceView(
+                    store,
+                    slice,
+                    this.submodule.index.getActiveBase()?.descriptor.root
+                )
             });
         } catch (error) {
             if (generation !== this.graphSliceGeneration) {
@@ -846,6 +1014,19 @@ export class IdeasSummaryPanel {
     }
 }
 
+function toWorkspaceDisplayPath(indexedPath: string, baseRoot?: string): string {
+    if (!indexedPath || indexedPath === '—') {
+        return indexedPath;
+    }
+    if (indexedPath.includes('://') || indexedPath.startsWith('/') || /^[A-Za-z]:/.test(indexedPath)) {
+        return vscode.workspace.asRelativePath(indexedPath);
+    }
+    if (!baseRoot) {
+        return indexedPath.replace(/\\/g, '/');
+    }
+    return vscode.workspace.asRelativePath(join(baseRoot, indexedPath));
+}
+
 function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
     const truncationBasis =
         query.truncationBasis === 'git-modified' || query.truncationBasis === 'git-created'
@@ -874,7 +1055,8 @@ function hasGraphFilters(query: GraphViewQuery): boolean {
 
 async function toGraphSliceView(
     store: AnalyticalSubmodule['index']['indexStore'],
-    slice: AnalyticalGraphViewSlice
+    slice: AnalyticalGraphViewSlice,
+    baseRoot?: string
 ): Promise<GraphViewSlice> {
     let hotspotBand: 'low' | 'medium' | 'high' | undefined;
     if (slice.centerId) {
@@ -902,7 +1084,7 @@ async function toGraphSliceView(
         ...slice,
         nodes: slice.nodes.map(node => ({
             ...node,
-            path: node.isExternal ? node.fileUri : vscode.workspace.asRelativePath(node.fileUri),
+            path: toWorkspaceDisplayPath(node.fileUri, baseRoot),
             hotspotBand: node.id === slice.centerId ? hotspotBand : undefined
         }))
     };
@@ -913,7 +1095,10 @@ async function defaultGraphCenterId(submodule: AnalyticalSubmodule): Promise<str
     if (!editor || !submodule.index.isReady) {
         return undefined;
     }
-    const fileUri = toIndexFileUri(editor.document.uri);
+    const fileUri = toIndexFileUri(
+        editor.document.uri,
+        submodule.index.getActiveBase()?.descriptor.root
+    );
     const ideas = await submodule.index.indexStore.getIdeasInFile(fileUri);
     return ideas[0]?.id;
 }
@@ -1000,17 +1185,28 @@ export function toIndexStatusView(
         activeBaseId?: string;
         discoveryEmpty?: boolean;
         bases?: BaseStatusView[];
+        baseRoot?: string;
     }
 ): IndexStatusView {
     const recentActivity = [
-        ...snapshot.recentDocumentUpdates.map(update => ({
-            label: 'Indexed',
-            detail: vscode.workspace.asRelativePath(update.fileUri),
-            at: update.at
-        })),
+        ...snapshot.recentDocumentUpdates.flatMap(update => {
+            const ideas = update.ideas ?? [];
+            if (ideas.length === 0) {
+                return [{
+                    label: 'Indexed',
+                    detail: toWorkspaceDisplayPath(update.fileUri, extras?.baseRoot),
+                    at: update.at
+                }];
+            }
+            return ideas.slice(0, 8).map(idea => ({
+                label: 'Reindexed',
+                detail: idea.name,
+                at: update.at
+            }));
+        }),
         ...snapshot.recentWorkspaceChanges.map(change => ({
             label: `File ${change.change}`,
-            detail: vscode.workspace.asRelativePath(change.fileUri),
+            detail: toWorkspaceDisplayPath(change.fileUri, extras?.baseRoot),
             at: change.at
         }))
     ]

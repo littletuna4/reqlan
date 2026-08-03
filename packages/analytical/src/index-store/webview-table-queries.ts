@@ -80,7 +80,7 @@ export interface AttributeTableRow {
     sampleValues: string[];
 }
 
-/** Indexed git-date event for Ideas Summary Timeline. */
+/** Indexed git-date event for Ideas Summary Timeline (idea evolution). */
 export interface GitIdeaTimelineEvent {
     ideaId: string;
     name: string;
@@ -88,6 +88,10 @@ export interface GitIdeaTimelineEvent {
     lineStart: number;
     at: string;
     kind: 'created' | 'modified';
+    summary?: string;
+    status?: string;
+    ideaKind?: string;
+    tags?: string[];
     gitCreatedAt?: string;
     gitModifiedAt?: string;
 }

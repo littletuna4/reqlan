@@ -2,7 +2,9 @@
     "extends": "../../tsconfig.json",
     "compilerOptions": {
         "rootDir": "src",
-        "outDir": "out"
+        "outDir": "out",
+        "allowJs": true,
+        "checkJs": false
     },
     "references": [
         {
@@ -10,6 +12,8 @@
         }
     ],
     "include": [
-        "src/**/*.ts"
+        "src/**/*.ts",
+        "src/**/*.js",
+        "src/**/*.d.ts"
     ]
 }

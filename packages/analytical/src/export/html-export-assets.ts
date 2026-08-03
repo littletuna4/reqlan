@@ -1,3 +1,11 @@
+import { readFileSync } from 'node:fs';
+
+/** Embed shared physics core into the classic-script export app.js (strip ESM exports). */
+function embedPhysicsCoreSource(): string {
+    return readFileSync(new URL('../graph/physics-core.js', import.meta.url), 'utf8')
+        .replace(/^export\s+/gm, '');
+}
+
 export const SHARED_STYLES = `
 :root {
     color-scheme: dark;
@@ -263,56 +271,18 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     background: linear-gradient(90deg, var(--accent-dim), var(--accent-strong));
     min-width: 0;
 }
-.graph-root svg {
-    width: 100%; min-height: 620px; background: var(--bg); border-radius: 10px; border: 1px solid var(--line);
+.graph-root canvas {
+    display: block;
+    width: 100%;
+    min-height: 620px;
+    background: var(--bg);
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    touch-action: none;
+    cursor: grab;
 }
-.graph-root line {
-    stroke: color-mix(in srgb, var(--line) 80%, transparent); stroke-width: 1.2;
-    opacity: 0.85; transition: opacity 180ms ease;
-}
-.graph-root .node { cursor: pointer; }
-.graph-root circle {
-    fill: var(--accent); stroke: color-mix(in srgb, var(--fg) 35%, transparent); stroke-width: 1.25;
-    transition: fill 180ms ease, stroke 180ms ease, r 180ms ease;
-}
-.graph-root .external circle { fill: var(--rust-muted); stroke: color-mix(in srgb, var(--rust) 50%, transparent); }
-.graph-root .ideaset circle { fill: color-mix(in srgb, #d18616 78%, white); stroke: #d18616; }
-.graph-root .subject circle {
-    fill: var(--rust);
-    stroke: var(--accent-strong);
-    stroke-width: 2.75;
-    animation: subject-pulse 2.4s ease-in-out infinite;
-}
-.graph-root text {
-    fill: var(--fg); font-size: 11px; paint-order: stroke;
-    stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
-    pointer-events: none;
-}
-.graph-root .subject text {
-    fill: var(--accent-strong); font-size: 12.5px; font-weight: 600;
-}
-.graph-root .node:hover circle { stroke: var(--accent-strong); stroke-width: 2; }
-.graph-root .graph-label {
-    width: 160px;
-    color: var(--fg);
-    font: 11px/1.3 Inter, system-ui, sans-serif;
-    text-align: center;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    pointer-events: none;
-    user-select: none;
-}
-.graph-root .graph-label strong { display: block; font-weight: 600; }
-.graph-root .graph-label .meta { display: block; color: var(--muted); font-size: 10px; margin-top: 0.15rem; }
-.graph-root .graph-label .attrs { display: block; color: var(--rust); font-size: 9.5px; margin-top: 0.1rem; }
-.graph-root .subject .graph-label strong { color: var(--accent-strong); }
-.graph-root svg { touch-action: none; cursor: grab; }
-.graph-root svg.is-panning { cursor: grabbing; }
-.graph-root .node { cursor: pointer; }
-@keyframes subject-pulse {
-    0%, 100% { filter: drop-shadow(0 0 0 transparent); }
-    50% { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--rust) 55%, transparent)); }
-}
+.graph-root canvas.is-panning { cursor: grabbing; }
+.graph-root canvas.is-dragging-node { cursor: pointer; }
 .search-results { display: grid; gap: 0.7rem; margin-top: 1rem; }
 .search-result:hover { border-color: var(--accent-dim); }
 .hidden { display: none !important; }
@@ -385,6 +355,8 @@ pre.code-like {
 `;
 
 export const APP_JS = `
+${embedPhysicsCoreSource()}
+
 const searchIndexByRoot = new WeakMap();
 
 function exportRootPrefix(root) {
@@ -659,26 +631,13 @@ function wireTables(root) {
     }
 }
 
-function hashAngle(seed) {
-    let hash = 0;
-    for (let index = 0; index < seed.length; index += 1) {
-        hash = (hash * 31 + seed.charCodeAt(index)) | 0;
-    }
-    return ((hash >>> 0) % 6283) / 1000;
-}
+const EXPORT_PHYSICS_SETTINGS = ReqlanGraphPhysics.DEFAULT_PHYSICS_SETTINGS;
 
-// Matches packages/extension/webviews/shared/graph/graph-physics.ts DEFAULT_PHYSICS_SETTINGS.
-const EXPORT_PHYSICS_SETTINGS = {
-    gravity: 0.002,
-    repulsion: 20000,
-    linkStrength: 0.015,
-    linkDistance: 120,
-    damping: 0.5,
-    maxVelocity: 10,
-    minSeparation: 24,
-    restSpeed: 0.02,
-    restTicks: 90
-};
+// Tight visual radii for denser canvas packing (labels still show full names).
+const GRAPH_NODE_RADIUS = 7;
+const GRAPH_SUBJECT_RADIUS = 10;
+const GRAPH_LABEL_MAX_WIDTH = 132;
+const GRAPH_HIT_PAD = 6;
 
 function wireGraph(root) {
     const graphRoots = root.querySelectorAll('[data-graph-json]');
@@ -719,9 +678,10 @@ function wireGraph(root) {
         let simEdges = [];
         const positions = new Map();
         const velocities = new Map();
-        let svg;
-        let edgeEls = [];
-        let nodeEls = [];
+        let canvas;
+        let ctx;
+        let cssWidth = 1200;
+        let cssHeight = 640;
         const pinnedIds = new Set();
         let view = { x: 0, y: 0, w: 1200, h: 640 };
         let userViewport = false;
@@ -730,6 +690,8 @@ function wireGraph(root) {
         let panMode = false;
         let panOrigin = null;
         let suppressClickUntil = 0;
+        let hoverNodeId = null;
+        let pulsePhase = 0;
 
         function resolveGraphNodeUrl(pageUrl) {
             let cleaned = String(pageUrl || '').replace(/^\\.\\//, '');
@@ -737,14 +699,6 @@ function wireGraph(root) {
                 cleaned = \`ideas/\${cleaned}\`;
             }
             return resolveExportUrl(root, cleaned);
-        }
-
-        function escapeXml(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
         }
 
         function formatNodeMeta(node) {
@@ -761,11 +715,15 @@ function wireGraph(root) {
             return keys.length ? keys.map(key => '@' + key).join(' ') : '';
         }
 
+        function nodeRadius(node) {
+            return node.isSubject || node.id === graph.centerId ? GRAPH_SUBJECT_RADIUS : GRAPH_NODE_RADIUS;
+        }
+
         function seedMissingPositions(nodes, width, height, centerId) {
             const cx = width / 2;
             const cy = height / 2;
             const subject = nodes.find(node => node.isSubject || node.id === centerId);
-            const radius = Math.min(width, height) * 0.34;
+            const radius = Math.min(width, height) * 0.22;
             nodes.forEach((node, index) => {
                 if (positions.has(node.id)) return;
                 if (subject && node.id === subject.id) {
@@ -773,7 +731,7 @@ function wireGraph(root) {
                     return;
                 }
                 const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1) - Math.PI / 2;
-                const ring = radius * (0.72 + (index % 3) * 0.14);
+                const ring = radius * (0.7 + (index % 3) * 0.12);
                 positions.set(node.id, {
                     x: cx + Math.cos(angle) * ring,
                     y: cy + Math.sin(angle) * ring
@@ -791,7 +749,6 @@ function wireGraph(root) {
         }
 
         function physicsStep(nodes, edges) {
-            const settings = EXPORT_PHYSICS_SETTINGS;
             const count = nodes.length;
             if (count === 0) return 0;
             const ids = new Array(count);
@@ -799,90 +756,27 @@ function wireGraph(root) {
             const ys = new Float64Array(count);
             const fxs = new Float64Array(count);
             const fys = new Float64Array(count);
-            const indexById = new Map();
             for (let i = 0; i < count; i += 1) {
                 const node = nodes[i];
                 const pos = positions.get(node.id) || { x: 0, y: 0 };
                 ids[i] = node.id;
                 xs[i] = pos.x;
                 ys[i] = pos.y;
-                indexById.set(node.id, i);
             }
-            let centroidX = 0;
-            let centroidY = 0;
+            const averageSpeed = ReqlanGraphPhysics.stepPhysics({
+                ids,
+                xs,
+                ys,
+                fxs,
+                fys,
+                velocities,
+                pinnedIds,
+                edges
+            }, EXPORT_PHYSICS_SETTINGS);
             for (let i = 0; i < count; i += 1) {
-                centroidX += xs[i];
-                centroidY += ys[i];
+                positions.set(ids[i], { x: xs[i], y: ys[i] });
             }
-            centroidX /= count;
-            centroidY /= count;
-            for (let i = 0; i < count; i += 1) {
-                fxs[i] -= settings.gravity * (xs[i] - centroidX);
-                fys[i] -= settings.gravity * (ys[i] - centroidY);
-            }
-            const minSeparationSq = settings.minSeparation * settings.minSeparation;
-            for (let i = 0; i < count; i += 1) {
-                for (let j = i + 1; j < count; j += 1) {
-                    let dx = xs[j] - xs[i];
-                    let dy = ys[j] - ys[i];
-                    let distSq = dx * dx + dy * dy;
-                    if (distSq < 1e-6) {
-                        const angle = hashAngle(ids[i] + ids[j]);
-                        dx = Math.cos(angle);
-                        dy = Math.sin(angle);
-                        distSq = 1;
-                    }
-                    const clampedSq = Math.max(distSq, minSeparationSq);
-                    const dist = Math.sqrt(distSq);
-                    const force = settings.repulsion / clampedSq;
-                    const fx = (dx / dist) * force;
-                    const fy = (dy / dist) * force;
-                    fxs[i] -= fx;
-                    fys[i] -= fy;
-                    fxs[j] += fx;
-                    fys[j] += fy;
-                }
-            }
-            for (const edge of edges) {
-                const sourceIndex = indexById.get(edge.sourceId);
-                const targetIndex = indexById.get(edge.targetId);
-                if (sourceIndex === undefined || targetIndex === undefined || sourceIndex === targetIndex) continue;
-                const dx = xs[targetIndex] - xs[sourceIndex];
-                const dy = ys[targetIndex] - ys[sourceIndex];
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 1e-3) continue;
-                const force = settings.linkStrength * (dist - settings.linkDistance);
-                const fx = (dx / dist) * force;
-                const fy = (dy / dist) * force;
-                fxs[sourceIndex] += fx;
-                fys[sourceIndex] += fy;
-                fxs[targetIndex] -= fx;
-                fys[targetIndex] -= fy;
-            }
-            let speedSum = 0;
-            let movingCount = 0;
-            for (let i = 0; i < count; i += 1) {
-                const id = ids[i];
-                if (pinnedIds.has(id)) {
-                    continue;
-                }
-                const velocity = velocities.get(id) || { vx: 0, vy: 0 };
-                let vx = (velocity.vx + fxs[i]) * settings.damping;
-                let vy = (velocity.vy + fys[i]) * settings.damping;
-                const speed = Math.sqrt(vx * vx + vy * vy);
-                if (speed > settings.maxVelocity) {
-                    const scale = settings.maxVelocity / speed;
-                    vx *= scale;
-                    vy *= scale;
-                }
-                velocity.vx = vx;
-                velocity.vy = vy;
-                velocities.set(id, velocity);
-                positions.set(id, { x: xs[i] + vx, y: ys[i] + vy });
-                speedSum += Math.min(speed, settings.maxVelocity);
-                movingCount += 1;
-            }
-            return movingCount > 0 ? speedSum / movingCount : 0;
+            return averageSpeed;
         }
 
         function contentBounds() {
@@ -890,11 +784,14 @@ function wireGraph(root) {
             let minY = Infinity;
             let maxX = -Infinity;
             let maxY = -Infinity;
-            for (const pos of positions.values()) {
-                minX = Math.min(minX, pos.x);
-                minY = Math.min(minY, pos.y);
-                maxX = Math.max(maxX, pos.x);
-                maxY = Math.max(maxY, pos.y);
+            for (const node of simNodes) {
+                const pos = positions.get(node.id);
+                if (!pos) continue;
+                const r = nodeRadius(node);
+                minX = Math.min(minX, pos.x - r);
+                minY = Math.min(minY, pos.y - r);
+                maxX = Math.max(maxX, pos.x + r);
+                maxY = Math.max(maxY, pos.y + r + 54);
             }
             if (!Number.isFinite(minX)) {
                 return { minX: 0, minY: 0, maxX: 1200, maxY: 640 };
@@ -902,53 +799,155 @@ function wireGraph(root) {
             return { minX, minY, maxX, maxY };
         }
 
-        function applyView() {
-            if (!svg) return;
-            svg.setAttribute('viewBox', \`\${view.x} \${view.y} \${view.w} \${view.h}\`);
-        }
-
         function fitView(force = false) {
-            if (userViewport && !force) {
-                applyView();
-                return;
-            }
+            if (userViewport && !force) return;
             const bounds = contentBounds();
-            const pad = 80;
+            const pad = 56;
             view = {
                 x: bounds.minX - pad,
                 y: bounds.minY - pad,
                 w: Math.max(360, bounds.maxX - bounds.minX + pad * 2),
-                h: Math.max(360, bounds.maxY - bounds.minY + pad * 2 + 70)
+                h: Math.max(360, bounds.maxY - bounds.minY + pad * 2)
             };
             userViewport = false;
-            applyView();
+        }
+
+        function wrapLines(text, maxWidth, font) {
+            if (!text) return [];
+            ctx.font = font;
+            const words = String(text).split(/\\s+/);
+            const lines = [];
+            let current = '';
+            for (const word of words) {
+                const next = current ? \`\${current} \${word}\` : word;
+                if (ctx.measureText(next).width <= maxWidth) {
+                    current = next;
+                } else {
+                    if (current) lines.push(current);
+                    if (ctx.measureText(word).width <= maxWidth) {
+                        current = word;
+                    } else {
+                        let chunk = '';
+                        for (const ch of word) {
+                            const trial = chunk + ch;
+                            if (ctx.measureText(trial).width <= maxWidth) chunk = trial;
+                            else {
+                                if (chunk) lines.push(chunk);
+                                chunk = ch;
+                            }
+                        }
+                        current = chunk;
+                    }
+                }
+            }
+            if (current) lines.push(current);
+            return lines;
+        }
+
+        function nodeFill(node) {
+            if (node.isSubject || node.id === graph.centerId) return '#b85c38';
+            if (node.isExternal) return '#8a4530';
+            if (node.kind === 'ideaset') return '#e0a24a';
+            return '#07a0e5';
+        }
+
+        function nodeStroke(node, hover) {
+            if (hover) return '#0bbefb';
+            if (node.isSubject || node.id === graph.centerId) return '#0bbefb';
+            if (node.isExternal) return 'rgba(184,92,56,0.55)';
+            if (node.kind === 'ideaset') return '#d18616';
+            return 'rgba(235,228,222,0.35)';
         }
 
         function paint() {
-            if (!svg) return;
-            for (const { node, circle, label } of nodeEls) {
-                const pos = positions.get(node.id);
-                if (!pos) continue;
-                circle.setAttribute('cx', String(pos.x));
-                circle.setAttribute('cy', String(pos.y));
-                label.setAttribute('x', String(pos.x - 80));
-                label.setAttribute('y', String(pos.y + 18));
+            if (!canvas || !ctx) return;
+            if (!userViewport) fitView(false);
+            const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+            const nextW = Math.max(1, Math.floor(cssWidth * dpr));
+            const nextH = Math.max(1, Math.floor(cssHeight * dpr));
+            if (canvas.width !== nextW || canvas.height !== nextH) {
+                canvas.width = nextW;
+                canvas.height = nextH;
             }
-            for (const { edge, line } of edgeEls) {
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, cssWidth, cssHeight);
+            ctx.fillStyle = '#14100e';
+            ctx.fillRect(0, 0, cssWidth, cssHeight);
+
+            const sx = cssWidth / view.w;
+            const sy = cssHeight / view.h;
+            ctx.save();
+            ctx.translate(-view.x * sx, -view.y * sy);
+            ctx.scale(sx, sy);
+
+            ctx.lineWidth = 1.1 / Math.max(sx, sy);
+            ctx.strokeStyle = 'rgba(61,47,40,0.85)';
+            ctx.globalAlpha = 0.85;
+            for (const edge of simEdges) {
                 const source = positions.get(edge.sourceId);
                 const target = positions.get(edge.targetId);
                 if (!source || !target) continue;
-                line.setAttribute('x1', String(source.x));
-                line.setAttribute('y1', String(source.y));
-                line.setAttribute('x2', String(target.x));
-                line.setAttribute('y2', String(target.y));
-                line.setAttribute('opacity', '0.85');
+                ctx.beginPath();
+                ctx.moveTo(source.x, source.y);
+                ctx.lineTo(target.x, target.y);
+                ctx.stroke();
             }
-            if (!userViewport) {
-                fitView(false);
-            } else {
-                applyView();
+            ctx.globalAlpha = 1;
+
+            pulsePhase = (pulsePhase + 0.035) % (Math.PI * 2);
+            for (const node of simNodes) {
+                const pos = positions.get(node.id);
+                if (!pos) continue;
+                const r = nodeRadius(node);
+                const hover = node.id === hoverNodeId || node.id === dragNodeId;
+                const isSubject = node.isSubject || node.id === graph.centerId;
+                if (isSubject) {
+                    const glow = 4 + Math.sin(pulsePhase) * 3;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, r + glow, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(184,92,56,0.22)';
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = nodeFill(node);
+                ctx.fill();
+                ctx.lineWidth = (isSubject ? 2.2 : hover ? 2 : 1.15) / Math.max(sx, sy);
+                ctx.strokeStyle = nodeStroke(node, hover);
+                ctx.stroke();
+
+                const meta = formatNodeMeta(node);
+                const attrs = formatNodeAttrs(node);
+                const nameFont = isSubject ? '600 11px Inter, system-ui, sans-serif' : '600 10px Inter, system-ui, sans-serif';
+                const metaFont = '9.5px Inter, system-ui, sans-serif';
+                const nameLines = wrapLines(node.name, GRAPH_LABEL_MAX_WIDTH, nameFont);
+                const metaLines = wrapLines(meta, GRAPH_LABEL_MAX_WIDTH, metaFont);
+                const attrLines = wrapLines(attrs, GRAPH_LABEL_MAX_WIDTH, metaFont);
+                let ty = pos.y + r + 12;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillStyle = isSubject ? '#0bbefb' : '#ebe4de';
+                ctx.font = nameFont;
+                for (const line of nameLines) {
+                    ctx.lineWidth = 3 / Math.max(sx, sy);
+                    ctx.strokeStyle = '#14100e';
+                    ctx.strokeText(line, pos.x, ty);
+                    ctx.fillText(line, pos.x, ty);
+                    ty += 12;
+                }
+                ctx.fillStyle = '#a89488';
+                ctx.font = metaFont;
+                for (const line of metaLines) {
+                    ctx.fillText(line, pos.x, ty);
+                    ty += 11;
+                }
+                ctx.fillStyle = '#b85c38';
+                for (const line of attrLines) {
+                    ctx.fillText(line, pos.x, ty);
+                    ty += 11;
+                }
             }
+            ctx.restore();
         }
 
         function stopLoop() {
@@ -962,7 +961,10 @@ function wireGraph(root) {
             if (animationFrame) return;
             animationFrame = requestAnimationFrame(() => {
                 animationFrame = 0;
-                if (!livePhysics) return;
+                if (!livePhysics) {
+                    paint();
+                    return;
+                }
                 const averageSpeed = physicsStep(simNodes, simEdges);
                 paint();
                 if (averageSpeed < EXPORT_PHYSICS_SETTINGS.restSpeed) {
@@ -983,7 +985,7 @@ function wireGraph(root) {
         }
 
         function batchSettle(nodes, edges) {
-            const iterations = Math.min(120, 48 + nodes.length);
+            const iterations = Math.min(96, 36 + Math.floor(nodes.length * 0.45));
             for (let i = 0; i < iterations; i += 1) {
                 physicsStep(nodes, edges);
             }
@@ -994,6 +996,34 @@ function wireGraph(root) {
             calmTicks = EXPORT_PHYSICS_SETTINGS.restTicks;
         }
 
+        function hitTest(point) {
+            let best = null;
+            let bestDist = Infinity;
+            for (const node of simNodes) {
+                const pos = positions.get(node.id);
+                if (!pos) continue;
+                const dx = point.x - pos.x;
+                const dy = point.y - pos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const threshold = nodeRadius(node) + GRAPH_HIT_PAD;
+                if (dist <= threshold && dist < bestDist) {
+                    best = node;
+                    bestDist = dist;
+                }
+            }
+            return best;
+        }
+
+        function resizeCanvas() {
+            const rect = element.getBoundingClientRect();
+            cssWidth = Math.max(320, Math.floor(rect.width || 1200));
+            cssHeight = Math.max(620, Math.min(1400, 220 + simNodes.length * 18));
+            if (canvas) {
+                canvas.style.width = '100%';
+                canvas.style.height = \`\${cssHeight}px\`;
+            }
+        }
+
         function mountGraph(filteredNodes, filteredEdges) {
             stopLoop();
             simNodes = filteredNodes;
@@ -1001,44 +1031,16 @@ function wireGraph(root) {
             const validIds = new Set(filteredNodes.map(node => node.id));
             pruneState(validIds);
             const width = 1200;
-            const height = Math.max(640, Math.min(1400, 220 + filteredNodes.length * 28));
+            const height = Math.max(640, Math.min(1400, 220 + filteredNodes.length * 18));
             seedMissingPositions(filteredNodes, width, height, graph.centerId);
-            svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('viewBox', \`0 0 \${width} \${height}\`);
-            edgeEls = [];
-            for (const edge of filteredEdges) {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                svg.appendChild(line);
-                edgeEls.push({ edge, line });
-            }
-            nodeEls = [];
-            for (const node of filteredNodes) {
-                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                const classes = ['node'];
-                if (node.isExternal) classes.push('external');
-                if (node.kind === 'ideaset') classes.push('ideaset');
-                if (node.isSubject || node.id === graph.centerId) classes.push('subject');
-                group.setAttribute('class', classes.join(' '));
-                group.dataset.nodeId = node.id;
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('r', node.isSubject || node.id === graph.centerId ? '18' : '13');
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-                label.setAttribute('width', '160');
-                label.setAttribute('height', '96');
-                const meta = formatNodeMeta(node);
-                const attrs = formatNodeAttrs(node);
-                label.innerHTML = \`<div xmlns="http://www.w3.org/1999/xhtml" class="graph-label"><strong>\${escapeXml(node.name)}</strong>\${meta ? \`<span class="meta">\${escapeXml(meta)}</span>\` : ''}\${attrs ? \`<span class="attrs">\${escapeXml(attrs)}</span>\` : ''}</div>\`;
-                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                title.textContent = [node.name, meta, attrs].filter(Boolean).join('\\n');
-                group.appendChild(title);
-                group.appendChild(circle);
-                group.appendChild(label);
-                svg.appendChild(group);
-                nodeEls.push({ node, circle, label, group });
-            }
+            canvas = document.createElement('canvas');
+            canvas.setAttribute('role', 'img');
+            canvas.setAttribute('aria-label', \`Requirement graph with \${filteredNodes.length} nodes\`);
+            ctx = canvas.getContext('2d');
             element.innerHTML = '';
-            element.appendChild(svg);
-            wireViewport(svg);
+            element.appendChild(canvas);
+            resizeCanvas();
+            wireViewport(canvas);
             if (statusText) {
                 statusText.textContent = \`\${filteredNodes.length} nodes, \${filteredEdges.length} edges\`;
             }
@@ -1053,7 +1055,7 @@ function wireGraph(root) {
         }
 
         function clientToGraph(event) {
-            const rect = svg.getBoundingClientRect();
+            const rect = canvas.getBoundingClientRect();
             const x = view.x + ((event.clientX - rect.left) / rect.width) * view.w;
             const y = view.y + ((event.clientY - rect.top) / rect.height) * view.h;
             return { x, y };
@@ -1070,19 +1072,21 @@ function wireGraph(root) {
                 view.x += before.x - after.x;
                 view.y += before.y - after.y;
                 userViewport = true;
-                applyView();
+                paint();
             }, { passive: false });
 
             target.addEventListener('pointerdown', (event) => {
-                const nodeGroup = event.target.closest?.('.node');
-                if (nodeGroup) {
-                    const nodeId = nodeGroup.dataset.nodeId;
-                    dragNodeId = nodeId;
+                const point = clientToGraph(event);
+                const hit = hitTest(point);
+                if (hit) {
+                    dragNodeId = hit.id;
                     dragMoved = false;
-                    pinnedIds.add(nodeId);
-                    velocities.set(nodeId, { vx: 0, vy: 0 });
+                    pinnedIds.add(hit.id);
+                    velocities.set(hit.id, { vx: 0, vy: 0 });
+                    target.classList.add('is-dragging-node');
                     target.setPointerCapture(event.pointerId);
                     event.preventDefault();
+                    paint();
                     return;
                 }
                 panMode = true;
@@ -1108,11 +1112,19 @@ function wireGraph(root) {
                     view.x = panOrigin.viewX - dx;
                     view.y = panOrigin.viewY - dy;
                     userViewport = true;
-                    applyView();
+                    paint();
+                    return;
+                }
+                const hit = hitTest(clientToGraph(event));
+                const nextHover = hit?.id || null;
+                if (nextHover !== hoverNodeId) {
+                    hoverNodeId = nextHover;
+                    paint();
                 }
             });
 
             target.addEventListener('pointerup', (event) => {
+                target.classList.remove('is-dragging-node');
                 if (dragNodeId) {
                     const node = simNodes.find(item => item.id === dragNodeId);
                     const moved = dragMoved;
@@ -1120,6 +1132,7 @@ function wireGraph(root) {
                     dragNodeId = null;
                     pinnedIds.delete(nodeId);
                     wake();
+                    paint();
                     if (!moved && node?.pageUrl && Date.now() > suppressClickUntil) {
                         window.location.href = resolveGraphNodeUrl(node.pageUrl);
                     } else if (moved) {
@@ -1135,6 +1148,7 @@ function wireGraph(root) {
             });
 
             target.addEventListener('pointercancel', () => {
+                target.classList.remove('is-dragging-node');
                 if (dragNodeId) {
                     pinnedIds.delete(dragNodeId);
                     dragNodeId = null;
@@ -1143,6 +1157,12 @@ function wireGraph(root) {
                 panMode = false;
                 panOrigin = null;
                 target.classList.remove('is-panning');
+                paint();
+            });
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                paint();
             });
         }
 
@@ -1194,10 +1214,12 @@ function wireGraph(root) {
                 wake();
             } else {
                 stopLoop();
+                paint();
             }
         });
         fitButton?.addEventListener('click', () => {
             fitView(true);
+            paint();
         });
         resetButton?.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';

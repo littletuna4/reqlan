@@ -1,0 +1,95 @@
+// Deck: adv-03-ideas-summary-graph — authored JSONC; sync emits runtime decks/adv-03-ideas-summary-graph.json for the player.
+{
+  "id": "adv-03-ideas-summary-graph",
+  "title": "Maps you choose",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 03",
+        "heading": "Maps you choose",
+        "body": "Ideas Summary is a cartographic cut — not a mandatory full dump.",
+        "asset": "logo"
+      },
+      "notes": "Large graphs overwhelm. Treat this view like a map you curate."
+    },
+    {
+      "id": "open-focused",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Start focused",
+        "body": "Open Graph on one idea. Pan once. Then decide what else belongs.",
+        "asset": "montage-ide"
+      },
+      "notes": "One idea, one question: what belongs in this picture right now?"
+    },
+    {
+      "id": "filters",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Filter, then deepen",
+        "body": "Path filters before hop depth. Two hops may pull half the repo.",
+        "code": "search: welcome_flow / path: reqs/auth / hops: 1 → 2",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Filters choose the slice before hop depth widens it."
+    },
+    {
+      "id": "focus-fit",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Focus and fit",
+        "body": "Re-centre on login_api. Fit to view. Click through to source.",
+        "code": "focus login_api · Fit to view · peek source",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "External files appear as neighbours — code nodes differ from idea nodes."
+    },
+    {
+      "id": "noisy-recovery",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Noisy graph recovery",
+        "body": "Max hops made it worse? Undo. Narrow search instead.",
+        "code": "hops: max + noisy → search tighter / path filter",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "When the picture gets noisy, narrow the query first."
+    },
+    {
+      "id": "local-vs-map",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Local vs catalog map",
+        "body": "Activity bar while editing. Ideas Summary graph when exploring or explaining.",
+        "asset": "activity-bar"
+      },
+      "notes": "Screenshots, PR descriptions, finding stray dependencies."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Screenshot a useful focus for a PR, then reset filters to your default.",
+        "fragments": [
+          "Next — Context and tokens"
+        ]
+      },
+      "notes": "Open legend briefly — then close and keep working."
+    }
+  ]
+}

@@ -156,6 +156,20 @@ export class SqliteIndexStore {
     ): Promise<void> {
         await run(this.db, 'BEGIN');
         try {
+            // Preserve analyser-populated git dates across delete+reinsert reindex.
+            const existingGit = await all<{
+                id: string;
+                git_created_at: string | null;
+                git_modified_at: string | null;
+            }>(this.db, `
+                SELECT id, git_created_at, git_modified_at
+                FROM ideas
+                WHERE file_uri = ?
+            `, fileUri);
+            const gitById = new Map(
+                existingGit.map(row => [row.id, row] as const)
+            );
+
             await run(
                 this.db,
                 'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
@@ -173,6 +187,7 @@ export class SqliteIndexStore {
                 )
             `;
             for (const idea of ideas) {
+                const previous = gitById.get(idea.id);
                 await run(this.db, insertIdeaSql,
                     idea.id,
                     idea.name,
@@ -183,8 +198,8 @@ export class SqliteIndexStore {
                     idea.summary,
                     idea.attributesJson,
                     idea.contentHash,
-                    idea.gitCreatedAt ?? null,
-                    idea.gitModifiedAt ?? null
+                    idea.gitCreatedAt ?? previous?.git_created_at ?? null,
+                    idea.gitModifiedAt ?? previous?.git_modified_at ?? null
                 );
             }
 
@@ -538,6 +553,21 @@ export class SqliteIndexStore {
         return rows.map(mapEdgeRow);
     }
 
+    /** Outbound file_reference targets for coverage metrics (source id + authored path). */
+    async listFileReferenceTargets(): Promise<Array<{ sourceId: string; targetFile: string }>> {
+        const rows = await all<{ source_id: string; target_file: string }>(
+            this.db,
+            `SELECT source_id, target_file
+             FROM edges
+             WHERE target_file IS NOT NULL AND target_file != ''
+               AND (kind = 'file_reference' OR target_id IS NULL)`
+        );
+        return rows.map(row => ({
+            sourceId: row.source_id,
+            targetFile: row.target_file
+        }));
+    }
+
     async getAllIdeasRaw(): Promise<IdeaRecord[]> {
         const rows = await all<SqliteIdeaRow>(this.db, 'SELECT * FROM ideas');
         return rows.map(mapIdeaRow);
@@ -841,6 +871,7 @@ export class SqliteIndexStore {
         const rows = await all<ReferencePageRow>(this.db, `
             SELECT
                 e.kind,
+                e.source_id,
                 e.target_id,
                 e.target_file,
                 e.label,
@@ -885,47 +916,81 @@ export class SqliteIndexStore {
     }
 
     /**
-     * Recent idea events from indexed git dates for the Timeline tab.
+     * Idea ids that still need git date backfill for the Timeline tab.
+     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     */
+    async listIdeaIdsMissingGitDates(limit = 40): Promise<string[]> {
+        const rows = await all<{ id: string }>(this.db, `
+            SELECT id
+            FROM ideas
+            WHERE kind != 'ideaset'
+              AND git_created_at IS NULL
+              AND git_modified_at IS NULL
+            ORDER BY file_uri ASC, line_start ASC
+            LIMIT ?
+        `, Math.max(1, Math.min(limit, 200)));
+        return rows.map(row => row.id);
+    }
+
+    /**
+     * Recent idea evolution events from indexed git dates for the Timeline tab.
+     * Emits separate created / modified entries when both timestamps exist and differ.
      * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
      */
     async listRecentGitIdeaEvents(limit = 50): Promise<GitIdeaTimelineEvent[]> {
         const rows = await all<{
             id: string;
             name: string;
+            kind: string;
             file_uri: string;
             line_start: number;
+            summary: string;
+            attributes_json: string;
             git_created_at: string | null;
             git_modified_at: string | null;
         }>(this.db, `
-            SELECT id, name, file_uri, line_start, git_created_at, git_modified_at
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
+                   git_created_at, git_modified_at
             FROM ideas
             WHERE kind != 'ideaset'
               AND (git_modified_at IS NOT NULL OR git_created_at IS NOT NULL)
             ORDER BY COALESCE(git_modified_at, git_created_at) DESC
             LIMIT ?
-        `, Math.max(1, Math.min(limit, 200)));
+        `, Math.max(1, Math.min(limit * 2, 400)));
 
-        return rows.map(row => {
-            const modified = row.git_modified_at ?? undefined;
+        const events: GitIdeaTimelineEvent[] = [];
+        for (const row of rows) {
+            const attributes = parseAttributes(row.attributes_json);
             const created = row.git_created_at ?? undefined;
-            const at = modified ?? created ?? '';
-            const kind: GitIdeaTimelineEvent['kind'] =
-                modified && created && modified === created
-                    ? 'created'
-                    : modified
-                        ? 'modified'
-                        : 'created';
-            return {
+            const modified = row.git_modified_at ?? undefined;
+            const base = {
                 ideaId: row.id,
                 name: row.name,
                 fileUri: row.file_uri,
                 lineStart: row.line_start,
-                at,
-                kind,
+                summary: row.summary || undefined,
+                status: ideaStatus(attributes),
+                ideaKind: row.kind,
+                tags: ideaTags(attributes),
                 gitCreatedAt: created,
                 gitModifiedAt: modified
             };
-        });
+
+            if (modified && created && modified === created) {
+                events.push({ ...base, at: created, kind: 'created' as const });
+            } else {
+                if (modified) {
+                    events.push({ ...base, at: modified, kind: 'modified' as const });
+                }
+                if (created) {
+                    events.push({ ...base, at: created, kind: 'created' as const });
+                }
+            }
+        }
+
+        return events
+            .sort((left, right) => Date.parse(right.at) - Date.parse(left.at))
+            .slice(0, Math.max(1, Math.min(limit, 200)));
     }
 
     private toSummary(row: SummaryRow): IdeaSummary {
@@ -1136,6 +1201,7 @@ interface IdeasetMemberPageRow {
 
 interface ReferencePageRow {
     kind: string;
+    source_id: string;
     target_id: string | null;
     target_file: string | null;
     label: string | null;
@@ -1238,9 +1304,13 @@ function toOutgoingReferenceChip(row: ReferenceChipRow): IdeaReferenceChip {
     const filterKey = row.target_id
         ? `outbound:idea:${row.target_id}`
         : `outbound:file:${row.target_file ?? row.label ?? ''}`;
+    const fileUri = row.target_uri
+        ?? (row.target_file
+            ? resolveReferencedFilePath(row.target_file, row.source_id)
+            : row.source_uri);
     return {
         label: targetName,
-        fileUri: row.target_uri ?? row.source_uri,
+        fileUri,
         line: row.target_line ?? row.source_line,
         direction: 'outbound',
         filterKey
@@ -1258,7 +1328,11 @@ function toIncomingReferenceChip(row: ReferenceChipRow): IdeaReferenceChip {
 }
 
 function toReferenceTableRow(row: ReferencePageRow): ReferenceTableRow {
-    const targetPath = row.target_uri ?? row.target_file ?? '';
+    const rawTargetPath = row.target_uri ?? row.target_file ?? '';
+    const targetPath =
+        !row.target_uri && row.target_file
+            ? resolveReferencedFilePath(row.target_file, row.source_id)
+            : rawTargetPath;
     const targetName = row.target_name ?? row.label ?? row.target_file ?? '—';
     return {
         sourcePath: row.source_uri,
@@ -1268,7 +1342,8 @@ function toReferenceTableRow(row: ReferencePageRow): ReferenceTableRow {
         isInRq: row.target_id !== null,
         referenceType: toReferenceViewType(row.kind as EdgeKind),
         sourceFileUri: row.source_uri,
-        sourceLineStart: row.source_line
+        sourceLineStart: row.source_line,
+        targetFileUri: targetPath || undefined
     };
 }
 

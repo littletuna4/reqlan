@@ -1,0 +1,98 @@
+// Deck: adv-overview — authored JSONC; sync emits runtime decks/adv-overview.json for the player.
+{
+  "id": "adv-overview",
+  "title": "Beyond one file",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · Overview",
+        "heading": "Beyond one file",
+        "body": "Same language. Better judgement about names, links, bases, and prompt size.",
+        "asset": "logo"
+      },
+      "notes": "You already know the loop. Advanced reqlan is judgement about how graphs scale without becoming noise."
+    },
+    {
+      "id": "loop-recap",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Carry the loop forward",
+        "body": "Name · link · base · neighbourhood · small AI slice · stitch to code.",
+        "asset": "montage-ide"
+      },
+      "notes": "Advanced is not a second install tour. It is craft on top of verbs you already felt."
+    },
+    {
+      "id": "map",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Eight themes ahead",
+        "body": "Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling patterns",
+        "code": "from \"./auth.rq\" import login_api · @status in-progress · Ideas Summary graph · rq:[password_rules]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Each theme has its own deck. Ontology and extension map live in Concepts."
+    },
+    {
+      "id": "bases-craft",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Bases as craft",
+        "body": "One active base. Know the graph boundary. Nested bases stay separate.",
+        "code": "demo/.reqlan/ · active base picker · CLI selects one base per run",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "No create-base lesson here — boundary discipline for export, CLI, and context."
+    },
+    {
+      "id": "discipline",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Carry the discipline forward",
+        "body": "Small slices. Maps you choose. Attributes that drive a view — or delete them.",
+        "code": "login_api { POST /login… @status in-progress @tags ( auth ) }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Token discipline and cartographic focus carry forward from get-started."
+    },
+    {
+      "id": "general-purpose",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "General-purpose graphs",
+        "body": "Software is the common case — not the only case. One non-software vignette in the series.",
+        "code": "issue_brief { June theme… cite [interview_lee]. }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Editorial briefs and ops checklists are still named ideas with neighbours."
+    },
+    {
+      "id": "next",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Start with imports",
+        "body": "Split ideas across files. Pick from-import or namespace alias — whatever stays readable.",
+        "asset": "logo",
+        "fragments": [
+          "Next — Imports and ideasets"
+        ]
+      },
+      "notes": "Pick your first deep dive. We recommend imports before the graph outgrows one document."
+    }
+  ]
+}

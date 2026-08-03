@@ -1,10 +1,10 @@
 <script lang="ts">
     /**
-     * Timeline tab — indexed git idea dates + index activity.
+     * Timeline tab — idea evolution from git dates + idea-level reindex activity.
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
      */
     import { onMount } from 'svelte';
-    import type { TimelineEventSource } from '../../../src/webview_module/shared/messages.js';
+    import type { TimelineEventSource, TimelineEventView } from '../../../src/webview_module/shared/messages.js';
     import { getApp } from '../state/context.js';
 
     const app = getApp();
@@ -27,11 +27,25 @@
         return new Date(at).toLocaleString();
     }
 
-    function openEvent(fileUri: string | undefined, lineStart: number | undefined): void {
-        if (!fileUri) {
+    function openEvent(event: TimelineEventView): void {
+        if (!event.fileUri) {
             return;
         }
-        app.openIdea(fileUri, lineStart ?? 0);
+        app.openIdea(event.fileUri, event.lineStart ?? 0);
+    }
+
+    function metaBits(event: TimelineEventView): string[] {
+        const bits: string[] = [];
+        if (event.status) {
+            bits.push(event.status);
+        }
+        if (event.ideaKind && event.ideaKind !== 'ideaset') {
+            bits.push(event.ideaKind);
+        }
+        if (event.tags?.length) {
+            bits.push(...event.tags.slice(0, 3));
+        }
+        return bits;
     }
 </script>
 
@@ -56,39 +70,61 @@
                 class="secondary"
                 class:has-filters={sourceFilter === 'index'}
                 on:click={() => { sourceFilter = 'index'; }}
-            >Index</button>
+            >Reindexed</button>
             <button type="button" class="secondary" on:click={() => app.loadTimeline()}>Refresh</button>
         </div>
     </div>
 
     <p class="subtle">
-        Recent idea changes from indexed git dates, plus index/workspace activity for the active base.
+        Idea evolution for the active base — when ideas were created or last edited in git,
+        plus ideas reindexed in this session.
     </p>
 
     {#if app.timeline.loading}
-        <p class="subtle">Loading timeline…</p>
+        <p class="subtle">Loading timeline… first open may backfill git dates for ideas.</p>
     {:else if filtered.length === 0}
         <p class="subtle">
-            No timeline events yet. Git dates appear after the index captures them; index activity appears as files sync.
+            No idea timeline events yet. Open Refresh after the index is ready, or edit a `.rq` file so ideas reindex.
         </p>
     {:else}
         <ul class="timeline-list">
             {#each filtered as event (event.id)}
+                {@const bits = metaBits(event)}
                 <li class="timeline-item">
-                    <span class="timeline-source pill">{event.source}</span>
+                    <div class="timeline-badges">
+                        <span class="timeline-source pill">{event.source === 'index' ? 'index' : 'git'}</span>
+                        <span class="timeline-action pill">{event.label}</span>
+                    </div>
                     {#if event.fileUri}
                         <button
                             type="button"
                             class="timeline-open"
-                            on:click={() => openEvent(event.fileUri, event.lineStart)}
+                            on:click={() => openEvent(event)}
                         >
-                            <span class="timeline-label">{event.label}</span>
-                            <span class="timeline-detail">{event.detail}</span>
+                            <span class="timeline-label">{event.ideaName ?? event.detail}</span>
+                            {#if event.summary}
+                                <span class="timeline-summary">{event.summary}</span>
+                            {/if}
+                            {#if bits.length > 0}
+                                <span class="timeline-meta">
+                                    {#each bits as bit (bit)}
+                                        <span class="timeline-chip">{bit}</span>
+                                    {/each}
+                                </span>
+                            {/if}
+                            {#if event.path}
+                                <span class="timeline-detail">{event.path}</span>
+                            {/if}
                         </button>
                     {:else}
                         <div class="timeline-open">
-                            <span class="timeline-label">{event.label}</span>
-                            <span class="timeline-detail">{event.detail}</span>
+                            <span class="timeline-label">{event.ideaName ?? event.detail}</span>
+                            {#if event.summary}
+                                <span class="timeline-summary">{event.summary}</span>
+                            {/if}
+                            {#if event.path}
+                                <span class="timeline-detail">{event.path}</span>
+                            {/if}
                         </div>
                     {/if}
                     <span class="timeline-time">{formatTime(event.at)}</span>

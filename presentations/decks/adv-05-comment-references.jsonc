@@ -1,0 +1,108 @@
+// Deck: adv-05-comment-references — authored JSONC; sync emits runtime decks/adv-05-comment-references.json for the player.
+{
+  "id": "adv-05-comment-references",
+  "title": "Comment references",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 05",
+        "heading": "Comment references",
+        "body": "Point code back at requirements — same graph, other door.",
+        "asset": "logo"
+      },
+      "notes": "File references point requirements at code. Comment references reverse the arrow."
+    },
+    {
+      "id": "two-doors",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Two doors, one graph",
+        "body": "auth.rq → login.ts via file ref. login.ts → auth.rq via rq: comment.",
+        "asset": "file-link"
+      },
+      "notes": "Round-trip traceability keeps implementation and intent linked."
+    },
+    {
+      "id": "rq-token",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "The rq: token",
+        "body": "Lives in comments, so it works across languages.",
+        "code": "// rq:[password_rules]",
+        "code_lang": "ts",
+        "code_label": "TypeScript"
+      },
+      "notes": "The prefix rq: marks the token for tooling."
+    },
+    {
+      "id": "qualified",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Qualified when needed",
+        "body": "Simple name when unique. Path plus idea when the graph grows.",
+        "code": "// rq:[\"../reqs/auth.rq\".login_api]",
+        "code_lang": "ts",
+        "code_label": "TypeScript"
+      },
+      "notes": "Qualified paths disambiguate across files."
+    },
+    {
+      "id": "scope-from-code",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Scope from code focus",
+        "body": "Activity bar surfaces requirements while caret is in implementation.",
+        "asset": "activity-bar"
+      },
+      "notes": "Context scope works on any workspace file, not only .rq sources."
+    },
+    {
+      "id": "any-language",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Any-language flash",
+        "body": "Python, Go, Rust — comment syntax changes, rq: token does not.",
+        "code": "# rq:[welcome_flow]",
+        "code_lang": "py",
+        "code_label": "py"
+      },
+      "notes": "Because the token lives in comments, the pattern travels across languages."
+    },
+    {
+      "id": "tests",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ref tests at requirements",
+        "body": "Point at password_rules, not at the function name alone.",
+        "code": "// login.test.ts — rq:[password_rules]",
+        "code_lang": "ts",
+        "code_label": "TypeScript"
+      },
+      "notes": "Requirements survive refactors better than function names."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Add one comment reference in a test file pointing at password_rules.",
+        "fragments": [
+          "Next — HTML export"
+        ]
+      },
+      "notes": "Round-trip: idea → file → comment → idea."
+    }
+  ]
+}

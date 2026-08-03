@@ -1,0 +1,32 @@
+from "./ontology.rq" import idea, ideaset, file, base, reference, attribute, attribute_body
+from "./cli/cli_package.rq" import cli_package, commands
+from "./extension/features-skills-and-mcp.rq" import chat_skill_naming, cursor_skills_install
+from "./extension/agents/features-ai.rq" import ai_integration
+
+skills {
+    rq-* skills ([chat_skill_naming], [cursor_skills_install]) teach the graph, not the whole repo.
+    Ontology in one breath — this project as example:
+    - [idea] — named unit of intent (`cli_package`, `skills`)
+    - [file] / [ideaset] — containers (`reqlan rq/cli/cli_package.rq`; file = implicit ideaset)
+    - [base] — `.reqlan` boundary; one ideas index per base
+    - [reference] — `[idea]` / `[[wiki]]` / `["./path".idea]` to ideas and code
+    - [attribute] / [attribute_body] — `@name …`; first unmarked text is the body
+    Prefer focused search / file context / local graph over full dumps ([ai_integration]).
+    @status done
+}
+
+special_attributes {
+    When creating or updating ideas, skills MUST set:
+    - `@status` — lifecycle (`draft` | `pending` | `in-progress` | `done` | …)
+    - `@todo` — open gaps / follow-ups (bare or with a note)
+    - `@tests` — quoted test paths that prove the idea (optional `:test name` suffix)
+    Do not bury status, todos, or test links in body prose.
+    @status done
+}
+
+cli {
+    Headless twin of extension/MCP analysis: [cli_package] (`reqlan` / `rq`), same `<base>/.reqlan` index.
+    [commands]: `init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `export`/`export html`.
+    `--json` for machines; `--cwd` / `REQLAN_WORKSPACE`; `REQLAN_INDEX_PATH` overrides index dir.
+    @status done
+}

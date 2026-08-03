@@ -1,0 +1,123 @@
+// Deck: con-01-ontology — authored JSONC; sync emits runtime decks/con-01-ontology.json for the player.
+{
+  "id": "con-01-ontology",
+  "title": "The ontology",
+  "series": "concepts",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Concepts · 01",
+        "heading": "The ontology",
+        "body": "Verbs first. Now seven nouns — one per beat.",
+        "asset": "logo"
+      },
+      "notes": "Get-started taught verbs. Concepts names the nouns so teammates and tools share vocabulary."
+    },
+    {
+      "id": "idea",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Idea",
+        "body": "Named handle plus prose. One-liner or block — both are ideas.",
+        "code": "welcome_flow { New users land on a calm welcome screen… }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "The first free text is the body attribute. You do not type @body."
+    },
+    {
+      "id": "ideaset",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ideaset",
+        "body": "Parentheses group names into a namespace container.",
+        "code": "auth_core ( login_api, session_policy )",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "A lightweight module boundary — not a second syntax world."
+    },
+    {
+      "id": "file",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "File",
+        "body": "A .rq file stores ideas and implicitly forms an ideaset.",
+        "code": "reqs/auth.rq → login_api · session_policy · auth_core",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "The file is part of the ontology, not merely a disk path."
+    },
+    {
+      "id": "base",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Base",
+        "body": "Graph boundary. Owns .reqlan. Nested bases are separate graphs.",
+        "code": "reqlan-tutorials-demo/.reqlan/ · packages/lib/.reqlan/",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Day-to-day you live in one active base. Parent index stops at child boundary."
+    },
+    {
+      "id": "reference",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Reference",
+        "body": "Links ideas, files, folders, and symbols. Non-.rq files stay in the index.",
+        "code": "Bound by [session_policy] · Implementation: [\"./src/login.ts\"]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Square brackets are the habit you already felt in get-started."
+    },
+    {
+      "id": "attribute",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Attribute",
+        "body": "Optional @ metadata you opt into — not the main prose.",
+        "code": "@status in-progress · @tags ( auth )",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Base config and extension settings are different scopes — do not conflate them."
+    },
+    {
+      "id": "map",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Cartographic map",
+        "body": "A curated visual cut — filtered, focused, depth-limited.",
+        "asset": "montage-ide"
+      },
+      "notes": "Not a mandatory god's-eye dump. Advanced goes deeper on map craft."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "On scrap-ontology.rq, one sentence per noun — in your own words.",
+        "fragments": [
+          "Next — Extension tour"
+        ]
+      },
+      "notes": "If a sentence needs a second clause, the noun is still fuzzy."
+    }
+  ]
+}

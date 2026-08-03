@@ -15,11 +15,13 @@ syntaxes/
 
 */:memory:
 
+
+
 .cursor/
 .pnpm-store/
 
 # Workspace-local reqlan application memory (ideas index, etc.)
-.reqlan/*.sqlite
+**/.reqlan/*.sqlite
 
 *.secret.rq
 

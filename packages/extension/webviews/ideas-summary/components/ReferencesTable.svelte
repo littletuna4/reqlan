@@ -173,7 +173,12 @@
             {#if !isRowHidden(index)}
                 <tr
                     class="clickable"
-                    on:click={() => app.openIdea(row.sourceFileUri, row.sourceLineStart)}
+                    on:click={() => app.openIdea(
+                        row.referenceType === 'file' && row.targetFileUri
+                            ? row.targetFileUri
+                            : row.sourceFileUri,
+                        row.referenceType === 'file' ? 0 : row.sourceLineStart
+                    )}
                 >
                     {#if show('source')}<td>{row.sourcePath} · {row.sourceName}</td>{/if}
                     {#if show('target')}<td>{row.targetPath} · {row.targetName}</td>{/if}

@@ -1,0 +1,97 @@
+// Deck: gs-03-link-ideas — authored JSONC; sync emits runtime decks/gs-03-link-ideas.json for the player.
+{
+  "id": "gs-03-link-ideas",
+  "title": "Link ideas",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 03",
+        "heading": "Link ideas",
+        "asset": "logo"
+      },
+      "notes": "Ideas earn power when they point at each other."
+    },
+    {
+      "id": "brackets",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Square brackets name a neighbour",
+        "code": "Success continues into [onboarding_checklist].",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "The target can live in the same file or another — the syntax is the same."
+    },
+    {
+      "id": "navigate",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Go-to-definition and peek",
+        "body": "F12 or Ctrl/Cmd-click to jump. Alt+F12 to peek without losing your place."
+      },
+      "notes": "Follow the link — you are navigating a graph, not scrolling a document."
+    },
+    {
+      "id": "wikilink",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Wikilinks with an alias",
+        "code": "Prefer [[welcome_flow|the welcome screen]] as the way back.",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "The alias is for reading; the target is still the idea name."
+    },
+    {
+      "id": "misconception",
+      "transition": "fade",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Same graph, two spellings",
+        "body": "Brackets for a quick hop. Wikilinks when prose needs a readable label."
+      },
+      "notes": "Both resolve to the same idea — not a separate link system."
+    },
+    {
+      "id": "optional-graph",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Optional local graph",
+        "body": "Command Palette: Reqlan: Show Local Graph — if you want a picture."
+      },
+      "notes": "Stay in the editor if you prefer; the graph is optional on day one."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Add account_model and link welcome_flow and onboarding_checklist to it once each.",
+        "fragments": [
+          "Next: Your first base"
+        ]
+      },
+      "notes": "A third idea gives you a small triangle to navigate."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "A graph, not a scroll",
+        "asset": "logo"
+      },
+      "notes": "Next: mark the folder as a base."
+    }
+  ]
+}

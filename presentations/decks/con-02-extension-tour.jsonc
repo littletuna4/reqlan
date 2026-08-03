@@ -1,0 +1,120 @@
+// Deck: con-02-extension-tour — authored JSONC; sync emits runtime decks/con-02-extension-tour.json for the player.
+{
+  "id": "con-02-extension-tour",
+  "title": "Extension tour",
+  "series": "concepts",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Concepts · 02",
+        "heading": "Extension tour",
+        "body": "Five surfaces — one job each. Map, not a laundry list.",
+        "asset": "logo"
+      },
+      "notes": "You named the nouns. This episode maps where they live in the product."
+    },
+    {
+      "id": "language",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Language support",
+        "body": "Open when authoring or navigating .rq source.",
+        "code": "welcome_flow { … Success continues into [onboarding_checklist]. }",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Ideas and references live in files — not in a sidebar form."
+    },
+    {
+      "id": "activity-bar",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Activity bar",
+        "body": "Open when the question is \"what sits near this idea?\"",
+        "asset": "activity-bar"
+      },
+      "notes": "Neighbourhood inside the active base — sync, hop depth, copy slice."
+    },
+    {
+      "id": "ideas-summary",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Ideas Summary",
+        "body": "Open when you need a catalog, table, or cartographic map.",
+        "asset": "montage-ide"
+      },
+      "notes": "Author in the editor; browse in Summary when the question changed."
+    },
+    {
+      "id": "agents-palette",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Chat, skills, MCP, palette",
+        "body": "Open when running a focused graph operation.",
+        "asset": "chat-search",
+        "code": "@reqlan /rq-search · Reqlan: · rq-search skill",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Same token discipline as get-started. Palette when you forgot the slash command."
+    },
+    {
+      "id": "export-cli",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Export and CLI",
+        "body": "Open when the graph must leave the editor.",
+        "code": "Reqlan: Export HTML · npx reqlan search \"…\"",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Shared analytical core. Advanced covers craft and CI patterns."
+    },
+    {
+      "id": "recovery",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Recovery",
+        "body": "Mid-edit in Ideas Summary? Pay navigation tax. Return to source."
+      },
+      "notes": "If you live in Summary while typing prose, the question changed — switch surfaces."
+    },
+    {
+      "id": "quiz",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this — surface quiz",
+        "body": "Neighbourhood copy · draft filter · meaning search — name the surface aloud.",
+        "fragments": [
+          "Answers: activity bar · Ideas Summary · chat/palette"
+        ]
+      },
+      "notes": "Hesitated on draft filter? That is Ideas Summary tables — not the activity bar."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Map first. Depth later.",
+        "body": "Advanced — imports, attributes, maps, CLI, patterns.",
+        "asset": "logo",
+        "fragments": [
+          "Next — Advanced overview"
+        ]
+      },
+      "notes": "When you are ready to craft, start Advanced overview."
+    }
+  ]
+}

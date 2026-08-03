@@ -1,0 +1,97 @@
+// Deck: adv-04-context-and-tokens — authored JSONC; sync emits runtime decks/adv-04-context-and-tokens.json for the player.
+{
+  "id": "adv-04-context-and-tokens",
+  "title": "Context and tokens",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 04",
+        "heading": "Context and tokens",
+        "body": "Compose a slice. Do not paste the whole project by habit.",
+        "asset": "logo"
+      },
+      "notes": "Context is a composed model — not a single blob labelled the project."
+    },
+    {
+      "id": "dimensions",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Expand dimensions deliberately",
+        "body": "Idea body · inbound refs · outbound refs · file neighbours.",
+        "asset": "activity-bar"
+      },
+      "notes": "Summaries and counts first. Expand when you mean to."
+    },
+    {
+      "id": "contrast",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Bad paste vs good slice",
+        "body": "Same question. Different focus for the model.",
+        "code": "Bad: paste every .rq file / Good: neighbourhood for login_api + one precise question",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Same question, smaller slice — answers stay about login, not the whole repo."
+    },
+    {
+      "id": "add-context",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Add-to-context vs copy",
+        "body": "Two hosts for the same judgement — include what the question needs.",
+        "asset": "chat-search",
+        "code": "@reqlan add password_rules to context",
+        "code_label": "example"
+      },
+      "notes": "Add-to-context joins one idea. Copy neighbourhood joins a composed slice."
+    },
+    {
+      "id": "pins",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Pins are exceptions",
+        "body": "Pin for this question. Unpin when done. Not a permanent junk drawer.",
+        "code": "pin session_policy → ask → unpin",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "If you always pin the same ideas, fix the graph or the question."
+    },
+    {
+      "id": "active-base",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Context binds to active base",
+        "body": "Switching bases changes the neighbourhood — same boundary craft as CLI.",
+        "code": "active base picker · demo/.reqlan/",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Context uses the active base index, not a merged global graph."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Ask once with a whole-file paste, once with a neighbourhood slice. Compare focus.",
+        "fragments": [
+          "Next — Comment references"
+        ]
+      },
+      "notes": "What tests are missing for empty password rejection?"
+    }
+  ]
+}

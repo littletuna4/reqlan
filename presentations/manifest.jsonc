@@ -1,0 +1,185 @@
+// Tutorial catalog — authored JSONC; sync emits runtime manifest.json for the site.
+{
+  "decks": [
+    {
+      "id": "gs-01-why-reqlan",
+      "slug": "gs-01-why-reqlan",
+      "title": "Why requirements as code",
+      "series": "get-started",
+      "order": 1,
+      "blurb": "Name the problem: chat dumps vs a graph of ideas.",
+      "tryThis": "Install the extension, then continue to Your first idea.",
+      "deck": "decks/gs-01-why-reqlan.jsonc"
+    },
+    {
+      "id": "gs-02-first-idea",
+      "slug": "gs-02-first-idea",
+      "title": "Your first idea",
+      "series": "get-started",
+      "order": 2,
+      "blurb": "One-liners and blocks in a .rq file.",
+      "tryThis": "Rename welcome_flow to match your product. Rewrite the sentence in your voice.",
+      "deck": "decks/gs-02-first-idea.jsonc"
+    },
+    {
+      "id": "gs-03-link-ideas",
+      "slug": "gs-03-link-ideas",
+      "title": "Link ideas",
+      "series": "get-started",
+      "order": 3,
+      "blurb": "Bracket references and wikilinks — navigate a graph, not a scroll.",
+      "tryThis": "Add account_model and link welcome_flow and onboarding_checklist to it once each.",
+      "deck": "decks/gs-03-link-ideas.jsonc"
+    },
+    {
+      "id": "gs-04-first-base",
+      "slug": "gs-04-first-base",
+      "title": "Your first base",
+      "series": "get-started",
+      "order": 4,
+      "blurb": "Create .reqlan — the boundary of one ideas graph.",
+      "tryThis": "Confirm .reqlan exists. Open product.rq. Leave the caret on an idea.",
+      "deck": "decks/gs-04-first-base.jsonc"
+    },
+    {
+      "id": "gs-05-activity-bar",
+      "slug": "gs-05-activity-bar",
+      "title": "Neighbourhood in the activity bar",
+      "series": "get-started",
+      "order": 5,
+      "blurb": "Local context in the active base, sync, hop depth, and copy-as-markdown.",
+      "tryThis": "Turn sync off, pin welcome_flow, click around, then turn sync back on.",
+      "deck": "decks/gs-05-activity-bar.jsonc"
+    },
+    {
+      "id": "gs-06-chat-search",
+      "slug": "gs-06-chat-search",
+      "title": "Ask @reqlan",
+      "series": "get-started",
+      "order": 6,
+      "blurb": "Focused search and scoped AI context — not the whole graph in the prompt.",
+      "tryThis": "Search for a word that only appears in a body sentence, not the idea name.",
+      "deck": "decks/gs-06-chat-search.jsonc"
+    },
+    {
+      "id": "gs-07-link-code",
+      "slug": "gs-07-link-code",
+      "title": "Point ideas at code",
+      "series": "get-started",
+      "order": 7,
+      "blurb": "File references and reverse context from source.",
+      "tryThis": "Link one more source file your welcome flow depends on.",
+      "deck": "decks/gs-07-link-code.jsonc"
+    },
+    {
+      "id": "con-01-ontology",
+      "slug": "con-01-ontology",
+      "title": "The ontology",
+      "series": "concepts",
+      "order": 1,
+      "blurb": "Name the nouns: idea, ideaset, file, base, reference, attribute, map.",
+      "tryThis": "On a scrap page, write one sentence for each noun in your own words.",
+      "deck": "decks/con-01-ontology.jsonc"
+    },
+    {
+      "id": "con-02-extension-tour",
+      "slug": "con-02-extension-tour",
+      "title": "Extension tour",
+      "series": "concepts",
+      "order": 2,
+      "blurb": "Five surfaces — one job each. A map, not a laundry list.",
+      "tryThis": "Name the surface for: neighbourhood copy · draft filter · meaning search.",
+      "deck": "decks/con-02-extension-tour.jsonc"
+    },
+    {
+      "id": "adv-overview",
+      "slug": "adv-overview",
+      "title": "Beyond one file",
+      "series": "advanced",
+      "order": 0,
+      "blurb": "Eight craft themes: imports, attributes, maps, tokens, comments, export, CLI/MCP, patterns.",
+      "tryThis": "Pick a first deep dive — start with imports and ideasets.",
+      "deck": "decks/adv-overview.jsonc"
+    },
+    {
+      "id": "adv-01-imports-ideasets",
+      "slug": "adv-01-imports-ideasets",
+      "title": "Imports and ideasets",
+      "series": "advanced",
+      "order": 1,
+      "blurb": "Split ideas across files; from-import, namespace import, and ideasets.",
+      "tryThis": "Move password_rules into auth.rq. Fix product.rq with the smallest import that works.",
+      "deck": "decks/adv-01-imports-ideasets.jsonc"
+    },
+    {
+      "id": "adv-02-attributes-status-plans",
+      "slug": "adv-02-attributes-status-plans",
+      "title": "Attributes without bloat",
+      "series": "advanced",
+      "order": 2,
+      "blurb": "Opt into status, tags, and plans — slim keys that drive a view.",
+      "tryThis": "Mark one idea @status draft and leave its plan empty on purpose.",
+      "deck": "decks/adv-02-attributes-status-plans.jsonc"
+    },
+    {
+      "id": "adv-03-ideas-summary-graph",
+      "slug": "adv-03-ideas-summary-graph",
+      "title": "Maps you choose",
+      "series": "advanced",
+      "order": 3,
+      "blurb": "Ideas Summary as a cartographic cut — filter, focus, deepen on purpose.",
+      "tryThis": "Screenshot a useful focus for a PR, then reset filters to your default.",
+      "deck": "decks/adv-03-ideas-summary-graph.jsonc"
+    },
+    {
+      "id": "adv-04-context-and-tokens",
+      "slug": "adv-04-context-and-tokens",
+      "title": "Context and tokens",
+      "series": "advanced",
+      "order": 4,
+      "blurb": "Compose a neighbourhood slice. Do not paste the whole project by habit.",
+      "tryThis": "Ask once with a whole-file paste, once with a neighbourhood slice. Compare focus.",
+      "deck": "decks/adv-04-context-and-tokens.jsonc"
+    },
+    {
+      "id": "adv-05-comment-references",
+      "slug": "adv-05-comment-references",
+      "title": "Comment references",
+      "series": "advanced",
+      "order": 5,
+      "blurb": "Point code back at requirements with rq:[…] — same graph, other door.",
+      "tryThis": "Add one comment reference in a test file pointing at password_rules.",
+      "deck": "decks/adv-05-comment-references.jsonc"
+    },
+    {
+      "id": "adv-06-html-export",
+      "slug": "adv-06-html-export",
+      "title": "Export the graph as HTML",
+      "series": "advanced",
+      "order": 6,
+      "blurb": "Static multi-page site from the same ideas — for reviews and stakeholders.",
+      "tryThis": "Export a narrow folder and compare page count to a full workspace export.",
+      "deck": "decks/adv-06-html-export.jsonc"
+    },
+    {
+      "id": "adv-07-cli-and-mcp",
+      "slug": "adv-07-cli-and-mcp",
+      "title": "CLI and MCP",
+      "series": "advanced",
+      "order": 7,
+      "blurb": "Same graph API — terminal, CI, agents, and the editor.",
+      "tryThis": "Wire CI to run reqlan parse on reqs/ and fail on diagnostics.",
+      "deck": "decks/adv-07-cli-and-mcp.jsonc"
+    },
+    {
+      "id": "adv-08-modelling-patterns",
+      "slug": "adv-08-modelling-patterns",
+      "title": "Patterns that age well",
+      "series": "advanced",
+      "order": 8,
+      "blurb": "Durable habits plus a non-software vignette — judgement over more syntax.",
+      "tryThis": "Write the idea. Link the neighbour. Ship the slice.",
+      "deck": "decks/adv-08-modelling-patterns.jsonc"
+    }
+  ]
+}

@@ -32,6 +32,10 @@
         "./context-signals": {
             "types": "./out/core/context-signals.d.ts",
             "default": "./out/core/context-signals.js"
+        },
+        "./graph-physics": {
+            "types": "./out/graph/physics-core.d.ts",
+            "default": "./out/graph/physics-core.js"
         }
     },
     "scripts": {

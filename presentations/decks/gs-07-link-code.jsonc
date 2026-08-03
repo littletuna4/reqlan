@@ -1,0 +1,110 @@
+// Deck: gs-07-link-code — authored JSONC; sync emits runtime decks/gs-07-link-code.json for the player.
+{
+  "id": "gs-07-link-code",
+  "title": "Point ideas at code",
+  "series": "get-started",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Get started · 07",
+        "heading": "Point ideas at code",
+        "asset": "logo"
+      },
+      "notes": "Requirements earn their keep when they touch reality."
+    },
+    {
+      "id": "create-files",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Create auth.rq and login.ts",
+        "body": "reqs/auth.rq + src/login.ts stub — small and readable."
+      },
+      "notes": "Keep the demo tree minimal; one API idea and one implementation file."
+    },
+    {
+      "id": "file-ref",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "File references",
+        "asset": "file-link",
+        "code": "Implementation: [\"./src/login.ts\"]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "The path lives in brackets like any other link. Ctrl/Cmd-click to open."
+    },
+    {
+      "id": "link-idea",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Link back to requirements",
+        "code": "Rejects empty passwords per [password_rules].",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Ideas and files share one graph — cross-link freely."
+    },
+    {
+      "id": "reverse",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Stand in the implementation",
+        "body": "Caret in login.ts. Activity bar shows related requirements.",
+        "asset": "activity-bar"
+      },
+      "notes": "Context scope works on any workspace file, not only .rq sources."
+    },
+    {
+      "id": "misconception",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Not a one-way arrow",
+        "body": "File refs from requirements. Scope from code back to requirements."
+      },
+      "notes": "The reverse path is the point — traceability in both directions."
+    },
+    {
+      "id": "recap",
+      "transition": "slide",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Get-started loop complete",
+        "body": "Name · link · base · neighbourhood · small AI slice · stitch to code."
+      },
+      "notes": "Seven episodes — same discipline throughout."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Link one more source file your welcome flow depends on.",
+        "fragments": [
+          "Concepts series next — name the ontology"
+        ]
+      },
+      "notes": "When you are ready to name what you did, Concepts starts with the ontology map."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Concepts next",
+        "body": "Ontology, then extension map.",
+        "asset": "logo"
+      },
+      "notes": "Verbs first. Nouns next."
+    }
+  ]
+}

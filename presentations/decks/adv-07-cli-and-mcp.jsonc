@@ -1,0 +1,112 @@
+// Deck: adv-07-cli-and-mcp — authored JSONC; sync emits runtime decks/adv-07-cli-and-mcp.json for the player.
+{
+  "id": "adv-07-cli-and-mcp",
+  "title": "CLI and MCP",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 07",
+        "heading": "CLI and MCP",
+        "body": "Same graph API — terminal, CI, agents, and the editor.",
+        "asset": "logo"
+      },
+      "notes": "The CLI speaks to the same analytical API as the extension and MCP tools."
+    },
+    {
+      "id": "search",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Headless search",
+        "body": "Concise output. Same index under .reqlan.",
+        "code": "npx reqlan search \"empty password\"",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Compact results on purpose — same discipline as chat search."
+    },
+    {
+      "id": "analyse-parse",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Analyse and parse",
+        "body": "One idea expanded. Parse as CI gate on reqs/.",
+        "code": "npx reqlan analyse --idea login_api / parse reqs/ --fail-on-diagnostics",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Fail the build when requirements stop parsing."
+    },
+    {
+      "id": "index-base",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "One base per run",
+        "body": "Index is tooling memory. Nested bases = separate runs.",
+        "code": "demo/.reqlan/ · --cwd · active base picker",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Do not hand-edit the index. Confirm cwd when results look wrong."
+    },
+    {
+      "id": "skills",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Install Cursor skills",
+        "body": "rq- prefix commands for agents — search, context, build.",
+        "asset": "chat-search",
+        "code": "Reqlan: Install Cursor Skills",
+        "code_label": "example"
+      },
+      "notes": "Skills mirror human chat commands with token discipline."
+    },
+    {
+      "id": "parity",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "CLI vs chat parity",
+        "body": "Same query, same hit — if not, check cwd and active base.",
+        "code": "npx reqlan search … / @reqlan /rq-search …",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Two hosts, one analytical core."
+    },
+    {
+      "id": "cwd-trap",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Wrong folder trap",
+        "body": "Parent monorepo? Pass --cwd to the demo base.",
+        "code": "npx reqlan --cwd reqlan-tutorials-demo search \"empty password\"",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "CLI and chat disagree → cwd or active base is usually wrong."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Wire CI to run reqlan parse on reqs/ and fail on diagnostics.",
+        "fragments": [
+          "Next — Modelling patterns"
+        ]
+      },
+      "notes": "Headless CI, local scripts, and editors share one index."
+    }
+  ]
+}

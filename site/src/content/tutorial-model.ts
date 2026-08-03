@@ -1,4 +1,4 @@
-export type TutorialSeries = "get-started" | "advanced";
+export type TutorialSeries = "get-started" | "concepts" | "advanced";
 
 export type TutorialDeck = {
   id: string;
@@ -9,6 +9,8 @@ export type TutorialDeck = {
   blurb: string;
   tryThis: string;
   deck: string;
+  /** Slide count from the deck file; used for partial completion. */
+  slideCount: number;
 };
 
 export type TutorialNeighbors = {
@@ -19,19 +21,16 @@ export type TutorialNeighbors = {
   seriesDecks: TutorialDeck[];
 };
 
-export const tutorialSeriesMeta: Record<
-  TutorialSeries,
-  { title: string; intro: string }
-> = {
-  "get-started": {
-    title: "Get started",
-    intro: "Six short decks — name ideas, link them, stay local, ask narrowly.",
-  },
-  advanced: {
-    title: "Advanced",
-    intro:
-      "Overview plus eight deep dives — imports, attributes, maps, tokens, comments, export, CLI/MCP, patterns.",
-  },
+export const tutorialSeriesOrder: TutorialSeries[] = [
+  "get-started",
+  "concepts",
+  "advanced",
+];
+
+export const tutorialSeriesMeta: Record<TutorialSeries, { title: string }> = {
+  "get-started": { title: "Get started" },
+  concepts: { title: "Concepts" },
+  advanced: { title: "Advanced" },
 };
 
 function decksInSeries(
@@ -43,7 +42,7 @@ function decksInSeries(
     .sort((a, b) => a.order - b.order);
 }
 
-/** Prev/next within the series, bridging get-started → advanced at the seam. */
+/** Prev/next within the series, bridging get-started → concepts → advanced. */
 export function getTutorialNeighbors(
   tutorial: TutorialDeck,
   allDecks: TutorialDeck[],
@@ -59,13 +58,17 @@ export function getTutorialNeighbors(
       ? seriesDecks[seriesIndex + 1]!
       : null;
 
-  if (!prev && tutorial.series === "advanced") {
-    const getStarted = decksInSeries(allDecks, "get-started");
-    prev = getStarted[getStarted.length - 1] ?? null;
+  const seriesPos = tutorialSeriesOrder.indexOf(tutorial.series);
+  if (!prev && seriesPos > 0) {
+    const prior = decksInSeries(allDecks, tutorialSeriesOrder[seriesPos - 1]!);
+    prev = prior[prior.length - 1] ?? null;
   }
-  if (!next && tutorial.series === "get-started") {
-    const advanced = decksInSeries(allDecks, "advanced");
-    next = advanced[0] ?? null;
+  if (!next && seriesPos >= 0 && seriesPos < tutorialSeriesOrder.length - 1) {
+    const following = decksInSeries(
+      allDecks,
+      tutorialSeriesOrder[seriesPos + 1]!,
+    );
+    next = following[0] ?? null;
   }
 
   return {
@@ -75,4 +78,22 @@ export function getTutorialNeighbors(
     seriesTotal,
     seriesDecks,
   };
+}
+
+export function tutorialMatchesQuery(
+  tutorial: TutorialDeck,
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [
+    tutorial.title,
+    tutorial.blurb,
+    tutorial.tryThis,
+    tutorial.id,
+    tutorialSeriesMeta[tutorial.series].title,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
 }
