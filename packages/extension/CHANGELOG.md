@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.6.2
+
+### Patch Changes
+
+- eb9da11: test references fix
+- Updated dependencies [eb9da11]
+  - @reqlan/language@1.6.2
+  - @reqlan/analytical@0.6.2
+
 ## 1.6.1
 
 ### Patch Changes
