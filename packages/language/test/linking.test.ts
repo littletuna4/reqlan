@@ -474,7 +474,7 @@ later_member {
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('resolve anonymous import in bracket reference without import statement', async () => {
-        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const ontologyDir = join(repoDir, 'reqlan rq');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
             `syntax_whitespace {
                 see ["./ontology.rq".attribute]
@@ -505,7 +505,7 @@ later_member {
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import path opens source file', async () => {
-        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const ontologyDir = join(repoDir, 'reqlan rq');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
             `demo {
                 see ["./ontology.rq".attribute]
@@ -551,7 +551,7 @@ later_member {
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('go to definition on anonymous import idea opens idea declaration', async () => {
-        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const ontologyDir = join(repoDir, 'reqlan rq');
         const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
             `demo {
                 see ["./ontology.rq".attribute]
@@ -932,7 +932,7 @@ later_member {
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('does not report linking error for anonymous import path with idea', async () => {
-        const ontologyDir = join(repoDir, 'reqlan rq/language');
+        const ontologyDir = join(repoDir, 'reqlan rq');
         const fileServices = createReqlanServices(NodeFileSystem);
         const consumer = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             `syntax_whitespace {
@@ -944,6 +944,7 @@ later_member {
             readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
             URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
         ) as LangiumDocument<Model>;
+
         fileServices.shared.workspace.LangiumDocuments.addDocument(ontology);
         fileServices.shared.workspace.LangiumDocuments.addDocument(consumer);
         await fileServices.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: true });

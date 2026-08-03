@@ -303,7 +303,7 @@ demo {
 
     // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
     test('parse ontology.rq one-liner ideas', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/ontology.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/ontology.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         const oneLiners = document.parseResult.value.elements.filter(isOneLinerIdea);
         expect(oneLiners.map(idea => idea.name)).toEqual([
@@ -311,6 +311,7 @@ demo {
             'ideaset',
             'file',
             'keyword',
+            'configuration',
             'import_statement',
             'reference',
             'referenced_files',
