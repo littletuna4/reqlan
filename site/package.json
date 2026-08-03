@@ -12,7 +12,8 @@
         "test": "tsx --test src/**/*.test.ts",
         "validate:showcase": "tsx scripts/validate-showcase-rq.mts",
         "sync:presentations": "tsx scripts/sync-presentations.mts",
-        "generate:images": "node scripts/generate-images.mjs"
+        "generate:images": "node scripts/generate-images.mjs",
+        "serve:site": "npx serve out -l 3000"
     },
     "dependencies": {
         "@fontsource/inter": "^5.2.8",
