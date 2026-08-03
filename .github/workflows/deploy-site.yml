@@ -61,8 +61,8 @@ jobs:
 
       - name: Build static site
         working-directory: site
-        env:
-          SITE_BASE_PATH: /
+        # env:
+          # SITE_BASE_PATH: 
         run: pnpm run build
 
       - name: Disable Jekyll processing
