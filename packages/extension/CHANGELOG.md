@@ -1,5 +1,17 @@
 # reqlan-extension
 
+## 1.6.0
+
+### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
+### Patch Changes
+
+- Updated dependencies [54a2536]
+  - @reqlan/analytical@0.6.0
+  - @reqlan/language@1.6.0
+
 ## 1.5.6
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.6.0
+
+### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
 ## 1.5.3
 
 ### Patch Changes

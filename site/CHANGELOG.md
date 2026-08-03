@@ -1,5 +1,11 @@
 # site
 
+## 0.8.0
+
+### Minor Changes
+
+- 54a2536: introduce bases, refine config, improvements to summary, site improvements.
+
 ## 0.7.1
 
 ### Patch Changes
