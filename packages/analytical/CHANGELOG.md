@@ -1,5 +1,12 @@
 # @reqlan/analytical
 
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [eb9da11]
+  - @reqlan/language@1.6.2
+
 ## 0.6.1
 
 ### Patch Changes

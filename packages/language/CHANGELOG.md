@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.6.2
+
+### Patch Changes
+
+- eb9da11: test references fix
+
 ## 1.6.1
 
 ### Patch Changes
