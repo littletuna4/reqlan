@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.6.3
+
+### Patch Changes
+
+- 674da15: fix image in readme, update site copy, add graph navigator to landing.
+
 ## 0.6.2
 
 ### Patch Changes
