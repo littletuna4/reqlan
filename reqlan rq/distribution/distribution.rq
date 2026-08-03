@@ -87,7 +87,7 @@ vsix_export {
     pnpm run build
     vsce package --no-dependencies
   )
-  The VSIX includes logo assets from the extension media build: SVG for activity bar, PNG for marketplace icon and README, WebP as a raster fallback.
+  The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.
 }
 
 site_distribution {

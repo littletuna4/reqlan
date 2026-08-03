@@ -101,7 +101,7 @@
       "background": "brand-dark",
       "content": {
         "heading": "Concepts next",
-        "body": "Ontology, then extension map.",
+        "body": "Ontology, extension map, then CLI.",
         "asset": "logo"
       },
       "notes": "Verbs first. Nouns next."

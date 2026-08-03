@@ -48,6 +48,7 @@ components {
     - sidebar
     - footer
     - hero
+    - sticky page nav graph (landing)
     - links/contact
     - showcases
     - tutorials per [tutorials_section]

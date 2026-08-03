@@ -7,11 +7,18 @@ import shared from "./shared.module.css";
 import styles from "./MotivationClient.module.css";
 
 type MotivationClientProps = {
+  title: string;
+  lead?: string;
   tabs: MotivationTab[];
   children: React.ReactNode;
 };
 
-export function MotivationClient({ tabs, children }: MotivationClientProps) {
+export function MotivationClient({
+  title,
+  lead,
+  tabs,
+  children,
+}: MotivationClientProps) {
   const [activeId, setActiveId] = useState(tabs[0]?.id ?? "");
   const activeTab = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
@@ -22,11 +29,12 @@ export function MotivationClient({ tabs, children }: MotivationClientProps) {
       aria-labelledby="motivation-title"
     >
       <h2 id="motivation-title" className={shared.sectionTitle}>
-        Motivation
+        {title}
       </h2>
+      {lead ? <p className={shared.sectionLead}>{lead}</p> : null}
 
       <div className={styles.panel}>
-        <div role="tablist" aria-label="Motivation" className={styles.tabList}>
+        <div role="tablist" aria-label={title} className={styles.tabList}>
           {tabs.map((tab) => {
             const isActive = tab.id === activeId;
 
@@ -61,6 +69,9 @@ export function MotivationClient({ tabs, children }: MotivationClientProps) {
 
             return (
               <div key={tab.id} hidden={tab.id !== activeId}>
+                {tab.pitch ? (
+                  <p className={shared.sectionPitch}>{tab.pitch}</p>
+                ) : null}
                 {child}
               </div>
             );

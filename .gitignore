@@ -14,8 +14,8 @@ syntaxes/
 *.vsix
 
 # Extension media build outputs (see packages/extension scripts build:media / build:webviews)
+# logo.png is tracked — package.json contributes/marketplace icon must resolve in the repo.
 packages/extension/media/webviews/
-packages/extension/media/logo.png
 packages/extension/media/logo-256.png
 packages/extension/media/logo.webp
 packages/extension/media/logo.svg

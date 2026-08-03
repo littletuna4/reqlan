@@ -39,7 +39,7 @@
         "code_lang": "rq",
         "code_label": ".rq"
       },
-      "notes": "Each theme has its own deck. Ontology and extension map live in Concepts."
+      "notes": "Each theme has its own deck. Ontology, extension map, and CLI live in Concepts."
     },
     {
       "id": "bases-craft",

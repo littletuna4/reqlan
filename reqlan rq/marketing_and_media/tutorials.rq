@@ -18,7 +18,7 @@ from "../extension/agents/features-ai.rq" import ai_integration, ai_build_requir
 from "../extension/features-skills-and-mcp.rq" import mcp_tools, cursor_skills_install, chat_skill_naming
 from "../extension/features-html-export.rq" import html_export
 from "../extension/features-non-rq-code-comment/functional-code-comment-references.rq" import references_in_functional_code_comments
-from "../cli/cli_package.rq" import cli_package, commands
+from "../cli/cli_package.rq" import cli_package, commands, init, function_parity
 from "../docs/docs.rq" import docs_reqs
 from "../phonebook.rq" import phonebook
 import "../../site/reqs/core.rq" as site_reqs
@@ -28,7 +28,7 @@ tutorials {
     Content must reflect [mission_statement]: semantic requirements as code for people working with LLMs, with ergonomic definition and consumption.
     Three series — do, then name, then craft:
     - [get_started_series]: first-hour fluency (write, link, create a [base], neighbourhood, AI slice, code).
-    - [concepts_series]: ontology vocabulary and an [extension] surface map after the learner has felt the loop.
+    - [concepts_series]: ontology vocabulary, an [extension] surface map, and the [cli_package] headless surface after the learner has felt the loop.
     - [advanced_series]: graph craft, AI workflows, distribution.
     Host on the marketing site per [site_reqs.tutorials_section] and link from extension onboarding per [installation_event] and [phonebook].
     Visual language follows [brand]; on-screen chrome stays quiet per [show_dont_tell] — narration carries concepts, UI does not lecture.
@@ -83,6 +83,7 @@ demo_workspace {
     - After gs_06: `password_rules` idea present; chat / skills exercised once.
     - After gs_07: `reqs/auth.rq` with `login_api`; `src/login.ts` stub; file reference from idea to code.
     Concepts assume the full get-started end state (including `.reqlan`).
+    [con_03_cli] uses the same fixture from a terminal at workspace root.
     Advanced baseline tree:
     ```
     reqlan-tutorials-demo/
@@ -155,6 +156,7 @@ slide_decks (
     gs_07_link_code,
     con_01_ontology,
     con_02_extension_tour,
+    con_03_cli,
     adv_overview,
     adv_01_imports_ideasets,
     adv_02_attributes_status_plans,
@@ -972,7 +974,7 @@ gs_07_link_code {
 
         VO: Try this before you go: link one more source file your welcome flow actually depends on — a component, route, or test.
 
-        SCR: End card: "Concepts · Ontology, then extension map" — series handoff to [concepts_series].
+        SCR: End card: "Concepts · Ontology, extension map, then CLI" — series handoff to [concepts_series].
     }
     @slides (
         {
@@ -1050,7 +1052,7 @@ gs_07_link_code {
             transition fade
             background brand-dark
             heading Concepts next
-            body Ontology, then extension map.
+            body Ontology, extension map, then CLI.
             asset logo
             notes Verbs first. Nouns next.
         }
@@ -1061,13 +1063,15 @@ gs_07_link_code {
 
 concepts_series (
     con_01_ontology,
-    con_02_extension_tour
+    con_02_extension_tour,
+    con_03_cli
 )
 
 concepts_series_brief {
-    Short concepts series after get-started: two packs that name what the learner already felt.
+    Short concepts series after get-started: three packs that name what the learner already felt.
     [con_01_ontology] — the nouns: [idea], [ideaset], [file], [base], [reference], [attribute], [cartographic_map].
     [con_02_extension_tour] — where those nouns appear in the [extension] product surfaces.
+    [con_03_cli] — the headless twin: [cli_package] / [commands] on the same `.reqlan` index ([init], search, analyse, parse, export).
     Runtime: about 8–12 minutes each. Optional for impatient builders; recommended before advanced.
     @status draft
     @tags (
@@ -1311,7 +1315,7 @@ con_02_extension_tour {
 
         VO: Surface five: export and CLI. Open this when the graph must leave the editor — static HTML per [html_export], headless search per [cli_package] and [commands].
             Extension and terminal share one analytical core; pick the host that fits the moment.
-            Graph craft, token steering, comment links, and CI patterns live in Advanced — not here.
+            The next concepts pack walks the CLI commands; Advanced covers graph craft, MCP skills, and CI judgement.
 
         SCR: Five tiles visible. On-screen quiz prompts appear one at a time — no clicking yet.
 
@@ -1322,9 +1326,9 @@ con_02_extension_tour {
             Answers: activity bar, Ideas Summary tables, chat or palette search.
             If you hesitated on two, that is the Ideas Summary job — not the activity bar.
 
-        SCR: End card — Advanced overview montage thumbnail. CTA from [phonebook].
+        SCR: End card — Concepts · CLI thumbnail. CTA from [phonebook].
 
-        VO: Map first. Depth later. When you are ready to craft imports, attributes, maps, and headless workflows, start Advanced overview.
+        VO: Map first. Next we name the terminal surface — then Advanced when you are ready to craft.
     }
     @slides (
         {
@@ -1384,7 +1388,7 @@ con_02_extension_tour {
             body Open when the graph must leave the editor.
             code_lang bash
             code Reqlan: Export HTML · npx reqlan search "…"
-            notes Shared analytical core. Advanced covers craft and CI patterns.
+            notes Shared analytical core. Next concepts pack walks the CLI; Advanced covers craft and CI.
         }
         {
             id recovery
@@ -1407,11 +1411,160 @@ con_02_extension_tour {
             id end
             transition fade
             background brand-dark
-            heading Map first. Depth later.
-            body Advanced — imports, attributes, maps, CLI, patterns.
+            heading Map first. Terminal next.
+            body Name the CLI surface — then Advanced when you are ready to craft.
             asset logo
+            fragments Next — CLI
+            notes Concepts · 03 walks init, search, analyse, parse, and export on the same index.
+        }
+    )
+}
+
+con_03_cli {
+    Audience: viewers who finished the extension tour and want the headless twin named — CI, scripts, and agents without living in the editor.
+    Outcome: install and run `reqlan` / `rq`; [init] a [base]; run search, analyse, and parse; know `--cwd` / `--json` and one-base-per-run; know export shares [html_export] with the extension.
+    Runtime: 9–11 min.
+    Demo: advanced get-started end state of `reqlan-tutorials-demo` — `.reqlan` indexed, `reqs/product.rq` + `reqs/auth.rq` present; integrated terminal at workspace root; extension idle in background (not the focus).
+    Related: [cli_package] [commands] [init] [html_export] [base] [multi_base_environment] [llm_first] [function_parity]
+    @example {
+        ```bash
+        # From reqlan-tutorials-demo/ (active base at root)
+        npx @reqlan/cli --help
+        # or: npm i -g @reqlan/cli   then: reqlan / rq
+
+        npx reqlan init                 # same .reqlan marker as Create Base
+        npx reqlan search "empty password"
+        npx reqlan analyse --idea login_api
+        npx reqlan parse reqs/auth.rq
+        npx reqlan parse reqs/ --fail-on-diagnostics
+        npx reqlan export --out ./docs-site
+
+        # Wrong folder? pin the base:
+        npx reqlan --cwd reqlan-tutorials-demo search "empty password"
+        # Machines: add --json
+        ```
+    }
+    @script {
+        SCR: Title card — Concepts · 03 · CLI. Brand palette. Quiet terminal prompt at `reqlan-tutorials-demo`.
+
+        VO: The extension tour named five surfaces. This pack is surface five up close —
+            the [cli_package] binary `reqlan` (alias `rq`) on the same analytical core and `.reqlan` index.
+
+        SCR: Terminal: `npx @reqlan/cli --help` — flash command list. Optional: mention global `npm i -g @reqlan/cli`.
+
+        VO: Install is a package, not a Marketplace button. Use `npx` for a one-shot, or install globally when the terminal is your daily host.
+
+        SCR: Explorer: `.reqlan/` already present from get-started. Brief beat — do not recreate live unless demo was reset.
+            Optional alternate: empty sibling folder + `npx reqlan init` showing the marker appear.
+
+        VO: [init] seeds the same `.reqlan` tree as Create Base in the editor.
+            Extension install and base create stay separate layers — the CLI only owns the base marker path.
+
+        SCR: `npx reqlan search "empty password"` — compact hits. Then `npx reqlan analyse --idea login_api`.
+
+        VO: Search stays concise on purpose — same [llm_first] discipline as chat.
+            Analyse expands one idea: references, files, attributes — not a whole-graph JSON dump unless you ask.
+
+        SCR: `npx reqlan parse reqs/auth.rq` clean. Mention `parse reqs/ --fail-on-diagnostics` as the CI gate pattern.
+
+        VO: Parse is how CI fails the build when requirements stop parsing — same sources the extension indexes.
+
+        SCR: Ten-second export beat: `npx reqlan export --out ./docs-site` — same pipeline as the export form per [html_export].
+
+        VO: Export is one [commands] verb among equals. Form for exploration; CLI for scripts and pipelines.
+
+        SCR: Slide: `--cwd` / `REQLAN_WORKSPACE`, `--json`, one active base per run. Explorer flash on nested-base dashed boundary — do not create one live.
+
+        VO: Pin the workspace when the shell is in the wrong folder. Prefer `--json` for machines.
+            Nested bases are separate runs — same craft as context and export in Advanced.
+
+        SCR: Misconception beat — running from a parent monorepo without `--cwd`; results look empty or wrong.
+
+        VO: If CLI and chat disagree, check cwd and active base first — not two different graphs.
+
+        VO: Try this: from the demo root, run `npx reqlan parse reqs/ --fail-on-diagnostics` and imagine that line in CI.
+
+        SCR: End card → Advanced overview. CTA from [phonebook].
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Concepts · 03
+            heading CLI
+            body Same graph API — terminal, scripts, and CI.
+            asset logo
+            notes The extension tour named five surfaces. This pack is surface five up close.
+        }
+        {
+            id install
+            transition fade
+            background brand-panel
+            heading Install the binary
+            body npx for a one-shot. Global install when the terminal is daily.
+            code_lang bash
+            code npx @reqlan/cli --help
+            notes Binary names: reqlan and rq. Marketplace install is a different layer.
+        }
+        {
+            id init
+            transition none
+            background brand-contrast
+            heading init = Create Base
+            body Seeds the same .reqlan marker the editor uses.
+            code_lang bash
+            code npx reqlan init
+            notes Extension install ≠ base create. CLI init only owns the marker path.
+        }
+        {
+            id search-analyse
+            transition fade
+            background brand-panel
+            heading Search and analyse
+            body Concise hits. One idea expanded — not a whole-graph dump.
+            code_lang bash
+            code npx reqlan search "empty password" / analyse --idea login_api
+            notes Same llm-first discipline as chat search.
+        }
+        {
+            id parse-export
+            transition fade
+            background brand-panel
+            heading Parse and export
+            body Parse gates CI. Export shares the HTML pipeline with the extension form.
+            code_lang bash
+            code npx reqlan parse reqs/ --fail-on-diagnostics / export --out ./docs-site
+            notes Form for exploration. CLI for scripts and pipelines.
+        }
+        {
+            id cwd-json
+            transition none
+            background brand-contrast
+            heading Pin the base
+            body --cwd / REQLAN_WORKSPACE. --json for machines. One base per run.
+            code_lang bash
+            code npx reqlan --cwd reqlan-tutorials-demo search "empty password"
+            notes Nested bases are separate runs — not folders you merge by accident.
+        }
+        {
+            id wrong-folder
+            transition fade
+            background brand-panel
+            heading Wrong folder trap
+            body Empty or weird results? Fix cwd before blaming the graph.
+            code_lang txt
+            code CLI vs chat disagree → cwd or active base
+            notes Two hosts, one analytical core.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Run parse on reqs/ with --fail-on-diagnostics — then picture that line in CI.
             fragments Next — Advanced overview
-            notes When you are ready to craft, start Advanced overview.
+            notes Headless CI, local scripts, and the editor share one index under .reqlan.
         }
     )
 }
@@ -1433,7 +1586,7 @@ advanced_series_brief {
     Advanced series: eight episodes in [advanced_series], about 8–12 minutes each, plus [adv_overview].
     Assumes get-started fluency and ideally [concepts_series] vocabulary (or equivalent).
     Goal: multi-file graphs, purposeful attributes, cartographic navigation, AI token discipline,
-    code-comment traceability, HTML publishing, headless CLI/MCP, and modelling patterns that stay readable.
+    code-comment traceability, HTML publishing, headless CLI/MCP craft (beyond [con_03_cli]), and modelling patterns that stay readable.
     Include at least one non-software vignette (ops runbook or editorial brief) to honour [general_purpose].
     Bases appear as craft judgement (active base, nested boundaries) — not a second create-base lesson.
     Decks: [adv_overview] and adv_01–adv_08 under [slide_decks].
@@ -1522,7 +1675,7 @@ adv_overview {
             body Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling patterns
             code_lang rq
             code from "./auth.rq" import login_api · @status in-progress · Ideas Summary graph · rq:[password_rules]
-            notes Each theme has its own deck. Ontology and extension map live in Concepts.
+            notes Each theme has its own deck. Ontology, extension map, and CLI live in Concepts.
         }
         {
             id bases-craft
@@ -2379,11 +2532,11 @@ adv_06_html_export {
 }
 
 adv_07_cli_and_mcp {
-    Audience: developers wiring CI, scripts, or agent tooling who need the same graph operations outside the editor.
-    Outcome: run `reqlan search`, `analyse`, and `parse` headlessly; understand shared `.reqlan` index and one-base-per-run discipline; install Cursor skills / MCP; compare CLI output to chat search.
+    Audience: developers wiring CI, scripts, or agent tooling who already know [con_03_cli] basics and need MCP, skills, and parity judgement.
+    Outcome: install Cursor skills / MCP; compare CLI output to chat search; reinforce one-base-per-run and `--cwd` discipline under multi-base trees; wire parse as a CI gate.
     Runtime: 10–12 min.
     Demo: advanced baseline in integrated terminal at repo root; `.reqlan` indexed; Cursor host preferred for skills beat — VS Code fallback with palette mention only.
-    Related: [cli_package] [commands] [mcp_tools] [cursor_skills_install] [chat_skill_naming] [ai_integration] [base] [multi_base_environment]
+    Related: [con_03_cli] [cli_package] [commands] [mcp_tools] [cursor_skills_install] [chat_skill_naming] [ai_integration] [base] [multi_base_environment]
     @example {
         ```bash
         # From reqlan-tutorials-demo/ (active base at root)
@@ -2396,8 +2549,9 @@ adv_07_cli_and_mcp {
     @script {
         SCR: Terminal at demo workspace root. Prompt shows `reqlan-tutorials-demo`. Run `npx reqlan search "empty password"`.
 
-        VO: The CLI speaks to the same analytical API as the extension and MCP tools.
-            Headless CI, local scripts, and editors share one index under the active base's `.reqlan`.
+        VO: You already named the CLI verbs in [con_03_cli]. This pack is judgement —
+            agents, skills, MCP, and the traps that show up when CI and chat share one index.
+            Headless hosts speak to the same analytical API as the extension.
 
         SCR: Show compact search results — idea name, path, short snippet. Then `npx reqlan analyse --idea login_api`.
 
@@ -2669,7 +2823,7 @@ adv_08_modelling_patterns {
 // --- Production notes ---------------------------------------------------------
 
 tutorial_production {
-    Recording order: get-started 01→07, concepts 01→02, then advanced overview → 01→08; pickups allowed out of order.
+    Recording order: get-started 01→07, concepts 01→03, then advanced overview → 01→08; pickups allowed out of order.
     Before each take: reset `reqlan-tutorials-demo` to the Demo pre-state listed on the episode; confirm hop depth / filters are at defaults.
     Slide decks for [slide_decks] live under ["../../presentations/"] as authored JSONC plus generated runtime JSON and a shared player shell.
     After editing `@slides`, rewrite the matching `presentations/decks/<id>.jsonc`, update catalog blurbs in ["../../presentations/manifest.jsonc"],

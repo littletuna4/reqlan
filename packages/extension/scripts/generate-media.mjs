@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Generate extension media from the brand logo SVG.
- * SVG is used in VS Code where allowed; PNG and WebP are generated for fallbacks.
+ * PNG is the packaged icon (marketplace / language / activity bar); WebP is a raster fallback.
+ * SVG is still synced into media for local reference.
  */
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

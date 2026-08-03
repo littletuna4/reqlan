@@ -1,0 +1,112 @@
+// Deck: con-03-cli — authored JSONC; sync emits runtime decks/con-03-cli.json for the player.
+{
+  "id": "con-03-cli",
+  "title": "CLI",
+  "series": "concepts",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Concepts · 03",
+        "heading": "CLI",
+        "body": "Same graph API — terminal, scripts, and CI.",
+        "asset": "logo"
+      },
+      "notes": "The extension tour named five surfaces. This pack is surface five up close."
+    },
+    {
+      "id": "install",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Install the binary",
+        "body": "npx for a one-shot. Global install when the terminal is daily.",
+        "code": "npx @reqlan/cli --help",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Binary names: reqlan and rq. Marketplace install is a different layer."
+    },
+    {
+      "id": "init",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "init = Create Base",
+        "body": "Seeds the same .reqlan marker the editor uses.",
+        "code": "npx reqlan init",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Extension install ≠ base create. CLI init only owns the marker path."
+    },
+    {
+      "id": "search-analyse",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Search and analyse",
+        "body": "Concise hits. One idea expanded — not a whole-graph dump.",
+        "code": "npx reqlan search \"empty password\" / analyse --idea login_api",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Same llm-first discipline as chat search."
+    },
+    {
+      "id": "parse-export",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Parse and export",
+        "body": "Parse gates CI. Export shares the HTML pipeline with the extension form.",
+        "code": "npx reqlan parse reqs/ --fail-on-diagnostics / export --out ./docs-site",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Form for exploration. CLI for scripts and pipelines."
+    },
+    {
+      "id": "cwd-json",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "Pin the base",
+        "body": "--cwd / REQLAN_WORKSPACE. --json for machines. One base per run.",
+        "code": "npx reqlan --cwd reqlan-tutorials-demo search \"empty password\"",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Nested bases are separate runs — not folders you merge by accident."
+    },
+    {
+      "id": "wrong-folder",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Wrong folder trap",
+        "body": "Empty or weird results? Fix cwd before blaming the graph.",
+        "code": "CLI vs chat disagree → cwd or active base",
+        "code_lang": "txt",
+        "code_label": "example"
+      },
+      "notes": "Two hosts, one analytical core."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Run parse on reqs/ with --fail-on-diagnostics — then picture that line in CI.",
+        "fragments": [
+          "Next — Advanced overview"
+        ]
+      },
+      "notes": "Headless CI, local scripts, and the editor share one index under .reqlan."
+    }
+  ]
+}

@@ -77,7 +77,7 @@
         "code_lang": "bash",
         "code_label": "terminal"
       },
-      "notes": "Shared analytical core. Advanced covers craft and CI patterns."
+      "notes": "Shared analytical core. Next concepts pack walks the CLI; Advanced covers craft and CI."
     },
     {
       "id": "recovery",
@@ -107,14 +107,14 @@
       "transition": "fade",
       "background": "brand-dark",
       "content": {
-        "heading": "Map first. Depth later.",
-        "body": "Advanced — imports, attributes, maps, CLI, patterns.",
+        "heading": "Map first. Terminal next.",
+        "body": "Name the CLI surface — then Advanced when you are ready to craft.",
         "asset": "logo",
         "fragments": [
-          "Next — Advanced overview"
+          "Next — CLI"
         ]
       },
-      "notes": "When you are ready to craft, start Advanced overview."
+      "notes": "Concepts · 03 walks init, search, analyse, parse, and export on the same index."
     }
   ]
 }

@@ -2,7 +2,8 @@ brand reqlan has a simple brand. Dark rust; and aqua blue pallete. Pink for high
 
 extension_brand {
     The extension uses the brand logo from ["../site/public/logo.svg"].
-    SVG is used in VS Code where allowed (activity bar); PNG and WebP are generated for marketplace icon, README, and chat participant surfaces.
+    PNG is used for marketplace, language file icon, activity bar, README, and chat participant surfaces (Azure Marketplace rejects SVG).
+    WebP is generated as a raster fallback.
 }
 
 file_icon {

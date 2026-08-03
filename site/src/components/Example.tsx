@@ -8,8 +8,9 @@ export function Example() {
   return (
     <section id="example" className={shared.contentSection} aria-labelledby="example-title">
       <h2 id="example-title" className={shared.sectionTitle}>
-        Example
+        {example.title}
       </h2>
+      {example.lead ? <p className={shared.sectionLead}>{example.lead}</p> : null}
 
       <CodeBlock language="rq" content={example.code} />
     </section>

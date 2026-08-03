@@ -803,13 +803,33 @@ function wireGraph(root) {
             if (userViewport && !force) return;
             const bounds = contentBounds();
             const pad = 56;
-            view = {
-                x: bounds.minX - pad,
-                y: bounds.minY - pad,
-                w: Math.max(360, bounds.maxX - bounds.minX + pad * 2),
-                h: Math.max(360, bounds.maxY - bounds.minY + pad * 2)
-            };
+            let x = bounds.minX - pad;
+            let y = bounds.minY - pad;
+            let w = Math.max(360, bounds.maxX - bounds.minX + pad * 2);
+            let h = Math.max(360, bounds.maxY - bounds.minY + pad * 2);
+            // Match canvas aspect so uniform scale fills without squashing (SVG viewBox meet).
+            const canvasAspect = cssWidth / Math.max(1, cssHeight);
+            const viewAspect = w / h;
+            if (viewAspect < canvasAspect) {
+                const widened = h * canvasAspect;
+                x -= (widened - w) / 2;
+                w = widened;
+            } else if (viewAspect > canvasAspect) {
+                const heightened = w / canvasAspect;
+                y -= (heightened - h) / 2;
+                h = heightened;
+            }
+            view = { x, y, w, h };
             userViewport = false;
+        }
+
+        function viewportTransform() {
+            const scale = Math.min(cssWidth / Math.max(1, view.w), cssHeight / Math.max(1, view.h));
+            return {
+                scale,
+                offsetX: (cssWidth - view.w * scale) / 2,
+                offsetY: (cssHeight - view.h * scale) / 2
+            };
         }
 
         function wrapLines(text, maxWidth, font) {
@@ -874,13 +894,13 @@ function wireGraph(root) {
             ctx.fillStyle = '#14100e';
             ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-            const sx = cssWidth / view.w;
-            const sy = cssHeight / view.h;
+            const { scale, offsetX, offsetY } = viewportTransform();
             ctx.save();
-            ctx.translate(-view.x * sx, -view.y * sy);
-            ctx.scale(sx, sy);
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+            ctx.translate(-view.x, -view.y);
 
-            ctx.lineWidth = 1.1 / Math.max(sx, sy);
+            ctx.lineWidth = 1.1 / scale;
             ctx.strokeStyle = 'rgba(61,47,40,0.85)';
             ctx.globalAlpha = 0.85;
             for (const edge of simEdges) {
@@ -912,7 +932,7 @@ function wireGraph(root) {
                 ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
                 ctx.fillStyle = nodeFill(node);
                 ctx.fill();
-                ctx.lineWidth = (isSubject ? 2.2 : hover ? 2 : 1.15) / Math.max(sx, sy);
+                ctx.lineWidth = (isSubject ? 2.2 : hover ? 2 : 1.15) / scale;
                 ctx.strokeStyle = nodeStroke(node, hover);
                 ctx.stroke();
 
@@ -929,7 +949,7 @@ function wireGraph(root) {
                 ctx.fillStyle = isSubject ? '#0bbefb' : '#ebe4de';
                 ctx.font = nameFont;
                 for (const line of nameLines) {
-                    ctx.lineWidth = 3 / Math.max(sx, sy);
+                    ctx.lineWidth = 3 / scale;
                     ctx.strokeStyle = '#14100e';
                     ctx.strokeText(line, pos.x, ty);
                     ctx.fillText(line, pos.x, ty);
@@ -1056,9 +1076,13 @@ function wireGraph(root) {
 
         function clientToGraph(event) {
             const rect = canvas.getBoundingClientRect();
-            const x = view.x + ((event.clientX - rect.left) / rect.width) * view.w;
-            const y = view.y + ((event.clientY - rect.top) / rect.height) * view.h;
-            return { x, y };
+            const { scale, offsetX, offsetY } = viewportTransform();
+            const cssX = ((event.clientX - rect.left) / rect.width) * cssWidth;
+            const cssY = ((event.clientY - rect.top) / rect.height) * cssHeight;
+            return {
+                x: view.x + (cssX - offsetX) / scale,
+                y: view.y + (cssY - offsetY) / scale
+            };
         }
 
         function wireViewport(target) {
@@ -1107,8 +1131,9 @@ function wireGraph(root) {
                 }
                 if (panMode && panOrigin) {
                     const rect = target.getBoundingClientRect();
-                    const dx = ((event.clientX - panOrigin.x) / rect.width) * view.w;
-                    const dy = ((event.clientY - panOrigin.y) / rect.height) * view.h;
+                    const { scale } = viewportTransform();
+                    const dx = ((event.clientX - panOrigin.x) / rect.width) * cssWidth / scale;
+                    const dy = ((event.clientY - panOrigin.y) / rect.height) * cssHeight / scale;
                     view.x = panOrigin.viewX - dx;
                     view.y = panOrigin.viewY - dy;
                     userViewport = true;

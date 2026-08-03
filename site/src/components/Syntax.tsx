@@ -10,8 +10,9 @@ export function Syntax() {
   return (
     <section id="syntax" className={shared.contentSection} aria-labelledby="syntax-title">
       <h2 id="syntax-title" className={shared.sectionTitle}>
-        Syntax
+        {syntax.title}
       </h2>
+      {syntax.lead ? <p className={shared.sectionLead}>{syntax.lead}</p> : null}
 
       <div className={styles.examples}>
         {syntax.examples.map((example) => (

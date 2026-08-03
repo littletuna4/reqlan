@@ -8,7 +8,7 @@ export function Hero() {
   const { hero } = siteContent;
 
   return (
-    <section className={styles.hero} aria-label="Introduction">
+    <section id="hero" className={styles.hero} aria-label="Introduction">
       <div className={styles.lead}>
         <img
           src={sitePath("/ed-core.svg")}

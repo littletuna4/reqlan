@@ -92,6 +92,16 @@
       "deck": "decks/con-02-extension-tour.jsonc"
     },
     {
+      "id": "con-03-cli",
+      "slug": "con-03-cli",
+      "title": "CLI",
+      "series": "concepts",
+      "order": 3,
+      "blurb": "Same graph API — terminal, scripts, and CI on the shared .reqlan index.",
+      "tryThis": "Run parse on reqs/ with --fail-on-diagnostics — then picture that line in CI.",
+      "deck": "decks/con-03-cli.jsonc"
+    },
+    {
       "id": "adv-overview",
       "slug": "adv-overview",
       "title": "Beyond one file",

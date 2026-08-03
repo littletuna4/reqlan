@@ -8,7 +8,11 @@ export function Motivation() {
   const { motivation } = siteContent;
 
   return (
-    <MotivationClient tabs={motivation.tabs}>
+    <MotivationClient
+      title={motivation.title}
+      lead={motivation.lead}
+      tabs={motivation.tabs}
+    >
       {motivation.tabs.map((tab) => (
         <div key={tab.id}>
           {tab.features ? (

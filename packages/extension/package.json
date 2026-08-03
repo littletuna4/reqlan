@@ -31,8 +31,8 @@
                 ],
                 "configuration": "./language-configuration.json",
                 "icon": {
-                    "light": "media/logo.svg",
-                    "dark": "media/logo.svg"
+                    "light": "media/logo.png",
+                    "dark": "media/logo.png"
                 }
             }
         ],
@@ -89,7 +89,7 @@
                 {
                     "id": "reqlan",
                     "title": "Reqlan",
-                    "icon": "media/logo.svg"
+                    "icon": "media/logo.png"
                 }
             ]
         },

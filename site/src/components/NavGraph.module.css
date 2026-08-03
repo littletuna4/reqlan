@@ -1,0 +1,114 @@
+.rail {
+  display: none;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+
+.edge {
+  stroke: var(--color-border);
+  stroke-width: 0.55;
+  stroke-linecap: round;
+  transition: stroke 0.25s ease, stroke-opacity 0.25s ease;
+}
+
+.edgeLit {
+  stroke: var(--color-aqua-dim);
+  stroke-opacity: 0.9;
+}
+
+.node {
+  cursor: pointer;
+  outline: none;
+}
+
+.node:focus-visible .disk {
+  stroke: var(--color-aqua-bright);
+  stroke-width: 1.1;
+}
+
+.disk {
+  fill: var(--color-surface-raised);
+  stroke: var(--color-border);
+  stroke-width: 0.6;
+  transition: stroke 0.2s ease;
+}
+
+.kind_hub .disk {
+  stroke: var(--color-aqua);
+  stroke-width: 0.7;
+}
+
+.kind_page .disk {
+  fill: var(--color-surface);
+  stroke: var(--color-text-faint);
+}
+
+.node:hover .disk {
+  stroke: var(--color-aqua-bright);
+}
+
+.nodeActive .disk {
+  stroke: var(--color-rust);
+}
+
+.label {
+  fill: var(--color-text-faint);
+  font-family: var(--font-geist-sans);
+  font-size: 3.4px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: fill 0.2s ease;
+}
+
+.node:hover .label,
+.nodeActive .label,
+.kind_hub .label {
+  fill: var(--color-text-muted);
+}
+
+.nodeActive .label {
+  fill: var(--color-text);
+}
+
+.rail:not(.still) .nodes {
+  animation: graph-breathe 9s ease-in-out infinite;
+}
+
+.rail:not(.still) .edges {
+  animation: graph-breathe 9s ease-in-out infinite reverse;
+}
+
+@keyframes graph-breathe {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(0.4px, -0.6px);
+  }
+}
+
+@media (min-width: 1100px) {
+  .rail {
+    display: block;
+    position: sticky;
+    top: 2.5rem;
+    align-self: flex-start;
+    width: 13.5rem;
+    flex-shrink: 0;
+    padding-top: 0.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .rail {
+    width: 15rem;
+  }
+}

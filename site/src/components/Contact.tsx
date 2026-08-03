@@ -38,13 +38,13 @@ export function Contact() {
   return (
     <section id="contact" className={shared.contentSection} aria-labelledby="contact-title">
       <h2 id="contact-title" className={shared.sectionTitle}>
-        Links
+        {contact.title}
       </h2>
 
       <LinkList items={contact.links} labelledBy="contact-title" />
 
       <h3 id="packages-title" className={shared.subsectionTitle}>
-        Packages
+        {contact.packagesTitle}
       </h3>
       <LinkList items={contact.packages} labelledBy="packages-title" />
     </section>

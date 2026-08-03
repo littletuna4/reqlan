@@ -1,0 +1,21 @@
+.home {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: min(72rem, 100%) !important;
+}
+
+.column {
+  flex: 1;
+  min-width: 0;
+  max-width: 52rem;
+}
+
+@media (max-width: 1099px) {
+  .home {
+    display: block;
+    max-width: 52rem !important;
+  }
+}
