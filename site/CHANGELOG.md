@@ -1,5 +1,11 @@
 # site
 
+## 0.8.4
+
+### Patch Changes
+
+- 674da15: fix image in readme, update site copy, add graph navigator to landing.
+
 ## 0.8.3
 
 ### Patch Changes
