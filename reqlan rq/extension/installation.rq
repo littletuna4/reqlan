@@ -1,0 +1,96 @@
+import "./activation.rq" as activation
+import "./onboarding/page-thanks-for-installing.rq" as welcome
+import "./configuration.rq" as configuration
+import "./module/index.rq" as app_memory
+import "./features-skills-and-mcp.rq" as skills_mcp
+import "./agents/features-ai.rq" as agents
+import "../bases/base.rq" as bases
+import "../cli/cli_package.rq" as cli
+import "../../packages/analytical/src/core/create-base.ts" as create_base_impl
+import "../../packages/extension/src/ai_commands_module/install-cursor-skills.ts" as install_cursor_skills_impl
+
+installation {
+    Reqlan installation has **two sequenced layers** that must not be conflated:
+    1. [extension_installation] — host product (VS Code / Cursor extension) install and first activation.
+    2. [base_installation] — marking a filesystem directory as a reqlan [bases.base] and seeding its `.reqlan` application memory.
+    Extension install alone does **not** create a base. Base install alone does **not** open the welcome webview or install host agent skills.
+    CLI `init` shares the base path with the editor ([cli.init] / [bases.create_base_onboarding]).
+}
+
+installation_sequencing {
+    End-to-end first-run story (typical editor user):
+    1. User installs the extension from Marketplace / Open VSX / VSIX ([extension_installation]).
+    2. Host fires an [activation.activation_events] match (usually `onStartupFinished`).
+    3. [activation.activation_sequence] registers contributions and starts analytical + LSP; [activation.onboarding_check] may open [welcome.installation_event] (Welcome to Reqlan webview) without blocking activation.
+    4. If no `.reqlan` exists under workspace folders, surfaces offer create-base ([bases.create_base_onboarding]) — user-driven, never auto-created on extension install.
+    5. [base_installation] seeds config / ignore / marker; index activate/sync follows ([app_memory.application_memory]).
+    6. Optionally, user runs Install Cursor Skills ([workspace_agent_files]) — copies rq-* skills and may update `.cursor/mcp.json`; independent of `.reqlan` seeding.
+    Ordering constraint: steps 1–3 are extension-scoped; steps 4–5 are base-scoped; step 6 is workspace agent tooling scoped to the open folder, not the `.reqlan` directory.
+}
+
+extension_installation {
+    Extension-level install covers packing, activation, and first-run host UX — not base filesystem state.
+    There is **no** VS Code `onInstall` API; install-time behaviour runs on the **first** [activation.activation] after install ([activation.activation_events]).
+    Sequencing inside `activate` is owned by [activation.activation_sequence]:
+    - Sync register CodeLens / inlay config commands.
+    - Await analytical submodule contributions (commands, activity bar, chat, webviews, AI commands, mutation hooks), then await index startup without blocking sidebar render ([activation.analytical_submodule_activation]).
+    - Register import quick-fixes when analytical started; await language client; sync catalogs when both are up.
+    - Fire-and-forget [activation.onboarding_check] → [welcome_webview_install].
+    Failures in submodule or language client are logged and must not abort later phases or the welcome check.
+    Related command surfaces: Show Onboarding ([welcome.show_onboarding_command]), Install Cursor Skills ([skills_mcp.cursor_skills_install]), Create Base ([bases.create_base_onboarding]).
+}
+
+welcome_webview_install {
+    The **Welcome to Reqlan** onboarding webview is the extension-install UX surface.
+    Opened once on first activation when `onboardingMessageShown` is false ([welcome.installation_event] / [welcome.installation_event_trigger] / [welcome.onboarding_state]).
+    Content: welcome copy, resolved phonebook links, syntax-highlighted example `.rq`, open-as-untitled control, activity bar / `@reqlan` tips, sponsor thanks.
+    Must not block [activation.activation_sequence]; errors are logged only.
+    Reopen on demand via [welcome.show_onboarding_command] without resetting shown state unless product policy changes.
+    Implementation: ["../../packages/extension/src/extension/open-thanks-for-installing.ts"], ["../../packages/extension/src/extension/onboarding-panel.ts"], ["../../packages/extension/webviews/onboarding/"].
+    @status done
+}
+
+workspace_agent_files {
+    Agent / AI host files are **workspace** artefacts, not files under `.reqlan/`.
+    Install Cursor Skills ([skills_mcp.cursor_skills_install]) copies bundled `rq-*` skills into `<workspace>/.cursor/skills/` and updates `<workspace>/.cursor/mcp.json` when the local MCP server is available ([install_cursor_skills_impl]).
+    Requires an open workspace folder; does not create a base and does not write into `.reqlan`.
+    Naming: skills / chat slash commands use `rq-` prefix ([skills_mcp.chat_skill_naming]); command palette stays category "Reqlan" ([configuration.ai_naming]).
+    AI command surfaces that depend on skills being present: [agents.ai_integration], [agents.ai_build_requirement], [agents.ai_add_to_context], [agents.ai_write_plan].
+    Dev sync of the same skill sources into this repo's `.cursor/skills` is a build concern (["../development/build.rq"]), distinct from end-user install sequencing.
+}
+
+base_installation {
+    Base-level install marks a directory as a [bases.base] and seeds shared application memory under `<base>/.reqlan/` ([app_memory.application_memory]).
+    Entry points (same helper [create_base_impl]):
+    - Editor: `reqlan.createBase` / empty-state CTAs ([bases.create_base_onboarding]) — only after discovery finds **zero** bases; never on extension install alone.
+    - CLI: `reqlan init [directory]` ([cli.init]).
+    Idempotent: existing `.reqlan` is left alone (`created: false`).
+    On **new** base creation the sequence is:
+    1. Create `<base>/.reqlan/` marker directory (presence = base).
+    2. Seed [base_config_seed] (`.reqlan/config.json`).
+    3. Seed [base_rqignore_seed] (`.reqlan/.rqignore`).
+    4. Editor rediscovers bases and activates indexing for that base; SQLite `ideas-index.sqlite` appears when the index opens (not necessarily written at marker creation).
+    Child / nested bases follow [bases.base_nesting]; each base owns its own `.reqlan` seeds and index.
+}
+
+base_config_seed {
+    New bases write a minimal `.reqlan/config.json` (`{}` today) via [create_base_impl].
+    Semantics and discovery of applying config: [configuration.configuration_location], [configuration.configuration_import_roots], [bases.base_configuration].
+    Schema / editor validation: [configuration.configuration_schema_file].
+    A child base does not inherit a parent base's config file.
+}
+
+base_rqignore_seed {
+    New bases write `.reqlan/.rqignore` with gitignore-syntax defaults (dependencies, venvs, build output, DBs such as `*.db3`, secrets, hidden entries, `.reqlan/` itself).
+    Built-in defaults always apply even if the file is missing; the seeded file is the editable surface ([configuration.configuration_rqignore] / [app_memory.rqignore]).
+    Used by analytical discovery and indexing walks (CLI and extension share `@reqlan/analytical`).
+}
+
+base_vs_extension_boundary {
+    Clear ownership so install steps do not write to the wrong store:
+    - Extension package / activate / welcome webview → [extension_installation] (extension host + `globalState` onboarding key).
+    - Activity bar, LSP, chat participant, Ideas Summary → extension runtime after [activation.activation_sequence].
+    - `.reqlan/` marker, `config.json`, `.rqignore`, ideas index, index diagnostics sqlite → [base_installation] under `<base>/.reqlan/`.
+    - Cursor `rq-*` skills + MCP json → [workspace_agent_files] under `<workspace>/.cursor/`.
+    Do not store agent skills or MCP config inside `.reqlan`. Do not treat welcome-webview globalState as base-local memory.
+}

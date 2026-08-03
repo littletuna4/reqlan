@@ -3,8 +3,15 @@
 
     export let search = '';
     export let placeholder = 'Filter…';
+    export let filtersOpen = false;
+    export let groupByLabel: string | undefined = undefined;
+    export let groupByActive = false;
 
-    const dispatch = createEventDispatcher<{ search: string }>();
+    const dispatch = createEventDispatcher<{
+        search: string;
+        toggleFilters: void;
+        toggleGroupBy: void;
+    }>();
 
     function handleInput(event: Event): void {
         dispatch('search', (event.currentTarget as HTMLInputElement).value);
@@ -19,5 +26,24 @@
         value={search}
         on:input={handleInput}
     />
+    <button
+        type="button"
+        class="secondary"
+        class:has-filters={filtersOpen}
+        on:click={() => dispatch('toggleFilters')}
+    >
+        {filtersOpen ? 'Hide column filters' : 'Column filters'}
+    </button>
+    {#if groupByLabel}
+        <button
+            type="button"
+            class="secondary"
+            class:has-filters={groupByActive}
+            on:click={() => dispatch('toggleGroupBy')}
+        >
+            {groupByActive ? `Ungroup` : `Group by ${groupByLabel}`}
+        </button>
+    {/if}
+    <slot name="actions" />
     <slot />
 </div>

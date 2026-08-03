@@ -1,7 +1,14 @@
 import "./features-html-export.rq" as html_export
+from "./module/ideas_summary/webview.rq" import ideas_summary
+from "./features-commands.rq" import command_palette
 
-html_export {
-    [html_export.html_export]
+export_webview {
+    The extension should provide a single export webview for exporting the requirement graph in various formats ([json_export], [csv_export], [html_export.html_export], and later formats such as pdf).
+    This generalizes the current HTML-only [html_export.html_export_form]: format choice is primary, and format-specific options (e.g. HTML runtime mode, template, page families) appear when that format is selected.
+    Shared options: scope, output folder, and export name; defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/`.
+    The user should be able to open it from:
+      - a link/control in the main [ideas_summary] chrome (status bar or header)
+      - the [command_palette]
 }
 
 json_export {

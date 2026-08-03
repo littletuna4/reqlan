@@ -507,7 +507,7 @@ second_idea line two`);
     test('parse file references in list items', async () => {
         const document = await parse(`demo {
             @tests (
-                ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
+                ["../../packages/language/test/validating.test.ts:allows local idea when import uses an alias"]
             )
         }`);
         expect(checkDocumentValid(document)).toBeUndefined();

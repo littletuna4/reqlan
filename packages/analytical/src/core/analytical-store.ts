@@ -4,7 +4,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 export type IndexState = 'uninitialized' | 'opening' | 'idle' | 'syncing' | 'ready' | 'error' | 'closing';
-type IndexEvent = 'activate' | 'opened' | 'sync' | 'synced' | 'fail' | 'deactivate';
+type IndexEvent = 'activate' | 'opened' | 'sync' | 'synced' | 'fail' | 'deactivate' | 'closed';
 
 export type WorkspaceChange = 'created' | 'changed' | 'deleted';
 
@@ -89,12 +89,13 @@ export type AnalyticalStore = StoreApi<AnalyticalStoreState>;
 
 const INDEX_TRANSITIONS: Record<IndexState, Partial<Record<IndexEvent, IndexState>>> = {
     uninitialized: { activate: 'opening' },
-    opening: { opened: 'idle', fail: 'error' },
+    opening: { opened: 'idle', fail: 'error', deactivate: 'closing' },
     idle: { sync: 'syncing', deactivate: 'closing' },
     ready: { sync: 'syncing', deactivate: 'closing' },
-    syncing: { synced: 'ready', fail: 'error' },
-    error: { sync: 'syncing', deactivate: 'closing' },
-    closing: {}
+    syncing: { synced: 'ready', fail: 'error', deactivate: 'closing' },
+    // Recoverable: reopen after open failure, or soft-sync if the store is already open.
+    error: { activate: 'opening', sync: 'syncing', deactivate: 'closing' },
+    closing: { closed: 'uninitialized' }
 };
 
 const INITIAL_STATE: AnalyticalState = {

@@ -1,4 +1,4 @@
-import "./language/ontology.rq" as ontology
+import "./ontology.rq" as ontology
 import "./language/syntax.rq" as syntax
 import "./extension/scope.rq" as extension_scope
 import "./extension/architecture.rq" as extension_architecture
@@ -10,6 +10,7 @@ import "./extension/module/activitybar.rq" as activitybar
 import "./extension/module/context-scope.rq" as context_scope_doc
 import "./extension/module/context-scope-v2.rq" as context_scope_v2
 import "./extension/module/webview.rq" as webview_doc
+import "./extension/module/ideas_summary/webview.rq" as ideas_summary_doc
 import "./extension/module/chat-participant.rq" as chat_participant_doc
 import "./extension/features-mutation-hooks.rq" as mutation_hooks
 import "./extension/features-skills-and-mcp.rq" as skills_and_mcp
@@ -18,11 +19,14 @@ import "../packages/language/src/reqlan.langium" as reqlan_grammar
 import "../packages/language/src/reqlan-comment.langium" as comment_grammar
 import "../packages/extension/src/extension/main.ts" as extension_main
 import "../packages/extension/src/language/main.ts" as language_server_main
-import "../packages/extension/src/analytical_submodule/index-store/index-service.ts" as index_service
+import "../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../packages/analytical/src/create-runtime.ts" as analysis_runtime
 import "../packages/mcp/src/main.ts" as mcp_main
 import "../packages/cli/src/main.ts" as cli_main
 import "../.changeset/config.json" as changeset_config
+import "./bases/base.rq" as bases
+import "./indexer/indexer.rq" as indexer
 
 scope {
     These requirements describe the cross-package system architecture of the reqlan monorepo:
@@ -44,21 +48,22 @@ language_package {
     `packages/language` (`@reqlan/language`) is the canonical language definition.
     It owns Langium grammars, generated AST and parser, scoped linking, validators, and LSP service providers.
     Public DI entry is [language_module] via `createReqlanServices`.
-    Consumers: [analytical_package], [extension_package] (LSP and index), [cli_package].
+    Consumers: [analytical_package] (indexer / analysis), [extension_package] (LSP), [cli_package].
     Published to npm as a library dependency of [analytical_package] and [cli_package]; not Marketplace-published. See [distribution.version_management] and [package_versioning].
 }
 
 analytical_package {
     `packages/analytical` (`@reqlan/analytical`) is the shared requirement graph index and analysis layer.
-    It extracts ideas and edges from Langium ASTs into a sql.js SQLite store, holds Zustand analytical state, and exposes analysers and an analysis API.
-    Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `HeadlessIndexService`.
-    Consumers: [extension_package] IndexService UI path, [mcp_package], [cli_package].
+    It owns the [indexer]: extracts ideas and edges from Langium ASTs into a sql.js SQLite store ([workspace_index]), holds Zustand analytical state, and exposes analysers and an analysis API.
+    Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `WorkspaceIndex`.
+    Consumers: [extension_package] (thin editor adapter), [mcp_package], [cli_package].
     Depends on [language_package]. Published to npm alongside [cli_package]; version graph role: [package_versioning].
 }
 
 extension_package {
     `packages/extension` (npm `reqlan-extension`) is the editor product per [distribution.extension_package].
-    It registers `.rq` language support, TextMate grammars, starts the language client, hosts the ideas index in-process, and owns activity bar, Ideas Summary, chat, skills, and mutation hooks.
+    It registers `.rq` language support, TextMate grammars, starts the language client, and owns activity bar, Ideas Summary, chat, skills, and mutation hooks.
+    Ideas index engine lives in [analytical_package] / [indexer]; the extension only hosts a thin VS Code adapter ([editor_index_adapter]) for watchers and UI.
     Host entry: [extension_main]. LSP process entry: [language_server_main].
     Depends on [language_package] and [analytical_package].
     Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] (zustand) for JS state.
@@ -111,18 +116,25 @@ language_server {
 }
 
 ideas_index {
-    The ideas index is the analytical path: parse with [language_package] → extract ideas/edges → SQLite store.
-    Application memory: the SQLite file lives under `<workspace>/.reqlan/` (shared by extension, [cli_package], and [mcp_package]) — see ["./extension/module/index.rq".application_memory].
-    In the editor, [index_service] watches `**\*.rq` and serves UIs, commands, chat, and analysers.
-    Headless (MCP/CLI-adjacent) uses [analysis_runtime].
+    The ideas index is built and maintained by the [indexer] in [analytical_package].
+    Path: parse with [language_package] → extract ideas/edges → SQLite via [workspace_index].
+    Application memory: each [bases.base] holds SQLite under `<base>/.reqlan/` (shared by extension, [cli_package], and [mcp_package]) — see ["./extension/module/index.rq".application_memory].
+    Multi-base: a BaseRegistry owns one [workspace_index] per discovered base; the extension adapter routes file events to the owning base.
+    In the editor, [editor_index_adapter] watches `**\*.rq` and forwards changes to the owning base's [workspace_index]; it serves UIs, commands, chat, and analysers.
+    Headless (MCP/CLI) uses [analysis_runtime] (nearest base containing cwd when several exist).
     Capability requirements: [graph_analysers.index_ideas], [graph_analysers.index_technology], and sibling analysers in that file.
-    Triggers and git capture notes: ["./extension/module/index.rq"].
+    Triggers: [indexer.triggers] and ["./extension/module/index.rq".idea_index_triggers].
+}
+
+base_containers {
+    Ideas are organised in [bases]; each base holds the [ideas_index] store under its `.reqlan` application memory.
+    Discovery and nesting: ["./bases/base.rq".base], ["./bases/base.rq".base_nesting].
 }
 
 runtime_topology {
     Two Langium runtimes share [language_package] but not one process.
     - LSP process: live `.rq` editing intelligence via [language_server_main].
-    - Extension host IndexService (and MCP headless index): full-workspace graph for tables, local graph, chat, MCP via [index_service] / [analysis_runtime].
+    - Analytical [workspace_index] (extension host via [editor_index_adapter], MCP/CLI via [analysis_runtime]): full-workspace graph for tables, local graph, chat, MCP.
     Editor ↔ extension host: VS Code APIs and webview postMessage.
     Editor ↔ LSP: vscode-languageclient IPC.
     Attribute catalog and similar custom notifications may sync from the index side into the LSP for completions.
@@ -134,7 +146,8 @@ extension_surfaces {
     - Activity bar sidebar: [activitybar.activity_bar]
     - Composed context model (any workspace file): [context_scope_doc.context_scope]
     - Context scope v2 (signals, synthesis, show-don't-tell widgets): [context_scope_v2.context_scope_v2]
-    - Ideas Summary tables/graph webview: [webview_doc.webview]
+    - Webview surfaces (shared discipline + catalog): [webview_doc.webview]
+    - Ideas Summary tables/graph webview: [ideas_summary_doc.ideas_summary]
     - Chat participant `@reqlan` and MCP wrap: [chat_participant_doc.chat_participant], [skills_and_mcp]
     - Create/split/merge/rename mutation hooks: [mutation_hooks]
     - Analysers and index behaviour: [graph_analysers]

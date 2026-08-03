@@ -6,6 +6,7 @@ import { ParseCommand } from './commands/parse.js';
 import { AnalyseCommand } from './commands/analyse.js';
 import { SearchCommand } from './commands/search.js';
 import { ExportCommand } from './commands/export.js';
+import { InitCommand } from './commands/init.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf8')) as {
@@ -24,5 +25,6 @@ cli.register(ParseCommand);
 cli.register(AnalyseCommand);
 cli.register(SearchCommand);
 cli.register(ExportCommand);
+cli.register(InitCommand);
 
 await cli.runExit(process.argv.slice(2));

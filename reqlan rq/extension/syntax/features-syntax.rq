@@ -27,12 +27,24 @@ comment_support {
 code_completion {
     The extension should support sensible code completion.
         - support for references
-        - support for imports 
+        - support for imports, including import-root alias paths such as `@/` from ["../../language/imports.rq".configuration_import_root_alias] and ["../configuration.rq".configuration_import_roots]
         - support for semantic search
         - support for graph-proximity based ranking
+
+    @implementation (
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+    )
 }
 
-refactor_support the ideas should support renaming, moving, and deleting.
+refactor_support {
+    syntactic symbols should be available for renaming, moving, and deleting. the extension should watch for the change.
+    Detailed behaviour lives in ["../refactor_support.rq"].
+    Implemented by ["../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../packages/language/src/reqlan-idea-refactor.ts"], and ["../../../packages/extension/src/refactor_module/index.ts"].
+}
 
 file_references {
     A file reference should act as a link in the editor.
@@ -51,13 +63,14 @@ file_references {
 
 sensible_alias_support {
     if an imported idea shares a name with an idea in the current file:
+    When the import uses an alias, the base name may be reused locally — see ["../../language/imports.rq".import_tokenisation].
     
     @subreqs (
         duplicate_error {
-            should be raised if the idea has the same name as any other idea in the context.
+            should be raised if a local idea shares a name with an import binding (unaliased idea name, or the alias when present).
             @tests (
-                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
-                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares import alias"]
             )
             }
         sensible_graph_resolution {
@@ -68,7 +81,8 @@ sensible_alias_support {
             ```
             `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
             @tests (
-                "../../../packages/language/test/linking.test.ts"
+                ["../../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"]
+                ["../../../packages/language/test/validating.test.ts:allows local idea when import uses an alias"]
             )
             }
     )

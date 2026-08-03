@@ -33,6 +33,7 @@ export async function withAnalysisApi<T>(
     const workspaceRoot = resolveWorkspaceRoot(cwd);
     const runtime: AnalysisRuntime = createAnalysisRuntime({
         workspaceRoot,
+        cwd: cwd ? resolve(cwd) : process.cwd(),
         storagePath: process.env.REQLAN_INDEX_PATH
     });
     await activateAnalysisRuntime(runtime);

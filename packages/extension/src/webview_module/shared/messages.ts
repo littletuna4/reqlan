@@ -1,9 +1,11 @@
 /**
  * Wire protocol shared by the extension host and Svelte webviews.
  * per ["../../../../../reqlan rq/extension/module/webview.rq"]
+ * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ontology_aligned_tabs]
  */
 
 import type { GraphUiPersistedState } from './graph-ui-state.js';
+import type { TableUiPersistedState } from './table-ui-state.js';
 
 export type {
     GraphUiNodeTypeId,
@@ -17,19 +19,41 @@ export {
     GRAPH_UI_WORKSPACE_STATE_KEY,
     normalizeGraphUiState
 } from './graph-ui-state.js';
+export type {
+    IdeasGroupBy,
+    ReferencesGroupBy,
+    TableUiPersistedState
+} from './table-ui-state.js';
+export {
+    DEFAULT_ATTRIBUTES_COLUMNS,
+    DEFAULT_BASES_COLUMNS,
+    DEFAULT_IDEAS_COLUMNS,
+    DEFAULT_IDEASETS_COLUMNS,
+    DEFAULT_REFERENCES_COLUMNS,
+    DEFAULT_TABLE_UI_STATE,
+    TABLE_UI_WORKSPACE_STATE_KEY,
+    normalizeTableUiState
+} from './table-ui-state.js';
 
 export const IDEAS_PAGE_SIZE = 50;
 export const IDEASETS_PAGE_SIZE = 50;
 export const REFERENCES_PAGE_SIZE = 50;
+export const ATTRIBUTES_PAGE_SIZE = 50;
 
 export type SortDirection = 'asc' | 'desc';
 
-export type IdeasSortColumn = 'title' | 'path' | 'body' | 'outRefs' | 'inRefs' | `attr:${string}`;
+export type IdeasSortColumn = 'title' | 'path' | 'body' | 'kind' | 'outRefs' | 'inRefs' | `attr:${string}`;
 
 export interface ReferenceFilter {
     direction: 'inbound' | 'outbound';
     filterKey: string;
     label: string;
+}
+
+export interface ColumnFilter {
+    column: string;
+    text?: string;
+    selected?: string[];
 }
 
 export interface IdeasTableQuery {
@@ -40,6 +64,8 @@ export interface IdeasTableQuery {
     sortDir?: SortDirection;
     attributeColumns: string[];
     referenceFilters: ReferenceFilter[];
+    columnFilters?: ColumnFilter[];
+    groupBy?: 'kind';
 }
 
 export type IdeasetsSortColumn = 'name' | 'path' | 'kind' | 'members';
@@ -50,6 +76,7 @@ export interface IdeasetsTableQuery {
     search?: string;
     sortBy?: IdeasetsSortColumn;
     sortDir?: SortDirection;
+    columnFilters?: ColumnFilter[];
 }
 
 export type ReferencesSortColumn = 'source' | 'target' | 'inRq' | 'type';
@@ -60,6 +87,26 @@ export interface ReferencesTableQuery {
     search?: string;
     sortBy?: ReferencesSortColumn;
     sortDir?: SortDirection;
+    columnFilters?: ColumnFilter[];
+    groupBy?: 'type';
+}
+
+export type AttributesSortColumn = 'key' | 'ideaCount' | 'valueCount';
+
+export interface AttributesTableQuery {
+    page: number;
+    pageSize: number;
+    search?: string;
+    sortBy?: AttributesSortColumn;
+    sortDir?: SortDirection;
+    columnFilters?: ColumnFilter[];
+}
+
+export interface AttributeTableRow {
+    key: string;
+    ideaCount: number;
+    valueCount: number;
+    sampleValues: string[];
 }
 
 export interface IndexErrorDetail {
@@ -93,6 +140,7 @@ export interface IdeaTableRow {
     id: string;
     title: string;
     path: string;
+    kind: 'block' | 'oneliner';
     mainAttribute?: string;
     otherAttributes: string;
     otherAttributeItems: string[];
@@ -147,6 +195,17 @@ export type IndexState =
     | 'error'
     | 'closing';
 
+export interface BaseStatusView {
+    id: string;
+    label: string;
+    root: string;
+    ready: boolean;
+    ideaCount: number;
+    edgeCount: number;
+    fileIssueCount: number;
+    state: IndexState;
+}
+
 export interface IndexStatusView {
     state: IndexState;
     ready: boolean;
@@ -155,8 +214,54 @@ export interface IndexStatusView {
     fileIssueCount: number;
     lastError?: IndexErrorDetail;
     fileIssues: FileIndexIssueView[];
-    syncProgress?: { processed: number; total: number };
+    syncProgress?: { processed: number; total: number; currentFile?: string };
     recentActivity: Array<{ label: string; detail: string; at: number }>;
+    /** Active base id when multi-base. */
+    activeBaseId?: string;
+    /** True when no `.reqlan` bases were discovered. */
+    discoveryEmpty?: boolean;
+    /** All discovered bases (workspace pane). */
+    bases?: BaseStatusView[];
+}
+
+export interface OverviewLink {
+    id: string;
+    label: string;
+    href: string;
+}
+
+export interface OverviewSearchHit {
+    kind: 'idea' | 'ideaset' | 'attribute' | 'reference';
+    title: string;
+    detail: string;
+    fileUri?: string;
+    lineStart?: number;
+    /** Attribute key when kind === 'attribute'. */
+    attributeKey?: string;
+}
+
+export interface OverviewSearchSection {
+    surface: 'ideas' | 'ideasets' | 'attributes' | 'references';
+    label: string;
+    total: number;
+    hits: OverviewSearchHit[];
+}
+
+export interface OverviewSearchResult {
+    query: string;
+    sections: OverviewSearchSection[];
+}
+
+export type TimelineEventSource = 'git' | 'index';
+
+export interface TimelineEventView {
+    id: string;
+    source: TimelineEventSource;
+    at: number;
+    label: string;
+    detail: string;
+    fileUri?: string;
+    lineStart?: number;
 }
 
 export interface GraphViewQuery {
@@ -223,35 +328,51 @@ export interface GraphLoadProgress {
 }
 
 export interface IdeasSummaryNavigateIntent {
-    activeTab?: 'index' | 'ideas' | 'ideasets' | 'references' | 'graph';
+    activeTab?: 'overview' | 'bases' | 'index' | 'ideas' | 'ideasets' | 'attributes' | 'references' | 'graph' | 'timeline';
     centerId?: string;
     pathFilter?: string;
     includeIndirect?: boolean;
     referenceFilters?: ReferenceFilter[];
+    /** Scope Ideas Summary to this base id. */
+    baseId?: string;
 }
 
 export type WebviewToExtensionMessage =
     | { type: 'ready' }
     | { type: 'loadIndexStatus' }
     | { type: 'refreshIndex' }
+    | { type: 'cancelIndexSync' }
     | { type: 'clearAndRebuildIndex' }
+    | { type: 'selectBase'; baseId: string }
+    | { type: 'createBase' }
     | { type: 'loadIdeas'; query: IdeasTableQuery }
     | { type: 'loadIdeasets'; query: IdeasetsTableQuery }
     | { type: 'loadReferences'; query: ReferencesTableQuery }
+    | { type: 'loadAttributes'; query: AttributesTableQuery }
+    | { type: 'loadTimeline' }
+    | { type: 'overviewSearch'; query: string }
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'requestWebviewReload' }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
+    | { type: 'openExternal'; href: string }
+    | { type: 'openExport'; format?: 'html' | 'pdf' }
     | { type: 'dumpFullGraph' }
-    | { type: 'persistGraphUiState'; state: GraphUiPersistedState };
+    | { type: 'persistGraphUiState'; state: GraphUiPersistedState }
+    | { type: 'persistTableUiState'; state: TableUiPersistedState };
 
 export type ExtensionToWebviewMessage =
     | { type: 'indexStatus'; status: IndexStatusView }
     | { type: 'ideasPage'; query: IdeasTableQuery; total: number; rows: IdeaTableRow[] }
     | { type: 'ideasetsPage'; query: IdeasetsTableQuery; total: number; rows: IdeasetTableRow[] }
     | { type: 'referencesPage'; query: ReferencesTableQuery; total: number; rows: ReferenceTableRow[] }
+    | { type: 'attributesPage'; query: AttributesTableQuery; total: number; rows: AttributeTableRow[] }
+    | { type: 'timelinePage'; events: TimelineEventView[] }
+    | { type: 'overviewSearchResult'; result: OverviewSearchResult }
+    | { type: 'overviewLinks'; links: OverviewLink[] }
     | { type: 'graphLoadProgress'; progress: GraphLoadProgress }
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }
     | { type: 'navigate'; intent: IdeasSummaryNavigateIntent }
     | { type: 'fullGraph'; ideaCount: number; edgeCount: number; ideasJson: string; edgesJson: string }
     | { type: 'graphUiState'; state: GraphUiPersistedState }
+    | { type: 'tableUiState'; state: TableUiPersistedState }
     | { type: 'error'; message: string; requestId?: number };

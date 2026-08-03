@@ -52,12 +52,12 @@ describe('import root alias', () => {
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
-    test('loads importRoots list from nearest rqconfig', () => {
+    test('loads importRoots list from nearest base config', () => {
         const fs = new VirtualFileSystemProvider();
-        fs.insert('file:///workspace/.rqconfig.json', JSON.stringify({
+        fs.insert('file:///workspace/.reqlan/config.json', JSON.stringify({
             importRoots: [{ alias: '#', root: './lib' }]
         }));
-        fs.insert('file:///workspace/pkg/.rqconfig.json', JSON.stringify({
+        fs.insert('file:///workspace/pkg/.reqlan/config.json', JSON.stringify({
             importRoots: [{ alias: '~' }]
         }));
         fs.insert('file:///workspace/pkg/a.rq', 'idea body');

@@ -1,16 +1,49 @@
 <script lang="ts">
-    import type { IdeasetsTableQuery, IdeasetTableRow } from '../../../src/webview_module/shared/messages.js';
+    import type {
+        ColumnFilter,
+        IdeasetsTableQuery,
+        IdeasetTableRow
+    } from '../../../src/webview_module/shared/messages.js';
+    import { isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';
+    import ColumnFilterRow from './ColumnFilterRow.svelte';
     import Pager from './Pager.svelte';
     import SortableTh from './SortableTh.svelte';
+    import TableOptionsMenu from './TableOptionsMenu.svelte';
     import TableToolbar from './TableToolbar.svelte';
 
     const app = getApp();
 
+    let filtersOpen = false;
+
     $: query = app.ideasets.query;
     $: rows = app.ideasets.rows;
     $: total = app.ideasets.total;
+    $: visibleColumns = app.tableUi.ideasets.visibleColumns;
+
+    const columnOptions = [
+        { id: 'name', label: 'Name' },
+        { id: 'path', label: 'Path' },
+        { id: 'kind', label: 'Kind' },
+        { id: 'members', label: 'Members' }
+    ];
+
+    const filterColumns = [
+        { column: 'name', label: 'Name', kind: 'text' as const },
+        { column: 'path', label: 'Path', kind: 'text' as const },
+        {
+            column: 'kind',
+            label: 'Kind',
+            kind: 'select' as const,
+            multiple: true,
+            options: [
+                { value: 'file', label: 'File (implicit)' },
+                { value: 'explicit', label: 'Explicit' }
+            ]
+        },
+        { column: 'members', label: 'Members', kind: 'none' as const }
+    ];
 
     function emitQuery(next: IdeasetsTableQuery): void {
         app.onIdeasetsQueryChange(next);
@@ -41,38 +74,78 @@
         const sortDir = query.sortBy === sortKey && query.sortDir === 'asc' ? 'desc' : 'asc';
         emitQuery({ ...query, page: 0, sortBy: sortKey, sortDir });
     }
+
+    function handleColumnFilters(event: CustomEvent<ColumnFilter[]>): void {
+        emitQuery({ ...query, page: 0, columnFilters: event.detail });
+    }
+
+    function show(id: string): boolean {
+        return isColumnVisible(visibleColumns, id);
+    }
 </script>
 
-<TableToolbar search={query.search ?? ''} placeholder="Filter ideasets…" on:search={handleSearch} />
+<TableToolbar
+    search={query.search ?? ''}
+    placeholder="Filter ideasets…"
+    {filtersOpen}
+    on:search={handleSearch}
+    on:toggleFilters={() => { filtersOpen = !filtersOpen; }}
+>
+    <svelte:fragment slot="actions">
+        <TableOptionsMenu
+            columns={columnOptions}
+            {visibleColumns}
+            on:change={(event) => app.patchTableUi({ ideasets: { visibleColumns: event.detail } })}
+        />
+    </svelte:fragment>
+</TableToolbar>
 
 <table>
     <thead>
         <tr>
-            <SortableTh label="Name" sortKey="name" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="22%" on:sort={handleSort} />
-            <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="28%" on:sort={handleSort} />
-            <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
-            <SortableTh label="Members" sortKey="members" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="36%" on:sort={handleSort} />
+            {#if show('name')}
+                <SortableTh label="Name" sortKey="name" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="22%" on:sort={handleSort} />
+            {/if}
+            {#if show('path')}
+                <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="28%" on:sort={handleSort} />
+            {/if}
+            {#if show('kind')}
+                <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
+            {/if}
+            {#if show('members')}
+                <SortableTh label="Members" sortKey="members" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="36%" on:sort={handleSort} />
+            {/if}
         </tr>
+        <ColumnFilterRow
+            columns={filterColumns.filter(col => show(col.column))}
+            filters={query.columnFilters ?? []}
+            open={filtersOpen}
+            on:change={handleColumnFilters}
+        />
     </thead>
     <tbody>
         {#each rows as row (row.id)}
             <tr>
-                <td>{row.name}</td>
-                <td>
-                    <button type="button" class="path-link" on:click={() => openSource(row)}>
-                        {row.path}
-                    </button>
-                </td>
-                <td>{row.kind === 'file' ? 'file (implicit)' : 'explicit'}</td>
-                <td>
-                    <ChipList
-                        items={memberItems(row)}
-                        titles={memberItems(row)}
-                        clickable
-                        emptyLabel="No members"
-                        on:select={(event) => openMember(row, event.detail.index)}
-                    />
-                </td>
+                {#if show('name')}<td>{row.name}</td>{/if}
+                {#if show('path')}
+                    <td>
+                        <button type="button" class="path-link" on:click={() => openSource(row)}>
+                            {row.path}
+                        </button>
+                    </td>
+                {/if}
+                {#if show('kind')}<td>{row.kind === 'file' ? 'file (implicit)' : 'explicit'}</td>{/if}
+                {#if show('members')}
+                    <td>
+                        <ChipList
+                            items={memberItems(row)}
+                            titles={memberItems(row)}
+                            clickable
+                            emptyLabel="No members"
+                            on:select={(event) => openMember(row, event.detail.index)}
+                        />
+                    </td>
+                {/if}
             </tr>
         {/each}
     </tbody>

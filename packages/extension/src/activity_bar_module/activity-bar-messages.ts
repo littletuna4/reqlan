@@ -36,7 +36,10 @@ export type ActivityBarToExtensionMessage =
     | { type: 'loadAncestors'; ideaId: string; maxDepth?: number; requestId?: number }
     | { type: 'loadIndexHealth' }
     | { type: 'refreshIndex' }
+    | { type: 'cancelIndexSync' }
     | { type: 'clearAndRebuildIndex' }
+    | { type: 'createBase' }
+    | { type: 'selectBase'; baseId: string }
     | { type: 'pinIdea'; ideaId: string }
     | { type: 'unpinIdea'; ideaId: string }
     | { type: 'clearTray' }

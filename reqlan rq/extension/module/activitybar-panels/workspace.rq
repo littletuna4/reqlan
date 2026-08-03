@@ -1,19 +1,44 @@
-import "../webview.rq" as webview_doc
+import "../ideas_summary/webview.rq" as ideas_summary_doc
 import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
 import "../../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte" as WorkspacePane
+import "../../../../packages/extension/webviews/activity-bar/components/BasePicker.svelte" as BasePicker
+import "../../../../packages/extension/webviews/activity-bar/lib/filter-bases.ts" as filter_bases
 import "../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
 import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
 import "../../../../packages/extension/webviews/activity-bar/lib/group-file-issues.ts" as group_file_issues
+import "../../../bases/base.rq" as bases
 
 workspace_pane {
-    Workspace-wide index health, errors, and activity — without duplicating the full Index tab in [webview_doc.index_panel].
-    - State badge with idea and reference counts; file issue count when non-zero.
-    - Sync progress while indexing.
-    - Global and per-file error details with phase and cause.
+    Multi-base index health, errors, and activity — without duplicating the full Index tab in [ideas_summary_doc.index_panel].
+    - [workspace_base_picker]: choose the active base; do not render a full always-visible base list.
+    - For the selected base: state badge, sync progress (processed/total + current file), idea/edge counts, global and per-file errors, recent activity.
     - Clickable file issue list opens the source location in the editor.
-    - Recent index activity log.
-    - Refresh, clear & rebuild, and "Open index tab" hand off to [ideas_summary_panel].
+    - Refresh / cancel in-flight sync / clear & rebuild for the selected base (or all); "Open index tab" hands off to [ideas_summary_panel] with that base selected.
+    - When no bases exist: empty state with Create Base CTA ([bases.create_base_onboarding]).
+    Non-blocking sync UX: ["../../../indexer/indexer.rq".nonblocking_index].
     Implemented by [WorkspacePane].
+}
+
+workspace_base_picker {
+    Bases in the Workspace pane are chosen via a **searchable dropdown**, not a stacked list of base rows.
+    - Closed: shows the active base label (and compact ready/issue hint when useful).
+    - Open: type-to-filter over discovered bases by label and path; selecting a match **pins** the active base ([bases.active_base_switch]) — a pointer swap, not a sync.
+    - Options surface label/path plus ready state and idea/edge/issue counts so the user can distinguish bases before committing.
+    - Single-base workspaces still use the same control (no special flat list); empty discovery stays on the Create Base CTA.
+    - Prefer VS Code dropdown tokens for chrome; keep the control compact so health/stats/actions remain the focus of the pane.
+    Switch UX:
+    - Selecting a base posts immediately; the picker may flash **Switching…** until `indexHealth` confirms `activeBaseId` (should be near-instant).
+    - Never kick soft/hard sync on switch; readiness/progress for a not-yet-ready base is whatever the index already reports.
+    - Editor-follow must not overwrite a user-selected base on the same refresh that applies the selection.
+    Implemented by [BasePicker] in [WorkspacePane]; filter helpers in [filter_bases].
+    @tests (
+        ["../../../../packages/extension/test/filter-bases.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/BasePicker.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
 }
 
 workspace_loading {

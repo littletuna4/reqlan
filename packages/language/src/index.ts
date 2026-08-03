@@ -6,6 +6,16 @@ export * from './reqlan-file-references.js';
 export * from './reqlan-embedded-file-references.js';
 export * from './file-path-rewrite.js';
 export * from './reqlan-path-references.js';
+export * from './reqlan-comment-rename.js';
+export { ReqlanRenameProvider } from './reqlan-rename-provider.js';
+export {
+    ideaDeclarationText,
+    isRefactorIdeaDeclaration,
+    planIdeaDeleteEdits,
+    planIdeaMoveEdits,
+    type DocumentTextEdits,
+    type RefactorIdeaDeclaration
+} from './reqlan-idea-refactor.js';
 export * from './reqlan-path-resolve.js';
 export * from './reqlan-imports.js';
 export * from './reqlan-quoted-strings.js';

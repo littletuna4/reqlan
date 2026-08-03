@@ -1,0 +1,112 @@
+/**
+ * Tests for Ideas Summary table query builders and attribute aggregation.
+ * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+ */
+import { describe, expect, test } from 'vitest';
+import {
+    aggregateAttributesFromRows,
+    buildIdeasOrderClause,
+    buildIdeasWhereClause,
+    buildReferencesWhereClause,
+    edgeKindsForReferenceViewTypes,
+    filterAndPageAttributes
+} from '../src/index-store/webview-table-queries.js';
+
+describe('ideas table column filters', () => {
+    test('adds kind select and text column filters to WHERE', () => {
+        const { sql, params } = buildIdeasWhereClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            columnFilters: [
+                { column: 'title', text: 'auth' },
+                { column: 'kind', selected: ['block', 'oneliner'] }
+            ]
+        });
+        expect(sql).toContain('i.name LIKE ?');
+        expect(sql).toContain('i.kind IN (?, ?)');
+        expect(params).toEqual(['%auth%', 'block', 'oneliner']);
+    });
+
+    test('groupBy kind prefixes ORDER BY', () => {
+        const order = buildIdeasOrderClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            sortBy: 'path',
+            groupBy: 'kind'
+        });
+        expect(order.startsWith('i.kind ASC')).toBe(true);
+    });
+});
+
+describe('references table column filters', () => {
+    test('maps view types to edge kinds', () => {
+        expect(edgeKindsForReferenceViewTypes(['file', 'comment'])).toEqual([
+            'file_reference',
+            'comment_link'
+        ]);
+        expect(edgeKindsForReferenceViewTypes(['sub-idea'])).toEqual([
+            'references',
+            'import',
+            'ideaset_member'
+        ]);
+    });
+
+    test('filters by type and inRq', () => {
+        const { sql, params } = buildReferencesWhereClause({
+            page: 0,
+            pageSize: 50,
+            columnFilters: [
+                { column: 'type', selected: ['file'] },
+                { column: 'inRq', selected: ['yes'] }
+            ]
+        });
+        expect(sql).toContain('e.target_id IS NOT NULL');
+        expect(sql).toContain('e.kind IN (?)');
+        expect(params).toEqual(['file_reference']);
+    });
+});
+
+describe('attributes aggregation', () => {
+    test('aggregates keys, values, and pages results', () => {
+        const aggregates = aggregateAttributesFromRows([
+            { id: 'a', attributes_json: '{"status":"todo","tags":["ui"]}' },
+            { id: 'b', attributes_json: '{"status":"done","tags":["ui","export"]}' },
+            { id: 'c', attributes_json: '{"flag":true}' }
+        ]);
+        const keys = aggregates.map(row => row.key).sort();
+        expect(keys).toEqual(['flag', 'status', 'tags']);
+
+        const { total, rows } = filterAndPageAttributes(aggregates, {
+            page: 0,
+            pageSize: 2,
+            sortBy: 'ideaCount',
+            sortDir: 'desc'
+        });
+        expect(total).toBe(3);
+        expect(rows).toHaveLength(2);
+        expect(rows[0]?.key).toBe('status');
+        expect(rows[0]?.ideaCount).toBe(2);
+        expect(rows[0]?.valueCount).toBe(2);
+    });
+
+    test('search filters attribute keys and sample values', () => {
+        const aggregates = aggregateAttributesFromRows([
+            { id: 'a', attributes_json: '{"status":"todo"}' },
+            { id: 'b', attributes_json: '{"owner":"alice"}' }
+        ]);
+        const { total, rows } = filterAndPageAttributes(aggregates, {
+            page: 0,
+            pageSize: 10,
+            search: 'alic',
+            sortBy: 'key',
+            sortDir: 'asc'
+        });
+        expect(total).toBe(1);
+        expect(rows[0]?.key).toBe('owner');
+    });
+});

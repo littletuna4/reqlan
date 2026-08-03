@@ -66,6 +66,13 @@ add_to_chat {
     @status done
 }
 
+open_index_diagnostics {
+    Command palette action **Open Index Diagnostics** (`reqlan.openIndexDiagnostics`) opens the timing diagnostics webview for the active base.
+    Shows total index time, run drill-down, and per-file ranking (duration, depth, outcome).
+    Details: ["./features-index-diagnostics.rq".index_diagnostics_webview].
+    @status done
+}
+
 open_a_random_requirement {
     as it sounds
     @todo

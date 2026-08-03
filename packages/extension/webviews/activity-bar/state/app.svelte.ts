@@ -59,6 +59,8 @@ export class AppState {
     ancestorsLoading = $state(false);
     ancestorsError = $state<string | undefined>(undefined);
     indexStatus = $state<IndexStatusView | undefined>(undefined);
+    /** Base id the user requested; cleared when indexHealth confirms activeBaseId. */
+    pendingBaseId = $state<string | undefined>(undefined);
     tray = $state<IdeaSummary[]>([]);
     siteLink = $state<PhonebookLinkView | undefined>(undefined);
     statusText = $state('Connecting…');
@@ -97,7 +99,8 @@ export class AppState {
             return undefined;
         }
         const pct = Math.round((progress.processed / progress.total) * 100);
-        return `${progress.processed} / ${progress.total} files (${pct}%)`;
+        const file = progress.currentFile ? ` · ${progress.currentFile}` : '';
+        return `${progress.processed} / ${progress.total} files (${pct}%)${file}`;
     }
 
     init(): () => void {
@@ -275,6 +278,12 @@ export class AppState {
                 break;
             case 'indexHealth':
                 this.indexStatus = message.status;
+                if (
+                    this.pendingBaseId !== undefined &&
+                    message.status.activeBaseId === this.pendingBaseId
+                ) {
+                    this.pendingBaseId = undefined;
+                }
                 if (message.status.ready) {
                     const issueHint = message.status.fileIssueCount > 0
                         ? ` · ${message.status.fileIssueCount} issue(s)`
@@ -289,6 +298,9 @@ export class AppState {
                 } else if (message.status.lastError?.summary) {
                     this.statusText = message.status.lastError.summary;
                     this.statusError = true;
+                } else if (message.status.syncProgress) {
+                    this.statusText = this.indexProgressLabel ?? `Index: ${message.status.state}`;
+                    this.statusError = false;
                 } else {
                     this.statusText = `Index: ${message.status.state}`;
                     this.statusError = false;
@@ -349,6 +361,7 @@ export class AppState {
                 this.statusError = true;
                 break;
             case 'index':
+                this.pendingBaseId = undefined;
                 this.statusText = message;
                 this.statusError = true;
                 if (!this.indexStatus?.ready) {
@@ -441,8 +454,34 @@ export class AppState {
         postToExtension({ type: 'refreshIndex' });
     }
 
+    cancelIndexSync(): void {
+        postToExtension({ type: 'cancelIndexSync' });
+    }
+
     clearAndRebuildIndex(): void {
         postToExtension({ type: 'clearAndRebuildIndex' });
+    }
+
+    createBase(): void {
+        postToExtension({ type: 'createBase' });
+    }
+
+    selectBase(baseId: string): void {
+        if (baseId === this.indexStatus?.activeBaseId && this.pendingBaseId === undefined) {
+            return;
+        }
+        this.pendingBaseId = baseId;
+        this.statusText = 'Switching base…';
+        this.statusError = false;
+        postToExtension({ type: 'selectBase', baseId });
+    }
+
+    get displayedBaseId(): string | undefined {
+        return this.pendingBaseId ?? this.indexStatus?.activeBaseId;
+    }
+
+    get baseSwitchPending(): boolean {
+        return this.pendingBaseId !== undefined;
     }
 
     pinIdea(ideaId: string): void {

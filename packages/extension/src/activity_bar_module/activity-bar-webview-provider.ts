@@ -47,6 +47,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private visible = true;
     /** Idea ids for which focus-scoped git_dates was already attempted this session. */
     private readonly gitDatesAttempted = new Set<string>();
+    /** Last index readiness posted to panes — used to refresh context only on transitions. */
+    private lastPostedReady = false;
+    private lastPostedActiveBaseId?: string;
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -55,14 +58,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     ) {
         this.statusUnsubscribe = submodule.index.subscribeStatusUpdates(() => {
             void this.postIndexHealth();
-            if (this.syncWithEditor) {
-                void this.refreshFromEditor();
-            }
+            this.refreshPanesIfIndexSettled();
         });
         this.catalogUnsubscribe = submodule.index.subscribeCatalogUpdates(() => {
-            if (this.syncWithEditor) {
-                void this.refreshFromEditor();
-            }
+            this.refreshPanesIfIndexSettled();
         });
     }
 
@@ -94,14 +93,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.postPhonebookLinks();
         this.postTray();
         this.postEditorContext();
-        void this.refreshFromEditor();
-    }
-
-    refreshFromEditorDebounced(): void {
-        clearTimeout(this.editorTimer);
-        this.editorTimer = setTimeout(() => {
-            void this.refreshFromEditor();
-        }, EDITOR_DEBOUNCE_MS);
+        void this.refreshFromEditor({ followEditorBase: true });
     }
 
     recordEditorActivity(fileUri: string, line: number): void {
@@ -115,10 +107,11 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.catalogUnsubscribe();
     }
 
+    /**
+     * Bind the data service to the active base store when ready.
+     * Never awaits sync — progress is event-driven via status → indexHealth.
+     */
     private async ensureData(): Promise<ActivityBarDataService | undefined> {
-        if (!this.submodule.index.isReady) {
-            await this.submodule.index.syncWorkspace();
-        }
         if (!this.submodule.index.isReady) {
             return undefined;
         }
@@ -127,6 +120,25 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             uri => vscode.workspace.asRelativePath(uri)
         );
         return this.data;
+    }
+
+    /** Rebuild editor panes only when the active base becomes ready or switches while ready. */
+    private refreshPanesIfIndexSettled(): void {
+        if (!this.syncWithEditor || !this.visible) {
+            this.lastPostedReady = this.submodule.index.isReady;
+            this.lastPostedActiveBaseId = this.submodule.index.getActiveBaseId();
+            return;
+        }
+        const ready = this.submodule.index.isReady;
+        const activeBaseId = this.submodule.index.getActiveBaseId();
+        const becameReady = ready && !this.lastPostedReady;
+        const baseChangedWhileReady =
+            ready && activeBaseId !== undefined && activeBaseId !== this.lastPostedActiveBaseId;
+        this.lastPostedReady = ready;
+        this.lastPostedActiveBaseId = activeBaseId;
+        if (becameReady || baseChangedWhileReady) {
+            void this.refreshFromEditor({ followEditorBase: false });
+        }
     }
 
     private post(message: ExtensionToActivityBarMessage): void {
@@ -150,12 +162,15 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async buildContextInput(editor: vscode.TextEditor) {
+        const active = this.submodule.index.getActiveBase();
+        const baseRoot = active?.descriptor.root;
         const snapshot = this.submodule.index.getStatusSnapshot();
         const relativePath = (uri: string) => vscode.workspace.asRelativePath(uri);
-        const fileUri = toIndexFileUri(editor.document.uri);
+        const fileUri = toIndexFileUri(editor.document.uri, baseRoot);
         const line = editor.selection.active.line;
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const workspaceRoot = baseRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const selection = editor.selection;
+        const baseStatuses = this.submodule.index.statusByBase();
 
         let lineStart: number | undefined;
         let lineEnd: number | undefined;
@@ -177,34 +192,36 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
               }>
             | undefined;
         try {
-            const store = this.submodule.index.indexStore;
-            const ideasInFile = await store.listIdeasInFileWithRanges(fileUri);
-            let idea = this.pinnedFocusId
-                ? ideasInFile.find(entry => entry.id === this.pinnedFocusId)
-                : undefined;
-            idea ??= ideasInFile.find(
-                entry => entry.lineStart <= line && line <= entry.lineEnd
-            );
-            if (idea) {
-                focusIdea = {
-                    id: idea.id,
-                    name: idea.name,
-                    lineStart: idea.lineStart,
-                    lineEnd: idea.lineEnd
-                };
-                peerIdeas = ideasInFile.map(entry => ({
-                    id: entry.id,
-                    name: entry.name,
-                    lineStart: entry.lineStart,
-                    lineEnd: entry.lineEnd
-                }));
-                lineStart = idea.lineStart;
-                lineEnd = idea.lineEnd;
-                useLineHistory = true;
-            } else if (fileUri.endsWith('.rq')) {
-                lineStart = line;
-                lineEnd = line;
-                useLineHistory = true;
+            if (!this.submodule.index.discoveryEmpty) {
+                const store = this.submodule.index.indexStore;
+                const ideasInFile = await store.listIdeasInFileWithRanges(fileUri);
+                let idea = this.pinnedFocusId
+                    ? ideasInFile.find(entry => entry.id === this.pinnedFocusId)
+                    : undefined;
+                idea ??= ideasInFile.find(
+                    entry => entry.lineStart <= line && line <= entry.lineEnd
+                );
+                if (idea) {
+                    focusIdea = {
+                        id: idea.id,
+                        name: idea.name,
+                        lineStart: idea.lineStart,
+                        lineEnd: idea.lineEnd
+                    };
+                    peerIdeas = ideasInFile.map(entry => ({
+                        id: entry.id,
+                        name: entry.name,
+                        lineStart: entry.lineStart,
+                        lineEnd: entry.lineEnd
+                    }));
+                    lineStart = idea.lineStart;
+                    lineEnd = idea.lineEnd;
+                    useLineHistory = true;
+                } else if (fileUri.endsWith('.rq')) {
+                    lineStart = line;
+                    lineEnd = line;
+                    useLineHistory = true;
+                }
             }
         } catch {
             // History falls back to path log.
@@ -231,7 +248,19 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             workspace: {
                 ready: snapshot.ready,
                 ideaCount: snapshot.ideaCount,
-                edgeCount: snapshot.edgeCount
+                edgeCount: snapshot.edgeCount,
+                activeBaseId: active?.descriptor.id,
+                activeBaseLabel: active?.descriptor.label,
+                discoveryEmpty: this.submodule.index.discoveryEmpty,
+                bases: baseStatuses.map(({ base, status }) => ({
+                    id: base.id,
+                    label: base.label,
+                    root: base.root,
+                    ready: status.ready,
+                    ideaCount: status.ideaCount,
+                    edgeCount: status.edgeCount,
+                    fileIssueCount: status.fileIssueCount
+                }))
             },
             fileText: editor.document.getText(),
             workspaceRoot,
@@ -243,7 +272,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 this.submodule.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
                     {
                         store: this.submodule.index.indexStore,
-                        analytical: this.submodule.store,
+                        analytical: this.submodule.index.store,
                         workspaceRoot
                     },
                     'file_related_requirements',
@@ -261,19 +290,41 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private async postIndexHealth(): Promise<void> {
+        const index = this.submodule.index;
+        const bases = index.statusByBase().map(({ base, status }) => ({
+            id: base.id,
+            label: base.label,
+            root: base.root,
+            ready: status.ready,
+            ideaCount: status.ideaCount,
+            edgeCount: status.edgeCount,
+            fileIssueCount: status.fileIssueCount,
+            state: status.state
+        }));
         this.post({
             type: 'indexHealth',
-            status: toIndexStatusView(this.submodule.index.getStatusSnapshot())
+            status: toIndexStatusView(index.getStatusSnapshot(), {
+                activeBaseId: index.getActiveBaseId(),
+                discoveryEmpty: index.discoveryEmpty,
+                bases
+            })
         });
     }
 
-    private async refreshFromEditor(): Promise<void> {
+    /**
+     * @param followEditorBase When true, pin the base that owns the active editor file
+     * (editor navigation). When false, keep the user-selected / currently active base.
+     */
+    private async refreshFromEditor(options?: { followEditorBase?: boolean }): Promise<void> {
         if (!this.visible || !this.syncWithEditor) {
             return;
         }
         const editor = vscode.window.activeTextEditor;
         if (!editor || !isWorkspaceEditor(editor)) {
             return;
+        }
+        if (options?.followEditorBase) {
+            this.submodule.index.activateBaseForPath(editor.document.uri.fsPath);
         }
         const fileUri = toIndexFileUri(editor.document.uri);
         recordFileVisit(this.contextSession, fileUri);
@@ -291,6 +342,15 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    /** Editor-driven refresh: follow the file's base. */
+    refreshFromEditorDebounced(options?: { followEditorBase?: boolean }): void {
+        clearTimeout(this.editorTimer);
+        const followEditorBase = options?.followEditorBase ?? true;
+        this.editorTimer = setTimeout(() => {
+            void this.refreshFromEditor({ followEditorBase });
+        }, EDITOR_DEBOUNCE_MS);
+    }
+
     private nextRequestId(message: ActivityBarToExtensionMessage): number | undefined {
         return 'requestId' in message ? message.requestId : undefined;
     }
@@ -304,7 +364,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     await this.postIndexHealth();
                     this.postTray();
                     this.postEditorContext();
-                    await this.refreshFromEditor();
+                    await this.refreshFromEditor({ followEditorBase: true });
                     this.post({ type: 'bootstrapComplete' });
                     break;
                 case 'loadScope':
@@ -335,9 +395,18 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     await this.postIndexHealth();
                     break;
                 case 'refreshIndex':
-                    await this.submodule.index.syncWorkspace();
+                    // Fire-and-forget sync; indexHealth events drive the Workspace pane.
+                    void this.submodule.index.syncWorkspace().then(async () => {
+                        await this.postIndexHealth();
+                        if (this.submodule.index.isReady) {
+                            void this.refreshFromEditor({ followEditorBase: false });
+                        }
+                    });
                     await this.postIndexHealth();
-                    await this.refreshFromEditor();
+                    break;
+                case 'cancelIndexSync':
+                    this.submodule.index.cancelSync();
+                    await this.postIndexHealth();
                     break;
                 case 'clearAndRebuildIndex': {
                     const confirmed = await vscode.window.showWarningMessage(
@@ -350,6 +419,25 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         await this.postIndexHealth();
                         await this.refreshFromEditor();
                     }
+                    break;
+                }
+                case 'createBase':
+                    await this.submodule.index.createBase();
+                    await this.postIndexHealth();
+                    await this.refreshFromEditor();
+                    break;
+                case 'selectBase': {
+                    const baseId = message.baseId;
+                    if (!this.submodule.index.getRegistered(baseId)) {
+                        this.post({
+                            type: 'error',
+                            message: 'That base is no longer available.',
+                            scope: 'index'
+                        });
+                        break;
+                    }
+                    // Pointer swap — status rebinds immediately; catch-up is fire-and-forget if not ready.
+                    this.submodule.index.setActiveBaseId(baseId);
                     break;
                 }
                 case 'pinIdea':
@@ -402,16 +490,17 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     if (!data) {
                         break;
                     }
-                    const document = await vscode.workspace.openTextDocument(resolveIndexFileUri(message.fileUri));
+                    const activeRoot = this.submodule.index.getActiveBase()?.descriptor.root;
+                    const document = await vscode.workspace.openTextDocument(resolveIndexFileUri(message.fileUri, activeRoot));
                     const detail = await data.loadFileLensDetail(message.fileUri, {
                         fileText: document.getText(),
-                        workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+                        workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
                         resolveFileRelated: async (targetUri: string) =>
                             this.submodule.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
                                 {
                                     store: this.submodule.index.indexStore,
-                                    analytical: this.submodule.store,
-                                    workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+                                    analytical: this.submodule.index.store,
+                                    workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
                                 },
                                 'file_related_requirements',
                                 { fileUri: targetUri }
@@ -425,7 +514,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         this.context,
                         this.submodule,
                         this.activationGeneration,
-                        message.intent
+                        {
+                            ...message.intent,
+                            baseId: message.intent.baseId ?? this.submodule.index.getActiveBaseId()
+                        }
                     );
                     break;
                 case 'openIdea':
@@ -534,12 +626,14 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
         this.gitDatesAttempted.add(idea.id);
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const workspaceRoot =
+            this.submodule.index.getActiveBase()?.descriptor.root ??
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         try {
             await this.submodule.analysers.run<{ ideaIds?: string[] }, GitDateInfo[]>(
                 {
                     store,
-                    analytical: this.submodule.store,
+                    analytical: this.submodule.index.store,
                     workspaceRoot
                 },
                 'git_dates',
@@ -679,6 +773,7 @@ function scopeForMessage(
         case 'copyContextMarkdown':
             return 'context';
         case 'refreshIndex':
+        case 'cancelIndexSync':
         case 'clearAndRebuildIndex':
         case 'loadIndexHealth':
             return 'index';
@@ -721,17 +816,19 @@ export function registerActivityBarWebview(
         vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
             webviewOptions: { retainContextWhenHidden: true }
         }),
-        vscode.window.onDidChangeActiveTextEditor(() => provider.refreshFromEditorDebounced()),
+        vscode.window.onDidChangeActiveTextEditor(() =>
+            provider.refreshFromEditorDebounced({ followEditorBase: true })
+        ),
         vscode.window.onDidChangeTextEditorSelection(event => {
             if (isWorkspaceEditor(event.textEditor)) {
                 const fileUri = toIndexFileUri(event.textEditor.document.uri);
                 const line = event.selections[0]?.active.line ?? 0;
                 provider.recordEditorActivity(fileUri, line);
-                provider.refreshFromEditorDebounced();
+                provider.refreshFromEditorDebounced({ followEditorBase: true });
             }
         }),
         vscode.commands.registerCommand('reqlan.refreshActivityBar', () => {
-            provider.refreshFromEditorDebounced();
+            provider.refreshFromEditorDebounced({ followEditorBase: true });
         }),
         vscode.commands.registerCommand('reqlan.openIdeaFromActivityBar', async (fileUri: string, line: number) => {
             await openIndexFile(fileUri, line);

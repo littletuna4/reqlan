@@ -23,8 +23,8 @@ const steps = [
         command: 'pnpm run build:prepare',
     },
     {
-        name: 'bundle Svelte webviews (ideas-summary, activity-bar, onboarding, export-form)',
-        command: 'npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts',
+        name: 'bundle Svelte webviews (ideas-summary, activity-bar, onboarding, export-form, index-diagnostics)',
+        command: 'npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts',
     },
     {
         name: 'type-check extension TypeScript sources',

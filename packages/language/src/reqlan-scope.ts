@@ -127,6 +127,8 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         const descriptions = model.elements
             .filter(element => isIdea(element) || isOneLinerIdea(element))
             .map(idea => this.descriptions.createDescription(idea, idea.name, document));
+        // Imported ideas enter scope under their binding name only (alias when present).
+        // See import_tokenisation: aliased base names are not reserved locally.
         for (const importDecl of model.imports) {
             if (isFromImport(importDecl)) {
                 for (const specifier of importDecl.specifiers) {

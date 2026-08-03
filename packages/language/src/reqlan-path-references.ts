@@ -1,5 +1,7 @@
 /**
  * Collects relative file path strings in .rq imports and embedded references, and rq: paths in comments.
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  */
 import type { Range } from 'vscode-languageserver';
 import { findCommentReferencesInText } from './reqlan-comment-resolver.js';

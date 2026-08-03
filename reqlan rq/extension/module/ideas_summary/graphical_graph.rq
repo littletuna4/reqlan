@@ -1,11 +1,11 @@
 from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading
-from "./webview.rq" import webview
+from "./webview.rq" import ideas_summary
 
 
 
 graphical_graph {
     There should be a tab that renders requirement ideas and references as a force-directed web.
-    The graph tab lives in the Ideas Summary webview per [webview].
+    The graph tab lives in the Ideas Summary webview per [ideas_summary].
     UI is implemented in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"].
     Graph slices are built in ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"] and served by ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
     By default the view focuses on the active editor file's first idea; without a focus it shows a capped slice of matching ideas rather than dumping the full graph.

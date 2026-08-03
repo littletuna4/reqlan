@@ -1,0 +1,52 @@
+from "../indexer/indexer.rq" as indexer
+from "./module/index.rq" as app_memory
+from "./module/activitybar-panels/workspace.rq" as workspace_pane
+from "./features-commands.rq" as commands
+import "../../packages/analytical/src/index-store/index-diagnostics-store.ts" as diagnostics_store
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/extension/src/diagnostics_module/index-diagnostics-panel.ts" as diagnostics_panel
+import "../../packages/extension/webviews/index-diagnostics/App.svelte" as DiagnosticsApp
+
+index_diagnostics {
+    Indexing performance diagnostics: measure and inspect time spent indexing a [indexer.index] base.
+    Timing is persisted in a dedicated **diagnostic index** under application memory ([app_memory.index_diagnostics_store]), not in `ideas-index.sqlite`, so history survives Clear & rebuild.
+    Surfaces: [index_diagnostics_webview]. Owned by `@reqlan/analytical` for recording; the extension hosts the webview.
+    @status done
+}
+
+index_diagnostics_metrics {
+    For each sync/index run on a base, record:
+    - wall-clock **sum / total duration** of the pass
+    - **file count** (visited), skipped-by-mtime count, indexed (parse/persist attempted) count, error count
+    - **average path depth** of visited files (segments under the base root)
+    - per-file **duration** and outcome (`mtime_skip` | `mtime_refresh` | `hash_skip` | `persisted` | `error`)
+    Runs are attributable to a trigger (`soft_sync` | `rebuild` | `enqueue` | `stale`).
+    Instrumentation wraps [workspace_index] soft sync and [indexer.nonblocking_index] single-file paths via [diagnostics_store].
+    @implementation (
+        [diagnostics_store]
+        ["../../packages/analytical/src/index-store/workspace-index-file.ts"]
+        ["../../packages/analytical/src/index-store/workspace-index-sync.ts"]
+        [workspace_index]
+    )
+    @tests (
+        ["../../packages/analytical/test/index-diagnostics.test.ts"]
+    )
+    @status done
+}
+
+index_diagnostics_webview {
+    An editor webview panel displays index timing diagnostics for the active base.
+    Capabilities:
+    - Base / latest-run summary: total time, file counts, average depth
+    - Drill into recent runs
+    - Rank files by duration (slowest first); show outcome and path depth
+    Opened by command `reqlan.openIndexDiagnostics` ([commands.open_index_diagnostics]).
+    Optional entry from workspace index health ([workspace_pane.workspace_pane]) may link later; command is the primary entry.
+    Implementation: [diagnostics_panel], [DiagnosticsApp].
+    @implementation (
+        [diagnostics_panel]
+        ["../../packages/extension/src/diagnostics_module/register-index-diagnostics.ts"]
+        ["../../packages/extension/webviews/index-diagnostics/"]
+    )
+    @status done
+}

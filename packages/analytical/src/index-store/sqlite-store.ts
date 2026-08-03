@@ -25,22 +25,27 @@ import type {
 import { BLOCKING_STATUSES, ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
 import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
 import type {
+    AttributesTableQuery,
+    AttributeTableRow,
     IdeasTableQuery,
     IdeasetsTableQuery,
     ReferencesTableQuery
 } from './webview-table-queries.js';
+import type { GitIdeaTimelineEvent } from './webview-table-queries.js';
 import {
     buildGraphTruncationOrderClause,
     type GraphViewQuery
 } from './webview-graph-queries.js';
 import {
+    aggregateAttributesFromRows,
     attributeValuesForKeys,
     buildIdeasetsOrderClause,
     buildIdeasetsWhereClause,
     buildIdeasOrderClause,
     buildIdeasWhereClause,
     buildReferencesOrderClause,
-    buildReferencesWhereClause
+    buildReferencesWhereClause,
+    filterAndPageAttributes
 } from './webview-table-queries.js';
 import { buildGraphFilterWhereClause } from './webview-graph-queries.js';
 
@@ -112,7 +117,43 @@ export class SqliteIndexStore {
         return row?.content_hash;
     }
 
-    async upsertDocument(fileUri: string, contentHash: string, ideas: IdeaRecord[], edges: EdgeRecord[]): Promise<void> {
+    async getDocumentMtimeMs(fileUri: string): Promise<number | undefined> {
+        const row = await get<{ mtime_ms: number | null }>(
+            this.db,
+            'SELECT mtime_ms FROM documents WHERE file_uri = ?',
+            fileUri
+        );
+        return row?.mtime_ms == null ? undefined : row.mtime_ms;
+    }
+
+    async updateDocumentMtime(fileUri: string, mtimeMs: number): Promise<void> {
+        await run(
+            this.db,
+            `UPDATE documents SET mtime_ms = ?, indexed_at = datetime('now') WHERE file_uri = ?`,
+            mtimeMs,
+            fileUri
+        );
+    }
+
+    async listDocumentMtimes(): Promise<Map<string, number | undefined>> {
+        const rows = await all<{ file_uri: string; mtime_ms: number | null }>(
+            this.db,
+            'SELECT file_uri, mtime_ms FROM documents'
+        );
+        const result = new Map<string, number | undefined>();
+        for (const row of rows) {
+            result.set(row.file_uri, row.mtime_ms == null ? undefined : row.mtime_ms);
+        }
+        return result;
+    }
+
+    async upsertDocument(
+        fileUri: string,
+        contentHash: string,
+        ideas: IdeaRecord[],
+        edges: EdgeRecord[],
+        mtimeMs?: number
+    ): Promise<void> {
         await run(this.db, 'BEGIN');
         try {
             await run(
@@ -169,12 +210,13 @@ export class SqliteIndexStore {
             }
 
             await run(this.db, `
-                INSERT INTO documents (file_uri, content_hash, indexed_at)
-                VALUES (?, ?, datetime('now'))
+                INSERT INTO documents (file_uri, content_hash, indexed_at, mtime_ms)
+                VALUES (?, ?, datetime('now'), ?)
                 ON CONFLICT(file_uri) DO UPDATE SET
                     content_hash = excluded.content_hash,
-                    indexed_at = excluded.indexed_at
-            `, fileUri, contentHash);
+                    indexed_at = excluded.indexed_at,
+                    mtime_ms = excluded.mtime_ms
+            `, fileUri, contentHash, mtimeMs ?? null);
             await run(this.db, 'COMMIT');
         } catch (error) {
             await run(this.db, 'ROLLBACK');
@@ -183,15 +225,25 @@ export class SqliteIndexStore {
     }
 
     async removeDocument(fileUri: string): Promise<void> {
+        await this.removeDocuments([fileUri]);
+    }
+
+    /** Delete many document rows (and their ideas/edges) in one transaction. */
+    async removeDocuments(fileUris: string[]): Promise<void> {
+        if (fileUris.length === 0) {
+            return;
+        }
         await run(this.db, 'BEGIN');
         try {
-            await run(
-                this.db,
-                'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
-                fileUri
-            );
-            await run(this.db, 'DELETE FROM ideas WHERE file_uri = ?', fileUri);
-            await run(this.db, 'DELETE FROM documents WHERE file_uri = ?', fileUri);
+            for (const fileUri of fileUris) {
+                await run(
+                    this.db,
+                    'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
+                    fileUri
+                );
+                await run(this.db, 'DELETE FROM ideas WHERE file_uri = ?', fileUri);
+                await run(this.db, 'DELETE FROM documents WHERE file_uri = ?', fileUri);
+            }
             await run(this.db, 'COMMIT');
         } catch (error) {
             await run(this.db, 'ROLLBACK');
@@ -586,6 +638,7 @@ export class SqliteIndexStore {
             SELECT
                 i.id,
                 i.name,
+                i.kind,
                 i.file_uri,
                 i.line_start,
                 i.summary,
@@ -806,6 +859,75 @@ export class SqliteIndexStore {
         return rows.map(row => toReferenceTableRow(row));
     }
 
+    /**
+     * Aggregate attribute keys for the Ideas Summary attributes tab.
+     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+     */
+    async countAttributes(query: AttributesTableQuery): Promise<number> {
+        const { total } = await this.queryAttributesPage(query);
+        return total;
+    }
+
+    async listAttributesPage(query: AttributesTableQuery): Promise<AttributeTableRow[]> {
+        const { rows } = await this.queryAttributesPage(query);
+        return rows;
+    }
+
+    private async queryAttributesPage(
+        query: AttributesTableQuery
+    ): Promise<{ total: number; rows: AttributeTableRow[] }> {
+        const rows = await all<{ id: string; attributes_json: string }>(this.db, `
+            SELECT id, attributes_json
+            FROM ideas
+            WHERE kind != 'ideaset'
+        `);
+        return filterAndPageAttributes(aggregateAttributesFromRows(rows), query);
+    }
+
+    /**
+     * Recent idea events from indexed git dates for the Timeline tab.
+     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     */
+    async listRecentGitIdeaEvents(limit = 50): Promise<GitIdeaTimelineEvent[]> {
+        const rows = await all<{
+            id: string;
+            name: string;
+            file_uri: string;
+            line_start: number;
+            git_created_at: string | null;
+            git_modified_at: string | null;
+        }>(this.db, `
+            SELECT id, name, file_uri, line_start, git_created_at, git_modified_at
+            FROM ideas
+            WHERE kind != 'ideaset'
+              AND (git_modified_at IS NOT NULL OR git_created_at IS NOT NULL)
+            ORDER BY COALESCE(git_modified_at, git_created_at) DESC
+            LIMIT ?
+        `, Math.max(1, Math.min(limit, 200)));
+
+        return rows.map(row => {
+            const modified = row.git_modified_at ?? undefined;
+            const created = row.git_created_at ?? undefined;
+            const at = modified ?? created ?? '';
+            const kind: GitIdeaTimelineEvent['kind'] =
+                modified && created && modified === created
+                    ? 'created'
+                    : modified
+                        ? 'modified'
+                        : 'created';
+            return {
+                ideaId: row.id,
+                name: row.name,
+                fileUri: row.file_uri,
+                lineStart: row.line_start,
+                at,
+                kind,
+                gitCreatedAt: created,
+                gitModifiedAt: modified
+            };
+        });
+    }
+
     private toSummary(row: SummaryRow): IdeaSummary {
         const attributes = parseAttributes(row.attributes_json);
         return {
@@ -987,6 +1109,7 @@ interface SummaryRow {
 interface IdeaPageRow {
     id: string;
     name: string;
+    kind: string;
     file_uri: string;
     line_start: number;
     summary: string;
@@ -1039,6 +1162,7 @@ function toIdeaTableRow(
         id: row.id,
         title: row.name,
         path: row.file_uri,
+        kind: row.kind === 'oneliner' ? 'oneliner' : 'block',
         mainAttribute: row.summary || undefined,
         otherAttributes: otherAttributeItems.join('; '),
         otherAttributeItems,

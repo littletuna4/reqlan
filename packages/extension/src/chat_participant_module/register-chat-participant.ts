@@ -9,12 +9,14 @@ export function registerChatParticipantModule(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const makeContext = () => ({
-        store: submodule.index.indexStore,
-        analytical: submodule.store,
-        workspaceRoot
-    });
+    const makeContext = () => {
+        const active = submodule.index.getActiveBase();
+        return {
+            store: submodule.index.indexStore,
+            analytical: submodule.index.store,
+            workspaceRoot: active?.descriptor.root
+        };
+    };
 
     const handler = createChatRequestHandler({
         index: submodule.index,

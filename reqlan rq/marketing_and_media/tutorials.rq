@@ -471,7 +471,7 @@ gs_04_activity_bar {
         }
     )
 }
-
+test hello
 gs_05_chat_search {
     Audience: users ready to involve AI without abandoning the graph.
     Outcome: invoke `@reqlan` / `/rq-search` (or installed Cursor skills); find an idea by meaning; optionally add to context / build a requirement.

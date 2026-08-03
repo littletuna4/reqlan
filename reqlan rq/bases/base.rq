@@ -1,0 +1,203 @@
+from "../core-architecture.rq" import ideas_index
+from "../ontology.rq" import base as ontology_base
+import "../extension/configuration.rq" as extension_configuration
+import "../extension/module/index.rq" as app_memory_doc
+import "../../packages/analytical/src/core/base-discovery.ts" as base_discovery
+import "../../packages/analytical/src/index-store/base-registry.ts" as base_registry
+import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../packages/analytical/src/core/create-base.ts" as create_base_impl
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../../packages/extension/src/analytical_submodule/commands/register-commands.ts" as register_commands
+import "../../packages/language/src/reqlan-path-resolve.ts" as path_resolve
+
+base {
+    A base is a container for ideas, ideasets, and files.
+    It forms the boundary of one ideas graph and is consumed by the CLI and the extension.
+    Marker: a directory is a base only when it owns a `.reqlan` folder ([app_memory_doc.application_memory]).
+    No bare workspace folder is treated as a base until the user creates `.reqlan` there
+    ([create_base_onboarding]).
+    Aligns with [ontology_base].
+    Discovery and registry: [base_discovery], [base_registry].
+    Marker path helpers: [application_memory_impl].
+    @implementation (
+        [base_discovery]
+        [base_registry]
+        [application_memory_impl]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-discovery.test.ts:returns empty when no .reqlan exists"]
+        ["../../packages/analytical/test/base-discovery.test.ts:discovers base at workspace root"]
+        ["../../packages/analytical/test/base-discovery.test.ts:skips node_modules and does not treat .reqlan as a walkable base root"]
+        ["../../packages/analytical/test/application-memory.test.ts:defaults to <workspace>/.reqlan"]
+    )
+
+
+}
+
+
+
+base_ownership {
+    Each base holds its own [ideas_index] store under `<base>/.reqlan/ideas-index.sqlite`.
+    Path keys inside the index are relative to that base root, not the VS Code workspace root.
+    Store path: [application_memory_impl]; per-base engine: [workspace_index] via [base_registry].
+    @implementation (
+        [application_memory_impl]
+        [workspace_index]
+        [base_registry]
+    )
+    @tests (
+        ["../../packages/analytical/test/application-memory.test.ts:defaults to <workspace>/.reqlan"]
+        ["../../packages/analytical/test/application-memory.test.ts:honours storagePath override"]
+    )
+}
+
+base_configuration {
+    Base configuration is distinct from, but related to, [extension_configuration].
+    Optional settings live at `<base>/.reqlan/config.json` (one config per base).
+    For an `.rq` file, the applying base is the nearest ancestor that owns `.reqlan`; that base's config applies when present.
+    See [extension_configuration.configuration_location]; resolved by [path_resolve].
+    @implementation (
+        [path_resolve]
+    )
+    @tests (
+        ["../../packages/language/test/config.test.ts:returns undefined when no config exists"]
+        ["../../packages/language/test/config.test.ts:loads config from the owning base .reqlan"]
+        ["../../packages/language/test/config.test.ts:loads config from an ancestor base"]
+        ["../../packages/language/test/config.test.ts:nearest base config wins over farther ones"]
+        ["../../packages/language/test/config.test.ts:owning base without config does not inherit parent"]
+        ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest base config"]
+    )
+}
+
+base_configuration_provider {
+    Base-level settings live at `<base>/.reqlan/config.json`.
+    Extension-level settings remain VS Code configuration for the product host.
+    @implementation (
+        [application_memory_impl]
+        [path_resolve]
+        ["../../packages/extension/schemas/config.schema.json"]
+    )
+}
+
+base_nesting {
+    Bases may nest: any subdirectory that owns its own `.reqlan` is a child base.
+    Parent-base indexing includes only `.rq` files under the parent root that are **not** under
+    any child base root ([base_discovery] ownership exclusion).
+    Nested bases appear as siblings in the multi-base registry; the longest-matching base root
+    wins for a given file path ([implied_context]).
+    @implementation (
+        [base_discovery]
+        [base_registry]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-discovery.test.ts:discovers nested bases and excludes child files from parent ownership"]
+        ["../../packages/analytical/test/base-discovery.test.ts:baseForPath picks longest matching root"]
+    )
+}
+base_linking {
+    A base may have one-directional relationships with other bases.
+    This follows a subscription model.
+    Bases may be cross subscribed.
+    Unless linked, than bases remain isolated.
+    Base linking is configured in the config file in the base .reqlan directory.
+    - an unlinked child base should sever the contained ideas from the parent base (i.e. the parent should just see the child as a separate base and child ideas shouldn't be visible, the indexer shouldn't crawl it.) they should be functionally distinct
+    - bases, distinct from eachother in the system file tree, should be linkeable (either one way or both ways)
+    - A linked child base should allow the parent base to see the child's ideas. The indexs should be linked, and the child counts etc should be included in the parents.
+    - A child base should always be able to link to parent base ideas.
+    @todo
+}
+base_modes {
+    A base may be linked to 
+    @todo   
+}
+
+base_initialisation {
+    Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see ["../extension/configuration.rq".configuration_rqignore]), and a sqlite ideas index under `.reqlan`.
+    [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json` plus default `.rqignore` when the base is new.
+    Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/installation.rq".base_installation].
+}
+
+implied_context {
+    The **active base** for editor-adjacent surfaces is the longest-matching base root that
+    contains the focused file path. When no file is focused, the last selected base (Ideas Summary
+    switcher / activity bar) or the first discovered base is used.
+    Context, local graph, and analysers bind to the active base's index — not a merged global graph.
+    User/explicit pin is a pointer swap only — [active_base_switch].
+    Core selection: [base_discovery] (`baseForPath` / `selectDefaultBase`); editor pin/switch: [editor_index_adapter].
+    @implementation (
+        [base_discovery]
+        [editor_index_adapter]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-discovery.test.ts:baseForPath picks longest matching root"]
+        ["../../packages/analytical/test/base-discovery.test.ts:selectDefaultBase prefers cwd containment"]
+    )
+}
+
+active_base_switch {
+    Changing the active base is a **pointer swap** onto a per-base `WorkspaceIndex` / store.
+    - Do **not** await soft-sync, hard-rebuild, or a full `.rq` walk on the switch call itself.
+    - Host surfaces rebind views to the newly active store (status snapshot, tables, context panes) immediately.
+    - If the selected base is not yet ready, show its readiness/progress and **schedule** the normal activate catch-up
+      (open if needed, then one soft sync) fire-and-forget — same path as ["../indexer/indexer.rq".triggers] /
+      ["../extension/features-graph-analysers.rq".indexing_trigger_open], not a special switcher rebuild.
+    - Idle staleness checks also heal unopened / never-synced bases (they cannot mtime-diff without a store).
+    - `activateAll` isolates open failures so one bad base cannot leave siblings stranded in `uninitialized`.
+    - Editor-follow must not overwrite a user pin on the same refresh that applies the selection.
+    Surfaces: activity bar ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker], Ideas Summary ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope].
+    Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady`, [workspace_index] `ensureReady`.
+    @implementation (
+        [editor_index_adapter]
+        [base_registry]
+        [workspace_index]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker]
+        ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-registry-catchup.test.ts:ensureBaseReady opens and soft-syncs an uninitialized base"]
+        ["../../packages/analytical/test/base-registry-catchup.test.ts:checkStaleAll heals an uninitialized base"]
+        ["../../packages/analytical/test/base-registry-catchup.test.ts:deactivate returns to uninitialized so a base can be reopened"]
+    )
+    @status done
+}
+
+multi_base_environment {
+    Analytical features are multibase aware via [base_registry]:
+    one [ideas_index] / `WorkspaceIndex` per base, isolated catalogs (no cross-base idea-id collision).
+    Surfaces list all discovered bases; Ideas Summary and context panes scope to the active/selected base ([active_base_switch]).
+    Cross-base reference resolution and merged graphs are out of scope for the first multi-base pass.
+    Headless (CLI/MCP) selects one base via [analysis_runtime]; the editor hosts [editor_index_adapter].
+    @implementation (
+        [base_registry]
+        [base_discovery]
+        [editor_index_adapter]
+        [analysis_runtime]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-discovery.test.ts:discovers nested bases and excludes child files from parent ownership"]
+        ["../../packages/analytical/test/base-discovery.test.ts:baseForPath picks longest matching root"]
+        ["../../packages/analytical/test/base-discovery.test.ts:selectDefaultBase prefers cwd containment"]
+    )
+}
+
+create_base_onboarding {
+    When discovery finds **zero** bases under any VS Code workspace folder (root or child),
+    the extension prompts the user to create a reqlan base at the workspace-folder root.
+    Do not auto-create `.reqlan`. Command `reqlan.createBase` creates `<folder>/.reqlan/`
+    (empty directory is a valid marker), rediscovers, and activates indexing for that base.
+    With multiple workspace folders and no bases, prompt against the first folder.
+    Headless create-base helper: [create_base_impl] (also used by CLI `init`).
+    @implementation (
+        [create_base_impl]
+        [editor_index_adapter]
+        [register_commands]
+        ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
+        ["../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
+    )
+}
+
+

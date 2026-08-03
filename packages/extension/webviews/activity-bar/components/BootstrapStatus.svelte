@@ -65,6 +65,9 @@
     {:else if phase === 'waiting_index'}
         <div class="section-actions">
             <button type="button" class="action-button" onclick={() => app.refreshIndex()}>Refresh index</button>
+            {#if app.indexStatus?.syncProgress && app.indexStatus.syncProgress.total > 0}
+                <button type="button" class="action-button" onclick={() => app.cancelIndexSync()}>Cancel sync</button>
+            {/if}
         </div>
     {/if}
 </section>

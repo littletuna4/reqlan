@@ -199,10 +199,12 @@ LocalReference:
     idea=[IdeaDeclaration:ReferenceName];
 
 // ---------------------------------------------------------------------------
-// import_from, import_namespace, import_qualified — see imports.rq
+// import_from, import_namespace, import_qualified, import_tokenisation — see imports.rq
 // InvalidFromImport recovers unquoted/malformed `from` lines so later ideas still parse.
 // FromImport allows a mistaken `from "path" as alias` shape for a local diagnostic
 // (valid form still requires `import` + idea specifiers).
+// When a specifier/qualified import has `as alias`, only `alias` binds locally; the
+// imported idea's base name stays free for a local idea declaration.
 // ---------------------------------------------------------------------------
 
 Import:
@@ -214,12 +216,14 @@ FromImport:
       | 'as' alias=ID
     )?;
 
+// Binding name is `alias` when present, otherwise the imported idea name.
 FromImportSpecifier:
     idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
 
 NamespaceImport:
     'import' path=STRING ('as' alias=ID)?;
 
+// Binding name is `alias` when present, otherwise the imported idea name.
 QualifiedImport:
     'import' path=STRING '.' ideaset=ID '.' idea=[IdeaDeclaration:ID] ('as' alias=ID)?;
 

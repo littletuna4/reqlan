@@ -1,12 +1,18 @@
-from "../language/ontology.rq" import extension
+from "../ontology.rq" import extension, base
 from "../extension/module/index.rq" import application_memory
 import "../extension/features-html-export.rq" as html_export
+from "../bases/base.rq" import create_base_onboarding
+
 
 cli_package {
     `packages/cli` (`@reqlan/cli`) is the Clipanion CLI published to npm as the `reqlan` (and `rq`) binary.
-    It depends on `@reqlan/analytical` for workspace analysis and `@reqlan/language` for single-file parse.
+    It depends on `@reqlan/analytical` for base analysis and `@reqlan/language` for single-file parse.
     Entry: ["../../packages/cli/src/main.ts"].
-    Analysis commands reuse [application_memory] (`<workspace>/.reqlan`) so the CLI shares the ideas index with the extension and MCP.
+    Analysis commands reuse [application_memory] (`<base>/.reqlan`) and the analytical ["../indexer/indexer.rq".index] so the CLI shares the ideas index with the extension and MCP.
+}
+
+architecture {
+    The cli should be a thin wrapper around the analytical and language packages.
 }
 
 commands {
@@ -18,6 +24,28 @@ commands {
       `--exclude-secret` omits `*.secret.rq`.
       `--url-base` mounts root-relative hrefs per [html_export.html_export_url_base].
       `--header-href` / `--header-label` set the topbar home link per [html_export.html_export_header_link].
+    - `init [directory]` — create a new [base] marker (`.reqlan`) at the given path or cwd ([init]).
+}
+
+watch {
+    The cli should be able to watch a base and maintain the index as files change.
+    @todo
+}
+
+init {
+    The cli should be able to initialise a new [base].
+    Creates `<path>/.reqlan/` (empty directory is a valid marker), matching [create_base_onboarding].
+    Headless helper lives in `@reqlan/analytical` so CLI and extension share one create-base path.
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/core/create-base.ts"]
+        ["../../packages/cli/src/commands/init.ts"]
+        ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/create-base.test.ts:creates .reqlan marker and reports created"]
+        ["../../packages/analytical/test/create-base.test.ts:is idempotent when marker already exists"]
+    )
 }
 
 function_parity {
@@ -25,3 +53,5 @@ function_parity {
     On-disk index storage follows [application_memory] (same `.reqlan` path as the extension); optional override via `REQLAN_INDEX_PATH`.
     @status done
 }
+
+

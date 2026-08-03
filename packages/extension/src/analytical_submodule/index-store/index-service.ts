@@ -1,40 +1,119 @@
 /**
- * Index service driven by the analytical Zustand store.
+ * VS Code host adapter over multi-base {@link BaseRegistry} / {@link WorkspaceIndex}.
+ * Owns file watching, Uri conversion, and create-base onboarding; indexing lives in `@reqlan/analytical`.
  */
-import { URI, type LangiumDocument } from 'langium';
-import { NodeFileSystem } from 'langium/node';
-import { createReqlanServices } from '@reqlan/language';
-import { join } from 'node:path';
 import * as vscode from 'vscode';
 import {
-    extractIndexedDocument,
-    normalizeIndexedDocument,
-    SqliteIndexStore,
-    toFileIndexIssueView,
-    toIndexErrorDetail,
-    type AnalyticalStore
+    BaseRegistry,
+    baseForPath,
+    createBase as createBaseMarker,
+    isIgnoredPath,
+    loadRqIgnore,
+    type AnalyticalStore,
+    type BaseDescriptor,
+    type BaseStatusEntry,
+    type IndexStatusSnapshot,
+    type RegisteredBase
 } from '@reqlan/analytical';
-import type { IndexStatusSnapshot, IndexSyncProgress } from './index-status.js';
-import { collectParseIssues, fileIssue, fileIssueFromError, unnamedIdeaIssues, validIdeas } from './index-parse-issues.js';
-import { recordCaughtFileIssue } from './index-file-error.js';
 import { toIndexFileUri } from './resolve-index-file-uri.js';
 
-export type { IndexStatusSnapshot, IndexSyncProgress } from './index-status.js';
+export type { IndexStatusSnapshot, IndexSyncProgress } from '@reqlan/analytical';
+export type { BaseDescriptor, BaseStatusEntry, RegisteredBase };
+
+const EMPTY_STATUS: IndexStatusSnapshot = {
+    state: 'uninitialized',
+    ready: false,
+    ideaCount: 0,
+    edgeCount: 0,
+    fileIssueCount: 0,
+    fileIssues: [],
+    recentDocumentUpdates: [],
+    recentWorkspaceChanges: []
+};
+
+/** Quiet period after index activity before an idle staleness check. */
+const IDLE_QUIET_MS = 45_000;
+/** Sooner check when the window loses focus. */
+const IDLE_UNFOCUSED_MS = 10_000;
 
 export class IndexService {
-    private sqlite?: SqliteIndexStore;
-    private readonly services = createReqlanServices({ ...NodeFileSystem });
+    private readonly registry = new BaseRegistry();
     private watcher?: vscode.FileSystemWatcher;
-    private syncQueue = Promise.resolve();
-    private syncInFlight?: Promise<boolean>;
-    private syncProgress?: IndexSyncProgress;
+    private markerWatcher?: vscode.FileSystemWatcher;
+    private activeBaseId?: string;
     private readonly catalogListeners = new Set<() => void>();
     private readonly statusListeners = new Set<() => void>();
+    private registryCatalogUnsub?: () => void;
+    private registryStatusUnsub?: () => void;
+    private promptedCreateBase = false;
+    private idleTimer?: ReturnType<typeof setTimeout>;
+    private idleCheckInFlight = false;
+    private idleSyncActive = false;
+    /** Coalesced open+soft-sync nudges keyed by base id (pin / path activate). */
+    private readonly catchUpInFlight = new Map<string, Promise<void>>();
 
     constructor(
-        private readonly analytical: AnalyticalStore,
-        private readonly storagePath: string
+        /** @deprecated Prefer per-base stores via the registry; kept for AnalyticalSubmodule typing. */
+        readonly sharedStore: AnalyticalStore,
+        _legacyStoragePath?: string
     ) {}
+
+    get discoveryEmpty(): boolean {
+        return this.registry.size === 0;
+    }
+
+    listBases(): BaseDescriptor[] {
+        return this.registry.list();
+    }
+
+    getActiveBase(): RegisteredBase | undefined {
+        if (this.activeBaseId) {
+            const entry = this.registry.get(this.activeBaseId);
+            if (entry) {
+                return entry;
+            }
+        }
+        return this.registry.selectDefault(this.activeEditorPath());
+    }
+
+    getActiveBaseId(): string | undefined {
+        return this.getActiveBase()?.descriptor.id;
+    }
+
+    /**
+     * Pin the active base. Pointer swap only — does not await indexing.
+     * If the selected store is not ready, schedules the shared activate catch-up
+     * path (open + soft sync) without blocking the switcher.
+     */
+    setActiveBaseId(baseId: string | undefined): void {
+        if (baseId && !this.registry.get(baseId)) {
+            return;
+        }
+        this.activeBaseId = baseId;
+        this.notifyStatus();
+        this.notifyCatalog();
+        if (baseId) {
+            this.scheduleBaseCatchUp(baseId);
+        }
+    }
+
+    /** Resolve active base from a file path (longest match) and optionally pin it. */
+    activateBaseForPath(absPath: string, pin = true): RegisteredBase | undefined {
+        const match = baseForPath(this.listBases(), absPath);
+        if (match && pin) {
+            this.activeBaseId = match.id;
+            this.scheduleBaseCatchUp(match.id);
+        }
+        return match ? this.registry.get(match.id) : undefined;
+    }
+
+    getRegistered(baseId: string): RegisteredBase | undefined {
+        return this.registry.get(baseId);
+    }
+
+    statusByBase(): BaseStatusEntry[] {
+        return this.registry.statusByBase(uri => vscode.workspace.asRelativePath(uri));
+    }
 
     subscribeCatalogUpdates(listener: () => void): () => void {
         this.catalogListeners.add(listener);
@@ -51,328 +130,393 @@ export class IndexService {
     }
 
     get state() {
-        return this.analytical.getState().indexState;
+        return this.getActiveBase()?.index.state ?? 'uninitialized';
     }
 
     get isReady(): boolean {
-        return this.analytical.getState().indexState === 'ready';
+        return this.getActiveBase()?.index.isReady ?? false;
     }
 
-    get indexStore(): SqliteIndexStore {
-        if (!this.sqlite) {
-            throw new Error('Index store is not open');
+    get indexStore() {
+        const entry = this.getActiveBase();
+        if (!entry) {
+            throw new Error('No reqlan base is active. Create a .reqlan folder to initialize a base.');
         }
-        return this.sqlite;
+        return entry.index.indexStore;
     }
 
-    getStatusSnapshot(): IndexStatusSnapshot {
-        const storeState = this.analytical.getState();
-        const relativePath = (uri: string) => vscode.workspace.asRelativePath(uri);
-        return {
-            state: storeState.indexState,
-            ready: storeState.indexState === 'ready',
-            ideaCount: storeState.ideaCount,
-            edgeCount: storeState.edgeCount,
-            fileIssueCount: storeState.fileIndexIssues.length,
-            lastError: storeState.lastError
-                ? toIndexErrorDetail(storeState.lastError, relativePath)
-                : undefined,
-            fileIssues: storeState.fileIndexIssues.map(issue => toFileIndexIssueView(issue, relativePath)),
-            syncProgress: this.syncProgress,
-            recentDocumentUpdates: [...storeState.documentUpdates].reverse().slice(0, 10),
-            recentWorkspaceChanges: [...storeState.workspaceChanges].reverse().slice(0, 10)
-        };
+    /** Analytical store for the active base (isolated per base). */
+    get store(): AnalyticalStore {
+        const entry = this.getActiveBase();
+        if (!entry) {
+            return this.sharedStore;
+        }
+        return entry.store;
+    }
+
+    getStatusSnapshot(baseId?: string): IndexStatusSnapshot {
+        if (this.discoveryEmpty) {
+            return { ...EMPTY_STATUS };
+        }
+        const entry = baseId
+            ? this.registry.get(baseId)
+            : this.getActiveBase();
+        if (!entry) {
+            return { ...EMPTY_STATUS };
+        }
+        return entry.index.getStatusSnapshot(uri => vscode.workspace.asRelativePath(uri));
+    }
+
+    async getIndexDiagnosticsOverview(baseId?: string) {
+        const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
+        return entry?.index.getIndexDiagnosticsOverview();
+    }
+
+    async listIndexDiagnosticRuns(limit = 20, baseId?: string) {
+        const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
+        if (!entry) {
+            return [];
+        }
+        return entry.index.listIndexDiagnosticRuns(limit);
+    }
+
+    async getIndexDiagnosticRun(runId: number, baseId?: string) {
+        const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
+        return entry?.index.getIndexDiagnosticRun(runId);
+    }
+
+    async listIndexDiagnosticFileTimings(
+        runId: number,
+        options?: { limit?: number; order?: 'duration_desc' | 'duration_asc' | 'path' },
+        baseId?: string
+    ) {
+        const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
+        if (!entry) {
+            return [];
+        }
+        return entry.index.listIndexDiagnosticFileTimings(runId, options);
     }
 
     async activate(context: vscode.ExtensionContext): Promise<void> {
-        const { dispatchIndex, recordIndexError } = this.analytical.getState();
-        dispatchIndex('activate');
         try {
-            const dbPath = join(this.storagePath, 'ideas-index.sqlite');
-            this.sqlite = await SqliteIndexStore.open(dbPath);
-            dispatchIndex('opened');
+            await this.rediscoverAndSync(false);
+
             this.watcher = vscode.workspace.createFileSystemWatcher('**/*.rq');
             this.watcher.onDidCreate(uri => this.enqueueSync(uri, 'created'));
             this.watcher.onDidChange(uri => this.enqueueSync(uri, 'changed'));
             this.watcher.onDidDelete(uri => this.enqueueDelete(uri));
             context.subscriptions.push(this.watcher);
-            void this.syncWorkspace();
-        } catch (error) {
-            dispatchIndex('fail');
-            recordIndexError('Failed to open idea index', error, { phase: 'open' });
-            this.notifyStatusUpdated();
+
+            this.markerWatcher = vscode.workspace.createFileSystemWatcher('**/.reqlan');
+            this.markerWatcher.onDidCreate(() => {
+                void this.rediscoverAndSync(true);
+            });
+            this.markerWatcher.onDidDelete(() => {
+                void this.rediscoverAndSync(true);
+            });
+            context.subscriptions.push(this.markerWatcher);
+
+            context.subscriptions.push(
+                vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                    void this.rediscoverAndSync(true);
+                })
+            );
+
+            context.subscriptions.push(
+                vscode.window.onDidChangeWindowState(state => {
+                    if (!state.focused) {
+                        this.scheduleIdleCheck(IDLE_UNFOCUSED_MS);
+                        return;
+                    }
+                    if (this.idleSyncActive) {
+                        this.cancelSync();
+                    }
+                    this.scheduleIdleCheck(IDLE_QUIET_MS);
+                })
+            );
+
+            context.subscriptions.push({
+                dispose: () => this.clearIdleTimer()
+            });
+
+            this.scheduleIdleCheck(IDLE_QUIET_MS);
+
+            if (this.discoveryEmpty) {
+                void this.promptCreateBaseIfNeeded();
+            }
+        } catch {
+            // open/sync already recorded errors on per-base stores
         }
     }
 
     deactivate(): void {
-        const { canDispatchIndex, dispatchIndex } = this.analytical.getState();
-        if (canDispatchIndex('deactivate')) {
-            dispatchIndex('deactivate');
-        }
-        void this.sqlite?.close();
-        this.sqlite = undefined;
+        this.clearIdleTimer();
+        void this.registry.deactivateAll();
+        this.rewireRegistryListeners();
         this.watcher?.dispose();
+        this.watcher = undefined;
+        this.markerWatcher?.dispose();
+        this.markerWatcher = undefined;
+        this.activeBaseId = undefined;
     }
 
-    async syncWorkspace(): Promise<boolean> {
-        if (this.syncInFlight) {
-            return this.syncInFlight;
+    async syncWorkspace(baseId?: string): Promise<boolean> {
+        if (this.discoveryEmpty) {
+            await this.rediscoverAndSync(false);
+            if (this.discoveryEmpty) {
+                this.notifyStatus();
+                return false;
+            }
         }
-        this.syncInFlight = this.runSyncWorkspace().finally(() => {
-            this.syncInFlight = undefined;
-        });
-        return this.syncInFlight;
+        const files = await this.collectRqFiles();
+        if (baseId) {
+            return this.registry.syncBase(baseId, files);
+        }
+        return this.registry.syncAll(files);
     }
 
-    async clearAndRebuildIndex(): Promise<boolean> {
-        if (this.syncInFlight) {
-            await this.syncInFlight;
-        }
-        const dbPath = join(this.storagePath, 'ideas-index.sqlite');
-        const analytical = this.analytical.getState();
-
-        if (this.sqlite) {
-            this.sqlite.closeWithoutPersist();
-            this.sqlite = undefined;
-        }
-        await SqliteIndexStore.deleteDatabaseFile(dbPath);
-
-        try {
-            this.sqlite = await SqliteIndexStore.open(dbPath);
-        } catch (error) {
-            analytical.dispatchIndex('fail');
-            analytical.recordIndexError('Failed to reopen idea index after reset', error, { phase: 'open' });
-            this.notifyStatusUpdated();
+    async clearAndRebuildIndex(baseId?: string): Promise<boolean> {
+        if (this.discoveryEmpty) {
             return false;
         }
+        const files = await this.collectRqFiles();
+        const id = baseId ?? this.getActiveBaseId();
+        if (!id) {
+            return false;
+        }
+        return this.registry.clearAndRebuildBase(id, files);
+    }
 
-        analytical.clearFileIndexIssues();
-        analytical.clearLastError();
-        analytical.setIndexReady({ ideaCount: 0, edgeCount: 0 });
-        this.analytical.setState({
-            documentUpdates: [],
-            workspaceChanges: []
-        });
-        this.notifyCatalogUpdated();
-        this.notifyStatusUpdated();
-        return this.syncWorkspace();
+    cancelSync(baseId?: string): void {
+        this.registry.cancelSync(baseId);
+    }
+
+    /** Background mtime staleness check — cheap when nothing changed. */
+    async checkStaleFiles(): Promise<void> {
+        if (this.discoveryEmpty || this.idleCheckInFlight) {
+            return;
+        }
+        this.idleCheckInFlight = true;
+        this.idleSyncActive = true;
+        try {
+            const files = await this.collectRqFiles();
+            await this.registry.checkStaleAll(files);
+            this.notifyStatus();
+            this.notifyCatalog();
+        } finally {
+            this.idleSyncActive = false;
+            this.idleCheckInFlight = false;
+        }
     }
 
     async indexFile(uri: vscode.Uri): Promise<void> {
-        if (!this.sqlite) {
+        const entry = this.registry.baseForFilePath(uri.fsPath);
+        if (!entry) {
             return;
         }
-        const fileUri = toIndexFileUri(uri);
-        const workspaceRoot = this.workspaceRoot;
-        const analytical = this.analytical.getState();
+        await entry.index.indexFilePath(uri.fsPath);
+    }
 
-        let document: LangiumDocument;
-        try {
-            document = await this.loadDocument(uri);
-        } catch (error) {
-            analytical.recordFileIndexIssues(fileUri, [
-                fileIssueFromError('parse', error, 'Could not read or build document')
-            ]);
+    /**
+     * Explicit old→new index migrate so renamed .rq files do not leave duplicate idea rows.
+     */
+    async migrateRenamedFile(oldUri: vscode.Uri, newUri: vscode.Uri): Promise<void> {
+        const entry =
+            this.registry.baseForFilePath(newUri.fsPath) ??
+            this.registry.baseForFilePath(oldUri.fsPath);
+        if (!entry) {
+            return;
+        }
+        await entry.index.migrateRenamedFile(
+            toIndexFileUri(oldUri, entry.descriptor.root),
+            newUri.fsPath.endsWith('.rq') ? newUri.fsPath : undefined
+        );
+    }
+
+    /**
+     * Create `<folder>/.reqlan/` (empty dir marker), rediscover, and sync.
+     * Defaults to the first workspace folder.
+     */
+    async createBase(folderUri?: vscode.Uri): Promise<BaseDescriptor | undefined> {
+        const folder =
+            folderUri ??
+            vscode.workspace.workspaceFolders?.[0]?.uri;
+        if (!folder) {
+            void vscode.window.showWarningMessage('Open a workspace folder to create a reqlan base.');
+            return undefined;
+        }
+        await createBaseMarker(folder.fsPath);
+        await this.rediscoverAndSync(true);
+        const created = this.registry.list().find(b => b.root === folder.fsPath);
+        if (created) {
+            this.activeBaseId = created.id;
+            this.notifyStatus();
+            this.notifyCatalog();
+        }
+        return created;
+    }
+
+    async promptCreateBaseIfNeeded(): Promise<void> {
+        if (!this.discoveryEmpty || this.promptedCreateBase) {
+            return;
+        }
+        if (!vscode.workspace.workspaceFolders?.length) {
+            return;
+        }
+        this.promptedCreateBase = true;
+        const choice = await vscode.window.showInformationMessage(
+            'No reqlan base found. Create a base at the workspace root to enable the ideas index?',
+            'Create Base',
+            'Not now'
+        );
+        if (choice === 'Create Base') {
+            const created = await this.createBase();
+            if (created) {
+                void vscode.window.showInformationMessage(`Created reqlan base at ${created.label}`);
+            }
+        }
+    }
+
+    private async rediscoverAndSync(_resync: boolean): Promise<void> {
+        const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
+        const previousActive = this.activeBaseId;
+        const bases = this.registry.rediscover(roots);
+        this.rewireRegistryListeners();
+
+        if (bases.length === 0) {
+            this.activeBaseId = undefined;
+            this.notifyStatus();
             return;
         }
 
-        const parseIssues = collectParseIssues(document);
-        const extractedRaw = extractIndexedDocument(document);
-        if (!extractedRaw) {
-            const issues = parseIssues.length > 0
-                ? parseIssues
-                : [fileIssue('No reqlan model found in file', 'extract')];
-            analytical.recordFileIndexIssues(fileUri, issues);
-            return;
-        }
-
-        const extracted = workspaceRoot
-            ? normalizeIndexedDocument(extractedRaw, workspaceRoot)
-            : extractedRaw;
-        const ideaNames = extracted.ideas.map(idea => idea.name).filter(Boolean);
-
-        const existingHash = await this.sqlite.getDocumentHash(fileUri);
-        const indexingIssues = [...parseIssues, ...unnamedIdeaIssues(extracted.ideas)];
-        const ideasToPersist = validIdeas(extracted.ideas);
-
-        if (existingHash === extracted.contentHash && indexingIssues.length === 0) {
-            const storedEdges = await this.sqlite.countEdgesFromFile(fileUri);
-            if (storedEdges >= extracted.edges.length) {
-                analytical.clearFileIndexIssuesForFile(fileUri);
-                return;
-            }
-        }
-
-        for (const idea of ideasToPersist) {
-            idea.contentHash = extracted.contentHash;
-        }
-
-        if (ideasToPersist.length > 0) {
-            try {
-                await this.sqlite.upsertDocument(fileUri, extracted.contentHash, ideasToPersist, extracted.edges);
-            } catch (error) {
-                indexingIssues.push(
-                    fileIssueFromError(
-                        'persist',
-                        error,
-                        'Failed to persist ideas to index',
-                        0,
-                        0,
-                        ideaNames
-                    )
-                );
-            }
-        }
-
-        if (indexingIssues.length > 0) {
-            analytical.recordFileIndexIssues(fileUri, indexingIssues);
-            if (ideasToPersist.length === 0) {
-                return;
-            }
+        if (previousActive && this.registry.get(previousActive)) {
+            this.activeBaseId = previousActive;
         } else {
-            analytical.clearFileIndexIssuesForFile(fileUri);
+            const fromEditor = this.activeEditorPath();
+            const selected = fromEditor
+                ? baseForPath(bases, fromEditor)
+                : undefined;
+            this.activeBaseId = (selected ?? this.registry.selectDefault()?.descriptor)?.id;
         }
 
-        if (ideasToPersist.length > 0) {
-            analytical.recordDocumentUpdate(fileUri, ideasToPersist.length);
-            this.notifyCatalogUpdated();
-        }
+        await this.registry.activateAll();
+        const files = await this.collectRqFiles();
+        await this.registry.syncAll(files);
+        this.notifyStatus();
+        this.notifyCatalog();
+        this.scheduleIdleCheck(IDLE_QUIET_MS);
     }
 
-    private get workspaceRoot(): string | undefined {
-        return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    private rewireRegistryListeners(): void {
+        this.registryCatalogUnsub?.();
+        this.registryStatusUnsub?.();
+        this.registryCatalogUnsub = this.registry.subscribeCatalogUpdates(() => this.notifyCatalog());
+        this.registryStatusUnsub = this.registry.subscribeStatusUpdates(() => this.notifyStatus());
     }
 
-    private async runSyncWorkspace(): Promise<boolean> {
-        if (!this.sqlite) {
-            return false;
-        }
-        const analytical = this.analytical.getState();
-        if (!analytical.dispatchIndex('sync')) {
-            return this.waitForReadyOrError();
-        }
-        analytical.clearFileIndexIssues();
-        analytical.clearLastError();
-        this.notifyStatusUpdated();
-        try {
-            const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**');
-            this.syncProgress = { processed: 0, total: files.length };
-            this.notifyStatusUpdated();
-            for (const uri of files) {
-                await this.indexFile(uri);
-                this.syncProgress = {
-                    processed: this.syncProgress.processed + 1,
-                    total: this.syncProgress.total
-                };
-                this.notifyStatusUpdated();
-            }
-            if (!analytical.dispatchIndex('synced')) {
-                analytical.recordIndexError(
-                    'Index sync finished but state transition to ready failed',
-                    undefined,
-                    { phase: 'transition' }
-                );
-            }
-            const counts = await this.sqlite.counts();
-            analytical.setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
-            this.syncProgress = undefined;
-            this.notifyCatalogUpdated();
-            this.notifyStatusUpdated();
-            return this.isReady;
-        } catch (error) {
-            analytical.dispatchIndex('fail');
-            analytical.recordIndexError('Workspace sync failed', error, { phase: 'sync' });
-            this.syncProgress = undefined;
-            this.notifyStatusUpdated();
-            return false;
-        }
-    }
-
-    private async waitForReadyOrError(timeoutMs = 120_000): Promise<boolean> {
-        const started = Date.now();
-        while (Date.now() - started < timeoutMs) {
-            const state = this.analytical.getState().indexState;
-            if (state === 'ready') {
-                return true;
-            }
-            if (state === 'error') {
-                return false;
-            }
-            await delay(100);
-        }
-        return this.isReady;
+    private async collectRqFiles(): Promise<string[]> {
+        const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**');
+        const filterCache = new Map<string, ReturnType<typeof loadRqIgnore>>();
+        return files
+            .map(uri => uri.fsPath)
+            .filter(fsPath => {
+                const entry = this.registry.baseForFilePath(fsPath);
+                if (!entry) {
+                    return true;
+                }
+                let filter = filterCache.get(entry.descriptor.id);
+                if (!filter) {
+                    filter = loadRqIgnore(entry.descriptor.root);
+                    filterCache.set(entry.descriptor.id, filter);
+                }
+                return !isIgnoredPath(filter, entry.descriptor.root, fsPath, false);
+            });
     }
 
     private enqueueSync(uri: vscode.Uri, change: 'created' | 'changed'): void {
-        this.analytical.getState().recordWorkspaceChange(uri.toString(), change);
-        this.syncQueue = this.syncQueue.then(async () => {
-            if (this.syncInFlight) {
-                await this.syncInFlight;
-                return;
-            }
-            const analytical = this.analytical.getState();
-            if (!analytical.canDispatchIndex('sync')) {
-                return;
-            }
-            analytical.dispatchIndex('sync');
-            this.notifyStatusUpdated();
-            try {
-                await this.indexFile(uri);
-                if (this.sqlite) {
-                    const counts = await this.sqlite.counts();
-                    analytical.setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
-                }
-                analytical.dispatchIndex('synced');
-            } catch (error) {
-                recordCaughtFileIssue(
-                    analytical.recordFileIndexIssues,
-                    toIndexFileUri(uri),
-                    error,
-                    `Failed to index ${vscode.workspace.asRelativePath(uri)}`
-                );
-                analytical.dispatchIndex('synced');
-            } finally {
-                this.notifyStatusUpdated();
-            }
-        });
+        const entry = this.registry.baseForFilePath(uri.fsPath);
+        if (!entry) {
+            return;
+        }
+        entry.index.enqueueIndex(uri.fsPath, change);
+        this.scheduleIdleCheck(IDLE_QUIET_MS);
     }
 
     private enqueueDelete(uri: vscode.Uri): void {
-        this.analytical.getState().recordWorkspaceChange(uri.toString(), 'deleted');
-        this.syncQueue = this.syncQueue.then(async () => {
-            await this.sqlite?.removeDocument(toIndexFileUri(uri));
-            this.analytical.getState().clearFileIndexIssuesForFile(toIndexFileUri(uri));
-            if (this.sqlite) {
-                const counts = await this.sqlite.counts();
-                this.analytical.getState().setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
+        const entry = this.registry.baseForFilePath(uri.fsPath);
+        if (!entry) {
+            // Try each base with indexed uri form
+            for (const b of this.registry.list()) {
+                const registered = this.registry.get(b.id);
+                registered?.index.enqueueDelete(toIndexFileUri(uri, b.root));
             }
-            this.notifyCatalogUpdated();
-            this.notifyStatusUpdated();
-        });
+            this.scheduleIdleCheck(IDLE_QUIET_MS);
+            return;
+        }
+        entry.index.enqueueDelete(toIndexFileUri(uri, entry.descriptor.root));
+        this.scheduleIdleCheck(IDLE_QUIET_MS);
     }
 
-    private notifyCatalogUpdated(): void {
+    private scheduleIdleCheck(delayMs: number): void {
+        this.clearIdleTimer();
+        if (this.discoveryEmpty) {
+            return;
+        }
+        this.idleTimer = setTimeout(() => {
+            this.idleTimer = undefined;
+            void this.checkStaleFiles();
+        }, delayMs);
+    }
+
+    private clearIdleTimer(): void {
+        if (this.idleTimer !== undefined) {
+            clearTimeout(this.idleTimer);
+            this.idleTimer = undefined;
+        }
+    }
+
+    private activeEditorPath(): string | undefined {
+        return vscode.window.activeTextEditor?.document.uri.fsPath;
+    }
+
+    /**
+     * Fire-and-forget: if a base is not ready, open + soft-sync via the registry.
+     * Coalesces concurrent nudges for the same base. Does not block the switcher.
+     */
+    private scheduleBaseCatchUp(baseId: string): void {
+        const entry = this.registry.get(baseId);
+        if (!entry || entry.index.isReady || entry.index.state === 'syncing' || entry.index.state === 'opening') {
+            return;
+        }
+        if (this.catchUpInFlight.has(baseId)) {
+            return;
+        }
+        const work = (async () => {
+            try {
+                const files = await this.collectRqFiles();
+                await this.registry.ensureBaseReady(baseId, files);
+            } catch {
+                // Errors are recorded on the per-base store.
+            } finally {
+                this.notifyStatus();
+                this.notifyCatalog();
+                this.scheduleIdleCheck(IDLE_QUIET_MS);
+            }
+        })().finally(() => {
+            this.catchUpInFlight.delete(baseId);
+        });
+        this.catchUpInFlight.set(baseId, work);
+    }
+
+    private notifyCatalog(): void {
         for (const listener of this.catalogListeners) {
             listener();
         }
     }
 
-    private notifyStatusUpdated(): void {
+    private notifyStatus(): void {
         for (const listener of this.statusListeners) {
             listener();
         }
     }
-
-    private async loadDocument(uri: vscode.Uri): Promise<LangiumDocument> {
-        const content = await vscode.workspace.fs.readFile(uri);
-        const text = Buffer.from(content).toString('utf8');
-        const langiumUri = URI.parse(uri.toString());
-        const document = this.services.shared.workspace.LangiumDocumentFactory.fromString(text, langiumUri);
-        await this.services.shared.workspace.DocumentBuilder.build([document], { validation: false });
-        return document;
-    }
-}
-
-function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }

@@ -1,32 +1,44 @@
 /**
- * Paginated ideas/references webview per ["../../../../reqlan rq/extension/module/webview.rq"]
+ * Ideas Summary webview host.
+ * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_summary]
+ * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ontology_aligned_tabs]
  */
 import * as vscode from 'vscode';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
-import type { IndexStatusSnapshot } from '../analytical_submodule/index-store/index-status.js';
+import type { IndexStatusSnapshot } from '@reqlan/analytical';
 import {
+    ATTRIBUTES_PAGE_SIZE,
     IDEAS_PAGE_SIZE,
     IDEASETS_PAGE_SIZE,
     REFERENCES_PAGE_SIZE,
+    type AttributesTableQuery,
     type ExtensionToWebviewMessage,
     type GraphViewQuery,
     type GraphViewSlice,
     type IdeasTableQuery,
     type IdeasetsTableQuery,
     type IndexStatusView,
+    type BaseStatusView,
     type ReferenceFilter,
     type ReferencesTableQuery,
+    type TableUiPersistedState,
     type WebviewToExtensionMessage
 } from './shared/messages.js';
 import {
     GRAPH_UI_WORKSPACE_STATE_KEY,
+    graphUiWorkspaceStateKey,
     normalizeGraphUiState,
     type GraphUiPersistedState
 } from './shared/graph-ui-state.js';
+import {
+    TABLE_UI_WORKSPACE_STATE_KEY,
+    normalizeTableUiState
+} from './shared/table-ui-state.js';
 import type { IdeasSummaryNavigateIntent } from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { getPhonebookLink } from '../shared/phonebook.js';
 import {
     buildFocusSignals,
     buildGraphViewSlice,
@@ -45,21 +57,32 @@ const DEFAULT_IDEAS_QUERY: IdeasTableQuery = {
     sortBy: 'path',
     sortDir: 'asc',
     attributeColumns: [],
-    referenceFilters: []
+    referenceFilters: [],
+    columnFilters: []
 };
 
 const DEFAULT_IDEASETS_QUERY: IdeasetsTableQuery = {
     page: 0,
     pageSize: IDEASETS_PAGE_SIZE,
     sortBy: 'path',
-    sortDir: 'asc'
+    sortDir: 'asc',
+    columnFilters: []
 };
 
 const DEFAULT_REFERENCES_QUERY: ReferencesTableQuery = {
     page: 0,
     pageSize: REFERENCES_PAGE_SIZE,
     sortBy: 'source',
-    sortDir: 'asc'
+    sortDir: 'asc',
+    columnFilters: []
+};
+
+const DEFAULT_ATTRIBUTES_QUERY: AttributesTableQuery = {
+    page: 0,
+    pageSize: ATTRIBUTES_PAGE_SIZE,
+    sortBy: 'ideaCount',
+    sortDir: 'desc',
+    columnFilters: []
 };
 
 const DEFAULT_GRAPH_QUERY: GraphViewQuery = {
@@ -114,6 +137,7 @@ export class IdeasSummaryPanel {
     private ideasQuery: IdeasTableQuery = { ...DEFAULT_IDEAS_QUERY };
     private ideasetsQuery: IdeasetsTableQuery = { ...DEFAULT_IDEASETS_QUERY };
     private referencesQuery: ReferencesTableQuery = { ...DEFAULT_REFERENCES_QUERY };
+    private attributesQuery: AttributesTableQuery = { ...DEFAULT_ATTRIBUTES_QUERY };
     private graphQuery: GraphViewQuery = { ...DEFAULT_GRAPH_QUERY };
 
     private statusPostTimer: ReturnType<typeof setTimeout> | undefined;
@@ -165,12 +189,25 @@ export class IdeasSummaryPanel {
 
         this.context.subscriptions.push(this.panel);
 
+        if (initialIntent?.baseId) {
+            submodule.index.setActiveBaseId(initialIntent.baseId);
+        } else {
+            const editorPath = vscode.window.activeTextEditor?.document.uri.fsPath;
+            if (editorPath) {
+                submodule.index.activateBaseForPath(editorPath);
+            }
+        }
+
         if (initialIntent) {
             queueMicrotask(() => this.applyNavigateIntent(initialIntent));
         }
     }
 
     applyNavigateIntent(intent: IdeasSummaryNavigateIntent): void {
+        if (intent.baseId) {
+            this.submodule.index.setActiveBaseId(intent.baseId);
+            this.reloadGraphUiForActiveBase();
+        }
         if (intent.pathFilter) {
             this.ideasQuery = {
                 ...this.ideasQuery,
@@ -216,6 +253,8 @@ export class IdeasSummaryPanel {
             switch (message.type) {
                 case 'ready':
                     this.postGraphUiState();
+                    this.postTableUiState();
+                    this.postOverviewLinks();
                     void this.sendIndexStatus();
                     void this.bootstrapData();
                     break;
@@ -224,6 +263,10 @@ export class IdeasSummaryPanel {
                     break;
                 case 'refreshIndex':
                     await this.refreshIndexData();
+                    break;
+                case 'cancelIndexSync':
+                    this.submodule.index.cancelSync();
+                    await this.sendIndexStatus();
                     break;
                 case 'clearAndRebuildIndex': {
                     const confirmed = await vscode.window.showWarningMessage(
@@ -238,6 +281,16 @@ export class IdeasSummaryPanel {
                     await this.refreshIndexData();
                     break;
                 }
+                case 'selectBase':
+                    this.submodule.index.setActiveBaseId(message.baseId);
+                    this.reloadGraphUiForActiveBase();
+                    await this.rebindActiveBaseViews();
+                    break;
+                case 'createBase':
+                    await this.submodule.index.createBase();
+                    this.reloadGraphUiForActiveBase();
+                    await this.refreshIndexData();
+                    break;
                 case 'loadIdeas':
                     this.ideasQuery = message.query;
                     await this.sendIdeasPage();
@@ -249,6 +302,16 @@ export class IdeasSummaryPanel {
                 case 'loadReferences':
                     this.referencesQuery = message.query;
                     await this.sendReferencesPage();
+                    break;
+                case 'loadAttributes':
+                    this.attributesQuery = message.query;
+                    await this.sendAttributesPage();
+                    break;
+                case 'loadTimeline':
+                    await this.sendTimelinePage();
+                    break;
+                case 'overviewSearch':
+                    await this.sendOverviewSearch(message.query);
                     break;
                 case 'loadGraph': {
                     this.graphQuery = message.query;
@@ -271,11 +334,24 @@ export class IdeasSummaryPanel {
                 case 'openIdea':
                     await openIndexFile(message.fileUri, message.line, message.column);
                     break;
+                case 'openExternal':
+                    await vscode.env.openExternal(vscode.Uri.parse(message.href));
+                    break;
+                case 'openExport':
+                    if (message.format === 'pdf') {
+                        await vscode.commands.executeCommand('reqlan.exportPdf');
+                    } else {
+                        await vscode.commands.executeCommand('reqlan.exportHtml');
+                    }
+                    break;
                 case 'dumpFullGraph':
                     await this.sendFullGraph();
                     break;
                 case 'persistGraphUiState':
                     await this.persistGraphUiState(message.state);
+                    break;
+                case 'persistTableUiState':
+                    await this.persistTableUiState(message.state);
                     break;
             }
         } catch (error) {
@@ -297,7 +373,11 @@ export class IdeasSummaryPanel {
     }
 
     private readGraphUiState(): GraphUiPersistedState {
-        return normalizeGraphUiState(this.context.workspaceState.get(GRAPH_UI_WORKSPACE_STATE_KEY));
+        const key = graphUiWorkspaceStateKey(this.submodule.index.getActiveBaseId());
+        const raw =
+            this.context.workspaceState.get(key) ??
+            this.context.workspaceState.get(GRAPH_UI_WORKSPACE_STATE_KEY);
+        return normalizeGraphUiState(raw);
     }
 
     private postGraphUiState(): void {
@@ -312,6 +392,45 @@ export class IdeasSummaryPanel {
         this.post({ type: 'graphUiState', state });
     }
 
+    private readTableUiState(): TableUiPersistedState {
+        const raw = this.context.workspaceState.get(TABLE_UI_WORKSPACE_STATE_KEY);
+        return normalizeTableUiState(raw);
+    }
+
+    private postTableUiState(): void {
+        const state = this.readTableUiState();
+        if (state.ideas.groupBy) {
+            this.ideasQuery = { ...this.ideasQuery, groupBy: state.ideas.groupBy };
+        }
+        if (state.references.groupBy) {
+            this.referencesQuery = { ...this.referencesQuery, groupBy: state.references.groupBy };
+        }
+        this.post({ type: 'tableUiState', state });
+    }
+
+    private async persistTableUiState(raw: unknown): Promise<void> {
+        const state = normalizeTableUiState(raw);
+        await this.context.workspaceState.update(TABLE_UI_WORKSPACE_STATE_KEY, state);
+    }
+
+    private postOverviewLinks(): void {
+        const site = getPhonebookLink('site');
+        const github = getPhonebookLink('github');
+        const email = getPhonebookLink('email');
+        this.post({
+            type: 'overviewLinks',
+            links: [
+                { id: site.id, label: site.label, href: site.href },
+                { id: github.id, label: github.label, href: github.href },
+                { id: email.id, label: 'Support', href: email.href }
+            ]
+        });
+    }
+
+    private reloadGraphUiForActiveBase(): void {
+        this.postGraphUiState();
+    }
+
     private async persistGraphUiState(raw: unknown): Promise<void> {
         const state = normalizeGraphUiState(raw);
         this.graphQuery = {
@@ -319,19 +438,31 @@ export class IdeasSummaryPanel {
             maxNodes: state.maxNodes,
             truncationBasis: state.truncationBasis
         };
+        const key = graphUiWorkspaceStateKey(this.submodule.index.getActiveBaseId());
+        await this.context.workspaceState.update(key, state);
         await this.context.workspaceState.update(GRAPH_UI_WORKSPACE_STATE_KEY, state);
     }
 
     private async refreshIndexData(): Promise<void> {
         await this.submodule.index.syncWorkspace();
+        await this.rebindActiveBaseViews();
+    }
+
+    /** Rebind status/tables/graph to the active base store — no index sync. */
+    private async rebindActiveBaseViews(): Promise<void> {
         await this.sendIndexStatus();
         if (this.submodule.index.isReady) {
             this.ideasQuery = { ...this.ideasQuery, page: 0 };
             this.ideasetsQuery = { ...this.ideasetsQuery, page: 0 };
             this.referencesQuery = { ...this.referencesQuery, page: 0 };
+            this.attributesQuery = { ...this.attributesQuery, page: 0 };
             await this.sendIdeasPage();
             await this.sendIdeasetsPage();
             await this.sendReferencesPage();
+            await this.sendAttributesPage();
+            if (this.graphSlicePending || this.graphQuery.centerId) {
+                void this.runGraphSlice(++this.graphSliceGeneration);
+            }
         }
     }
 
@@ -354,11 +485,30 @@ export class IdeasSummaryPanel {
             await this.sendIdeasPage();
             await this.sendIdeasetsPage();
             await this.sendReferencesPage();
+            await this.sendAttributesPage();
         }
     }
 
     private async sendIndexStatus(): Promise<void> {
-        this.post({ type: 'indexStatus', status: toIndexStatusView(this.submodule.index.getStatusSnapshot()) });
+        const index = this.submodule.index;
+        const bases = index.statusByBase().map(({ base, status }) => ({
+            id: base.id,
+            label: base.label,
+            root: base.root,
+            ready: status.ready,
+            ideaCount: status.ideaCount,
+            edgeCount: status.edgeCount,
+            fileIssueCount: status.fileIssueCount,
+            state: status.state
+        }));
+        this.post({
+            type: 'indexStatus',
+            status: toIndexStatusView(index.getStatusSnapshot(), {
+                activeBaseId: index.getActiveBaseId(),
+                discoveryEmpty: index.discoveryEmpty,
+                bases
+            })
+        });
         // Never await the graph build on the status path — sync progress must keep flowing.
         if (this.graphSlicePending && this.submodule.index.isReady) {
             void this.runGraphSlice(this.graphSliceGeneration);
@@ -429,6 +579,197 @@ export class IdeasSummaryPanel {
             query: resolvedQuery,
             total,
             rows
+        });
+    }
+
+    private async sendAttributesPage(): Promise<void> {
+        if (!this.submodule.index.isReady) {
+            return;
+        }
+        const store = this.submodule.index.indexStore;
+        const query = normalizeAttributesQuery(this.attributesQuery);
+        const total = await store.countAttributes(query);
+        const safePage = clampPage(query.page, total, query.pageSize);
+        const resolvedQuery = { ...query, page: safePage };
+        const rows = await store.listAttributesPage(resolvedQuery);
+        this.post({
+            type: 'attributesPage',
+            query: resolvedQuery,
+            total,
+            rows
+        });
+    }
+
+    private async sendTimelinePage(): Promise<void> {
+        const indexEvents = (this.submodule.index.getStatusSnapshot().recentDocumentUpdates ?? [])
+            .map(update => ({
+                id: `index:doc:${update.fileUri}:${update.at}`,
+                source: 'index' as const,
+                at: update.at,
+                label: 'Indexed',
+                detail: vscode.workspace.asRelativePath(update.fileUri),
+                fileUri: update.fileUri,
+                lineStart: 0
+            }));
+        const workspaceEvents = (this.submodule.index.getStatusSnapshot().recentWorkspaceChanges ?? [])
+            .map(change => ({
+                id: `index:ws:${change.fileUri}:${change.at}:${change.change}`,
+                source: 'index' as const,
+                at: change.at,
+                label: `File ${change.change}`,
+                detail: vscode.workspace.asRelativePath(change.fileUri),
+                fileUri: change.fileUri,
+                lineStart: 0
+            }));
+
+        let gitEvents: Array<{
+            id: string;
+            source: 'git';
+            at: number;
+            label: string;
+            detail: string;
+            fileUri: string;
+            lineStart: number;
+        }> = [];
+
+        if (this.submodule.index.isReady) {
+            const rows = await this.submodule.index.indexStore.listRecentGitIdeaEvents(80);
+            gitEvents = rows
+                .map(row => {
+                    const at = Date.parse(row.at);
+                    if (!Number.isFinite(at)) {
+                        return undefined;
+                    }
+                    return {
+                        id: `git:${row.ideaId}:${row.kind}:${row.at}`,
+                        source: 'git' as const,
+                        at,
+                        label: row.kind === 'created' ? 'Created' : 'Modified',
+                        detail: `${row.name} · ${vscode.workspace.asRelativePath(row.fileUri)}`,
+                        fileUri: row.fileUri,
+                        lineStart: row.lineStart
+                    };
+                })
+                .filter((event): event is NonNullable<typeof event> => Boolean(event));
+        }
+
+        const events = [...gitEvents, ...indexEvents, ...workspaceEvents]
+            .sort((left, right) => right.at - left.at)
+            .slice(0, 120);
+
+        this.post({ type: 'timelinePage', events });
+    }
+
+    private async sendOverviewSearch(rawQuery: string): Promise<void> {
+        const query = rawQuery.trim();
+        if (!query || !this.submodule.index.isReady) {
+            this.post({
+                type: 'overviewSearchResult',
+                result: { query, sections: [] }
+            });
+            return;
+        }
+
+        const store = this.submodule.index.indexStore;
+        const sampleSize = 5;
+
+        const ideasQuery = normalizeIdeasQuery({
+            ...DEFAULT_IDEAS_QUERY,
+            search: query,
+            pageSize: sampleSize
+        });
+        const ideasetsQuery = normalizeIdeasetsQuery({
+            ...DEFAULT_IDEASETS_QUERY,
+            search: query,
+            pageSize: sampleSize
+        });
+        const referencesQuery = normalizeReferencesQuery({
+            ...DEFAULT_REFERENCES_QUERY,
+            search: query,
+            pageSize: sampleSize
+        });
+        const attributesQuery = normalizeAttributesQuery({
+            ...DEFAULT_ATTRIBUTES_QUERY,
+            search: query,
+            pageSize: sampleSize,
+            sortBy: 'ideaCount',
+            sortDir: 'desc'
+        });
+
+        const [
+            ideasTotal,
+            ideasRows,
+            ideasetsTotal,
+            ideasetsRows,
+            referencesTotal,
+            referencesRows,
+            attributesTotal,
+            attributesRows
+        ] = await Promise.all([
+            store.countIdeas(ideasQuery),
+            store.listIdeasPage(ideasQuery),
+            store.countIdeasets(ideasetsQuery),
+            store.listIdeasetsPage(ideasetsQuery),
+            store.countReferences(referencesQuery),
+            store.listReferencesPage(referencesQuery),
+            store.countAttributes(attributesQuery),
+            store.listAttributesPage(attributesQuery)
+        ]);
+
+        this.post({
+            type: 'overviewSearchResult',
+            result: {
+                query,
+                sections: [
+                    {
+                        surface: 'ideas',
+                        label: 'Ideas',
+                        total: ideasTotal,
+                        hits: ideasRows.map(row => ({
+                            kind: 'idea' as const,
+                            title: row.title,
+                            detail: vscode.workspace.asRelativePath(row.path),
+                            fileUri: row.fileUri,
+                            lineStart: row.lineStart
+                        }))
+                    },
+                    {
+                        surface: 'ideasets',
+                        label: 'Ideasets',
+                        total: ideasetsTotal,
+                        hits: ideasetsRows.map(row => ({
+                            kind: 'ideaset' as const,
+                            title: row.name,
+                            detail: vscode.workspace.asRelativePath(row.path),
+                            fileUri: row.fileUri,
+                            lineStart: row.lineStart
+                        }))
+                    },
+                    {
+                        surface: 'attributes',
+                        label: 'Attributes',
+                        total: attributesTotal,
+                        hits: attributesRows.map(row => ({
+                            kind: 'attribute' as const,
+                            title: row.key,
+                            detail: `${row.ideaCount} ideas · ${row.valueCount} values`,
+                            attributeKey: row.key
+                        }))
+                    },
+                    {
+                        surface: 'references',
+                        label: 'References',
+                        total: referencesTotal,
+                        hits: referencesRows.map(row => ({
+                            kind: 'reference' as const,
+                            title: `${row.sourceName} → ${row.targetName}`,
+                            detail: `${vscode.workspace.asRelativePath(row.sourcePath)} · ${row.referenceType}`,
+                            fileUri: row.sourceFileUri,
+                            lineStart: row.sourceLineStart
+                        }))
+                    }
+                ]
+            }
         });
     }
 
@@ -585,7 +926,9 @@ function normalizeIdeasQuery(query: IdeasTableQuery): IdeasTableQuery {
         sortBy: query.sortBy ?? 'path',
         sortDir: query.sortDir ?? 'asc',
         attributeColumns: [...new Set(query.attributeColumns)],
-        referenceFilters: dedupeReferenceFilters(query.referenceFilters ?? [])
+        referenceFilters: dedupeReferenceFilters(query.referenceFilters ?? []),
+        columnFilters: normalizeColumnFilters(query.columnFilters),
+        groupBy: query.groupBy === 'kind' ? 'kind' : undefined
     };
 }
 
@@ -602,13 +945,29 @@ function dedupeReferenceFilters(filters: ReferenceFilter[]): ReferenceFilter[] {
     return result;
 }
 
+function normalizeColumnFilters(
+    filters: IdeasTableQuery['columnFilters']
+): IdeasTableQuery['columnFilters'] {
+    if (!filters?.length) {
+        return [];
+    }
+    return filters
+        .filter(filter => typeof filter.column === 'string' && filter.column.length > 0)
+        .map(filter => ({
+            column: filter.column,
+            text: filter.text?.trim() || undefined,
+            selected: filter.selected?.filter(value => value.length > 0)
+        }));
+}
+
 function normalizeIdeasetsQuery(query: IdeasetsTableQuery): IdeasetsTableQuery {
     return {
         page: Math.max(0, query.page),
         pageSize: query.pageSize || IDEASETS_PAGE_SIZE,
         search: query.search?.trim() || undefined,
         sortBy: query.sortBy ?? 'path',
-        sortDir: query.sortDir ?? 'asc'
+        sortDir: query.sortDir ?? 'asc',
+        columnFilters: normalizeColumnFilters(query.columnFilters)
     };
 }
 
@@ -618,11 +977,31 @@ function normalizeReferencesQuery(query: ReferencesTableQuery): ReferencesTableQ
         pageSize: query.pageSize || REFERENCES_PAGE_SIZE,
         search: query.search?.trim() || undefined,
         sortBy: query.sortBy ?? 'source',
-        sortDir: query.sortDir ?? 'asc'
+        sortDir: query.sortDir ?? 'asc',
+        columnFilters: normalizeColumnFilters(query.columnFilters),
+        groupBy: query.groupBy === 'type' ? 'type' : undefined
     };
 }
 
-export function toIndexStatusView(snapshot: IndexStatusSnapshot): IndexStatusView {
+function normalizeAttributesQuery(query: AttributesTableQuery): AttributesTableQuery {
+    return {
+        page: Math.max(0, query.page),
+        pageSize: query.pageSize || ATTRIBUTES_PAGE_SIZE,
+        search: query.search?.trim() || undefined,
+        sortBy: query.sortBy ?? 'ideaCount',
+        sortDir: query.sortDir ?? 'desc',
+        columnFilters: normalizeColumnFilters(query.columnFilters)
+    };
+}
+
+export function toIndexStatusView(
+    snapshot: IndexStatusSnapshot,
+    extras?: {
+        activeBaseId?: string;
+        discoveryEmpty?: boolean;
+        bases?: BaseStatusView[];
+    }
+): IndexStatusView {
     const recentActivity = [
         ...snapshot.recentDocumentUpdates.map(update => ({
             label: 'Indexed',
@@ -647,7 +1026,10 @@ export function toIndexStatusView(snapshot: IndexStatusSnapshot): IndexStatusVie
         lastError: snapshot.lastError,
         fileIssues: snapshot.fileIssues,
         syncProgress: snapshot.syncProgress,
-        recentActivity
+        recentActivity,
+        activeBaseId: extras?.activeBaseId,
+        discoveryEmpty: extras?.discoveryEmpty,
+        bases: extras?.bases
     };
 }
 

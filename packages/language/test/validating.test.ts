@@ -50,10 +50,41 @@ describe('Validating', () => {
         expect(duplicateAliasErrors[0].range.start.line).toBe(3);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
-    test('reports duplicate when local idea shares imported idea name', async () => {
+    // rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_graph_resolution]
+    test('allows local idea when import uses an alias', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea as myideaalias
+            myidea {
+                this should not cause a conflict.
+            }
+        `);
+
+        const duplicateErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'myidea' is already defined in this file.")
+        );
+        expect(duplicateErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
+    test('allows local idea when qualified import uses an alias', async () => {
+        const document = await parse(s`
+            import "subreqs.rq".features.myidea as myideaalias
+            myidea local idea body
+        `);
+
+        const duplicateErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'myidea' is already defined in this file.")
+        );
+        expect(duplicateErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
+    test('reports duplicate when local idea shares unaliased import binding', async () => {
+        const document = await parse(s`
+            from "subreqs.rq" import myidea
             myidea local idea body
         `);
 
@@ -65,16 +96,16 @@ describe('Validating', () => {
         expect(duplicateErrors[0].range.start.line).toBe(1);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
-    test('reports duplicate when local idea shares unaliased import binding', async () => {
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
+    test('reports duplicate when local idea shares import alias', async () => {
         const document = await parse(s`
-            from "subreqs.rq" import myidea
-            myidea local idea body
+            from "subreqs.rq" import myidea as sharedname
+            sharedname local idea body
         `);
 
         const duplicateErrors = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
-                && diagnostic.message.includes("'myidea' is already defined in this file.")
+                && diagnostic.message.includes("'sharedname' is already defined in this file.")
         );
         expect(duplicateErrors).toHaveLength(1);
         expect(duplicateErrors[0].range.start.line).toBe(1);

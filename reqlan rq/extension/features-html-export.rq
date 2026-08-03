@@ -6,7 +6,8 @@ html_export {
     The extension should support building documentation as html from the requirement graph.
     Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
     Core export pipeline lives in `@reqlan/analytical` (`exportHtml` / `AnalysisApi.exportHtml`); the extension command palette and CLI (`reqlan export`) are thin hosts.
-    A command palette action should open [html_export_form] and export requirements to html as a multi-file static site (single-file mode remains optional via [html_export_runtime_modes]).
+    A command palette action (and the Ideas Summary link) should open ["./features-export.rq".export_webview] with HTML selected and export requirements to html as a multi-file static site (single-file mode remains optional via [html_export_runtime_modes]).
+    HTML-specific form fields live under [html_export_form] within that general export webview.
     [html_export_form]
     [html_export_multi_file]
     [html_export_internal_links]
@@ -27,13 +28,14 @@ html_export {
 }
 
 html_export_form {
-    The extension HTML export command should open a webview form instead of a chain of QuickPick prompts.
-    Simple options: scope, output folder, export name, and runtime mode.
-    Advanced settings should be collapsed by default behind an expandable section (template, cluster strategy, page-family toggles, exclude-secret, url base, header link, print entry, neighbourhood graph node cap).
-    Form defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/`.
+    HTML export options are hosted inside the general ["./features-export.rq".export_webview] (not a separate HTML-only panel long-term).
+    When format is HTML: simple options include scope, output folder, export name, and runtime mode.
+    Advanced HTML settings should be collapsed by default behind an expandable section (template, cluster strategy, page-family toggles, exclude-secret, url base, header link, print entry, neighbourhood graph node cap).
+    Form defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/` (shared with other export formats).
     Saving settings or running export writes that file; reopening the form reloads the last values.
-    Export still calls `@reqlan/analytical` `exportHtml` with an `ExportRequest` built from the form.
-    @status done
+    HTML export still calls `@reqlan/analytical` `exportHtml` with an `ExportRequest` built from the form.
+    Current implementation is HTML-only and should be generalized; until then the existing panel satisfies the HTML path.
+    @status partial
     @implementation (
         ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
         ["../../packages/extension/src/analytical_submodule/export/export-form-panel.ts"]
@@ -100,7 +102,7 @@ html_export_file_pages {
         ["../../packages/analytical/src/export/html-export-template.ts"]
         ["../../packages/analytical/src/export/write-html-export.ts"]
         ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/rqconfig.schema.json"]
+        ["../../packages/extension/schemas/config.schema.json"]
         ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
     )
     @tests (
@@ -120,12 +122,12 @@ html_export_code_reference_pages {
         ["../../packages/analytical/src/export/html-export-utils.ts"]
         ["../../packages/analytical/src/export/write-html-export.ts"]
         ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/rqconfig.schema.json"]
+        ["../../packages/extension/schemas/config.schema.json"]
         ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/language/test/rqconfig.test.ts"]
+        ["../../packages/language/test/config.test.ts"]
     )
 }
 
@@ -160,12 +162,12 @@ html_export_attribute_pages {
         ["../../packages/analytical/src/export/html-export-template.ts"]
         ["../../packages/analytical/src/export/write-html-export.ts"]
         ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/rqconfig.schema.json"]
+        ["../../packages/extension/schemas/config.schema.json"]
         ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/language/test/rqconfig.test.ts"]
+        ["../../packages/language/test/config.test.ts"]
     )
 }
 

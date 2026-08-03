@@ -944,3 +944,242 @@ button.member-chip:hover {
     color: var(--vscode-descriptionForeground);
 }
 
+.column-filter-row th {
+    background: var(--vscode-editor-background);
+    padding: 4px 6px;
+    vertical-align: top;
+}
+
+.column-filter {
+    width: 100%;
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 0.85em;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    padding: 2px 6px;
+    border-radius: 2px;
+}
+
+button.secondary.has-filters {
+    outline: 1px solid var(--vscode-focusBorder);
+}
+
+.table-options {
+    position: relative;
+}
+
+.options-button {
+    white-space: nowrap;
+}
+
+.options-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 20;
+    min-width: 180px;
+    padding: 8px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    background: var(--vscode-editor-background);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.options-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+.options-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.group-header-row td {
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    padding: 4px 8px;
+}
+
+.group-header {
+    background: transparent;
+    color: var(--vscode-foreground);
+    padding: 2px 0;
+    font-weight: 600;
+}
+
+.overview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.overview-search-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.overview-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.activity-list,
+.todo-list {
+    margin: 0;
+    padding-left: 1.2rem;
+}
+
+.activity-list li {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.activity-label {
+    font-weight: 600;
+}
+
+.activity-detail,
+.activity-time,
+.subtle {
+    color: var(--vscode-descriptionForeground);
+}
+
+.activity-time {
+    font-size: 0.85em;
+}
+
+.overview-search-results {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.overview-search-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.overview-search-section-header h2 {
+    margin: 0;
+    flex: 1 1 auto;
+}
+
+.overview-hit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.overview-hit {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    border: 1px solid transparent;
+    border-bottom-color: var(--vscode-panel-border);
+    border-radius: 0;
+    padding: 6px 4px;
+}
+
+.overview-hit:hover:not(:disabled) {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.overview-hit:disabled {
+    opacity: 0.85;
+    cursor: default;
+}
+
+.overview-hit-title {
+    font-weight: 600;
+}
+
+.timeline-heading {
+    margin: 0;
+    flex: 1 1 auto;
+}
+
+.timeline-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.timeline-list {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: baseline;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.timeline-open {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    background: transparent;
+    color: inherit;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.timeline-open:hover .timeline-label {
+    color: var(--vscode-textLink-foreground);
+}
+
+.timeline-source.pill,
+.pill {
+    display: inline-block;
+    font-size: 0.75em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--vscode-panel-border);
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+}
+
+.timeline-label {
+    font-weight: 600;
+}
+
+.timeline-detail {
+    color: var(--vscode-descriptionForeground);
+}
+
+.timeline-time {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+
+

@@ -4,6 +4,7 @@
     import { groupFileIssuesByFile } from '../lib/group-file-issues.js';
     import CollapsiblePane from './CollapsiblePane.svelte';
     import NestedSection from './NestedSection.svelte';
+    import BasePicker from './BasePicker.svelte';
 
     interface Props {
         expanded: boolean;
@@ -14,12 +15,28 @@
     const app = getApp();
     let status = $derived(app.indexStatus);
     let issueGroups = $derived(status ? groupFileIssuesByFile(status.fileIssues) : []);
+    let bases = $derived(status?.bases ?? []);
+    let discoveryEmpty = $derived(Boolean(status?.discoveryEmpty));
+    let pendingBaseId = $derived(app.pendingBaseId);
+    let baseSyncing = $derived(
+        Boolean(status && (!status.ready || status.state === 'syncing' || status.syncProgress))
+    );
+    let baseSyncLabel = $derived(app.indexProgressLabel ?? (status?.state === 'syncing' ? 'Indexing…' : undefined));
 
     function formatTime(at: number): string {
         return new Date(at).toLocaleTimeString();
     }
 
     function stateLabel(value: IndexStatusView): string {
+        if (app.pendingBaseId) {
+            return 'switching';
+        }
+        if (value.discoveryEmpty) {
+            return 'no base';
+        }
+        if (value.syncProgress) {
+            return 'syncing';
+        }
         if (value.ready && value.fileIssueCount > 0) {
             return 'ready (issues)';
         }
@@ -38,7 +55,29 @@
 <CollapsiblePane title="Workspace" id="workspace" {expanded} {onToggle}>
     {#if !status}
         <p class="muted pane-status" role="status">Waiting for workspace index…</p>
+    {:else if discoveryEmpty}
+        <p class="muted">No reqlan bases found. Create a `.reqlan` folder at the workspace root to enable indexing.</p>
+        <div class="section-actions">
+            <button class="action-button" onclick={() => app.createBase()}>Create Base</button>
+        </div>
     {:else}
+        {#if bases.length > 0}
+            <BasePicker
+                {bases}
+                activeBaseId={status.activeBaseId}
+                {pendingBaseId}
+                syncing={baseSyncing}
+                syncLabel={baseSyncLabel}
+                onSelect={(baseId) => app.selectBase(baseId)}
+            />
+        {/if}
+
+        {#if pendingBaseId}
+            <p class="muted pane-status" role="status">Switching base…</p>
+        {:else if baseSyncing && !status.syncProgress}
+            <p class="muted pane-status" role="status">Waiting for index on selected base…</p>
+        {/if}
+
         <dl class="workspace-stats">
             <div class="workspace-stat">
                 <dt class="muted">State</dt>
@@ -66,6 +105,9 @@
             {@const pct = Math.round((status.syncProgress.processed / status.syncProgress.total) * 100)}
             <p class="workspace-subheading">Syncing</p>
             <p class="muted">{status.syncProgress.processed} / {status.syncProgress.total} files ({pct}%)</p>
+            {#if status.syncProgress.currentFile}
+                <p class="muted">Current: {status.syncProgress.currentFile}</p>
+            {/if}
             <div class="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
                 <span style="width: {pct}%"></span>
             </div>
@@ -122,7 +164,7 @@
                 {/each}
             </NestedSection>
         {:else if status.ready}
-            <p class="muted">No index errors in the workspace.</p>
+            <p class="muted">No index errors in the active base.</p>
         {/if}
 
         {#if status.lastError && status.lastError.file}
@@ -160,8 +202,12 @@
 
         <div class="section-actions">
             <button class="action-button" onclick={() => app.refreshIndex()}>Refresh</button>
+            {#if status.syncProgress && status.syncProgress.total > 0}
+                <button class="action-button" onclick={() => app.cancelIndexSync()}>Cancel sync</button>
+            {/if}
             <button class="action-button" onclick={() => app.clearAndRebuildIndex()}>Clear & rebuild</button>
             <button class="action-button" onclick={() => app.openIdeasSummary('index')}>Open index tab</button>
         </div>
     {/if}
 </CollapsiblePane>
+

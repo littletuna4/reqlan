@@ -1,20 +1,62 @@
 import "../../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../../packages/analytical/src/core/rqignore.ts" as rqignore_impl
 import "../../../packages/mcp/src/server.ts" as mcp_server
 import "../../../packages/extension/src/analytical_submodule/index.ts" as analytical_submodule
+import "../features-graph-analysers.rq" as graph_analysers
+import "../configuration.rq" as configuration
 
 application_memory {
-    Workspace-local application memory for reqlan tools lives under `<workspace>/.reqlan/`.
-    This folder is shared by the VS Code extension, ["../../cli/cli_package.rq".cli_package], and MCP ([mcp_server]) — not VS Code `globalStorageUri` / extension-private storage.
+    Base-local application memory for reqlan tools lives under `<base>/.reqlan/`.
+    The presence of `.reqlan` **marks** a directory as a ["../../bases/base.rq".base]; each base owns its own store.
+    Shared by the VS Code extension, ["../../cli/cli_package.rq".cli_package], and MCP ([mcp_server]) — not VS Code `globalStorageUri` / extension-private storage.
     The ideas graph index (["../features-graph-analysers.rq".index_ideas] / ["../features-graph-analysers.rq".index_technology]) persists as `ideas-index.sqlite` inside that directory.
-    HTML export form defaults persist as `export_settings.json` in the same directory (["../features-html-export.rq".html_export_form]).
-    Path resolution is owned by [application_memory_impl] (`resolveApplicationMemoryPath`); consumers must use it (or `REQLAN_INDEX_PATH` override) so tools read and write the same store.
-    Extension wiring: [analytical_submodule]. CLI/MCP headless runtime defaults to the same path via `createAnalysisRuntime`.
+    Index timing diagnostics persist separately as `index-diagnostics.sqlite` ([index_diagnostics_store] / ["../features-index-diagnostics.rq".index_diagnostics]) so rebuilds of the ideas index do not wipe history.
+    Export form defaults (all formats via ["../features-export.rq".export_webview], including HTML options in ["../features-html-export.rq".html_export_form]) persist as `export_settings.json` in the same directory (active base).
+    Path ignore rules live as `.rqignore` in the same directory ([rqignore] / [configuration.configuration_rqignore]).
+    Path resolution is owned by [application_memory_impl] (`resolveApplicationMemoryPath`); consumers must use it (or `REQLAN_INDEX_PATH` override for a single store) so tools read and write the same store for a given base.
+    Multi-base discovery/registry: ["../../bases/base.rq".multi_base_environment]. Index engine ownership: ["../../indexer/indexer.rq".ownership]. Extension wiring: [analytical_submodule].
     Aligns with ["../../cli/cli_package.rq".function_parity]: shared analytical memory, not host-only state.
     @status done
 }
 
+index_diagnostics_store {
+    Per-base diagnostic timing index at `<base>/.reqlan/index-diagnostics.sqlite`.
+    Sibling of `ideas-index.sqlite`; not deleted by Clear & rebuild.
+    Records sync runs and per-file durations for ["../features-index-diagnostics.rq".index_diagnostics_metrics].
+    Webview: ["../features-index-diagnostics.rq".index_diagnostics_webview].
+    @implementation (
+        ["../../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
+        [application_memory_impl]
+    )
+    @tests (
+        ["../../../packages/analytical/test/index-diagnostics.test.ts"]
+    )
+    @status done
+}
+
+rqignore {
+    `.reqlan/.rqignore` filters which paths discovery and indexing crawl, using gitignore syntax relative to the base root.
+    Owned by [rqignore_impl] in `@reqlan/analytical` so CLI and editor share behaviour.
+    Defaults cover `node_modules/`, virtualenvs, build dirs, VCS/editor stores, database files (`*.db3`, sqlite), secrets, and hidden entries; new bases seed the file via create-base.
+    Product configuration statement: [configuration.configuration_rqignore].
+    @implementation (
+        [rqignore_impl]
+        [application_memory_impl]
+        ["../../../packages/analytical/src/core/create-base.ts"]
+        ["../../../packages/analytical/src/core/base-discovery.ts"]
+        ["../../../packages/analytical/src/index-store/workspace-index.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/rqignore.test.ts"]
+        ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
+        ["../../../packages/analytical/test/workspace-index.test.ts:skips .rq files under rqignore patterns"]
+    )
+    @status done
+}
+
 idea_index_triggers {
-    should refresh automatically on file change
+    Refresh automatically on `.rq` file change via watchers ([graph_analysers.indexing_trigger_filesave]).
+    Idle: cheap background staleness check — [graph_analysers.indexing_trigger_auto].
 }
 
 

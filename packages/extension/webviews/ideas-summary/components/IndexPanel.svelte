@@ -59,6 +59,9 @@
         <h2>Sync progress</h2>
         {@const pct = Math.round((status.syncProgress.processed / status.syncProgress.total) * 100)}
         <div>{status.syncProgress.processed} / {status.syncProgress.total} files ({pct}%)</div>
+        {#if status.syncProgress.currentFile}
+            <div class="status">Current: {status.syncProgress.currentFile}</div>
+        {/if}
         <div class="progress-bar">
             <span style="width: {pct}%"></span>
         </div>
@@ -120,6 +123,9 @@
 
     <div class="actions">
         <button on:click={() => postToExtension({ type: 'refreshIndex' })}>Refresh index</button>
+        {#if status.syncProgress && status.syncProgress.total > 0}
+            <button class="secondary" on:click={() => postToExtension({ type: 'cancelIndexSync' })}>Cancel sync</button>
+        {/if}
         <button class="secondary" on:click={() => postToExtension({ type: 'clearAndRebuildIndex' })}>Clear &amp; rebuild index</button>
     </div>
 

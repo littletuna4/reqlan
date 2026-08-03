@@ -39,7 +39,9 @@ async function exportRequirements(
     submodule: AnalyticalSubmodule
 ): Promise<void> {
     await waitForIndex(submodule.index);
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const workspaceRoot =
+        submodule.index.getActiveBase()?.descriptor.root ??
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceRoot) {
         void vscode.window.showWarningMessage('Open a workspace folder before exporting requirements.');
         return;

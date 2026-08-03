@@ -5,7 +5,7 @@
  * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  */
 import type { LangiumDocument, URI } from 'langium';
-import { DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
+import { AstUtils, DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
 import type { CodeActionParams, Command, Diagnostic } from 'vscode-languageserver';
 import { CodeActionKind } from 'vscode-languageserver';
 import type { CodeActionProvider } from 'langium/lsp';
@@ -20,6 +20,7 @@ import {
     buildFromImportEdit,
     relativeRqImportPath
 } from './reqlan-import-edits.js';
+import { isRefactorIdeaDeclaration } from './reqlan-idea-refactor.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import {
     sharedNameCatalog,
@@ -31,6 +32,15 @@ import { findReferenceSearchSite, buildContextForRange } from './reqlan-referenc
 export const REQLAN_IMPORT_ERROR_SEARCH_COMMAND = 'reqlan.importError.search';
 export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile';
 export const REQLAN_SEARCH_REFERENCE_COMMAND = 'reqlan.searchReference';
+export const REQLAN_REFACTOR_DELETE_IDEA_COMMAND = 'reqlan.refactor.deleteIdea';
+export const REQLAN_REFACTOR_MOVE_IDEA_COMMAND = 'reqlan.refactor.moveIdea';
+
+/** Args for idea move/delete refactor commands. */
+export interface IdeaRefactorCommandArgs {
+    documentUri: string;
+    ideaName: string;
+    range: Diagnostic['range'];
+}
 
 const MAX_IMPORT_SUGGESTIONS = 5;
 
@@ -88,7 +98,47 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
         if (searchFromCursor) {
             actions.push(searchFromCursor);
         }
+        actions.push(...this.createIdeaRefactorActions(document, params));
         return actions;
+    }
+
+    /**
+     * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+     * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
+     */
+    private createIdeaRefactorActions(
+        document: LangiumDocument,
+        params: CodeActionParams
+    ): CodeActionLike[] {
+        const idea = findIdeaDeclarationAtRange(document, params.range);
+        if (!idea?.name || !idea.$cstNode) {
+            return [];
+        }
+        const args: IdeaRefactorCommandArgs = {
+            documentUri: document.textDocument.uri,
+            ideaName: idea.name,
+            range: idea.$cstNode.range
+        };
+        return [
+            {
+                title: `Delete idea '${idea.name}' and update references`,
+                kind: CodeActionKind.Refactor,
+                command: {
+                    title: `Delete idea '${idea.name}'`,
+                    command: REQLAN_REFACTOR_DELETE_IDEA_COMMAND,
+                    arguments: [args]
+                }
+            },
+            {
+                title: `Move idea '${idea.name}' to another file…`,
+                kind: CodeActionKind.Refactor,
+                command: {
+                    title: `Move idea '${idea.name}'`,
+                    command: REQLAN_REFACTOR_MOVE_IDEA_COMMAND,
+                    arguments: [args]
+                }
+            }
+        ];
     }
 
     /**
@@ -382,4 +432,26 @@ export function collectImportErrorCodeActions(
 
 export function isModelDocument(document: LangiumDocument): document is LangiumDocument<Model> {
     return isModel(document.parseResult.value);
+}
+
+function findIdeaDeclarationAtRange(document: LangiumDocument, range: Diagnostic['range']) {
+    const offset = document.textDocument.offsetAt(range.start);
+    for (const node of AstUtils.streamAst(document.parseResult.value)) {
+        if (!isRefactorIdeaDeclaration(node) || !node.$cstNode) {
+            continue;
+        }
+        const start = document.textDocument.offsetAt(node.$cstNode.range.start);
+        const end = document.textDocument.offsetAt(node.$cstNode.range.end);
+        if (offset >= start && offset <= end) {
+            return node;
+        }
+        // Also match when the selection is exactly on the name token line.
+        if (
+            range.start.line === node.$cstNode.range.start.line
+            && range.start.character <= (node.name?.length ?? 0) + 1
+        ) {
+            return node;
+        }
+    }
+    return undefined;
 }

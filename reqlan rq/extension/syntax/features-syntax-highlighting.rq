@@ -75,6 +75,8 @@ view_references_as_inlay_hints {
   )
 }
 
+
+
 traceable_inlay_hints {
   Inlay hints should be traceable, i.e. if a user clicks a specific idea reference, it should open that idea, if a user clicks the all references hint, it should open a search webview with the idea preselected/targets prefiltered
   Implemented by ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"], and ["../../../packages/extension/src/webview_module/register-webview.ts"].
@@ -93,6 +95,8 @@ inbound_inlay_hints_whole_graph {
   )
   [view_references_as_inlay_hints]
   [traceable_inlay_hints]
+  @broken
+  @todo
 }
 
 code_lens_reference_types {

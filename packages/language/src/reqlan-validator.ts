@@ -15,7 +15,6 @@ import {
 import {
     importBindings,
     importPathOf,
-    importedIdeaNames,
     isWellFormedFromImport
 } from './reqlan-import-bindings.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
@@ -27,6 +26,7 @@ import { unquoteReqlanString } from './reqlan-quoted-strings.js';
  * Registers validation hooks for the requirement graph AST.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+ * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
@@ -41,6 +41,7 @@ export function registerValidationChecks(services: ReqlanServices) {
  * Custom validations for Reqlan documents.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
+ * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  */
 export class ReqlanValidator {
 
@@ -101,6 +102,10 @@ export class ReqlanValidator {
         }
     }
 
+    /**
+     * Duplicate check uses import *bindings* only (alias when present, otherwise the idea name).
+     * An aliased import does not reserve the imported base name for local ideas.
+     */
     checkDuplicateIdeaNames(model: Model, accept: ValidationAcceptor): void {
         const seen = new Map<string, AstNode>();
         for (const importDecl of model.imports) {
@@ -114,16 +119,6 @@ export class ReqlanValidator {
             }
             const name = element.name;
             if (seen.has(name)) {
-                accept('error', `'${name}' is already defined in this file.`, {
-                    node: element,
-                    property: 'name'
-                });
-                continue;
-            }
-            const importedNameConflict = model.imports.some(importDecl =>
-                importedIdeaNames(importDecl).includes(name)
-            );
-            if (importedNameConflict) {
                 accept('error', `'${name}' is already defined in this file.`, {
                     node: element,
                     property: 'name'

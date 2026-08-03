@@ -1,34 +1,55 @@
 from "./features-graph.rq" import graph_design
 from "./module/index.rq" import application_memory
-import "../packages/language/src/reqlan-comment.langium" as comment_grammar
+import "../../packages/language/src/reqlan-comment.langium" as comment_grammar
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
 import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
-import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as index_service
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 
 index_ideas {
-    The extension should maintain an index of all ideas across the workspace for fast lookup and navigation.
-    The index should update incrementally as .rq files change.
-    Persistence lives in [application_memory], shared with CLI and MCP — not VS Code extension storage.
+    Each ["../bases/base.rq".base] maintains an index of its ideas for fast lookup and navigation (["../indexer/indexer.rq".index]).
+    The index should update incrementally as .rq files change within that base (nested child bases excluded).
+    Persistence lives in [application_memory] per base, shared with CLI and MCP — not VS Code extension storage.
+    Engine ownership: [workspace_index] in `@reqlan/analytical`; multi-base via BaseRegistry; editor watches via [editor_index_adapter].
 }
 
 index_technology {
     The [index_ideas] graph database is sql.js SQLite, aligned with [graph_design].
-    On-disk location is [application_memory] (`<workspace>/.reqlan/ideas-index.sqlite`), not `context.globalStorageUri`.
-    Implementation: [application_memory_impl], [index_service], and headless [analysis_runtime] for CLI/MCP.
+    On-disk location is [application_memory] (`<base>/.reqlan/ideas-index.sqlite`), not `context.globalStorageUri`.
+    Implementation: [application_memory_impl], [workspace_index], headless [analysis_runtime] for CLI/MCP, and [editor_index_adapter] for the VS Code host.
 }
 
-indexing_incrementality indexing should be incremental
+indexing_incrementality {
+    Indexing should be incremental: watcher-driven single-file updates, and soft full syncs that skip unchanged files by stored mtime.
+    Hard rebuilds reparse everything. Detail and UX (progress, cancel, non-blocking UI): ["../indexer/indexer.rq".nonblocking_index].
+}
 
-indexing_trigger_filesave indexing should be triggered by manual .rq file changes.
-indexing_trigger_manual indexing should be triggered by manual indexing commands.
-indexing_trigger_auto indexing should be triggered by automatic indexing when the workspace is idle; and on application open.
+indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers.
+indexing_trigger_manual indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
+
+indexing_trigger_open {
+    On application open / base activate, run one soft sync (mtime-skipped) so the index is warm.
+    This is a startup pass — not the idle checker ([indexing_trigger_auto]).
+}
+
+indexing_trigger_auto {
+    When the editor host is idle, run a **background staleness check** — not a reindex and not a soft full sync UI pass.
+    Philosophy: computationally cheap. Load document mtimes in **one** SQLite read, compare each file's FS mtime in memory, and only then index mismatched or new files; drop deleted docs in one batched delete.
+    A single MAX(mtime) watermark is not sufficient (one file can get newer while another gets older).
+    If nothing is stale: no state transition, no progress UI, no parse.
+    If some files are stale: index **only those files** under ["../indexer/indexer.rq".nonblocking_index].
+    Schedule after a quiet period with no index activity; prefer running when the window is unfocused; defer or cancel if the user becomes active again.
+    Extension host only ([editor_index_adapter]); CLI/MCP have no idle loop (they sync on activate / command).
+    @tests (["../../packages/analytical/test/workspace-index.test.ts"])
+    @status done
+}
 
 list_all_ideas {
     The extension should provide a command to list all ideas in the workspace with file location and summary.
 }
 
 index_comment_reference_inclusion {
-    The [comment_grammar.comment] comments should be included as a node type in the index
+    The [comment_grammar] comments should be included as a node type in the index
     @todo
 }
 

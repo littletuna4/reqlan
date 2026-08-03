@@ -1,0 +1,59 @@
+# Reqlan path ignore (gitignore syntax).
+# Applied relative to the base root (parent of .reqlan).
+# Built-in defaults always apply; use !pattern to force-include.
+
+# Dependencies
+node_modules/
+bower_components/
+vendor/
+
+# Python / virtualenvs
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.tox/
+.ruff_cache/
+
+# Build / tooling output
+dist/
+out/
+build/
+coverage/
+.next/
+.nuxt/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# VCS / editor / package stores
+.git/
+.svn/
+.hg/
+.cursor/
+.pnpm-store/
+.vscode/
+.idea/
+
+# Hidden entries (preserves prior walk behaviour; un-ignore with !path)
+.*
+.*/
+
+# Reqlan application memory (never crawl the marker dir for .rq sources)
+.reqlan/
+
+# Databases / binary stores
+*.db3
+*.sqlite
+*.sqlite3
+*.db
+
+# Secrets / logs / temp
+*.secret.rq
+*.log
+tmp/
+temp/

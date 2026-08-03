@@ -31,6 +31,15 @@ export interface GraphUiPersistedState {
 
 export const GRAPH_UI_WORKSPACE_STATE_KEY = 'reqlan.ideasSummary.graphUi';
 
+/** Per-base graph UI persistence key. */
+export function graphUiWorkspaceStateKey(baseId?: string): string {
+    if (!baseId) {
+        return GRAPH_UI_WORKSPACE_STATE_KEY;
+    }
+    // Encode so path separators in absolute ids are safe as a state key segment.
+    return `${GRAPH_UI_WORKSPACE_STATE_KEY}.${encodeURIComponent(baseId)}`;
+}
+
 export const DEFAULT_GRAPH_UI_PHYSICS: GraphUiPhysicsPersisted = {
     gravity: 0.002,
     repulsion: 20000,

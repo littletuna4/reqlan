@@ -1,0 +1,75 @@
+from "../ontology.rq" import extension
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/index-store/workspace-index-sync.ts" as workspace_index_sync
+import "../../packages/analytical/src/index-store/workspace-index-file.ts" as workspace_index_file
+import "../../packages/analytical/src/index-store/workspace-mtime.ts" as workspace_mtime
+import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../extension/module/index.rq" as app_memory_doc
+import "../extension/features-graph-analysers.rq" as graph_analysers
+import "../extension/module/activitybar.rq" as activity_bar_doc
+import "../extension/module/activitybar-panels/workspace.rq" as workspace_pane_doc
+import "../extension/module/ideas_summary/webview.rq" as ideas_summary_doc
+import "../../packages/analytical/test/workspace-index.test.ts" as workspace_index_tests
+
+index {
+    The ideas graph indexer: parse `.rq` with `@reqlan/language`, extract ideas/edges, persist to sql.js SQLite.
+    Owned by [ownership]; consumed per [consumption].
+}
+
+ownership {
+    The [index] / indexer lives in `packages/analytical` (`@reqlan/analytical`).
+    Canonical single-base engine: [workspace_index] (`WorkspaceIndex` facade).
+    Sync/idle impl: [workspace_index_sync]; one-file parse+persist: [workspace_index_file]; mtime stale diff: [workspace_mtime].
+    Multi-base registry: one `WorkspaceIndex` per discovered ["../bases/base.rq".base] under [app_memory_doc.application_memory] (`<base>/.reqlan/`).
+    Headless entry: [analysis_runtime] via `createAnalysisRuntime` (CLI / MCP) — discovers bases under the resolved root and defaults to the nearest base containing cwd.
+    On-disk store path: [application_memory_impl] under `<base>/.reqlan/` — see [app_memory_doc.application_memory].
+}
+
+consumption {
+    Consumers of the analytical [index]:
+    - [extension] — thin VS Code adapter [editor_index_adapter] (file watchers, Uri conversion, UI status)
+    - CLI (`["../cli/cli_package.rq".cli_package]`) and MCP — headless [analysis_runtime]
+    The extension does not own the indexing engine; it only hosts the adapter.
+}
+
+nonblocking_index {
+    Index sync must stay non-blocking for the host UI (notably [activity_bar_doc.activity_bar] and [workspace_pane_doc.workspace_loading]).
+    While syncing, surface progress — state, processed/total, and the current file — in [workspace_pane_doc.workspace_pane] and [ideas_summary_doc.index_panel].
+    In-flight sync must be cancellable from those surfaces; cancel keeps already-indexed rows and returns the index to ready.
+    Incremental behaviour (see also [graph_analysers.indexing_incrementality]):
+    - Single-file create/change/delete via watchers indexes only that file — never a full base walk.
+    - Soft full sync (`syncWorkspace` / Refresh) skips parse+persist when the file's mtime matches the value stored on the documents row.
+    - Hard refresh (`clearAndRebuildIndex` / Clear & rebuild) wipes the store and reindexes every file.
+    Implemented by [workspace_index]; editor adapter [editor_index_adapter].
+    @tests ([workspace_index_tests])
+    @status done
+}
+
+triggers {
+    Index refresh behaviour (capability detail in [graph_analysers]):
+    - [graph_analysers.indexing_incrementality] / [nonblocking_index] — incremental where possible
+    - [graph_analysers.indexing_trigger_filesave] / [app_memory_doc.idea_index_triggers] — on `.rq` file change
+    - [graph_analysers.indexing_trigger_manual] — manual reindex commands
+    - [graph_analysers.indexing_trigger_open] — one soft sync on activate
+    - [graph_analysers.indexing_trigger_auto] — idle background mtime staleness check (cheap; not a full reindex)
+    Editor watches + idle scheduler: [editor_index_adapter]; headless syncs on runtime activate.
+}
+
+capabilities {
+    Product capabilities over the [index]: [graph_analysers.index_ideas], [graph_analysers.index_technology], and sibling analysers in that file.
+    Indexing performance timing and diagnostic UI: ["../extension/features-index-diagnostics.rq".index_diagnostics].
+}
+
+index_diagnostics_timing {
+    Soft sync and per-file index paths record durations into the diagnostic index under [app_memory_doc.index_diagnostics_store].
+    See ["../extension/features-index-diagnostics.rq".index_diagnostics_metrics].
+    Must not block [nonblocking_index]; recording failures are swallowed / logged by the store and must not fail the sync.
+}
+
+
+index_code_files {
+    The indexer should be able to index non-rq files as well for comment references.
+    @todo
+}

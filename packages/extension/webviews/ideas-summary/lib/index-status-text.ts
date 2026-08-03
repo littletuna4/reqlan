@@ -26,8 +26,9 @@ export function indexStatusText(status: IndexStatusView): IndexStatusText {
     }
 
     if (status.syncProgress) {
+        const file = status.syncProgress.currentFile ? ` · ${status.syncProgress.currentFile}` : '';
         return {
-            text: `Indexing workspace… ${status.syncProgress.processed}/${status.syncProgress.total} files`,
+            text: `Indexing workspace… ${status.syncProgress.processed}/${status.syncProgress.total} files${file}`,
             error: false
         };
     }

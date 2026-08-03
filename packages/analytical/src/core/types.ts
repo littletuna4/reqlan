@@ -117,6 +117,7 @@ export type {
     GitFocusCommit,
     GitFocusStats,
     GitPeerChangeRate,
+    WorkspaceBaseGlance,
     WorkspaceContextSlice
 } from './context-model.js';
 
@@ -169,6 +170,8 @@ export interface IdeaTableRow {
     id: string;
     title: string;
     path: string;
+    /** Idea kind for grouping (block / oneliner); never ideaset in this table. */
+    kind: 'block' | 'oneliner';
     mainAttribute?: string;
     otherAttributes: string;
     otherAttributeItems: string[];

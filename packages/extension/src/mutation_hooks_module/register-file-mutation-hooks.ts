@@ -4,6 +4,10 @@ import { shouldPromptForMovedFile } from './file-mutation-gate.js';
 import { planFileMoveChanges } from './file-move-plan.js';
 import { promptAndApplyFileMoveChanges } from './show-mutation-approval.js';
 
+/**
+ * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
+ */
 export function registerFileMutationHooks(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
@@ -20,23 +24,35 @@ async function handleFileRenames(
     submodule: AnalyticalSubmodule
 ): Promise<void> {
     if (!submodule.index.isReady || files.length === 0) {
+        await migrateMovedRqFiles(files, submodule);
         return;
     }
 
     const qualifyingFiles: Array<{ oldUri: vscode.Uri; newUri: vscode.Uri }> = [];
     for (const file of files) {
-        if (await shouldPromptForMovedFile(file.newUri, submodule.index.indexStore)) {
+        if (await shouldPromptForMovedFile(file.oldUri, submodule.index.indexStore)) {
             qualifyingFiles.push(file);
         }
     }
-    if (qualifyingFiles.length === 0) {
-        return;
+
+    if (qualifyingFiles.length > 0) {
+        const changes = await planFileMoveChanges(qualifyingFiles, submodule.index.indexStore);
+        if (changes.length > 0) {
+            await promptAndApplyFileMoveChanges(changes);
+        }
     }
 
-    const changes = await planFileMoveChanges(qualifyingFiles);
-    if (changes.length === 0) {
-        return;
-    }
+    await migrateMovedRqFiles(files, submodule);
+}
 
-    await promptAndApplyFileMoveChanges(changes);
+async function migrateMovedRqFiles(
+    files: ReadonlyArray<{ oldUri: vscode.Uri; newUri: vscode.Uri }>,
+    submodule: AnalyticalSubmodule
+): Promise<void> {
+    for (const { oldUri, newUri } of files) {
+        if (!newUri.fsPath.endsWith('.rq') && !oldUri.fsPath.endsWith('.rq')) {
+            continue;
+        }
+        await submodule.index.migrateRenamedFile(oldUri, newUri);
+    }
 }

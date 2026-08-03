@@ -11,7 +11,6 @@ import {
     gitDatesAnalyser,
     listAllIdeasAnalyser,
     localGraphAnalyser,
-    resolveApplicationMemoryPath,
     semanticSearchAnalyser,
     type AnalyticalStore
 } from '@reqlan/analytical';
@@ -22,6 +21,7 @@ import { registerChatParticipantModule } from '../chat_participant_module/index.
 import { registerWebviewModule } from '../webview_module/index.js';
 import { registerAiCommandsModule } from '../ai_commands_module/index.js';
 import { registerMutationHooksModule } from '../mutation_hooks_module/index.js';
+import { registerIndexDiagnosticsModule } from '../diagnostics_module/index.js';
 
 export type {
     AnalyticalState,
@@ -38,6 +38,7 @@ export type { Analyser, AnalyserContext } from '@reqlan/analytical';
 export * from '@reqlan/analytical';
 
 export interface AnalyticalSubmodule {
+    /** Fallback / legacy shared store; prefer `index.store` for the active base. */
     store: AnalyticalStore;
     index: IndexService;
     analysers: AnalyserRegistry;
@@ -47,13 +48,7 @@ export async function activateAnalyticalSubmodule(
     context: vscode.ExtensionContext
 ): Promise<AnalyticalSubmodule> {
     const store = createAnalyticalStore();
-    // Shared application memory under `<workspace>/.reqlan` (same path as CLI/MCP).
-    // Fall back to extension globalStorage only when no folder is open.
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const storagePath = workspaceRoot
-        ? resolveApplicationMemoryPath(workspaceRoot)
-        : context.globalStorageUri.fsPath;
-    const index = new IndexService(store, storagePath);
+    const index = new IndexService(store);
     const analysers = new AnalyserRegistry();
 
     analysers.register(listAllIdeasAnalyser);
@@ -70,16 +65,14 @@ export async function activateAnalyticalSubmodule(
     // work. This makes the activity bar webview view provider available
     // immediately so VS Code can resolve (and paint) the "Context" view even
     // while the index — and, in the caller, the language server — are still
-    // starting. The provider tolerates a not-yet-ready index and reacts to
-    // readiness via its status/catalog subscriptions. Previously these ran only
-    // after `await index.activate()` (and the awaited language-client start in
-    // the caller), so a slow or hanging startup left the sidebar permanently blank.
+    // starting.
     registerAnalyticalCommands(context, submodule);
     registerActivityBarModule(context, submodule);
     registerChatParticipantModule(context, submodule);
     registerWebviewModule(context, submodule);
     registerAiCommandsModule(context, submodule);
     registerMutationHooksModule(context, submodule);
+    registerIndexDiagnosticsModule(context, submodule);
 
     context.subscriptions.push({
         dispose: () => {

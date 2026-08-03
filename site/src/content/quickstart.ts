@@ -39,7 +39,11 @@ function toQuickstartIde(action: InstallAction): QuickstartIde {
 }
 
 export const quickstartContent = {
+  //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".tutorials]
+  //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
+  //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series_brief]
   title: "Get started",
+  //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_01_why_reqlan]
   intro:
     "Install the reqlan extension, open a workspace with `.rq` files, and start tracing requirements in your editor.",
   defaultIde: defaultInstallIde,
@@ -47,8 +51,11 @@ export const quickstartContent = {
   vsixDownloadUrl,
   ides: installActions.map(toQuickstartIde),
   nextSteps: [
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_02_first_idea]
     "Create or open a `.rq` file in your workspace.",
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_05_chat_search]
     "Use @reqlan in Copilot chat or rq-* skills in Cursor for requirement-aware AI.",
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_04_activity_bar]
     "Open the reqlan activity bar for graph views, idea tables, and exports.",
   ],
 } as const;

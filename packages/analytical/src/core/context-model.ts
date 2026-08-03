@@ -174,10 +174,28 @@ export interface GitContextSlice {
     historyCue?: string;
 }
 
+export interface WorkspaceBaseGlance {
+    id: string;
+    label: string;
+    root: string;
+    ready: boolean;
+    ideaCount: number;
+    edgeCount: number;
+    fileIssueCount: number;
+}
+
 export interface WorkspaceContextSlice {
     ready: boolean;
     ideaCount: number;
     edgeCount: number;
+    /** Active ontology base id (`.reqlan`-marked root). */
+    activeBaseId?: string;
+    /** Active base display label. */
+    activeBaseLabel?: string;
+    /** All discovered bases in the VS Code workspace. */
+    bases?: WorkspaceBaseGlance[];
+    /** True when no `.reqlan` bases exist — UI should offer create-base. */
+    discoveryEmpty?: boolean;
 }
 
 export interface ContextFootprint {

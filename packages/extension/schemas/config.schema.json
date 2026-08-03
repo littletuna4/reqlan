@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://reqlan.dev/schemas/rqconfig.schema.json",
-  "title": "reqlan workspace config",
-  "description": "Optional per-directory Reqlan workspace configuration (.rqconfig.json). The applying file for an .rq document is the nearest ancestor .rqconfig.json.",
+  "$id": "https://reqlan.dev/schemas/config.schema.json",
+  "title": "reqlan base config",
+  "description": "Optional per-base Reqlan configuration (.reqlan/config.json). For an .rq document, the applying file is the owning base's .reqlan/config.json (nearest ancestor directory that owns a .reqlan folder).",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -27,7 +27,7 @@
           "root": {
             "type": "string",
             "minLength": 1,
-            "description": "Directory this alias resolves against. Relative paths are resolved from the directory containing this .rqconfig.json. Absolute filesystem paths and file:// URIs are also accepted. When omitted, the workspace folder that contains the .rq file is used."
+            "description": "Directory this alias resolves against. Relative paths are resolved from the base root (the parent of .reqlan). Absolute filesystem paths and file:// URIs are also accepted. When omitted, the workspace folder that contains the .rq file is used."
           }
         }
       }
@@ -40,7 +40,7 @@
         "outputFolder": {
           "type": "string",
           "minLength": 1,
-          "description": "Default output directory for exported files. Relative paths resolve from the directory containing this .rqconfig.json."
+          "description": "Default output directory for exported files. Relative paths resolve from the base root (the parent of .reqlan)."
         },
         "templateId": {
           "type": "string",

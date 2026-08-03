@@ -1,0 +1,16 @@
+{
+    "extends": "@tsconfig/svelte/tsconfig.json",
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "types": ["svelte"]
+    },
+    "include": [
+        "./**/*.ts",
+        "./**/*.svelte.ts",
+        "./**/*.svelte",
+        "../../src/diagnostics_module/index-diagnostics-messages.ts"
+    ]
+}

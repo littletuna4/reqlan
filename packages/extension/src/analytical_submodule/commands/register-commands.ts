@@ -17,17 +17,26 @@ export function registerAnalyticalCommands(
     submodule: AnalyticalSubmodule
 ): void {
     const { index, analysers } = submodule;
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
-    const makeContext = () => ({
-        store: index.indexStore,
-        analytical: submodule.store,
-        workspaceRoot
-    });
+    const makeContext = () => {
+        const active = index.getActiveBase();
+        return {
+            store: index.indexStore,
+            analytical: index.store,
+            workspaceRoot: active?.descriptor.root
+        };
+    };
 
     registerExportCommands(context, submodule);
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('reqlan.createBase', async () => {
+            const created = await index.createBase();
+            if (created) {
+                void vscode.window.showInformationMessage(`Created reqlan base at ${created.label}`);
+            }
+        }),
+
         vscode.commands.registerCommand('reqlan.listAllIdeas', async () => {
             await waitForIndex(index);
             const ideas = await analysers.run<void, IdeaSummary[]>(makeContext(), 'list_all_ideas', undefined);
@@ -38,7 +47,7 @@ export function registerAnalyticalCommands(
                 idea
             }));
             const picked = await vscode.window.showQuickPick(items, {
-                placeHolder: 'All ideas in workspace',
+                placeHolder: 'All ideas in active base',
                 matchOnDescription: true,
                 matchOnDetail: true
             });
@@ -54,10 +63,12 @@ export function registerAnalyticalCommands(
                 void vscode.window.showWarningMessage('Open a file to find related requirements.');
                 return;
             }
+            index.activateBaseForPath(editor.document.uri.fsPath);
+            const active = index.getActiveBase();
             const result = await analysers.run<{ fileUri: string }, FileRelatedRequirements>(
                 makeContext(),
                 'file_related_requirements',
-                { fileUri: toIndexFileUri(editor.document.uri) }
+                { fileUri: toIndexFileUri(editor.document.uri, active?.descriptor.root) }
             );
             const items = [
                 ...result.ideasInFile.map(idea => ({ label: `[in file] ${idea.name}`, idea })),
@@ -121,7 +132,11 @@ export function registerAnalyticalCommands(
                 void vscode.window.showWarningMessage('Open a reqlan file to inspect its local graph.');
                 return;
             }
-            const ideas = await index.indexStore.getIdeasInFile(toIndexFileUri(editor.document.uri));
+            index.activateBaseForPath(editor.document.uri.fsPath);
+            const active = index.getActiveBase();
+            const ideas = await index.indexStore.getIdeasInFile(
+                toIndexFileUri(editor.document.uri, active?.descriptor.root)
+            );
             if (ideas.length === 0) {
                 void vscode.window.showInformationMessage('No ideas found in the current file.');
                 return;
@@ -176,6 +191,12 @@ export function registerAnalyticalCommands(
 }
 
 async function waitForIndex(index: AnalyticalSubmodule['index']): Promise<void> {
+    if (index.discoveryEmpty) {
+        await index.promptCreateBaseIfNeeded();
+        if (index.discoveryEmpty) {
+            throw new Error('No reqlan base found. Run "Reqlan: Create Base" first.');
+        }
+    }
     if (index.isReady) {
         return;
     }

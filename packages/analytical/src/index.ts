@@ -21,10 +21,39 @@ export {
 } from './core/workspace-paths.js';
 export {
     APPLICATION_MEMORY_DIR,
+    CONFIG_FILENAME,
     IDEAS_INDEX_FILENAME,
+    INDEX_DIAGNOSTICS_FILENAME,
+    RQIGNORE_FILENAME,
     resolveApplicationMemoryPath,
-    resolveIdeasIndexDbPath
+    resolveIdeasIndexDbPath,
+    resolveIndexDiagnosticsDbPath
 } from './core/application-memory.js';
+export {
+    DEFAULT_RQIGNORE_PATTERNS,
+    createRqIgnoreFilter,
+    defaultRqIgnoreFileContents,
+    isIgnoredPath,
+    loadRqIgnore,
+    resolveRqIgnorePath
+} from './core/rqignore.js';
+export type { RqIgnoreFilter } from './core/rqignore.js';
+export { createBase } from './core/create-base.js';
+export type { CreateBaseResult } from './core/create-base.js';
+export {
+    baseForPath,
+    childBasesOf,
+    discoverBases,
+    discoverBasesUnder,
+    filesOwnedByBase,
+    isPathInsideOrEqual,
+    selectDefaultBase,
+    stableBaseId,
+    toBaseDescriptor
+} from './core/base-discovery.js';
+export type { BaseDescriptor } from './core/base-discovery.js';
+export { BaseRegistry } from './index-store/base-registry.js';
+export type { BaseStatusEntry, RegisteredBase } from './index-store/base-registry.js';
 export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
 export type { Analyser, AnalyserContext } from './analysis/analyser-registry.js';
 export { AnalyserRegistry } from './analysis/analyser-registry.js';
@@ -42,16 +71,26 @@ export type {
     IdeasTableQuery,
     IdeasetsTableQuery,
     ReferencesTableQuery,
+    AttributesTableQuery,
+    AttributeTableRow,
+    GitIdeaTimelineEvent,
+    ColumnFilter,
     ReferenceFilter,
     IdeasSortColumn,
     IdeasetsSortColumn,
     ReferencesSortColumn,
+    AttributesSortColumn,
+    IdeasGroupBy,
+    ReferencesGroupBy,
     SortDirection
 } from './index-store/webview-table-queries.js';
 export {
     attributeKeyFromChipItem,
     attributeJsonPath,
-    formatAttributeValue
+    formatAttributeValue,
+    aggregateAttributesFromRows,
+    filterAndPageAttributes,
+    edgeKindsForReferenceViewTypes
 } from './index-store/webview-table-queries.js';
 export type {
     GraphViewQuery,
@@ -96,6 +135,7 @@ export type {
     GitFocusStats,
     GitFocusCommit,
     GitPeerChangeRate,
+    WorkspaceBaseGlance,
     WorkspaceContextSlice
 } from './core/types.js';
 export type {
@@ -149,7 +189,36 @@ export type {
 export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
 export type { IdeaReferenceStore } from './core/idea-references.js';
 export * from './core/types.js';
-export { HeadlessIndexService } from './headless-index-service.js';
+export { WorkspaceIndex, WorkspaceIndex as HeadlessIndexService } from './index-store/workspace-index.js';
+export type { IdleCheckResult } from './index-store/workspace-index.js';
+export type { IndexStatusSnapshot, IndexSyncProgress } from './index-store/index-status.js';
+export {
+    IndexDiagnosticsStore,
+    pathDepthFromUri
+} from './index-store/index-diagnostics-store.js';
+export type {
+    IndexDiagnosticsOverview,
+    IndexFileOutcome,
+    IndexFileTimingRecord,
+    IndexFileTimingRow,
+    IndexSyncRunRecord,
+    IndexSyncRunSummary,
+    IndexTimingTrigger
+} from './index-store/index-diagnostics-store.js';
+export {
+    collectParseIssues,
+    fileIssue,
+    fileIssueFromError,
+    unnamedIdeaIssues,
+    validIdeas
+} from './index-store/index-parse-issues.js';
+export type { FileIndexIssueDraft } from './index-store/index-parse-issues.js';
+export {
+    IndexFileError,
+    recordCaughtFileIssue,
+    recordCaughtIndexError,
+    toFileIndexIssueDraft
+} from './index-store/index-file-error.js';
 export {
     activateAnalysisRuntime,
     createAnalysisRuntime,

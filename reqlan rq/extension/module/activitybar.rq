@@ -7,7 +7,8 @@ import "../features-commands.rq" as commands
 import "../features-consumption.rq" as consumption
 import "../library/graph.rq" as graph_lib
 import "./webview.rq" as webview_doc
-import "./graphical_graph.rq" as graphical_graph_doc
+import "./ideas_summary/webview.rq" as ideas_summary_doc
+import "./ideas_summary/graphical_graph.rq" as graphical_graph_doc
 import "./activitybar-panels/current_context_scope.rq" as current_context_scope
 import "./activitybar-panels/minigraph.rq" as minigraph
 import "./activitybar-panels/workspace.rq" as workspace_panel
@@ -25,13 +26,15 @@ import "../../../packages/extension/webviews/activity-bar/components/ScopePane.s
 import "../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte" as ReferenceListsPane
 import "../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
 import "../../../packages/extension/webviews/activity-bar/lib/group-file-issues.ts" as group_file_issues
+from "../../ontology.rq" import base as bases
+import "../../bases/base.rq" as base_docs
 
 activity_bar {
     The extension should provide an activity bar sidebar for editor-adjacent requirement context per [consumption.local_graph_view].
     UI is implemented as Svelte webview panes per [development_core], not as a long-lived tree of static rows.
     The host loads slices from the index via [graph_analysers.local_graph_analysis] and forwards editor focus through [activity_bar_webview] and [activity_bar_data].
     Panes should be performance conscious: capped neighbourhoods, lazy cytoscape mount, debounced cursor updates — same discipline as [webview_doc.webview].
-    Workspace-wide tables, full layout controls, and unconstrained graph dumps belong in Ideas Summary per [webview_doc]; panes link out with prefilled state instead of duplicating those views.
+    Workspace-wide tables, full layout controls, and unconstrained graph dumps belong in Ideas Summary per [ideas_summary_doc.ideas_summary]; panes link out with prefilled state instead of duplicating those views.
 }
 
 icon {
@@ -103,6 +106,12 @@ reference_lists_pane {
     Unresolved idea create affordance: [current_context_scope.unresolved_reference_create].
 }
 
+refernce_lists_pane_reference_tiering {
+    Inbound refernces may be direct, or via ideaset references.
+    The [reference_lists_pane] should tier the references based on the reference type. Design must keep in mind that that the ideaset refernces are likely more numerous and lower signal.
+    @todo
+}
+
 parent_nodes_pane {
     Upstream ancestor chain — details in [current_context_scope.parent_nodes_pane].
 }
@@ -113,7 +122,7 @@ selection_pane {
 
 ideaset_pane {
     When the focused idea belongs to one or more ideasets.
-    - List ideaset names with a dropdown of member chips (same interaction model as [webview_doc.idea_sets_tab]).
+    - List ideaset names with a dropdown of member chips (same interaction model as [ideas_summary_doc.idea_sets_tab]).
     - Path column links to the ideaset source file.
     - Hidden when the focus idea is not a member of any ideaset.
 }
@@ -131,7 +140,9 @@ recent_pane {
 }
 
 workspace_pane {
-    Workspace index health and activity — details in [workspace_panel.workspace_pane].
+    Workspace / multi-base index health and activity — details in [workspace_panel.workspace_pane].
+    Active [bases] chosen via searchable dropdown ([workspace_panel.workspace_base_picker]); pane shows health for the selected base.
+    Empty discovery: create-base CTA per [base_docs.create_base_onboarding].
 }
 
 context_tray {

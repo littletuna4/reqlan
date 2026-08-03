@@ -1,0 +1,18 @@
+import "../../../bases/base.rq" as bases
+import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts" as graph_ui_state
+
+ideas_summary_base_scope {
+    Ideas Summary is scoped to one ["bases".base] at a time.
+    - Active base defaults to the longest-matching base root for the focused editor ([bases.implied_context]).
+    - Chrome includes an explicit base switcher; Overview, Bases, Ideas, Ideasets, Attributes, References, Graph, Timeline, and Index tabs bind to the selected base's index only (Bases lists all discovered bases; Index is last).
+    - Switching base is a pointer swap ([bases.active_base_switch]): pin via `setActiveBaseId`, rebind status/tables/graph UI immediately — do not await sync on the switch call; not-ready bases get fire-and-forget open+soft-sync catch-up.
+    - Graph UI persistence is per-base: workspaceState key `reqlan.ideasSummary.graphUi.<baseId>` via [graph_ui_state].
+    - Activity bar "Open in Ideas Summary" passes the current active base id into [ideas_summary_panel].
+    - No merged cross-base tables or graphs in this pass ([bases.multi_base_environment]).
+    @implementation (
+        [ideas_summary_panel]
+    )
+    @status done
+    @tags (bases, ideas-summary, multi-base)
+}

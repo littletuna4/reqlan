@@ -18,6 +18,11 @@ export interface ImportBinding {
 
 export type PathBearingImport = Exclude<Import, InvalidFromImport>;
 
+/**
+ * Local binding name for a from-import specifier.
+ * When `as alias` is present, only the alias is bound; the imported idea's base name
+ * remains free for a local idea (see import_tokenisation).
+ */
 export function specifierBindingName(specifier: FromImportSpecifier): string | undefined {
     return specifier.alias ?? specifier.idea.$refText;
 }
@@ -35,6 +40,10 @@ export function importPathOf(importDecl: Import): string | undefined {
     return isPathBearingImport(importDecl) ? importDecl.path : undefined;
 }
 
+/**
+ * Names bound into the importing file's local namespace.
+ * Aliased imports bind only the alias — never the imported idea's base name.
+ */
 export function importBindings(importDecl: Import): ImportBinding[] {
     if (isFromImport(importDecl)) {
         // Mistaken `from "path" as alias` (no idea specifiers) must not bind a name.
@@ -69,16 +78,6 @@ export function importBindings(importDecl: Import): ImportBinding[] {
     }
     if (importDecl.alias) {
         return [{ name: importDecl.alias, node: importDecl, property: 'alias' }];
-    }
-    return [];
-}
-
-export function importedIdeaNames(importDecl: Import): string[] {
-    if (isFromImport(importDecl)) {
-        return importDecl.specifiers.map(specifier => specifier.idea.$refText);
-    }
-    if (isQualifiedImport(importDecl)) {
-        return [importDecl.idea.$refText];
     }
     return [];
 }

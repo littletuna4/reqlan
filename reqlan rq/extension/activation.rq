@@ -3,6 +3,7 @@ import "./scope.rq" as scope
 activation {
     VS Code loads the extension host entry at ["../../packages/extension/src/extension/main.ts"] when an activation event in ["../../packages/extension/package.json"] matches.
     The exported `activate(context)` function is the single activation entry point for [scope.vscode_extension].
+    Install-time and first-run sequencing across extension vs base layers: ["./installation.rq".installation_sequencing].
 }
 
 activation_events {

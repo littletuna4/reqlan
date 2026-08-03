@@ -53,7 +53,7 @@ context_dimensions {
     Each dimension has a stable id, human label, default weight, and a one-line summary for collapsed UI.
 
     - workspace [workspace_context]
-        Ambient index: workspace is indexed, idea/edge counts, readiness — not a full graph dump.
+        Ambient VS Code workspace chrome and multi-base index glance: discovered bases, active base readiness / idea/edge counts — not a full graph dump. Distinct from the active [base] source in v2.
     - current_file [current_file_context]
         Active editor file. For `.rq`: caret idea, in-file outline, unresolved refs. For any file: [any_file_scope] links and git badge.
     - open_files [open_files_context]
@@ -172,7 +172,9 @@ ai_context_export {
 
 workspace_context {
     weight: 0.1
-    Always on; contributes readiness and counts only unless user opens workspace pane.
+    Always on; contributes multi-base readiness and counts (active base + sibling summary) unless user opens workspace pane.
+    "Workspace" here means the VS Code workspace surface and ambient index health — not a single ontology base.
+    Active-base routing for focus/graph/refs follows ["../../bases/base.rq".implied_context]; see [context_scope_v2.context_sources] `base`.
 }
 
 current_file_context {

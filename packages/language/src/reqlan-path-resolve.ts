@@ -8,7 +8,10 @@ import type { FileSystemProvider, LangiumDocument, URI } from 'langium';
 import { URI as UriCtor, UriUtils } from 'langium';
 
 export const DEFAULT_IMPORT_ROOT_ALIAS = '@';
-export const RQCONFIG_FILENAME = '.rqconfig.json';
+/** Base marker / application-memory directory name (must match analytical APPLICATION_MEMORY_DIR). */
+export const REQLAN_DIR = '.reqlan';
+/** Config filename under `<base>/.reqlan/`. */
+export const CONFIG_FILENAME = 'config.json';
 
 export interface ImportRootMapping {
     alias: string;
@@ -53,7 +56,7 @@ export interface PathResolveContext {
     workspaceFolderUri?: URI;
     fileSystem?: FileSystemProvider;
     /**
-     * Preloaded config. `undefined` loads nearest `.rqconfig.json` when fileSystem is set.
+     * Preloaded config. `undefined` loads the owning base’s `.reqlan/config.json` when fileSystem is set.
      * `null` skips loading and uses defaults only.
      */
     config?: RqConfig | null;
@@ -117,15 +120,24 @@ export function findWorkspaceFolderUri(
     return best;
 }
 
+/**
+ * Walk ancestors from startDir. The first directory that owns `.reqlan/` is the applying base.
+ * Load that base’s `.reqlan/config.json` when present; otherwise return undefined (defaults).
+ * Does not inherit a parent base’s config.
+ */
 export function loadApplyingRqConfig(
     startDirUri: URI,
     fileSystem: FileSystemProvider
 ): RqConfig | undefined {
     let dir = startDirUri;
     for (;;) {
-        const configUri = UriUtils.joinPath(dir, RQCONFIG_FILENAME);
-        if (fileSystem.existsSync(configUri) && !fileSystem.statSync(configUri).isDirectory) {
-            return parseRqConfig(configUri, fileSystem);
+        const reqlanDir = UriUtils.joinPath(dir, REQLAN_DIR);
+        if (fileSystem.existsSync(reqlanDir) && fileSystem.statSync(reqlanDir).isDirectory) {
+            const configUri = UriUtils.joinPath(reqlanDir, CONFIG_FILENAME);
+            if (fileSystem.existsSync(configUri) && !fileSystem.statSync(configUri).isDirectory) {
+                return parseRqConfig(configUri, dir, fileSystem);
+            }
+            return undefined;
         }
         const parent = UriUtils.dirname(dir);
         if (UriUtils.equals(parent, dir)) {
@@ -135,7 +147,11 @@ export function loadApplyingRqConfig(
     }
 }
 
-function parseRqConfig(configUri: URI, fileSystem: FileSystemProvider): RqConfig | undefined {
+function parseRqConfig(
+    configUri: URI,
+    baseRootUri: URI,
+    fileSystem: FileSystemProvider
+): RqConfig | undefined {
     let raw: unknown;
     try {
         raw = JSON.parse(fileSystem.readFileSync(configUri));
@@ -146,11 +162,11 @@ function parseRqConfig(configUri: URI, fileSystem: FileSystemProvider): RqConfig
         return undefined;
     }
     const record = raw as Record<string, unknown>;
-    const importRoots = parseImportRoots(record.importRoots, configUri);
+    const importRoots = parseImportRoots(record.importRoots, baseRootUri);
     if (record.importRoots !== undefined && importRoots === undefined) {
         return undefined;
     }
-    const parsedExport = parseExportConfig(record.export, UriUtils.dirname(configUri));
+    const parsedExport = parseExportConfig(record.export, baseRootUri);
     const config: RqConfig = {
         importRoots: importRoots ?? defaultRqConfig().importRoots
     };
@@ -160,7 +176,7 @@ function parseRqConfig(configUri: URI, fileSystem: FileSystemProvider): RqConfig
     return config;
 }
 
-function parseImportRootEntry(entry: unknown, configDir: URI): ImportRootMapping | undefined {
+function parseImportRootEntry(entry: unknown, baseRootUri: URI): ImportRootMapping | undefined {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
         return undefined;
     }
@@ -172,22 +188,21 @@ function parseImportRootEntry(entry: unknown, configDir: URI): ImportRootMapping
     if (typeof record.root === 'string' && record.root.length > 0) {
         mapping.rootUri = isAbsoluteUriOrPath(record.root)
             ? toDirectoryUri(record.root)
-            : UriUtils.resolvePath(configDir, record.root);
+            : UriUtils.resolvePath(baseRootUri, record.root);
     }
     return mapping;
 }
 
-function parseImportRoots(raw: unknown, configUri: URI): ImportRootMapping[] | undefined {
+function parseImportRoots(raw: unknown, baseRootUri: URI): ImportRootMapping[] | undefined {
     if (raw === undefined) {
         return undefined;
     }
     if (!Array.isArray(raw)) {
         return undefined;
     }
-    const configDir = UriUtils.dirname(configUri);
     const importRoots: ImportRootMapping[] = [];
     for (const entry of raw) {
-        const mapping = parseImportRootEntry(entry, configDir);
+        const mapping = parseImportRootEntry(entry, baseRootUri);
         if (mapping) {
             importRoots.push(mapping);
         }
@@ -195,7 +210,7 @@ function parseImportRoots(raw: unknown, configUri: URI): ImportRootMapping[] | u
     return importRoots.length > 0 ? importRoots : defaultRqConfig().importRoots;
 }
 
-function parseExportConfig(raw: unknown, configDir: URI): RqExportConfig | undefined {
+function parseExportConfig(raw: unknown, baseRootUri: URI): RqExportConfig | undefined {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
         return undefined;
     }
@@ -205,7 +220,7 @@ function parseExportConfig(raw: unknown, configDir: URI): RqExportConfig | undef
     if (typeof record.outputFolder === 'string' && record.outputFolder.trim().length > 0) {
         config.outputFolder = isAbsoluteUriOrPath(record.outputFolder)
             ? toDirectoryUri(record.outputFolder).fsPath
-            : UriUtils.resolvePath(configDir, record.outputFolder).fsPath;
+            : UriUtils.resolvePath(baseRootUri, record.outputFolder).fsPath;
     }
     if (typeof record.templateId === 'string' && record.templateId.trim().length > 0) {
         config.templateId = record.templateId.trim();

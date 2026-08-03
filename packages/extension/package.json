@@ -64,9 +64,9 @@
         "jsonValidation": [
             {
                 "fileMatch": [
-                    ".rqconfig.json"
+                    "**/.reqlan/config.json"
                 ],
-                "url": "./schemas/rqconfig.schema.json"
+                "url": "./schemas/config.schema.json"
             }
         ],
         "configuration": {
@@ -234,6 +234,11 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.createBase",
+                "title": "Create Base",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.exportHtml",
                 "title": "Export HTML",
                 "category": "Reqlan"
@@ -293,6 +298,16 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.refactor.deleteIdea",
+                "title": "Delete Idea and Update References",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.refactor.moveIdea",
+                "title": "Move Idea to Another File",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.openFolderReference",
                 "title": "Open Folder Reference"
             },
@@ -301,6 +316,12 @@
                 "title": "Open Ideas Summary",
                 "category": "Reqlan",
                 "icon": "$(table)"
+            },
+            {
+                "command": "reqlan.openIndexDiagnostics",
+                "title": "Open Index Diagnostics",
+                "category": "Reqlan",
+                "icon": "$(dashboard)"
             },
             {
                 "command": "reqlan.installCursorSkills",
@@ -356,9 +377,14 @@
                     "group": "navigation@1"
                 },
                 {
-                    "command": "reqlan.refreshActivityBar",
+                    "command": "reqlan.openIndexDiagnostics",
                     "when": "view == reqlan.activityBar",
                     "group": "navigation@2"
+                },
+                {
+                    "command": "reqlan.refreshActivityBar",
+                    "when": "view == reqlan.activityBar",
+                    "group": "navigation@3"
                 }
             ]
         }
@@ -375,6 +401,7 @@
         "onCommand:reqlan.writePlan",
         "onCommand:reqlan.runPrompt",
         "onCommand:reqlan.openIdeasSummary",
+        "onCommand:reqlan.openIndexDiagnostics",
         "onCommand:reqlan.exportHtml",
         "onCommand:reqlan.exportPdf",
         "onView:reqlan.activityBar",
@@ -383,6 +410,8 @@
         "onCommand:reqlan.openReferenceCodeLens",
         "onCommand:reqlan.showOnboarding",
         "onCommand:reqlan.openInboundReferencesSummary",
+        "onCommand:reqlan.refactor.deleteIdea",
+        "onCommand:reqlan.refactor.moveIdea",
         "onChatParticipant:reqlan.reqlan-extension",
         "onLanguage:reqlan",
         "onLanguage:python",
@@ -397,7 +426,7 @@
         "build:media": "node scripts/generate-media.mjs",
         "build:readme": "pnpm exec tsx scripts/generate-readme.ts",
         "build:prepare": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json && node ../../scripts/sync-cursor-ai.mjs",
-        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts",
+        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts",
         "build": "node scripts/build.mjs",
         "build:clean": "pnpm run clean && pnpm run build",
         "watch": "bash scripts/watch.sh",

@@ -1,0 +1,65 @@
+from "./syntax/features-syntax.rq" import refactor_support
+from "./features-mutation-hooks.rq" import move_file, rename_file
+
+refactor_changes {
+    On rename, move, or delete of files or symbols, the extension should update the
+    idea index, import statements, embedded file references, comment references, and
+    other idea references that are affected.
+    The index should be resilient to duplication, particularly when ideas move between files:
+    the old hosting file URI must be cleared before or when the destination is reindexed.
+    [refactor_file_moves] [refactor_symbol_rename] [refactor_symbol_move] [refactor_symbol_delete]
+    Implemented by ["../../packages/analytical/src/index-store/workspace-index.ts"], ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"], ["../../packages/language/src/reqlan-idea-refactor.ts"], and ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"].
+}
+
+refactor_file_moves {
+    The extension should watch for file moves and renames, migrate the index for moved
+    .rq files, and update imports and path references both inside the moved file (outbound)
+    and in other files that pointed at it (inbound), including comment paths in code files.
+    There should be a single prompt per batch asking whether to apply path updates,
+    aligned with [move_file] and [rename_file].
+    Implemented by ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"], ["../../packages/extension/src/mutation_hooks_module/file-move-plan.ts"], ["../../packages/extension/src/mutation_hooks_module/file-mutation-gate.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-path-references.ts"].
+    @tests (
+        ["../../packages/language/test/file-path-rewrite.test.ts:updates inbound import path when the target file moves"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:preserves extensionless inbound paths"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:buildInboundPathRewriteEdits quotes replacement paths"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:updates paths when a file moves to a sibling directory"]
+    )
+}
+
+refactor_symbol_rename {
+    Syntactic symbols (ideas, ideasets, import aliases, and import paths) should be
+    renamable via the editor rename action (F2 / LSP rename).
+    Rename should update AST references across .rq files and matching `rq:["path".idea]`
+    comment idea tokens in source files.
+    [refactor_support]
+    Implemented by ["../../packages/language/src/reqlan-rename-provider.ts"], ["../../packages/language/src/reqlan-comment-rename.ts"], ["../../packages/language/src/reqlan-name-provider.ts"], and ["../../packages/extension/src/refactor_module/register-comment-rename-provider.ts"].
+    @tests (
+        ["../../packages/language/test/rename-provider.test.ts:rename updates declaration and wikilink references"]
+        ["../../packages/language/test/rename-provider.test.ts:rename also updates rq comment idea tokens in the same document"]
+        ["../../packages/language/test/comment-rename.test.ts:builds rename edits for matching comment idea tokens"]
+        ["../../packages/language/test/linking.test.ts:rename finds all idea references including wikilinks"]
+    )
+}
+
+refactor_symbol_move {
+    An idea declaration should offer a code action to move it to another .rq file.
+    Moving should cut the declaration from the source, insert it into the destination,
+    rewrite imports and references (including comment references), and reindex without
+    leaving duplicate idea rows for the old hosting file.
+    [refactor_support] [refactor_changes]
+    Implemented by ["../../packages/language/src/reqlan-idea-refactor.ts"], ["../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"].
+    @tests (
+        ["../../packages/language/test/idea-refactor.test.ts:move plan cuts from source and inserts into destination"]
+    )
+}
+
+refactor_symbol_delete {
+    An idea declaration should offer a code action to delete it and update references.
+    Deleting should remove the declaration, clear or rewrite AST and comment references
+    that targeted it, and reindex affected files.
+    [refactor_support] [refactor_changes]
+    Implemented by ["../../packages/language/src/reqlan-idea-refactor.ts"], ["../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"].
+    @tests (
+        ["../../packages/language/test/idea-refactor.test.ts:delete plan removes declaration and bracket references"]
+    )
+}

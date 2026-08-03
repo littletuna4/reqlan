@@ -1,5 +1,7 @@
 import type { ExtensionToWebviewMessage } from '../../../src/webview_module/shared/messages.js';
 import type {
+    AttributesTableQuery,
+    AttributeTableRow,
     GraphUiPersistedState,
     GraphViewQuery,
     GraphViewSlice,
@@ -8,15 +10,24 @@ import type {
     IdeasetsTableQuery,
     IdeasetTableRow,
     IndexStatusView,
+    OverviewLink,
+    OverviewSearchResult,
     ReferenceTableRow,
-    ReferencesTableQuery
+    ReferencesTableQuery,
+    TableUiPersistedState,
+    TimelineEventView
 } from '../../../src/webview_module/shared/messages.js';
 import {
     DEFAULT_GRAPH_UI_STATE,
     normalizeGraphUiState
 } from '../../../src/webview_module/shared/graph-ui-state.js';
+import {
+    DEFAULT_TABLE_UI_STATE,
+    normalizeTableUiState
+} from '../../../src/webview_module/shared/table-ui-state.js';
 import { createDebounced } from '../lib/debounce.js';
 import {
+    defaultAttributesQuery,
     defaultGraphQuery,
     defaultIdeasQuery,
     defaultIdeasetsQuery,
@@ -25,17 +36,26 @@ import {
 import { indexStatusText } from '../lib/index-status-text.js';
 import { graphLog } from '../lib/graph-debug.js';
 import type { Tab } from '../lib/tabs.js';
+import { TABS } from '../lib/tabs.js';
 import { getVsCodeApi, postToExtension } from '../lib/vscode.js';
+
+const VALID_TABS = new Set(TABS.map(tab => tab.id));
 
 export class AppState {
     tab = $state({
-        activeTab: 'index' as Tab,
+        activeTab: 'overview' as Tab,
         statusText: 'Loading index…',
         statusError: false
     });
 
     index = $state({
         status: undefined as IndexStatusView | undefined
+    });
+
+    overview = $state({
+        links: [] as OverviewLink[],
+        search: undefined as OverviewSearchResult | undefined,
+        searching: false
     });
 
     ideas = $state({
@@ -55,6 +75,31 @@ export class AppState {
         total: 0,
         rows: [] as ReferenceTableRow[]
     });
+
+    attributes = $state({
+        query: defaultAttributesQuery(),
+        total: 0,
+        rows: [] as AttributeTableRow[]
+    });
+
+    timeline = $state({
+        events: [] as TimelineEventView[],
+        loading: false
+    });
+
+    tableUi = $state({
+        ...DEFAULT_TABLE_UI_STATE,
+        ideas: { ...DEFAULT_TABLE_UI_STATE.ideas, visibleColumns: [...DEFAULT_TABLE_UI_STATE.ideas.visibleColumns] },
+        ideasets: { visibleColumns: [...DEFAULT_TABLE_UI_STATE.ideasets.visibleColumns] },
+        attributes: { visibleColumns: [...DEFAULT_TABLE_UI_STATE.attributes.visibleColumns] },
+        references: {
+            ...DEFAULT_TABLE_UI_STATE.references,
+            visibleColumns: [...DEFAULT_TABLE_UI_STATE.references.visibleColumns]
+        },
+        bases: { visibleColumns: [...DEFAULT_TABLE_UI_STATE.bases.visibleColumns] }
+    } as TableUiPersistedState);
+
+    tableUiHydrated = $state(false);
 
     graph = $state({
         query: defaultGraphQuery(),
@@ -79,7 +124,10 @@ export class AppState {
     private ideasSearchDebounce = createDebounced((query: IdeasTableQuery) => this.loadIdeas(query), 250);
     private ideasetsSearchDebounce = createDebounced((query: IdeasetsTableQuery) => this.loadIdeasets(query), 250);
     private referencesSearchDebounce = createDebounced((query: ReferencesTableQuery) => this.loadReferences(query), 250);
+    private attributesSearchDebounce = createDebounced((query: AttributesTableQuery) => this.loadAttributes(query), 250);
+    private overviewSearchDebounce = createDebounced((query: string) => this.flushOverviewSearch(query), 250);
     private graphUiPersistDebounce = createDebounced(() => this.flushGraphUiPersist(), 200);
+    private tableUiPersistDebounce = createDebounced(() => this.flushTableUiPersist(), 200);
 
     setStatus(message: string, error: boolean): void {
         this.tab.statusText = message;
@@ -92,10 +140,97 @@ export class AppState {
         if (tab === 'graph') {
             this.requestGraph();
         }
+        if (tab === 'attributes') {
+            this.loadAttributes(this.attributes.query);
+        }
+        if (tab === 'ideas') {
+            this.loadIdeas(this.ideas.query);
+        }
+        if (tab === 'ideasets') {
+            this.loadIdeasets(this.ideasets.query);
+        }
+        if (tab === 'references') {
+            this.loadReferences(this.references.query);
+        }
+        if (tab === 'timeline') {
+            this.loadTimeline();
+        }
     }
 
     openIdea(fileUri: string, line: number, column = 0): void {
         postToExtension({ type: 'openIdea', fileUri, line, column });
+    }
+
+    openExternal(href: string): void {
+        postToExtension({ type: 'openExternal', href });
+    }
+
+    openExport(format?: 'html' | 'pdf'): void {
+        postToExtension({ type: 'openExport', format });
+    }
+
+    overviewSearch(query: string): void {
+        const trimmed = query.trim();
+        if (!trimmed) {
+            this.overview.search = undefined;
+            this.overview.searching = false;
+            this.overviewSearchDebounce.cancel();
+            return;
+        }
+        this.overview.searching = true;
+        this.overviewSearchDebounce.schedule(trimmed);
+    }
+
+    private flushOverviewSearch(query: string): void {
+        postToExtension({ type: 'overviewSearch', query });
+    }
+
+    openOverviewSurface(
+        surface: 'ideas' | 'ideasets' | 'attributes' | 'references',
+        query: string
+    ): void {
+        const search = query.trim() || undefined;
+        if (surface === 'ideas') {
+            this.ideas.query = { ...this.ideas.query, page: 0, search };
+            this.setTab('ideas');
+            return;
+        }
+        if (surface === 'ideasets') {
+            this.ideasets.query = { ...this.ideasets.query, page: 0, search };
+            this.setTab('ideasets');
+            return;
+        }
+        if (surface === 'attributes') {
+            this.attributes.query = { ...this.attributes.query, page: 0, search };
+            this.setTab('attributes');
+            return;
+        }
+        this.references.query = { ...this.references.query, page: 0, search };
+        this.setTab('references');
+    }
+
+    searchFromOverview(search: string): void {
+        this.openOverviewSurface('ideas', search);
+    }
+
+    loadTimeline(): void {
+        this.timeline.loading = true;
+        postToExtension({ type: 'loadTimeline' });
+    }
+
+    openAttributeInIdeas(key: string): void {
+        const attributeColumns = this.ideas.query.attributeColumns.includes(key)
+            ? this.ideas.query.attributeColumns
+            : [...this.ideas.query.attributeColumns, key];
+        const next: IdeasTableQuery = {
+            ...this.ideas.query,
+            page: 0,
+            attributeColumns,
+            sortBy: `attr:${key}`,
+            sortDir: 'asc'
+        };
+        this.ideas.query = next;
+        this.setTab('ideas');
     }
 
     loadIdeas(query: IdeasTableQuery): void {
@@ -138,6 +273,20 @@ export class AppState {
             return;
         }
         this.loadReferences(query);
+    }
+
+    loadAttributes(query: AttributesTableQuery): void {
+        this.attributes.query = query;
+        postToExtension({ type: 'loadAttributes', query });
+    }
+
+    onAttributesQueryChange(query: AttributesTableQuery): void {
+        if (query.search !== this.attributes.query.search) {
+            this.attributes.query = query;
+            this.attributesSearchDebounce.schedule(query);
+            return;
+        }
+        this.loadAttributes(query);
     }
 
     requestGraph(options?: { force?: boolean }): void {
@@ -221,6 +370,27 @@ export class AppState {
         return next;
     }
 
+    patchTableUi(partial: Partial<TableUiPersistedState>): TableUiPersistedState {
+        const next = normalizeTableUiState({
+            ...this.tableUi,
+            ...partial,
+            ideas: partial.ideas ? { ...this.tableUi.ideas, ...partial.ideas } : this.tableUi.ideas,
+            ideasets: partial.ideasets ? { ...this.tableUi.ideasets, ...partial.ideasets } : this.tableUi.ideasets,
+            attributes: partial.attributes
+                ? { ...this.tableUi.attributes, ...partial.attributes }
+                : this.tableUi.attributes,
+            references: partial.references
+                ? { ...this.tableUi.references, ...partial.references }
+                : this.tableUi.references,
+            bases: partial.bases ? { ...this.tableUi.bases, ...partial.bases } : this.tableUi.bases
+        });
+        this.tableUi = next;
+        if (this.tableUiHydrated) {
+            this.tableUiPersistDebounce.schedule();
+        }
+        return next;
+    }
+
     private applyGraphUiState(raw: unknown): void {
         const state = normalizeGraphUiState(raw);
         this.graph.ui = state;
@@ -232,6 +402,18 @@ export class AppState {
         };
     }
 
+    private applyTableUiState(raw: unknown): void {
+        const state = normalizeTableUiState(raw);
+        this.tableUi = state;
+        this.tableUiHydrated = true;
+        if (state.ideas.groupBy) {
+            this.ideas.query = { ...this.ideas.query, groupBy: state.ideas.groupBy };
+        }
+        if (state.references.groupBy) {
+            this.references.query = { ...this.references.query, groupBy: state.references.groupBy };
+        }
+    }
+
     private flushGraphUiPersist(): void {
         if (!this.graph.uiHydrated) {
             return;
@@ -239,10 +421,37 @@ export class AppState {
         postToExtension({ type: 'persistGraphUiState', state: this.graph.ui });
     }
 
+    private flushTableUiPersist(): void {
+        if (!this.tableUiHydrated) {
+            return;
+        }
+        postToExtension({ type: 'persistTableUiState', state: this.tableUi });
+    }
+
     exportGraph(): void {
         this.dump.output = 'Loading full graph…';
         this.dump.visible = true;
         postToExtension({ type: 'dumpFullGraph' });
+    }
+
+    selectBase(baseId: string): void {
+        postToExtension({ type: 'selectBase', baseId });
+    }
+
+    createBase(): void {
+        postToExtension({ type: 'createBase' });
+    }
+
+    refreshIndex(): void {
+        postToExtension({ type: 'refreshIndex' });
+    }
+
+    cancelIndexSync(): void {
+        postToExtension({ type: 'cancelIndexSync' });
+    }
+
+    clearAndRebuildIndex(): void {
+        postToExtension({ type: 'clearAndRebuildIndex' });
     }
 
     handleExtensionMessage(message: ExtensionToWebviewMessage): void {
@@ -257,8 +466,6 @@ export class AppState {
                     const { text, error } = indexStatusText(message.status);
                     this.setStatus(text, error);
                 }
-                // Only on the transition to ready — avoids spamming loadGraph on
-                // every status tick while a request is already in flight.
                 if (
                     message.status.ready &&
                     !wasReady &&
@@ -284,6 +491,22 @@ export class AppState {
                 this.references.query = message.query;
                 this.references.total = message.total;
                 this.references.rows = message.rows;
+                break;
+            case 'attributesPage':
+                this.attributes.query = message.query;
+                this.attributes.total = message.total;
+                this.attributes.rows = message.rows;
+                break;
+            case 'timelinePage':
+                this.timeline.events = message.events;
+                this.timeline.loading = false;
+                break;
+            case 'overviewSearchResult':
+                this.overview.search = message.result;
+                this.overview.searching = false;
+                break;
+            case 'overviewLinks':
+                this.overview.links = message.links;
                 break;
             case 'graphSlice':
                 clearTimeout(this.graphLoadTimeout);
@@ -314,10 +537,13 @@ export class AppState {
                     this.requestGraph();
                 }
                 break;
+            case 'tableUiState':
+                this.applyTableUiState(message.state);
+                break;
             case 'navigate': {
                 const intent = message.intent;
-                if (intent.activeTab) {
-                    this.setTab(intent.activeTab);
+                if (intent.activeTab && VALID_TABS.has(intent.activeTab as Tab)) {
+                    this.setTab(intent.activeTab as Tab);
                 }
                 if (intent.pathFilter) {
                     this.ideas.query = {
@@ -360,23 +586,18 @@ export class AppState {
     }
 
     init(): () => void {
-        // Attach the message listener synchronously before any child onMount can
-        // post (Svelte runs child onMount before parent). Lost replies otherwise
-        // leave loading flags stuck forever.
         const onMessage = (event: MessageEvent): void => {
             this.handleExtensionMessage(event.data as ExtensionToWebviewMessage);
         };
         window.addEventListener('message', onMessage);
 
         const saved = getVsCodeApi().getState() as { activeTab?: Tab } | undefined;
-        if (saved?.activeTab) {
+        if (saved?.activeTab && VALID_TABS.has(saved.activeTab)) {
             this.tab.activeTab = saved.activeTab;
         }
 
         requestAnimationFrame(() => {
             postToExtension({ type: 'ready' });
-            // Graph load waits for graphUiState so Key/Controls (incl. node budget)
-            // restore from workspaceState before the first loadGraph.
         });
 
         this.extensionConnectTimer = setTimeout(() => {
@@ -395,9 +616,12 @@ export class AppState {
             this.ideasSearchDebounce.cancel();
             this.ideasetsSearchDebounce.cancel();
             this.referencesSearchDebounce.cancel();
+            this.attributesSearchDebounce.cancel();
+            this.overviewSearchDebounce.cancel();
             this.graphUiPersistDebounce.cancel();
-            // Flush any pending UI persist so a quick panel close still saves.
+            this.tableUiPersistDebounce.cancel();
             this.flushGraphUiPersist();
+            this.flushTableUiPersist();
         };
     }
 }

@@ -2,7 +2,7 @@
  * SQLite schema for the workspace idea graph index.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Initial schema — always safe to re-run (IF NOT EXISTS). */
 export const BASE_MIGRATIONS: string[] = [
@@ -50,6 +50,9 @@ export const VERSION_MIGRATIONS: Record<number, string[]> = {
         `ALTER TABLE edges ADD COLUMN source_line INTEGER`,
         `ALTER TABLE edges ADD COLUMN snippet TEXT`,
         `ALTER TABLE edges ADD COLUMN is_resolved INTEGER NOT NULL DEFAULT 1`
+    ],
+    3: [
+        `ALTER TABLE documents ADD COLUMN mtime_ms REAL`
     ]
 };
 

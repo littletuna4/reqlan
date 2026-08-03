@@ -1,1 +1,1 @@
-spec this folder contains the graph representation, index, and graph search and analysis features that can be consumed by the rest of the extension
+spec this folder is the extension host adapter for `@reqlan/analytical`: VS Code wiring (watchers, Uri helpers, export UI, command registration) over the shared WorkspaceIndex engine. Index ownership lives in packages/analytical.

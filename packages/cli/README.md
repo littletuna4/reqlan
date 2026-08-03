@@ -9,6 +9,7 @@ CLI for parsing and analysing reqlan requirement graphs
 ## Features
 
 - `reqlan` / `rq` Clipanion CLI for requirement workspaces
+- `init` — create a `.reqlan` base marker in the current or given directory
 - `parse` — parse a `.rq` file and print diagnostics or an AST summary
 - `analyse` / `analyze` — file, idea, or workspace graph analysis via `AnalysisApi`
 - `search` — semantic search across indexed requirements (`--json` for scripting)
@@ -25,6 +26,7 @@ npx @reqlan/cli --help
 ## Commands
 
 ```bash
+reqlan init [path] [--json]
 reqlan parse <file> [--json]
 reqlan analyse [--file <path> | --idea <name>] [--depth <n>] [--cwd <dir>] [--json]
 reqlan analyze   # alias of analyse
@@ -33,9 +35,11 @@ reqlan export [--output <dir>] [--name <folder>] [--exclude-secret] [--file <pat
 reqlan export html   # same as export
 ```
 
-Set `REQLAN_WORKSPACE` or pass `--cwd` to override the workspace root.
+Set `REQLAN_WORKSPACE` or pass `--cwd` to override the workspace root for analyse/search/export.
 
-The ideas index is shared application memory at `<workspace>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and MCP). Override the storage directory with `REQLAN_INDEX_PATH` when needed.
+`init` creates `<path>/.reqlan/` (defaults to the current directory). An empty `.reqlan` folder is a valid base marker shared with the VS Code extension and MCP.
+
+The ideas index is shared application memory at `<base>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and MCP). Override the storage directory with `REQLAN_INDEX_PATH` when needed.
 
 ## Links
 

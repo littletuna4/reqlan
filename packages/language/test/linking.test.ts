@@ -287,6 +287,7 @@ describe('Linking tests', () => {
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
     test('rename finds import path declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -314,6 +315,7 @@ describe('Linking tests', () => {
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
     test('rename finds import alias declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['exampleimport2.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -367,6 +369,7 @@ describe('Linking tests', () => {
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
     test('rename finds all idea references including wikilinks', async () => {
         document = await parse(`alpha {
     see [[beta]]
@@ -587,7 +590,7 @@ later_member {
         const fileServices = createReqlanServices(NodeFileSystem);
         const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
         const validatingPath = join(repoDir, 'packages/language/test/validating.test.ts');
-        const testName = 'reports duplicate when local idea shares imported idea name';
+        const testName = 'reports duplicate when local idea shares unaliased import binding';
         const testLine = findTestLineInText(readFileSync(validatingPath, 'utf8'), testName);
         expect(testLine).toBeDefined();
 

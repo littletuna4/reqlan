@@ -272,10 +272,14 @@ async function pickIdea(
     await ensureIndex(submodule);
 
     const editor = vscode.window.activeTextEditor;
-    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const workspaceRoot =
+        submodule.index.getActiveBase()?.descriptor.root ??
+        vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     let ideas: IdeaSummary[] = [];
     if (editor && vscode.workspace.getWorkspaceFolder(editor.document.uri)) {
-        const fileUri = toIndexFileUri(editor.document.uri);
+        submodule.index.activateBaseForPath(editor.document.uri.fsPath);
+        const activeRoot = submodule.index.getActiveBase()?.descriptor.root ?? workspaceRoot;
+        const fileUri = toIndexFileUri(editor.document.uri, activeRoot);
         if (isRqEditor(editor)) {
             ideas = (await index.indexStore.getIdeasInFile(fileUri))
                 .filter(idea => idea.kind !== 'ideaset');
@@ -283,8 +287,8 @@ async function pickIdea(
             const related = await analysers.run<{ fileUri: string }, import('@reqlan/analytical').FileRelatedRequirements>(
                 {
                     store: index.indexStore,
-                    analytical: submodule.store,
-                    workspaceRoot
+                    analytical: submodule.index.store,
+                    workspaceRoot: activeRoot
                 },
                 'file_related_requirements',
                 { fileUri }
@@ -300,8 +304,8 @@ async function pickIdea(
         ideas = (await analysers.run<void, IdeaSummary[]>(
             {
                 store: index.indexStore,
-                analytical: submodule.store,
-                workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+                analytical: submodule.index.store,
+                workspaceRoot
             },
             'list_all_ideas',
             undefined
@@ -322,8 +326,8 @@ async function pickIdea(
         const matches = await analysers.run<{ query: string; limit?: number }, SemanticMatch[]>(
             {
                 store: index.indexStore,
-                analytical: submodule.store,
-                workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+                analytical: submodule.index.store,
+                workspaceRoot
             },
             'semantic_analysis',
             { query: query.trim(), limit: 20 }

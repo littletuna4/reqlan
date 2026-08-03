@@ -20,6 +20,11 @@ merge_requirements{
 rename_file{
     this should update any referencess in rq files (imports, inline references, etc)
     it should also update any inline references in functional code files - per ["features-code-comment"]
+    See also ["refactor_support.rq".refactor_file_moves] and ["refactor_support.rq".refactor_changes].
+    Implemented by ["../../packages/extension/src/mutation_hooks_module/file-move-plan.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/extension/src/mutation_hooks_module/collect-inbound-referencers.ts"].
+    @tests (
+        ["../../packages/language/test/file-path-rewrite.test.ts:updates inbound import path when the target file moves"]
+    )
 }
 
 move_file{
@@ -28,4 +33,11 @@ move_file{
     the trigger should only happen if the reqlan file has inbound or outbound references, or the non-reqlan file has inbound reqlan references.
     "reqlan wants to make refactoring changes to your codebase. Do you approve?"
     "yes", "no", "view changes"
+    See also ["refactor_support.rq".refactor_file_moves].
+    Implemented by ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"], ["../../packages/extension/src/mutation_hooks_module/show-mutation-approval.ts"], and ["../../packages/extension/src/mutation_hooks_module/file-mutation-gate.ts"].
+    @tests (
+        ["../../packages/language/test/file-path-rewrite.test.ts:updates paths when a file moves to a sibling directory"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:finds import and embedded paths in rq files"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:finds rq comment paths in code files"]
+    )
 }

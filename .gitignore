@@ -19,7 +19,7 @@ syntaxes/
 .pnpm-store/
 
 # Workspace-local reqlan application memory (ideas index, etc.)
-.reqlan/
+.reqlan/*.sqlite
 
 *.secret.rq
 

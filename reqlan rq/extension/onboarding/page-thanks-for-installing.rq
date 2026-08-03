@@ -9,6 +9,7 @@ installation_event {
     - A control to open that example as an untitled `.rq` editor beside the webview
     - Short tips for the activity bar and `@reqlan` chat
     - A thanks to sponsors
+    Place in overall install sequencing: ["../installation.rq".welcome_webview_install] / ["../installation.rq".extension_installation].
     Implemented as a Svelte webview under ["../../packages/extension/webviews/onboarding/"] bundled to ["../../packages/extension/media/webviews/onboarding/"] and opened once on first activation by ["../../packages/extension/src/extension/open-thanks-for-installing.ts"] via ["../../packages/extension/src/extension/onboarding-panel.ts"].
     Resource links and template values are resolved at runtime from [phonebook_reqs.phonebook] through ["../../packages/extension/src/shared/phonebook.ts"] and posted to the webview; the example block imports ["../../packages/extension/templates/thanks-for-installing.template.rq"] via Vite `?raw` and substitutes `{{…}}` placeholders before display.
     Highlighting uses the onboarding tokenizer in ["../../packages/extension/webviews/onboarding/lib/rq-highlight.ts"].

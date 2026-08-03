@@ -1,10 +1,12 @@
 import "./context-scope.rq" as context_scope_v1
 import "./activitybar.rq" as activitybar
-import "./graphical_graph.rq" as graphical_graph_doc
-import "./webview.rq" as webview_doc
+import "./ideas_summary/graphical_graph.rq" as graphical_graph_doc
+import "./ideas_summary/webview.rq" as ideas_summary_doc
 import "../agents/features-ai.rq" as features_ai
 import "../features-graph-analysers.rq" as graph_analysers
 import "../../ui.rq" as ui
+import "../../bases/base.rq" as bases
+from "../../ontology.rq" import base as ontology_base
 
 context_scope_v2 {
     Evolves [context_scope_v1.context_scope] from a **source-oriented** model
@@ -23,7 +25,7 @@ context_scope_v2 {
     default for conveying meaning.
 
     Surfaces: extend [activitybar.scope_pane] / [context_scope_v1.scope_pane_design],
-    Ideas Summary ([webview_doc.webview]), and graph overlays
+    Ideas Summary ([ideas_summary_doc.ideas_summary]), and graph overlays
     ([graphical_graph_doc.graphical_graph]) — same signals, different projections.
 
     @status in-progress
@@ -63,8 +65,13 @@ context_sources {
     [context_scope_v1.manual_context], [context_scope_v1.git_context] become
     sources (and contributions), not the whole model.
 
+    `workspace` = VS Code workspace chrome / ambient multi-base glance (folder roots, discovery empty state).
+    `base` = the active ontology [ontology_base] (`.reqlan`-marked container): its index, readiness, and path ([bases.implied_context]).
+    Requirements graph and project index bind to the active base's store, not a merged workspace graph.
+
     @items (
         workspace
+        base
         active_file
         editor_state
         selection
@@ -84,6 +91,15 @@ context_sources {
     @status incomplete
 }
 
+base_signals {
+    Multi-base facts for [context_signals] / [synthesized_context]:
+    active_base_id, active_base_root, active_base_ready, idea/edge counts for the active base,
+    sibling_bases (id, path, ready, counts), discovery_empty (prompt create-base).
+    Consumed by [activitybar.workspace_pane], Ideas Summary base switcher, and [project_weather].
+    @status in-progress
+    @tags (bases, multi-base)
+}
+
 context_signals {
     Extracted facts. Answer: "What useful information exists?"
     One source may emit many signals (e.g. git → development history, not only staged/unstaged).
@@ -101,6 +117,7 @@ context_signals {
     - [risk_signals]
     - [architecture_signals]
     - [requirement_lifecycle_signals]
+    - [base_signals]
 
     Signals are evidence; [synthesized_context] merges them into actionable knowledge.
 
@@ -395,7 +412,7 @@ traceability_matrix {
     Compact Req × Impl × Test (and optional Docs) check matrix for a local
     neighbourhood or subsystem. Exposes gaps immediately.
     Neighbourhood-scoped only — full-workspace matrices stay in Ideas Summary
-    with pagination/filters per [webview_doc.webview].
+    with pagination/filters per [ideas_summary_doc.ideas_summary].
 
     @status incomplete
     @tags (widget, traceability)
@@ -504,7 +521,8 @@ project_weather {
     for Project Health, Momentum, Risk, Confidence.
 
     Consumes [synthesized_context] across [risk_signals],
-    [project_activity_signals], [quality_signals]. Belongs in activity bar
+    [project_activity_signals], [quality_signals], and [base_signals]
+    (per-base readiness when multiple bases exist). Belongs in activity bar
     workspace lens / Ideas Summary index panel — not as competing hero noise
     on every focus.
 

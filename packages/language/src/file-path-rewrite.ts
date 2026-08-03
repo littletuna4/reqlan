@@ -1,11 +1,14 @@
 /**
- * Recompute relative file paths when a referencing file moves to a new directory.
+ * Recompute relative file paths when a referencing file moves to a new directory,
+ * or when a referenced target file moves and inbound paths must be updated.
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
  */
 import { URI, UriUtils } from 'langium';
 import type { Range } from 'vscode-languageserver';
+import { importPathWithImplicitExtension } from './reqlan-imports.js';
 import {
     DEFAULT_IMPORT_ROOT_ALIAS,
     matchImportRootMapping,
@@ -31,14 +34,29 @@ function rewriteImportRoots(options?: PathRewriteOptions): readonly ImportRootMa
     return options?.importRoots ?? [{ alias: DEFAULT_IMPORT_ROOT_ALIAS }];
 }
 
+function ensureDotRelative(path: string): string {
+    return path.startsWith('.') ? path : `./${path}`;
+}
+
+function uriWithoutExtension(uri: URI): string {
+    const uriString = uri.toString();
+    const ext = UriUtils.extname(uri);
+    return ext ? uriString.slice(0, uriString.length - ext.length) : uriString;
+}
+
+function urisReferToSameTarget(left: URI, right: URI): boolean {
+    return left.toString() === right.toString()
+        || uriWithoutExtension(left) === uriWithoutExtension(right);
+}
+
+function pathHadExplicitExtension(path: string): boolean {
+    const basename = path.slice(path.lastIndexOf('/') + 1);
+    return basename.includes('.', 1);
+}
+
 export function relativePathWithoutExtension(dirname: string, targetUri: URI): string {
-    const uriString = targetUri.toString();
-    const uriWithoutExt = uriString.slice(0, uriString.length - UriUtils.extname(targetUri).length);
-    let relativePath = UriUtils.relative(dirname, uriWithoutExt);
-    if (!relativePath.startsWith('.')) {
-        relativePath = `./${relativePath}`;
-    }
-    return relativePath;
+    let relativePath = UriUtils.relative(dirname, uriWithoutExtension(targetUri));
+    return ensureDotRelative(relativePath);
 }
 
 export function rewriteRelativePath(
@@ -56,11 +74,41 @@ export function rewriteRelativePath(
     const oldDir = UriUtils.dirname(oldFileUri);
     const newDir = UriUtils.dirname(newFileUri);
     const resolved = UriUtils.resolvePath(oldDir, path);
-    let relativePath = UriUtils.relative(newDir, resolved);
-    if (!relativePath.startsWith('.')) {
-        relativePath = `./${relativePath}`;
-    }
+    const relativePath = ensureDotRelative(UriUtils.relative(newDir, resolved));
     return relativePath === path ? undefined : relativePath;
+}
+
+/**
+ * When the *target* of a path moves, recompute the path as seen from the referencing file.
+ */
+export function rewritePathToMovedTarget(
+    path: string,
+    referencingFileUri: URI,
+    oldTargetUri: URI,
+    newTargetUri: URI,
+    options?: PathRewriteOptions
+): string | undefined {
+    if (!path || path.startsWith('file://')) {
+        return undefined;
+    }
+    if (matchImportRootMapping(path, rewriteImportRoots(options)) !== undefined) {
+        return undefined;
+    }
+    const refDir = UriUtils.dirname(referencingFileUri);
+    const candidates = [UriUtils.resolvePath(refDir, path)];
+    const withExt = importPathWithImplicitExtension(path);
+    if (withExt) {
+        candidates.push(UriUtils.resolvePath(refDir, withExt));
+    }
+    if (!candidates.some(candidate => urisReferToSameTarget(candidate, oldTargetUri))) {
+        return undefined;
+    }
+
+    const keepExtension = pathHadExplicitExtension(path);
+    const newRelative = keepExtension
+        ? ensureDotRelative(UriUtils.relative(refDir, newTargetUri))
+        : relativePathWithoutExtension(refDir.toString(), newTargetUri);
+    return newRelative === path ? undefined : newRelative;
 }
 
 export function rewriteQuotedPath(
@@ -83,6 +131,35 @@ export function buildPathRewriteEdits(
     const edits: PathRewriteEdit[] = [];
     for (const reference of references) {
         const newPath = rewriteRelativePath(reference.path, oldFileUri, newFileUri, options);
+        if (newPath === undefined) {
+            continue;
+        }
+        const newText = formatReplacement(reference.path, newPath, reference.range);
+        if (newText === undefined) {
+            continue;
+        }
+        edits.push({ range: reference.range, newText });
+    }
+    return edits;
+}
+
+export function buildInboundPathRewriteEdits(
+    references: PathReference[],
+    referencingFileUri: URI,
+    oldTargetUri: URI,
+    newTargetUri: URI,
+    formatReplacement: (path: string, newPath: string, range: Range) => string | undefined,
+    options?: PathRewriteOptions
+): PathRewriteEdit[] {
+    const edits: PathRewriteEdit[] = [];
+    for (const reference of references) {
+        const newPath = rewritePathToMovedTarget(
+            reference.path,
+            referencingFileUri,
+            oldTargetUri,
+            newTargetUri,
+            options
+        );
         if (newPath === undefined) {
             continue;
         }

@@ -1,6 +1,10 @@
 import { URI } from 'langium';
 import { describe, expect, test } from 'vitest';
-import { rewriteRelativePath } from '../src/file-path-rewrite.js';
+import {
+    buildInboundPathRewriteEdits,
+    rewritePathToMovedTarget,
+    rewriteRelativePath
+} from '../src/file-path-rewrite.js';
 import {
     findCommentPathReferencesInText,
     findImportPathReferencesInText,
@@ -27,6 +31,49 @@ describe('rewriteRelativePath', () => {
         const oldFile = URI.parse('file:///workspace/ext/foo.rq');
         const newFile = URI.parse('file:///workspace/ext/sub/foo.rq');
         expect(rewriteRelativePath('./other.rq', oldFile, newFile)).toBe('../other.rq');
+    });
+});
+
+describe('rewritePathToMovedTarget', () => {
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+    // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".rename_file]
+    test('updates inbound import path when the target file moves', () => {
+        const referencing = URI.parse('file:///workspace/ext/a/main.rq');
+        const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');
+        const newTarget = URI.parse('file:///workspace/ext/b/foo.rq');
+        expect(rewritePathToMovedTarget('./foo.rq', referencing, oldTarget, newTarget)).toBe('../b/foo.rq');
+    });
+
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+    test('preserves extensionless inbound paths', () => {
+        const referencing = URI.parse('file:///workspace/ext/a/main.rq');
+        const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');
+        const newTarget = URI.parse('file:///workspace/ext/b/foo.rq');
+        expect(rewritePathToMovedTarget('./foo', referencing, oldTarget, newTarget)).toBe('../b/foo');
+    });
+
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+    test('ignores paths that do not resolve to the moved target', () => {
+        const referencing = URI.parse('file:///workspace/ext/a/main.rq');
+        const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');
+        const newTarget = URI.parse('file:///workspace/ext/b/foo.rq');
+        expect(rewritePathToMovedTarget('./other.rq', referencing, oldTarget, newTarget)).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+    test('buildInboundPathRewriteEdits quotes replacement paths', () => {
+        const referencing = URI.parse('file:///workspace/ext/a/main.rq');
+        const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');
+        const newTarget = URI.parse('file:///workspace/ext/b/foo.rq');
+        const edits = buildInboundPathRewriteEdits(
+            findImportPathReferencesInText('from "./foo.rq" import x'),
+            referencing,
+            oldTarget,
+            newTarget,
+            (_path, newPath) => JSON.stringify(newPath)
+        );
+        expect(edits).toHaveLength(1);
+        expect(edits[0]?.newText).toBe('"../b/foo.rq"');
     });
 });
 

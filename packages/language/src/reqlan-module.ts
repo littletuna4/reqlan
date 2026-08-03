@@ -13,6 +13,7 @@ import { ReqlanCodeActionProvider } from './reqlan-code-action-provider.js';
 import { sharedAttributeCatalog } from './reqlan-attribute-catalog.js';
 import { ReqlanCodeLensProvider } from './reqlan-code-lens-provider.js';
 import { ReqlanInlayHintProvider } from './reqlan-inlay-hint-provider.js';
+import { ReqlanRenameProvider } from './reqlan-rename-provider.js';
 import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js';
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
 import { registerRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
@@ -60,7 +61,8 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         InlayHintProvider: services => new ReqlanInlayHintProvider(services),
         CodeLensProvider: services => new ReqlanCodeLensProvider(services),
         CompletionProvider: services => new ReqlanCompletionProvider(services, sharedAttributeCatalog),
-        CodeActionProvider: services => new ReqlanCodeActionProvider(services)
+        CodeActionProvider: services => new ReqlanCodeActionProvider(services),
+        RenameProvider: services => new ReqlanRenameProvider(services)
     }
 };
 

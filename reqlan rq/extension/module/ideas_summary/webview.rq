@@ -1,0 +1,206 @@
+import "../../features-views.rq" as views
+import "../../features-export.rq" as features_export
+import "../../features-html-export.rq" as html_export
+import "../index.rq" as index_reqs
+import "./graphical_graph.rq" as graphical_graph_doc
+import "./base-scope.rq" as ideas_summary_base
+import "../../../development/core.rq" as development_core
+import "../../../ontology.rq" as ontology
+import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media
+import "../../../../packages/analytical/src/index-store/webview-table-queries.ts" as webview_table_queries
+import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../../packages/extension/src/webview_module/shared/table-ui-state.ts" as table_ui_state
+import "../../../../packages/extension/webviews/ideas-summary/components/OverviewPanel.svelte" as OverviewPanel
+import "../../../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte" as IndexPanel
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeasTable.svelte" as IdeasTable
+import "../../../../packages/extension/webviews/ideas-summary/components/TableToolbar.svelte" as TableToolbar
+import "../../../../packages/extension/webviews/ideas-summary/components/ColumnFilterRow.svelte" as ColumnFilterRow
+import "../../../../packages/extension/webviews/ideas-summary/components/TableOptionsMenu.svelte" as TableOptionsMenu
+import "../../../../packages/extension/webviews/ideas-summary/components/SortableTh.svelte" as SortableTh
+import "../../../../packages/extension/webviews/ideas-summary/components/ChipList.svelte" as ChipList
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeaBodyCell.svelte" as IdeaBodyCell
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte" as IdeasetsTable
+import "../../../../packages/extension/webviews/ideas-summary/components/ReferencesTable.svelte" as ReferencesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/BasesTable.svelte" as BasesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/AttributesTable.svelte" as AttributesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/TimelinePanel.svelte" as TimelinePanel
+import "../webview.rq" as webview_doc
+
+ideas_summary {
+    The Ideas Summary webview is a workspace-wide page for tables (and graph) summarising ideas
+    per [views.simple_views] and [webview_doc.webview].
+    Tabs align with salient [ontology] data and HTML export list views ([html_export.html_export_list_views]):
+    [ontology_aligned_tabs].
+    It should be performance conscious and avoid full-graph dumps unless requested by the user.
+    It should be paginated.
+    It should be filterable and sortable via a ui-sql layer per [table_column_filters] and [table_column_options].
+    Webview UI is implemented with Svelte per [development_core]
+    the extension host loads compiled assets from [ideas_summary_media]
+    table queries are built in [webview_table_queries]
+    the extension host forwards query state through [ideas_summary_panel]
+    Ideas Summary chrome should include a link that opens [features_export.export_webview].
+    Multi-base scope and switcher: [ideas_summary_base.ideas_summary_base_scope].
+}
+
+ontology_aligned_tabs {
+    Tab order: Overview, Bases, Ideas, Ideasets, Attributes, References, Graph, Timeline, Index.
+    Index is last — developer/ops chrome, not the primary browsing surface.
+    Covers [ontology.base], [ontology.idea], [ontology.ideaset], [ontology.attribute], [ontology.reference],
+    the graph cartography tab, and [timeline_page]; Overview mirrors HTML export home metrics lightly.
+    Files / clusters / print families stay export-only for now.
+    @implementation (
+        ["../../../../packages/extension/webviews/ideas-summary/lib/tabs.ts"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/TabPanels.svelte"]
+    )
+}
+
+pages {
+    - ideas summary [ideas_summary_panel]
+       - header / status chrome with base switcher and link to [features_export.export_webview]
+       - [overview_page] [OverviewPanel]
+       - [bases_tab] [BasesTable]
+       - ideas list [IdeasTable]
+          - filterable and sortable via [TableToolbar], [ColumnFilterRow], and [SortableTh]
+          - column show/hide via [TableOptionsMenu] / [table_column_options]
+          - groupable by idea kind (block / oneliner) per [group_by_type]
+          - other attributes shown as expandable chips per [ChipList]
+          - clicking an attribute chip adds a column, filters to ideas with a non-null value for that attribute, and sorts by it (combinable with other filters)
+          - references split into outbound and inbound chip columns with counts
+          - clicking a reference chip filters ideas that share that edge (combinable with other filters)
+          - block idea bodies shown in a scrollable cell per [IdeaBodyCell]
+       - ideasets [IdeasetsTable] / [idea_sets_tab]
+          - filterable and sortable via ui-sql layer; column filters and options
+       - [attributes_tab] [AttributesTable]
+       - references [ReferencesTable]
+          - filterable and sortable via ui-sql layer; groupable by reference type per [group_by_type]
+       - Graph view: see [graphical_graph_doc.graphical_graph]
+       - [timeline_page] [TimelinePanel]
+       - [index_panel] [IndexPanel] (last tab — developer page)
+}
+
+overview_page {
+    First tab: a workspace overview for the active base.
+    - Stats: idea count, reference/edge count, file issues, base readiness (from index status).
+    - Search: live cross-surface search over ideas, ideasets, attributes, and references for the active base;
+      results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
+    - Export: buttons that open export functionality — Export form / HTML, and PDF ([features_export.export_webview], [features_export] pdf path).
+    - Links: project site, support/email, GitHub.
+    - Recent changes preview with a link to [timeline_page].
+    @todo outstanding-by-status / todos rollup
+    @todo deep links into HTML export pages when an export exists
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+    )
+}
+
+overview_search {
+    Overview search fans out across Ideas, Ideasets, Attributes, and References using the same ui-sql filters as those tabs.
+    Debounced; returns counts plus a short sample of hits per surface; clicking a hit opens the idea (or the attribute → Ideas handoff);
+    "Open in …" applies the search string on that tab.
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+        [webview_table_queries]
+    )
+}
+
+timeline_page {
+    Timeline tab lists recent changes for the active base from:
+    - idea git dates already captured in the index (`git_modified_at` / `git_created_at`)
+    - recent index / workspace activity from index status
+    Entries are reverse-chronological, filterable by source (git / index), and clickable to open the related idea or file when available.
+    Full live git log traversal remains out of scope; this surfaces indexed history first.
+    @implementation (
+        [TimelinePanel]
+        [ideas_summary_panel]
+        ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+    )
+    @status done
+}
+
+bases_tab {
+    Table of discovered [ontology.base] entries in the workspace (label, path, ready, idea/edge/issue counts, state).
+    Selecting a row pins that base (pointer swap) per [ideas_summary_base.ideas_summary_base_scope].
+    Filterable / sortable / column options like other tables; data comes from index status, not a merged cross-base SQLite dump.
+    @implementation (
+        [BasesTable]
+    )
+}
+
+attributes_tab {
+    Attributes index for the active base, aligned with [html_export.html_export_attributes_index]:
+    attribute key, idea count, distinct value count, sample values.
+    Searchable and filterable; clicking a key opens Ideas with that attribute column enabled.
+    Aggregated in [webview_table_queries] / sqlite store.
+    @implementation (
+        [AttributesTable]
+        [webview_table_queries]
+        [ideas_summary_panel]
+    )
+}
+
+idea_sets_tab {
+    The idea sets page should list the ideasets
+    unlike the ideas page, it should not directly to the ideaset, but should have a dropdown to it's items.
+    the path column should link to the ideaset source.
+    members should appear as chips with a … control to expand and show all member chips when needed.
+    per [IdeasetsTable]
+}
+
+table_column_filters {
+    Every data table supports a global search and a per-column filter row ([ColumnFilterRow]),
+    matching the usability of [html_export.html_export_list_views].
+    Text / path / body columns use searchable inputs; closed sets (idea kind, reference type, ideaset kind, base ready)
+    use select / multi-select from a fixed option list.
+    Column filters are applied in the ui-sql layer ([webview_table_queries]) together with existing chip filters.
+    @implementation (
+        [ColumnFilterRow]
+        [TableToolbar]
+        [webview_table_queries]
+    )
+}
+
+table_column_options {
+    Each table has an Options control ([TableOptionsMenu]) to show or hide columns.
+    Visibility persists per tab in workspaceState via [table_ui_state].
+    @implementation (
+        [TableOptionsMenu]
+        [table_ui_state]
+        [ideas_summary_panel]
+    )
+}
+
+group_by_type {
+    Ideas table can group by idea kind (block / oneliner).
+    References table can group by reference type (file / comment / sub-idea).
+    Grouping is a toolbar toggle; rows are ordered by group then the active sort; UI shows collapsible group headers.
+    @implementation (
+        [IdeasTable]
+        [ReferencesTable]
+        [webview_table_queries]
+    )
+}
+
+index_panel {
+    Developer / ops tab (last): index state, summary stats, sync progress, errors, refresh / cancel / clear-and-rebuild.
+    per [index_reqs.idea_index_triggers] and ["../../../indexer/indexer.rq".nonblocking_index]
+    Implemented by [IndexPanel].
+}
+
+index_panel_base_support {
+    The [index_panel] / Ideas Summary chrome supports switching between bases in the workspace.
+    Switch is a pointer swap per ["../../../bases/base.rq".active_base_switch] and ["./base-scope.rq".ideas_summary_base_scope] — rebind views, do not sync.
+    @status done
+}
+
+ideas_table_filters {
+    the ideas table should support text search, column sorting, and attribute-column filters driven by chip clicks.
+    attribute filters require a non-null attribute value in sqlite json per [webview_table_queries]
+    reference chip filters match outbound/inbound edges by target or source id per [webview_table_queries]
+    chips are right-aligned so truncated labels keep the informative suffix visible.
+    active attribute and reference filters appear as removable chips in the table toolbar.
+    Also [table_column_filters], [table_column_options], and [group_by_type].
+}
+
+graphical_graph_tab see [graphical_graph_doc.graphical_graph]

@@ -3,12 +3,18 @@ import type { SqliteIndexStore } from '@reqlan/analytical';
 import { basename } from 'node:path';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 
+/**
+ * Gate prompts using the pre-move URI — the index still keys ideas under the old path
+ * until migrateRenamedFile runs.
+ * rq:["../../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
+ * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ */
 export async function shouldPromptForMovedFile(
-    uri: vscode.Uri,
+    oldUri: vscode.Uri,
     indexStore: SqliteIndexStore
 ): Promise<boolean> {
-    const indexedUri = toIndexFileUri(uri);
-    if (uri.fsPath.endsWith('.rq')) {
+    const indexedUri = toIndexFileUri(oldUri);
+    if (oldUri.fsPath.endsWith('.rq')) {
         return rqFileHasGraphReferences(indexStore, indexedUri);
     }
     return codeFileHasInboundReqlanReferences(indexStore, indexedUri);
@@ -24,7 +30,8 @@ async function rqFileHasGraphReferences(store: SqliteIndexStore, fileUri: string
             return true;
         }
     }
-    return (await store.getEdgesReferencingFile(fileUri)).length > 0;
+    return (await store.getEdgesReferencingFile(fileUri)).length > 0
+        || (await store.getEdgesReferencingFile(basename(fileUri))).length > 0;
 }
 
 async function codeFileHasInboundReqlanReferences(store: SqliteIndexStore, fileUri: string): Promise<boolean> {

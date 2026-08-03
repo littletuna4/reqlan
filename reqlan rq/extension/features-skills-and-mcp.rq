@@ -1,6 +1,6 @@
 mcp_tools {
     The extension or companion server should expose mcp tools for ai and automation clients.
-    Headless index storage follows ["./module/index.rq".application_memory] (`<workspace>/.reqlan`), shared with the extension and CLI.
+    Headless index storage follows ["./module/index.rq".application_memory] (`<base>/.reqlan`), shared with the extension and CLI.
 }
 
 mcp_tools_prompt {
@@ -29,6 +29,7 @@ skill_namespace_references {
 
 cursor_skills_install {
     A command palette action (e.g. ctrl+p: reqlan install cursor skills) should copy rq-* skills from the extension into the workspace .cursor/skills folder and update .cursor/mcp.json when the local mcp server is available.
+    Place in install sequencing (workspace agent files, not `.reqlan`): ["./installation.rq".workspace_agent_files].
 }
 
 chat_skill_naming {

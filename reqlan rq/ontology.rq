@@ -6,6 +6,18 @@ file files store ideas and form ideasets
 
 keyword as a language, reqlan has some keywords that are reserved in some contexts.
 
+base {
+     A base is a container for ideas, ideasets, and files — the boundary of one ideas graph.
+     Discovery: a directory is a base only when it owns a `.reqlan` application-memory folder.
+     There is no implicit base from a bare workspace folder; the product prompts the user to
+     create `.reqlan` at the workspace-folder root when none exist.
+     Bases may be nested: a child directory with its own `.reqlan` is a separate base;
+     the parent base's index stops at that child boundary.
+     Each base holds its own ideas index under its `.reqlan`. Details: ["./bases/base.rq".base].
+     }
+
+configuration There are multiples scopes for configuration. At the [base] level and at at the [extension] level.
+
 import_statement Imports are used to decribe refrences. some [keyword]s are reserved for imports
 
 reference References are used to link ideas to other ideas, files, and symbols.

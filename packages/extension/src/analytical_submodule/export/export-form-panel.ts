@@ -79,7 +79,10 @@ export class ExportFormPanel {
     }
 
     private workspaceRoot(): string | undefined {
-        return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        return (
+            this.submodule.index.getActiveBase()?.descriptor.root ??
+            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+        );
     }
 
     private activeRqDocument(): vscode.TextDocument | undefined {
