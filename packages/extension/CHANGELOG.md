@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.6.5
+
+### Patch Changes
+
+- 0bf2fb6: Make extension activation non-blocking so the Context sidebar and commands become available immediately; start indexing and the language server in the background afterward.
+
 ## 1.6.4
 
 ### Patch Changes
