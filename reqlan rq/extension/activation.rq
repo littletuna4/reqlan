@@ -18,20 +18,28 @@ activation_events {
 }
 
 activation_sequence {
-    `activate` runs the following phases in ["../../packages/extension/src/extension/main.ts"]:
+    `activate` is synchronous and non-blocking in ["../../packages/extension/src/extension/main.ts"]; it never awaits startup work so the UI is available as soon as possible. It runs the following phases:
     1. Register reference inlay-hint and CodeLens configuration/commands synchronously.
-    2. Await [analytical_submodule_activation] — registers commands, activity bar, chat, webviews, AI commands, and mutation hooks before awaiting index startup.
-    3. Register import-error quick-fix commands when the analytical submodule started.
-    4. Await language-client startup for LSP features.
-    5. Register attribute and name catalog sync when both the language client and index are available.
-    6. Invoke [onboarding_check] without awaiting it, so onboarding cannot block activation.
-    Submodule and language-client failures are logged and do not prevent later phases from running.
+    2. Call [analytical_submodule_activation] — registers commands, activity bar, chat, webviews, AI commands, and mutation hooks synchronously and returns without starting indexing.
+    3. Register import-error quick-fix commands when the analytical submodule registered.
+    4. Schedule [background_startup] on a later tick so activation returns first.
+    5. Invoke [onboarding_check] without awaiting it, so onboarding cannot block activation.
+    Submodule failures are logged and do not prevent later phases from running.
+}
+
+background_startup {
+    Startup work that must not block activation is scheduled by `scheduleBackgroundStartup` in ["../../packages/extension/src/extension/main.ts"] onto a macrotask, so `activate` returns and VS Code can resolve the activity bar view and make commands invocable before any discovery/indexing runs.
+    Once scheduled it:
+    - Starts [analytical_submodule_activation] index startup ([../../packages/extension/src/analytical_submodule/index-store/index-service.ts]) without awaiting it; indexing is incremental and reports progress via index status events so it is visible in the sidebar rather than a silent gate.
+    - Starts the language client for LSP features without awaiting it, so a slow or hanging server never blocks the UI.
+    - Registers attribute and name catalog sync once the language client exists; the initial push covers an already-ready index and the catalog-update subscription covers indexes that become ready afterwards.
+    Index and language-client failures are logged and do not affect the already-available UI.
 }
 
 analytical_submodule_activation {
-    Analytical submodule startup is implemented in ["../../packages/extension/src/analytical_submodule/index.ts"].
-    VS Code contributions (commands, activity bar provider, chat participant, webviews, AI commands, mutation hooks) register synchronously at the start of `activateAnalyticalSubmodule`.
-    Index activation is awaited afterward so the sidebar can render while indexing continues.
+    Analytical submodule registration is implemented in ["../../packages/extension/src/analytical_submodule/index.ts"].
+    `activateAnalyticalSubmodule` is synchronous: VS Code contributions (commands, activity bar provider, chat participant, webviews, AI commands, mutation hooks) register synchronously and it returns the submodule immediately.
+    It does not start indexing; the caller kicks off index activation from [background_startup] once the UI is available, so the sidebar can render and commands can run while indexing continues.
 }
 
 onboarding_check {

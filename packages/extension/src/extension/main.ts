@@ -17,37 +17,71 @@ import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analyt
 let client: LanguageClient | undefined;
 
 // This function is called when the extension is activated.
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+//
+// Activation is deliberately non-blocking: everything here registers
+// synchronously and returns immediately. VS Code only resolves the activity bar
+// webview view — and only makes contributed commands invocable — once this
+// `activate()` promise has resolved and the view resolver has run. Awaiting any
+// startup work (workspace indexing or the language server) would keep the
+// extension in the "activating" state and leave the sidebar stuck on the
+// built-in spinner with commands unavailable.
+//
+// The heavier startup work is therefore scheduled onto a later tick, after the
+// UI is available, so the "Context" view paints first and indexing then runs
+// visibly (it is incremental and reports progress via index status events).
+export function activate(context: vscode.ExtensionContext): void {
     registerReferenceInlayHintsToggle(context);
     registerReferenceCodeLens(context);
     registerOnboardingCommands(context);
 
-    // Activate analytical features first. This registers the activity bar webview
-    // view provider synchronously, so the "Context" sidebar renders regardless of
-    // the language server's health — a slow or hanging `client.start()` must never
-    // block the view provider from being registered.
     let submodule: AnalyticalSubmodule | undefined;
     try {
-        submodule = await activateAnalyticalSubmodule(context);
+        submodule = activateAnalyticalSubmodule(context);
         registerImportErrorCommands(context, submodule.index);
     } catch (error) {
         console.error('[reqlan] Analytical submodule failed to activate:', error);
     }
 
-    try {
-        client = await startLanguageClient(context);
-    } catch (error) {
-        console.error('[reqlan] Language client failed to start:', error);
-    }
-
-    if (client && submodule) {
-        registerAttributeCatalogSync(context, submodule.index, () => client);
-        registerNameCatalogSync(context, submodule.index, () => client);
+    if (submodule) {
+        scheduleBackgroundStartup(context, submodule);
     }
 
     void openThanksForInstallingIfNeeded(context).catch(error => {
         console.error('[reqlan] Failed to open thanks-for-installing page:', error);
     });
+}
+
+/**
+ * Start the workspace index and language server without blocking activation.
+ *
+ * Deferred to a macrotask so `activate()` returns first and VS Code can resolve
+ * the activity bar view and register commands before any (potentially blocking)
+ * discovery/indexing work runs. Indexing surfaces its own progress through the
+ * index status events the sidebar already listens to, so it is visible rather
+ * than a silent gate.
+ */
+function scheduleBackgroundStartup(
+    context: vscode.ExtensionContext,
+    submodule: AnalyticalSubmodule
+): void {
+    setTimeout(() => {
+        void submodule.index.activate(context).catch(error => {
+            console.error('[reqlan] Index activation failed:', error);
+        });
+
+        void startLanguageClient(context)
+            .then(started => {
+                client = started;
+                // Register catalog sync once the client exists. The initial push
+                // covers an already-ready index; the subscription covers indexes
+                // that become ready afterwards.
+                registerAttributeCatalogSync(context, submodule.index, () => client);
+                registerNameCatalogSync(context, submodule.index, () => client);
+            })
+            .catch(error => {
+                console.error('[reqlan] Language client failed to start:', error);
+            });
+    }, 0);
 }
 
 // This function is called when the extension is deactivated.
