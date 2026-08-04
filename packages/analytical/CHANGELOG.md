@@ -1,5 +1,16 @@
 # @reqlan/analytical
 
+## 0.7.0
+
+### Minor Changes
+
+- f7023c1: various changes and improvements.
+
+### Patch Changes
+
+- Updated dependencies [f7023c1]
+  - @reqlan/language@1.7.0
+
 ## 0.6.3
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # reqlan-extension
 
+## 1.7.0
+
+### Minor Changes
+
+- f7023c1: various changes and improvements.
+
+### Patch Changes
+
+- Updated dependencies [f7023c1]
+  - @reqlan/analytical@0.7.0
+  - @reqlan/language@1.7.0
+
 ## 1.6.5
 
 ### Patch Changes
