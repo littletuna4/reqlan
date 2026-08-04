@@ -7,3 +7,11 @@ centroid_search {
     allow user or agent to specify multiple nodes, and then to rank matches by lowest distance.
     @idea
 }
+
+search_with_context {
+    function (exposed in cli) that allows user to specify current contex (set of ideas or ideasets or files), and a search term, yielding the closest matches, in a context aware way.
+}
+
+pagerank {
+    search algorithm
+}

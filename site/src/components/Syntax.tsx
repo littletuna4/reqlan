@@ -1,8 +1,19 @@
 import { CodeBlock } from "@/components/CodeBlock";
+import { SyntaxClient } from "@/components/SyntaxClient";
 import { siteContent } from "@/content/site";
 import type { HighlightKey } from "@/generated/highlights";
 import shared from "./shared.module.css";
-import styles from "./Syntax.module.css";
+
+function snippetHighlightKey(
+  label: string,
+  kind: "rule" | "practical",
+  language: string,
+): HighlightKey | undefined {
+  if (language === "rq") {
+    return undefined;
+  }
+  return `syntax:${label}:${kind}` as HighlightKey;
+}
 
 export function Syntax() {
   const { syntax } = siteContent;
@@ -14,22 +25,30 @@ export function Syntax() {
       </h2>
       {syntax.lead ? <p className={shared.sectionLead}>{syntax.lead}</p> : null}
 
-      <div className={styles.examples}>
-        {syntax.examples.map((example) => (
-          <article key={example.label} className={styles.example}>
-            <span className={shared.syntaxLabel}>{example.label}</span>
-            <CodeBlock
-              language={example.language}
-              content={example.code}
-              highlightKey={
-                example.language !== "rq"
-                  ? (`syntax:${example.label}` as HighlightKey)
-                  : undefined
-              }
-            />
-          </article>
-        ))}
-      </div>
+      <SyntaxClient examples={syntax.examples}>
+        {syntax.examples.flatMap((example) => [
+          <CodeBlock
+            key={`${example.label}-rule`}
+            language={example.rule.language}
+            content={example.rule.code}
+            highlightKey={snippetHighlightKey(
+              example.label,
+              "rule",
+              example.rule.language,
+            )}
+          />,
+          <CodeBlock
+            key={`${example.label}-practical`}
+            language={example.practical.language}
+            content={example.practical.code}
+            highlightKey={snippetHighlightKey(
+              example.label,
+              "practical",
+              example.practical.language,
+            )}
+          />,
+        ])}
+      </SyntaxClient>
     </section>
   );
 }

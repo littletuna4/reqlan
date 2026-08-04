@@ -29,12 +29,17 @@ function collectRequests(): HighlightRequest[] {
   }
 
   for (const example of siteContent.syntax.examples) {
-    if (example.language !== "rq") {
-      requests.push({
-        key: `syntax:${example.label}`,
-        language: example.language,
-        code: example.code,
-      });
+    for (const [kind, snippet] of [
+      ["rule", example.rule],
+      ["practical", example.practical],
+    ] as const) {
+      if (snippet.language !== "rq") {
+        requests.push({
+          key: `syntax:${example.label}:${kind}`,
+          language: snippet.language,
+          code: snippet.code,
+        });
+      }
     }
   }
 

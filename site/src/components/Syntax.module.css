@@ -1,11 +1,60 @@
 .examples {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.75rem;
 }
 
 .example {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+.frame {
+  position: relative;
+}
+
+.toggle {
+  position: absolute;
+  right: 0.85rem;
+  bottom: 0.65rem;
+  z-index: 2;
+  margin: 0;
+  padding: 0.15rem 0.2rem;
+  border: 0;
+  border-radius: 0.2rem;
+  background: transparent;
+  color: var(--color-text-faint);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.toggle:hover {
+  color: var(--color-text-muted);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--color-aqua);
+  outline-offset: 2px;
+}
+
+.toggle[aria-pressed="true"] {
+  color: var(--color-text-muted);
+}
+
+.slot :global(pre) {
+  padding-right: 7.5rem;
+  padding-bottom: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle {
+    transition: none;
+  }
 }
