@@ -1,5 +1,11 @@
 # site
 
+## 0.10.0
+
+### Minor Changes
+
+- 2bb1cbb: landing copy
+
 ## 0.9.0
 
 ### Minor Changes
