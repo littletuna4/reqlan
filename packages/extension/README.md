@@ -23,6 +23,26 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.6.5
+
+#### Patch Changes
+
+- 0bf2fb6: Make extension activation non-blocking so the Context sidebar and commands become available immediately; start indexing and the language server in the background afterward.
+
+### 1.6.4
+
+#### Patch Changes
+
+- 7ccb4f2: update svg to png
+
+### 1.6.3
+
+#### Patch Changes
+
+- 674da15: fix image in readme, update site copy, add graph navigator to landing.
+- Updated dependencies [674da15]
+  - @reqlan/analytical@0.6.3
+
 ### 1.6.2
 
 #### Patch Changes

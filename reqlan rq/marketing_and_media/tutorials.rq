@@ -41,14 +41,20 @@ tutorials {
 }
 
 tutorial_philosophy {
-    Every episode must reinforce product philosophy without a lecture dump:
-    - [llm_first]: show token-minimising workflows (search, local slice, add-to-context) before dumping a whole workspace.
+    Producers may cite [mission_statement], [llm_first], [vsc_first], [general_purpose], [simplicity], and [inspiration] as constraints on what an episode must prove. These shape production choices — they are never spoken to, or shown to, the learner.
+    Production guidance per constraint:
+    - [llm_first]: demonstrate focused context — search, local slice, add-to-context — by doing it on camera before pasting a whole workspace. Never let VO or a slide label the workflow as a philosophy.
     - [vsc_first]: primary demos live in VS Code / compatible editors with the extension installed.
     - [general_purpose]: at least one get-started beat and one advanced beat use a non-"enterprise software" framing (personal knowledge, ops checklist, or creative brief).
     - [simplicity]: start with one-liners and one file; introduce braces, imports, and attributes only when the viewer feels the need.
-    - [inspiration]: name the lineage lightly when useful — Obsidian-style links, ontology nodes, industrial "trace the signal" — never as jargon for its own sake.
-    Prefer show-then-name: write a real idea, link it, create a base, open the activity bar — then name the ontology in [concepts_series].
-    Syllabus rule: get-started teaches verbs; concepts teaches nouns; advanced teaches judgement.
+    Show, then name: write a real idea, link it, create a base, open the activity bar — then put names to what the learner already did in [concepts_series].
+    Hard rule — learner-facing surfaces must never lecture. VO, any on-screen text the viewer reads (title cards, end cards, callouts, quiz prompts), slide heading / body / fragments / notes, try-this prompts, and fixture prose inside `@example` must NOT name:
+    - product philosophy or constitution principles ("llm-first", "mission", "semantic requirements as code", "token discipline");
+    - design lineage (Obsidian, industrial control, "ontology" as a brand concept);
+    - syllabus pedagogy ("verbs then nouns", "teaches judgement");
+    - taste lectures ("simplicity over scaffolding", "calm tiles, not a laundry list", "keep copy short").
+    Instead: show the workflow and the result, and name only surfaces and actions the user can perform.
+    Producer teaching-order note (guidance for planning, not copy for the screen): get-started demonstrates the core actions; concepts puts names to the building blocks; advanced shows judgement.
 }
 
 tutorial_format {
@@ -184,8 +190,8 @@ get_started_series_brief {
     Short "get started" series: seven episodes in [get_started_series], about 4–7 minutes each, total under about 40 minutes.
     Goal: a new user can install reqlan, write ideas, link them, create a [base], inspect neighbourhood context,
     ask the chat participant, and point ideas at real files.
-    Teaching order: verbs before nouns — do the loop first; ontology vocabulary waits for [concepts_series].
-    Tone: calm, concrete, no feature tour laundry lists (that is [con_02_extension_tour]).
+    Teaching order (producer note, not on-screen copy): demonstrate the core actions first; naming the building blocks waits for [concepts_series].
+    Tone: calm and concrete on screen — no feature-tour survey (that is [con_02_extension_tour]).
     End each episode with one "try this" prompt on screen.
     @status draft
     @tags (
@@ -218,12 +224,12 @@ gs_01_why_reqlan {
         SCR: Split screen. Left: a bloated chat paste — one long paragraph mixing login, sessions, and audit rules. Right: three short named lines from the example.
 
         VO: reqlan is a small language for turning that intent into a graph of named ideas —
-        requirements as code — so you, your teammates, and your tools can find, link, and reuse them.
+        so you, your teammates, and your tools can find, link, and reuse them instead of retyping.
 
         SCR: Brief montage (no narration overlap): VS Code with a `.rq` file, reqlan activity bar icon, Ideas Summary graph with a handful of nodes.
 
-        VO: It borrows habits from knowledge bases and from systems that care about traceability —
-        but the day-one job is simple: name the idea, write the prose, point at related work.
+        VO: The day-one job is simple: name the idea, write the prose, point at related work.
+            You can see it here — a file of names, and lines that connect them.
 
         SCR: Show a sticky note or chat bubble: "Isn't this just another notes app?" Cut to the named-ideas side of the contrast — three handles you can reference by name.
 
@@ -237,10 +243,10 @@ gs_01_why_reqlan {
 
         SCR: Onboarding webview appears: "Thanks for installing". Pause on docs / marketplace links in the welcome body. Do not create a base yet.
 
-        VO: On first launch you get a short welcome per [installation_event].
+        VO: On first launch you get a short welcome screen.
             Keep those links handy. Creating a base — the `.reqlan` marker — comes after you have written a few ideas.
 
-        SCR: End card: mission line on screen — "Semantic requirements as code, built for LLM workflows." CTA row: Install · Docs · next episode "Your first idea".
+        SCR: End card: CTA row — Install · Docs · next episode "Your first idea".
 
         VO: Next: write your first idea in under a minute.
     }
@@ -309,7 +315,8 @@ gs_01_why_reqlan {
             id end
             transition fade
             background brand-dark
-            heading Semantic requirements as code, built for LLM workflows
+            heading Your first idea is next
+            body Install · Docs · then write your first idea.
             fragments Next: Your first idea
             asset logo
             notes Next: write your first idea in under a minute.
@@ -328,8 +335,7 @@ gs_02_first_idea {
         product_name reqlan tutorials demo
 
         welcome_flow {
-            New users land on a calm welcome screen with one primary action: create an account.
-            Keep copy short; do not list every feature on first paint.
+            New users land on a welcome screen with one primary action: create an account.
         }
         ```
     }
@@ -346,7 +352,7 @@ gs_02_first_idea {
         SCR: New line. Type the `welcome_flow` block from the example — open brace, body prose, close brace. Soft zoom on the body text inside braces.
 
         VO: Inside the braces, the first free text is the main description.
-            No ceremony, no required metadata yet — simplicity over scaffolding.
+            No required metadata yet — just a name and the thought.
 
         SCR: Status bar: language mode shows reqlan (or Reqlan). Problems panel empty. Brief hover on bracket/brace highlighting if visible.
 
@@ -395,7 +401,7 @@ gs_02_first_idea {
             background brand-panel
             heading Open a block when you need room
             code_lang rq
-            code welcome_flow { New users land on a calm welcome screen with one primary action: create an account. }
+            code welcome_flow { New users land on a welcome screen with one primary action: create an account. }
             notes Inside the braces, the first free text is the main description. No required metadata yet.
         }
         {
@@ -445,8 +451,7 @@ gs_03_link_ideas {
         product_name reqlan tutorials demo
 
         welcome_flow {
-            New users land on a calm welcome screen with one primary action: create an account.
-            Keep copy short; do not list every feature on first paint.
+            New users land on a welcome screen with one primary action: create an account.
             Success continues into [onboarding_checklist].
         }
 
@@ -472,7 +477,7 @@ gs_03_link_ideas {
 
         SCR: In `onboarding_checklist`, add the wikilink: `Prefer [[welcome_flow|the welcome screen]] as the way back if they bail early.`
 
-        VO: Double-bracket wikilinks are familiar if you use tools like Obsidian.
+        VO: Double-bracket wikilinks let you show a readable label right in the prose.
             The alias is for reading; the target is still the idea name `welcome_flow`.
 
         SCR: Sticky note: "Are wikilinks a different graph?" Show both link forms resolving to the same idea in go-to-definition.
@@ -544,7 +549,7 @@ gs_03_link_ideas {
             heading Try this
             body Add account_model and link welcome_flow and onboarding_checklist to it once each.
             fragments Next: Your first base
-            notes A third idea gives you a small triangle to navigate.
+            notes A third idea gives you a small triangle to walk through.
         }
         {
             id end
@@ -694,7 +699,7 @@ gs_05_activity_bar {
         product_name reqlan tutorials demo
 
         welcome_flow {
-            New users land on a calm welcome screen with one primary action: create an account.
+            New users land on a welcome screen with one primary action: create an account.
             Success continues into [onboarding_checklist].
         }
 
@@ -713,7 +718,7 @@ gs_05_activity_bar {
         SCR: Click the reqlan activity bar icon. Place caret inside `welcome_flow` in `reqs/product.rq`. Confirm active base label shows `reqlan-tutorials-demo` if a picker is visible.
 
         VO: The activity bar is your neighbourhood view — what sits near the idea under the cursor inside the active base —
-            not a dump of the whole workspace. That discipline matters when you later hand context to an LLM.
+            not a dump of the whole workspace. That keeps things readable when you copy a slice into chat later.
 
         SCR: Toggle "Sync with editor" on if off. Move caret from `welcome_flow` to `onboarding_checklist` — panes update. Briefly show hop depth control: 1 hop → 2 hops — neighbour list widens then tighten back to 1.
 
@@ -728,7 +733,7 @@ gs_05_activity_bar {
         SCR: Activity bar header → Copy as Markdown (or equivalent action). Paste into an untitled scratch file — show compact markdown, not the whole `reqs/` tree.
 
         VO: Copy a focused slice when you want to talk to a model.
-            Token-minimising context beats pasting the entire requirements folder — that is llm-first in practice.
+            Copying the neighbourhood keeps the answer sharp — pasting the whole requirements folder just buries the question.
 
         SCR: Command Palette → `Reqlan: Ideas Summary`. Graph or overview tab — centre on current idea, pan once, close tab or switch back to Explorer. Total on screen: under fifteen seconds.
 
@@ -780,7 +785,7 @@ gs_05_activity_bar {
             background brand-panel
             heading Copy a focused slice
             body Copy as Markdown into a scratch file — not the whole reqs folder.
-            notes Token-minimising context beats dumping the workspace into chat.
+            notes Copy the neighbourhood into chat — not the whole folder.
         }
         {
             id ideas-summary
@@ -974,7 +979,7 @@ gs_07_link_code {
 
         VO: Try this before you go: link one more source file your welcome flow actually depends on — a component, route, or test.
 
-        SCR: End card: "Concepts · Ontology, extension map, then CLI" — series handoff to [concepts_series].
+        SCR: End card: "Concepts · The building blocks, the extension map, then the CLI" — series handoff to [concepts_series].
     }
     @slides (
         {
@@ -1044,17 +1049,17 @@ gs_07_link_code {
             background brand-dark
             heading Try this
             body Link one more source file your welcome flow depends on.
-            fragments Concepts series next — name the ontology
-            notes When you are ready to name what you did, Concepts starts with the ontology map.
+            fragments Concepts series next — name the building blocks
+            notes When you are ready to put names to what you did, Concepts starts there.
         }
         {
             id end
             transition fade
             background brand-dark
             heading Concepts next
-            body Ontology, extension map, then CLI.
+            body The building blocks, the extension map, then the CLI.
             asset logo
-            notes Verbs first. Nouns next.
+            notes Next: names for the building blocks you just used.
         }
     )
 }
@@ -1068,9 +1073,9 @@ concepts_series (
 )
 
 concepts_series_brief {
-    Short concepts series after get-started: three packs that name what the learner already felt.
-    [con_01_ontology] — the nouns: [idea], [ideaset], [file], [base], [reference], [attribute], [cartographic_map].
-    [con_02_extension_tour] — where those nouns appear in the [extension] product surfaces.
+    Short concepts series after get-started: three packs that put names to what the learner already felt.
+    [con_01_ontology] — the building blocks: [idea], [ideaset], [file], [base], [reference], [attribute], and the focused map view ([cartographic_map]).
+    [con_02_extension_tour] — where those building blocks appear across the [extension] surfaces.
     [con_03_cli] — the headless twin: [cli_package] / [commands] on the same `.reqlan` index ([init], search, analyse, parse, export).
     Runtime: about 8–12 minutes each. Optional for impatient builders; recommended before advanced.
     @status draft
@@ -1109,65 +1114,63 @@ con_01_ontology {
         ```
     }
     @script {
-        SCR: Title card — Concepts · 01 · The ontology. Brand palette. Quiet list of seven nouns fades in one at a time.
+        SCR: Title card — Concepts · 01 · The building blocks. Brand palette. Quiet list of seven names fades in one at a time.
 
-        VO: Get-started taught verbs — write, link, create a base, inspect, ask, point at code.
-            Concepts names the nouns so teammates, tools, and future you share one vocabulary.
-            One noun per beat. No second product tour.
+        VO: You already wrote ideas, linked them, created a base, inspected the neighbourhood, and asked the tools.
+            Now let's put names to the things you used, so you and your teammates talk about them the same way.
+            One name per beat.
 
         SCR: Open `reqs/product.rq`. Highlight `welcome_flow` one-liner and block side by side.
 
-        VO: Noun one: idea. An idea is a named handle plus prose — the core unit of intent.
+        VO: First: the idea. An idea is a named handle plus prose — one thing you care about.
             A one-liner is already an idea. A block gives the body more room.
-            The first free text inside a block is the body attribute — unstructured on purpose.
-            You do not type `@body`; the language treats unmarked prose as [attribute_body].
+            You do not type `@body` — the first unmarked prose inside a block simply is the body.
 
         SCR: Open `reqs/auth.rq`. Soft zoom on the auth_core ideaset paren list.
 
-        VO: Noun two: ideaset. An ideaset groups idea names into a namespace container.
-            Parentheses list membership — a lightweight module boundary, not a second syntax world.
+        VO: Next: the ideaset. An ideaset groups idea names inside parentheses.
+            It lists membership — a light way to say "these belong together", not a second syntax to learn.
 
         SCR: Explorer: click `auth.rq` in the tree. Brief file-tab chrome — path visible, ideas inside.
 
-        VO: Noun three: file. A `.rq` file stores ideas and implicitly forms an ideaset —
-            the file is part of the ontology, not merely a disk path.
-            When imports arrive in Advanced, files stay honest about where names live.
+        VO: Next: the file. A `.rq` file holds ideas and is itself a group of them —
+            the file is part of the graph, not just a spot on disk.
+            When imports arrive in Advanced, files stay clear about where each name lives.
 
         SCR: Explorer: expand `.reqlan/`. Whiteboard overlay or dashed box: `project/.reqlan/` vs `packages/lib/.reqlan/` — do not live-switch repos on camera.
 
-        VO: Noun four: base. A base is the boundary of one ideas graph.
-            A directory is a base only when it owns a `.reqlan` folder.
-            Nested bases are separate graphs; the parent index stops at the child boundary per [base_nesting].
-            Day-to-day you live in one active base — [multi_base_environment] is for larger trees, not day-two homework.
+        VO: Next: the base. A base is the boundary of one graph of ideas.
+            A folder is a base only when it owns a `.reqlan` folder.
+            Nested bases are separate graphs; the parent index stops at the child boundary.
+            Day-to-day you work in one active base — nested trees are for larger projects, not day-two homework.
 
         SCR: Split editor: bracket link `[session_policy]` beside file reference `["./src/login.ts"]`. Optional three-second flash of `// rq:[password_rules]` in `login.ts` — no deep dive.
 
-        VO: Noun five: reference. References link ideas to ideas, files, folders, and symbols.
-            Square brackets are the habit you already felt in get-started.
-            Referenced non-`.rq` files still belong in the index as [referenced_files] — neighbours, not orphans.
+        VO: Next: the reference. A reference links an idea to another idea, a file, a folder, or a symbol.
+            Square brackets are the same habit you already used in get-started.
+            A non-`.rq` file you point at still shows up in the index — a neighbour, not an orphan.
 
         SCR: Cursor on `@status` and `@tags` inside `login_api`. Do not open settings panels.
 
-        VO: Noun six: attribute. Attributes are optional metadata you opt into — status, tags, plans, your own keys.
-            They are not the main prose; slim attributes beat ceremonial forms.
-            Recovery beat: [configuration] has base scope and extension scope — `.reqlan/config.json` is not the same bucket as editor settings.
-            Do not conflate graph memory with UI preferences.
+        VO: Next: the attribute. Attributes are optional metadata you opt into — status, tags, plans, your own keys.
+            They are not the main prose. And one thing to keep straight: `.reqlan/config.json` is not the same place as your editor settings —
+            graph memory and editor preferences live apart.
 
         SCR: Ideas Summary → Graph tab, already centred on `welcome_flow` with hop depth 1. Pan once; close.
 
-        VO: Noun seven: cartographic map. A cartographic map is a curated visual cut of the graph —
-            filtered, focused, depth-limited — optimised for the question you have right now.
-            It is not a mandatory god's-eye dump. Advanced goes deeper on map craft.
+        VO: Last: the map. Ideas Summary shows a focused map view of the graph —
+            filtered, centred, depth-limited — built around the question you have right now.
+            It is not a picture of everything at once. Advanced goes deeper on map craft.
 
         SCR: New scratch file `reqs/scrap-ontology.rq` — type seven one-line definitions live.
 
-        VO: Try this: on a scrap page, write one sentence for each noun —
-            idea, ideaset, file, base, reference, attribute, cartographic map.
-            Use your own words; if a sentence needs a second clause, the noun is still fuzzy.
+        VO: Try this: on a scrap page, write one sentence for each name —
+            idea, ideaset, file, base, reference, attribute, and map.
+            Use your own words; if a sentence needs a second clause, the idea is still fuzzy.
 
-        SCR: End card — "Next: where the nouns live in the extension." Logo + site link from [phonebook].
+        SCR: End card — "Next: where these live in the extension." Logo + site link from [phonebook].
 
-        VO: Next episode maps these nouns to extension surfaces — calm tiles, not a button laundry list.
+        VO: Next episode shows where each of these appears across the extension.
     }
     @slides (
         {
@@ -1175,10 +1178,10 @@ con_01_ontology {
             transition fade
             background brand-dark
             kicker Concepts · 01
-            heading The ontology
-            body Verbs first. Now seven nouns — one per beat.
+            heading The building blocks
+            body Names for the things you already used — one per beat.
             asset logo
-            notes Get-started taught verbs. Concepts names the nouns so teammates and tools share vocabulary.
+            notes Now let's name the things you used, so you and your teammates talk about them the same way.
         }
         {
             id idea
@@ -1187,7 +1190,7 @@ con_01_ontology {
             heading Idea
             body Named handle plus prose. One-liner or block — both are ideas.
             code_lang rq
-            code welcome_flow { New users land on a calm welcome screen… }
+            code welcome_flow { New users land on a welcome screen… }
             notes The first free text is the body attribute. You do not type @body.
         }
         {
@@ -1244,19 +1247,19 @@ con_01_ontology {
             id map
             transition fade
             background brand-panel
-            heading Cartographic map
-            body A curated visual cut — filtered, focused, depth-limited.
+            heading The map
+            body A focused map view — filtered, centred, depth-limited.
             asset montage-ide
-            notes Not a mandatory god's-eye dump. Advanced goes deeper on map craft.
+            notes A view you build around one question. Advanced goes deeper on map craft.
         }
         {
             id try-this
             transition fade
             background brand-dark
             heading Try this
-            body On scrap-ontology.rq, one sentence per noun — in your own words.
+            body On scrap-ontology.rq, one sentence per name — in your own words.
             fragments Next — Extension tour
-            notes If a sentence needs a second clause, the noun is still fuzzy.
+            notes If a sentence needs a second clause, the idea is still fuzzy.
         }
     )
 }
@@ -1272,7 +1275,7 @@ con_02_extension_tour {
         // Five tiles — spoken map, not typed into the editor
         // 1. Language support     → open when authoring or navigating .rq source
         // 2. Activity bar         → open when the question is "what sits near this idea?"
-        // 3. Ideas Summary        → open when you need a catalog, table, or cartographic map
+        // 3. Ideas Summary        → open when you need a catalog, table, or focused map
         // 4. Chat / skills / MCP / palette → open when running a focused graph operation
         // 5. Export / CLI         → open when the graph must leave the editor
         ```
@@ -1280,8 +1283,8 @@ con_02_extension_tour {
     @script {
         SCR: Title card — Concepts · 02 · Extension tour. Five blank tiles; first tile highlights.
 
-        VO: You named the nouns. This episode maps where they live in the product.
-            The extension is the host — language support plus views on the same analytical core as CLI and MCP per [installation].
+        VO: You have the names. This episode shows where each one appears in the product.
+            The extension is the host — language support plus views over the same graph the CLI and chat use.
             Five surfaces. One job each. Depth waits in Advanced.
 
         SCR: Tile 1 — editor with `product.rq`. Type one character; show highlighting. Ctrl/Cmd-click a bracket link; peek definition.
@@ -1294,22 +1297,21 @@ con_02_extension_tour {
 
         VO: Surface two: activity bar. Open this when the question is "what sits near this idea inside the active base?"
             Neighbourhood context, base picker when multiple bases exist, hop depth, copy slice —
-            the local graph view you felt in get-started per [local_graph_view], not a workspace-wide dump.
+            the local view you felt in get-started, not a workspace-wide dump.
 
         SCR: Tile 3 — Command Palette: Reqlan: Open Ideas Summary. Overview glance; Ideas tab with status column; Graph tab one pan — close without opening every tab.
 
-        VO: Surface three: Ideas Summary. Open this when you need a catalog, table, or cartographic map per [simple_views] and [graph_view].
-            Ontology-aligned tabs mirror ideas, ideasets, references, attributes, bases —
-            use them when the question needs a list or a chosen map, not as a mid-edit habit.
-            Misconception recovery: if you live in Ideas Summary while typing prose, you are paying navigation tax —
-            author in the editor; browse in Summary when the question changed.
+        VO: Surface three: Ideas Summary. Open this when you need a catalog, a table, or a focused map.
+            Its tabs mirror ideas, ideasets, references, attributes, and bases —
+            use them when the question needs a list or a map, not as a mid-edit habit.
+            If you are typing prose, do it in the editor; open Summary when you need to look something up.
 
         SCR: Tile 4 — split beat. Chat: `@reqlan /rq-search empty password`. Command Palette: type `Reqlan:` — show category list. Optional Cursor: `rq-search` skill name flash.
 
         VO: Surface four: chat, skills, MCP, and command palette. Open this when you want a focused graph operation —
-            search per [ai_integration], add-to-context, export form, open Summary — with the same token discipline as get-started.
-            Skills use the `rq-` prefix per [chat_skill_naming]; MCP tools share the index per [mcp_tools].
-            The palette per [command_palette] is the discoverability layer when you forgot the exact slash command.
+            search, add-to-context, export, open Summary — the same small-slice habit as get-started.
+            Skills use the `rq-` prefix; MCP tools share the same index.
+            The palette is where you look when you forgot the exact slash command.
 
         SCR: Tile 5 — Command Palette: export HTML form header only, collapsed. Terminal: `npx reqlan search "empty password"` — show three lines of output; return to editor.
 
@@ -1904,7 +1906,7 @@ adv_02_attributes_status_plans {
         }
 
         welcome_flow {
-            New users land on a calm welcome screen with one primary action.
+            New users land on a welcome screen with one primary action.
             @status done
             @tags (
                 onboarding
