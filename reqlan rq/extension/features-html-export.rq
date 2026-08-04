@@ -25,6 +25,11 @@ html_export {
     [html_export_attributes_index]
     [html_export_attribute_pages]
     [html_export_printable_pages]
+    [html_export_print_idea_cards]
+    [html_export_print_in_page_anchors]
+    [html_export_print_all_attributes]
+    [html_export_print_button]
+    [html_export_print_order_by]
     [html_export_runtime_modes]
     [html_export_scrollable_lists]
     [html_export_header_link]
@@ -67,6 +72,7 @@ html_export_multi_file {
 html_export_internal_links {
     Every exported idea should have a stable html page path and stable in-page anchors.
     References, breadcrumbs, search results, graph nodes, cluster members, attribute listings, file listings, and code-file listings should link to html pages rather than only showing text labels.
+    On the printable report, same-page idea links use those in-page anchors per [html_export_print_in_page_anchors].
     Graph node links must follow [html_export_graph_links].
     When [html_export_url_base] is set, those same links must be root-relative under the mount prefix so static hosts resolve them with or without a trailing slash.
 }
@@ -318,6 +324,83 @@ html_export_printable_pages {
     Print pages should not depend on the interactive javascript bundle.
     Status and tags are nullable: when absent, printable sheets must omit those fields rather than inventing placeholders such as unspecified or empty dashes.
     When print pages are browsed in interactive runtime mode, long lists with content below them follow [html_export_scrollable_lists].
+    Idea cards on the printable report follow [html_export_print_idea_cards], [html_export_print_in_page_anchors], [html_export_print_all_attributes], and [html_export_print_button].
+    Ordering of cards on the printable report is tracked by [html_export_print_order_by].
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_print_idea_cards {
+    The printable report page lists ideas as cards that must remain within the page width on narrow viewports — no horizontal spill from long summaries, file paths, refs, or attribute values.
+    Cards use a responsive grid (`auto-fit` with a fluid min track) and wrapping/overflow rules so content reflows instead of overflowing the layout.
+    Cross-refs [html_export_printable_pages], [html_export_print_in_page_anchors], [html_export_print_all_attributes].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_print_in_page_anchors {
+    On the printable report page, each idea card has a stable html `id` derived from the idea identity.
+    Cross-idea links rendered on that page (title links and inline idea refs in summaries/attributes) must resolve to same-page `#` fragment urls targeting those ids, not separate idea detail pages.
+    Aligns with stable in-page anchors in [html_export_internal_links].
+    Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_print_all_attributes {
+    Printable report idea cards and per-idea printable sheets must show every declared attribute for the idea, not only status (or status+tags).
+    Attribute values that contain idea refs follow the link rules of the hosting print surface ([html_export_print_in_page_anchors] on the report page).
+    Cross-refs [html_export_printable_pages], [html_export_idea_pages].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_print_button {
+    Printable report and printable idea sheets include a Print control that opens the browser print dialog (`window.print`).
+    The control must work without the interactive javascript bundle (inline handler is acceptable) and should be hidden in the printed output.
+    Cross-refs [html_export_printable_pages].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_print_order_by {
+    The printable report should support ordering idea cards by a chosen field or attribute (for example name, status, file path, or a custom attribute key).
+    Consumers should be able to select or configure the sort so printed documents follow a deliberate sequence rather than only the default export order.
+    Not implemented yet — tracked for a follow-up.
+    Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
+    @status todo
 }
 
 html_export_runtime_modes {

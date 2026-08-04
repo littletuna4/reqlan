@@ -405,14 +405,67 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     background: var(--bg-raised);
     box-shadow: 0 1px 0 var(--line);
 }
-.entity-list { display: grid; gap: 1.5rem; }
+.entity-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1.5rem;
+}
 .entity-card {
     border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; background: var(--bg);
     color: inherit;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .entity-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .entity-card h3, .entity-card p { margin: 0; }
 .entity-card p + p, .entity-card strong + p, .entity-card h3 + p { margin-top: 0.35rem; }
+.print-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.print-card > h3 { overflow-wrap: anywhere; }
+.print-attrs {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.75rem 0 0;
+}
+.print-attrs div {
+    display: grid;
+    grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+    gap: 0.65rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.35rem;
+}
+.print-attrs dt {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.print-attrs dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.print-button {
+    appearance: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-raised));
+    color: var(--fg);
+    font: inherit;
+    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+}
+.print-button:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    background: color-mix(in srgb, var(--accent) 28%, var(--bg-raised));
+}
 .panel > h2, .table-shell > h2, .graph-shell > h2, .print-card > h3 { margin-top: 0; margin-bottom: 0.75rem; }
 .toolbar h2 { margin: 0; }
 .rollup-list { display: grid; gap: 0.5rem; }
@@ -496,7 +549,8 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     color: var(--accent-strong);
     font-weight: 600;
     text-decoration: none;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 a.idea-ref:hover {
     color: var(--fg);
@@ -525,6 +579,9 @@ pre.code-like {
 }
 @media (max-width: 900px) {
     .hero, .topbar-inner { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+    .print-attrs div { grid-template-columns: 1fr; }
 }
 @media print {
     :root { color-scheme: light; }

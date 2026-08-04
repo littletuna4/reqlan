@@ -98,6 +98,7 @@ describe('html export pipeline', () => {
         const exportJson = await readFile(result.dataFilePath, 'utf8');
         const alphaIdeaHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.path), 'utf8');
         const alphaPrintHtml = await readFile(join(result.outputDir, snapshot.ideasById[ideaA.id]!.page.printablePath!), 'utf8');
+        const printHomeHtml = await readFile(join(result.outputDir, snapshot.manifest.printHome.path), 'utf8');
         const codeFileHtml = await readFile(join(result.outputDir, snapshot.codeFiles[0]!.page.path), 'utf8');
         const statusAttribute = snapshot.attributesByKey.status!;
         const statusAttributeHtml = await readFile(join(result.outputDir, statusAttribute.page.path), 'utf8');
@@ -108,6 +109,8 @@ describe('html export pipeline', () => {
         const appJs = await readFile(join(result.outputDir, 'assets/app.js'), 'utf8');
         const searchIndexJs = await readFile(join(result.outputDir, 'assets/search-index.js'), 'utf8');
 
+        const alphaAnchorId = `idea-${ideaA.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+        const betaAnchorId = `idea-${ideaB.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
         expect(indexHtml).toContain('workspace-report');
         expect(indexHtml).toContain('Highlighted Clusters');
         expect(indexHtml).toContain('assets/search-index.js');
@@ -197,7 +200,27 @@ describe('html export pipeline', () => {
         expect(alphaIdeaHtml).toContain('Labels: auto');
         expect(alphaPrintHtml).toContain('class="idea-ref');
         expect(alphaPrintHtml).toContain('Printable idea sheet');
+        expect(alphaPrintHtml).toContain('class="print-attrs"');
+        expect(alphaPrintHtml).toContain('<dt>status</dt>');
+        expect(alphaPrintHtml).toContain('<dt>tags</dt>');
+        expect(alphaPrintHtml).toContain('onclick="window.print()"');
+        expect(printHomeHtml).toContain(`id="${alphaAnchorId}"`);
+        expect(printHomeHtml).toContain(`id="${betaAnchorId}"`);
+        expect(printHomeHtml).toContain(`href="#${alphaAnchorId}"`);
+        expect(printHomeHtml).toContain(`href="#${betaAnchorId}"`);
+        expect(printHomeHtml).toMatch(new RegExp(`class="idea-ref idea-ref--idea"[^>]*href="#${betaAnchorId}"`));
+        expect(printHomeHtml).not.toMatch(/class="idea-ref idea-ref--idea"[^>]*href="ideas\//);
+        expect(printHomeHtml).toContain('class="print-attrs"');
+        expect(printHomeHtml).toContain('<dt>status</dt>');
+        expect(printHomeHtml).toContain('<dt>tags</dt>');
+        expect(printHomeHtml).toContain('onclick="window.print()"');
+        expect(printHomeHtml).toContain('class="print-button hide-on-print"');
         expect(clusterPrintHtml).toContain('Printable cluster sheet');
+        expect(stylesCss).toContain('minmax(min(100%, 280px), 1fr)');
+        expect(stylesCss).toContain('.print-card');
+        expect(stylesCss).toContain('overflow-wrap: anywhere');
+        expect(stylesCss).toContain('.print-button');
+        expect(stylesCss).toContain('.print-attrs');
         expect(exportJson).toContain('"scope": "workspace"');
         expect(exportJson).toContain('"clustersById"');
         expect(exportJson).toContain('"pageOptions"');

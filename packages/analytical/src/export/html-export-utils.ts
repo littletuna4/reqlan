@@ -90,6 +90,11 @@ export function slugAttributeKey(key: string): string {
     return key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'attribute';
 }
 
+/** Stable in-page html id for an exported idea (safe for `#` fragment links). */
+export function exportIdeaAnchorId(idea: { id: string }): string {
+    return `idea-${slugAttributeKey(idea.id)}`;
+}
+
 /** Trimmed status when present; otherwise undefined (never invent "unspecified"). */
 export function ideaStatus(idea: { status?: string | null }): string | undefined {
     const value = idea.status?.trim();
@@ -305,6 +310,8 @@ function findIdeaByRefName(snapshot: ExportSnapshot, raw: string, displayName: s
 
 /**
  * Render text that may contain wiki/bracket refs as styled links to export pages.
+ * When `samePageIdeaAnchors` is set, idea refs resolve to in-page `#` anchors
+ * (see [html_export_print_in_page_anchors]) instead of separate idea pages.
  */
 export function renderTextWithRefsHtml(
     snapshot: ExportSnapshot,
@@ -313,6 +320,7 @@ export function renderTextWithRefsHtml(
     options?: {
         idea?: ExportIdeaRecord;
         emptyMessage?: string;
+        samePageIdeaAnchors?: boolean;
     }
 ): string {
     const source = text?.trim();
@@ -384,7 +392,9 @@ export function renderTextWithRefsHtml(
                 );
 
             let href: string | undefined;
-            if (linkedIdea && snapshot.pageOptions.includeIdeaPages) {
+            if (linkedIdea && options?.samePageIdeaAnchors) {
+                href = `#${exportIdeaAnchorId(linkedIdea)}`;
+            } else if (linkedIdea && snapshot.pageOptions.includeIdeaPages) {
                 href = pageHref(currentPath, linkedIdea.page, snapshot.urlBase);
             } else if (fileTarget && filePageEnabled(snapshot, fileTarget.kind)) {
                 href = pageHref(currentPath, fileTarget.page, snapshot.urlBase);
@@ -420,11 +430,13 @@ export function renderIdeaSummaryHtml(
     snapshot: ExportSnapshot,
     currentPath: string,
     idea: ExportIdeaRecord,
-    emptyMessage = 'No summary provided.'
+    emptyMessage = 'No summary provided.',
+    options?: { samePageIdeaAnchors?: boolean }
 ): string {
     return renderTextWithRefsHtml(snapshot, currentPath, idea.summary ?? '', {
         idea,
-        emptyMessage
+        emptyMessage,
+        samePageIdeaAnchors: options?.samePageIdeaAnchors
     });
 }
 
@@ -433,7 +445,8 @@ export function renderAttributeValueHtml(
     snapshot: ExportSnapshot,
     currentPath: string,
     value: unknown,
-    idea?: ExportIdeaRecord
+    idea?: ExportIdeaRecord,
+    options?: { samePageIdeaAnchors?: boolean }
 ): string {
     if (value === true) {
         return 'true';
@@ -449,7 +462,10 @@ export function renderAttributeValueHtml(
             return '—';
         }
         return value
-            .map(item => renderTextWithRefsHtml(snapshot, currentPath, String(item), { idea }))
+            .map(item => renderTextWithRefsHtml(snapshot, currentPath, String(item), {
+                idea,
+                samePageIdeaAnchors: options?.samePageIdeaAnchors
+            }))
             .join(', ');
     }
     if (typeof value === 'object') {
@@ -459,5 +475,31 @@ export function renderAttributeValueHtml(
     if (!text.trim()) {
         return '—';
     }
-    return renderTextWithRefsHtml(snapshot, currentPath, text, { idea });
+    return renderTextWithRefsHtml(snapshot, currentPath, text, {
+        idea,
+        samePageIdeaAnchors: options?.samePageIdeaAnchors
+    });
+}
+
+/**
+ * Compact attribute list for printable idea cards/sheets.
+ * Shows every declared attribute (not only status/tags).
+ */
+export function renderPrintIdeaAttributesHtml(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    idea: ExportIdeaRecord,
+    options?: { samePageIdeaAnchors?: boolean }
+): string {
+    const entries = Object.entries(idea.attributes);
+    if (entries.length === 0) {
+        return '';
+    }
+    const rows = entries.map(([key, value]) => `
+        <div>
+            <dt>${escapeHtml(key)}</dt>
+            <dd>${renderAttributeValueHtml(snapshot, currentPath, value, idea, options)}</dd>
+        </div>
+    `).join('');
+    return `<dl class="print-attrs">${rows}</dl>`;
 }

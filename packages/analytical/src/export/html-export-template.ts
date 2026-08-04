@@ -9,6 +9,7 @@ import type {
 } from './types.js';
 import {
     escapeHtml,
+    exportIdeaAnchorId,
     fileByIdea,
     filePageEnabled,
     formatAttributeValue,
@@ -23,9 +24,8 @@ import {
     renderIdeaSummaryHtml,
     renderMetric,
     renderOptionalStatusCell,
-    renderOptionalStatusParagraph,
     renderOptionalTagsCell,
-    renderOptionalTagsParagraph,
+    renderPrintIdeaAttributesHtml,
     renderTextWithRefsHtml,
     resolveExportFilePage,
     slugAttributeKey,
@@ -822,15 +822,18 @@ export function renderClusterDetailPage(snapshot: ExportSnapshot, cluster: Expor
 
 export function renderPrintHomePage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.printHome.path;
-    const cards = snapshot.ideas.map(idea => `
-        <article class="print-card print-break-avoid">
-            <h3>${snapshot.pageOptions.includeIdeaPages ? `<a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a>` : escapeHtml(idea.name)}</h3>
+    const samePageAnchors = { samePageIdeaAnchors: true as const };
+    const cards = snapshot.ideas.map(idea => {
+        const anchorId = exportIdeaAnchorId(idea);
+        return `
+        <article class="print-card print-break-avoid" id="${escapeHtml(anchorId)}">
+            <h3><a href="#${escapeHtml(anchorId)}">${escapeHtml(idea.name)}</a></h3>
             <p class="subtle">${escapeHtml(idea.fileUri)}</p>
-            <p>${renderIdeaSummaryHtml(snapshot, currentPath, idea, '—')}</p>
-            ${renderOptionalStatusParagraph(idea)}
-            ${renderOptionalTagsParagraph(idea)}
+            <p>${renderIdeaSummaryHtml(snapshot, currentPath, idea, '—', samePageAnchors)}</p>
+            ${renderPrintIdeaAttributesHtml(snapshot, currentPath, idea, samePageAnchors)}
         </article>
-    `).join('');
+    `;
+    }).join('');
     return renderShell({
         currentPath,
         activeNav: 'print',
@@ -841,6 +844,12 @@ export function renderPrintHomePage(snapshot: ExportSnapshot): string {
                 <p class="eyebrow">Printable report</p>
                 <h1>${escapeHtml(snapshot.title)}</h1>
                 <p class="subtle">Generated ${escapeHtml(formatDate(snapshot.generatedAt))}</p>
+                <div class="toolbar">
+                    <p class="subtle">${snapshot.ideas.length} ideas</p>
+                    <div class="actions">
+                        <button type="button" class="print-button hide-on-print" onclick="window.print()">Print</button>
+                    </div>
+                </div>
             </header>
             <section class="grid">
                 ${renderMetric('Ideas', String(snapshot.counts.ideas))}
@@ -867,13 +876,18 @@ export function renderPrintIdeaPage(snapshot: ExportSnapshot, idea: ExportIdeaRe
         body: `
             <header class="page-header">
                 <p class="eyebrow">Printable idea sheet</p>
-                <h1>${escapeHtml(idea.name)}</h1>
+                <h1 id="${escapeHtml(exportIdeaAnchorId(idea))}">${escapeHtml(idea.name)}</h1>
                 <p class="subtle">${escapeHtml(idea.fileUri)}:${idea.lineStart + 1}</p>
+                <div class="toolbar">
+                    <div></div>
+                    <div class="actions">
+                        <button type="button" class="print-button hide-on-print" onclick="window.print()">Print</button>
+                    </div>
+                </div>
             </header>
             <section class="print-card print-break-avoid">
                 <p class="idea-summary">${renderIdeaSummaryHtml(snapshot, currentPath, idea)}</p>
-                ${renderOptionalStatusParagraph(idea)}
-                ${renderOptionalTagsParagraph(idea)}
+                ${renderPrintIdeaAttributesHtml(snapshot, currentPath, idea)}
                 ${snapshot.pageOptions.includeIdeaPages ? `<p><strong>Interactive page:</strong> <a href="${escapeHtml(exportHref(snapshot, currentPath, idea.page.path))}">${escapeHtml(idea.name)}</a></p>` : ''}
             </section>
         `
