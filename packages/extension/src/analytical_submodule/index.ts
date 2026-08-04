@@ -78,13 +78,17 @@ export function activateAnalyticalSubmodule(
     // bar webview view provider available immediately so VS Code can resolve
     // (and paint) the "Context" view, and makes contributed commands invocable,
     // without waiting on any startup work.
-    registerAnalyticalCommands(context, submodule);
-    registerActivityBarModule(context, submodule);
-    registerChatParticipantModule(context, submodule);
-    registerWebviewModule(context, submodule);
-    registerAiCommandsModule(context, submodule);
-    registerMutationHooksModule(context, submodule);
-    registerIndexDiagnosticsModule(context, submodule);
+    //
+    // Each registration is isolated: a failure in one subsystem must not stop the
+    // others from registering. The activity bar view provider is registered first
+    // so the sidebar can always resolve, even if a sibling contribution throws.
+    registerStep('activity bar', () => registerActivityBarModule(context, submodule));
+    registerStep('analytical commands', () => registerAnalyticalCommands(context, submodule));
+    registerStep('chat participant', () => registerChatParticipantModule(context, submodule));
+    registerStep('webview module', () => registerWebviewModule(context, submodule));
+    registerStep('AI commands', () => registerAiCommandsModule(context, submodule));
+    registerStep('mutation hooks', () => registerMutationHooksModule(context, submodule));
+    registerStep('index diagnostics', () => registerIndexDiagnosticsModule(context, submodule));
 
     context.subscriptions.push({
         dispose: () => {
@@ -94,4 +98,13 @@ export function activateAnalyticalSubmodule(
     });
 
     return submodule;
+}
+
+/** Run one registration step, logging (never throwing) so siblings still register. */
+function registerStep(label: string, register: () => void): void {
+    try {
+        register();
+    } catch (error) {
+        console.error(`[reqlan] Failed to register ${label}:`, error);
+    }
 }

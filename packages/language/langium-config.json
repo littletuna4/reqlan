@@ -1,5 +1,6 @@
 {
     "projectName": "Reqlan",
+    "mode": "production",
     "languages": [
         {
             "id": "reqlan",
