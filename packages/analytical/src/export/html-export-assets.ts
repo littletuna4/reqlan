@@ -1,9 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { PHYSICS_CORE_CLASSIC_SOURCE } from '../graph/physics-core-source.js';
 
-/** Embed shared physics core into the classic-script export app.js (strip ESM exports). */
+/**
+ * physics-core.js with `export` keywords stripped, inlined at build time by
+ * scripts/generate-physics-core-source.mjs. Using a pre-generated string
+ * constant rather than readFileSync(import.meta.url) keeps this bundler-safe:
+ * esbuild with format cjs + target es2017 empties import.meta.url, and the
+ * source file does not exist on disk relative to the bundled main.cjs anyway.
+ */
 function embedPhysicsCoreSource(): string {
-    return readFileSync(new URL('../graph/physics-core.js', import.meta.url), 'utf8')
-        .replace(/^export\s+/gm, '');
+    return PHYSICS_CORE_CLASSIC_SOURCE;
 }
 
 export const SHARED_STYLES = `
