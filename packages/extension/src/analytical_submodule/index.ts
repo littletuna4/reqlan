@@ -44,9 +44,22 @@ export interface AnalyticalSubmodule {
     analysers: AnalyserRegistry;
 }
 
-export async function activateAnalyticalSubmodule(
+/**
+ * Register every analytical VS Code contribution synchronously and return the
+ * submodule immediately. This is intentionally **not** async and does **not**
+ * start indexing: the caller must kick off {@link IndexService.activate} in the
+ * background once the UI is available.
+ *
+ * VS Code does not resolve a webview view (or finish activating an extension so
+ * its commands become invocable) until the `activate()` promise resolves and
+ * the view resolver has run. Awaiting any startup work here — index sync or the
+ * language server — keeps the extension in the "activating" state and leaves the
+ * activity bar stuck on the built-in spinner. Registration must therefore stay
+ * synchronous and the heavier work deferred to a background task.
+ */
+export function activateAnalyticalSubmodule(
     context: vscode.ExtensionContext
-): Promise<AnalyticalSubmodule> {
+): AnalyticalSubmodule {
     const store = createAnalyticalStore();
     const index = new IndexService(store);
     const analysers = new AnalyserRegistry();
@@ -61,11 +74,10 @@ export async function activateAnalyticalSubmodule(
 
     const submodule = { store, index, analysers };
 
-    // Register all VS Code contributions synchronously, BEFORE any async startup
-    // work. This makes the activity bar webview view provider available
-    // immediately so VS Code can resolve (and paint) the "Context" view even
-    // while the index — and, in the caller, the language server — are still
-    // starting.
+    // Register all VS Code contributions synchronously. This makes the activity
+    // bar webview view provider available immediately so VS Code can resolve
+    // (and paint) the "Context" view, and makes contributed commands invocable,
+    // without waiting on any startup work.
     registerAnalyticalCommands(context, submodule);
     registerActivityBarModule(context, submodule);
     registerChatParticipantModule(context, submodule);
@@ -80,8 +92,6 @@ export async function activateAnalyticalSubmodule(
             index.deactivate();
         }
     });
-
-    await index.activate(context);
 
     return submodule;
 }
