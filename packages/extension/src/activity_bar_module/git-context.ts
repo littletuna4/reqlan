@@ -35,7 +35,21 @@ const FOCUS_COMMIT_LIMIT = 8;
 const HISTORY_CACHE_TTL_MS = 60_000;
 const GIT_LOG_TIMEOUT_MS = 4_000;
 
-const reqlanServices = createReqlanServices({ ...NodeFileSystem });
+/**
+ * Lazily-created Langium services. Building these generates the parser from the
+ * grammar (chevrotain) and wires the full LSP service graph — heavy synchronous
+ * work that must never run at module-load time. Doing so here previously blocked
+ * `require()` of the extension bundle (this module is on the import chain from
+ * `main.ts` via the activity bar), so the extension host stalled before
+ * `activate()` ran: the activity bar view never resolved and commands never
+ * became available. Create the services on first actual use instead.
+ */
+let reqlanServicesInstance: ReturnType<typeof createReqlanServices> | undefined;
+
+function getReqlanServices(): ReturnType<typeof createReqlanServices> {
+    reqlanServicesInstance ??= createReqlanServices({ ...NodeFileSystem });
+    return reqlanServicesInstance;
+}
 
 interface GitApiRepository {
     state: {
@@ -430,11 +444,12 @@ async function loadIdeaNamesAtRevision(
         return empty;
     }
     try {
-        const doc = reqlanServices.shared.workspace.LangiumDocumentFactory.fromString(
+        const services = getReqlanServices();
+        const doc = services.shared.workspace.LangiumDocumentFactory.fromString(
             text,
             URI.file(absoluteRepoPath(repoRoot, repoPath))
         );
-        await reqlanServices.shared.workspace.DocumentBuilder.build([doc], { validation: false });
+        await services.shared.workspace.DocumentBuilder.build([doc], { validation: false });
         const extracted = extractIndexedDocument(doc);
         const names = new Set((extracted?.ideas ?? []).map(idea => idea.name));
         ideaPresenceCache.set(cacheKey, names);
