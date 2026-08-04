@@ -459,7 +459,7 @@ button.link:hover {
     font-size: 0.95em;
 }
 
-.graph-surface {
+.graph-surface-wrap {
     position: relative;
     z-index: 0;
     width: 100%;
@@ -469,6 +469,15 @@ button.link:hover {
     border-radius: 0;
     overflow: hidden;
     background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.graph-surface-wrap.is-booting .graph-surface {
+    opacity: 0.35;
+}
+
+.graph-surface {
+    width: 100%;
+    height: 100%;
     touch-action: none;
     cursor: grab;
 }
@@ -476,6 +485,46 @@ button.link:hover {
 .graph-surface > div {
     width: 100% !important;
     height: 100% !important;
+}
+
+.graph-boot {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 8px;
+    padding: 12px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+    pointer-events: none;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+
+.graph-boot p {
+    margin: 0;
+}
+
+.graph-boot.is-error {
+    color: var(--vscode-errorForeground, #f48771);
+}
+
+.graph-boot-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid color-mix(in srgb, var(--vscode-descriptionForeground) 35%, transparent);
+    border-top-color: var(--vscode-focusBorder, #007fd4);
+    border-radius: 50%;
+    animation: graph-boot-spin 0.7s linear infinite;
+}
+
+@keyframes graph-boot-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .graph-empty {

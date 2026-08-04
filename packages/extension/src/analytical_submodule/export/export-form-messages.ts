@@ -25,6 +25,13 @@ export type ExtensionToExportFormMessage =
         type: 'exportStarted';
     }
     | {
+        type: 'exportProgress';
+        message: string;
+        phase?: 'prepare' | 'snapshot' | 'write';
+        completed?: number;
+        total?: number;
+    }
+    | {
         type: 'exportFinished';
         ok: boolean;
         message: string;

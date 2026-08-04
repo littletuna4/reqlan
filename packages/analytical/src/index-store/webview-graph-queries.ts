@@ -1,4 +1,5 @@
 import type { EdgeRecord, IdeaSummary } from '../core/types.js';
+import { FILTER_EMPTY, FILTER_NOT_PRESENT } from '../core/filter-specials.js';
 import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
 import { attributeJsonPath } from './webview-table-queries.js';
 import type { SqliteIndexStore } from './sqlite-store.js';
@@ -40,8 +41,10 @@ export interface GraphViewQuery {
     centerId?: string;
     search?: string;
     pathFilter?: string;
-    statusFilter?: string;
-    tagFilter?: string;
+    /** Multi-select status keys; may include FILTER_NOT_PRESENT for missing @status. */
+    statusFilter?: string[];
+    /** Multi-select tag keys; may include FILTER_NOT_PRESENT for missing @tags. */
+    tagFilter?: string[];
     /** @deprecated Prefer hopDepth — true maps to depth 2 when hopDepth is omitted */
     includeIndirect: boolean;
     /** Neighbourhood hop depth from center (1 = direct edges only). */
@@ -62,7 +65,11 @@ export interface GraphNodeView {
     fileUri: string;
     lineStart: number;
     status?: string;
+    /** FILTER_NOT_PRESENT | FILTER_EMPTY | concrete @status value. */
+    statusKey?: string;
     tags: string[];
+    /** [FILTER_NOT_PRESENT] | [FILTER_EMPTY] | concrete tags. */
+    tagsKeys?: string[];
     isExternal?: boolean;
     hotspotBand?: 'low' | 'medium' | 'high';
 }
@@ -104,26 +111,91 @@ export function buildGraphFilterWhereClause(query: GraphViewQuery): { sql: strin
         params.push(`%${query.pathFilter.trim()}%`);
     }
 
-    if (query.statusFilter?.trim()) {
+    const statusFilters = normalizeFilterList(query.statusFilter);
+    if (statusFilters.length) {
         const path = attributeJsonPath('status');
-        clauses.push(`json_extract(i.attributes_json, ?) = ?`);
-        params.push(path, query.statusFilter.trim());
+        const parts: string[] = [];
+        const includeMissing = statusFilters.includes(FILTER_NOT_PRESENT);
+        const includeEmpty = statusFilters.includes(FILTER_EMPTY);
+        const concrete = statusFilters.filter(
+            value => value !== FILTER_NOT_PRESENT && value !== FILTER_EMPTY
+        );
+        if (includeMissing) {
+            parts.push(`json_extract(i.attributes_json, ?) IS NULL`);
+            params.push(path);
+        }
+        if (includeEmpty) {
+            parts.push(`(
+                json_type(json_extract(i.attributes_json, ?)) = 'true'
+                OR (
+                    json_type(json_extract(i.attributes_json, ?)) = 'text'
+                    AND TRIM(CAST(json_extract(i.attributes_json, ?) AS TEXT)) = ''
+                )
+                OR (
+                    json_type(json_extract(i.attributes_json, ?)) = 'array'
+                    AND json_array_length(json_extract(i.attributes_json, ?)) = 0
+                )
+            )`);
+            params.push(path, path, path, path, path);
+        }
+        if (concrete.length) {
+            parts.push(`json_extract(i.attributes_json, ?) IN (${concrete.map(() => '?').join(', ')})`);
+            params.push(path, ...concrete);
+        }
+        clauses.push(`(${parts.join(' OR ')})`);
     }
 
-    if (query.tagFilter?.trim()) {
-        const tag = query.tagFilter.trim();
+    const tagFilters = normalizeFilterList(query.tagFilter);
+    if (tagFilters.length) {
         const path = attributeJsonPath('tags');
-        clauses.push(`(
-            json_extract(i.attributes_json, ?) LIKE ?
-            OR EXISTS (
-                SELECT 1 FROM json_each(json_extract(i.attributes_json, ?))
-                WHERE value = ?
-            )
-        )`);
-        params.push(path, `%${tag}%`, path, tag);
+        const parts: string[] = [];
+        const includeMissing = tagFilters.includes(FILTER_NOT_PRESENT);
+        const includeEmpty = tagFilters.includes(FILTER_EMPTY);
+        const concrete = tagFilters.filter(
+            value => value !== FILTER_NOT_PRESENT && value !== FILTER_EMPTY
+        );
+        if (includeMissing) {
+            parts.push(`json_extract(i.attributes_json, ?) IS NULL`);
+            params.push(path);
+        }
+        if (includeEmpty) {
+            parts.push(`(
+                json_type(json_extract(i.attributes_json, ?)) = 'true'
+                OR (
+                    json_type(json_extract(i.attributes_json, ?)) = 'text'
+                    AND TRIM(CAST(json_extract(i.attributes_json, ?) AS TEXT)) = ''
+                )
+                OR (
+                    json_type(json_extract(i.attributes_json, ?)) = 'array'
+                    AND json_array_length(json_extract(i.attributes_json, ?)) = 0
+                )
+            )`);
+            params.push(path, path, path, path, path);
+        }
+        for (const tag of concrete) {
+            parts.push(`(
+                json_extract(i.attributes_json, ?) LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM json_each(json_extract(i.attributes_json, ?))
+                    WHERE value = ?
+                )
+            )`);
+            params.push(path, `%${tag}%`, path, tag);
+        }
+        clauses.push(`(${parts.join(' OR ')})`);
     }
 
     return { sql: clauses.length > 0 ? clauses.join(' AND ') : '1=1', params };
+}
+
+function normalizeFilterList(value: string[] | string | undefined): string[] {
+    if (Array.isArray(value)) {
+        return value.map(entry => String(entry).trim()).filter(Boolean);
+    }
+    if (typeof value === 'string' && value.trim()) {
+        return [value.trim()];
+    }
+    return [];
 }
 
 export function toGraphNodeView(idea: IdeaSummary): GraphNodeView {
@@ -134,7 +206,9 @@ export function toGraphNodeView(idea: IdeaSummary): GraphNodeView {
         fileUri: idea.fileUri,
         lineStart: idea.lineStart,
         status: idea.status,
-        tags: idea.tags
+        statusKey: idea.statusKey,
+        tags: idea.tags,
+        tagsKeys: idea.tagsKeys
     };
 }
 

@@ -35,6 +35,7 @@ graph_cy_controller {
     ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
     Mount only while the graph container is visible and non-zero — do not keep cytoscape alive under display:none; WebGL init on a zero-size hidden container can break the host webview before messaging is attached.
     Viewport fitting per [reframe_view]; tracks lastSyncedNodeSetKey vs fittedNodeSetKey to drive [auto_reframe].
+    Label visibility per [graph_label_modes] / [graph_label_auto]: setLabelMode updates text-opacity from zoom (and hover/drag force-opaque in auto).
 }
 
 graph_cy_elements {
@@ -66,6 +67,84 @@ view_controls {
     pan, zoom, and drag repositioning are supported on the canvas.
     zoom range is wide rather than tightly capped so users can inspect fine detail or see the whole neighbourhood.
     [reframe_view] fits and centres the camera on the graph bounding box without changing node positions or restarting layout/physics.
+    Zoom and Fit must continuously drive [graph_label_auto] opacity when Labels is in auto mode.
+}
+
+graph_labels {
+    Graph node labels must show the full idea name without character truncation.
+    Wrapping is allowed; ellipsis truncation of display names is not.
+    Shared contract for Ideas Summary (cytoscape) and HTML export (canvas); surface-specific wiring lives under consumers.
+    [graph_label_modes]
+    [graph_label_auto]
+    @status done
+}
+
+graph_label_modes {
+    Every interactive graph should provide a Labels control that cycles auto (default), on, and off without changing graph membership.
+    On forces full opacity; off hides all labels; auto follows [graph_label_auto].
+    Reset / default restore auto.
+    Ideas Summary: control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"], mode persisted via ["../module/ideas_summary/graphical_graph.rq".graph_ui_persistence].
+    HTML export: control in ["../../../packages/analytical/src/export/html-export-template.ts"] / ["../../../packages/analytical/src/export/html-export-assets.ts"].
+    Driven by the same viewport zoom as [view_controls].
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../packages/analytical/src/export/html-export-template.ts"]
+    )
+    @tests (
+        ["../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+graph_label_auto {
+    In Labels auto mode, visibility follows viewport zoom continuously rather than a hard cut.
+    Below a low zoom threshold labels are fully hidden; above a slightly higher threshold they are fully opaque; between those thresholds opacity ramps briefly through a muted / semi-transparent phase (GRAPH_LABEL_FADE_START → GRAPH_LABEL_FADE_END).
+    Hovered or dragged nodes remain fully opaque even when ambient auto opacity is low or zero.
+    Zoom and Fit from [view_controls] / [reframe_view] must update this opacity on each paint or zoom event.
+    Applies to Ideas Summary GraphCyController and HTML export canvas graph alike.
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+graph_status_tag_filters {
+    Status and tag graph filters are searchable checkbox dropdowns (still a dropdown trigger; multi-select via checkboxes; OR within each field).
+    They must distinguish attribute absence from an empty declaration and from a literal unspecified value:
+      - Not present — attribute key absent (no `@status` / no `@tags`)
+      - Empty — attribute declared with no value (`@status`, `@tags`, `@status ""`, bare flag)
+      - unspecified — literal authored value "unspecified"
+    Do not invent unspecified for missing attributes in rollups, clusters, or filter options.
+    Special options render differently from concrete values (italic muted Not present; info-tint Empty; warning-tint unspecified).
+    Shared helpers live in ["../../../packages/analytical/src/core/filter-specials.ts"].
+    Surfaces: Ideas Summary SearchableCheckboxDropdown; HTML export SCD in ["../../../packages/analytical/src/export/html-export-assets.ts"].
+    @status done
+    @implementation (
+        ["../../../packages/analytical/src/core/filter-specials.ts"]
+        ["../../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/SearchableCheckboxDropdown.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/messages.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../packages/analytical/test/filter-specials.test.ts"]
+    )
 }
 
 reframe_view {

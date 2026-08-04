@@ -8,6 +8,7 @@ import type { GraphUiPersistedState } from './graph-ui-state.js';
 import type { TableUiPersistedState } from './table-ui-state.js';
 
 export type {
+    GraphUiLabelMode,
     GraphUiNodeTypeId,
     GraphUiPersistedState,
     GraphUiPhysicsPersisted,
@@ -16,6 +17,7 @@ export type {
 export {
     DEFAULT_GRAPH_UI_PHYSICS,
     DEFAULT_GRAPH_UI_STATE,
+    GRAPH_UI_LABEL_MODES,
     GRAPH_UI_WORKSPACE_STATE_KEY,
     normalizeGraphUiState
 } from './graph-ui-state.js';
@@ -296,8 +298,10 @@ export interface GraphViewQuery {
     centerId?: string;
     search?: string;
     pathFilter?: string;
-    statusFilter?: string;
-    tagFilter?: string;
+    /** Multi-select status keys; may include FILTER_NOT_PRESENT for missing @status. */
+    statusFilter?: string[];
+    /** Multi-select tag keys; may include FILTER_NOT_PRESENT for missing @tags. */
+    tagFilter?: string[];
     /** @deprecated Prefer hopDepth */
     includeIndirect: boolean;
     hopDepth?: number;
@@ -314,7 +318,11 @@ export interface GraphNodeView {
     path: string;
     lineStart: number;
     status?: string;
+    /** FILTER_NOT_PRESENT | FILTER_EMPTY | concrete @status value. */
+    statusKey?: string;
     tags: string[];
+    /** [FILTER_NOT_PRESENT] | [FILTER_EMPTY] | concrete tags. */
+    tagsKeys?: string[];
     isExternal?: boolean;
     /** Context-scope v2 hotspot overlay band for churn/risk. */
     hotspotBand?: 'low' | 'medium' | 'high';
@@ -397,7 +405,7 @@ export type ExtensionToWebviewMessage =
     | { type: 'attributesPage'; query: AttributesTableQuery; total: number; rows: AttributeTableRow[] }
     | { type: 'timelinePage'; events: TimelineEventView[] }
     | { type: 'overviewSearchResult'; result: OverviewSearchResult }
-    | { type: 'overviewCoverage'; scores: OverviewCoverageScores }
+    | { type: 'overviewCoverage'; scores?: OverviewCoverageScores; error?: string }
     | { type: 'overviewLinks'; links: OverviewLink[] }
     | { type: 'graphLoadProgress'; progress: GraphLoadProgress }
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }

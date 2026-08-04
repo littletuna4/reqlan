@@ -28,6 +28,7 @@ export interface ExportFormSettings {
     includeAttributePages: boolean;
     includePrintPages: boolean;
     excludeSecretFiles: boolean;
+    excludeIgnoredFiles: boolean;
     urlBase: string;
     headerHref: string;
     headerLabel: string;
@@ -55,6 +56,7 @@ export function defaultExportFormSettings(_workspaceRoot?: string): ExportFormSe
         includeAttributePages: true,
         includePrintPages: true,
         excludeSecretFiles: false,
+        excludeIgnoredFiles: false,
         urlBase: '',
         headerHref: '',
         headerLabel: '',
@@ -93,6 +95,7 @@ export function mergeExportFormSettings(
         includeAttributePages: bool(raw.includeAttributePages, defaults.includeAttributePages),
         includePrintPages: bool(raw.includePrintPages, defaults.includePrintPages),
         excludeSecretFiles: bool(raw.excludeSecretFiles, defaults.excludeSecretFiles),
+        excludeIgnoredFiles: bool(raw.excludeIgnoredFiles, defaults.excludeIgnoredFiles),
         urlBase: typeof raw.urlBase === 'string' ? raw.urlBase : defaults.urlBase,
         headerHref: typeof raw.headerHref === 'string' ? raw.headerHref : defaults.headerHref,
         headerLabel: typeof raw.headerLabel === 'string' ? raw.headerLabel : defaults.headerLabel,

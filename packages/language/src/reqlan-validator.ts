@@ -5,7 +5,9 @@ import {
     isFromImport,
     isIdea,
     isInvalidFromImport,
+    isModel,
     isOneLinerIdea,
+    type AnonymousBlock,
     type Model
 } from './generated/ast.js';
 import {
@@ -27,12 +29,14 @@ import { unquoteReqlanString } from './reqlan-quoted-strings.js';
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
+ * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
     const validator = services.validation.ReqlanValidator;
     const checks: ValidationChecks<ReqlanAstType> = {
-        Model: validator.checkModelDuplicates
+        Model: validator.checkModelDuplicates,
+        AnonymousBlock: validator.checkNamelessIdeaBlock
     };
     registry.register(checks, validator);
 }
@@ -42,6 +46,7 @@ export function registerValidationChecks(services: ReqlanServices) {
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
+ * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  */
 export class ReqlanValidator {
 
@@ -53,6 +58,22 @@ export class ReqlanValidator {
         this.checkImportSyntax(model, accept);
         this.checkImportTargets(model, accept);
         this.checkFileReferenceTargets(model, accept);
+    }
+
+    /**
+     * Top-level nameless `{ ... }` blocks parse so the rest of the file stays alive,
+     * but they need a name to be addressable ideas.
+     * List-item anonymous blocks remain valid (see lists).
+     */
+    checkNamelessIdeaBlock(block: AnonymousBlock, accept: ValidationAcceptor): void {
+        if (!isModel(block.$container)) {
+            return;
+        }
+        accept(
+            'warning',
+            'Nameless idea block: add a name before `{` (for example `my_idea { ... }`). The block was kept so the rest of the file still parses.',
+            { node: block }
+        );
     }
 
     /**

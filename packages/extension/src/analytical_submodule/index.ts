@@ -58,7 +58,8 @@ export interface AnalyticalSubmodule {
  * synchronous and the heavier work deferred to a background task.
  */
 export function activateAnalyticalSubmodule(
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
+    onActivityBarPainted: () => void
 ): AnalyticalSubmodule {
     const store = createAnalyticalStore();
     const index = new IndexService(store);
@@ -82,7 +83,9 @@ export function activateAnalyticalSubmodule(
     // Each registration is isolated: a failure in one subsystem must not stop the
     // others from registering. The activity bar view provider is registered first
     // so the sidebar can always resolve, even if a sibling contribution throws.
-    registerStep('activity bar', () => registerActivityBarModule(context, submodule));
+    registerStep('activity bar', () =>
+        registerActivityBarModule(context, submodule, onActivityBarPainted)
+    );
     registerStep('analytical commands', () => registerAnalyticalCommands(context, submodule));
     registerStep('chat participant', () => registerChatParticipantModule(context, submodule));
     registerStep('webview module', () => registerWebviewModule(context, submodule));

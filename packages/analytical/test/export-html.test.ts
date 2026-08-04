@@ -1,3 +1,4 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -164,6 +165,11 @@ describe('html export pipeline', () => {
         expect(appJs).toContain('EXPORT_PHYSICS_SETTINGS');
         expect(appJs).toContain('ReqlanGraphPhysics');
         expect(appJs).toContain('data-graph-toggle-physics');
+        expect(appJs).toContain("querySelector('[data-graph-toggle-labels]')");
+        expect(appJs).toContain('labelMode');
+        expect(appJs).toContain('GRAPH_LABEL_FADE_START');
+        expect(appJs).toContain('GRAPH_LABEL_FADE_END');
+        expect(appJs).toContain('labelOpacityAtScale');
         expect(appJs).toContain('physicsStep');
         expect(appJs).toContain('wireViewport');
         expect(appJs).toContain('formatNodeAttrs');
@@ -174,6 +180,21 @@ describe('html export pipeline', () => {
         expect(stylesCss).toContain('.graph-root canvas');
         expect(stylesCss).not.toContain('.graph-root svg');
         expect(graphHtml).toContain('data-graph-toggle-physics');
+        expect(graphHtml).toContain('data-graph-toggle-labels');
+        expect(graphHtml).toContain('Labels: auto');
+        expect(graphHtml).toContain('data-label-mode="auto"');
+        expect(graphHtml).toContain('data-graph-status-scd');
+        expect(graphHtml).toContain('data-graph-tag-scd');
+        expect(graphHtml).toContain('__not_present__');
+        expect(graphHtml).toContain('__empty__');
+        expect(appJs).toContain('mountSearchableCheckboxDropdown');
+        expect(appJs).toContain('__not_present__');
+        expect(stylesCss).toContain('.scd-panel[hidden]');
+        expect(stylesCss).toContain('.graph-boot-spinner');
+        expect(graphHtml).toContain('Initialising graph');
+        expect(graphHtml).toContain('is-booting');
+        expect(alphaIdeaHtml).toContain('data-graph-toggle-labels');
+        expect(alphaIdeaHtml).toContain('Labels: auto');
         expect(alphaPrintHtml).toContain('class="idea-ref');
         expect(alphaPrintHtml).toContain('Printable idea sheet');
         expect(clusterPrintHtml).toContain('Printable cluster sheet');
@@ -458,6 +479,66 @@ describe('html export pipeline', () => {
         await store.close();
     });
 
+    test('excludeIgnoredFiles omits ideas hosted under .rqignore patterns', async () => {
+        const workspaceRoot = mkdtempSync(join(tmpdir(), 'reqlan-export-ignore-'));
+        mkdirSync(join(workspaceRoot, '.reqlan'), { recursive: true });
+        writeFileSync(join(workspaceRoot, '.reqlan', '.rqignore'), 'drop/\n', 'utf8');
+
+        const store = await openTestStore();
+        const keptFile = 'reqs/kept.rq';
+        const ignoredFile = 'drop/hidden.rq';
+        const keptIdea: IdeaRecord = {
+            id: ideaId(keptFile, 'kept'),
+            name: 'kept',
+            kind: 'block',
+            fileUri: keptFile,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'kept idea',
+            attributesJson: '{}',
+            contentHash: 'k'
+        };
+        const ignoredIdea: IdeaRecord = {
+            id: ideaId(ignoredFile, 'dropped'),
+            name: 'dropped',
+            kind: 'block',
+            fileUri: ignoredFile,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'ignored idea',
+            attributesJson: '{}',
+            contentHash: 'd'
+        };
+        await store.upsertDocument(keptFile, 'hash-k', [keptIdea], []);
+        await store.upsertDocument(ignoredFile, 'hash-d', [ignoredIdea], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'ignore-filter',
+            workspaceRoot,
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            excludeIgnoredFiles: true,
+            includeIdeaPages: false,
+            includeFilePages: false,
+            includeCodeFilePages: false,
+            includeClusterPages: false,
+            includeAttributePages: false,
+            includePrintPages: false
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        expect(snapshot.counts.ideas).toBe(1);
+        expect(snapshot.ideas.map(idea => idea.name)).toEqual(['kept']);
+        expect(snapshot.graphs.workspace.nodes.some(node => node.name === 'dropped')).toBe(false);
+
+        await store.close();
+        rmSync(workspaceRoot, { recursive: true, force: true });
+    });
+
     test('urlBase and headerLink produce root-relative hrefs and topbar home link', async () => {
         const store = await openTestStore();
         const fileA = 'reqs/a.rq';
@@ -513,6 +594,65 @@ describe('html export pipeline', () => {
         expect(ideaHtml).toContain('href="/reqlan/spec/ideas.html"');
         expect(ideaHtml).toContain('class="brand-link" href="/reqlan/"');
         expect(await readFile(join(result.outputDir, 'assets/styles.css'), 'utf8')).toContain('.brand-link');
+
+        await store.close();
+    });
+
+    test('reports snapshot and write progress while building html', async () => {
+        const store = await openTestStore();
+        const fileUri = 'reqs/progress.rq';
+        const idea: IdeaRecord = {
+            id: ideaId(fileUri, 'progress_idea'),
+            name: 'progress_idea',
+            kind: 'block',
+            fileUri,
+            lineStart: 0,
+            lineEnd: 1,
+            summary: 'progress test idea',
+            attributesJson: '{"status":"todo"}',
+            contentHash: 'p'
+        };
+        await store.upsertDocument(fileUri, 'hash-p', [idea], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-progress-${randomUUID()}`),
+            exportName: 'progress-report',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: true,
+            includeGraphPage: true,
+            printEntryFileName: 'print.html',
+            runtimeMode: 'interactive' as const,
+            clusterStrategy: 'deterministic' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeCodeFilePages: true,
+            includeClusterPages: true,
+            includeAttributePages: true,
+            includePrintPages: true
+        };
+
+        const events: Array<{ phase: string; message: string; completed?: number; total?: number }> = [];
+        const onProgress = (progress: {
+            phase: string;
+            message: string;
+            completed?: number;
+            total?: number;
+        }) => {
+            events.push(progress);
+        };
+
+        const snapshot = await buildExportSnapshot(store, request, onProgress);
+        await writeHtmlExport(snapshot, request, onProgress);
+
+        expect(events.some((event) => event.phase === 'snapshot')).toBe(true);
+        const writeEvents = events.filter((event) => event.phase === 'write');
+        expect(writeEvents.length).toBeGreaterThan(0);
+        const lastWrite = writeEvents.at(-1)!;
+        expect(lastWrite.completed).toBe(lastWrite.total);
+        expect(lastWrite.total).toBeGreaterThan(0);
 
         await store.close();
     });

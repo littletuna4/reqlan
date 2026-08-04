@@ -14,17 +14,19 @@
 
     const app = getApp();
 
-    let filtersOpen = false;
-    let collapsedGroups = new Set<string>();
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    let filtersOpen = $state(false);
+    let collapsedGroups = $state(new Set<string>());
 
-    $: query = app.references.query;
-    $: rows = app.references.rows;
-    $: total = app.references.total;
-    $: visibleColumns = app.tableUi.references.visibleColumns;
-    $: groupBy = app.tableUi.references.groupBy ?? query.groupBy;
-    $: groupHeaders = groupBy === 'type'
+    const query = $derived(app.references.query);
+    const rows = $derived(app.references.rows);
+    const total = $derived(app.references.total);
+    const visibleColumns = $derived(app.tableUi.references.visibleColumns);
+    const groupBy = $derived(app.tableUi.references.groupBy ?? query.groupBy);
+    const groupHeaders = $derived(groupBy === 'type'
         ? buildGroupHeaders(rows, row => row.referenceType)
-        : [];
+        : []);
 
     const columnOptions = [
         { id: 'source', label: 'Source' },
@@ -105,11 +107,12 @@
         collapsedGroups = next;
     }
 
-    $: colSpan =
+    const colSpan = $derived(
         (show('source') ? 1 : 0) +
         (show('target') ? 1 : 0) +
         (show('inRq') ? 1 : 0) +
-        (show('type') ? 1 : 0);
+        (show('type') ? 1 : 0)
+    );
 </script>
 
 <TableToolbar
@@ -163,7 +166,7 @@
                 {#if header}
                     <tr class="group-header-row">
                         <td colspan={Math.max(1, colSpan)}>
-                            <button type="button" class="group-header" on:click={() => toggleGroup(header.key)}>
+                            <button type="button" class="group-header" onclick={() => toggleGroup(header.key)}>
                                 {collapsedGroups.has(header.key) ? '▶' : '▼'} {header.label}
                             </button>
                         </td>
@@ -173,7 +176,7 @@
             {#if !isRowHidden(index)}
                 <tr
                     class="clickable"
-                    on:click={() => app.openIdea(
+                    onclick={() => app.openIdea(
                         row.referenceType === 'file' && row.targetFileUri
                             ? row.targetFileUri
                             : row.sourceFileUri,

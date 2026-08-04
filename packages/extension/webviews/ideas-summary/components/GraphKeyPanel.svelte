@@ -135,22 +135,22 @@
         class:graph-key-dragging={dragging}
         style:--graph-key-x={panelX !== undefined ? `${panelX}px` : null}
         style:--graph-key-y={panelY !== undefined ? `${panelY}px` : null}
-        on:pointerdown|stopPropagation
+        onpointerdown={(event) => event.stopPropagation()}
     >
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
             class="graph-key-header"
-            on:pointerdown={onHandlePointerDown}
-            on:pointermove={onHandlePointerMove}
-            on:pointerup={onHandlePointerUp}
-            on:pointercancel={onHandlePointerUp}
+            onpointerdown={onHandlePointerDown}
+            onpointermove={onHandlePointerMove}
+            onpointerup={onHandlePointerUp}
+            onpointercancel={onHandlePointerUp}
         >
             <span class="graph-key-title">Key</span>
             <button
                 type="button"
                 class="graph-key-close"
                 aria-label="Close key"
-                on:click|stopPropagation={() => dispatch('close')}
+                onclick={(event) => { event.stopPropagation(); dispatch('close'); }}
             >
                 ×
             </button>
@@ -165,7 +165,7 @@
                             class:graph-key-toggle-hidden={hiddenTypes.includes(item.typeId)}
                             aria-pressed={!hiddenTypes.includes(item.typeId)}
                             title="Toggle {item.label} visibility"
-                            on:click|stopPropagation={() => dispatch('toggleType', item.typeId)}
+                            onclick={(event) => { event.stopPropagation(); dispatch('toggleType', item.typeId); }}
                         >
                             <span class="graph-key-swatch" style:background={item.color}></span>
                             <span class="graph-key-toggle-label">{item.label}</span>

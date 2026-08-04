@@ -108,7 +108,15 @@ const markdownLink = (text: string, offset: number): RegExpExecArray | null => {
     return null;
 };
 
-const topLevelBlockOpener = /(?:^|\n)[ \t]*(?:[A-Za-z_.][\w.-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*$/;
+const blockOpenerLine = /^[ \t]*(?:[A-Za-z_.][\w.-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*$/;
+
+function lineStartOffset(text: string, offset: number): number {
+    return text.lastIndexOf('\n', offset - 1) + 1;
+}
+
+function textBeforeOnLine(text: string, offset: number): string {
+    return text.slice(lineStartOffset(text, offset), offset).replace(/[ \t]+$/, '');
+}
 
 function isEscapedAt(text: string, offset: number): boolean {
     let backslashes = 0;
@@ -125,9 +133,11 @@ function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: numbe
     if (isEscapedAt(text, offset)) {
         return false;
     }
-    const before = text.slice(0, offset).replace(/[ \t]+$/, '');
+    const before = textBeforeOnLine(text, offset);
 
-    if (depth === 0 && topLevelBlockOpener.test(before)) {
+    // Top-level named blocks (`name {`) and nameless recoverable blocks (`{` alone).
+    // Leading indentation is allowed — top-level ideas are often indented in fixtures.
+    if (depth === 0 && (blockOpenerLine.test(before) || (isLineStartAt(text, offset) && before.trim().length === 0))) {
         return true;
     }
     if (/@[A-Za-z_][\w-]*(?::)?\s*$/.test(before)) {
@@ -137,8 +147,7 @@ function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: numbe
         return true;
     }
     if (depth >= 1 && /[A-Za-z_][\w-]*\s*$/.test(before) && !isLineStartAt(text, offset)) {
-        const after = text.slice(offset + 1);
-        return /^[ \t]*(?:\r?\n|$)/.test(after);
+        return restOfLineIsBlank(text, offset);
     }
     return false;
 }
@@ -156,12 +165,10 @@ function isStructuralCloseBraceAt(text: string, offset: number): boolean {
     if (isEscapedAt(text, offset)) {
         return false;
     }
-    const after = text.slice(offset + 1);
-    const restOfLine = after.split(/\r?\n/, 1)[0] ?? '';
-    if (restOfLine.trim().length !== 0) {
+    if (!restOfLineIsBlank(text, offset)) {
         return false;
     }
-    const { structuralDepth, proseDepth } = scanBraceState(text, offset);
+    const { structuralDepth, proseDepth } = braceStateBefore(text, offset);
     if (structuralDepth <= 0) {
         return false;
     }
@@ -176,16 +183,84 @@ interface BraceScanState {
     proseDepth: number;
 }
 
-function scanBraceState(text: string, offset: number): BraceScanState {
+/**
+ * Sparse depth timeline: event `i` applies for offsets in
+ * [offsets[i], offsets[i + 1]). Avoids O(n) Int32Arrays on every re-lex.
+ */
+interface BraceScanCache {
+    text: string;
+    offsets: number[];
+    structuralDepth: number[];
+    proseDepth: number[];
+}
+
+let braceScanCache: BraceScanCache | undefined;
+
+function fenceEndAfter(text: string, openOffset: number): number {
+    // Match CODE_FENCE: ```…``` including optional body; return index after closing fence.
+    if (
+        text.charCodeAt(openOffset) !== 96
+        || text.charCodeAt(openOffset + 1) !== 96
+        || text.charCodeAt(openOffset + 2) !== 96
+    ) {
+        return openOffset;
+    }
+    const afterOpen = openOffset + 3;
+    const firstNewline = text.indexOf('\n', afterOpen);
+    if (firstNewline < 0) {
+        const sameLineClose = text.indexOf('```', afterOpen);
+        return sameLineClose < 0 ? text.length : sameLineClose + 3;
+    }
+    const close = text.indexOf('```', firstNewline + 1);
+    return close < 0 ? text.length : close + 3;
+}
+
+function restOfLineIsBlank(text: string, offset: number): boolean {
+    for (let index = offset + 1; index < text.length; index++) {
+        const char = text[index];
+        if (char === '\n' || char === '\r') {
+            return true;
+        }
+        if (char !== ' ' && char !== '\t') {
+            return false;
+        }
+    }
+    return true;
+}
+
+function buildBraceScanCache(text: string): BraceScanCache {
     let structuralDepth = 0;
     const proseDepthByStructural: number[] = [0];
+    const offsets = [0];
+    const structuralDepthAt = [0];
+    const proseDepthAtOffsets = [0];
 
     const proseDepthAt = (): number => proseDepthByStructural[structuralDepth] ?? 0;
     const setProseDepth = (value: number): void => {
         proseDepthByStructural[structuralDepth] = value;
     };
+    const recordStateFrom = (offset: number): void => {
+        const last = offsets.length - 1;
+        if (offsets[last] === offset) {
+            structuralDepthAt[last] = structuralDepth;
+            proseDepthAtOffsets[last] = proseDepthAt();
+            return;
+        }
+        offsets.push(offset);
+        structuralDepthAt.push(structuralDepth);
+        proseDepthAtOffsets.push(proseDepthAt());
+    };
 
-    for (let index = 0; index < offset; index++) {
+    for (let index = 0; index < text.length; index++) {
+        // Fenced snippets are opaque to the parser; braces inside must not change depth.
+        if (
+            text.charCodeAt(index) === 96
+            && text.charCodeAt(index + 1) === 96
+            && text.charCodeAt(index + 2) === 96
+        ) {
+            index = fenceEndAfter(text, index) - 1;
+            continue;
+        }
         const char = text[index];
         if (char === '{') {
             if (isEscapedAt(text, index)) {
@@ -197,6 +272,7 @@ function scanBraceState(text: string, offset: number): BraceScanState {
             } else {
                 setProseDepth(proseDepthAt() + 1);
             }
+            recordStateFrom(index + 1);
             continue;
         }
         if (char !== '}') {
@@ -205,23 +281,24 @@ function scanBraceState(text: string, offset: number): BraceScanState {
         if (isEscapedAt(text, index)) {
             continue;
         }
-        const after = text.slice(index + 1);
-        const restOfLine = after.split(/\r?\n/, 1)[0] ?? '';
-        const atEndOfLine = restOfLine.trim().length === 0;
+        const atEndOfLine = restOfLineIsBlank(text, index);
         if (!atEndOfLine) {
             if (proseDepthAt() > 0) {
                 setProseDepth(proseDepthAt() - 1);
+                recordStateFrom(index + 1);
             }
             continue;
         }
         if (structuralDepth <= 0) {
             if (proseDepthAt() > 0) {
                 setProseDepth(proseDepthAt() - 1);
+                recordStateFrom(index + 1);
             }
             continue;
         }
         if (isLineStartAt(text, index)) {
             structuralDepth--;
+            recordStateFrom(index + 1);
             continue;
         }
         if (proseDepthAt() > 0) {
@@ -229,20 +306,41 @@ function scanBraceState(text: string, offset: number): BraceScanState {
         } else {
             structuralDepth--;
         }
+        recordStateFrom(index + 1);
     }
 
+    return { text, offsets, structuralDepth: structuralDepthAt, proseDepth: proseDepthAtOffsets };
+}
+
+function braceStateAtOffset(cache: BraceScanCache, offset: number): BraceScanState {
+    const { offsets, structuralDepth, proseDepth } = cache;
+    let low = 0;
+    let high = offsets.length - 1;
+    while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (offsets[mid]! <= offset) {
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    const index = Math.max(0, high);
     return {
-        structuralDepth,
-        proseDepth: proseDepthAt()
+        structuralDepth: structuralDepth[index] ?? 0,
+        proseDepth: proseDepth[index] ?? 0
     };
 }
 
-function scanStructuralBraceDepth(text: string, offset: number): number {
-    return scanBraceState(text, offset).structuralDepth;
+function braceStateBefore(text: string, offset: number): BraceScanState {
+    if (braceScanCache?.text !== text) {
+        braceScanCache = buildBraceScanCache(text);
+    }
+    const boundedOffset = Math.max(0, Math.min(offset, text.length));
+    return braceStateAtOffset(braceScanCache, boundedOffset);
 }
 
 function isStructuralOpenBraceAt(text: string, offset: number): boolean {
-    return isStructuralOpenBraceAtDepth(text, offset, scanStructuralBraceDepth(text, offset));
+    return isStructuralOpenBraceAtDepth(text, offset, braceStateBefore(text, offset).structuralDepth);
 }
 
 const structuralOpenBrace = (text: string, offset: number): RegExpExecArray | null => {
@@ -274,7 +372,7 @@ const proseCloseBrace = (text: string, offset: number): RegExpExecArray | null =
 };
 
 function braceDepthBefore(text: string, offset: number): number {
-    return scanStructuralBraceDepth(text, offset);
+    return braceStateBefore(text, offset).structuralDepth;
 }
 
 function isLineStartAt(text: string, offset: number): boolean {
@@ -287,15 +385,14 @@ function isLineStartAt(text: string, offset: number): boolean {
 
 function isStringLiteralContext(text: string, offset: number): boolean {
     const depth = braceDepthBefore(text, offset);
-    const trimmed = text.slice(0, offset).replace(/[ \t]+$/, '');
+    const trimmed = textBeforeOnLine(text, offset);
     if (depth === 0 && /\b(?:from|import)\s*$/.test(trimmed)) {
         return true;
     }
     if (/\[\s*$/.test(trimmed)) {
         return true;
     }
-    const lineStart = trimmed.lastIndexOf('\n') + 1;
-    if (trimmed.slice(lineStart).length === 0 && depth === 0) {
+    if (trimmed.length === 0 && depth === 0) {
         return true;
     }
     return false;
@@ -330,7 +427,7 @@ function topLevelImportKeyword(text: string, offset: number): RegExpExecArray | 
     if (isLineStartAt(text, offset)) {
         return makeMatch(text, offset, 6);
     }
-    const before = text.slice(0, offset).replace(/[ \t]+$/, '');
+    const before = textBeforeOnLine(text, offset);
     if (/(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/.test(before)) {
         return makeMatch(text, offset, 6);
     }
@@ -348,7 +445,7 @@ function topLevelAsKeyword(text: string, offset: number): RegExpExecArray | null
     if (braceDepthBefore(text, offset) !== 0) {
         return null;
     }
-    const before = text.slice(0, offset).replace(/[ \t]+$/, '');
+    const before = textBeforeOnLine(text, offset);
     if (/(?:[_a-zA-Z][\w-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/.test(before)) {
         return makeMatch(text, offset, 2);
     }

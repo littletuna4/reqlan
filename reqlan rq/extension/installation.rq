@@ -21,7 +21,7 @@ installation_sequencing {
     End-to-end first-run story (typical editor user):
     1. User installs the extension from Marketplace / Open VSX / VSIX ([extension_installation]).
     2. Host fires an [activation.activation_events] match (usually `onStartupFinished`).
-    3. [activation.activation_sequence] registers contributions and starts analytical + LSP; [activation.onboarding_check] may open [welcome.installation_event] (Welcome to Reqlan webview) without blocking activation.
+    3. [activation.activation_sequence] synchronously registers contributions and schedules [activation.background_startup]; [activation.onboarding_check] may open [welcome.installation_event] (Welcome to Reqlan webview) without blocking activation.
     4. If no `.reqlan` exists under workspace folders, surfaces offer create-base ([bases.create_base_onboarding]) — user-driven, never auto-created on extension install.
     5. [base_installation] seeds config / ignore / marker; index activate/sync follows ([app_memory.application_memory]).
     6. Optionally, user runs Install Cursor Skills ([workspace_agent_files]) — copies rq-* skills and may update `.cursor/mcp.json`; independent of `.reqlan` seeding.
@@ -33,8 +33,8 @@ extension_installation {
     There is **no** VS Code `onInstall` API; install-time behaviour runs on the **first** [activation.activation] after install ([activation.activation_events]).
     Sequencing inside `activate` is owned by [activation.activation_sequence]:
     - Sync register CodeLens / inlay config commands.
-    - Await analytical submodule contributions (commands, activity bar, chat, webviews, AI commands, mutation hooks), then await index startup without blocking sidebar render ([activation.analytical_submodule_activation]).
-    - Register import quick-fixes when analytical started; await language client; sync catalogs when both are up.
+    - Synchronously register analytical submodule contributions (commands, activity bar, chat, webviews, AI commands, mutation hooks) without starting the index ([activation.analytical_submodule_activation]).
+    - Register import quick-fixes, then schedule index and language-client startup through [activation.first_paint_startup] / [activation.background_startup]; sync catalogs once the language client exists.
     - Fire-and-forget [activation.onboarding_check] → [welcome_webview_install].
     Failures in submodule or language client are logged and must not abort later phases or the welcome check.
     Related command surfaces: Show Onboarding ([welcome.show_onboarding_command]), Install Cursor Skills ([skills_mcp.cursor_skills_install]), Create Base ([bases.create_base_onboarding]).

@@ -5,7 +5,7 @@
  */
 import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultLinker, type DefaultReference } from 'langium';
-import { isLocalReference, isModel, isQualifiedReference } from './generated/ast.js';
+import { isIdea, isIdeaSet, isLocalReference, isModel, isOneLinerIdea, isQualifiedReference } from './generated/ast.js';
 import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
@@ -69,7 +69,9 @@ export class ReqlanLinker extends DefaultLinker {
             return false;
         }
         const name = refInfo.reference.$refText;
-        if (model.elements.some(element => element.name === name)) {
+        if (model.elements.some(element =>
+            (isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element)) && element.name === name
+        )) {
             return false;
         }
         return findNamespaceImportByAlias(model.imports, name) !== undefined;

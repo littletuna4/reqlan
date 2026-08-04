@@ -1,8 +1,16 @@
+import { resolve } from 'node:path';
 import type {
     IdeaAttributeMap,
     IdeaSummary
 } from '../core/types.js';
 import { parseAttributes } from '../core/types.js';
+import {
+    FILTER_NOT_PRESENT,
+    filterDisplayLabel,
+    statusFilterKeyFromAttributes,
+    tagsFilterKeysFromAttributes
+} from '../core/filter-specials.js';
+import { isIgnoredPath, loadRqIgnore } from '../core/rqignore.js';
 import {
     buildGraphSliceForIdeaIds,
     buildGraphViewSlice,
@@ -22,6 +30,7 @@ import type {
     ExportIdeaRecord,
     ExportManifest,
     ExportPageInfo,
+    ExportProgressCallback,
     ExportRequest,
     ExportSearchDocument,
     ExportSnapshot
@@ -31,7 +40,8 @@ import { isSecretRqPath } from './secret-rq.js';
 
 export async function buildExportSnapshot(
     store: SqliteIndexStore,
-    request: ExportRequest
+    request: ExportRequest,
+    onProgress?: ExportProgressCallback
 ): Promise<ExportSnapshot> {
     const title = buildExportTitle(request);
     const runtimeMode = request.runtimeMode ?? 'interactive';
@@ -49,15 +59,19 @@ export async function buildExportSnapshot(
         includeGraphPage: request.includeGraphPage
     };
     const manifest = buildManifest(request);
+    onProgress?.({ phase: 'snapshot', message: 'Loading ideas…' });
     const scopedIdeas = request.scope === 'currentFile'
         ? await buildScopedIdeas(store, request)
         : await store.listAllIdeas();
-    const baseIdeas = request.excludeSecretFiles
-        ? scopedIdeas.filter(idea => !isSecretRqPath(idea.fileUri))
-        : scopedIdeas;
+    const baseIdeas = filterExportIdeas(scopedIdeas, request);
+    const filteredIdeas = request.excludeSecretFiles || request.excludeIgnoredFiles;
     const byStatus = rollupStatuses(baseIdeas);
     const byTag = rollupTags(baseIdeas);
     const allFiles = [...new Set(baseIdeas.map(idea => idea.fileUri))].sort();
+    onProgress?.({
+        phase: 'snapshot',
+        message: `Building idea pages (${baseIdeas.length})…`,
+    });
     const ideaRecords = await buildIdeaRecords(store, baseIdeas);
     const ideaById = new Map(ideaRecords.map(idea => [idea.id, idea]));
     const fileRecords = buildFileRecords(ideaRecords, request);
@@ -65,7 +79,9 @@ export async function buildExportSnapshot(
     const clusterRecords = buildClusterRecords(ideaRecords, fileRecords, clusterStrategy);
     finalizeClusterCounts(clusterRecords, ideaById);
     attachClusterMembership(ideaRecords, clusterRecords);
+    onProgress?.({ phase: 'snapshot', message: 'Building graph catalog…' });
     const graphs = await buildGraphCatalog(store, request, ideaRecords, fileRecords, clusterRecords);
+    onProgress?.({ phase: 'snapshot', message: 'Indexing search and attributes…' });
     const attributeRecords = buildAttributeRecords(ideaRecords);
     const searchDocuments = buildSearchDocuments(
         ideaRecords,
@@ -91,7 +107,7 @@ export async function buildExportSnapshot(
         manifest,
         counts: {
             ideas: ideaRecords.length,
-            edges: request.scope === 'currentFile' || request.excludeSecretFiles
+            edges: request.scope === 'currentFile' || filteredIdeas
                 ? graphs.workspace.edges.length
                 : counts.edges,
             files: fileRecords.length,
@@ -124,6 +140,22 @@ async function buildScopedIdeas(
         return [];
     }
     return store.getIdeasInFile(request.sourceFileUri);
+}
+
+/** Apply secret / rqignore exclusion flags to the scoped idea list. */
+function filterExportIdeas(ideas: IdeaSummary[], request: ExportRequest): IdeaSummary[] {
+    let filtered = ideas;
+    if (request.excludeSecretFiles) {
+        filtered = filtered.filter(idea => !isSecretRqPath(idea.fileUri));
+    }
+    if (request.excludeIgnoredFiles) {
+        const filter = loadRqIgnore(request.workspaceRoot);
+        filtered = filtered.filter(idea => {
+            const absPath = resolve(request.workspaceRoot, idea.fileUri);
+            return !isIgnoredPath(filter, request.workspaceRoot, absPath, false);
+        });
+    }
+    return filtered;
 }
 
 async function buildIdeaRecords(
@@ -621,11 +653,10 @@ function buildValueClusters(
 ): ExportClusterRecord[] {
     const groups = new Map<string, ExportIdeaRecord[]>();
     for (const idea of ideas) {
-        const values = kind === 'tag'
-            ? idea.tags
-            : [idea.status?.trim() || 'unspecified'];
-        for (const value of values) {
-            const key = value || 'unspecified';
+        const keys = kind === 'tag'
+            ? (idea.tagsKeys ?? tagsFilterKeysFromAttributes(idea.attributes))
+            : [idea.statusKey ?? statusFilterKeyFromAttributes(idea.attributes)];
+        for (const key of keys) {
             const bucket = groups.get(key);
             if (bucket) {
                 bucket.push(idea);
@@ -634,14 +665,17 @@ function buildValueClusters(
             }
         }
     }
-    return [...groups.entries()].map(([value, members]) => createClusterRecord(
-        `${kind}:${value}`,
-        kind,
-        `${kind}: ${value}`,
-        `${kind === 'tag' ? 'Tag' : 'Status'} cluster for ${value}.`,
-        members.map(idea => idea.id),
-        uniqueFileUris(members)
-    ));
+    return [...groups.entries()].map(([value, members]) => {
+        const labelValue = filterDisplayLabel(value);
+        return createClusterRecord(
+            `${kind}:${value}`,
+            kind,
+            `${kind}: ${labelValue}`,
+            `${kind === 'tag' ? 'Tag' : 'Status'} cluster for ${labelValue}.`,
+            members.map(idea => idea.id),
+            uniqueFileUris(members)
+        );
+    });
 }
 
 function buildCommunityClusters(ideas: ExportIdeaRecord[]): ExportClusterRecord[] {
@@ -737,20 +771,29 @@ function fileRecordId(fileUri: string): string {
 function rollupStatuses(ideas: IdeaSummary[]): Record<string, number> {
     const counts = new Map<string, number>();
     for (const idea of ideas) {
-        const key = idea.status?.trim() || 'unspecified';
+        const key = idea.statusKey ?? FILTER_NOT_PRESENT;
         counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    return Object.fromEntries([...counts.entries()].sort(([left], [right]) => left.localeCompare(right)));
+    return Object.fromEntries(
+        [...counts.entries()].sort(([left], [right]) =>
+            filterDisplayLabel(left).localeCompare(filterDisplayLabel(right))
+        )
+    );
 }
 
 function rollupTags(ideas: IdeaSummary[]): Record<string, number> {
     const counts = new Map<string, number>();
     for (const idea of ideas) {
-        for (const tag of idea.tags) {
-            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        const keys = idea.tagsKeys ?? [FILTER_NOT_PRESENT];
+        for (const key of keys) {
+            counts.set(key, (counts.get(key) ?? 0) + 1);
         }
     }
-    return Object.fromEntries([...counts.entries()].sort(([left], [right]) => left.localeCompare(right)));
+    return Object.fromEntries(
+        [...counts.entries()].sort(([left], [right]) =>
+            filterDisplayLabel(left).localeCompare(filterDisplayLabel(right))
+        )
+    );
 }
 
 function slugify(value: string): string {

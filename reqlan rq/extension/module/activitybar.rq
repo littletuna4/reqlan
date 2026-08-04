@@ -151,10 +151,17 @@ context_tray {
 
 performance {
     Sidebar webviews share the same constraints as [graph_lib.webview_threading].
+    - The HTML/Svelte shell paints before index discovery begins; the post-paint `ready` handshake starts indexing.
+    - Keep sql.js outside the activation-critical host bundle and load it only when a database opens.
     - Default neighbourhood slices; never load the full workspace graph into a pane.
     - Debounce editor selection and cursor events before rebuilding slices.
     - Lazy-mount cytoscape only for visible sub-panes; destroy when collapsed or hidden.
     - Reuse [graph_analysers.local_graph_analysis] and graph query builders rather than ad-hoc index walks in the webview.
+    @tests (
+        ["../../../packages/extension/test/startup-gate.test.ts"]
+        ["../../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
+    )
+    @status done
 }
 
 implementation_priority {
@@ -192,17 +199,18 @@ loading_state {
     After the activity bar shell mounts, the header may appear before pane data.
     Cover every sequencing beat with an explicit loading or error affordance — never a blank content area:
     1. HTML shell (before Svelte boots): inline waiting markup in [get_activity_bar_html].
-    2. Connecting: header visible; content waits for the first host message after webview `ready`.
+    2. Connecting: header visible; a post-first-frame `ready` handshake starts the index and requests the first host state.
     3. Waiting for index: [workspace_panel.workspace_loading].
     4. Ready panes: [current_context_scope.context_panes_loading] and [minigraph.minigraph_loading].
     Index sync progress belongs in [workspace_pane]; graph slice waits stay in [miniature_graph_pane], not a second global overlay.
-    Host posts index health on view resolve and on `ready`; soft-waits when the index is not ready instead of erroring the whole bar.
+    Host posts index health on `ready` and on subsequent status changes; soft-waits when the index is not ready instead of erroring the whole bar.
     @tests (
         ["../../../packages/extension/webviews/activity-bar/App.svelte"]
         ["../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../packages/extension/webviews/activity-bar/components/BootstrapStatus.svelte"]
         ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
         ["../../../packages/extension/src/activity_bar_module/get-activity-bar-html.ts"]
+        ["../../../packages/extension/test/startup-gate.test.ts"]
     )
     @status done
 }

@@ -5,20 +5,22 @@
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_search]
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
      */
+    import type { IndexState } from '../../../src/webview_module/shared/messages.js';
     import { getApp } from '../state/context.js';
 
     const app = getApp();
 
-    let searchDraft = '';
-    let coverageOpen = false;
+    let searchDraft = $state('');
+    let coverageOpen = $state(false);
 
-    $: status = app.index.status;
-    $: links = app.overview.links;
-    $: activity = status?.recentActivity ?? [];
-    $: searchResult = app.overview.search;
-    $: searching = app.overview.searching;
-    $: coverage = app.overview.coverage;
-    $: coverageLoading = app.overview.coverageLoading;
+    const status = $derived(app.index.status);
+    const links = $derived(app.overview.links);
+    const activity = $derived(status?.recentActivity ?? []);
+    const searchResult = $derived(app.overview.search);
+    const searching = $derived(app.overview.searching);
+    const coverage = $derived(app.overview.coverage);
+    const coverageLoading = $derived(app.overview.coverageLoading);
+    const coverageError = $derived(app.overview.coverageError);
 
     function onSearchInput(event: Event): void {
         searchDraft = (event.currentTarget as HTMLInputElement).value;
@@ -53,6 +55,26 @@
         return value.toLocaleString();
     }
 
+    function statusLabel(state: IndexState, ready: boolean): string {
+        if (ready) {
+            return 'Ready';
+        }
+        switch (state) {
+            case 'syncing':
+            case 'opening':
+                return 'Updating…';
+            case 'error':
+                return 'Needs attention';
+            case 'uninitialized':
+            case 'idle':
+                return 'Not ready';
+            case 'closing':
+                return 'Closing…';
+            default:
+                return 'Not ready';
+        }
+    }
+
     function onCoverageToggle(event: Event): void {
         const details = event.currentTarget as HTMLDetailsElement;
         coverageOpen = details.open;
@@ -84,15 +106,15 @@
 <div class="overview">
     <section class="overview-search">
         <h2>Search</h2>
-        <p class="subtle">Search ideas, ideasets, attributes, and references in the active base.</p>
+        <p class="subtle">Find ideas, ideasets, attributes, and references in this workspace.</p>
         <div class="overview-search-row">
             <input
                 class="table-filter"
                 type="search"
-                placeholder="Search across the active base…"
+                placeholder="Search this workspace…"
                 value={searchDraft}
-                on:input={onSearchInput}
-                on:keydown={handleKey}
+                oninput={onSearchInput}
+                onkeydown={handleKey}
             />
         </div>
 
@@ -109,7 +131,7 @@
                                 <button
                                     type="button"
                                     class="secondary"
-                                    on:click={() => app.openOverviewSurface(section.surface, searchResult.query)}
+                                    onclick={() => app.openOverviewSurface(section.surface, searchResult.query)}
                                 >
                                     Open in {section.label}
                                 </button>
@@ -124,7 +146,7 @@
                                         <button
                                             type="button"
                                             class="overview-hit"
-                                            on:click={() => openHit(hit)}
+                                            onclick={() => openHit(hit)}
                                             disabled={!hit.fileUri && hit.kind !== 'attribute'}
                                         >
                                             <span class="overview-hit-title">{hit.title}</span>
@@ -142,11 +164,11 @@
 
     {#if status}
         <section>
-            <h2>Stats</h2>
+            <h2>At a glance</h2>
             <div class="stat-grid">
                 <div class="stat-card">
-                    <div class="label">State</div>
-                    <div class="value">{status.state}</div>
+                    <div class="label">Status</div>
+                    <div class="value">{statusLabel(status.state, status.ready)}</div>
                 </div>
                 <div class="stat-card">
                     <div class="label">Ideas</div>
@@ -157,7 +179,7 @@
                     <div class="value">{status.edgeCount}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="label">File issues</div>
+                    <div class="label">Issues</div>
                     <div class="value">{status.fileIssueCount}</div>
                 </div>
                 <div class="stat-card">
@@ -169,65 +191,70 @@
     {/if}
 
     <section>
-        <details class="overview-coverage" on:toggle={onCoverageToggle}>
+        <details class="overview-coverage" ontoggle={onCoverageToggle}>
             <summary>
-                <h2>Coverage scores</h2>
-                <span class="subtle">Ideas / LOC density and file-reference coverage</span>
+                <h2>Coverage</h2>
+                <span class="subtle">How thoroughly ideas link into your project</span>
             </summary>
             <p class="subtle">
-                Calculated on demand for the active base (non-.rq, non-ignored files). Expand to load.
+                Measures how many project files are linked from ideas, and how dense those ideas are relative to your codebase. Expand to calculate.
             </p>
             {#if coverageLoading}
                 <p class="subtle">Calculating coverage…</p>
-            {:else if coverage}
-                <div class="overview-search-section-header">
-                    <span class="subtle">
-                        Updated {formatTime(coverage.calculatedAt)}
-                        {#if coverage.locTruncated}
-                            · LOC is a lower bound (size caps)
-                        {/if}
-                    </span>
-                    <button type="button" class="secondary" on:click={refreshCoverage}>Refresh</button>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="label">File coverage</div>
-                        <div class="value">{formatPct(coverage.fileCoveragePct)}</div>
-                        <div class="subtle">
-                            {coverage.referencedEligibleFileCount} / {coverage.eligibleNonRqFileCount} files
+            {:else}
+                {#if coverageError}
+                    <p class="status error">{coverageError}</p>
+                {/if}
+                {#if coverage}
+                    <div class="overview-search-section-header">
+                        <span class="subtle">
+                            Updated {formatTime(coverage.calculatedAt)}
+                            {#if coverage.locTruncated}
+                                · Line counts may be incomplete for very large projects
+                            {/if}
+                        </span>
+                        <button type="button" class="secondary" onclick={refreshCoverage}>Refresh</button>
+                    </div>
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="label">Linked files</div>
+                            <div class="value">{formatPct(coverage.fileCoveragePct)}</div>
+                            <div class="subtle">
+                                {coverage.referencedEligibleFileCount} of {coverage.eligibleNonRqFileCount} project files
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Requirement density</div>
+                            <div class="value">{formatRatio(coverage.ideasPerKLoc)}</div>
+                            <div class="subtle">
+                                {coverage.ideaCount} ideas · {formatLoc(coverage.totalLoc)} lines of code
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Linked paths</div>
+                            <div class="value">{coverage.distinctFileReferenceCount}</div>
+                            <div class="subtle">Unique files or folders referenced</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Requirement files</div>
+                            <div class="value">{coverage.rqFileCount}</div>
+                            <div class="subtle">Requirement documents in this workspace</div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="label">Ideas / kLOC</div>
-                        <div class="value">{formatRatio(coverage.ideasPerKLoc)}</div>
-                        <div class="subtle">
-                            {coverage.ideaCount} ideas · {formatLoc(coverage.totalLoc)} LOC
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">File references</div>
-                        <div class="value">{coverage.distinctFileReferenceCount}</div>
-                        <div class="subtle">Distinct outbound targets</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">.rq files</div>
-                        <div class="value">{coverage.rqFileCount}</div>
-                        <div class="subtle">In active base (non-ignored)</div>
-                    </div>
-                </div>
-            {:else if coverageOpen}
-                <p class="subtle">No coverage data yet.</p>
+                {:else if coverageOpen && !coverageError}
+                    <p class="subtle">Coverage is not available yet.</p>
+                {/if}
             {/if}
         </details>
     </section>
 
     <section>
         <h2>Export</h2>
-        <p class="subtle">Open the export form or run a printable PDF export for the active base.</p>
+        <p class="subtle">Share or print this workspace as HTML or PDF.</p>
         <div class="overview-links">
-            <button type="button" on:click={() => app.openExport('html')}>Export HTML…</button>
-            <button type="button" class="secondary" on:click={() => app.openExport('pdf')}>Export PDF…</button>
-            <button type="button" class="secondary" on:click={() => app.openExport()}>Open export form…</button>
+            <button type="button" onclick={() => app.openExport('html')}>Export HTML…</button>
+            <button type="button" class="secondary" onclick={() => app.openExport('pdf')}>Export PDF…</button>
+            <button type="button" class="secondary" onclick={() => app.openExport()}>Open export form…</button>
         </div>
     </section>
 
@@ -235,7 +262,7 @@
         <h2>Links</h2>
         <div class="overview-links">
             {#each links as link (link.id)}
-                <button type="button" class="secondary" on:click={() => app.openExternal(link.href)}>
+                <button type="button" class="secondary" onclick={() => app.openExternal(link.href)}>
                     {link.label}
                 </button>
             {/each}
@@ -245,10 +272,10 @@
     <section>
         <div class="overview-search-section-header">
             <h2>Recent changes</h2>
-            <button type="button" class="secondary" on:click={() => app.setTab('timeline')}>Open Timeline</button>
+            <button type="button" class="secondary" onclick={() => app.setTab('timeline')}>Open Timeline</button>
         </div>
         {#if activity.length === 0}
-            <p class="subtle">No recent index activity yet. See Timeline for git-dated ideas when available.</p>
+            <p class="subtle">No recent changes yet. Open Timeline for a fuller history.</p>
         {:else}
             <ul class="activity-list">
                 {#each activity.slice(0, 6) as item (`${item.at}:${item.detail}`)}

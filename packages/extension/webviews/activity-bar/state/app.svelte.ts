@@ -109,11 +109,14 @@ export class AppState {
         };
         window.addEventListener('message', onMessage);
         this.beginHostWait();
-        postToExtension({ type: 'ready' });
         return () => {
             window.removeEventListener('message', onMessage);
             this.clearHostTimeout();
         };
+    }
+
+    signalFirstPaint(): void {
+        postToExtension({ type: 'ready' });
     }
 
     retryBootstrap(): void {

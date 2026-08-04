@@ -4,6 +4,7 @@ activation {
     VS Code loads the extension host entry at ["../../packages/extension/src/extension/main.ts"] when an activation event in ["../../packages/extension/package.json"] matches.
     The exported `activate(context)` function is the single activation entry point for [scope.vscode_extension].
     Install-time and first-run sequencing across extension vs base layers: ["./installation.rq".installation_sequencing].
+    Startup failure diagnosis, first-paint sequencing, bundle splitting, and development-host lessons: ["./startup-performance.rq"].
 }
 
 activation_events {
@@ -22,24 +23,33 @@ activation_sequence {
     1. Register reference inlay-hint and CodeLens configuration/commands synchronously.
     2. Call [analytical_submodule_activation] — registers commands, activity bar, chat, webviews, AI commands, and mutation hooks synchronously and returns without starting indexing.
     3. Register import-error quick-fix commands when the analytical submodule registered.
-    4. Schedule [background_startup] on a later tick so activation returns first.
+    4. Arm [first_paint_startup] so index startup cannot race the activity-bar shell.
     5. Invoke [onboarding_check] without awaiting it, so onboarding cannot block activation.
     Submodule failures are logged and do not prevent later phases from running.
 }
 
 background_startup {
-    Startup work that must not block activation is scheduled by `scheduleBackgroundStartup` in ["../../packages/extension/src/extension/main.ts"] onto a macrotask, so `activate` returns and VS Code can resolve the activity bar view and make commands invocable before any discovery/indexing runs.
-    Once scheduled it:
-    - Starts [analytical_submodule_activation] index startup ([../../packages/extension/src/analytical_submodule/index-store/index-service.ts]) without awaiting it; indexing is incremental and reports progress via index status events so it is visible in the sidebar rather than a silent gate.
-    - Starts the language client for LSP features without awaiting it, so a slow or hanging server never blocks the UI.
+    Startup work that must not block activation is coordinated by `scheduleBackgroundStartup` in ["../../packages/extension/src/extension/main.ts"].
+    - [first_paint_startup] gates index discovery and sync when the Context view opens; a three-second fallback preserves warm startup when the sidebar remains closed.
+    - The language client starts after the same paint signal when the Context view opens, with a one-second fallback so language features still start when the sidebar remains closed.
     - Registers attribute and name catalog sync once the language client exists; the initial push covers an already-ready index and the catalog-update subscription covers indexes that become ready afterwards.
     Index and language-client failures are logged and do not affect the already-available UI.
+}
+
+first_paint_startup {
+    The activity-bar HTML shell is assigned synchronously by ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"].
+    Its Svelte app installs the host message listener before mount, then sends the one-shot `ready` handshake from a task queued after its first animation frame.
+    ["../../packages/extension/src/extension/startup-gate.ts"] resolves that handshake once; `IndexService.activate` then discovers bases and syncs. If no view opens, a bounded three-second fallback starts the index without any visible first paint to contend with.
+    Parser services inside each `WorkspaceIndex` are lazy and are created only when a file is actually parsed, not while bases are discovered.
+    The sql.js asm implementation is emitted as a separate lazy vendor bundle, so loading `main.cjs` does not parse the database engine before `activate`.
+    @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    @status done
 }
 
 analytical_submodule_activation {
     Analytical submodule registration is implemented in ["../../packages/extension/src/analytical_submodule/index.ts"].
     `activateAnalyticalSubmodule` is synchronous: VS Code contributions (commands, activity bar provider, chat participant, webviews, AI commands, mutation hooks) register synchronously and it returns the submodule immediately.
-    It does not start indexing; the caller kicks off index activation from [background_startup] once the UI is available, so the sidebar can render and commands can run while indexing continues.
+    It does not start indexing; it passes the activity-bar post-paint callback into the provider and the caller starts index activation through [first_paint_startup].
 }
 
 onboarding_check {

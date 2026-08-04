@@ -12,6 +12,27 @@ extension_build {
     Production builds for the VS Code extension are orchestrated by [extension_build_script].
     Run from the extension package: `pnpm run build` or `node scripts/build.mjs`.
     Workspace-wide builds also run langium generation and sibling packages via the root `pnpm run build`.
+    Local and F5 builds use [incremental_extension_build]; VSIX prepublish uses the forced path.
+}
+
+incremental_extension_build {
+    Extension builds fingerprint inputs and outputs per independently cacheable artifact:
+    - Langium generated sources / TextMate grammar
+    - generated shared graph-physics source
+    - logo media
+    - generated marketplace README
+    - each of the five Vite webviews separately
+    - extension-host / language-server / lazy sql.js esbuild outputs
+    A step is skipped only when its command/input fingerprint and current output-content fingerprint both match the cache under `packages/extension/out/`.
+    Missing, changed, or manually edited output invalidates that step.
+    Webview output fingerprints cover each complete emitted directory, including future lazy chunks. Host-bundle inputs include bundled phonebook data and the sql.js vendor source as well as workspace package output.
+    TypeScript retains its native `tsc -b` project-reference incrementality.
+    TextMate syntax copies are cached by content; Cursor-skill sync still runs because it targets workspace-external state.
+    `pnpm run build:force` / `node scripts/build.mjs --force` bypasses all cache entries; `vscode:prepublish` uses this forced mode for release correctness.
+    `clean` removes `out/`, including the cache, so clean builds remain cold.
+    Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium/physics artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
+    @tests ("../../packages/extension/test/incremental-build.test.ts")
+    @status done
 }
 
 extension_media_build {
@@ -31,7 +52,7 @@ extension_readme_build {
 build_prepare {
     Copy TextMate grammars from the language package into extension syntaxes.
     Sync Cursor agent skills from extension sources into `.cursor/skills`.
-    Invoked as `pnpm run build:prepare` before webview and host bundling.
+    The orchestrator caches `build:syntaxes` independently and always runs the external Cursor-skill sync before webview and host bundling.
 }
 
 webview_build {
@@ -49,15 +70,16 @@ webview_build {
 }
 
 extension_typecheck {
-    Extension TypeScript sources are checked with `pnpm exec tsc -b tsconfig.json` before bundling.
+    Extension TypeScript sources are checked with `tsc -b tsconfig.json` before bundling.
     `noEmit: true` — compilation output comes from esbuild, not tsc.
 }
 
 extension_bundle {
     The extension host (`src/extension/main.ts`) and language server (`src/language/main.ts`) are bundled with esbuild per [extension_esbuild].
+    sql.js asm is emitted as `out/extension/vendor/sql-asm.cjs` and remains behind a dynamic import so the extension host entry does not parse the database engine before first paint.
     @steps (
         node esbuild.mjs
     )
     Output: CommonJS `.cjs` files under `packages/extension/out/`.
-    `vscode` and `sqlite3` remain external; a small `Object.groupBy` polyfill is injected for older Node runtimes.
+    `vscode` remains external; a small `Object.groupBy` polyfill is injected for older Node runtimes.
 }

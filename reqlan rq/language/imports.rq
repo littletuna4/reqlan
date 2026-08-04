@@ -25,6 +25,8 @@ import_error_recovery {
     - bare `from "path"` — require the `import <idea>` clause
     - `from` without a quoted path — consume the remainder of the line as an invalid import
     Later imports and top-level ideas continue to parse and link normally.
+    Same recovery posture for nameless top-level braces: ["./syntax.rq".no_name_idea_safe_warning].
+    If lex/parse never completes, see ["./parser_lexer.rq".parse_budget_timeout].
 
     @tests (
         ["../../packages/language/test/parsing.test.ts:malformed from-as import keeps later ideas parseable"]

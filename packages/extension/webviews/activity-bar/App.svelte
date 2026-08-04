@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onDestroy } from 'svelte';
+    import { onDestroy, onMount } from 'svelte';
     import { app } from './state/app.svelte.js';
     import { setAppContext } from './state/context.js';
     import HeaderBar from './components/HeaderBar.svelte';
@@ -37,6 +37,20 @@
 
     const disposeApp = app.init();
     onDestroy(disposeApp);
+    onMount(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const frame = requestAnimationFrame(() => {
+            // A task queued from the first animation frame runs after the shell
+            // has had an opportunity to paint.
+            timer = setTimeout(() => app.signalFirstPaint(), 0);
+        });
+        return () => {
+            cancelAnimationFrame(frame);
+            if (timer !== undefined) {
+                clearTimeout(timer);
+            }
+        };
+    });
 
     let phase = $derived(app.contentPhase);
     let showWorkspace = $derived(

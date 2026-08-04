@@ -15,12 +15,14 @@
 
     const app = getApp();
 
-    let filtersOpen = false;
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    let filtersOpen = $state(false);
 
-    $: query = app.ideasets.query;
-    $: rows = app.ideasets.rows;
-    $: total = app.ideasets.total;
-    $: visibleColumns = app.tableUi.ideasets.visibleColumns;
+    const query = $derived(app.ideasets.query);
+    const rows = $derived(app.ideasets.rows);
+    const total = $derived(app.ideasets.total);
+    const visibleColumns = $derived(app.tableUi.ideasets.visibleColumns);
 
     const columnOptions = [
         { id: 'name', label: 'Name' },
@@ -129,7 +131,7 @@
                 {#if show('name')}<td>{row.name}</td>{/if}
                 {#if show('path')}
                     <td>
-                        <button type="button" class="path-link" on:click={() => openSource(row)}>
+                        <button type="button" class="path-link" onclick={() => openSource(row)}>
                             {row.path}
                         </button>
                     </td>

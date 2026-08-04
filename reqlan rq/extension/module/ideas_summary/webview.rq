@@ -44,7 +44,7 @@ ideas_summary {
 
 ontology_aligned_tabs {
     Tab order: Overview, Bases, Ideas, Ideasets, Attributes, References, Graph, Timeline, Index.
-    Index is last — developer/ops chrome, not the primary browsing surface.
+    Index is last — workspace index health and maintenance, not the primary browsing surface.
     Covers [ontology.base], [ontology.idea], [ontology.ideaset], [ontology.attribute], [ontology.reference],
     the graph cartography tab, and [timeline_page]; Overview mirrors HTML export home metrics lightly.
     Files / clusters / print families stay export-only for now.
@@ -75,13 +75,13 @@ pages {
           - filterable and sortable via ui-sql layer; groupable by reference type per [group_by_type]
        - Graph view: see [graphical_graph_doc.graphical_graph]
        - [timeline_page] [TimelinePanel]
-       - [index_panel] [IndexPanel] (last tab — developer page)
+       - [index_panel] [IndexPanel] (last tab — index health)
 }
 
 overview_page {
-    First tab: a workspace overview for the active base.
-    - Stats: idea count, reference/edge count, file issues, base readiness (from index status).
-    - Coverage scores: collapsible [overview_coverage_scores] (lazy, non-blocking).
+    First tab: a workspace overview for the active base — product-facing copy (not index/debug jargon).
+    - At a glance: idea count, reference count, issues, bases, and a friendly readiness status.
+    - Coverage: collapsible [overview_coverage_scores] (lazy, non-blocking).
     - Search: live cross-surface search over ideas, ideasets, attributes, and references for the active base;
       results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
     - Export: buttons that open export functionality — Export form / HTML, and PDF ([features_export.export_webview], [features_export] pdf path).
@@ -96,14 +96,17 @@ overview_page {
 }
 
 overview_coverage_scores {
-    Collapsible "Coverage scores" section on [overview_page] / [OverviewPanel].
-    Metrics for the active base (respecting ["../../configuration.rq".configuration_rqignore]):
-    - Ideas / lines-of-code density (idea count over LOC of eligible non-.rq files; also show raw idea count and LOC).
-    - Percent of non-.rq, non-ignored workspace files that have at least one file reference from the index
-      (exact path match after resolve, or under a referenced folder).
-    - Supporting counts: eligible non-.rq files, referenced eligible files, distinct outbound file references, .rq file count.
+    Collapsible "Coverage" section on [overview_page] / [OverviewPanel].
+    Product-facing metrics for how thoroughly ideas map into the active base's project files
+    (respecting ["../../configuration.rq".configuration_rqignore]):
+    - Linked files: percent of project files (non-requirement, non-ignored) that ideas reference —
+      exact path match after resolve, or under a referenced folder. Show "N of M project files".
+    - Requirement density: ideas per thousand lines of eligible project code; also show idea count and line count.
+    - Linked paths: distinct files or folders referenced from ideas.
+    - Requirement files: count of requirement documents in the base.
     Collapsed by default. Calculate only when the user expands the section (not on Overview open / tab switch).
-    Non-blocking: host work must not stall Overview chrome or other tabs; the section shows a loading state until the result arrives.
+    Non-blocking: host work must not stall Overview chrome or other tabs; show a loading state until the result arrives.
+    When the index is not ready or calculation fails, show a clear message — never fake zero scores.
     Recalculate on expand when the active base changes or when the user refreshes; otherwise reuse the last result for the session.
     @implementation (
         [OverviewPanel]
@@ -152,9 +155,15 @@ bases_tab {
     Table of discovered [ontology.base] entries in the workspace (label, path, ready, idea/edge/issue counts, state).
     Selecting a row pins that base (pointer swap) per [ideas_summary_base.ideas_summary_base_scope].
     Filterable / sortable / column options like other tables; data comes from index status, not a merged cross-base SQLite dump.
+    Client-side search and column filters via [BasesTable] / bases-filter matcher.
     @implementation (
         [BasesTable]
+        ["../../../../packages/extension/webviews/ideas-summary/lib/bases-filter.ts"]
     )
+    @tests (
+        ["../../../../packages/extension/test/bases-table-filter.test.ts"]
+    )
+    @status done
 }
 
 attributes_tab {
@@ -183,11 +192,24 @@ table_column_filters {
     Text / path / body columns use searchable inputs; closed sets (idea kind, reference type, ideaset kind, base ready)
     use select / multi-select from a fixed option list.
     Column filters are applied in the ui-sql layer ([webview_table_queries]) together with existing chip filters.
+    Table panels must bind AppState query/rows via Svelte 5 `$derived` (not legacy `$:`) so filtered results from
+    the extension message listener re-render — same pattern as [graphical_graph_doc.graphical_graph] / GraphView.
+    Bases table filters client-side in the webview; other tables round-trip search through [ideas_summary_panel].
     @implementation (
         [ColumnFilterRow]
         [TableToolbar]
         [webview_table_queries]
+        [IdeasTable]
+        [IdeasetsTable]
+        [ReferencesTable]
+        [AttributesTable]
+        [BasesTable]
     )
+    @tests (
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts"]
+        ["../../../../packages/extension/test/bases-table-filter.test.ts"]
+    )
+    @status done
 }
 
 table_column_options {
@@ -212,7 +234,7 @@ group_by_type {
 }
 
 index_panel {
-    Developer / ops tab (last): index state, summary stats, sync progress, errors, refresh / cancel / clear-and-rebuild.
+    Last tab: workspace index health — readiness, summary stats, sync progress, errors, refresh / cancel / clear-and-rebuild.
     per [index_reqs.idea_index_triggers] and ["../../../indexer/indexer.rq".nonblocking_index]
     Implemented by [IndexPanel].
 }
@@ -230,6 +252,10 @@ ideas_table_filters {
     chips are right-aligned so truncated labels keep the informative suffix visible.
     active attribute and reference filters appear as removable chips in the table toolbar.
     Also [table_column_filters], [table_column_options], and [group_by_type].
+    @tests (
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts"]
+    )
+    @status done
 }
 
 graphical_graph_tab see [graphical_graph_doc.graphical_graph]

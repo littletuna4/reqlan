@@ -2,7 +2,6 @@
  * SQLite-backed persistence for the workspace idea graph index.
  * Uses a bundled asm.js build so VSIX installs do not depend on native modules.
  */
-import initSqlJs from 'sql.js/dist/sql-asm.js';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname } from 'node:path';
 import { BASE_MIGRATIONS, SCHEMA_VERSION, VERSION_MIGRATIONS } from './schema.js';
@@ -23,6 +22,10 @@ import type {
     AncestorChainResult
 } from '../core/types.js';
 import { BLOCKING_STATUSES, ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
+import {
+    statusFilterKeyFromAttributes,
+    tagsFilterKeysFromAttributes
+} from '../core/filter-specials.js';
 import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
 import type {
     AttributesTableQuery,
@@ -1003,7 +1006,9 @@ export class SqliteIndexStore {
             lineStart: row.line_start,
             summary: row.summary,
             status: ideaStatus(attributes),
+            statusKey: statusFilterKeyFromAttributes(attributes),
             tags: ideaTags(attributes),
+            tagsKeys: tagsFilterKeysFromAttributes(attributes),
             gitCreatedAt: row.git_created_at ?? undefined,
             gitModifiedAt: row.git_modified_at ?? undefined
         };
@@ -1111,7 +1116,9 @@ async function exec(db: SqliteDatabase, sql: string): Promise<void> {
 let sqlJsModulePromise: Promise<SqlJsModule> | undefined;
 
 async function getSqlJsModule(): Promise<SqlJsModule> {
-    sqlJsModulePromise ??= initSqlJs({}) as Promise<SqlJsModule>;
+    sqlJsModulePromise ??= import('sql.js/dist/sql-asm.js').then(
+        ({ default: initSqlJs }) => initSqlJs({}) as Promise<SqlJsModule>
+    );
     return sqlJsModulePromise;
 }
 

@@ -19,6 +19,20 @@
     let statusOk = $state(true);
     let busy = $state(false);
     let loaded = $state(false);
+    let progressMessage = $state('Exporting…');
+    let progressCompleted = $state<number | undefined>(undefined);
+    let progressTotal = $state<number | undefined>(undefined);
+
+    let progressPercent = $derived.by(() => {
+        if (
+            progressCompleted === undefined ||
+            progressTotal === undefined ||
+            progressTotal <= 0
+        ) {
+            return undefined;
+        }
+        return Math.min(100, Math.round((progressCompleted / progressTotal) * 100));
+    });
 
     function handleMessage(event: MessageEvent<ExtensionToExportFormMessage>): void {
         const message = event.data;
@@ -45,13 +59,24 @@
                 return;
             case 'exportStarted':
                 busy = true;
-                statusMessage = 'Exporting…';
                 statusOk = true;
+                statusMessage = undefined;
+                progressMessage = 'Exporting…';
+                progressCompleted = undefined;
+                progressTotal = undefined;
+                return;
+            case 'exportProgress':
+                busy = true;
+                progressMessage = message.message;
+                progressCompleted = message.completed;
+                progressTotal = message.total;
                 return;
             case 'exportFinished':
                 busy = false;
                 statusOk = message.ok;
                 statusMessage = message.message;
+                progressCompleted = undefined;
+                progressTotal = undefined;
                 return;
             case 'settingsSaved':
                 statusOk = message.ok;
@@ -241,10 +266,20 @@
                             </label>
                         </fieldset>
 
-                        <label class="check block">
-                            <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
-                            Exclude <code>*.secret.rq</code> ideas
-                        </label>
+                        <fieldset class="fieldset">
+                            <legend>File filters</legend>
+                            <label class="check">
+                                <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
+                                Exclude <code>*.secret.rq</code> ideas
+                            </label>
+                            <label class="check">
+                                <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
+                                Exclude <code>.rqignore</code>-matched files
+                            </label>
+                            <span class="hint">
+                                When unchecked, ideas from those files are included if present in the index.
+                            </span>
+                        </fieldset>
 
                         <label class="field">
                             <span class="label">URL base (mount prefix)</span>
@@ -313,7 +348,33 @@
                 </button>
             </div>
 
-            {#if statusMessage}
+            {#if busy}
+                <div
+                    class="progress"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                >
+                    <div class="progress-label">
+                        <span class="progress-spinner" aria-hidden="true"></span>
+                        <span>{progressMessage}</span>
+                        {#if progressPercent !== undefined}
+                            <span class="progress-count mono">{progressPercent}%</span>
+                        {/if}
+                    </div>
+                    <div
+                        class="progress-track"
+                        class:indeterminate={progressPercent === undefined}
+                        aria-hidden="true"
+                    >
+                        {#if progressPercent !== undefined}
+                            <div class="progress-fill" style={`width: ${progressPercent}%`}></div>
+                        {:else}
+                            <div class="progress-pulse"></div>
+                        {/if}
+                    </div>
+                </div>
+            {:else if statusMessage}
                 <p class="status" class:error={!statusOk} role="status">{statusMessage}</p>
             {/if}
 
@@ -556,6 +617,86 @@
 
     .status.error {
         color: var(--vscode-errorForeground, #f14c4c);
+    }
+
+    .progress {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid var(--vscode-panel-border, transparent);
+        border-radius: 2px;
+        background: var(--vscode-input-background, transparent);
+    }
+
+    .progress-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.92em;
+        min-width: 0;
+    }
+
+    .progress-label > span:nth-child(2) {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .progress-count {
+        color: var(--vscode-descriptionForeground);
+        font-size: 0.9em;
+        flex-shrink: 0;
+    }
+
+    .progress-spinner {
+        width: 0.85rem;
+        height: 0.85rem;
+        border: 2px solid var(--vscode-descriptionForeground);
+        border-right-color: transparent;
+        border-radius: 50%;
+        flex-shrink: 0;
+        animation: export-spin 0.7s linear infinite;
+    }
+
+    .progress-track {
+        position: relative;
+        height: 4px;
+        overflow: hidden;
+        border-radius: 2px;
+        background: color-mix(in srgb, var(--vscode-foreground) 16%, transparent);
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--vscode-progressBar-background, var(--vscode-button-background));
+        transition: width 120ms ease-out;
+    }
+
+    .progress-track.indeterminate {
+        background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+    }
+
+    .progress-pulse {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 40%;
+        background: var(--vscode-progressBar-background, var(--vscode-button-background));
+        animation: export-pulse 1.1s ease-in-out infinite;
+    }
+
+    @keyframes export-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes export-pulse {
+        from {
+            left: -40%;
+        }
+        to {
+            left: 100%;
+        }
     }
 
     .footer-hint {

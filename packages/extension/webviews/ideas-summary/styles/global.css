@@ -513,6 +513,10 @@ button.member-chip:hover {
     background: var(--vscode-editor-inactiveSelectionBackground);
 }
 
+.graph-surface-wrap.is-booting .graph-surface {
+    opacity: 0.35;
+}
+
 .graph-surface {
     width: 100%;
     height: 100%;
@@ -525,6 +529,47 @@ button.member-chip:hover {
 .graph-surface > div {
     width: 100% !important;
     height: 100% !important;
+}
+
+.graph-boot {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+    pointer-events: none;
+}
+
+.graph-boot p {
+    margin: 0;
+    max-width: 28rem;
+    font-size: 0.95em;
+}
+
+.graph-boot.is-error {
+    color: var(--vscode-errorForeground, #f48771);
+    pointer-events: auto;
+}
+
+.graph-boot-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2px solid color-mix(in srgb, var(--vscode-descriptionForeground) 35%, transparent);
+    border-top-color: var(--vscode-focusBorder, #007fd4);
+    border-radius: 50%;
+    animation: graph-boot-spin 0.7s linear infinite;
+}
+
+@keyframes graph-boot-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .graph-key {
@@ -891,6 +936,215 @@ button.member-chip:hover {
     padding: 3px 6px;
     border-radius: 2px;
     max-width: 180px;
+}
+
+.graph-filter-multi {
+    min-width: 140px;
+    min-height: 4.25rem;
+    max-width: 220px;
+    padding: 2px 4px;
+}
+
+.graph-filter-multi option.option-special,
+.graph-filter-multi option.option-not-present,
+.graph-filter-multi option.option-unspecified {
+    font-style: italic;
+}
+
+.graph-filter-multi option.option-not-present {
+    color: var(--vscode-descriptionForeground);
+}
+
+.graph-filter-multi option.option-unspecified {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.scd {
+    position: relative;
+    flex: 0 1 180px;
+    min-width: 148px;
+}
+
+.scd-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 28px;
+    padding: 4px 10px;
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border-radius: 6px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+
+.scd.is-open .scd-trigger,
+.scd-trigger:hover {
+    border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+.scd.is-searching .scd-trigger {
+    border-color: var(--vscode-input-border, var(--vscode-panel-border));
+}
+
+.scd.is-loading .scd-trigger {
+    color: var(--vscode-descriptionForeground);
+}
+
+.scd.is-loading .scd-trigger-label::after {
+    content: '';
+}
+
+.scd-trigger-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scd-chevron {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    opacity: 0.7;
+    flex: 0 0 auto;
+}
+
+.scd.is-open .scd-chevron {
+    transform: rotate(180deg);
+}
+
+.scd-panel {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 4px);
+    left: 0;
+    right: auto;
+    width: max(100%, 240px);
+    max-width: min(320px, 80vw);
+    max-height: 280px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    overflow: hidden;
+}
+
+.scd-search-row {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    opacity: 0.72;
+    transition: opacity 0.12s ease;
+}
+
+.scd-search-row.is-active {
+    opacity: 1;
+}
+
+.scd-search {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--vscode-input-background) 88%, transparent);
+    color: var(--vscode-descriptionForeground);
+    font: inherit;
+}
+
+.scd.is-searching .scd-search,
+.scd-search:focus {
+    border-color: var(--vscode-focusBorder, #007fd4);
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    outline: none;
+}
+
+.scd-clear {
+    border: none;
+    background: transparent;
+    color: var(--vscode-textLink-foreground);
+    font: inherit;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.scd-list {
+    overflow: auto;
+    padding: 4px 0 8px;
+}
+
+.scd-group-label {
+    padding: 8px 12px 4px;
+    font-size: 0.72em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+}
+
+.scd-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+}
+
+.scd-option:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.scd-option input {
+    margin: 0;
+}
+
+.scd-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.scd-option-count {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.65;
+}
+
+.scd-option.is-special .scd-option-label {
+    font-style: italic;
+}
+
+.scd-option.is-not-present .scd-option-label {
+    color: var(--vscode-descriptionForeground);
+}
+
+.scd-option.is-empty .scd-option-label {
+    color: var(--vscode-editorInfo-foreground, #3794ff);
+}
+
+.scd-option.is-unspecified .scd-option-label {
+    color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.scd-empty {
+    margin: 0;
+    padding: 12px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.9em;
 }
 
 .graph-empty {

@@ -10,7 +10,7 @@
         <button
             class="tab"
             class:active={app.tab.activeTab === tab.id}
-            on:click={() => app.setTab(tab.id)}
+            onclick={() => app.setTab(tab.id)}
         >
             {tab.label}
         </button>

@@ -29,6 +29,7 @@ describe('normalizeGraphUiState', () => {
         expect(normalized.layoutId).toBe(DEFAULT_GRAPH_UI_STATE.layoutId);
         expect(normalized.compoundBasisId).toBe('tags');
         expect(normalized.animatePhysics).toBe(true);
+        expect(normalized.labelMode).toBe(DEFAULT_GRAPH_UI_STATE.labelMode);
         expect(normalized.maxNodes).toBe(50);
         expect(normalized.truncationBasis).toBe('git-modified');
         expect(normalized.physics.gravity).toBe(0.01);
@@ -39,5 +40,13 @@ describe('normalizeGraphUiState', () => {
     test('clamps maxNodes into 1..1000', () => {
         expect(normalizeGraphUiState({ maxNodes: 0 }).maxNodes).toBe(1);
         expect(normalizeGraphUiState({ maxNodes: 5000 }).maxNodes).toBe(1000);
+    });
+
+    test('keeps valid labelMode and defaults unknown values to auto', () => {
+        expect(normalizeGraphUiState({ labelMode: 'on' }).labelMode).toBe('on');
+        expect(normalizeGraphUiState({ labelMode: 'off' }).labelMode).toBe('off');
+        expect(normalizeGraphUiState({ labelMode: 'auto' }).labelMode).toBe('auto');
+        expect(normalizeGraphUiState({ labelMode: 'nope' }).labelMode).toBe('auto');
+        expect(DEFAULT_GRAPH_UI_STATE.labelMode).toBe('auto');
     });
 });

@@ -17,8 +17,10 @@ entry Model:
     (NL* elements+=TopLevelElement)*
     NL*;
 
+// Nameless `{ ... }` at top level is recoverable (no_name_idea_safe_warning):
+// parse it, warn, and keep later ideas/imports intact — do not abort the file.
 TopLevelElement:
-    Idea | IdeaSet | OneLinerIdea;
+    Idea | IdeaSet | OneLinerIdea | AnonymousBlock;
 
 // ---------------------------------------------------------------------------
 // idea_name, one_liner_idea, block_idea, ideaset

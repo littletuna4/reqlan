@@ -6,7 +6,6 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
-import initSqlJs from 'sql.js/dist/sql-asm.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
@@ -356,7 +355,9 @@ function mapFileTiming(row: FileTimingSqlRow): IndexFileTimingRow {
 let sqlJsModulePromise: Promise<SqlJsModule> | undefined;
 
 async function getSqlJsModule(): Promise<SqlJsModule> {
-    sqlJsModulePromise ??= initSqlJs({}) as Promise<SqlJsModule>;
+    sqlJsModulePromise ??= import('sql.js/dist/sql-asm.js').then(
+        ({ default: initSqlJs }) => initSqlJs({}) as Promise<SqlJsModule>
+    );
     return sqlJsModulePromise;
 }
 

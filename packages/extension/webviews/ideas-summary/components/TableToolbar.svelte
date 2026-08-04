@@ -24,13 +24,13 @@
         type="search"
         {placeholder}
         value={search}
-        on:input={handleInput}
+        oninput={handleInput}
     />
     <button
         type="button"
         class="secondary"
         class:has-filters={filtersOpen}
-        on:click={() => dispatch('toggleFilters')}
+        onclick={() => dispatch('toggleFilters')}
     >
         {filtersOpen ? 'Hide column filters' : 'Column filters'}
     </button>
@@ -39,7 +39,7 @@
             type="button"
             class="secondary"
             class:has-filters={groupByActive}
-            on:click={() => dispatch('toggleGroupBy')}
+            onclick={() => dispatch('toggleGroupBy')}
         >
             {groupByActive ? `Ungroup` : `Group by ${groupByLabel}`}
         </button>

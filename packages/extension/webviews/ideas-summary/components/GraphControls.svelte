@@ -1,26 +1,41 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import type { GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
+    import type { GraphUiLabelMode } from '../../../src/webview_module/shared/graph-ui-state.js';
+    import SearchableCheckboxDropdown from './SearchableCheckboxDropdown.svelte';
 
     export let query: GraphViewQuery;
     export let showKey = false;
     export let showControls = false;
+    export let labelMode: GraphUiLabelMode = 'auto';
+    export let statusOptions: string[] = [];
+    export let tagOptions: string[] = [];
+    export let statusOptionCounts: Record<string, number> = {};
+    export let tagOptionCounts: Record<string, number> = {};
+    export let filtersLoading = false;
 
     const dispatch = createEventDispatcher<{
         search: string;
         pathFilter: string;
-        statusFilter: string;
-        tagFilter: string;
+        statusFilter: string[];
+        tagFilter: string[];
         toggleIndirect: void;
         clearCenter: void;
         toggleKey: void;
         toggleControls: void;
+        cycleLabelMode: void;
         reframeView: void;
     }>();
 
-    function emitInput(field: 'pathFilter' | 'statusFilter' | 'tagFilter', event: Event): void {
+    function emitInput(field: 'pathFilter', event: Event): void {
         dispatch(field, (event.currentTarget as HTMLInputElement).value);
     }
+
+    function labelModeText(mode: GraphUiLabelMode): string {
+        return mode === 'auto' ? 'Labels: auto' : mode === 'on' ? 'Labels: on' : 'Labels: off';
+    }
+
+    $: labelPressed = labelMode === 'auto' ? 'mixed' : labelMode === 'on' ? 'true' : 'false';
 </script>
 
 <div class="graph-controls">
@@ -30,28 +45,32 @@
             type="search"
             placeholder="Path filter…"
             value={query.pathFilter ?? ''}
-            on:input={(event) => emitInput('pathFilter', event)}
+            oninput={(event) => emitInput('pathFilter', event)}
         />
-        <input
-            class="graph-filter"
-            type="search"
-            placeholder="Status…"
-            value={query.statusFilter ?? ''}
-            on:input={(event) => emitInput('statusFilter', event)}
+        <SearchableCheckboxDropdown
+            label="Status"
+            options={statusOptions}
+            optionCounts={statusOptionCounts}
+            selected={query.statusFilter ?? []}
+            placeholder="Search statuses…"
+            loading={filtersLoading}
+            on:change={(event) => dispatch('statusFilter', event.detail)}
         />
-        <input
-            class="graph-filter"
-            type="search"
-            placeholder="Tag…"
-            value={query.tagFilter ?? ''}
-            on:input={(event) => emitInput('tagFilter', event)}
+        <SearchableCheckboxDropdown
+            label="Tags"
+            options={tagOptions}
+            optionCounts={tagOptionCounts}
+            selected={query.tagFilter ?? []}
+            placeholder="Search tags…"
+            loading={filtersLoading}
+            on:change={(event) => dispatch('tagFilter', event.detail)}
         />
         <button
             type="button"
             class="graph-chip"
             class:active={query.includeIndirect}
             aria-pressed={query.includeIndirect}
-            on:click={() => dispatch('toggleIndirect')}
+            onclick={() => dispatch('toggleIndirect')}
         >
             Indirect refs
         </button>
@@ -61,16 +80,27 @@
 
     <section class="graph-controls-section graph-controls-actions" aria-label="View">
         {#if query.centerId}
-            <button type="button" class="graph-action" on:click={() => dispatch('clearCenter')}>
+            <button type="button" class="graph-action" onclick={() => dispatch('clearCenter')}>
                 Clear focus
             </button>
         {/if}
         <button
             type="button"
             class="graph-action"
+            class:active={labelMode !== 'off'}
+            aria-pressed={labelPressed}
+            data-label-mode={labelMode}
+            title="Cycle label visibility: auto (fade when zoomed out), on, off"
+            onclick={() => dispatch('cycleLabelMode')}
+        >
+            {labelModeText(labelMode)}
+        </button>
+        <button
+            type="button"
+            class="graph-action"
             class:active={showControls}
             aria-pressed={showControls}
-            on:click={() => dispatch('toggleControls')}
+            onclick={() => dispatch('toggleControls')}
         >
             Controls
         </button>
@@ -79,7 +109,7 @@
             class="graph-action"
             class:active={showKey}
             aria-pressed={showKey}
-            on:click={() => dispatch('toggleKey')}
+            onclick={() => dispatch('toggleKey')}
         >
             Key
         </button>
@@ -87,7 +117,7 @@
             type="button"
             class="graph-action"
             title="Fit all nodes into the viewport and center the camera"
-            on:click={() => dispatch('reframeView')}
+            onclick={() => dispatch('reframeView')}
         >
             Fit to view
         </button>

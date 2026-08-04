@@ -36,6 +36,10 @@
         "./graph-physics": {
             "types": "./out/graph/physics-core.d.ts",
             "default": "./out/graph/physics-core.js"
+        },
+        "./filter-specials": {
+            "types": "./out/core/filter-specials.d.ts",
+            "default": "./out/core/filter-specials.js"
         }
     },
     "scripts": {

@@ -1,4 +1,4 @@
-from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading
+from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
 from "./webview.rq" import ideas_summary
 
 
@@ -9,13 +9,14 @@ graphical_graph {
     UI is implemented in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"].
     Graph slices are built in ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"] and served by ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
     By default the view focuses on the active editor file's first idea; without a focus it shows a capped slice of matching ideas rather than dumping the full graph.
-    Users can filter by search text, path, @status, and tags.
+    Users can filter by search text, path, multi-select @status, and multi-select tags per [graph_status_tag_filters].
     An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
     Clicking a node opens its source; double-click or "Focus graph" recenters the slice on that idea.
     External file references render as dashed edges to file nodes.
     A toggleable key explains node colours and edge styles and toggles node-type visibility per [key_panel_toggle]; a toggleable [control_panel] exposes layout, physics, and node-budget settings. Key and Controls state persist per workspace via [graph_ui_persistence].
     Pan, zoom, and drag repositioning per [view_controls].
     [manual_reframe] via "Fit to view" in [ui_controls]; [auto_reframe] when the loaded node set changes; [reframe_animation] for smooth transitions after the first paint.
+    Node text labels per [graph_labels], [graph_label_modes], and [graph_label_auto].
     Layout, compound grouping, and live physics behaviour per [layout_physics], [layout_options], [physics_options], and [compound_graph].
     Cytoscape lifecycle and threading constraints per [graph_cy_controller] and [webview_threading].
 }
@@ -30,6 +31,8 @@ ui_controls {
     Controls live in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] and dispatch events to GraphView.
     [manual_reframe] — "Fit to view" calls GraphCyController.reframeToViewport per [reframe_view].
     [auto_reframe] and [reframe_animation] are handled by the shared controller; no extra UI beyond pan/zoom/drag.
+    Labels control cycles [graph_label_modes] (auto / on / off) and applies [graph_label_auto] via GraphCyController.setLabelMode.
+    Status and tag filters are multi-select dropdowns per [graph_status_tag_filters].
     The Key button toggles a draggable legend panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
     The Controls button toggles [control_panel].
     Overlay panels (Key and Controls) are siblings of the cytoscape mount inside a graph-surface-wrap — never children of the cy container — so native form controls receive pointer events.
@@ -91,7 +94,7 @@ graph_ui_persistence {
     Key and Controls state is stored in VS Code ExtensionContext.workspaceState under key GRAPH_UI_WORKSPACE_STATE_KEY (reqlan.ideasSummary.graphUi).
     Shape and normalisation live in ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]; the host reads/writes it from ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
     On webview ready the extension posts graphUiState; the webview posts persistGraphUiState (debounced) whenever AppState.patchGraphUi runs in ["../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"].
-    Persisted fields: showKey, showControls, hiddenNodeTypes, layoutId, useCompound, compoundBasisId, animatePhysics, maxNodes, truncationBasis, and the five physics sliders (gravity, repulsion, linkStrength, linkDistance, damping).
-    GraphView in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types to GraphCyController when those fields change.
+    Persisted fields: showKey, showControls, hiddenNodeTypes, layoutId, useCompound, compoundBasisId, animatePhysics, labelMode, maxNodes, truncationBasis, and the five physics sliders (gravity, repulsion, linkStrength, linkDistance, damping).
+    GraphView in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types/label mode to GraphCyController when those fields change.
     The first graph load waits for graphUiState so restored node budget is included in loadGraph.
 }

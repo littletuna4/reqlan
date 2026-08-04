@@ -5,6 +5,12 @@ import type {
     ExportPageInfo,
     ExportSnapshot
 } from './types.js';
+import {
+    filterDisplayLabel,
+    isFilterEmpty,
+    isFilterNotPresent,
+    isFilterUnspecified
+} from '../core/filter-specials.js';
 
 export function escapeHtml(value: string): string {
     return value
@@ -183,12 +189,21 @@ export function renderDefinitionList(values: Record<string, number>): string {
     }
     return `
         <dl class="rollup-list">
-            ${entries.map(([key, value]) => `
-                <div>
-                    <dt>${escapeHtml(key)}</dt>
+            ${entries.map(([key, value]) => {
+                const label = filterDisplayLabel(key);
+                const specialClass = isFilterNotPresent(key)
+                    ? 'rollup-special rollup-not-present'
+                    : isFilterEmpty(key)
+                        ? 'rollup-special rollup-empty'
+                        : isFilterUnspecified(key)
+                            ? 'rollup-special rollup-unspecified'
+                            : '';
+                return `
+                <div${specialClass ? ` class="${specialClass}"` : ''}>
+                    <dt>${escapeHtml(label)}</dt>
                     <dd>${escapeHtml(String(value))}</dd>
-                </div>
-            `).join('')}
+                </div>`;
+            }).join('')}
         </dl>
     `;
 }

@@ -1,6 +1,10 @@
 from "./library/graph.rq" import layout_physics
 from "./library/graph.rq" import view_controls
 from "./library/graph.rq" import manual_reframe
+from "./library/graph.rq" import graph_labels
+from "./library/graph.rq" import graph_label_modes
+from "./library/graph.rq" import graph_label_auto
+from "./library/graph.rq" import graph_status_tag_filters
 
 html_export {
     The extension should support building documentation as html from the requirement graph.
@@ -30,10 +34,12 @@ html_export {
 html_export_form {
     HTML export options are hosted inside the general ["./features-export.rq".export_webview] (not a separate HTML-only panel long-term).
     When format is HTML: simple options include scope, output folder, export name, and runtime mode.
-    Advanced HTML settings should be collapsed by default behind an expandable section (template, cluster strategy, page-family toggles, exclude-secret, url base, header link, print entry, neighbourhood graph node cap).
+    Advanced HTML settings should be collapsed by default behind an expandable section (template, cluster strategy, page-family toggles, file filters, url base, header link, print entry, neighbourhood graph node cap).
+    File filters: exclude `*.secret.rq` ideas (`excludeSecretFiles`) and/or exclude paths matched by `.reqlan/.rqignore` (`excludeIgnoredFiles`); both default off so indexed ideas from those files are included unless opted out.
     Form defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/` (shared with other export formats).
     Saving settings or running export writes that file; reopening the form reloads the last values.
     HTML export still calls `@reqlan/analytical` `exportHtml` with an `ExportRequest` built from the form.
+    While export runs, the webview shows progress from the analytical pipeline (snapshot phases, then write completed/total) via `exportProgress` messages — see ["./features-export.rq".export_webview].
     Current implementation is HTML-only and should be generalized; until then the existing panel satisfies the HTML path.
     @status partial
     @implementation (
@@ -42,10 +48,14 @@ html_export_form {
         ["../../packages/extension/src/analytical_submodule/export/export-settings.ts"]
         ["../../packages/extension/src/analytical_submodule/export/export-form-settings-types.ts"]
         ["../../packages/extension/webviews/export-form/"]
+        ["../../packages/analytical/src/export/export-html.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../packages/analytical/src/export/types.ts"]
     )
     @tests (
         ["../../packages/extension/test/export-settings.test.ts"]
         ["../../packages/extension/test/extension-package.test.ts"]
+        ["../../packages/analytical/test/export-html.test.ts"]
     )
 }
 
@@ -176,12 +186,15 @@ html_export_graph_page {
     The graph should support scoped views for workspace, file, cluster, and idea contexts.
     The workspace graph page must include every idea in the export scope — blocks, oneliners, and ideasets — and must not apply the interactive Ideas Summary GRAPH_MAX_NODES budget.
     Ideasets are visible by default with a Hide ideasets / Show ideasets toggle, matching the external-file visibility control.
+    Status and tag filters are multi-select and distinguish [graph_status_tag_filters].
     Per-idea, per-file, and per-cluster neighbourhood graphs may still use a capped budget for focused pages.
     [html_export_graph_links]
     [html_export_graph_layout]
     [html_export_graph_animation]
     [html_export_graph_subject]
     [html_export_graph_labels]
+    [html_export_graph_label_modes]
+    [html_export_graph_label_auto]
     [html_export_graph_interaction]
     [html_export_graph_metadata]
     @implementation (
@@ -244,8 +257,33 @@ html_export_graph_subject {
 }
 
 html_export_graph_labels {
-    Export graph node labels must show the full idea name without character truncation.
-    Wrapping is allowed; ellipsis truncation of display names is not.
+    HTML export canvas graphs implement shared [graph_labels] (full names, no ellipsis truncation).
+    [html_export_graph_label_modes]
+    [html_export_graph_label_auto]
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_graph_label_modes {
+    Export-surface wiring for [graph_label_modes]: Labels control on every interactive export graph cycles auto / on / off; Reset restores auto.
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_graph_label_auto {
+    Export-surface wiring for [graph_label_auto]: canvas paint applies continuous zoom opacity (GRAPH_LABEL_FADE_START → GRAPH_LABEL_FADE_END); hover/drag stays fully opaque.
+    Zoom and Fit from [html_export_graph_interaction] / [manual_reframe] update opacity each paint.
+    @status done
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
     )
@@ -258,6 +296,7 @@ html_export_graph_interaction {
     The interactive export graph should support dragging nodes and panning or zooming the viewport, aligned with [view_controls] and [manual_reframe].
     Click-through to idea pages must remain available after drag via click-versus-drag discrimination.
     A Fit control should reframe the viewport to the current node set without restarting layout or clearing live physics state.
+    Zoom and Fit must continuously drive [graph_label_auto] / [html_export_graph_label_auto] opacity when Labels is in auto mode.
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
         ["../../packages/analytical/src/export/html-export-template.ts"]

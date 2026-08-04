@@ -9,6 +9,7 @@ miniature_graph_pane {
     Consumes [graph_lib.graph_library] with sidebar-appropriate defaults; slices from [graph_analysers.local_graph_analysis].
     - Default depth 1; +/- controls expand or collapse neighbourhood depth without opening Ideas Summary.
     - Pan, zoom, and drag per [graph_lib.view_controls].
+    - Labels default to [graph_lib.graph_label_auto] via shared GraphCyController (no separate Labels control here; full control lives on [graphical_graph_doc.graphical_graph]).
     - [graph_lib.manual_reframe] — "Fit to view" in [MiniGraphCanvas]; same API as the full graph tab.
     - [graph_lib.auto_reframe] and [graph_lib.reframe_animation] when the neighbourhood node set changes (instant first fit, animated afterward).
     - No full layout/physics menus here (defer to [graphical_graph_doc.graphical_graph]).

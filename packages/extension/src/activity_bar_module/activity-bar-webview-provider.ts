@@ -54,7 +54,8 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly context: vscode.ExtensionContext,
         private readonly submodule: AnalyticalSubmodule,
-        private readonly activationGeneration: number
+        private readonly activationGeneration: number,
+        private readonly onPainted: () => void
     ) {
         this.statusUnsubscribe = submodule.index.subscribeStatusUpdates(() => {
             void this.postIndexHealth();
@@ -360,6 +361,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         try {
             switch (message.type) {
                 case 'ready':
+                    this.onPainted();
                     this.postPhonebookLinks();
                     await this.postIndexHealth();
                     this.postTray();
@@ -809,9 +811,15 @@ async function openPhonebookLink(linkId: string): Promise<void> {
 export function registerActivityBarWebview(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule,
-    activationGeneration: number
+    activationGeneration: number,
+    onPainted: () => void
 ): ActivityBarWebviewProvider {
-    const provider = new ActivityBarWebviewProvider(context, submodule, activationGeneration);
+    const provider = new ActivityBarWebviewProvider(
+        context,
+        submodule,
+        activationGeneration,
+        onPainted
+    );
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
             webviewOptions: { retainContextWhenHidden: true }

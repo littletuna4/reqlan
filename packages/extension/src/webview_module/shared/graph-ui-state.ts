@@ -7,6 +7,10 @@ export type GraphUiNodeTypeId = 'block' | 'oneliner' | 'ideaset' | 'focus' | 'ex
 
 export type GraphUiTruncationBasis = 'path' | 'git-modified' | 'git-created';
 
+export type GraphUiLabelMode = 'auto' | 'on' | 'off';
+
+export const GRAPH_UI_LABEL_MODES: readonly GraphUiLabelMode[] = ['auto', 'on', 'off'];
+
 /** Physics sliders exposed in the Controls panel (other physics knobs keep defaults). */
 export interface GraphUiPhysicsPersisted {
     gravity: number;
@@ -24,6 +28,8 @@ export interface GraphUiPersistedState {
     useCompound: boolean;
     compoundBasisId: string;
     animatePhysics: boolean;
+    /** Labels: auto (zoom fade), on, or off. Default auto. */
+    labelMode: GraphUiLabelMode;
     maxNodes: number;
     truncationBasis: GraphUiTruncationBasis;
     physics: GraphUiPhysicsPersisted;
@@ -56,6 +62,7 @@ export const DEFAULT_GRAPH_UI_STATE: GraphUiPersistedState = {
     useCompound: false,
     compoundBasisId: 'folder-path',
     animatePhysics: false,
+    labelMode: 'auto',
     maxNodes: 120,
     truncationBasis: 'path',
     physics: { ...DEFAULT_GRAPH_UI_PHYSICS }
@@ -111,6 +118,10 @@ export function normalizeGraphUiState(raw: unknown): GraphUiPersistedState {
         input.truncationBasis === 'git-modified' || input.truncationBasis === 'git-created'
             ? input.truncationBasis
             : 'path';
+    const labelMode =
+        input.labelMode === 'on' || input.labelMode === 'off' || input.labelMode === 'auto'
+            ? input.labelMode
+            : DEFAULT_GRAPH_UI_STATE.labelMode;
     const hiddenNodeTypes = Array.isArray(input.hiddenNodeTypes)
         ? input.hiddenNodeTypes.filter((id): id is GraphUiNodeTypeId =>
             typeof id === 'string' && NODE_TYPE_IDS.has(id as GraphUiNodeTypeId)
@@ -129,6 +140,7 @@ export function normalizeGraphUiState(raw: unknown): GraphUiPersistedState {
         useCompound: Boolean(input.useCompound),
         compoundBasisId,
         animatePhysics: Boolean(input.animatePhysics),
+        labelMode,
         maxNodes,
         truncationBasis,
         physics: normalizePhysics(input.physics)

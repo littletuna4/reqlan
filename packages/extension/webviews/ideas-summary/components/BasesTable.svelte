@@ -4,6 +4,7 @@
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".bases_tab]
      */
     import type { BaseStatusView, ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+    import { matchesBase } from '../lib/bases-filter.js';
     import { isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';
     import ColumnFilterRow from './ColumnFilterRow.svelte';
@@ -12,13 +13,17 @@
 
     const app = getApp();
 
-    let search = '';
-    let filtersOpen = false;
-    let columnFilters: ColumnFilter[] = [];
+    // Local UI state must be $state so $derived(rows) re-runs when search/filters change.
+    let search = $state('');
+    let filtersOpen = $state(false);
+    let columnFilters = $state<ColumnFilter[]>([]);
 
-    $: visibleColumns = app.tableUi.bases.visibleColumns;
-    $: bases = app.index.status?.bases ?? [];
-    $: activeBaseId = app.index.status?.activeBaseId ?? '';
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    const visibleColumns = $derived(app.tableUi.bases.visibleColumns);
+    const bases = $derived(app.index.status?.bases ?? []);
+    const activeBaseId = $derived(app.index.status?.activeBaseId ?? '');
+    const rows = $derived(bases.filter(base => matchesBase(base, search, columnFilters)));
 
     const columnOptions = [
         { id: 'label', label: 'Label' },
@@ -42,39 +47,6 @@
         { column: 'fileIssueCount', label: 'Issues', kind: 'none' as const },
         { column: 'state', label: 'State', kind: 'text' as const }
     ];
-
-    function matches(base: BaseStatusView): boolean {
-        const haystack = `${base.label} ${base.root} ${base.state}`.toLowerCase();
-        if (search.trim() && !haystack.includes(search.trim().toLowerCase())) {
-            return false;
-        }
-        for (const filter of columnFilters) {
-            if (filter.column === 'label' && filter.text?.trim()) {
-                if (!base.label.toLowerCase().includes(filter.text.trim().toLowerCase())) {
-                    return false;
-                }
-            }
-            if (filter.column === 'root' && filter.text?.trim()) {
-                if (!base.root.toLowerCase().includes(filter.text.trim().toLowerCase())) {
-                    return false;
-                }
-            }
-            if (filter.column === 'state' && filter.text?.trim()) {
-                if (!base.state.toLowerCase().includes(filter.text.trim().toLowerCase())) {
-                    return false;
-                }
-            }
-            if (filter.column === 'ready' && filter.selected?.length) {
-                const readyKey = base.ready ? 'yes' : 'no';
-                if (!filter.selected.includes(readyKey)) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    $: rows = bases.filter(matches);
 
     function selectBase(base: BaseStatusView): void {
         app.selectBase(base.id);
@@ -124,7 +96,7 @@
             <tr
                 class="clickable"
                 class:member-chip-active={row.id === activeBaseId}
-                on:click={() => selectBase(row)}
+                onclick={() => selectBase(row)}
             >
                 {#if show('label')}<td>{row.label}{row.id === activeBaseId ? ' · active' : ''}</td>{/if}
                 {#if show('root')}<td>{row.root}</td>{/if}

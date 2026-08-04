@@ -108,7 +108,7 @@
                 </thead>
                 <tbody>
                     {#each status.fileIssues as issue (issue.fileUri + issue.line + issue.column)}
-                        <tr class="clickable" on:click={() => openIssue(issue)}>
+                        <tr class="clickable" onclick={() => openIssue(issue)}>
                             <td>{issue.location}</td>
                             <td>{issue.phase}</td>
                             <td>{issue.ideaNames?.length ? issue.ideaNames.join(', ') : '—'}</td>
@@ -122,11 +122,11 @@
     {/if}
 
     <div class="actions">
-        <button on:click={() => postToExtension({ type: 'refreshIndex' })}>Refresh index</button>
+        <button onclick={() => postToExtension({ type: 'refreshIndex' })}>Refresh index</button>
         {#if status.syncProgress && status.syncProgress.total > 0}
-            <button class="secondary" on:click={() => postToExtension({ type: 'cancelIndexSync' })}>Cancel sync</button>
+            <button class="secondary" onclick={() => postToExtension({ type: 'cancelIndexSync' })}>Cancel sync</button>
         {/if}
-        <button class="secondary" on:click={() => postToExtension({ type: 'clearAndRebuildIndex' })}>Clear &amp; rebuild index</button>
+        <button class="secondary" onclick={() => postToExtension({ type: 'clearAndRebuildIndex' })}>Clear &amp; rebuild index</button>
     </div>
 
     <h2>Recent activity</h2>

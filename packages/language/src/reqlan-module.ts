@@ -1,4 +1,4 @@
-import { type Module, inject } from 'langium';
+import { type Module, inject, type PartialLangiumSharedCoreServices } from 'langium';
 import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
 import { ReqlanGeneratedModule, ReqlanGeneratedSharedModule } from './generated/module.js';
 import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
@@ -18,6 +18,9 @@ import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
 import { registerRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
+import { ReqlanWorkspaceManager } from './reqlan-workspace-manager.js';
+import { ReqlanAsyncParser } from './reqlan-async-parser.js';
+import { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -39,6 +42,13 @@ export type ReqlanServices = LangiumServices & ReqlanAddedServices
  * declared custom services. The Langium defaults can be partially specified to override only
  * selected services, while the custom services must be fully specified.
  */
+export const ReqlanSharedModule: Module<LangiumSharedServices, PartialLangiumSharedCoreServices> = {
+    workspace: {
+        WorkspaceManager: services => new ReqlanWorkspaceManager(services),
+        LangiumDocumentFactory: services => new ReqlanLangiumDocumentFactory(services)
+    }
+};
+
 export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & ReqlanAddedServices> = {
     validation: {
         ReqlanValidator: services => new ReqlanValidator(services)
@@ -51,7 +61,8 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
     },
     parser: {
         GrammarConfig: createReqlanGrammarConfig,
-        TokenBuilder: () => new ReqlanTokenBuilder()
+        TokenBuilder: () => new ReqlanTokenBuilder(),
+        AsyncParser: (services: ReqlanServices) => new ReqlanAsyncParser(services)
     },
     lsp: {
         DefinitionProvider: services => new ReqlanDefinitionProvider(services),
@@ -87,7 +98,8 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
 } {
     const shared = inject(
         createDefaultSharedModule(context),
-        ReqlanGeneratedSharedModule
+        ReqlanGeneratedSharedModule,
+        ReqlanSharedModule
     );
     const Reqlan = inject(
         createDefaultModule({ shared }),

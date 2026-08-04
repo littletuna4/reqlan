@@ -44,6 +44,12 @@ export interface ExportRequest {
      */
     excludeSecretFiles?: boolean;
     /**
+     * When true, omit ideas hosted in paths matched by `.reqlan/.rqignore`
+     * (including built-in defaults). Useful when ignored files were indexed via
+     * watchers or force-include rules and should stay out of a published export.
+     */
+    excludeIgnoredFiles?: boolean;
+    /**
      * Absolute URL prefix for the export mount (e.g. `/spec` or `/reqlan/spec`).
      * When set, page and asset hrefs are root-relative so static hosts resolve
      * correctly with or without a trailing slash on directory URLs.
@@ -233,3 +239,19 @@ export interface ExportResult {
     codeFilesIndexFilePath?: string;
     manifestFilePath?: string;
 }
+
+/** Coarse phases reported while building an HTML export. */
+export type ExportProgressPhase = 'snapshot' | 'write';
+
+/** Progress event for hosts that show export loading UI (extension webview, CLI). */
+export interface ExportProgress {
+    phase: ExportProgressPhase;
+    /** Human-readable status for the current step. */
+    message: string;
+    /** Completed units within this phase (e.g. pages written). */
+    completed?: number;
+    /** Total units for this phase when known. */
+    total?: number;
+}
+
+export type ExportProgressCallback = (progress: ExportProgress) => void;

@@ -58,6 +58,7 @@ export class AppState {
         search: undefined as OverviewSearchResult | undefined,
         searching: false,
         coverage: undefined as OverviewCoverageScores | undefined,
+        coverageError: undefined as string | undefined,
         coverageLoading: false,
         coverageBaseId: undefined as string | undefined
     });
@@ -237,6 +238,7 @@ export class AppState {
             return;
         }
         this.overview.coverageLoading = true;
+        this.overview.coverageError = undefined;
         this.overview.coverageBaseId = baseId;
         postToExtension({ type: 'loadOverviewCoverage' });
     }
@@ -488,6 +490,7 @@ export class AppState {
                 this.index.status = message.status;
                 if (message.status.activeBaseId !== previousBaseId) {
                     this.overview.coverage = undefined;
+                    this.overview.coverageError = undefined;
                     this.overview.coverageBaseId = undefined;
                     this.overview.coverageLoading = false;
                 }
@@ -535,7 +538,12 @@ export class AppState {
                 this.overview.searching = false;
                 break;
             case 'overviewCoverage':
-                this.overview.coverage = message.scores;
+                if (message.scores) {
+                    this.overview.coverage = message.scores;
+                    this.overview.coverageError = undefined;
+                } else if (message.error) {
+                    this.overview.coverageError = message.error;
+                }
                 this.overview.coverageLoading = false;
                 break;
             case 'overviewLinks':
@@ -615,6 +623,7 @@ export class AppState {
                 }
                 if (this.overview.coverageLoading) {
                     this.overview.coverageLoading = false;
+                    this.overview.coverageError = message.message;
                 }
                 if (this.timeline.loading) {
                     this.timeline.loading = false;

@@ -18,6 +18,13 @@
             }
         },
         {
+            "label": "Build extension for debugging",
+            "command": "node packages/extension/scripts/build.mjs",
+            "type": "shell",
+            "problemMatcher": "$tsc",
+            "detail": "Generate dependencies and rebuild extension-host, language-server, and webview output before F5"
+        },
+        {
             "label": "Watch reqlan",
             "command": "pnpm run watch",
             "type": "shell",

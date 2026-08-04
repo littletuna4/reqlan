@@ -31,6 +31,58 @@ import {
     slugAttributeKey,
     stringifyJson
 } from './html-export-utils.js';
+import {
+    FILTER_EMPTY,
+    FILTER_NOT_PRESENT,
+    filterDisplayLabel,
+    isFilterEmpty,
+    isFilterNotPresent,
+    isFilterUnspecified
+} from '../core/filter-specials.js';
+
+function renderMultiFilterSelect(
+    attr: 'status' | 'tag',
+    countsByValue: Record<string, number>,
+    emptyLabel: string
+): string {
+    const valueSet = new Set(Object.keys(countsByValue));
+    valueSet.add(FILTER_NOT_PRESENT);
+    valueSet.add(FILTER_EMPTY);
+
+    const options = [...valueSet].map(value => ({
+        value,
+        label: filterDisplayLabel(value),
+        special: isFilterNotPresent(value) || isFilterEmpty(value) || isFilterUnspecified(value),
+        kind: isFilterNotPresent(value)
+            ? 'not-present'
+            : isFilterEmpty(value)
+                ? 'empty'
+                : isFilterUnspecified(value)
+                    ? 'unspecified'
+                    : 'concrete',
+        count: countsByValue[value] ?? 0
+    }));
+    options.sort((left, right) => {
+        const rank = (kind: string) =>
+            kind === 'not-present' ? 0 : kind === 'empty' ? 1 : kind === 'unspecified' ? 2 : 3;
+        return rank(left.kind) - rank(right.kind) || left.label.localeCompare(right.label);
+    });
+
+    return `
+        <div
+            class="scd is-loading"
+            data-graph-${attr}-scd
+            data-placeholder="${escapeHtml(emptyLabel)}"
+            data-label="${attr === 'status' ? 'Status' : 'Tags'}"
+            data-options="${escapeHtml(JSON.stringify(options))}"
+        >
+            <button type="button" class="scd-trigger" aria-haspopup="listbox" aria-expanded="false" aria-busy="true">
+                <span class="scd-trigger-label">${attr === 'status' ? 'Status…' : 'Tags…'}</span>
+                <span class="scd-chevron" aria-hidden="true"></span>
+            </button>
+        </div>
+    `;
+}
 
 
 function exportHref(snapshot: ExportSnapshot, currentPath: string, targetPath: string): string {
@@ -425,8 +477,8 @@ export function renderAttributeDetailPage(snapshot: ExportSnapshot, attribute: E
 export function renderGraphPage(snapshot: ExportSnapshot): string {
     const currentPath = snapshot.manifest.graph.path;
     const graph = enrichGraphUrls(snapshot, snapshot.graphs.workspace, currentPath);
-    const statuses = Object.keys(snapshot.byStatus).sort();
-    const tags = Object.keys(snapshot.byTag).sort();
+    const statuses = snapshot.byStatus;
+    const tags = snapshot.byTag;
     const clusters = snapshot.clusters.slice(0, 16).map(cluster =>
         snapshot.pageOptions.includeClusterPages
             ? `<a class="pill" href="${escapeHtml(exportPageHref(snapshot, currentPath, cluster.page))}">${escapeHtml(cluster.label)}</a>`
@@ -454,23 +506,23 @@ export function renderGraphPage(snapshot: ExportSnapshot): string {
                 <div class="graph-controls-bar" data-graph-controls="graph-data">
                     <input class="searchbar graph-filter" type="search" placeholder="Search graph nodes" data-graph-search />
                     <input class="searchbar graph-filter" type="search" placeholder="Path filter" data-graph-path />
-                    <select class="graph-filter" data-graph-status>
-                        <option value="">All statuses</option>
-                        ${statuses.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('')}
-                    </select>
-                    <select class="graph-filter" data-graph-tag>
-                        <option value="">All tags</option>
-                        ${tags.map(tag => `<option value="${escapeHtml(tag)}">${escapeHtml(tag)}</option>`).join('')}
-                    </select>
+                    ${renderMultiFilterSelect('status', statuses, 'Filter by status')}
+                    ${renderMultiFilterSelect('tag', tags, 'Filter by tag')}
                     <button type="button" class="graph-action" data-graph-toggle-external="true">Hide external</button>
                     <button type="button" class="graph-action" data-graph-toggle-ideasets="true">Hide ideasets</button>
+                    <button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
                     <button type="button" class="graph-action" data-graph-fit>Fit</button>
                     <button type="button" class="graph-action" data-graph-reset>Reset</button>
                     <span class="graph-status" data-graph-status-text></span>
                 </div>
                 <div class="pill-row">${clusters}</div>
-                <div class="graph-root" data-graph-json="graph-data"></div>
+                <div class="graph-root is-booting" data-graph-json="graph-data">
+                    <div class="graph-boot" data-graph-boot role="status" aria-live="polite" aria-busy="true">
+                        <span class="graph-boot-spinner" aria-hidden="true"></span>
+                        <p>Initialising graph…</p>
+                    </div>
+                </div>
                 <script id="graph-data" type="application/json">${stringifyJson(graph)}</script>
             </section>
         `
@@ -544,11 +596,17 @@ export function renderIdeaDetailPage(snapshot: ExportSnapshot, idea: ExportIdeaR
             <section class="graph-shell print-break-avoid" id="graph">
                 <div class="toolbar"><h2>Local graph</h2></div>
                 <div class="graph-controls-bar" data-graph-controls="graph-data">
+                    <button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
                     <button type="button" class="graph-action" data-graph-fit>Fit</button>
                     <span class="graph-status" data-graph-status-text></span>
                 </div>
-                <div class="graph-root" data-graph-json="graph-data"></div>
+                <div class="graph-root is-booting" data-graph-json="graph-data">
+                    <div class="graph-boot" data-graph-boot role="status" aria-live="polite" aria-busy="true">
+                        <span class="graph-boot-spinner" aria-hidden="true"></span>
+                        <p>Initialising graph…</p>
+                    </div>
+                </div>
                 <script id="graph-data" type="application/json">${stringifyJson(graph)}</script>
             </section>
         `
@@ -617,11 +675,17 @@ export function renderFileDetailPage(snapshot: ExportSnapshot, file: ExportFileR
             <section class="graph-shell print-break-avoid">
                 <div class="toolbar"><h2>Local graph</h2></div>
                 <div class="graph-controls-bar" data-graph-controls="graph-data">
+                    <button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
                     <button type="button" class="graph-action" data-graph-fit>Fit</button>
                     <span class="graph-status" data-graph-status-text></span>
                 </div>
-                <div class="graph-root" data-graph-json="graph-data"></div>
+                <div class="graph-root is-booting" data-graph-json="graph-data">
+                    <div class="graph-boot" data-graph-boot role="status" aria-live="polite" aria-busy="true">
+                        <span class="graph-boot-spinner" aria-hidden="true"></span>
+                        <p>Initialising graph…</p>
+                    </div>
+                </div>
                 <script id="graph-data" type="application/json">${stringifyJson(graph)}</script>
             </section>
         `
@@ -739,11 +803,17 @@ export function renderClusterDetailPage(snapshot: ExportSnapshot, cluster: Expor
             <section class="graph-shell print-break-avoid">
                 <div class="toolbar"><h2>Cluster graph</h2></div>
                 <div class="graph-controls-bar" data-graph-controls="graph-data">
+                    <button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
                     <button type="button" class="graph-action" data-graph-fit>Fit</button>
                     <span class="graph-status" data-graph-status-text></span>
                 </div>
-                <div class="graph-root" data-graph-json="graph-data"></div>
+                <div class="graph-root is-booting" data-graph-json="graph-data">
+                    <div class="graph-boot" data-graph-boot role="status" aria-live="polite" aria-busy="true">
+                        <span class="graph-boot-spinner" aria-hidden="true"></span>
+                        <p>Initialising graph…</p>
+                    </div>
+                </div>
                 <script id="graph-data" type="application/json">${stringifyJson(graph)}</script>
             </section>
         `
@@ -994,6 +1064,8 @@ function enrichGraphUrls(snapshot: ExportSnapshot, graph: unknown, _currentPath:
             } else {
                 delete node.status;
             }
+            node.statusKey = idea.statusKey;
+            node.tagsKeys = idea.tagsKeys;
             node.attributes = idea.attributes;
             const attributeKeys = Object.keys(idea.attributes).sort();
             if (attributeKeys.length > 0) {

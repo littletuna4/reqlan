@@ -201,22 +201,22 @@
         class:graph-control-panel-dragging={dragging}
         style:--graph-control-panel-x={panelX !== undefined ? `${panelX}px` : null}
         style:--graph-control-panel-y={panelY !== undefined ? `${panelY}px` : null}
-        on:pointerdown|stopPropagation
+        onpointerdown={(event) => event.stopPropagation()}
     >
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
             class="graph-control-panel-header"
-            on:pointerdown={onHandlePointerDown}
-            on:pointermove={onHandlePointerMove}
-            on:pointerup={onHandlePointerUp}
-            on:pointercancel={onHandlePointerUp}
+            onpointerdown={onHandlePointerDown}
+            onpointermove={onHandlePointerMove}
+            onpointerup={onHandlePointerUp}
+            onpointercancel={onHandlePointerUp}
         >
             <span class="graph-control-panel-title">Controls</span>
             <button
                 type="button"
                 class="graph-control-panel-close"
                 aria-label="Close controls"
-                on:click|stopPropagation={() => dispatch('close')}
+                onclick={(event) => { event.stopPropagation(); dispatch('close'); }}
             >
                 ×
             </button>
@@ -227,7 +227,7 @@
                 <h3 class="graph-control-panel-heading">Layout</h3>
                 <label class="graph-control-panel-field">
                     <span class="graph-control-panel-label">Algorithm</span>
-                    <select class="graph-select" value={layoutId} on:change={handleLayoutChange}>
+                    <select class="graph-select" value={layoutId} onchange={handleLayoutChange}>
                         {#each layoutOptions as option (option.id)}
                             <option value={option.id}>{option.label}</option>
                         {/each}
@@ -239,7 +239,7 @@
                     class:active={animatePhysics}
                     aria-pressed={animatePhysics}
                     title="Keep force-directed layout animating continuously"
-                    on:click={() => dispatch('toggleAnimatePhysics')}
+                    onclick={() => dispatch('toggleAnimatePhysics')}
                 >
                     Live physics
                 </button>
@@ -248,14 +248,14 @@
                     class="graph-chip"
                     class:active={useCompound}
                     aria-pressed={useCompound}
-                    on:click={() => dispatch('toggleCompound')}
+                    onclick={() => dispatch('toggleCompound')}
                 >
                     Compound
                 </button>
                 {#if useCompound}
                     <label class="graph-control-panel-field">
                         <span class="graph-control-panel-label">Group by</span>
-                        <select class="graph-select" value={compoundBasisId} on:change={handleCompoundBasisChange}>
+                        <select class="graph-select" value={compoundBasisId} onchange={handleCompoundBasisChange}>
                             {#each compoundBasisOptions as option (option.id)}
                                 <option value={option.id}>{option.label}</option>
                             {/each}
@@ -275,12 +275,12 @@
                         max={GRAPH_NODES_HARD_CAP}
                         step="1"
                         value={maxNodes}
-                        on:change={handleMaxNodesChange}
+                        onchange={handleMaxNodesChange}
                     />
                 </label>
                 <label class="graph-control-panel-field">
                     <span class="graph-control-panel-label">Keep by</span>
-                    <select class="graph-select" value={truncationBasis} on:change={handleTruncationBasisChange}>
+                    <select class="graph-select" value={truncationBasis} onchange={handleTruncationBasisChange}>
                         {#each truncationBasisOptions as option (option.id)}
                             <option value={option.id}>{option.label}</option>
                         {/each}
@@ -294,7 +294,7 @@
                     <button
                         type="button"
                         class="graph-control-panel-reset"
-                        on:click={() => dispatch('resetPhysicsSettings')}
+                        onclick={() => dispatch('resetPhysicsSettings')}
                     >
                         Reset
                     </button>
@@ -309,7 +309,7 @@
                         max="0.01"
                         step="0.0001"
                         value={physicsSettings.gravity}
-                        on:input={(event) => emitPhysics('gravity', event)}
+                        oninput={(event) => emitPhysics('gravity', event)}
                     />
                 </label>
                 <label class="graph-control-panel-slider">
@@ -322,7 +322,7 @@
                         max="50000"
                         step="500"
                         value={physicsSettings.repulsion}
-                        on:input={(event) => emitPhysics('repulsion', event)}
+                        oninput={(event) => emitPhysics('repulsion', event)}
                     />
                 </label>
                 <label class="graph-control-panel-slider">
@@ -335,7 +335,7 @@
                         max="0.1"
                         step="0.001"
                         value={physicsSettings.linkStrength}
-                        on:input={(event) => emitPhysics('linkStrength', event)}
+                        oninput={(event) => emitPhysics('linkStrength', event)}
                     />
                 </label>
                 <label class="graph-control-panel-slider">
@@ -348,7 +348,7 @@
                         max="300"
                         step="5"
                         value={physicsSettings.linkDistance}
-                        on:input={(event) => emitPhysics('linkDistance', event)}
+                        oninput={(event) => emitPhysics('linkDistance', event)}
                     />
                 </label>
                 <label class="graph-control-panel-slider">
@@ -361,7 +361,7 @@
                         max="0.95"
                         step="0.05"
                         value={physicsSettings.damping}
-                        on:input={(event) => emitPhysics('damping', event)}
+                        oninput={(event) => emitPhysics('damping', event)}
                     />
                 </label>
             </section>

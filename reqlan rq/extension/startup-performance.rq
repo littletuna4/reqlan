@@ -1,0 +1,123 @@
+import "./activation.rq" as activation
+import "./module/activitybar.rq" as activitybar
+import "../indexer/indexer.rq" as indexer
+import "../development/build.rq" as build
+
+extension_startup_reliability {
+    Reqlan startup must make the activity-bar shell and contributed commands available before optional indexing, parser construction, database initialization, or language-client startup can monopolize the extension host.
+    The implementation contract is [first_paint_contract], [deferred_startup_sequence], [lazy_runtime_dependencies], and [development_bundle_freshness].
+    Operational diagnosis follows [startup_diagnostics].
+    [activation.activation_sequence] [activitybar.loading_state] [indexer.nonblocking_index] [build.extension_bundle]
+    @tests (
+        "../../packages/extension/test/startup-gate.test.ts"
+        "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
+    )
+    @status done
+}
+
+observed_failure {
+    Failure signature:
+    - Reqlan contributes its activity-bar container and header buttons from `package.json`, but the Context view remains on VS Code's built-in spinner before the extension-owned "Loading Reqlan…" shell.
+    - Contributed commands may be visible as menu items yet fail with `command 'reqlan.*' not found`.
+    - The extension-host CPU profile can be mostly idle after the failure.
+    This combination means static manifest contributions loaded but the extension module failed before `activate()` registered command handlers and the webview provider.
+}
+
+invalid_url_activation_failure {
+    The concrete incident failed while requiring `out/extension/main.cjs`, before `activate()` ran:
+    `TypeError: Invalid URL` in `embedPhysicsCoreSource`.
+    Runtime `readFileSync(new URL(..., import.meta.url))` is unsafe when esbuild emits CommonJS for an ES2017 target: `import.meta.url` is unavailable/empty and source-relative assets do not exist beside the bundled entry.
+    The fix generates and imports `PHYSICS_CORE_CLASSIC_SOURCE` at build time instead of resolving the source file at extension runtime.
+    ["../../packages/analytical/src/export/html-export-assets.ts"]
+    ["../../packages/analytical/scripts/generate-physics-core-source.mjs"]
+    @status done
+}
+
+extension_host_process_model {
+    One Node extension-host process for the development window is normal; multiple workers are not required for a healthy Reqlan activation.
+    The language server is a separate child process launched only after extension activation reaches `LanguageClient.start()`.
+    Therefore an idle extension host with no Reqlan language-server child is consistent with an earlier module-load/activation failure, not evidence that a worker is missing.
+}
+
+first_paint_contract {
+    The platform spinner ends only after VS Code loads the host module, calls `activate`, the provider registers, and `resolveWebviewView` assigns HTML.
+    Reqlan assigns the lightweight HTML/Svelte shell first.
+    The webview installs its host message listener, mounts, waits for its first animation frame, then posts the one-shot `ready` signal from a queued task.
+    Index discovery/sync waits for that post-paint signal so synchronous parser or database setup cannot race the first visible frame.
+    [activation.first_paint_startup]
+    ["../../packages/extension/webviews/activity-bar/App.svelte"]
+    ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    ["../../packages/extension/src/extension/startup-gate.ts"]
+    @tests ("../../packages/extension/test/startup-gate.test.ts")
+    @status done
+}
+
+deferred_startup_sequence {
+    Required order:
+    1. Load the smallest practical host entry.
+    2. Synchronously register commands and the activity-bar provider; return from `activate`.
+    3. Assign the activity-bar shell and wait for the post-first-frame `ready` handshake.
+    4. Start index discovery/sync after `ready`; if the sidebar stays closed, start after a bounded three-second fallback so startup indexing and watchers are not lost.
+    5. Start the language client after `ready`, with a one-second fallback so language features work when the sidebar stays closed.
+    6. Report incremental index progress inside the already-painted sidebar.
+    The ready signal and both startup paths are one-shot/idempotent.
+    [activation.background_startup]
+    @status done
+}
+
+lazy_runtime_dependencies {
+    Base discovery must be cheap:
+    - Constructing `WorkspaceIndex` does not construct Langium/Chevrotain services; services are memoized on first parse.
+    - sql.js asm is not parsed as part of `main.cjs`; both index stores dynamically import the generated vendor bundle when a database first opens.
+    - Export/physics source is generated at build time rather than read via extension-runtime URLs.
+    The host bundle consequently fell from approximately 11.2 MB to 2.66 MB; sql.js occupies a separate approximately 8.0 MB lazy vendor bundle.
+    ["../../packages/analytical/src/index-store/workspace-index.ts"]
+    ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+    ["../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
+    ["../../packages/extension/esbuild.mjs"]
+    @tests ("../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    @status done
+}
+
+development_bundle_freshness {
+    F5 executes `package.json.main` (`out/extension/main.cjs`), not TypeScript source.
+    `out/`, generated webview media, and copied syntaxes are gitignored, so launching without a build can run missing or stale artifacts even when source already contains the fix.
+    `.vscode/launch.json` therefore uses a deterministic pre-launch task that invokes the extension build orchestrator directly; root `pnpm run build:ext` delegates to the same script.
+    The task content-fingerprints Langium and physics generation, each webview, packaging media, and extension-host/language-server output; `tsc -b` retains project-reference incrementality. Unchanged artifacts are verified and skipped before the development host opens.
+    Watch mode remains useful during iteration, but concurrent watchers do not restart an already-running extension host or language-server child; stop and start F5 after host/server changes.
+    ["../../.vscode/launch.json"]
+    ["../../.vscode/tasks.json"]
+    @status done
+}
+
+startup_diagnostics {
+    Diagnosis order:
+    1. Read the development extension host's `remoteexthost.log`; find `ExtensionService#_doActivateExtension reqlan.reqlan-extension`.
+    2. Distinguish code-loading time, activate-call time, and activate-resolved time.
+    3. If activation failed, use the first Reqlan stack frame rather than inferring a CPU hang.
+    4. If manifest UI exists but every command is missing, investigate module load / activation before indexing or webview data.
+    5. If the extension-owned "Loading Reqlan…" shell appears, provider resolution succeeded; subsequent delays belong to webview bootstrap or index readiness.
+    6. Confirm `out/extension/main.cjs` is newer than changed source and includes lazy `import("./vendor/sql-asm.cjs")`.
+    CPU-idle profiles do not disprove activation failure: once `require()` throws, the host can remain healthy and mostly idle while Reqlan stays unregistered.
+}
+
+activation_events_learning {
+    Modern VS Code derives activation for contributed views and commands.
+    The incident log explicitly showed activation event `onView:reqlan.activityBar`, so the missing-command failure was not caused by a missing explicit `onView` entry.
+    Activation-event changes should be justified from host logs and target-version behavior, not used to mask a module-load exception.
+}
+
+verification_contract {
+    Startup changes are complete only when:
+    - The production extension build succeeds and emits both `out/extension/main.cjs` and `out/extension/vendor/sql-asm.cjs`.
+    - The main bundle does not contain the sql.js asm implementation and imports the vendor lazily.
+    - The lazy vendor can initialize a database.
+    - Extension startup-gate and analytical lazy-service tests pass.
+    - Activity-bar shell paint is visually checked in a newly restarted F5 development host; activation failures are cached for the lifetime of a failed host session.
+    - Requirement analysis resolves the updated startup graph.
+    @tests (
+        "../../packages/extension/test/startup-gate.test.ts"
+        "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
+    )
+    @status done
+}

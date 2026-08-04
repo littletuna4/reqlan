@@ -191,7 +191,9 @@ describe('Validating', () => {
         `, { validation: true });
 
         expect(document.parseResult.parserErrors).toHaveLength(0);
-        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['later_idea']);
         const syntaxErrors = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes('Invalid syntax: use `import "./example.rq" as example_alias`')
@@ -215,13 +217,40 @@ describe('Validating', () => {
         `, { validation: true });
 
         expect(document.parseResult.parserErrors).toHaveLength(0);
-        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['later_idea']);
         const syntaxErrors = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes('Invalid from-import: expected a quoted path')
         );
         expect(syntaxErrors).toHaveLength(1);
         expect(syntaxErrors[0].range.start.line).toBe(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
+    test('warns on top-level nameless braces without invalidating later ideas', async () => {
+        services = createReqlanServices(EmptyFileSystem);
+        const localParse = parseHelper<Model>(services.Reqlan);
+        const document = await localParse(s`
+            {
+                orphan body
+            }
+
+            later_idea {
+                still reachable
+            }
+        `, { validation: true });
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const warnings = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.severity === 2
+                && typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Nameless idea block')
+        );
+        expect(warnings).toHaveLength(1);
+        expect(document.parseResult.value.elements.some(
+            element => 'name' in element && element.name === 'later_idea'
+        )).toBe(true);
     });
 });
 

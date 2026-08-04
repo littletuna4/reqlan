@@ -28,7 +28,7 @@ indexing_trigger_filesave indexing should be triggered by .rq file create/change
 indexing_trigger_manual indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
 
 indexing_trigger_open {
-    On application open / base activate, run one soft sync (mtime-skipped) so the index is warm.
+    After the activity bar's first painted frame / base activate, run one soft sync (mtime-skipped) so the index is warm without delaying the sidebar shell.
     This is a startup pass — not the idle checker ([indexing_trigger_auto]).
 }
 

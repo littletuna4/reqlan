@@ -12,9 +12,12 @@ import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
 import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js';
 import { registerOnboardingCommands } from './register-onboarding-commands.js';
+import { StartupGate } from './startup-gate.js';
 import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analytical_submodule/index.js';
 
 let client: LanguageClient | undefined;
+const LANGUAGE_CLIENT_FALLBACK_DELAY_MS = 1_000;
+const INDEX_STARTUP_FALLBACK_DELAY_MS = 3_000;
 
 // This function is called when the extension is activated.
 //
@@ -37,15 +40,16 @@ export function activate(context: vscode.ExtensionContext): void {
     runStep('reference code lens', () => registerReferenceCodeLens(context));
     runStep('onboarding commands', () => registerOnboardingCommands(context));
 
+    const activityBarPainted = new StartupGate();
     let submodule: AnalyticalSubmodule | undefined;
     runStep('analytical submodule', () => {
-        submodule = activateAnalyticalSubmodule(context);
+        submodule = activateAnalyticalSubmodule(context, () => activityBarPainted.signal());
         registerImportErrorCommands(context, submodule.index);
     });
 
     if (submodule) {
         runStep('background startup scheduling', () =>
-            scheduleBackgroundStartup(context, submodule as AnalyticalSubmodule)
+            scheduleBackgroundStartup(context, submodule as AnalyticalSubmodule, activityBarPainted)
         );
     }
 
@@ -69,29 +73,25 @@ let backgroundStartupStarted = false;
  * Start the workspace index and language server without blocking activation.
  *
  * This is the single entry point for all potentially non-trivial initialisation.
- * The extension activates via `onStartupFinished` (and other events) with only
- * light, synchronous registration in `activate()`; the heavy work is deferred
- * here to a macrotask so `activate()` returns first and VS Code can resolve the
- * activity bar view and register commands before any (potentially blocking)
- * discovery/indexing work runs. Indexing is incremental and surfaces its own
- * progress through the index status events the sidebar listens to, so it is
- * visible rather than a silent gate. No task started here should be onerous.
+ * The language client starts on a later tick after `activate()` returns. Index
+ * discovery waits for the webview's post-paint ready signal. When the sidebar
+ * stays closed, bounded fallbacks preserve normal language/index startup.
  *
  * Idempotent: only the first call schedules startup.
  */
 function scheduleBackgroundStartup(
     context: vscode.ExtensionContext,
-    submodule: AnalyticalSubmodule
+    submodule: AnalyticalSubmodule,
+    activityBarPainted: StartupGate
 ): void {
     if (backgroundStartupStarted) {
         return;
     }
     backgroundStartupStarted = true;
-    setTimeout(() => {
-        void submodule.index.activate(context).catch(error => {
-            console.error('[reqlan] Index activation failed:', error);
-        });
-
+    const languageClientStartGate = activityBarPainted.waitOrTimeout(
+        LANGUAGE_CLIENT_FALLBACK_DELAY_MS
+    );
+    void languageClientStartGate.then(() => {
         void startLanguageClient(context)
             .then(started => {
                 client = started;
@@ -104,7 +104,15 @@ function scheduleBackgroundStartup(
             .catch(error => {
                 console.error('[reqlan] Language client failed to start:', error);
             });
-    }, 0);
+    });
+
+    void activityBarPainted.waitOrTimeout(INDEX_STARTUP_FALLBACK_DELAY_MS).then(() => {
+        setTimeout(() => {
+            void submodule.index.activate(context).catch(error => {
+                console.error('[reqlan] Index activation failed:', error);
+            });
+        }, 0);
+    });
 }
 
 // This function is called when the extension is deactivated.

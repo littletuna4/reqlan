@@ -134,6 +134,165 @@ a.pill:hover { color: var(--accent-strong); border-color: color-mix(in srgb, var
     flex: 1 1 180px;
     min-width: 160px;
 }
+.scd {
+    position: relative;
+    flex: 1 1 180px;
+    min-width: 160px;
+}
+.scd-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 2.35rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg-soft);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.scd.is-open .scd-trigger,
+.scd-trigger:hover {
+    border-color: var(--accent-dim);
+}
+.scd.has-selection .scd-trigger {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.scd.is-searching .scd-trigger {
+    border-color: var(--line);
+}
+.scd.is-loading .scd-trigger {
+    opacity: 0.72;
+}
+.scd-trigger-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.scd-chevron {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    opacity: 0.7;
+    flex: 0 0 auto;
+}
+.scd.is-open .scd-chevron { transform: rotate(180deg); }
+.scd-panel {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: auto;
+    width: max(100%, 15rem);
+    max-width: min(20rem, 80vw);
+    max-height: 18rem;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg-elev);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+/* Author display:flex overrides the UA [hidden] rule; keep closed panels invisible. */
+.scd-panel[hidden] {
+    display: none;
+}
+.scd-search-row {
+    display: flex;
+    gap: 0.45rem;
+    padding: 0.65rem;
+    border-bottom: 1px solid var(--line);
+    opacity: 0.72;
+}
+.scd-search-row.is-active { opacity: 1; }
+.scd-search {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4rem 0.55rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    color: var(--muted);
+    font: inherit;
+}
+.scd.is-searching .scd-search,
+.scd-search:focus {
+    border-color: var(--accent-dim);
+    background: var(--bg);
+    color: var(--fg);
+    outline: none;
+}
+.scd-clear {
+    border: none;
+    background: transparent;
+    color: var(--accent-strong);
+    font: inherit;
+    cursor: pointer;
+}
+.scd-list {
+    overflow: auto;
+    padding: 0.25rem 0 0.55rem;
+}
+.scd-group-label {
+    padding: 0.55rem 0.85rem 0.25rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.scd-option {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.85rem;
+    cursor: pointer;
+    color: var(--fg);
+}
+.scd-option:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.scd-option input { margin: 0; }
+.scd-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.scd-option-count {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85em;
+    color: var(--muted);
+    opacity: 0.65;
+}
+.scd-option.is-special .scd-option-label { font-style: italic; }
+.scd-option.is-not-present .scd-option-label { color: var(--faint); }
+.scd-option.is-empty .scd-option-label { color: var(--accent-strong); }
+.scd-option.is-unspecified .scd-option-label { color: var(--rust-muted); }
+.scd-empty {
+    margin: 0;
+    padding: 0.85rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+.rollup-list .rollup-special dt {
+    font-style: italic;
+}
+.rollup-list .rollup-not-present dt {
+    color: var(--faint);
+}
+.rollup-list .rollup-empty dt {
+    color: var(--accent-strong);
+}
+.rollup-list .rollup-unspecified dt {
+    color: var(--rust-muted);
+}
 .graph-action {
     border: 1px solid var(--line);
     background: var(--bg-soft);
@@ -276,6 +435,37 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     background: linear-gradient(90deg, var(--accent-dim), var(--accent-strong));
     min-width: 0;
 }
+.graph-root {
+    position: relative;
+    min-height: 620px;
+}
+.graph-root.is-booting {
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+}
+.graph-boot {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--muted);
+}
+.graph-boot p { margin: 0; }
+.graph-boot-spinner {
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+    border-top-color: var(--accent-strong);
+    border-radius: 50%;
+    animation: graph-boot-spin 0.7s linear infinite;
+}
+@keyframes graph-boot-spin {
+    to { transform: rotate(360deg); }
+}
 .graph-root canvas {
     display: block;
     width: 100%;
@@ -397,6 +587,267 @@ async function loadSearchIndex(root) {
 
 function lower(value) {
     return String(value || '').toLowerCase();
+}
+
+function mountSearchableCheckboxDropdown(host, onChange) {
+    if (!host) {
+        return {
+            getSelected: () => [],
+            clear: () => undefined,
+            setOnChange: () => undefined
+        };
+    }
+    if (host.__scdApi) {
+        host.__scdApi.setOnChange(onChange);
+        return host.__scdApi;
+    }
+    let options = [];
+    try {
+        options = JSON.parse(host.dataset.options || '[]');
+    } catch {
+        options = [];
+    }
+    const label = host.dataset.label || 'Filter';
+    const placeholder = host.dataset.placeholder || 'Search…';
+    let selected = new Set();
+    let open = false;
+    let searching = false;
+    let query = '';
+    let panel = null;
+    let search = null;
+    let searchRow = null;
+    let clearBtn = null;
+    let list = null;
+    let listenersBound = false;
+    let changeHandler = onChange;
+
+    let trigger = host.querySelector('.scd-trigger');
+    let triggerLabel = host.querySelector('.scd-trigger-label');
+    if (!trigger) {
+        trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'scd-trigger';
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        triggerLabel = document.createElement('span');
+        triggerLabel.className = 'scd-trigger-label';
+        const chevron = document.createElement('span');
+        chevron.className = 'scd-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        trigger.append(triggerLabel, chevron);
+        host.appendChild(trigger);
+    }
+    if (!trigger.querySelector('.scd-chevron')) {
+        const chevron = document.createElement('span');
+        chevron.className = 'scd-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        trigger.appendChild(chevron);
+    }
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-busy', 'false');
+    host.classList.remove('is-loading');
+    host.dataset.scdReady = '1';
+
+    function emitChange() {
+        changeHandler?.([...selected]);
+    }
+
+    function syncTrigger() {
+        const values = [...selected];
+        host.dataset.selected = JSON.stringify(values);
+        host.classList.toggle('has-selection', values.length > 0);
+        if (!triggerLabel) return;
+        if (values.length === 0) triggerLabel.textContent = label;
+        else if (values.length === 1) {
+            const match = options.find(option => option.value === values[0]);
+            triggerLabel.textContent = match?.label || values[0];
+        } else triggerLabel.textContent = \`\${values.length} selected\`;
+        if (clearBtn) clearBtn.hidden = values.length === 0;
+    }
+
+    function setSearching(next) {
+        searching = next;
+        host.classList.toggle('is-searching', searching);
+        if (searchRow) searchRow.classList.toggle('is-active', searching);
+    }
+
+    function endSearching() {
+        query = '';
+        if (search) search.value = '';
+        setSearching(false);
+        if (search && document.activeElement === search) search.blur();
+    }
+
+    function ensurePanel() {
+        if (panel) return;
+        panel = document.createElement('div');
+        panel.className = 'scd-panel';
+        panel.hidden = true;
+        panel.setAttribute('role', 'listbox');
+        panel.setAttribute('aria-multiselectable', 'true');
+        panel.setAttribute('aria-label', label);
+
+        searchRow = document.createElement('div');
+        searchRow.className = 'scd-search-row';
+        search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'scd-search';
+        search.placeholder = placeholder;
+        search.setAttribute('aria-label', \`Search \${label}\`);
+        clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'scd-clear';
+        clearBtn.textContent = 'Clear';
+        clearBtn.hidden = true;
+        searchRow.append(search, clearBtn);
+
+        list = document.createElement('div');
+        list.className = 'scd-list';
+        panel.append(searchRow, list);
+        host.appendChild(panel);
+
+        search.addEventListener('focus', () => setSearching(true));
+        search.addEventListener('blur', () => {
+            if (!query.trim()) setSearching(false);
+        });
+        search.addEventListener('input', () => {
+            query = search.value;
+            if (query.trim()) setSearching(true);
+            renderList();
+        });
+        clearBtn.addEventListener('click', () => {
+            selected.clear();
+            syncTrigger();
+            renderList();
+            emitChange();
+        });
+    }
+
+    function renderList() {
+        if (!list) return;
+        const needle = lower(query.trim());
+        const visible = options.filter(option => !needle || lower(option.label).includes(needle));
+        list.innerHTML = '';
+        if (visible.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'scd-empty';
+            empty.textContent = 'No matches';
+            list.appendChild(empty);
+            return;
+        }
+        let lastGroup = '';
+        for (const option of visible) {
+            const group = option.special ? 'Special' : label;
+            if (group !== lastGroup) {
+                const groupLabel = document.createElement('div');
+                groupLabel.className = 'scd-group-label';
+                groupLabel.textContent = group;
+                list.appendChild(groupLabel);
+                lastGroup = group;
+            }
+            const row = document.createElement('label');
+            row.className = 'scd-option';
+            if (option.kind) row.classList.add(\`is-\${option.kind}\`);
+            if (option.special) row.classList.add('is-special');
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = selected.has(option.value);
+            box.addEventListener('change', () => {
+                if (box.checked) selected.add(option.value);
+                else selected.delete(option.value);
+                syncTrigger();
+                emitChange();
+            });
+            const text = document.createElement('span');
+            text.className = 'scd-option-label';
+            text.textContent = option.label;
+            row.append(box, text);
+            if (typeof option.count === 'number') {
+                const count = document.createElement('span');
+                count.className = 'scd-option-count';
+                count.textContent = String(option.count);
+                row.appendChild(count);
+            }
+            list.appendChild(row);
+        }
+    }
+
+    function onDocPointerDown(event) {
+        if (!open) return;
+        if (!host.contains(event.target)) setOpen(false);
+    }
+
+    function onKeyDown(event) {
+        if (event.key !== 'Escape' || !open) return;
+        if (searching || query.trim()) {
+            endSearching();
+            renderList();
+            event.stopPropagation();
+            return;
+        }
+        setOpen(false);
+    }
+
+    function onPeerOpen(event) {
+        if (!open) return;
+        if (event.detail?.source && event.detail.source !== host) setOpen(false);
+    }
+
+    function bindListeners() {
+        if (listenersBound) return;
+        document.addEventListener('pointerdown', onDocPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('reqlan-scd-open', onPeerOpen);
+        listenersBound = true;
+    }
+
+    function unbindListeners() {
+        if (!listenersBound) return;
+        document.removeEventListener('pointerdown', onDocPointerDown);
+        document.removeEventListener('keydown', onKeyDown);
+        document.removeEventListener('reqlan-scd-open', onPeerOpen);
+        listenersBound = false;
+    }
+
+    function setOpen(next) {
+        open = next;
+        host.classList.toggle('is-open', open);
+        if (open) {
+            ensurePanel();
+            panel.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
+            setSearching(false);
+            renderList();
+            bindListeners();
+            document.dispatchEvent(new CustomEvent('reqlan-scd-open', { detail: { source: host } }));
+        } else {
+            if (panel) panel.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+            endSearching();
+            unbindListeners();
+        }
+    }
+
+    trigger.addEventListener('click', () => setOpen(!open));
+    syncTrigger();
+    const api = {
+        getSelected: () => [...selected],
+        clear: () => {
+            selected.clear();
+            syncTrigger();
+            if (open) renderList();
+        },
+        setOnChange: (fn) => {
+            changeHandler = fn;
+        }
+    };
+    host.__scdApi = api;
+    return api;
+}
+
+function enhanceScdPlaceholders(root) {
+    for (const host of root.querySelectorAll('[data-graph-status-scd], [data-graph-tag-scd]')) {
+        mountSearchableCheckboxDropdown(host, null);
+    }
 }
 
 function scoreDocument(doc, query) {
@@ -643,6 +1094,10 @@ const GRAPH_NODE_RADIUS = 7;
 const GRAPH_SUBJECT_RADIUS = 10;
 const GRAPH_LABEL_MAX_WIDTH = 132;
 const GRAPH_HIT_PAD = 6;
+// Auto-mode opacity ramp: fully hidden below START, fully opaque at END (brief muted band between).
+const GRAPH_LABEL_FADE_START = 0.62;
+const GRAPH_LABEL_FADE_END = 0.82;
+const GRAPH_LABEL_MODES = ['auto', 'on', 'off'];
 
 function wireGraph(root) {
     const graphRoots = root.querySelectorAll('[data-graph-json]');
@@ -661,21 +1116,37 @@ function wireGraph(root) {
             controls = document.createElement('div');
             controls.className = 'graph-controls-bar';
             controls.dataset.graphControls = scriptId;
-            controls.innerHTML = '<button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button><button type="button" class="graph-action" data-graph-fit>Fit</button><span class="graph-status" data-graph-status-text></span>';
+            controls.innerHTML = '<button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button><button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button><button type="button" class="graph-action" data-graph-fit>Fit</button><span class="graph-status" data-graph-status-text></span>';
             element.parentElement?.insertBefore(controls, element);
         }
         const searchInput = controls.querySelector('[data-graph-search]');
         const pathInput = controls.querySelector('[data-graph-path]');
-        const statusSelect = controls.querySelector('[data-graph-status]');
-        const tagSelect = controls.querySelector('[data-graph-tag]');
+        const statusHost = controls.querySelector('[data-graph-status-scd]');
+        const tagHost = controls.querySelector('[data-graph-tag-scd]');
         const toggleExternal = controls.querySelector('[data-graph-toggle-external]');
         const toggleIdeasets = controls.querySelector('[data-graph-toggle-ideasets]');
+        const toggleLabels = controls.querySelector('[data-graph-toggle-labels]');
         const togglePhysics = controls.querySelector('[data-graph-toggle-physics]');
         const fitButton = controls.querySelector('[data-graph-fit]');
         const resetButton = controls.querySelector('[data-graph-reset]');
         const statusText = controls.querySelector('[data-graph-status-text]');
+        if (statusText) statusText.textContent = 'Initialising graph…';
+        element.classList.add('is-booting');
         let hideExternal = false;
         let hideIdeasets = false;
+        let labelMode = 'auto';
+        let statusSelected = [];
+        let tagSelected = [];
+        const statusFilter = mountSearchableCheckboxDropdown(statusHost, (values) => {
+            statusSelected = values;
+            refresh();
+        });
+        const tagFilter = mountSearchableCheckboxDropdown(tagHost, (values) => {
+            tagSelected = values;
+            refresh();
+        });
+        statusSelected = statusFilter.getSelected();
+        tagSelected = tagFilter.getSelected();
         let livePhysics = false;
         let animationFrame = 0;
         let calmTicks = 0;
@@ -796,12 +1267,30 @@ function wireGraph(root) {
                 minX = Math.min(minX, pos.x - r);
                 minY = Math.min(minY, pos.y - r);
                 maxX = Math.max(maxX, pos.x + r);
-                maxY = Math.max(maxY, pos.y + r + 54);
+                // Reserve label space only when labels are forced on; auto hides when fitted/zoomed out.
+                maxY = Math.max(maxY, pos.y + r + (labelMode === 'on' ? 54 : 0));
             }
             if (!Number.isFinite(minX)) {
                 return { minX: 0, minY: 0, maxX: 1200, maxY: 640 };
             }
             return { minX, minY, maxX, maxY };
+        }
+
+        function syncLabelsButton() {
+            if (!toggleLabels) return;
+            const label = labelMode === 'auto' ? 'Labels: auto' : labelMode === 'on' ? 'Labels: on' : 'Labels: off';
+            toggleLabels.textContent = label;
+            toggleLabels.dataset.labelMode = labelMode;
+            toggleLabels.classList.toggle('is-active', labelMode !== 'off');
+            toggleLabels.setAttribute('aria-pressed', labelMode === 'auto' ? 'mixed' : labelMode === 'on' ? 'true' : 'false');
+        }
+
+        function labelOpacityAtScale(scale) {
+            if (labelMode === 'on') return 1;
+            if (labelMode === 'off') return 0;
+            if (scale <= GRAPH_LABEL_FADE_START) return 0;
+            if (scale >= GRAPH_LABEL_FADE_END) return 1;
+            return (scale - GRAPH_LABEL_FADE_START) / (GRAPH_LABEL_FADE_END - GRAPH_LABEL_FADE_START);
         }
 
         function fitView(force = false) {
@@ -900,6 +1389,7 @@ function wireGraph(root) {
             ctx.fillRect(0, 0, cssWidth, cssHeight);
 
             const { scale, offsetX, offsetY } = viewportTransform();
+            const ambientLabelOpacity = labelOpacityAtScale(scale);
             ctx.save();
             ctx.translate(offsetX, offsetY);
             ctx.scale(scale, scale);
@@ -941,6 +1431,9 @@ function wireGraph(root) {
                 ctx.strokeStyle = nodeStroke(node, hover);
                 ctx.stroke();
 
+                // Auto: continuous opacity from zoom; hovered/dragged nodes stay fully opaque.
+                const labelOpacity = hover && labelMode === 'auto' ? 1 : ambientLabelOpacity;
+                if (labelOpacity <= 0) continue;
                 const meta = formatNodeMeta(node);
                 const attrs = formatNodeAttrs(node);
                 const nameFont = isSubject ? '600 11px Inter, system-ui, sans-serif' : '600 10px Inter, system-ui, sans-serif';
@@ -949,6 +1442,8 @@ function wireGraph(root) {
                 const metaLines = wrapLines(meta, GRAPH_LABEL_MAX_WIDTH, metaFont);
                 const attrLines = wrapLines(attrs, GRAPH_LABEL_MAX_WIDTH, metaFont);
                 let ty = pos.y + r + 12;
+                ctx.save();
+                ctx.globalAlpha = labelOpacity;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
                 ctx.fillStyle = isSubject ? '#0bbefb' : '#ebe4de';
@@ -971,6 +1466,7 @@ function wireGraph(root) {
                     ctx.fillText(line, pos.x, ty);
                     ty += 11;
                 }
+                ctx.restore();
             }
             ctx.restore();
         }
@@ -1063,6 +1559,7 @@ function wireGraph(root) {
             canvas.setAttribute('aria-label', \`Requirement graph with \${filteredNodes.length} nodes\`);
             ctx = canvas.getContext('2d');
             element.innerHTML = '';
+            element.classList.remove('is-booting');
             element.appendChild(canvas);
             resizeCanvas();
             wireViewport(canvas);
@@ -1197,17 +1694,24 @@ function wireGraph(root) {
         }
 
         function matches(node) {
+            const FILTER_NOT_PRESENT = '__not_present__';
             const query = lower(searchInput?.value?.trim());
             const pathQuery = lower(pathInput?.value?.trim());
-            const statusQuery = lower(statusSelect?.value?.trim());
-            const tagQuery = lower(tagSelect?.value?.trim());
             if (hideExternal && node.isExternal) return false;
             if (hideIdeasets && node.kind === 'ideaset') return false;
             const haystack = [node.name, node.kind, node.fileUri, node.status || '', ...(node.tags || [])].map(lower).join(' ');
             if (query && !haystack.includes(query)) return false;
             if (pathQuery && !lower(node.fileUri).includes(pathQuery)) return false;
-            if (statusQuery && lower(node.status || '') !== statusQuery) return false;
-            if (tagQuery && !(node.tags || []).some(tag => lower(tag) === tagQuery)) return false;
+            if (statusSelected.length) {
+                const key = node.statusKey || (String(node.status || '').trim() ? String(node.status).trim() : FILTER_NOT_PRESENT);
+                if (!statusSelected.includes(key)) return false;
+            }
+            if (tagSelected.length) {
+                const keys = Array.isArray(node.tagsKeys) && node.tagsKeys.length
+                    ? node.tagsKeys
+                    : (Array.isArray(node.tags) && node.tags.length ? node.tags : [FILTER_NOT_PRESENT]);
+                if (!tagSelected.some(value => keys.includes(value))) return false;
+            }
             return true;
         }
 
@@ -1220,7 +1724,7 @@ function wireGraph(root) {
             mountGraph(visibleNodes, visibleEdges);
         }
 
-        for (const control of [searchInput, pathInput, statusSelect, tagSelect]) {
+        for (const control of [searchInput, pathInput]) {
             control?.addEventListener('input', refresh);
             control?.addEventListener('change', refresh);
         }
@@ -1235,6 +1739,12 @@ function wireGraph(root) {
             toggleIdeasets.classList.toggle('is-active', hideIdeasets);
             toggleIdeasets.textContent = hideIdeasets ? 'Show ideasets' : 'Hide ideasets';
             refresh();
+        });
+        toggleLabels?.addEventListener('click', () => {
+            const index = GRAPH_LABEL_MODES.indexOf(labelMode);
+            labelMode = GRAPH_LABEL_MODES[(index + 1) % GRAPH_LABEL_MODES.length];
+            syncLabelsButton();
+            paint();
         });
         togglePhysics?.addEventListener('click', () => {
             livePhysics = !livePhysics;
@@ -1254,12 +1764,16 @@ function wireGraph(root) {
         resetButton?.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
             if (pathInput) pathInput.value = '';
-            if (statusSelect) statusSelect.value = '';
-            if (tagSelect) tagSelect.value = '';
+            statusSelected = [];
+            tagSelected = [];
+            statusFilter.clear();
+            tagFilter.clear();
             hideExternal = false;
             hideIdeasets = false;
+            labelMode = 'auto';
             toggleExternal?.classList.remove('is-active');
             toggleIdeasets?.classList.remove('is-active');
+            syncLabelsButton();
             if (toggleExternal) toggleExternal.textContent = 'Hide external';
             if (toggleIdeasets) toggleIdeasets.textContent = 'Hide ideasets';
             positions.clear();
@@ -1268,12 +1782,15 @@ function wireGraph(root) {
             userViewport = false;
             refresh();
         });
+        syncLabelsButton();
         refresh();
     }
 }
 
 function boot() {
     const root = document.body;
+    // Interactive Status/Tags triggers before heavy table/graph init.
+    enhanceScdPlaceholders(root);
     wireTables(root);
     wireGraph(root);
     void wireGlobalSearch(root);

@@ -14,7 +14,7 @@ export interface TabConfig {
     label: string;
 }
 
-/** Tab order per ontology_aligned_tabs — Index last (developer page). */
+/** Tab order per ontology_aligned_tabs — Index last (index health). */
 export const TABS: TabConfig[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'bases', label: 'Bases' },

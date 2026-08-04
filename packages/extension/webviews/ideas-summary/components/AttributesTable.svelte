@@ -15,12 +15,14 @@
 
     const app = getApp();
 
-    let filtersOpen = false;
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    let filtersOpen = $state(false);
 
-    $: query = app.attributes.query;
-    $: rows = app.attributes.rows;
-    $: total = app.attributes.total;
-    $: visibleColumns = app.tableUi.attributes.visibleColumns;
+    const query = $derived(app.attributes.query);
+    const rows = $derived(app.attributes.rows);
+    const total = $derived(app.attributes.total);
+    const visibleColumns = $derived(app.tableUi.attributes.visibleColumns);
 
     const columnOptions = [
         { id: 'key', label: 'Key' },
@@ -104,12 +106,12 @@
     </thead>
     <tbody>
         {#each rows as row (row.key)}
-            <tr class="clickable" on:click={() => openInIdeas(row.key)}>
+            <tr class="clickable" onclick={() => openInIdeas(row.key)}>
                 {#if show('key')}<td>{row.key}</td>{/if}
                 {#if show('ideaCount')}<td>{row.ideaCount}</td>{/if}
                 {#if show('valueCount')}<td>{row.valueCount}</td>{/if}
                 {#if show('sampleValues')}
-                    <td on:click|stopPropagation>
+                    <td onclick={(event) => event.stopPropagation()}>
                         <ChipList items={row.sampleValues} emptyLabel="—" />
                     </td>
                 {/if}

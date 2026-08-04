@@ -54,7 +54,7 @@
                         placeholder="Filter {col.label}…"
                         aria-label="Filter {col.label}"
                         value={filterFor(col.column)?.text ?? ''}
-                        on:input={(event) => setText(col.column, (event.currentTarget as HTMLInputElement).value)}
+                        oninput={(event) => setText(col.column, (event.currentTarget as HTMLInputElement).value)}
                     />
                 {:else}
                     <select
@@ -62,7 +62,7 @@
                         aria-label="Filter {col.label}"
                         multiple={col.multiple}
                         size={col.multiple ? Math.min(4, (col.options?.length ?? 0) + 1) : undefined}
-                        on:change={(event) => handleSelectChange(col.column, Boolean(col.multiple), event)}
+                        onchange={(event) => handleSelectChange(col.column, Boolean(col.multiple), event)}
                     >
                         {#if !col.multiple}
                             <option value="">All</option>

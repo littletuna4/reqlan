@@ -242,6 +242,19 @@ next_idea still here`);
         ]);
     });
 
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".context_sensitive_lexer_scaling]
+    test('parses a large import prelude without repeated full-document brace scans', async () => {
+        const imports = Array.from(
+            { length: 1_000 },
+            (_, index) => `import "./module-${index}.rq" as module_${index}`
+        );
+        const document = await parse(`${imports.join('\n')}\n\nroot_requirement body`);
+
+        expect(document.parseResult.lexerErrors).toHaveLength(0);
+        expect(document.parseResult.parserErrors).toHaveLength(0);
+        expect(document.parseResult.value.imports).toHaveLength(1_000);
+    });
+
     // rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
     test('malformed from-as import keeps later ideas parseable', async () => {
         const document = await parse(`from "../../../x.ts" as application_memory_impl
@@ -256,7 +269,9 @@ idea_index_triggers {
 }
 `);
         expect(document.parseResult.parserErrors).toHaveLength(0);
-        expect(document.parseResult.value.elements.map(element => element.name)).toEqual([
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual([
             'application_memory',
             'idea_index_triggers'
         ]);
@@ -273,7 +288,9 @@ idea_index_triggers {
 later_idea body text
 `);
         expect(document.parseResult.parserErrors).toHaveLength(0);
-        expect(document.parseResult.value.elements.map(element => element.name)).toEqual(['later_idea']);
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['later_idea']);
         expect(document.parseResult.value.imports.some(entry => entry.$type === 'InvalidFromImport')).toBe(true);
     });
 
@@ -479,6 +496,41 @@ second_idea line two`);
     }
 }`);
         expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    test('treats fenced TypeScript braces as opaque for surrounding structure', async () => {
+        const document = await parse(`demo {
+    @example {
+        \`\`\`ts
+        export async function login(email: string, password: string) {
+          if (!password) throw new Error("empty password");
+        }
+        \`\`\`
+    }
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['demo']);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
+    test('parses top-level nameless braces without aborting later ideas', async () => {
+        const document = await parse(`{
+    orphan body
+}
+
+later_idea {
+    still reachable
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        expect(document.parseResult.value.elements.map(element => element.$type)).toEqual([
+            'AnonymousBlock',
+            'Idea'
+        ]);
+        const later = document.parseResult.value.elements.find(isIdea);
+        expect(later?.name).toBe('later_idea');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".lists]
@@ -715,7 +767,9 @@ my_multi_line_idea_with_appostrophe {
     test('parse features-syntax.rq', async () => {
         const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
-        expect(document.parseResult.value.elements.map(element => element.name)).toContain('sensible_alias_support');
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toContain('sensible_alias_support');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]

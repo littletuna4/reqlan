@@ -48,9 +48,16 @@
     let statusText = $derived(
         loading ? 'Loading graph…' :
         displayError ? displayError :
-        rendering ? 'Rendering graph…' :
-        !slice ? 'Waiting for graph' :
+        rendering ? 'Initialising graph…' :
+        !slice ? 'Waiting for graph…' :
+        !controller ? 'Initialising graph…' :
         ''
+    );
+    let showGraphBoot = $derived(
+        Boolean(displayError) ||
+        !controller ||
+        rendering ||
+        (!slice && Boolean(statusText))
     );
 
     function queueSync(reason: string): void {
@@ -160,8 +167,22 @@
     {/if}
 </div>
 
-<div class="graph-surface" bind:this={container}>
-    {#if !loading && !displayError && slice && slice.nodes.length === 0}
+<div class="graph-surface-wrap" class:is-booting={showGraphBoot}>
+    <div class="graph-surface" bind:this={container}></div>
+    {#if showGraphBoot}
+        <div
+            class="graph-boot"
+            class:is-error={Boolean(displayError)}
+            role="status"
+            aria-live="polite"
+            aria-busy={!displayError}
+        >
+            {#if !displayError}
+                <span class="graph-boot-spinner" aria-hidden="true"></span>
+            {/if}
+            <p>{statusText}</p>
+        </div>
+    {:else if !displayError && slice && slice.nodes.length === 0}
         <div class="graph-empty">No nodes in this neighbourhood.</div>
     {/if}
 </div>

@@ -6,9 +6,18 @@ export_webview {
     The extension should provide a single export webview for exporting the requirement graph in various formats ([json_export], [csv_export], [html_export.html_export], and later formats such as pdf).
     This generalizes the current HTML-only [html_export.html_export_form]: format choice is primary, and format-specific options (e.g. HTML runtime mode, template, page families) appear when that format is selected.
     Shared options: scope, output folder, and export name; defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/`.
+    While an export runs, the form should show a loading state with live progress (phase message and, when known, completed/total or percent) so the user can see HTML (and other formats) being built — not only a disabled button.
     The user should be able to open it from:
       - a link/control in the main [ideas_summary] chrome (status bar or header)
       - the [command_palette]
+    @status partial
+    @implementation (
+        ["../../packages/extension/src/analytical_submodule/export/export-form-panel.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-form-messages.ts"]
+        ["../../packages/extension/webviews/export-form/"]
+        ["../../packages/analytical/src/export/export-html.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+    )
 }
 
 json_export {

@@ -208,8 +208,9 @@ code_snippets {
     An opening fence is three backticks on a line, optionally followed by a language tag such as python or rq.
     A closing fence is three backticks on a line.
     Everything between the fences is literal opaque text — it is not parsed as reqlan syntax.
-    Keywords, imports, attributes, and quotes inside a fence are inert for the parser and may be shown as examples without parse errors.
+    Keywords, imports, attributes, braces, and quotes inside a fence are inert for the parser and may be shown as examples without parse errors.
     Fenced blocks may span multiple lines and preserve their inner content verbatim.
+    Brace-depth tracking must skip fence interiors so example braces cannot desync surrounding structure ([no_name_idea_safe_warning]).
 
     @example {
         ```python
@@ -221,6 +222,7 @@ code_snippets {
         ["../../packages/language/test/parsing.test.ts:parse code snippet in block idea"]
         ["../../packages/language/test/parsing.test.ts:parse fenced code block in attribute value"]
         ["../../packages/language/test/parsing.test.ts:treats fenced rq example as opaque text"]
+        ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
     )
 }
 
@@ -298,10 +300,32 @@ references_to_subidea {
     It should be acceptable to reference [example_ideaset.subidea1]
 }
 
+no_name_idea_safe_warning {
+    A top-level nameless curly-brace block — `{ ... }` with no idea name — must not take down the parser or the language server workspace.
+    Parse the block as a recoverable anonymous top-level element, emit a descriptive warning that a name is required before `{`, and continue so later ideas, imports, and links still work.
+    Nameless blocks inside parenthesized lists remain valid list items per [lists]; only top-level nameless blocks warn.
+    Related recovery posture: ["./imports.rq".import_error_recovery]. Block shape: [block_idea]. Fenced examples must stay opaque per [code_snippets] so braces inside snippets cannot desync structural depth.
+    Non-termination (lex/parse never finishes) is a different failure mode: ["./parser_lexer.rq".parse_budget_timeout].
+
+    @status done
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses top-level nameless braces without aborting later ideas"]
+        ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
+        ["../../packages/language/test/validating.test.ts:warns on top-level nameless braces without invalidating later ideas"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+        ["../../packages/language/src/reqlan-workspace-manager.ts"]
+    )
+}
 
 dash-or_undersore_delimited-idea it should be possible to use dash or underscore delimited idea names.
 
 name_only_ideas_it_should_be_possible_to_use_name_only_ideas_without_a_body
+
+
 
 //--- syntax 2 brainstorming ---
 /*
@@ -343,6 +367,5 @@ idea4 {
 
 idea5 {
     hello
-    
 }
 */

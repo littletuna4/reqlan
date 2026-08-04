@@ -9,6 +9,7 @@
             "name": "Run Extension",
             "type": "extensionHost",
             "request": "launch",
+            "preLaunchTask": "Build extension for debugging",
             "args": [
                 // Cursor ignores --user-data-dir and --profile-temp for extensionHost launches;
                 // the dev host shares globalState with your main profile. Onboarding resets in

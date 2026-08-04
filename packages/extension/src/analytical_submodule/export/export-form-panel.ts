@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { basename } from 'node:path';
 import {
     exportHtml,
+    type ExportProgress,
     type ExportRequest
 } from '@reqlan/analytical';
 import type { AnalyticalSubmodule } from '../index.js';
@@ -229,13 +230,35 @@ export class ExportFormPanel {
         this.persistSettings(settings, false);
         this.exporting = true;
         this.post({ type: 'exportStarted' });
+        this.post({
+            type: 'exportProgress',
+            phase: 'prepare',
+            message: 'Preparing export…',
+        });
 
         try {
             if (!this.submodule.index.isReady) {
+                this.post({
+                    type: 'exportProgress',
+                    phase: 'prepare',
+                    message: 'Syncing workspace index…',
+                });
                 await this.submodule.index.syncWorkspace();
             }
             const request = toExportRequest(settings, workspaceRoot, this.activeRqDocument());
-            const result = await exportHtml(this.submodule.index.indexStore, request);
+            const result = await exportHtml(
+                this.submodule.index.indexStore,
+                request,
+                (progress: ExportProgress) => {
+                    this.post({
+                        type: 'exportProgress',
+                        phase: progress.phase,
+                        message: progress.message,
+                        completed: progress.completed,
+                        total: progress.total,
+                    });
+                },
+            );
             await vscode.env.openExternal(vscode.Uri.file(result.indexFilePath));
             this.post({
                 type: 'exportFinished',
@@ -305,6 +328,7 @@ function toExportRequest(
         includeAttributePages: settings.includeAttributePages,
         includePrintPages: settings.includePrintPages,
         excludeSecretFiles: settings.excludeSecretFiles,
+        excludeIgnoredFiles: settings.excludeIgnoredFiles,
         urlBase: settings.urlBase.trim() || undefined,
         headerLink: headerHref && headerLabel
             ? { href: headerHref, label: headerLabel }

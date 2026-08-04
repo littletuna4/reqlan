@@ -47,10 +47,10 @@
     }
 </script>
 
-<svelte:window on:click={onWindowClick} />
+<svelte:window onclick={onWindowClick} />
 
 <div class="table-options">
-    <button type="button" class="secondary options-button" on:click|stopPropagation={toggle}>
+    <button type="button" class="secondary options-button" onclick={(event) => { event.stopPropagation(); toggle(); }}>
         Options
     </button>
     {#if open}
@@ -61,7 +61,7 @@
                     <input
                         type="checkbox"
                         checked={isVisible(column.id)}
-                        on:change={(event) => setVisible(column.id, (event.currentTarget as HTMLInputElement).checked)}
+                        onchange={(event) => setVisible(column.id, (event.currentTarget as HTMLInputElement).checked)}
                     />
                     <span>{column.label}</span>
                 </label>

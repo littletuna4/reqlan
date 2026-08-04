@@ -1,4 +1,7 @@
 export * from './reqlan-module.js';
+export * from './reqlan-parse-budget.js';
+export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser.js';
+export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
 export * from './reqlan-ignore-error.js';

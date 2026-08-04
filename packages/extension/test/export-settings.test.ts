@@ -40,6 +40,7 @@ describe('export form settings persistence', () => {
             exportName: 'docs-site',
             runtimeMode: 'document' as const,
             excludeSecretFiles: true,
+            excludeIgnoredFiles: true,
             urlBase: '/spec',
             headerHref: '/',
             headerLabel: 'Home',
@@ -55,12 +56,14 @@ describe('export form settings persistence', () => {
         expect(raw.exportName).toBe('docs-site');
         expect(raw.runtimeMode).toBe('document');
         expect(raw.excludeSecretFiles).toBe(true);
+        expect(raw.excludeIgnoredFiles).toBe(true);
         expect(raw.advancedExpanded).toBe(true);
 
         const loaded = loadExportFormSettings(workspaceRoot);
         expect(loaded.exportName).toBe('docs-site');
         expect(loaded.runtimeMode).toBe('document');
         expect(loaded.excludeSecretFiles).toBe(true);
+        expect(loaded.excludeIgnoredFiles).toBe(true);
         expect(loaded.urlBase).toBe('/spec');
         expect(loaded.headerLabel).toBe('Home');
         expect(loaded.includeCodeFilePages).toBe(false);

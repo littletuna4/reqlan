@@ -55,8 +55,18 @@ export interface IdeaSummary {
     fileUri: string;
     lineStart: number;
     summary: string;
+    /** Concrete @status string when valued; omitted for missing/empty. */
     status?: string;
+    /**
+     * Filter key for @status: FILTER_NOT_PRESENT, FILTER_EMPTY, or the concrete value.
+     * Distinguishes missing vs bare `@status` / empty value.
+     */
+    statusKey: string;
     tags: string[];
+    /**
+     * Filter keys for @tags: [FILTER_NOT_PRESENT], [FILTER_EMPTY], or concrete tag strings.
+     */
+    tagsKeys: string[];
     gitCreatedAt?: string;
     gitModifiedAt?: string;
 }

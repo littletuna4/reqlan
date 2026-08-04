@@ -12,7 +12,7 @@
 </script>
 
 <div class="pager">
-    <button disabled={page <= 0} on:click={() => dispatch('prev')}>Previous</button>
+    <button disabled={page <= 0} onclick={() => dispatch('prev')}>Previous</button>
     <span>{pageLabel}</span>
-    <button disabled={page + 1 >= totalPages} on:click={() => dispatch('next')}>Next</button>
+    <button disabled={page + 1 >= totalPages} onclick={() => dispatch('next')}>Next</button>
 </div>

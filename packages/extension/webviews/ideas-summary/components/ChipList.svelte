@@ -58,7 +58,7 @@
                     class="member-chip"
                     class:member-chip-active={isActive(index)}
                     title={fullTitles[index]}
-                    on:click={(event) => handleSelect(index, event)}
+                    onclick={(event) => handleSelect(index, event)}
                 >
                     <span class="member-chip-text">{labels[index]}</span>
                 </button>
@@ -73,7 +73,7 @@
                 type="button"
                 class="member-chip member-chip-more"
                 title="Show all"
-                on:click={toggleExpanded}
+                onclick={toggleExpanded}
             >
                 … +{hiddenCount}
             </button>
@@ -82,7 +82,7 @@
                 type="button"
                 class="member-chip member-chip-more"
                 title="Show fewer"
-                on:click={toggleExpanded}
+                onclick={toggleExpanded}
             >
                 …
             </button>

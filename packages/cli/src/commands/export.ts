@@ -19,7 +19,8 @@ export class ExportCommand extends Command {
         description: 'Export the requirement graph as a multi-file static HTML site.',
         details: `
             Writes an HTML export under <output>/<name>/.
-            Use --exclude-secret to omit gitignored *.secret.rq files from the export.
+            Use --exclude-secret to omit *.secret.rq files from the export.
+            Use --exclude-ignored to omit paths matched by .reqlan/.rqignore.
         `,
         examples: [
             ['Workspace HTML export', '$0 export --output ./reqlan-export --name workspace'],
@@ -49,6 +50,9 @@ export class ExportCommand extends Command {
     });
     excludeSecret = Option.Boolean('--exclude-secret', false, {
         description: 'Omit ideas hosted in *.secret.rq files'
+    });
+    excludeIgnored = Option.Boolean('--exclude-ignored', false, {
+        description: 'Omit ideas hosted in paths matched by .reqlan/.rqignore'
     });
     urlBase = Option.String('--url-base', {
         description: 'Absolute URL prefix for the export mount (e.g. /spec or /reqlan/spec)'
@@ -125,6 +129,7 @@ export class ExportCommand extends Command {
                     includeAttributePages: true,
                     includePrintPages: true,
                     excludeSecretFiles: this.excludeSecret,
+                    excludeIgnoredFiles: this.excludeIgnored,
                     urlBase: this.urlBase?.trim() || undefined,
                     headerLink: headerHref && headerLabel
                         ? { href: headerHref, label: headerLabel }

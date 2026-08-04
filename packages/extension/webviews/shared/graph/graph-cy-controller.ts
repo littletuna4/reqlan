@@ -47,6 +47,30 @@ export const GRAPH_VIEWPORT_PADDING = 36;
 /** Duration (ms) for animated reframe transitions after the first fit. */
 export const GRAPH_REFRAME_ANIMATION_MS = 400;
 
+/** Labels auto-mode: fully hidden at/below START, fully opaque at/above END. */
+export const GRAPH_LABEL_FADE_START = 0.62;
+export const GRAPH_LABEL_FADE_END = 0.82;
+
+export type GraphLabelMode = 'auto' | 'on' | 'off';
+
+export const GRAPH_LABEL_MODES: readonly GraphLabelMode[] = ['auto', 'on', 'off'];
+
+export function labelOpacityForMode(mode: GraphLabelMode, zoom: number): number {
+    if (mode === 'on') {
+        return 1;
+    }
+    if (mode === 'off') {
+        return 0;
+    }
+    if (zoom <= GRAPH_LABEL_FADE_START) {
+        return 0;
+    }
+    if (zoom >= GRAPH_LABEL_FADE_END) {
+        return 1;
+    }
+    return (zoom - GRAPH_LABEL_FADE_START) / (GRAPH_LABEL_FADE_END - GRAPH_LABEL_FADE_START);
+}
+
 export interface ReframeViewportOptions {
     padding?: number;
     /** When true, animate pan/zoom; first paint on a controller should stay false. */
@@ -127,6 +151,9 @@ export class GraphCyController {
     private draggingCount = 0;
     /** Node types hidden via the key panel; applied as data('typeHidden') flags. */
     private hiddenNodeTypes: ReadonlySet<string> = new Set();
+    private labelMode: GraphLabelMode = 'auto';
+    private lastLabelOpacity = -1;
+    private unbindLabelZoom: (() => void) | undefined;
     // Tracks nodes for which at least one onNodeDrag event fired, so that a bare
     // click (grab + free with no movement) is not treated as a drag. Clicks must
     // never disturb the simulation.
@@ -176,6 +203,7 @@ export class GraphCyController {
         });
 
         this.bindInteractions(this.cy);
+        this.bindLabelOpacity(this.cy);
         this.unbindCompoundHighlight = bindCompoundHighlight(this.cy, {
             onCompoundTap: (compoundId) => {
                 this.selectCompound(compoundId);
@@ -207,6 +235,8 @@ export class GraphCyController {
         this.resizeObserver?.disconnect();
         this.unbindInteractions?.();
         this.unbindInteractions = undefined;
+        this.unbindLabelZoom?.();
+        this.unbindLabelZoom = undefined;
         this.unbindCompoundHighlight?.();
         this.unbindCompoundHighlight = undefined;
         this.stopPhysics();
@@ -219,6 +249,7 @@ export class GraphCyController {
         this.lastSyncedNodeSetKey = '';
         this.fittedNodeSetKey = '';
         this.hasReframed = false;
+        this.lastLabelOpacity = -1;
     }
 
     setLayoutId(layoutId: string): void {
@@ -272,6 +303,72 @@ export class GraphCyController {
     setHiddenNodeTypes(types: Iterable<string>): void {
         this.hiddenNodeTypes = new Set(types);
         this.applyHiddenNodeTypes();
+    }
+
+    /**
+     * Labels mode: auto (zoom fade), on (always), or off (never).
+     * per rq graph_label_modes / graph_label_auto
+     */
+    setLabelMode(mode: GraphLabelMode): void {
+        this.labelMode = mode;
+        if (mode !== 'auto' && this.cy) {
+            this.cy.nodes('.label-force-opaque').removeClass('label-force-opaque');
+        }
+        this.lastLabelOpacity = -1;
+        this.applyLabelOpacity();
+    }
+
+    private bindLabelOpacity(cy: cytoscape.Core): void {
+        const onZoom = (): void => {
+            this.applyLabelOpacity();
+        };
+        const onMouseOver = (event: cytoscape.EventObject): void => {
+            if (this.labelMode !== 'auto') {
+                return;
+            }
+            event.target.addClass('label-force-opaque');
+        };
+        const onMouseOut = (event: cytoscape.EventObject): void => {
+            event.target.removeClass('label-force-opaque');
+        };
+        const onGrab = (event: cytoscape.EventObject): void => {
+            if (this.labelMode !== 'auto') {
+                return;
+            }
+            event.target.addClass('label-force-opaque');
+        };
+        const onFree = (event: cytoscape.EventObject): void => {
+            event.target.removeClass('label-force-opaque');
+        };
+        cy.on('zoom', onZoom);
+        cy.on('mouseover', 'node', onMouseOver);
+        cy.on('mouseout', 'node', onMouseOut);
+        cy.on('grab', 'node', onGrab);
+        cy.on('free', 'node', onFree);
+        this.unbindLabelZoom = () => {
+            cy.off('zoom', onZoom);
+            cy.off('mouseover', 'node', onMouseOver);
+            cy.off('mouseout', 'node', onMouseOut);
+            cy.off('grab', 'node', onGrab);
+            cy.off('free', 'node', onFree);
+        };
+        this.applyLabelOpacity();
+    }
+
+    private applyLabelOpacity(): void {
+        const cy = this.cy;
+        if (!cy || cy.destroyed()) {
+            return;
+        }
+        const opacity = labelOpacityForMode(this.labelMode, cy.zoom());
+        if (Math.abs(opacity - this.lastLabelOpacity) < 0.01 && this.lastLabelOpacity >= 0) {
+            return;
+        }
+        this.lastLabelOpacity = opacity;
+        cy.style()
+            .selector('node')
+            .style('text-opacity', opacity)
+            .update();
     }
 
     private applyHiddenNodeTypes(): void {

@@ -36,6 +36,7 @@ consumption {
 
 nonblocking_index {
     Index sync must stay non-blocking for the host UI (notably [activity_bar_doc.activity_bar] and [workspace_pane_doc.workspace_loading]).
+    Editor startup is gated by ["../extension/activation.rq".first_paint_startup]; discovering a base must not construct Langium services, which are initialized lazily on the first parse.
     While syncing, surface progress — state, processed/total, and the current file — in [workspace_pane_doc.workspace_pane] and [ideas_summary_doc.index_panel].
     In-flight sync must be cancellable from those surfaces; cancel keeps already-indexed rows and returns the index to ready.
     Incremental behaviour (see also [graph_analysers.indexing_incrementality]):
@@ -43,7 +44,7 @@ nonblocking_index {
     - Soft full sync (`syncWorkspace` / Refresh) skips parse+persist when the file's mtime matches the value stored on the documents row.
     - Hard refresh (`clearAndRebuildIndex` / Clear & rebuild) wipes the store and reindexes every file.
     Implemented by [workspace_index]; editor adapter [editor_index_adapter].
-    @tests ([workspace_index_tests])
+    @tests ([workspace_index_tests], "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
     @status done
 }
 
@@ -52,7 +53,7 @@ triggers {
     - [graph_analysers.indexing_incrementality] / [nonblocking_index] — incremental where possible
     - [graph_analysers.indexing_trigger_filesave] / [app_memory_doc.idea_index_triggers] — on `.rq` file change
     - [graph_analysers.indexing_trigger_manual] — manual reindex commands
-    - [graph_analysers.indexing_trigger_open] — one soft sync on activate
+    - [graph_analysers.indexing_trigger_open] — one soft sync after the activity-bar first-paint gate
     - [graph_analysers.indexing_trigger_auto] — idle background mtime staleness check (cheap; not a full reindex)
     Editor watches + idle scheduler: [editor_index_adapter]; headless syncs on runtime activate.
 }

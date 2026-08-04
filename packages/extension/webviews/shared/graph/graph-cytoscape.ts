@@ -419,7 +419,9 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 'text-wrap': 'wrap',
                 'text-max-width': '120px',
                 'font-size': '10px',
-                'min-zoomed-font-size': 8,
+                // Controller owns zoom fade via text-opacity ([graph_label_auto]); disable hard cut.
+                'min-zoomed-font-size': 0,
+                'text-opacity': 1,
                 'text-valign': 'bottom',
                 'text-halign': 'center',
                 'text-margin-y': 6,
@@ -429,6 +431,13 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 height: 44,
                 'border-width': 2,
                 'border-color': editorBg
+            }
+        },
+        {
+            // Hover/drag override while Labels auto ambient opacity is muted or zero.
+            selector: 'node.label-force-opaque',
+            style: {
+                'text-opacity': 1
             }
         },
         {

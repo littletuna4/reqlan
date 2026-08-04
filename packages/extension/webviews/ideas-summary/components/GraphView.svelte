@@ -19,6 +19,14 @@
         type GraphPhysicsSettings
     } from '../lib/graph-physics.js';
     import { GRAPH_LEGEND_ITEMS, type GraphNodeTypeId } from '../lib/graph-theme.js';
+    import {
+        FILTER_NOT_PRESENT,
+        statusFilterKey
+    } from '@reqlan/analytical/filter-specials';
+    import {
+        bumpCount,
+        GRAPH_FILTER_SPECIALS
+    } from '../lib/searchable-checkbox-dropdown.js';
 
     interface Props {
         compoundBasis?: CompoundBasis;
@@ -54,6 +62,7 @@
     let useCompound = $derived(ui.useCompound);
     let compoundBasisId = $derived(ui.compoundBasisId);
     let animatePhysics = $derived(ui.animatePhysics);
+    let labelMode = $derived(ui.labelMode);
     let physicsSettings = $derived<GraphPhysicsSettings>({
         ...DEFAULT_PHYSICS_SETTINGS,
         ...ui.physics
@@ -70,6 +79,7 @@
     let lastControllerAnimate: boolean | undefined;
     let lastControllerPhysicsKey = '';
     let lastControllerHiddenKey = '';
+    let lastControllerLabelMode: string | undefined;
 
     const legendItems = GRAPH_LEGEND_ITEMS;
 
@@ -77,6 +87,12 @@
     let nodeById = $derived(new Map(graphNodes.map(node => [node.id, node])));
     let centerId = $derived(slice?.centerId);
     let selectedNode = $derived(selectedId ? nodeById.get(selectedId) : undefined);
+    // Specials first so Status/Tags triggers paint before the slice arrives.
+    let statusOptions = $state<string[]>([...GRAPH_FILTER_SPECIALS]);
+    let tagOptions = $state<string[]>([...GRAPH_FILTER_SPECIALS]);
+    let statusOptionCounts = $state<Record<string, number>>({});
+    let tagOptionCounts = $state<Record<string, number>>({});
+    let filtersLoading = $derived(loading || !slice);
     let activeBasisOption = $derived(
         compoundBasisOptions.find(option => option.id === compoundBasisId)
     );
@@ -93,6 +109,71 @@
             compoundBasisId
         ].join('\u0001')
         : '');
+
+    function collectStatusFilter(
+        nodes: GraphNodeView[],
+        selected: string[] | undefined
+    ): { values: string[]; counts: Record<string, number> } {
+        const values = new Set<string>([...GRAPH_FILTER_SPECIALS, ...(selected ?? [])]);
+        const counts = new Map<string, number>();
+        for (const node of nodes) {
+            if (node.isExternal) {
+                continue;
+            }
+            const key = node.statusKey ?? statusFilterKey(node.status);
+            values.add(key);
+            bumpCount(counts, key);
+        }
+        return { values: [...values], counts: Object.fromEntries(counts) };
+    }
+
+    function collectTagFilter(
+        nodes: GraphNodeView[],
+        selected: string[] | undefined
+    ): { values: string[]; counts: Record<string, number> } {
+        const values = new Set<string>([...GRAPH_FILTER_SPECIALS, ...(selected ?? [])]);
+        const counts = new Map<string, number>();
+        for (const node of nodes) {
+            if (node.isExternal) {
+                continue;
+            }
+            const keys = node.tagsKeys ?? [];
+            if (keys.length === 0) {
+                values.add(FILTER_NOT_PRESENT);
+                bumpCount(counts, FILTER_NOT_PRESENT);
+                continue;
+            }
+            for (const key of keys) {
+                values.add(key);
+                bumpCount(counts, key);
+            }
+        }
+        return { values: [...values], counts: Object.fromEntries(counts) };
+    }
+
+    // Defer scanning nodes until after paint so Status/Tags placeholders stay responsive.
+    $effect(() => {
+        const nodes = graphNodes;
+        const selectedStatus = query.statusFilter;
+        const selectedTags = query.tagFilter;
+        const sliceReady = Boolean(slice) && !loading;
+        if (!sliceReady) {
+            statusOptions = [...GRAPH_FILTER_SPECIALS, ...(selectedStatus ?? [])];
+            tagOptions = [...GRAPH_FILTER_SPECIALS, ...(selectedTags ?? [])];
+            statusOptionCounts = {};
+            tagOptionCounts = {};
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            const status = collectStatusFilter(nodes, selectedStatus);
+            const tags = collectTagFilter(nodes, selectedTags);
+            statusOptions = status.values;
+            tagOptions = tags.values;
+            statusOptionCounts = status.counts;
+            tagOptionCounts = tags.counts;
+        }, 0);
+        return () => window.clearTimeout(timer);
+    });
 
     function queueSync(reason: string): void {
         if (!controller) {
@@ -150,6 +231,7 @@
         const nextAnimate = ui.animatePhysics;
         const nextPhysics = ui.physics;
         const nextHidden = ui.hiddenNodeTypes;
+        const nextLabelMode = ui.labelMode;
         const physicsKey = [
             nextPhysics.gravity,
             nextPhysics.repulsion,
@@ -175,14 +257,27 @@
             lastControllerHiddenKey = hiddenKey;
             controller.setHiddenNodeTypes(nextHidden);
         }
+        if (nextLabelMode !== lastControllerLabelMode) {
+            lastControllerLabelMode = nextLabelMode;
+            controller.setLabelMode(nextLabelMode);
+        }
     });
 
     let loadingStatus = $derived(
         loading ? 'Loading graph…' :
         error ? error :
-        rendering ? 'Rendering graph' :
-        (!indexReady && !slice) ? 'Waiting for index' :
+        rendering ? 'Initialising graph…' :
+        (!indexReady && !slice) ? 'Waiting for index…' :
+        (!controller && !error) ? 'Initialising graph…' :
         ''
+    );
+    // Full-surface boot overlay for cold start / first layout only — keep the
+    // previous canvas visible during filter refetches.
+    let showGraphBoot = $derived(
+        Boolean(error) ||
+        !controller ||
+        rendering ||
+        (!slice && Boolean(loadingStatus))
     );
 
     function emitQuery(next: GraphViewQuery): void {
@@ -200,8 +295,18 @@
         debouncedSearch(next);
     }
 
-    function handleFilterChange(field: 'pathFilter' | 'statusFilter' | 'tagFilter', value: string): void {
+    function handleFilterChange(field: 'pathFilter', value: string): void {
         const next = { ...query, [field]: value || undefined, centerId: undefined };
+        app.graph.query = next;
+        debouncedSearch(next);
+    }
+
+    function handleMultiFilterChange(field: 'statusFilter' | 'tagFilter', value: string[]): void {
+        const next = {
+            ...query,
+            [field]: value.length > 0 ? value : undefined,
+            centerId: undefined
+        };
         app.graph.query = next;
         debouncedSearch(next);
     }
@@ -300,6 +405,13 @@
         app.patchGraphUi({ showControls: !ui.showControls });
     }
 
+    function cycleLabelMode(): void {
+        const order = ['auto', 'on', 'off'] as const;
+        const index = order.indexOf(ui.labelMode);
+        const next = order[(index + 1) % order.length];
+        app.patchGraphUi({ labelMode: next });
+    }
+
     function handleGraphRendered(): void {
         if (pendingSyncKey) {
             lastSyncedKey = pendingSyncKey;
@@ -363,6 +475,7 @@
         lastControllerAnimate = undefined;
         lastControllerPhysicsKey = '';
         lastControllerHiddenKey = '';
+        lastControllerLabelMode = undefined;
         graphLog('GraphView destroy');
     });
 </script>
@@ -373,13 +486,20 @@
             {query}
             {showKey}
             {showControls}
+            {labelMode}
+            {statusOptions}
+            {tagOptions}
+            {statusOptionCounts}
+            {tagOptionCounts}
+            filtersLoading={filtersLoading}
             on:pathFilter={(event) => handleFilterChange('pathFilter', event.detail)}
-            on:statusFilter={(event) => handleFilterChange('statusFilter', event.detail)}
-            on:tagFilter={(event) => handleFilterChange('tagFilter', event.detail)}
+            on:statusFilter={(event) => handleMultiFilterChange('statusFilter', event.detail)}
+            on:tagFilter={(event) => handleMultiFilterChange('tagFilter', event.detail)}
             on:toggleIndirect={toggleIndirect}
             on:clearCenter={clearCenter}
             on:toggleKey={toggleKey}
             on:toggleControls={toggleControls}
+            on:cycleLabelMode={cycleLabelMode}
             on:reframeView={() => controller?.reframeToViewport()}
         />
     </TableToolbar>
@@ -400,7 +520,7 @@
         {/if}
     </div>
 
-    <div class="graph-surface-wrap">
+    <div class="graph-surface-wrap" class:is-booting={showGraphBoot}>
         <div class="graph-surface" bind:this={container}></div>
         <GraphControlPanel
             open={showControls}
@@ -428,7 +548,20 @@
             on:close={() => app.patchGraphUi({ showKey: false })}
             on:toggleType={(event) => toggleNodeType(event.detail)}
         />
-        {#if !loading && !error && slice && slice.nodes.length === 0}
+        {#if showGraphBoot}
+            <div
+                class="graph-boot"
+                class:is-error={Boolean(error)}
+                role="status"
+                aria-live="polite"
+                aria-busy={!error}
+            >
+                {#if !error}
+                    <span class="graph-boot-spinner" aria-hidden="true"></span>
+                {/if}
+                <p>{loadingStatus}</p>
+            </div>
+        {:else if !error && slice && slice.nodes.length === 0}
             <div class="graph-empty">
                 No nodes match the current filters. Try clearing filters or open a .rq file to focus its local graph.
             </div>

@@ -25,13 +25,29 @@ const plugins = [{
             }
         });
     },
+}, {
+    name: 'lazy-sql-js',
+    setup(build) {
+        build.onResolve({ filter: /^sql\.js\/dist\/sql-asm\.js$/ }, args => {
+            if (args.kind === 'dynamic-import') {
+                return { path: './vendor/sql-asm.cjs', external: true };
+            }
+            return undefined;
+        });
+    },
 }];
 
 const objectGroupByPolyfill = `if(typeof Object.groupBy!=="function"){Object.groupBy=(items,keySelector)=>{const result=Object.create(null);let index=0;for(const item of items){const key=keySelector(item,index++);const group=result[key];if(group){group.push(item);}else{result[key]=[item];}}return result;};}`;
 
 const ctx = await esbuild.context({
     // Entry points for the vscode extension and the language server
-    entryPoints: ['src/extension/main.ts', 'src/language/main.ts'],
+    entryPoints: {
+        'extension/main': 'src/extension/main.ts',
+        'language/main': 'src/language/main.ts',
+        // Separate file so WorkerThreadAsyncParser can terminate a stuck lex/parse.
+        'language/reqlan-parse-worker': '../language/src/reqlan-parse-worker.ts',
+        'extension/vendor/sql-asm': '../analytical/node_modules/sql.js/dist/sql-asm.js'
+    },
     banner: {
         js: objectGroupByPolyfill
     },

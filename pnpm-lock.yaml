@@ -11,6 +11,15 @@ importers:
       '@changesets/cli':
         specifier: ^2.31.0
         version: 2.31.0(@types/node@20.19.43)
+      '@reqlan/analytical':
+        specifier: workspace:*
+        version: link:packages/analytical
+      '@reqlan/cli':
+        specifier: workspace:*
+        version: link:packages/cli
+      '@reqlan/language':
+        specifier: workspace:*
+        version: link:packages/language
       '@sveltejs/vite-plugin-svelte':
         specifier: ~5.0.3
         version: 5.0.3(svelte@5.33.19)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0))

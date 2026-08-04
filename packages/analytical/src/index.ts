@@ -197,6 +197,25 @@ export type {
 export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
 export type { IdeaReferenceStore } from './core/idea-references.js';
 export * from './core/types.js';
+export {
+    FILTER_EMPTY,
+    FILTER_EMPTY_LABEL,
+    FILTER_NOT_PRESENT,
+    FILTER_NOT_PRESENT_LABEL,
+    FILTER_UNSPECIFIED,
+    attributePresence,
+    filterDisplayLabel,
+    isFilterEmpty,
+    isFilterNotPresent,
+    isFilterUnspecified,
+    isSpecialFilterValue,
+    statusFilterKey,
+    statusFilterKeyFromAttributes,
+    statusIsNotPresent,
+    tagsAreNotPresent,
+    tagsFilterKeysFromAttributes
+} from './core/filter-specials.js';
+export type { AttributePresence } from './core/filter-specials.js';
 export { WorkspaceIndex, WorkspaceIndex as HeadlessIndexService } from './index-store/workspace-index.js';
 export type { IdleCheckResult } from './index-store/workspace-index.js';
 export type { IndexStatusSnapshot, IndexSyncProgress } from './index-store/index-status.js';
@@ -244,6 +263,9 @@ export type {
     ExportClusterStrategy,
     ExportFormat,
     ExportHeaderLink,
+    ExportProgress,
+    ExportProgressCallback,
+    ExportProgressPhase,
     ExportRequest,
     ExportResult,
     ExportRuntimeMode,

@@ -13,6 +13,22 @@ nested_curly_braces {
     )
 }
 
+context_sensitive_lexer_scaling {
+    Context-sensitive token classification for structural/prose braces and top-level import keywords must remain linear in document size.
+    The lexer records brace-depth changes sparsely (not per-character tables) and looks them up in log time while tokenising, so workspace language-server initialization and editor re-lexes stay bounded.
+    Code fences are skipped during the brace scan so example braces cannot inflate work or desync depth.
+    Bounded work still assumes the lexer/parser *returns*; unbounded hangs are cut by ["./parser_lexer.rq".parse_budget_timeout].
+
+    @status done
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses a large import prelude without repeated full-document brace scans"]
+        ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+    )
+}
+
 one_liner_curly_brace_context this should {be acceptable} as well
 
 closing_nested_curly_braces {

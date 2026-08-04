@@ -51,7 +51,7 @@ export type { IdleCheckResult } from './workspace-index-sync.js';
 export class WorkspaceIndex {
     private sqlite?: SqliteIndexStore;
     private diagnostics?: IndexDiagnosticsStore;
-    private readonly services = createReqlanServices({ ...NodeFileSystem });
+    private reqlanServices?: ReturnType<typeof createReqlanServices>;
     private syncQueue = Promise.resolve();
     private syncInFlight?: Promise<boolean>;
     private syncProgress?: IndexSyncProgress;
@@ -97,6 +97,11 @@ export class WorkspaceIndex {
             throw new Error('Index store is not open');
         }
         return this.sqlite;
+    }
+
+    private get services(): ReturnType<typeof createReqlanServices> {
+        this.reqlanServices ??= createReqlanServices({ ...NodeFileSystem });
+        return this.reqlanServices;
     }
 
     getStatusSnapshot(relativePath: (uri: string) => string = uri => this.relativePath(uri)): IndexStatusSnapshot {

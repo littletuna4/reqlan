@@ -5,8 +5,9 @@ import { registerActivityBarWebview } from './activity-bar-webview-provider.js';
 
 export function registerActivityBarModule(
     context: vscode.ExtensionContext,
-    submodule: AnalyticalSubmodule
+    submodule: AnalyticalSubmodule,
+    onPainted: () => void
 ): void {
     const activationGeneration = IdeasSummaryPanel.bumpActivationGeneration();
-    registerActivityBarWebview(context, submodule, activationGeneration);
+    registerActivityBarWebview(context, submodule, activationGeneration, onPainted);
 }

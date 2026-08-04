@@ -790,36 +790,58 @@ export class IdeasSummaryPanel {
     private async sendOverviewCoverage(): Promise<void> {
         const generation = ++this.coverageGeneration;
         const baseRoot = this.submodule.index.getActiveBase()?.descriptor.root;
-        if (!baseRoot || !this.submodule.index.isReady) {
+        if (!baseRoot) {
             this.post({
                 type: 'overviewCoverage',
-                scores: {
-                    ideaCount: 0,
-                    rqFileCount: 0,
-                    eligibleNonRqFileCount: 0,
-                    referencedEligibleFileCount: 0,
-                    fileCoveragePct: null,
-                    distinctFileReferenceCount: 0,
-                    totalLoc: 0,
-                    ideasPerKLoc: null,
-                    locTruncated: false,
-                    calculatedAt: Date.now()
-                }
+                error: 'No active workspace base is selected.'
+            });
+            return;
+        }
+        if (!this.submodule.index.isReady) {
+            this.post({
+                type: 'overviewCoverage',
+                error: 'Coverage is available once the workspace index is ready.'
             });
             return;
         }
 
-        const scores = await computeOverviewCoverageScores({
-            baseRoot,
-            store: this.submodule.index.indexStore,
-            shouldCancel: () => generation !== this.coverageGeneration
-        });
+        try {
+            const scores = await computeOverviewCoverageScores({
+                baseRoot,
+                store: this.submodule.index.indexStore,
+                shouldCancel: () => generation !== this.coverageGeneration
+            });
 
-        if (generation !== this.coverageGeneration) {
-            return;
+            if (generation !== this.coverageGeneration) {
+                return;
+            }
+
+            // Plain object — avoid any residual proxies before postMessage.
+            this.post({
+                type: 'overviewCoverage',
+                scores: {
+                    ideaCount: scores.ideaCount,
+                    rqFileCount: scores.rqFileCount,
+                    eligibleNonRqFileCount: scores.eligibleNonRqFileCount,
+                    referencedEligibleFileCount: scores.referencedEligibleFileCount,
+                    fileCoveragePct: scores.fileCoveragePct,
+                    distinctFileReferenceCount: scores.distinctFileReferenceCount,
+                    totalLoc: scores.totalLoc,
+                    ideasPerKLoc: scores.ideasPerKLoc,
+                    locTruncated: scores.locTruncated,
+                    calculatedAt: scores.calculatedAt
+                }
+            });
+        } catch (error) {
+            if (generation !== this.coverageGeneration) {
+                return;
+            }
+            const message = error instanceof Error ? error.message : String(error);
+            this.post({
+                type: 'overviewCoverage',
+                error: `Could not calculate coverage: ${message}`
+            });
         }
-
-        this.post({ type: 'overviewCoverage', scores });
     }
 
     private async sendOverviewSearch(rawQuery: string): Promise<void> {
@@ -1036,20 +1058,29 @@ function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
         centerId: query.centerId?.trim() || undefined,
         search: query.search?.trim() || undefined,
         pathFilter: query.pathFilter?.trim() || undefined,
-        statusFilter: query.statusFilter?.trim() || undefined,
-        tagFilter: query.tagFilter?.trim() || undefined,
+        statusFilter: normalizeGraphFilterList(query.statusFilter),
+        tagFilter: normalizeGraphFilterList(query.tagFilter),
         includeIndirect: Boolean(query.includeIndirect),
         maxNodes: Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), GRAPH_NODES_HARD_CAP),
         truncationBasis
     };
 }
 
+function normalizeGraphFilterList(value: string[] | string | undefined): string[] | undefined {
+    const list = Array.isArray(value)
+        ? value.map(entry => String(entry).trim()).filter(Boolean)
+        : typeof value === 'string' && value.trim()
+            ? [value.trim()]
+            : [];
+    return list.length > 0 ? list : undefined;
+}
+
 function hasGraphFilters(query: GraphViewQuery): boolean {
     return Boolean(
         query.search ||
         query.pathFilter ||
-        query.statusFilter ||
-        query.tagFilter
+        (query.statusFilter && query.statusFilter.length > 0) ||
+        (query.tagFilter && query.tagFilter.length > 0)
     );
 }
 

@@ -8,7 +8,7 @@ import type {
 } from './core/types.js';
 import type { AnalysisRuntime } from './create-runtime.js';
 import { exportHtml } from './export/export-html.js';
-import type { ExportRequest, ExportResult } from './export/types.js';
+import type { ExportProgressCallback, ExportRequest, ExportResult } from './export/types.js';
 
 export interface RequirementMatch {
     idea: IdeaSummary;
@@ -117,14 +117,17 @@ export class AnalysisApi {
      * Export the indexed requirement graph as a multi-file static HTML site.
      * Headless entry point shared by CLI and site build.
      */
-    async exportHtml(request: Omit<ExportRequest, 'workspaceRoot'> & {
-        workspaceRoot?: string;
-    }): Promise<ExportResult> {
+    async exportHtml(
+        request: Omit<ExportRequest, 'workspaceRoot'> & {
+            workspaceRoot?: string;
+        },
+        onProgress?: ExportProgressCallback
+    ): Promise<ExportResult> {
         await this.ensureReady();
         return exportHtml(this.runtime.index.indexStore, {
             ...request,
             workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
-        });
+        }, onProgress);
     }
 
     async resolveRequirementReference(name?: string): Promise<IdeaSummary[]> {
@@ -201,7 +204,8 @@ export class AnalysisApi {
                 parameters: {
                     outputDir: 'Parent directory for the export folder',
                     exportName: 'Export folder name',
-                    excludeSecretFiles: 'Optional: omit *.secret.rq files'
+                    excludeSecretFiles: 'Optional: omit *.secret.rq files',
+                    excludeIgnoredFiles: 'Optional: omit .rqignore-matched files'
                 }
             },
             {

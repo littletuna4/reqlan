@@ -9,12 +9,14 @@
 
     const app = getApp();
 
-    let sourceFilter: 'all' | TimelineEventSource = 'all';
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    let sourceFilter = $state<'all' | TimelineEventSource>('all');
 
-    $: events = app.timeline.events;
-    $: filtered = sourceFilter === 'all'
+    const events = $derived(app.timeline.events);
+    const filtered = $derived(sourceFilter === 'all'
         ? events
-        : events.filter(event => event.source === sourceFilter);
+        : events.filter(event => event.source === sourceFilter));
 
     onMount(() => {
         app.loadTimeline();
@@ -57,21 +59,21 @@
                 type="button"
                 class="secondary"
                 class:has-filters={sourceFilter === 'all'}
-                on:click={() => { sourceFilter = 'all'; }}
+                onclick={() => { sourceFilter = 'all'; }}
             >All</button>
             <button
                 type="button"
                 class="secondary"
                 class:has-filters={sourceFilter === 'git'}
-                on:click={() => { sourceFilter = 'git'; }}
+                onclick={() => { sourceFilter = 'git'; }}
             >Git</button>
             <button
                 type="button"
                 class="secondary"
                 class:has-filters={sourceFilter === 'index'}
-                on:click={() => { sourceFilter = 'index'; }}
+                onclick={() => { sourceFilter = 'index'; }}
             >Reindexed</button>
-            <button type="button" class="secondary" on:click={() => app.loadTimeline()}>Refresh</button>
+            <button type="button" class="secondary" onclick={() => app.loadTimeline()}>Refresh</button>
         </div>
     </div>
 
@@ -99,7 +101,7 @@
                         <button
                             type="button"
                             class="timeline-open"
-                            on:click={() => openEvent(event)}
+                            onclick={() => openEvent(event)}
                         >
                             <span class="timeline-label">{event.ideaName ?? event.detail}</span>
                             {#if event.summary}

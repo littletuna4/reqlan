@@ -124,7 +124,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
                 return [];
             }
             return model.elements
-                .filter(element => {
+                .filter((element): element is typeof element & { name: string } => {
                     if (refInfo.property === 'ideaset') {
                         return isIdeaSet(element);
                     }

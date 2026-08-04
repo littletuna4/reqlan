@@ -75,14 +75,24 @@ describe('graph.rq references', () => {
 
     test('getIdeaAtLine selects reframe_view throughout its body', async () => {
         const store = await indexGraphRq();
+        const ideas = await store.listIdeasInFileWithRanges(fileUri);
+        const reframe = ideas.find(idea => idea.name === 'reframe_view');
+        const manual = ideas.find(idea => idea.name === 'manual_reframe');
+        expect(reframe).toBeDefined();
+        expect(manual).toBeDefined();
 
-        for (const line of [70, 73, 76, 79]) {
+        // Sample across the idea body (0-based), not only the header line.
+        const bodyLines = [
+            reframe!.lineStart,
+            Math.floor((reframe!.lineStart + reframe!.lineEnd) / 2),
+            reframe!.lineEnd
+        ];
+        for (const line of bodyLines) {
             const idea = await store.getIdeaAtLine(fileUri, line);
             expect(idea?.name, `line ${line}`).toBe('reframe_view');
         }
 
-        const manual = await store.getIdeaAtLine(fileUri, 82);
-        expect(manual?.name).toBe('manual_reframe');
+        expect((await store.getIdeaAtLine(fileUri, manual!.lineStart))?.name).toBe('manual_reframe');
         await store.close();
     });
 });

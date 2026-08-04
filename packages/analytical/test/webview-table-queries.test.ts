@@ -8,6 +8,7 @@ import {
     aggregateAttributesFromRows,
     buildIdeasOrderClause,
     buildIdeasWhereClause,
+    buildIdeasetsWhereClause,
     buildReferencesWhereClause,
     edgeKindsForReferenceViewTypes,
     filterAndPageAttributes
@@ -28,6 +29,23 @@ describe('ideas table column filters', () => {
         expect(sql).toContain('i.name LIKE ?');
         expect(sql).toContain('i.kind IN (?, ?)');
         expect(params).toEqual(['%auth%', 'block', 'oneliner']);
+    });
+
+    test('global search filters name, summary, path, and edge labels', () => {
+        const { sql, params } = buildIdeasWhereClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            search: 'auth'
+        });
+        expect(sql).toContain('i.name LIKE ?');
+        expect(sql).toContain('i.summary LIKE ?');
+        expect(sql).toContain('i.file_uri LIKE ?');
+        expect(params).toEqual([
+            '%auth%', '%auth%', '%auth%',
+            '%auth%', '%auth%', '%auth%', '%auth%'
+        ]);
     });
 
     test('groupBy kind prefixes ORDER BY', () => {
@@ -68,6 +86,31 @@ describe('references table column filters', () => {
         expect(sql).toContain('e.target_id IS NOT NULL');
         expect(sql).toContain('e.kind IN (?)');
         expect(params).toEqual(['file_reference']);
+    });
+
+    test('global search filters source, target, and labels', () => {
+        const { sql, params } = buildReferencesWhereClause({
+            page: 0,
+            pageSize: 50,
+            search: 'widget'
+        });
+        expect(sql).toContain('si.name LIKE ?');
+        expect(sql).toContain('COALESCE(e.target_file, \'\') LIKE ?');
+        expect(params).toEqual(Array(7).fill('%widget%'));
+    });
+});
+
+describe('ideasets table search', () => {
+    test('global search filters name, path, and kind', () => {
+        const { sql, params } = buildIdeasetsWhereClause({
+            page: 0,
+            pageSize: 50,
+            search: 'module'
+        });
+        expect(sql).toContain('COALESCE(name, file_uri) LIKE ?');
+        expect(sql).toContain('file_uri LIKE ?');
+        expect(sql).toContain('kind LIKE ?');
+        expect(params).toEqual(['%module%', '%module%', '%module%']);
     });
 });
 

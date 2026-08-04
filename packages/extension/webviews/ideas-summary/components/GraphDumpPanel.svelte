@@ -6,7 +6,7 @@
 
 {#if app.tab.activeTab !== 'index' && app.tab.activeTab !== 'graph'}
     <div class="actions">
-        <button on:click={app.exportGraph}>Export full graph (JSON)</button>
+        <button onclick={app.exportGraph}>Export full graph (JSON)</button>
     </div>
 {/if}
 

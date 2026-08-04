@@ -24,17 +24,19 @@
 
     const app = getApp();
 
-    let filtersOpen = false;
-    let collapsedGroups = new Set<string>();
+    // $derived tracks AppState $state updates from the extension message listener;
+    // legacy $: does not (see GraphView.svelte).
+    let filtersOpen = $state(false);
+    let collapsedGroups = $state(new Set<string>());
 
-    $: query = app.ideas.query;
-    $: rows = app.ideas.rows;
-    $: total = app.ideas.total;
-    $: visibleColumns = app.tableUi.ideas.visibleColumns;
-    $: groupBy = app.tableUi.ideas.groupBy ?? query.groupBy;
-    $: groupHeaders = groupBy === 'kind'
+    const query = $derived(app.ideas.query);
+    const rows = $derived(app.ideas.rows);
+    const total = $derived(app.ideas.total);
+    const visibleColumns = $derived(app.tableUi.ideas.visibleColumns);
+    const groupBy = $derived(app.tableUi.ideas.groupBy ?? query.groupBy);
+    const groupHeaders = $derived(groupBy === 'kind'
         ? buildGroupHeaders(rows, row => row.kind, key => key === 'oneliner' ? 'Oneliners' : 'Blocks')
-        : [];
+        : []);
 
     const columnOptions = [
         { id: 'title', label: 'Title' },
@@ -48,7 +50,7 @@
         { id: 'inRefs', label: 'In refs' }
     ];
 
-    $: filterSpecs = buildFilterSpecs(visibleColumns, query.attributeColumns);
+    const filterSpecs = $derived(buildFilterSpecs(visibleColumns, query.attributeColumns));
 
     function buildFilterSpecs(visible: string[], attributeColumns: string[]): ColumnFilterSpec[] {
         const specs: ColumnFilterSpec[] = [];
@@ -212,7 +214,7 @@
         collapsedGroups = next;
     }
 
-    $: colSpan =
+    const colSpan = $derived(
         (show('title') ? 1 : 0) +
         (show('path') ? 1 : 0) +
         (show('kind') ? 1 : 0) +
@@ -222,7 +224,8 @@
         (show('outCount') ? 1 : 0) +
         (show('outRefs') ? 1 : 0) +
         (show('inCount') ? 1 : 0) +
-        (show('inRefs') ? 1 : 0);
+        (show('inRefs') ? 1 : 0)
+    );
 </script>
 
 <TableToolbar
@@ -247,12 +250,12 @@
     {#if query.attributeColumns.length > 0 || query.referenceFilters.length > 0}
         <div class="active-filters">
             {#each query.attributeColumns as key (key)}
-                <button type="button" class="filter-chip" on:click={() => removeAttributeColumn(key)}>
+                <button type="button" class="filter-chip" onclick={() => removeAttributeColumn(key)}>
                     {key} <span aria-hidden="true">×</span>
                 </button>
             {/each}
             {#each query.referenceFilters as filter (filter.filterKey)}
-                <button type="button" class="filter-chip" on:click={() => removeReferenceFilter(filter.filterKey)}>
+                <button type="button" class="filter-chip" onclick={() => removeReferenceFilter(filter.filterKey)}>
                     {filter.label} <span aria-hidden="true">×</span>
                 </button>
             {/each}
@@ -315,7 +318,7 @@
                 {#if header}
                     <tr class="group-header-row">
                         <td colspan={Math.max(1, colSpan)}>
-                            <button type="button" class="group-header" on:click={() => toggleGroup(header.key)}>
+                            <button type="button" class="group-header" onclick={() => toggleGroup(header.key)}>
                                 {collapsedGroups.has(header.key) ? '▶' : '▼'} {header.label}
                             </button>
                         </td>
@@ -325,7 +328,7 @@
             {#if !isRowHidden(index)}
                 <tr class="clickable">
                     {#if show('title')}
-                        <td on:click={() => openRow(row)}>
+                        <td onclick={() => openRow(row)}>
                             <div class="title-cell">
                                 <span>{row.title}</span>
                                 {#if row.stabilityLabel}
@@ -338,18 +341,18 @@
                         </td>
                     {/if}
                     {#if show('path')}
-                        <td on:click={() => openRow(row)}>{row.path}</td>
+                        <td onclick={() => openRow(row)}>{row.path}</td>
                     {/if}
                     {#if show('kind')}
-                        <td on:click={() => openRow(row)}>{row.kind}</td>
+                        <td onclick={() => openRow(row)}>{row.kind}</td>
                     {/if}
                     {#if show('body')}
-                        <td class="body-cell" on:click|stopPropagation>
+                        <td class="body-cell" onclick={(event) => event.stopPropagation()}>
                             <IdeaBodyCell text={row.mainAttribute} />
                         </td>
                     {/if}
                     {#if show('otherAttributes')}
-                        <td on:click|stopPropagation>
+                        <td onclick={(event) => event.stopPropagation()}>
                             <ChipList
                                 items={row.otherAttributeItems}
                                 filterable
@@ -360,13 +363,13 @@
                         </td>
                     {/if}
                     {#each query.attributeColumns as key (key)}
-                        <td on:click={() => openRow(row)}>{row.attributeValues[key] ?? '—'}</td>
+                        <td onclick={() => openRow(row)}>{row.attributeValues[key] ?? '—'}</td>
                     {/each}
                     {#if show('outCount')}
-                        <td class="ref-count" on:click={() => openRow(row)}>{row.outboundCount}</td>
+                        <td class="ref-count" onclick={() => openRow(row)}>{row.outboundCount}</td>
                     {/if}
                     {#if show('outRefs')}
-                        <td on:click|stopPropagation>
+                        <td onclick={(event) => event.stopPropagation()}>
                             <ChipList
                                 items={referenceLabels(row.outboundReferences)}
                                 titles={referenceLabels(row.outboundReferences)}
@@ -379,10 +382,10 @@
                         </td>
                     {/if}
                     {#if show('inCount')}
-                        <td class="ref-count" on:click={() => openRow(row)}>{row.inboundCount}</td>
+                        <td class="ref-count" onclick={() => openRow(row)}>{row.inboundCount}</td>
                     {/if}
                     {#if show('inRefs')}
-                        <td on:click|stopPropagation>
+                        <td onclick={(event) => event.stopPropagation()}>
                             <ChipList
                                 items={referenceLabels(row.inboundReferences)}
                                 titles={referenceLabels(row.inboundReferences)}
