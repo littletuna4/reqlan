@@ -18,6 +18,14 @@ export function registerChatParticipantModule(
         };
     };
 
+    // The chat API is not present on every host (or may be a proposed API).
+    // Guard so a missing API degrades gracefully instead of throwing during
+    // activation.
+    if (typeof vscode.chat?.createChatParticipant !== 'function') {
+        registerReferenceTools(context, submodule, makeContext);
+        return;
+    }
+
     const handler = createChatRequestHandler({
         index: submodule.index,
         analysers: submodule.analysers,
@@ -64,7 +72,9 @@ function registerReferenceTools(
         workspaceRoot?: string;
     }
 ): void {
-    if (!('registerTool' in vscode.lm) || typeof vscode.lm.registerTool !== 'function') {
+    // `vscode.lm` itself may be undefined on hosts without the language-model
+    // tools API; use optional access so this never throws during activation.
+    if (typeof vscode.lm?.registerTool !== 'function') {
         return;
     }
 

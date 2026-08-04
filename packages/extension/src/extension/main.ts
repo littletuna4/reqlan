@@ -63,19 +63,30 @@ function runStep(label: string, step: () => void): void {
     }
 }
 
+let backgroundStartupStarted = false;
+
 /**
  * Start the workspace index and language server without blocking activation.
  *
- * Deferred to a macrotask so `activate()` returns first and VS Code can resolve
- * the activity bar view and register commands before any (potentially blocking)
- * discovery/indexing work runs. Indexing surfaces its own progress through the
- * index status events the sidebar already listens to, so it is visible rather
- * than a silent gate.
+ * This is the single entry point for all potentially non-trivial initialisation.
+ * The extension activates via `onStartupFinished` (and other events) with only
+ * light, synchronous registration in `activate()`; the heavy work is deferred
+ * here to a macrotask so `activate()` returns first and VS Code can resolve the
+ * activity bar view and register commands before any (potentially blocking)
+ * discovery/indexing work runs. Indexing is incremental and surfaces its own
+ * progress through the index status events the sidebar listens to, so it is
+ * visible rather than a silent gate. No task started here should be onerous.
+ *
+ * Idempotent: only the first call schedules startup.
  */
 function scheduleBackgroundStartup(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
+    if (backgroundStartupStarted) {
+        return;
+    }
+    backgroundStartupStarted = true;
     setTimeout(() => {
         void submodule.index.activate(context).catch(error => {
             console.error('[reqlan] Index activation failed:', error);
