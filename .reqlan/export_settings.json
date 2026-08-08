@@ -15,6 +15,7 @@
   "includeAttributePages": true,
   "includePrintPages": true,
   "excludeSecretFiles": false,
+  "excludeIgnoredFiles": false,
   "urlBase": "",
   "headerHref": "",
   "headerLabel": "",

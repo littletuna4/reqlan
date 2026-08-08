@@ -1,9 +1,16 @@
+
 codelens {}
 
-code_completion {}
+code_completion {
+    
+}
 
-inlay_hints {}
+inlay_hints {
+    
+}
 
-code_actions {}
+code_actions {
+    
+}
 
 quick_fixes {}

@@ -101,3 +101,7 @@ search_code_actions {
         ["../../packages/extension/test/reference-search.test.ts"]
     )
 }
+
+file_based_code_actions {
+    [code_actions]
+}

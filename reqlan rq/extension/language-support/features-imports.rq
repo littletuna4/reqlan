@@ -1,5 +1,6 @@
 from "./language-server-errors.rq" import general_errors
 from "../vsc-primitives.rq" import code_completion, code_actions, quick_fixes
+from "../syntax/features-syntax-highlighting.rq" import reference_code_completion
 
 remote_imports {
     Reqlan files should support importing requirements from remote urls.
@@ -51,6 +52,21 @@ import_code_completion {
     [import_code_completion_substring_match]
     [import_code_completion_ranking]
     [anonymous_reference_code_completion]
+    [import_code_completion_auto_file_import]
+
+    [import_code_completion_rendering]
+}
+
+import_code_completion_rendering{
+    The reference code completion for an import, should indicate the file path as well.
+    see also [reference_code_completion]
+    @todo
+}
+
+import_code_completion_auto_file_import {
+    When a code completion for an idea in another file is selected, the import should be automatically added to the current file.
+    The remote import []
+    @todo
 }
 
 import_code_completion_explicit_extension {

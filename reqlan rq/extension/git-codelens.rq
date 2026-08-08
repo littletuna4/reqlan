@@ -6,3 +6,8 @@ git_based_history {
     should consume the same state as the [context_scope]
     @idea
 }
+
+git_date_inlayhints {
+    Should show references and date created per [git_based_history].
+    @todo
+}

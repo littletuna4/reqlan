@@ -12,6 +12,11 @@ import "../extension/module/activitybar.rq" as activity_bar_doc
 import "../extension/module/activitybar-panels/workspace.rq" as workspace_pane_doc
 import "../extension/module/ideas_summary/webview.rq" as ideas_summary_doc
 import "../../packages/analytical/test/workspace-index.test.ts" as workspace_index_tests
+import "../core_analysis/core.rq" as core_analysis
+
+definition {
+    The indexer should live in the [core_analysis] module.
+}
 
 index {
     The ideas graph indexer: parse `.rq` with `@reqlan/language`, extract ideas/edges, persist to sql.js SQLite.
@@ -72,5 +77,11 @@ index_diagnostics_timing {
 
 index_code_files {
     The indexer should be able to index non-rq files as well for comment references.
+    @todo
+}
+
+
+indexer_rust {
+    indexer should be written in rust.
     @todo
 }

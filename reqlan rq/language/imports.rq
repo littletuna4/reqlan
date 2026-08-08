@@ -132,3 +132,9 @@ import_tokenisation {
         ["../../packages/language/src/reqlan-scope.ts"]
     )
 }
+
+wildcard_references {
+    Wildcard references use regex to match ideasets or namespaces or symbols.
+    They might refer to all files in a directory, or all files with a specific 
+    @todo
+}

@@ -30,13 +30,23 @@ export type PackageItem = PhonebookPackage;
 
 export type CodeLanguage = "rq" | "ts" | "md" | "py" | "st" | "c" | "json" | "yaml";
 
-export type MotivationTab = {
+export type MotivationFeature = {
   id: string;
   label: string;
-  pitch?: string;
-  code?: string;
-  language?: CodeLanguage;
-  features?: string[];
+  /** Concrete capability. */
+  what: string;
+  /** Why that capability matters. */
+  why: string;
+};
+
+export type MotivationSlide = {
+  id: string;
+  label: string;
+  /** What this part of reqlan is. */
+  what: string;
+  /** Why this part exists. */
+  why: string;
+  features: MotivationFeature[];
 };
 
 export type NavGraphNodeKind = "hub" | "section" | "page";
@@ -116,99 +126,87 @@ export const siteContent = {
 
   motivation: {
     title: "Why reqlan",
-    lead: "Notes apps store paragraphs. reqlan stores handles — requirements as code, built for LLM workflows.",
-    tabs: [
+    lead: "Notes apps store paragraphs. reqlan stores named handles — a graph your editors, agents, and scripts can search without a paste dump.",
+    slides: [
       {
-        id: "llm-first",
-        label: "Built for agents",
-        pitch:
-          "Six ideas and their edges beat forty files. Hand the agent a shaped slice — never the whole repo.",
-        language: "rq",
-        code: `# /rq-search oauth flow
-→ auth.login
-→ auth.session
-→ auth.logout
-
-# not: dump the whole workspace`,
-      },
-      {
-        id: "traceable",
-        label: "Trace everything",
-        pitch:
-          "Name the idea. Point at the code. Prove it with a test. Hop the graph like a signal path.",
-        language: "rq",
-        code: `login {
-    rejects empty passwords
-    aligns with [auth.session]
-    implemented in ["./auth.ts".login]
-    proven by ["./auth.test.ts:rejects empty password"]
-    @status done
-}`,
-      },
-      {
-        id: "any-stack",
-        label: "Any stack",
-        pitch:
-          "Software, ops, industrial control, personal knowledge — if you can name it, you can graph it.",
-        language: "rq",
-        code: `safety_interlock {
-    valve must close before heater enables
-    bound to ["./plc/safety.st".INTERLOCK]
-    @tags: (iec-61131, critical)
-}`,
-      },
-      {
-        id: "extension-editor",
-        label: "In the editor",
-        pitch: "A real language server for `.rq` — and `rq:` hooks in every other file.",
-        language: "rq",
+        id: "language",
+        label: "Language",
+        what: "A small text format for requirements: named ideas, links, and metadata in `.rq` files.",
+        why: "People and models can cite `auth.login` instead of re-pasting a paragraph every thread.",
         features: [
-          "LSP — go-to-def, find refs, validation, semantic tokens",
-          "Inlay hints, hover, and completion for imports and links",
-          "rq: references in comments of any source file",
-          "CodeLens on references with classification cards",
+          {
+            id: "named-ideas",
+            label: "Named ideas",
+            what: "Each requirement is a stable name plus a short body.",
+            why: "Search and chat start from handles, not file dumps.",
+          },
+          {
+            id: "links",
+            label: "Links",
+            what: "Ideas point at other ideas, source files, and tests.",
+            why: "You can answer “what depends on this?” without a wiki crawl.",
+          },
+          {
+            id: "attributes",
+            label: "Attributes",
+            what: "`@status`, `@todo`, and `@tests` sit next to the prose.",
+            why: "Progress and proof travel with the requirement, not in a sidecar sheet.",
+          },
         ],
-        code: `auth.login ──► session.rq:12
-              └──► [auth.logout]
-# rq:["./auth.rq".login]`,
       },
       {
-        id: "extension-workspace",
-        label: "See the graph",
-        pitch:
-          "Ideas Summary, neighbourhood context, and exports that share one `.reqlan` index with the CLI.",
-        language: "md",
+        id: "extension",
+        label: "Extension",
+        what: "A VS Code / Cursor extension: language server, graph views, and agent hooks on the same index.",
+        why: "Requirements stay where you already edit code and talk to models.",
         features: [
-          "Ideas Summary — tables plus a live Obsidian-style graph",
-          "Activity-bar neighbourhood scoped to file or selection",
-          "Semantic search across the base",
-          "Export HTML site, JSON, or CSV — same index as `reqlan` / `rq` CLI",
+          {
+            id: "lsp",
+            label: "Language server",
+            what: "Go-to-definition, find references, validation, and semantic tokens for `.rq`.",
+            why: "Broken links show up in the editor, not after a review misses them.",
+          },
+          {
+            id: "graph-views",
+            label: "Graph views",
+            what: "Ideas Summary, neighbourhood context, and semantic search over the base.",
+            why: "You see the slice that matters for the file open now — not the whole graph.",
+          },
+          {
+            id: "agent-hooks",
+            label: "Agent hooks",
+            what: "@reqlan chat, MCP tools, and rq-* skills for Cursor and Copilot.",
+            why: "Agents get a shaped neighbourhood of ideas instead of forty files of noise.",
+          },
         ],
-        code: `Reqlan: Ideas Summary
-Reqlan: Semantic Search
-Reqlan: Get Local Graph
-Reqlan: Export HTML
-$ reqlan search oauth
-$ reqlan export`,
       },
       {
-        id: "extension-ai",
-        label: "Talk to it",
-        pitch:
-          "@reqlan in chat, MCP tools for agents, rq-* skills for Cursor and Copilot — token discipline by default.",
-        language: "md",
+        id: "cli",
+        label: "CLI",
+        what: "`reqlan` / `rq` — search, analyse, and export against the same `.reqlan` index as the extension.",
+        why: "CI and terminals share one source of truth with the editor. No second index to keep in sync.",
         features: [
-          "@reqlan chat participant with #requirement / #file tools",
-          "MCP — search, file context, local graph",
-          "rq-* skills: search, build requirement, add to context, write plan",
-          "Install Cursor skills from the command palette",
+          {
+            id: "search",
+            label: "Search",
+            what: "`reqlan search` returns ranked ideas from the workspace index.",
+            why: "Scripts and agents query requirements the same way the IDE does.",
+          },
+          {
+            id: "analyse",
+            label: "Analyse",
+            what: "`reqlan analyse` rebuilds and checks the ideas index.",
+            why: "Broken refs fail in the pipeline before they fail in a demo.",
+          },
+          {
+            id: "export",
+            label: "Export",
+            what: "HTML, JSON, or CSV from the same graph the editor shows.",
+            why: "Reviews and handoffs use the live index, not a stale copy.",
+          },
         ],
-        code: `/rq-search oauth
-/rq-build-requirement
-/rq-add-to-context
-/rq-write-plan`,
       },
-    ] satisfies MotivationTab[],
+    ] satisfies MotivationSlide[],
   },
 
   syntax: {

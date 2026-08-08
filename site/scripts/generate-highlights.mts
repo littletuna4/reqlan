@@ -18,16 +18,6 @@ const outputPath = resolve(rootDir, "src/generated/highlights.ts");
 function collectRequests(): HighlightRequest[] {
   const requests: HighlightRequest[] = [];
 
-  for (const tab of siteContent.motivation.tabs) {
-    if (tab.code && tab.language && tab.language !== "rq") {
-      requests.push({
-        key: `motivation:${tab.id}`,
-        language: tab.language,
-        code: tab.code,
-      });
-    }
-  }
-
   for (const example of siteContent.syntax.examples) {
     for (const [kind, snippet] of [
       ["rule", example.rule],
