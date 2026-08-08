@@ -1,5 +1,11 @@
 # site
 
+## 0.11.0
+
+### Minor Changes
+
+- 7c397d7: Add PostHog analytics to the site.
+
 ## 0.10.0
 
 ### Minor Changes
