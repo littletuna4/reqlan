@@ -1,7 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useId, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { MotivationFeature, MotivationSlide } from "@/content/site";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
@@ -13,25 +20,23 @@ type MotivationClientProps = {
   slides: readonly MotivationSlide[];
 };
 
-type ClaimPairProps = {
+function SlideBody({
+  what,
+  why,
+  compact = false,
+}: {
   what: string;
   why: string;
-  whatId: string;
-  whyId: string;
-};
-
-function ClaimPair({ what, why, whatId, whyId }: ClaimPairProps) {
+  compact?: boolean;
+}) {
   return (
-    <dl className={styles.claims}>
-      <div className={styles.claim}>
-        <dt id={whatId}>Part</dt>
-        <dd aria-labelledby={whatId}>{what}</dd>
-      </div>
-      <div className={styles.claim}>
-        <dt id={whyId}>Why</dt>
-        <dd aria-labelledby={whyId}>{why}</dd>
-      </div>
-    </dl>
+    <div className={cn(styles.body, compact && styles.bodyCompact)}>
+      <p className={styles.what}>{what}</p>
+      <p className={styles.why}>
+        <span className={styles.whyLabel}>Why</span>
+        {why}
+      </p>
+    </div>
   );
 }
 
@@ -45,6 +50,7 @@ export function MotivationClient({
   const [slideIndex, setSlideIndex] = useState(0);
   const [featureIndex, setFeatureIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const slideCount = slides.length;
   const activeSlide = slides[slideIndex] ?? slides[0];
@@ -93,9 +99,10 @@ export function MotivationClient({
       if (!section) {
         return;
       }
+      const bounds = section.getBoundingClientRect();
       const inView =
-        section.getBoundingClientRect().top < window.innerHeight * 0.85 &&
-        section.getBoundingClientRect().bottom > window.innerHeight * 0.15;
+        bounds.top < window.innerHeight * 0.85 &&
+        bounds.bottom > window.innerHeight * 0.15;
       if (!inView) {
         return;
       }
@@ -119,26 +126,53 @@ export function MotivationClient({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [featureIndex, goToFeature, goToSlide, slideIndex]);
 
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = pointerStart.current;
+    pointerStart.current = null;
+    if (!start) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) {
+      return;
+    }
+
+    if (dx < 0) {
+      goToSlide(slideIndex + 1, 1);
+    } else {
+      goToSlide(slideIndex - 1, -1);
+    }
+  };
+
   if (!activeSlide) {
     return null;
   }
 
   const slideVariants = {
     enter: (dir: number) => ({
-      x: reduceMotion ? 0 : dir > 0 ? 48 : -48,
+      x: reduceMotion ? 0 : dir > 0 ? 28 : -28,
       opacity: 0,
     }),
     center: { x: 0, opacity: 1 },
     exit: (dir: number) => ({
-      x: reduceMotion ? 0 : dir > 0 ? -36 : 36,
+      x: reduceMotion ? 0 : dir > 0 ? -20 : 20,
       opacity: 0,
     }),
   };
 
   const featureVariants = {
-    enter: { opacity: 0, y: reduceMotion ? 0 : 10 },
+    enter: { opacity: 0, y: reduceMotion ? 0 : 8 },
     center: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: reduceMotion ? 0 : -8 },
+    exit: { opacity: 0, y: reduceMotion ? 0 : -6 },
   };
 
   return (
@@ -150,54 +184,42 @@ export function MotivationClient({
       <h2 id="motivation-title" className={shared.sectionTitle}>
         {title}
       </h2>
-      {lead ? <p className={shared.sectionLead}>{lead}</p> : null}
+      {lead ? <p className={cn(shared.sectionLead, styles.lead)}>{lead}</p> : null}
 
       <div className={styles.carousel}>
-        <div className={styles.rail}>
-          <button
-            type="button"
-            className={styles.arrow}
-            aria-label="Previous part"
-            onClick={() => goToSlide(slideIndex - 1, -1)}
-          >
-            ‹
-          </button>
-
-          <div
-            role="tablist"
-            aria-label="reqlan parts"
-            className={styles.pillList}
-          >
-            {slides.map((slide, index) => {
-              const isActive = index === slideIndex;
-              return (
-                <button
-                  key={slide.id}
-                  type="button"
-                  role="tab"
-                  id={`${baseId}-tab-${slide.id}`}
-                  aria-selected={isActive}
-                  aria-controls={`${baseId}-panel`}
-                  className={cn(styles.pill, isActive && styles.pillActive)}
-                  onClick={() => goToSlide(index, index > slideIndex ? 1 : -1)}
-                >
-                  {slide.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            className={styles.arrow}
-            aria-label="Next part"
-            onClick={() => goToSlide(slideIndex + 1, 1)}
-          >
-            ›
-          </button>
+        <div
+          role="tablist"
+          aria-label="reqlan parts"
+          className={styles.segments}
+        >
+          {slides.map((slide, index) => {
+            const isActive = index === slideIndex;
+            return (
+              <button
+                key={slide.id}
+                type="button"
+                role="tab"
+                id={`${baseId}-tab-${slide.id}`}
+                aria-selected={isActive}
+                aria-controls={`${baseId}-panel`}
+                className={cn(styles.segment, isActive && styles.segmentActive)}
+                onClick={() => goToSlide(index, index > slideIndex ? 1 : -1)}
+              >
+                {slide.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className={styles.stage} aria-live="polite">
+        <div
+          className={styles.stage}
+          aria-live="polite"
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => {
+            pointerStart.current = null;
+          }}
+        >
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={activeSlide.id}
@@ -210,22 +232,19 @@ export function MotivationClient({
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                duration: reduceMotion ? 0 : 0.28,
+                ease: [0.22, 1, 0.36, 1],
+              }}
             >
               <p className={styles.slideKicker}>{activeSlide.label}</p>
-              <ClaimPair
-                what={activeSlide.what}
-                why={activeSlide.why}
-                whatId={`${baseId}-${activeSlide.id}-what`}
-                whyId={`${baseId}-${activeSlide.id}-why`}
-              />
+              <SlideBody what={activeSlide.what} why={activeSlide.why} />
 
               <div className={styles.hierarchy}>
-                <p className={styles.hierarchyLabel}>Inside this part</p>
                 <div
                   role="tablist"
                   aria-label={`${activeSlide.label} features`}
-                  className={styles.featureList}
+                  className={styles.featureStrip}
                 >
                   {features.map((feature, index) => {
                     const isActive = index === featureIndex;
@@ -243,9 +262,6 @@ export function MotivationClient({
                         )}
                         onClick={() => setFeatureIndex(index)}
                       >
-                        <span className={styles.featureIndex}>
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
                         {feature.label}
                       </button>
                     );
@@ -266,15 +282,15 @@ export function MotivationClient({
                         animate="center"
                         exit="exit"
                         transition={{
-                          duration: reduceMotion ? 0 : 0.24,
+                          duration: reduceMotion ? 0 : 0.2,
                           ease: [0.22, 1, 0.36, 1],
                         }}
                       >
-                        <ClaimPair
+                        <p className={styles.featureTitle}>{activeFeature.label}</p>
+                        <SlideBody
                           what={activeFeature.what}
                           why={activeFeature.why}
-                          whatId={`${baseId}-${activeFeature.id}-what`}
-                          whyId={`${baseId}-${activeFeature.id}-why`}
+                          compact
                         />
                       </motion.div>
                     ) : null}
@@ -285,17 +301,38 @@ export function MotivationClient({
           </AnimatePresence>
         </div>
 
-        <div className={styles.dots} aria-hidden="true">
-          {slides.map((slide, index) => (
-            <button
-              key={slide.id}
-              type="button"
-              tabIndex={-1}
-              className={cn(styles.dot, index === slideIndex && styles.dotActive)}
-              onClick={() => goToSlide(index, index > slideIndex ? 1 : -1)}
-              aria-label={`Show ${slide.label}`}
-            />
-          ))}
+        <div className={styles.controls}>
+          <button
+            type="button"
+            className={styles.arrow}
+            aria-label="Previous part"
+            onClick={() => goToSlide(slideIndex - 1, -1)}
+          >
+            ‹
+          </button>
+          <div className={styles.dots}>
+            {slides.map((slide, index) => (
+              <button
+                key={slide.id}
+                type="button"
+                className={cn(
+                  styles.dot,
+                  index === slideIndex && styles.dotActive,
+                )}
+                onClick={() => goToSlide(index, index > slideIndex ? 1 : -1)}
+                aria-label={`Show ${slide.label}`}
+                aria-current={index === slideIndex ? "true" : undefined}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            className={styles.arrow}
+            aria-label="Next part"
+            onClick={() => goToSlide(slideIndex + 1, 1)}
+          >
+            ›
+          </button>
         </div>
       </div>
     </section>

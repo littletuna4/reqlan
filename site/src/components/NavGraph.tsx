@@ -8,7 +8,7 @@ import { sitePath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import styles from "./NavGraph.module.css";
 
-const SECTION_ORDER = ["hero", "motivation", "syntax", "example", "contact"] as const;
+const SECTION_ORDER = ["hero", "motivation", "syntax", "example", "roadmap", "contact"] as const;
 
 function nodeHref(node: NavGraphNode): string {
   if (node.kind === "page") {

@@ -132,6 +132,7 @@ export type {
 } from './context-model.js';
 
 export const ACTIVITY_BAR_MAX_NODES = 40;
+export const ACTIVITY_BAR_TODO_LIMIT = 40;
 
 export const BLOCKING_STATUSES = new Set([
     'pending',
@@ -141,6 +142,23 @@ export const BLOCKING_STATUSES = new Set([
     'stub',
     'unspecified'
 ]);
+
+/** Idea carrying a `@todo` attribute for the activity-bar todo pane. */
+export interface TodoIdeaRow {
+    id: string;
+    name: string;
+    kind: IdeaKind;
+    fileUri: string;
+    lineStart: number;
+    summary: string;
+    /** Note text when `@todo` has a value; omitted for bare `@todo`. */
+    todoNote?: string;
+}
+
+export interface TodoIdeaListResult {
+    total: number;
+    ideas: TodoIdeaRow[];
+}
 
 export interface GraphSlice {
     centerId: string;

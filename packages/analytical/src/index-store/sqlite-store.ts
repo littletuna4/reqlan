@@ -19,12 +19,21 @@ import type {
     ReferenceListRow,
     ReferenceTableRow,
     ReferenceViewType,
-    AncestorChainResult
+    AncestorChainResult,
+    TodoIdeaListResult,
+    TodoIdeaRow
 } from '../core/types.js';
-import { BLOCKING_STATUSES, ideaStatus, ideaTags, parseAttributes } from '../core/types.js';
+import {
+    ACTIVITY_BAR_TODO_LIMIT,
+    BLOCKING_STATUSES,
+    ideaStatus,
+    ideaTags,
+    parseAttributes
+} from '../core/types.js';
 import {
     statusFilterKeyFromAttributes,
-    tagsFilterKeysFromAttributes
+    tagsFilterKeysFromAttributes,
+    todoNoteFromAttributes
 } from '../core/filter-specials.js';
 import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
 import type {
@@ -283,12 +292,19 @@ export class SqliteIndexStore {
     }
 
     async listAllIdeas(): Promise<IdeaSummary[]> {
-        const rows = await all<SummaryRow>(this.db, `
+        const rows = await allYielding<SummaryRow>(this.db, `
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json
             FROM ideas
             ORDER BY file_uri, line_start
         `);
-        return rows.map(row => this.toSummary(row));
+        const ideas: IdeaSummary[] = [];
+        for (let index = 0; index < rows.length; index += 1) {
+            if (index > 0 && index % 250 === 0) {
+                await new Promise<void>(resolve => setTimeout(resolve, 0));
+            }
+            ideas.push(this.toSummary(rows[index]!));
+        }
+        return ideas;
     }
 
     async getIdea(id: string): Promise<IdeaSummary | undefined> {
@@ -631,6 +647,43 @@ export class SqliteIndexStore {
         return rows.map(row => this.toSummary(row));
     }
 
+    /**
+     * Ideas that carry a `@todo` attribute (bare or valued), not `@status todo`.
+     * Caps returned rows; `total` is the uncapped match count for overflow UI.
+     */
+    async listTodoIdeas(limit: number = ACTIVITY_BAR_TODO_LIMIT): Promise<TodoIdeaListResult> {
+        const cappedLimit = Math.max(0, Math.min(Math.floor(limit), 500));
+        // Coarse prefilter: `"todo":` matches the attribute key, not `@status todo`.
+        const rows = await all<SummaryRow>(this.db, `
+            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
+            FROM ideas
+            WHERE kind != 'ideaset'
+              AND attributes_json LIKE '%"todo":%'
+            ORDER BY name ASC, file_uri ASC, line_start ASC
+        `);
+        const ideas: TodoIdeaRow[] = [];
+        for (const row of rows) {
+            const attributes = parseAttributes(row.attributes_json);
+            if (!Object.prototype.hasOwnProperty.call(attributes, 'todo')) {
+                continue;
+            }
+            const todoNote = todoNoteFromAttributes(attributes);
+            ideas.push({
+                id: row.id,
+                name: row.name,
+                kind: row.kind as TodoIdeaRow['kind'],
+                fileUri: row.file_uri,
+                lineStart: row.line_start,
+                summary: row.summary,
+                ...(todoNote !== undefined ? { todoNote } : {})
+            });
+        }
+        return {
+            total: ideas.length,
+            ideas: ideas.slice(0, cappedLimit)
+        };
+    }
+
     async listIdeasForGraphQuery(
         query: GraphViewQuery,
         limit: number
@@ -920,9 +973,46 @@ export class SqliteIndexStore {
 
     /**
      * Idea ids that still need git date backfill for the Timeline tab.
-     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     * - `fileUri`: only ideas in that file (active-editor priority queue)
+     * - `preferFileUri`: list that file's ideas first, then the rest of the backlog
+     * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+     * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
      */
-    async listIdeaIdsMissingGitDates(limit = 40): Promise<string[]> {
+    async listIdeaIdsMissingGitDates(
+        limit = 40,
+        options?: { fileUri?: string; preferFileUri?: string }
+    ): Promise<string[]> {
+        const capped = Math.max(1, Math.min(limit, 200));
+        const fileUri = options?.fileUri?.trim();
+        if (fileUri) {
+            const rows = await all<{ id: string }>(this.db, `
+                SELECT id
+                FROM ideas
+                WHERE kind != 'ideaset'
+                  AND git_created_at IS NULL
+                  AND git_modified_at IS NULL
+                  AND file_uri = ?
+                ORDER BY line_start ASC
+                LIMIT ?
+            `, fileUri, capped);
+            return rows.map(row => row.id);
+        }
+        const preferFileUri = options?.preferFileUri?.trim();
+        if (preferFileUri) {
+            const rows = await all<{ id: string }>(this.db, `
+                SELECT id
+                FROM ideas
+                WHERE kind != 'ideaset'
+                  AND git_created_at IS NULL
+                  AND git_modified_at IS NULL
+                ORDER BY CASE WHEN file_uri = ? THEN 0 ELSE 1 END,
+                         file_uri ASC, line_start ASC
+                LIMIT ?
+            `, preferFileUri, capped);
+            return rows.map(row => row.id);
+        }
         const rows = await all<{ id: string }>(this.db, `
             SELECT id
             FROM ideas
@@ -931,7 +1021,7 @@ export class SqliteIndexStore {
               AND git_modified_at IS NULL
             ORDER BY file_uri ASC, line_start ASC
             LIMIT ?
-        `, Math.max(1, Math.min(limit, 200)));
+        `, capped);
         return rows.map(row => row.id);
     }
 
@@ -1098,6 +1188,29 @@ async function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Pr
     try {
         while (statement.step()) {
             rows.push(statement.getAsObject() as T);
+        }
+        return rows;
+    } finally {
+        statement.free();
+    }
+}
+
+/** Like `all`, but yields to the event loop every chunk so interactive work can run. */
+async function allYielding<T>(
+    db: SqliteDatabase,
+    sql: string,
+    ...params: unknown[]
+): Promise<T[]> {
+    const statement = db.db.prepare(sql, params);
+    const rows: T[] = [];
+    try {
+        let stepped = 0;
+        while (statement.step()) {
+            rows.push(statement.getAsObject() as T);
+            stepped += 1;
+            if (stepped % 250 === 0) {
+                await new Promise<void>(resolve => setTimeout(resolve, 0));
+            }
         }
         return rows;
     } finally {

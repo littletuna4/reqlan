@@ -6,10 +6,12 @@
  * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
  */
 import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
-import { AstUtils, stream } from 'langium';
+import { AstUtils, UriUtils, stream } from 'langium';
 import type { MaybePromise } from 'langium';
 import {
     DefaultCompletionProvider,
@@ -18,7 +20,7 @@ import {
     type CompletionProviderOptions
 } from 'langium/lsp';
 import { reqlanStringDelimiter } from './reqlan-quoted-strings.js';
-import type { CompletionList, CompletionParams } from 'vscode-languageserver';
+import type { CompletionItem, CompletionList, CompletionParams } from 'vscode-languageserver';
 import { CompletionItemKind, CompletionList as LspCompletionList } from 'vscode-languageserver';
 import {
     isAttribute,
@@ -39,6 +41,7 @@ import {
     getCompletionSite,
     getReferencePrefixContext
 } from './reqlan-completion-context.js';
+import { buildFromImportEdit, relativeRqImportPath } from './reqlan-import-edits.js';
 import {
     collectPathCompletionCandidates,
     comparePathCompletionCandidates,
@@ -50,6 +53,12 @@ import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { referenceIdea } from './reqlan-references.js';
 import { collectWorkspaceAttributeCatalog } from './reqlan-workspace-attribute-catalog.js';
 import type { ReqlanServices } from './reqlan-module.js';
+
+type ReferenceCompletionCandidate = {
+    name: string;
+    document: LangiumDocument;
+    importable: boolean;
+};
 
 const UNREACHABLE_DISTANCE = 9999;
 
@@ -194,47 +203,92 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         if (!context) {
             return LspCompletionList.create([], true);
         }
-        const names = new Set<string>();
         const docs = this.documents.all.toArray();
-        if (!docs.some(doc => doc.uri.toString() === document.uri.toString())) {
+        if (!docs.some(doc => UriUtils.equals(doc.uri, document.uri))) {
             docs.push(document);
         }
+        const candidates = this.collectReferenceCompletionCandidates(docs, context.prefix);
+        const center = findContainingIdea(document, params.position)?.name;
+        const distances = center
+            ? hopDistancesFromCenter(center, buildIdeaReferenceAdjacency(docs))
+            : new Map<string, number>();
+        const items = candidates.map(candidate =>
+            this.toReferenceCompletionItem(document, candidate, context, distances)
+        ).sort((left, right) => {
+            const leftDistance = distances.get(String(left.label)) ?? UNREACHABLE_DISTANCE;
+            const rightDistance = distances.get(String(right.label)) ?? UNREACHABLE_DISTANCE;
+            return leftDistance - rightDistance
+                || String(left.label).localeCompare(String(right.label))
+                || String(left.detail ?? '').localeCompare(String(right.detail ?? ''));
+        });
+        return LspCompletionList.create(items, true);
+    }
+
+    /** Collect named ideas/ideasets across loaded documents for bracket/wikilink completion. */
+    private collectReferenceCompletionCandidates(
+        docs: LangiumDocument[],
+        prefix: string
+    ): ReferenceCompletionCandidate[] {
+        const byKey = new Map<string, ReferenceCompletionCandidate>();
         for (const doc of docs) {
             const model = doc.parseResult.value;
             if (!isModel(model)) {
                 continue;
             }
             for (const element of model.elements) {
-                if (isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element)) {
-                    names.add(element.name);
+                const importable = isIdea(element) || isOneLinerIdea(element);
+                if (!importable && !isIdeaSet(element)) {
+                    continue;
+                }
+                if (prefix && !element.name.startsWith(prefix)) {
+                    continue;
+                }
+                const key = `${doc.uri.toString()}::${element.name}`;
+                if (!byKey.has(key)) {
+                    byKey.set(key, { name: element.name, document: doc, importable });
                 }
             }
         }
-        const center = findContainingIdea(document, params.position)?.name;
-        const distances = center
-            ? hopDistancesFromCenter(center, buildIdeaReferenceAdjacency(docs))
-            : new Map<string, number>();
-        const items = [...names].flatMap(name => {
-            if (context.prefix && !name.startsWith(context.prefix)) {
-                return [];
-            }
-            const distance = distances.get(name) ?? UNREACHABLE_DISTANCE;
-            return [{
-                label: name,
-                kind: CompletionItemKind.Reference,
-                insertText: name,
-                sortText: `${String(distance).padStart(4, '0')}_${name}`,
+        return [...byKey.values()];
+    }
+
+    /**
+     * Cross-file idea completions show their import path and may insert a from-import.
+     * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
+     * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+     */
+    private toReferenceCompletionItem(
+        document: LangiumDocument,
+        candidate: ReferenceCompletionCandidate,
+        context: NonNullable<ReturnType<typeof getReferencePrefixContext>>,
+        distances: Map<string, number>
+    ): CompletionItem {
+        const sameFile = UriUtils.equals(candidate.document.uri, document.uri);
+        const distance = distances.get(candidate.name) ?? UNREACHABLE_DISTANCE;
+        const item: CompletionItem = {
+            label: candidate.name,
+            kind: CompletionItemKind.Reference,
+            sortText: `${String(distance).padStart(4, '0')}_${candidate.name}`,
+            textEdit: {
+                newText: candidate.name,
                 range: {
                     start: context.replaceStart,
                     end: context.replaceEnd
                 }
-            }];
-        }).sort((left, right) => {
-            const leftDistance = distances.get(String(left.label)) ?? UNREACHABLE_DISTANCE;
-            const rightDistance = distances.get(String(right.label)) ?? UNREACHABLE_DISTANCE;
-            return leftDistance - rightDistance || String(left.label).localeCompare(String(right.label));
-        });
-        return LspCompletionList.create(items, true);
+            }
+        };
+        if (sameFile) {
+            return item;
+        }
+        const importPath = relativeRqImportPath(document.uri, candidate.document.uri);
+        item.detail = importPath;
+        if (candidate.importable) {
+            const importEdit = buildFromImportEdit(document, importPath, candidate.name);
+            if (importEdit) {
+                item.additionalTextEdits = [importEdit];
+            }
+        }
+        return item;
     }
 
     private completeAnonymousImportPath(document: LangiumDocument, params: CompletionParams): CompletionList {

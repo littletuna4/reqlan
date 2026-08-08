@@ -147,8 +147,6 @@ export class IdeasSummaryPanel {
     private graphSliceGeneration = 0;
     private graphSlicePending = false;
     private coverageGeneration = 0;
-    /** Idea ids for which Timeline already attempted git_dates backfill this session. */
-    private readonly timelineGitDatesAttempted = new Set<string>();
 
     private constructor(
         private readonly context: vscode.ExtensionContext,
@@ -350,13 +348,16 @@ export class IdeasSummaryPanel {
                 case 'openExternal':
                     await vscode.env.openExternal(vscode.Uri.parse(message.href));
                     break;
-                case 'openExport':
-                    if (message.format === 'pdf') {
-                        await vscode.commands.executeCommand('reqlan.exportPdf');
-                    } else {
-                        await vscode.commands.executeCommand('reqlan.exportHtml');
-                    }
+                case 'openExport': {
+                    const command =
+                        message.format === 'pdf' ? 'reqlan.exportPdf'
+                            : message.format === 'markdown' ? 'reqlan.exportMarkdown'
+                                : message.format === 'json' ? 'reqlan.exportJson'
+                                    : message.format === 'csv' ? 'reqlan.exportCsv'
+                                        : 'reqlan.exportHtml';
+                    await vscode.commands.executeCommand(command);
                     break;
+                }
                 case 'dumpFullGraph':
                     await this.sendFullGraph();
                     break;
@@ -623,8 +624,6 @@ export class IdeasSummaryPanel {
     }
 
     private async sendTimelinePage(): Promise<void> {
-        await this.ensureTimelineGitDates();
-
         const indexEvents = await this.buildIdeaIndexTimelineEvents();
         let gitEvents: Array<{
             id: string;
@@ -677,41 +676,6 @@ export class IdeasSummaryPanel {
             .slice(0, 150);
 
         this.post({ type: 'timelinePage', events });
-    }
-
-    /**
-     * Backfill missing idea git dates so Timeline can show evolution.
-     * Caps work per open so the tab stays responsive.
-     */
-    private async ensureTimelineGitDates(): Promise<void> {
-        if (!this.submodule.index.isReady) {
-            return;
-        }
-        const store = this.submodule.index.indexStore;
-        const missing = (await store.listIdeaIdsMissingGitDates(40))
-            .filter(id => !this.timelineGitDatesAttempted.has(id));
-        if (missing.length === 0) {
-            return;
-        }
-        for (const id of missing) {
-            this.timelineGitDatesAttempted.add(id);
-        }
-        const workspaceRoot =
-            this.submodule.index.getActiveBase()?.descriptor.root ??
-            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        try {
-            await this.submodule.analysers.run<{ ideaIds?: string[] }, unknown>(
-                {
-                    store,
-                    analytical: this.submodule.index.store,
-                    workspaceRoot
-                },
-                'git_dates',
-                { ideaIds: missing }
-            );
-        } catch {
-            // Timeline still shows any dates already present / index idea events.
-        }
     }
 
     /** Session index activity expanded to one Timeline event per idea. */

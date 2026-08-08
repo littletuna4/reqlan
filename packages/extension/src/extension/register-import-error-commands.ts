@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import {
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
+    REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     relativeRqImportPath,
     type ImportErrorCommandArgs,
@@ -14,26 +15,30 @@ import {
 } from '@reqlan/language';
 import { URI } from 'langium';
 import * as vscode from 'vscode';
+import type { LanguageClient } from 'vscode-languageclient/node';
+import { State } from 'vscode-languageclient/node';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { ReferenceSearchPanel } from './reference-search-panel.js';
 
 export function registerImportErrorCommands(
     context: vscode.ExtensionContext,
-    index: IndexService
+    index: IndexService,
+    getClient: () => LanguageClient | undefined = () => undefined
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand(
             REQLAN_SEARCH_REFERENCE_COMMAND,
             async (args?: SearchReferenceCommandArgs) => {
-                if (!args?.documentUri || args.range === undefined) {
+                const resolved = args ?? await resolveSearchArgsFromEditor(getClient);
+                if (!resolved?.documentUri || resolved.range === undefined) {
                     return;
                 }
                 await ReferenceSearchPanel.show(index, {
-                    documentUri: args.documentUri,
-                    refText: args.refText ?? '',
-                    range: args.range,
-                    mode: args.mode ?? 'replace',
-                    context: args.context
+                    documentUri: resolved.documentUri,
+                    refText: resolved.refText ?? '',
+                    range: resolved.range,
+                    mode: resolved.mode ?? 'replace',
+                    context: resolved.context
                 });
             }
         ),
@@ -59,6 +64,90 @@ export function registerImportErrorCommands(
             }
         )
     );
+}
+
+/**
+ * Code actions intentionally omit command arguments so VS Code does not cache
+ * them under a disposable delegating id (see "Actual command not found … /N").
+ * Resolve the search site from the active editor via the language server.
+ */
+async function resolveSearchArgsFromEditor(
+    getClient: () => LanguageClient | undefined
+): Promise<SearchReferenceCommandArgs | undefined> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || editor.document.languageId !== 'reqlan') {
+        void vscode.window.showErrorMessage('Open a .rq file and place the cursor on a reference or word.');
+        return undefined;
+    }
+
+    const client = getClient();
+    if (!client || client.state !== State.Running) {
+        void vscode.window.showErrorMessage('Reqlan language server is not ready yet. Try again in a moment.');
+        return undefined;
+    }
+
+    const documentUri = editor.document.uri.toString();
+    const range = {
+        start: {
+            line: editor.selection.start.line,
+            character: editor.selection.start.character
+        },
+        end: {
+            line: editor.selection.end.line,
+            character: editor.selection.end.character
+        }
+    };
+
+    try {
+        const site = await client.sendRequest<SearchReferenceCommandArgs | null>(
+            REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
+            {
+                uri: documentUri,
+                text: editor.document.getText(),
+                range
+            }
+        );
+        if (site) {
+            return site;
+        }
+    } catch (error) {
+        console.error('[reqlan] reference search site request failed:', error);
+    }
+
+    // Fallback: open search against the selection/word text without AST context.
+    const selected = editor.document.getText(editor.selection).trim();
+    const refText = selected || wordAtPosition(editor.document, editor.selection.active);
+    if (!refText) {
+        void vscode.window.showInformationMessage('Place the cursor inside a [reference] or idea-body word to search.');
+        return undefined;
+    }
+    return {
+        documentUri,
+        refText,
+        range: selected
+            ? range
+            : wordRangeAtPosition(editor.document, editor.selection.active) ?? range,
+        mode: selected.startsWith('[') ? 'replace' : 'wrap'
+    };
+}
+
+function wordAtPosition(document: vscode.TextDocument, position: vscode.Position): string {
+    const range = document.getWordRangeAtPosition(position, /[A-Za-z0-9_]+/);
+    return range ? document.getText(range) : '';
+}
+
+function wordRangeAtPosition(
+    document: vscode.TextDocument,
+    position: vscode.Position
+): { start: { line: number; character: number }; end: { line: number; character: number } } | undefined {
+    const word = document.getWordRangeAtPosition(position, /[A-Za-z0-9_]+/);
+    if (!word) {
+        return undefined;
+    }
+    return {
+        start: { line: word.start.line, character: word.start.character },
+        end: { line: word.end.line, character: word.end.character }
+    };
 }
 
 async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> {

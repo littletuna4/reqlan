@@ -1,9 +1,36 @@
 welcome {
-    Thank you for installing the reqlan toolset.
-    This page introduces the extension, the reqlan language, and where to learn more.
+    Thank you for installing the reqlan semantic engineering toolset.
+    These ideas offer an overview of the extension, the reqlan language, and where to learn more.
+    
 }
 
-resources {
+one_liner_ideas the simplest way to express an idea in reqlan
+
+block_ideas {
+    If you have a more complex idea
+    you can use block syntax to express it.
+}
+
+references {
+    You can reference [one_liner_ideas], [block_ideas], [https://external-links.com] ["./otherfiles.rq"]
+}
+
+attributes {
+    Block ideas can have attributed with an @ symbol at the start of the line.
+    @attribute_with_a_value "a value"
+    @attribute_with_a_reference ["./otherfiles.rq"]
+    @attribute_without_a_value
+    @attribute_forming_a_subidea {
+        subidea content
+    }
+    // some attributes are special: 
+    @todo // mark a block as a todo
+    @tests ["./tests.ts"] // a link to tests for the requirement
+    @implementation ["./file where the requirement implementatinon lives.ts"] 
+}
+
+
+project_resources {
     - Project site: {{SITE_URL}}
     - Documentation and quickstart: {{QUICKSTART_URL}}
     - Source repository: {{GITHUB_URL}}
@@ -12,6 +39,7 @@ resources {
 }
 
 extension_overview {
+    The extension offers lots of language support and search capabilities.
     The reqlan extension provides language support for `.rq` requirement files in VS Code and compatible editors.
     Use the Reqlan activity bar to inspect neighbourhood context, reference lists, and graph slices for the active requirement.
     In chat, invoke `@reqlan` with `/rq-search` to explore requirements across the workspace.
@@ -27,4 +55,6 @@ language_overview {
 acknowledgements {
     - LLMs
     - PKMs
+    - Contributors
+    - If you'd like to feature here as a sponsor - reach out. 
 }

@@ -11,6 +11,8 @@ import "./ideas_summary/webview.rq" as ideas_summary_doc
 import "./ideas_summary/graphical_graph.rq" as graphical_graph_doc
 import "./activitybar-panels/current_context_scope.rq" as current_context_scope
 import "./activitybar-panels/minigraph.rq" as minigraph
+import "./activitybar-panels/search.rq" as search_panel
+import "./activitybar-panels/todo.rq" as todo_panel
 import "./activitybar-panels/workspace.rq" as workspace_panel
 import "../../../reqlan rq/development/core.rq" as development_core
 import "../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
@@ -22,9 +24,15 @@ import "../../../packages/extension/webviews/activity-bar/App.svelte" as Activit
 import "../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte" as MiniGraphCanvas
 import "../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
 import "../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte" as WorkspacePane
+import "../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../packages/extension/webviews/activity-bar/components/TodoPane.svelte" as TodoPane
 import "../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte" as ScopePane
 import "../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte" as ReferenceListsPane
 import "../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../packages/extension/src/extension/insert-idea-reference.ts" as insert_idea_reference
+import "../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
+import "../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
+import "../../core_analysis/search.rq" as core_search
 import "../../../packages/extension/webviews/activity-bar/lib/group-file-issues.ts" as group_file_issues
 from "../../ontology.rq" import base as bases
 import "../../bases/base.rq" as base_docs
@@ -37,18 +45,37 @@ activity_bar {
     Workspace-wide tables, full layout controls, and unconstrained graph dumps belong in Ideas Summary per [ideas_summary_doc.ideas_summary]; panes link out with prefilled state instead of duplicating those views.
 }
 
+activity_bar_styling {
+    Activity bar chrome for the [panes] stack under [ActivityBarApp] / [CollapsiblePane].
+    - **Open panes fill** the remaining bar height (flex grow); collapsed panes stay header-sized. A single open pane takes the full stack; multiple open panes share space by persisted relative weights.
+    - Each expanded pane is **resizable** when more than one is open (drag handle adjusts weight); heights/weights persist with expand state via [ActivityBarApp] view state.
+    - The bar itself **scrolls** when minimum pane sizes exceed the webview viewport; otherwise pane bodies scroll internally.
+    - Pane shells **persist** across bootstrap / empty / invalid states — hide or soften **content** inside the pane (e.g. [SelectionPane] empty copy), do not unmount the section for phase or missing data. Bootstrap banner remains per [loading_state]; list overflow still uses [panel_content_styling] / [NestedSection].
+    Layout helpers: ["../../../packages/extension/webviews/activity-bar/lib/pane-layout.ts"].
+    @tests (
+        ["../../../packages/extension/test/pane-layout.test.ts"]
+        ["../../../packages/extension/webviews/activity-bar/App.svelte"]
+        ["../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte"]
+        ["../../../packages/extension/webviews/activity-bar/components/SelectionPane.svelte"]
+        ["../../../packages/extension/webviews/activity-bar/styles/global.css"]
+    )
+    @status done
+}
+
 icon {
     the activity bar icon should use the reqlan logo. [brand]
 }
 
 panes {
     - [header_buttons]
+    - [workspace_pane]
+    - [search_pane]
+    - [todo_pane]
     - [current_file_pane]
     - [selection_pane]
     - [ideaset_pane]
     - [file_references_pane]
     - [recent_pane]
-    - [workspace_pane]
 }
 
 header_buttons {
@@ -60,6 +87,7 @@ header_buttons {
     - "Copy as markdown": copy the focused idea plus parents and reference lists for pasting into chat or PRs.
     - Refresh control tied to index readiness.
     - [info_site_link]
+    - Status / error line under the toolbar: [error_status_bar]
 
     @tests (
         ["../../../packages/extension/webviews/activity-bar/components/HeaderBar.svelte"]
@@ -67,9 +95,33 @@ header_buttons {
     )
 }
 
+error_status_bar {
+    When the activity bar status line (["../../../packages/extension/webviews/activity-bar/components/HeaderBar.svelte"]) or Ideas Summary status chrome
+    (["../../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"])
+    is in an error state (`statusError`), surface the error **prominently** — do not mute it or bury it behind healthy index counts.
+    - Lead the status text with the error summary or issue count; healthy idea/reference counts may follow as secondary context.
+    - Use error foreground, error validation background, a distinct error label, and `role="alert"` so the message is visually and accessibly distinct from idle status.
+    - Bootstrap error banner (["../../../packages/extension/webviews/activity-bar/components/BootstrapStatus.svelte"] in [loading_state]) must not apply muted styling to the error detail.
+    Soft-waits for an unready index stay non-error per [loading_state] / [workspace_panel.workspace_loading]; this idea covers true error states only.
+    Shared copy helper: ["../../../packages/extension/webviews/ideas-summary/lib/index-status-text.ts"].
+    @implementation (
+        ["../../../packages/extension/webviews/activity-bar/components/HeaderBar.svelte"]
+        ["../../../packages/extension/webviews/activity-bar/components/BootstrapStatus.svelte"]
+        ["../../../packages/extension/webviews/activity-bar/styles/global.css"]
+        ["../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/styles/global.css"]
+        ["../../../packages/extension/webviews/ideas-summary/lib/index-status-text.ts"]
+    )
+    @tests (
+        ["../../../packages/extension/test/index-status-text.test.ts"]
+    )
+    @status done
+}
+
 hop_depth_control {
-    A **− / value / +** button pair (not a 1-hop/2-hop toggle) sets [context_scope_doc.global_hop_depth].
-    - Minimum hop depth is 1 (direct neighbours only); **−** is disabled at minimum.
+    A **- / value / +** button pair (not a 1-hop/2-hop toggle) sets [context_scope_doc.global_hop_depth].
+    - Minimum hop depth is 1 (direct neighbours only); **-** is disabled at minimum.
     - Maximum hop depth is capped (default 4 for the activity bar); **+** is disabled at maximum.
     - Changing global depth rebuilds [context_scope_doc.reqlan_context_model], refreshes graph/refs/ancestors panes, and updates [context_scope_doc.context_footprint].
     - When no [context_scope_doc.effective_center_id] exists, depth still updates session state; panes refresh when a centre appears.
@@ -145,6 +197,15 @@ workspace_pane {
     Empty discovery: create-base CTA per [base_docs.create_base_onboarding].
 }
 
+search_pane {
+    Workspace idea search with insert-at-cursor — details in [search_panel.search_pane].
+    Ranking: [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]; insert: [insert_idea_reference].
+}
+
+todo_pane {
+    Workspace list of ideas carrying `@todo` — details in [todo_panel.todo_pane].
+}
+
 context_tray {
     Pinned ideas for AI context — details in [current_context_scope.context_tray].
 }
@@ -157,9 +218,12 @@ performance {
     - Debounce editor selection and cursor events before rebuilding slices.
     - Lazy-mount cytoscape only for visible sub-panes; destroy when collapsed or hidden.
     - Reuse [graph_analysers.local_graph_analysis] and graph query builders rather than ad-hoc index walks in the webview.
+    - Interactive actions (`openIdea`, insert ref, phonebook / Ideas Summary links) are handled on a priority path: they cancel in-flight search/refresh work and briefly quiet editor-driven rebuilds so subsequent clicks stay snappy.
+    - Idea search scoring runs in a worker thread with a preloaded catalog; catalog load yields while reading sql.js so it cannot monopolize the host.
     @tests (
         ["../../../packages/extension/test/startup-gate.test.ts"]
         ["../../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
+        ["../../../packages/analytical/test/fuzzy-search.test.ts"]
     )
     @status done
 }
@@ -176,7 +240,7 @@ implementation_priority {
 component_list {
     Priority release (shipped):
     - Shell: [ActivityBarApp], HeaderBar (includes [info_site_link]), CollapsiblePane in ["../../../packages/extension/webviews/activity-bar/"]
-    - Panes: WorkspacePane, ScopePane, SelectionPane, ReferenceListsPane, MiniatureGraphPane, ParentNodesPane, ContextTray
+    - Panes: WorkspacePane, [SearchPane], [TodoPane], ScopePane, SelectionPane, ReferenceListsPane, MiniatureGraphPane, ParentNodesPane, ContextTray
     - Graph: [MiniGraphCanvas] consuming shared graph lib per [graph_lib]
     - Host: [activity_bar_webview], [activity_bar_data], wire types in [activity_bar_messages]
     - HTML: [get_activity_bar_html]
@@ -201,9 +265,11 @@ loading_state {
     1. HTML shell (before Svelte boots): inline waiting markup in [get_activity_bar_html].
     2. Connecting: header visible; a post-first-frame `ready` handshake starts the index and requests the first host state.
     3. Waiting for index: [workspace_panel.workspace_loading].
-    4. Ready panes: [current_context_scope.context_panes_loading] and [minigraph.minigraph_loading].
-    Index sync progress belongs in [workspace_pane]; graph slice waits stay in [miniature_graph_pane], not a second global overlay.
+    4. Ready panes: [current_context_scope.context_panes_loading], [minigraph.minigraph_loading], and [search_panel.search_progress].
+    Index sync progress belongs in [workspace_pane]; graph slice waits stay in [miniature_graph_pane]; idea-search phases stay in [search_panel.search_pane] — not a second global overlay.
     Host posts index health on `ready` and on subsequent status changes; soft-waits when the index is not ready instead of erroring the whole bar.
+    Pane shells stay mounted through these phases per [activity_bar_styling]; only content / bootstrap banner reflect invalid or loading states.
+    True error states (status line + bootstrap banner) must show the error prominently per [error_status_bar].
     @tests (
         ["../../../packages/extension/webviews/activity-bar/App.svelte"]
         ["../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
@@ -217,6 +283,7 @@ loading_state {
 
 panel_content_styling {
     Pane bodies must not grow unbounded. Nested lists use [NestedSection] (collapse + scroll) under [CollapsiblePane].
+    Shell resize / fill / scroll behaviour: [activity_bar_styling].
     Details: [workspace_panel.workspace_content_styling], [current_context_scope.context_content_styling].
     [WorkspacePane] [ScopePane] [ReferenceListsPane]
     @tests (

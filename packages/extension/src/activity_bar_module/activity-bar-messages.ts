@@ -22,6 +22,51 @@ export interface ReferenceListsPayload {
     grouped: Record<string, ReferenceListRow[]>;
 }
 
+export interface IdeaSearchHitView {
+    id: string;
+    name: string;
+    kind: string;
+    path: string;
+    summary: string;
+    fileUri: string;
+    lineStart: number;
+}
+
+export interface IdeaSearchResultsPayload {
+    query: string;
+    total: number;
+    truncated: boolean;
+    results: IdeaSearchHitView[];
+}
+
+/** Phased status while idea search catalog load / scoring is in flight. */
+export type IdeaSearchProgressPhase = 'catalog' | 'search';
+
+export interface IdeaSearchProgressPayload {
+    phase: IdeaSearchProgressPhase;
+    /** Human-readable status shown in the search pane. */
+    message: string;
+    /** Optional detail (e.g. idea count once the catalog is loaded). */
+    detail?: string;
+}
+
+export interface TodoIdeaHitView {
+    id: string;
+    name: string;
+    kind: string;
+    path: string;
+    summary: string;
+    fileUri: string;
+    lineStart: number;
+    todoNote?: string;
+}
+
+export interface TodoListPayload {
+    total: number;
+    truncated: boolean;
+    results: TodoIdeaHitView[];
+}
+
 export interface PhonebookLinkView {
     id: string;
     label: string;
@@ -34,6 +79,9 @@ export type ActivityBarToExtensionMessage =
     | { type: 'loadReferences'; ideaId: string; search?: string; brokenOnly?: boolean; requestId?: number }
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'loadAncestors'; ideaId: string; maxDepth?: number; requestId?: number }
+    | { type: 'searchIdeas'; query: string; requestId?: number }
+    | { type: 'loadTodos'; requestId?: number }
+    | { type: 'insertReference'; fileUri: string; name: string; kind: string }
     | { type: 'loadIndexHealth' }
     | { type: 'refreshIndex' }
     | { type: 'cancelIndexSync' }
@@ -69,6 +117,13 @@ export type ExtensionToActivityBarMessage =
     | { type: 'references'; payload: ReferenceListsPayload; requestId?: number }
     | { type: 'graphSlice'; slice: GraphViewSlice; requestId?: number }
     | { type: 'ancestors'; result: AncestorChainResult; requestId?: number }
+    | { type: 'ideaSearchResults'; payload: IdeaSearchResultsPayload; requestId?: number }
+    | {
+          type: 'ideaSearchProgress';
+          payload: IdeaSearchProgressPayload;
+          requestId?: number;
+      }
+    | { type: 'todoList'; payload: TodoListPayload; requestId?: number }
     | { type: 'indexHealth'; status: IndexStatusView }
     | { type: 'tray'; tray: ContextTrayState }
     | { type: 'trayMarkdown'; text: string }
@@ -100,4 +155,6 @@ export type ActivityBarErrorScope =
     | 'context'
     | 'graph'
     | 'references'
-    | 'ancestors';
+    | 'ancestors'
+    | 'search'
+    | 'todos';

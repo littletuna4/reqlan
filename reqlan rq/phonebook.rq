@@ -8,14 +8,14 @@ phonebook_icons {
     Icon sets and lookup URLs live under the `icons` key in ["./phonebook.json"].
     Each link or package icon references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
     Search a set at its `search` URL when renaming or replacing icons.
-    The site renders icons with Iconify via the packages listed in each set's `package` field per ["../site/reqs/icons.rq"].
-    Registry: ["../site/src/lib/phonebook-icons.ts"].
+    Surfaces render icons with Iconify via the packages listed in each set's `package` field per ["./development/core.rq".iconify_stack].
+    Site registry: ["../site/src/lib/phonebook-icons.ts"] per ["./site/site.rq".icon_registry].
 }
 
 npm_packages {
     Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) live under the `packages` key in ["./phonebook.json"].
     Package ids are `language`, `analytical`, and `cli`.
-    The site Links section renders them under Packages per ["../site/reqs/core.rq".links] / ["../site/reqs/icons.rq".package_icons].
+    The site Links section renders them under Packages per ["./site/site.rq".links] / ["./site/site.rq".package_icons].
     Typed helpers: `phonebookPackages`, `getPhonebookPackage` in ["../scripts/phonebook.ts"].
 }
 

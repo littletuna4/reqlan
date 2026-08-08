@@ -240,12 +240,27 @@
             },
             {
                 "command": "reqlan.exportHtml",
-                "title": "Export HTML",
+                "title": "Export HTML…",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.exportMarkdown",
+                "title": "Export Markdown…",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.exportJson",
+                "title": "Export JSON…",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.exportCsv",
+                "title": "Export CSV…",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.exportPdf",
-                "title": "Export PDF",
+                "title": "Export PDF…",
                 "category": "Reqlan"
             },
             {

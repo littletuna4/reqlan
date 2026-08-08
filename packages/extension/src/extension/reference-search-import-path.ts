@@ -7,7 +7,7 @@ import { URI } from 'langium';
 import { relativeRqImportPath } from '@reqlan/language';
 
 /**
- * Index ideas store workspace-relative paths like `site/reqs/showcase.rq`.
+ * Index ideas store workspace-relative paths like `reqlan rq/site/site.rq`.
  * Turn those (or absolute / file:// URIs) into a file URI string for path math.
  */
 export function absoluteFileUriFromIndex(indexFileUri: string, workspaceRootFsPath?: string): string {

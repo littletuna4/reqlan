@@ -37,7 +37,7 @@ scope {
 }
 
 monorepo {
-    The workspace is a pnpm monorepo (`packages\*`, extension webviews, and `site`) per ["../pnpm-workspace.yaml"].
+    The workspace is a pnpm monorepo (`packages\*`, extension webviews, and `site`) per ["../pnpm-workspace.yaml"] and [development_core.pnpm].
     TypeScript project references build in order language → analytical → mcp → cli → extension per ["../tsconfig.build.json"].
     Living requirements for the product live in this `reqlan rq` folder.
     Root orchestration (Langium generate, package builds, Cursor skill sync) lives in ["../package.json"].

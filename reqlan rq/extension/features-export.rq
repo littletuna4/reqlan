@@ -1,29 +1,54 @@
-import "./features-html-export.rq" as html_export
-from "./module/ideas_summary/webview.rq" import ideas_summary
-from "./features-commands.rq" import command_palette
+
+import "../core_analysis/export.rq" as analysis_export
+import "../core_analysis/html_export.rq" as html_export
+import "./features-html-export.rq" as html_export_ui
 
 export_webview {
-    The extension should provide a single export webview for exporting the requirement graph in various formats ([json_export], [csv_export], [html_export.html_export], and later formats such as pdf).
-    This generalizes the current HTML-only [html_export.html_export_form]: format choice is primary, and format-specific options (e.g. HTML runtime mode, template, page families) appear when that format is selected.
-    Shared options: scope, output folder, and export name; defaults persist to ["./module/index.rq".application_memory] as `export_settings.json` under `<workspace>/.reqlan/`.
-    While an export runs, the form should show a loading state with live progress (phase message and, when known, completed/total or percent) so the user can see HTML (and other formats) being built — not only a disabled button.
+    The extension should provide a single export webview for user configuration of graph exports.
+    Format choice is primary; format-specific options appear when that format is selected (HTML: [html_export_ui.html_export_form]; Markdown / JSON / CSV / PDF: shared filters and format fields below).
+    Shared options: base (when more than one exists), scope (entire base or current file), output folder, and export name.
+    The form is ["../bases/base.rq".base]-aware: it lists discovered bases, defaults to the active base (["../bases/base.rq".active_base_switch]), exports from the selected base’s index, and persists defaults to that base’s ["./module/index.rq".application_memory] as `export_settings.json` under `<base>/.reqlan/` (["../bases/base.rq".multi_base_environment]).
+    Changing the base in the form pins the active base (pointer swap + catch-up) so host surfaces stay aligned with the export target.
+    While an export runs, the form should show a loading state with live progress (phase message and, when known, completed/total or percent) from [analysis_export.export_pipeline].
+    Execution is delegated to analytical writers: [html_export.html_export], [analysis_export.markdown_export], [analysis_export.json_export], [analysis_export.csv_export], [analysis_export.pdf_export].
     The user should be able to open it from:
-      - a link/control in the main [ideas_summary] chrome (status bar or header)
-      - the [command_palette]
+      - a link/control in the main ["./module/ideas_summary/webview.rq".ideas_summary] chrome (status bar or header)
+      - the ["./features-commands.rq".command_palette] (`Export HTML…` / `Export Markdown…` / `Export JSON…` / `Export CSV…` / `Export PDF…` open with that format pre-selected) via ["./export_functions.rq"]
     @status partial
     @implementation (
         ["../../packages/extension/src/analytical_submodule/export/export-form-panel.ts"]
         ["../../packages/extension/src/analytical_submodule/export/export-form-messages.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-form-settings-types.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/export-settings.ts"]
+        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
         ["../../packages/extension/webviews/export-form/"]
-        ["../../packages/analytical/src/export/export-html.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/export-settings.test.ts"]
+        ["../../packages/extension/test/extension-package.test.ts"]
     )
 }
 
+markdown_export {
+    Markdown export UI is hosted in [export_webview] (idea pages toggle, shared base/scope/output/name and file filters).
+    Execution: [analysis_export.markdown_export].
+    @status done
+}
+
 json_export {
-    The extension should export the requirement graph as structured json for tooling and ai consumption.
+    JSON export UI is hosted in [export_webview] (shared base/scope/output/name and file filters).
+    Execution: [analysis_export.json_export].
+    @status done
 }
 
 csv_export {
-    The extension should export requirements as csv with tags and key attributes flattened into columns.
+    CSV export UI is hosted in [export_webview] (shared base/scope/output/name and file filters).
+    Execution: [analysis_export.csv_export].
+    @status done
+}
+
+pdf_export {
+    PDF export UI is hosted in [export_webview] (not a separate QuickPick chain): file filters and print entry filename plus shared base/scope/output/name.
+    Execution: [analysis_export.pdf_export] (print-oriented HTML → browser Print → Save as PDF).
+    @status partial
 }

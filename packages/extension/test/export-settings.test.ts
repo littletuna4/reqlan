@@ -29,6 +29,7 @@ describe('export form settings persistence', () => {
         const workspaceRoot = tempWorkspace();
         const settings = loadExportFormSettings(workspaceRoot);
         expect(settings).toEqual(defaultExportFormSettings(workspaceRoot));
+        expect(settings.format).toBe('html');
         expect(settings.advancedExpanded).toBe(false);
         expect(settings.runtimeMode).toBe('interactive');
     });
@@ -37,6 +38,7 @@ describe('export form settings persistence', () => {
         const workspaceRoot = tempWorkspace();
         const settings = {
             ...defaultExportFormSettings(workspaceRoot),
+            format: 'pdf' as const,
             exportName: 'docs-site',
             runtimeMode: 'document' as const,
             excludeSecretFiles: true,
@@ -53,6 +55,7 @@ describe('export form settings persistence', () => {
         const path = exportSettingsPath(workspaceRoot);
         expect(path).toBe(join(workspaceRoot, '.reqlan', 'export_settings.json'));
         const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+        expect(raw.format).toBe('pdf');
         expect(raw.exportName).toBe('docs-site');
         expect(raw.runtimeMode).toBe('document');
         expect(raw.excludeSecretFiles).toBe(true);
@@ -60,6 +63,7 @@ describe('export form settings persistence', () => {
         expect(raw.advancedExpanded).toBe(true);
 
         const loaded = loadExportFormSettings(workspaceRoot);
+        expect(loaded.format).toBe('pdf');
         expect(loaded.exportName).toBe('docs-site');
         expect(loaded.runtimeMode).toBe('document');
         expect(loaded.excludeSecretFiles).toBe(true);

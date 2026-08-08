@@ -1,5 +1,50 @@
-docs_reqs the project requirements should all be documented in the [the reqlan rq folder of this repo](../../reqlan rq)
+import "../site/site.rq" as site_reqs
+import "../development/build.rq" as build_reqs
 
-export_docs_tag the "@docs" tag should be used to mark files as included in the docs.
+docs_reqs {
+    Project requirements should all be documented in the [the reqlan rq folder of this repo](../../reqlan rq).
+}
 
+export_docs_tag {
+    The "@docs" tag should be used to mark files as included in the docs.
+}
 
+docs_image_generation {
+    Images of HTML components for docs, READMEs, and slide packs are generated at build time from production UI.
+    Prefer live HTML imported from production code when embedding is practical; otherwise capture PNGs from the same bundles.
+    Deck asset keys are owned by ["../marketing_and_media/tutorials.rq".presentation_assets].
+    Pipeline: [docs_webview_build] → [docs_playwright_capture] → [site_reqs.sync_presentations].
+    @status done
+    @implementation (
+        ["../../site/scripts/docs-images/capture.mts"]
+        ["../../site/scripts/build-static.mts"]
+    )
+}
+
+docs_webview_build {
+    The site static build builds the extension webviews needed for docs captures before Playwright runs.
+    Builds only the webviews listed by the capture catalog (activity-bar, ideas-summary, onboarding) — not a full extension VSIX.
+    Uses the same Vite configs as [build_reqs.webview_build].
+    @status done
+    @implementation (
+        ["../../site/scripts/docs-images/lib/build-webviews.ts"]
+        ["../../packages/extension/webviews/activity-bar/vite.config.ts"]
+        ["../../packages/extension/webviews/ideas-summary/vite.config.ts"]
+        ["../../packages/extension/webviews/onboarding/vite.config.ts"]
+    )
+}
+
+docs_playwright_capture {
+    Playwright loads each built webview via a harness page with a mocked `acquireVsCodeApi` host,
+    posts demo index/context payloads, and writes PNGs into ["../../presentations/assets/"].
+    Generated assets replace the former coloured SVG stubs (activity-bar, montage-ide, chat-search, file-link).
+    Runs as a step in ["../../site/scripts/build-static.mts"] before presentation sync.
+    CI installs Chromium via `pnpm exec playwright install --with-deps chromium`.
+    @status done
+    @implementation (
+        ["../../site/scripts/docs-images/capture.mts"]
+        ["../../site/scripts/docs-images/shots/catalog.ts"]
+        ["../../site/scripts/docs-images/lib/write-harnesses.ts"]
+        ["../../site/src/components/PresentationPlayer.tsx"]
+    )
+}

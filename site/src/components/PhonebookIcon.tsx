@@ -1,4 +1,4 @@
-/** Renders a phonebook link icon — see site/reqs/icons.rq phonebook_icon_component */
+/** Renders a phonebook link icon — see reqlan rq/site/site.rq phonebook_icon_component */
 import { Icon } from "@iconify/react/dist/offline";
 
 import { resolvePhonebookIcon } from "@/lib/phonebook-icons";

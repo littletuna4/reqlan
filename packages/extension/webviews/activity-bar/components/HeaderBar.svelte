@@ -45,5 +45,15 @@
     </button>
 </header>
 {#if app.statusText}
-    <div class="status-line" class:error={app.statusError}>{app.statusText}</div>
+    <div
+        class="status-line"
+        class:error={app.statusError}
+        role={app.statusError ? 'alert' : 'status'}
+        aria-live={app.statusError ? 'assertive' : 'polite'}
+    >
+        {#if app.statusError}
+            <span class="status-error-label">Error</span>
+        {/if}
+        <span class="status-line-text">{app.statusText}</span>
+    </div>
 {/if}

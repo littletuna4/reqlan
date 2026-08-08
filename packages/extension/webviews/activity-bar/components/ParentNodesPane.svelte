@@ -6,15 +6,19 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
     let result = $derived(app.ancestors);
 </script>
 
-<CollapsiblePane title="Parents" id="parents" {expanded} {onToggle}>
+<CollapsiblePane title="Parents" id="parents" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     <PaneStatus
         loading={app.ancestorsLoading}
         error={app.ancestorsError}

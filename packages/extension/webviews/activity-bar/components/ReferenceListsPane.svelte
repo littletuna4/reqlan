@@ -7,9 +7,13 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
     let payload = $derived(app.references);
@@ -27,7 +31,7 @@
     }
 </script>
 
-<CollapsiblePane title="References" id="references" {expanded} {onToggle}>
+<CollapsiblePane title="References" id="references" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     <input
         class="filter-input"
         placeholder="Filter references…"

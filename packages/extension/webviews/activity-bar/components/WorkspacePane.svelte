@@ -8,9 +8,13 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
     let status = $derived(app.indexStatus);
@@ -52,7 +56,7 @@
     }
 </script>
 
-<CollapsiblePane title="Workspace" id="workspace" {expanded} {onToggle}>
+<CollapsiblePane title="Workspace" id="workspace" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     {#if !status}
         <p class="muted pane-status" role="status">Waiting for workspace index…</p>
     {:else if discoveryEmpty}

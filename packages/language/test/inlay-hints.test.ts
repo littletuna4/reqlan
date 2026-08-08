@@ -1,8 +1,9 @@
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
-import { AstUtils, EmptyFileSystem, URI, type LangiumDocument } from 'langium';
+import { AstUtils, EmptyFileSystem, isOperationCancelled, URI, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { InlayHint, InlayHintLabelPart } from 'vscode-languageserver';
+import { CancellationTokenSource } from 'vscode-languageserver';
 import {
     createReqlanServices,
     isIdea,
@@ -383,6 +384,34 @@ describe('Reference inlay hints', () => {
         expect(hintLabelText(hints![0])).toBe('@referenced-by: (shared)');
         const sharedPart = hintLabelParts(hints![0]).find(part => part.value === 'shared');
         expect(sharedPart?.location?.uri).toBe(sourceDoc.uri.toString());
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    test('cancelled requests throw Langium OperationCancelled (not a plain Error)', async () => {
+        document = await parse(s`
+            target {
+                body
+            }
+
+            source {
+                see [target]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        setReferenceInlayHintsEnabled(true);
+
+        const cancelSource = new CancellationTokenSource();
+        cancelSource.cancel();
+        const provider = new ReqlanInlayHintProvider(services.Reqlan);
+        await expect(
+            provider.getInlayHints(document, {
+                textDocument: { uri: document.uri.toString() },
+                range: {
+                    start: { line: 0, character: 0 },
+                    end: { line: Number.MAX_SAFE_INTEGER, character: 0 }
+                }
+            }, cancelSource.token)
+        ).rejects.toSatisfy(isOperationCancelled);
     });
 
 });

@@ -16,12 +16,12 @@ from "../extension/module/context-scope.rq" import context_scope, any_file_scope
 from "../extension/module/ideas_summary/webview.rq" import ideas_summary
 from "../extension/agents/features-ai.rq" import ai_integration, ai_build_requirement, ai_add_to_context, ai_write_plan
 from "../extension/features-skills-and-mcp.rq" import mcp_tools, cursor_skills_install, chat_skill_naming
-from "../extension/features-html-export.rq" import html_export
+from "../core_analysis/html_export.rq" import html_export
 from "../extension/features-non-rq-code-comment/functional-code-comment-references.rq" import references_in_functional_code_comments
 from "../cli/cli_package.rq" import cli_package, commands, init, function_parity
 from "../docs/docs.rq" import docs_reqs
 from "../phonebook.rq" import phonebook
-import "../../site/reqs/core.rq" as site_reqs
+import "../site/site.rq" as site_reqs
 
 tutorials {
     Tutorial media teaches reqlan through short, scripted videos plus copy-pasteable `.rq` examples.
@@ -136,6 +136,7 @@ slide_visual_system {
     Quiet chrome per [show_dont_tell] — no dense labels on slides; narration carries detail.
     Background keys: brand-dark, brand-panel, brand-contrast.
     Typography: one heading, one short body, optional code block; logo on title and end cards.
+    Media captures follow [slide_media_fit] / [presentation_assets].
 }
 
 slide_transitions {
@@ -148,8 +149,25 @@ slide_transitions {
 presentation_assets {
     Shared files live under ["../../presentations/assets/"].
     Required: logo (copy of ["../../site/public/logo.svg"]).
-    Optional placeholders: montage-ide, activity-bar, chat-search, file-link (SVG or PNG keys referenced from decks).
+    Deck media keys montage-ide, activity-bar, chat-search, file-link are PNGs captured at site build
+    from production extension webviews per ["../docs/docs.rq".docs_image_generation]
+    / ["../docs/docs.rq".docs_webview_build] / ["../docs/docs.rq".docs_playwright_capture].
+    Capture pipeline: ["../../site/scripts/docs-images/capture.mts"] via site `generate:docs-images`
+    and ["../../site/scripts/build-static.mts"] before [site_reqs.sync_presentations].
+    Shot catalog and viewports: ["../../site/scripts/docs-images/shots/catalog.ts"].
+    Player layout must fit captures without spill per [slide_media_fit].
     Public asset serving must stay aligned with [site_reqs.assets].
+    @status done
+}
+
+slide_media_fit {
+    Capture PNGs must not spill the Reveal slide frame.
+    Portrait captures (activity-bar, chat-search) use a copy|media split; landscape captures
+    (montage-ide, file-link) stack or split with code, with max-height + object-fit contain.
+    Implemented in ["../../site/src/components/PresentationPlayer.tsx"],
+    ["../../site/src/styles/reveal-player.css"], ["../../presentations/player/player.js"],
+    and ["../../presentations/player/theme.css"].
+    @status done
 }
 
 slide_decks (

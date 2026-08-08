@@ -1,19 +1,24 @@
 /**
- * Shared HTML export form settings shape (extension host + webview).
+ * Shared export form settings shape (extension host + webview).
  * Persistence lives in `export-settings.ts` (Node fs); keep this file free of Node APIs.
  */
 import type {
     ExportClusterStrategy,
+    ExportFormat,
     ExportRuntimeMode,
     ExportScope
 } from '@reqlan/analytical';
 
 export const EXPORT_SETTINGS_FILENAME = 'export_settings.json';
 
+export type ExportFormFormat = ExportFormat;
+
 export interface ExportFormSettings {
     version: 1;
+    /** Export format; drives which option groups the form shows. */
+    format: ExportFormFormat;
     scope: ExportScope;
-    /** Absolute path, or workspace-relative when under the workspace root. */
+    /** Absolute path, or base-relative when under the selected base root. */
     outputDir: string;
     exportName: string;
     templateId: string;
@@ -38,9 +43,10 @@ export interface ExportFormSettings {
     advancedExpanded: boolean;
 }
 
-export function defaultExportFormSettings(_workspaceRoot?: string): ExportFormSettings {
+export function defaultExportFormSettings(_baseRoot?: string): ExportFormSettings {
     return {
         version: 1,
+        format: 'html',
         scope: 'workspace',
         outputDir: 'reqlan-export',
         exportName: 'reqlan-export',
@@ -72,6 +78,7 @@ export function mergeExportFormSettings(
 ): ExportFormSettings {
     return {
         version: 1,
+        format: isExportFormat(raw.format) ? raw.format : defaults.format,
         scope: raw.scope === 'currentFile' || raw.scope === 'workspace' ? raw.scope : defaults.scope,
         outputDir: typeof raw.outputDir === 'string' && raw.outputDir.trim()
             ? raw.outputDir.trim()
@@ -111,6 +118,10 @@ export function mergeExportFormSettings(
 
 function bool(value: unknown, fallback: boolean): boolean {
     return typeof value === 'boolean' ? value : fallback;
+}
+
+function isExportFormat(value: unknown): value is ExportFormFormat {
+    return value === 'html' || value === 'pdf' || value === 'markdown' || value === 'json' || value === 'csv';
 }
 
 function isRuntimeMode(value: unknown): value is ExportRuntimeMode {

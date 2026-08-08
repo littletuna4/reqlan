@@ -1,0 +1,79 @@
+
+from "./core.rq" import analysis_scope
+
+export_pipeline {
+    `@reqlan/analytical` owns export execution for every format.
+    Shared contract: `ExportRequest` / progress callbacks / snapshot build (`buildExportSnapshot`), then format writers.
+    Hosts (extension webview, CLI) assemble an `ExportRequest` and call `AnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv` — they do not reimplement writers.
+    Formats: ["./html_export.rq".html_export], [markdown_export], [json_export], [csv_export], [pdf_export].
+    Progress phases (snapshot, then write completed/total) are reported to hosts for loading UI.
+    Consumed under [analysis_scope].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../packages/analytical/src/export/types.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+    )
+}
+
+markdown_export {
+    Markdown export writes a `README.md` index for the selected base (counts, status/tag rollups, idea list, file list) and optional per-idea `.md` pages under `ideas/` with attributes and inbound/outbound references as relative markdown links.
+    When per-idea pages are disabled, idea bodies are inlined in the README.
+    Shared base/scope/output/name and file filters apply; HTML-only page families (graph, clusters, attributes, print) are omitted.
+    Pipeline: `exportMarkdown` / `writeMarkdownExport` using the same snapshot builder as HTML ([export_pipeline]).
+    Extension UI host: ["../extension/features-export.rq".export_webview].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/export-markdown.ts"]
+        ["../../packages/analytical/src/export/write-markdown-export.ts"]
+        ["../../packages/analytical/src/analysis-api.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-markdown.test.ts"]
+    )
+}
+
+json_export {
+    JSON export writes `export.json` for the selected base: ideas (with attributes and reference lists), files, clusters, attributes, and status/tag rollups — suitable for tooling and AI consumption.
+    Shared base/scope/output/name and file filters apply.
+    Pipeline: `exportJson` / `writeJsonExport` ([export_pipeline]).
+    Extension UI host: ["../extension/features-export.rq".export_webview].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/export-json.ts"]
+        ["../../packages/analytical/src/export/write-json-export.ts"]
+        ["../../packages/analytical/src/analysis-api.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-json-csv.test.ts"]
+    )
+}
+
+csv_export {
+    CSV export writes `ideas.csv` with tags and non-status/tag attributes flattened into columns (`attr:<key>`), plus `references.csv` for inbound/outbound/unresolved edges.
+    Shared base/scope/output/name and file filters apply.
+    Pipeline: `exportCsv` / `writeCsvExport` ([export_pipeline]).
+    Extension UI host: ["../extension/features-export.rq".export_webview].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/export-csv.ts"]
+        ["../../packages/analytical/src/export/write-csv-export.ts"]
+        ["../../packages/analytical/src/analysis-api.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-json-csv.test.ts"]
+    )
+}
+
+pdf_export {
+    PDF export prepares a print-oriented HTML report from the selected base so the user can Print → Save as PDF in the browser.
+    Direct PDF binary rendering is not required yet; preserve links in the printable HTML (["./html_export.rq".html_export_printable_pages]).
+    PDF-specific options include file filters and print entry filename; shared base/scope/output/name apply.
+    Extension UI host: ["../extension/features-export.rq".export_webview] (not a separate QuickPick chain).
+    @status partial
+    @implementation (
+        ["../../packages/analytical/src/export/export-html.ts"]
+        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../packages/analytical/src/export/types.ts"]
+    )
+}

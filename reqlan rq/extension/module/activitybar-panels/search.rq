@@ -1,0 +1,51 @@
+import "../../features-commands.rq" as commands
+import "../../../core_analysis/search.rq" as core_search
+import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
+import "../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
+import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts" as app_state
+import "../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
+import "../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts" as activity_bar_messages
+import "../../../../packages/extension/src/extension/insert-idea-reference.ts" as insert_idea_reference
+import "../../../../packages/extension/src/extension/insert-idea-reference-helpers.ts" as insert_idea_reference_helpers
+
+search_pane {
+    Workspace idea search in the activity bar — find rq ideas by name, summary, or tags without leaving the sidebar.
+    Complements the modal from [commands.search_code_actions]; this pane stays open for repeated lookups and inserts.
+    Ranking uses [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl] (separator-insensitive `_`/`-`/`...`/whitespace).
+    - Search input with debounced host query.
+    - Results fill the pane body (100% width) and scroll inside the pane; do not nest a second capped NestedSection scroll.
+    - Pane header link **Advanced** opens Ideas Summary ideas table with the current query prefilled.
+    - Results list capped (default ~40) with name, path, and one-line summary; click opens the idea.
+    - Each hit has an **Insert reference** button that inserts `[idea_name]` at the active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import when the target is in another file — same rules as [commands.search_code_actions].
+    - Empty query: prompt to type (do not dump the full idea catalog into the pane).
+    - Soft-wait when the index is not ready; scoped errors stay in the pane.
+    - Loading UX: [search_progress].
+    Implemented by [SearchPane] under [CollapsiblePane]; host wire in [activity_bar_webview] / [activity_bar_messages] / [app_state].
+    @tests (
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../../packages/extension/test/insert-idea-reference.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+search_progress {
+    First-query (and base-switch) search can spend noticeable time loading the idea catalog into the worker before scoring — even when the index itself is already ready.
+    A static "Searching…" / "Loading…" label must not be the only signal: the pane should show **live progress** so a slow wait reads as working, not hung.
+    - Host posts phased progress for the in-flight search request: at least **preparing catalog** (read ideas + hand off to worker) and **scoring** (worker search).
+    - Progress messages carry a human-readable phase label; include counts when known (e.g. ideas loaded into the catalog).
+    - [SearchPane] displays the phase label with a continuous activity affordance (spinner / indeterminate bar) and elapsed time while loading, for both the empty initial wait and the "Updating…" refresh path.
+    - Stale progress from superseded queries must not overwrite a newer request; clear progress when results or a scoped error arrive.
+    - Do not treat catalog load as a silent "quick index check" — surface it as its own phase.
+    @status done
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+    )
+}

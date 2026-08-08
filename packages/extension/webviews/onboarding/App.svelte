@@ -87,10 +87,6 @@
                 </button>
             {/if}
         </div>
-        <p class="muted">
-            Ideas are named blocks. Bodies hold prose and links. Click a URL in the sample, or open
-            it beside this page to edit with full language support.
-        </p>
         {#if exampleSource}
             <RqCode code={exampleSource} onOpenUrl={openLink} />
         {:else}
@@ -98,31 +94,6 @@
         {/if}
     </section>
 
-    <section aria-labelledby="try-heading">
-        <h2 id="try-heading">In the editor</h2>
-        <ul class="tips">
-            <li>
-                Open the <strong>Reqlan</strong> activity bar for neighbourhood context, references,
-                and graph slices around the idea under the cursor.
-            </li>
-            <li>
-                In chat, use <code>@reqlan</code> with <code>/rq-search</code> to find requirements
-                across the workspace.
-            </li>
-            <li>
-                Cross-link ideas with <code>[other_idea]</code> and code with
-                <code>["./auth.ts".login]</code>.
-            </li>
-        </ul>
-    </section>
-
-    <section aria-labelledby="thanks-heading">
-        <h2 id="thanks-heading">Acknowledgements</h2>
-        <ul>
-            <li>LLMs</li>
-            <li>PKMs</li>
-        </ul>
-    </section>
 </main>
 
 <style>

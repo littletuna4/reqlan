@@ -1,0 +1,38 @@
+from "../modelling/advanced_analysis.rq" import pagerank
+from "../extension/module/context-scope-v2.rq" import context_scope_v2
+import "../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
+import "../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
+import "../../packages/analytical/src/analysis/semantic-search-analyser.ts" as semantic_search_analyser
+
+search {
+    Search over the requirement graph — find ideas by name, body, tags, and related signals.
+    Surfaces: [fuzzy_search], [contextual_search], [semantic_search].
+    Consumed by CLI `reqlan search`, MCP/chat tools, Ideas Summary, and the activity-bar search pane.
+    @todo flesh out shared search UX / ranking contract across surfaces
+}
+
+fuzzy_search {
+    Quick ranked idea search by name, summary, and tags.
+    Matching treats `_`, `-`, `.` / `...` / `…`, and whitespace as interchangeable separators
+    so queries like `cli package`, `cli_package`, and `cli-package` hit the same idea.
+    Also supports prefix, substring, and character-subsequence (fuzzy) ranking.
+    Skips ideaset container rows; empty query returns all non-ideaset ideas (callers may require a non-empty query).
+    Implementation: [fuzzy_search_impl] / [fuzzy_search_analyser] (`fuzzy_search` analyser id).
+    @tests (
+        ["../../packages/analytical/test/fuzzy-search.test.ts"]
+    )
+    @status done
+}
+
+contextual_search {
+    Accepting a references to ideas, and a search string, or set of strings. Uses [pagerank]
+    May also accept the rest of the [context_scope_v2].
+    Complements [fuzzy_search] when neighbourhood / context should bias ranking.
+    @todo
+}
+
+semantic_search {
+    Broader token / edge-label search over candidates ([semantic_search_analyser]).
+    Prefer [fuzzy_search] for fast name-oriented lookup with separator-insensitive matching.
+    @todo
+}

@@ -31,7 +31,19 @@
             </select>
         </label>
     {/if}
-    <div class="status" class:error={app.tab.statusError}>{app.tab.statusText}</div>
+    {#if app.tab.statusText}
+        <div
+            class="status"
+            class:error={app.tab.statusError}
+            role={app.tab.statusError ? 'alert' : 'status'}
+            aria-live={app.tab.statusError ? 'assertive' : 'polite'}
+        >
+            {#if app.tab.statusError}
+                <span class="status-error-label">Error</span>
+            {/if}
+            <span class="status-line-text">{app.tab.statusText}</span>
+        </div>
+    {/if}
 </div>
 
 <style>

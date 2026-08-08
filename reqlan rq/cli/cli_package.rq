@@ -1,6 +1,6 @@
 from "../ontology.rq" import extension, base
 from "../extension/module/index.rq" import application_memory
-import "../extension/features-html-export.rq" as html_export
+import "../core_analysis/html_export.rq" as html_export
 from "../bases/base.rq" import create_base_onboarding
 
 

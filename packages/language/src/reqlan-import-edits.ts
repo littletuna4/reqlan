@@ -1,6 +1,8 @@
 /**
- * Shared WorkspaceEdit helpers for import insertion used by unresolved-reference quick fixes.
+ * Shared WorkspaceEdit helpers for import insertion used by unresolved-reference quick fixes
+ * and cross-file reference completion auto-import.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { UriUtils } from 'langium';

@@ -909,21 +909,23 @@ later_member {
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('does not report linking error for anonymous import path only', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const corePath = join(repoDir, 'site/reqs/core.rq');
         const brandPath = join(repoDir, 'reqlan rq/brand.rq');
-        const core = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
-            readFileSync(corePath, 'utf8'),
-            URI.parse(pathToFileURL(corePath).href)
+        const consumerPath = join(repoDir, 'reqlan rq/site/_anon_import_fixture.rq');
+        const consumer = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            `site_brand {
+                must be aligned with ["../brand.rq"]
+            }`,
+            URI.parse(pathToFileURL(consumerPath).href)
         ) as LangiumDocument<Model>;
         const brand = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             readFileSync(brandPath, 'utf8'),
             URI.parse(pathToFileURL(brandPath).href)
         ) as LangiumDocument<Model>;
         fileServices.shared.workspace.LangiumDocuments.addDocument(brand);
-        fileServices.shared.workspace.LangiumDocuments.addDocument(core);
-        await fileServices.shared.workspace.DocumentBuilder.build([brand, core], { validation: true });
+        fileServices.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await fileServices.shared.workspace.DocumentBuilder.build([brand, consumer], { validation: true });
 
-        const importPathErrors = (core.diagnostics ?? []).filter(
+        const importPathErrors = (consumer.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes("Could not resolve reference to Import")
         );

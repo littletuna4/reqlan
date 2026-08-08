@@ -27,7 +27,7 @@ import {
     type NameCatalogEntry,
     type NameCatalogKind
 } from './reqlan-name-catalog.js';
-import { findReferenceSearchSite, buildContextForRange } from './reqlan-reference-search-site.js';
+import { findReferenceSearchSite } from './reqlan-reference-search-site.js';
 
 export const REQLAN_IMPORT_ERROR_SEARCH_COMMAND = 'reqlan.importError.search';
 export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile';
@@ -58,18 +58,7 @@ export interface ImportErrorCommandArgs {
 }
 
 /** Args for reference search webview (replace existing ref or wrap prose). */
-export interface SearchReferenceCommandArgs {
-    documentUri: string;
-    refText: string;
-    range: Diagnostic['range'];
-    mode: 'replace' | 'wrap';
-    context?: {
-        ideaName: string;
-        before: string;
-        target: string;
-        after: string;
-    };
-}
+export type SearchReferenceCommandArgs = import('./reqlan-reference-search-site.js').ReferenceSearchSiteRequestResult;
 
 interface SymbolMatch {
     name: string;
@@ -163,13 +152,11 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
         if (alreadyHasSearch) {
             return undefined;
         }
-        const args: SearchReferenceCommandArgs = {
-            documentUri: document.textDocument.uri,
-            refText: site.refText,
-            range: site.range,
-            mode: site.mode,
-            context: site.context
-        };
+        // No command arguments: VS Code caches arg-bearing commands and disposes
+        // them when code actions refresh (common under Langium revalidation),
+        // which surfaces as "Actual command not found, wanted to execute
+        // reqlan.searchReference /N". The extension resolves the site from the
+        // active editor when the command runs.
         const title = site.mode === 'wrap'
             ? (site.refText
                 ? `Wrap '${site.refText}' as idea reference…`
@@ -182,8 +169,7 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
             kind: CodeActionKind.Refactor,
             command: {
                 title: 'Search for idea reference',
-                command: REQLAN_SEARCH_REFERENCE_COMMAND,
-                arguments: [args]
+                command: REQLAN_SEARCH_REFERENCE_COMMAND
             }
         };
     }
@@ -335,25 +321,17 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
     }
 
     private createSearchCommand(
-        document: LangiumDocument,
+        _document: LangiumDocument,
         diagnostic: Diagnostic,
         refText: string
     ): CodeActionLike {
-        const args: SearchReferenceCommandArgs = {
-            documentUri: document.textDocument.uri,
-            refText,
-            range: diagnostic.range,
-            mode: 'replace',
-            context: buildContextForRange(document, diagnostic.range)
-        };
         return {
             title: `Search for idea to replace '${refText}'…`,
             kind: CodeActionKind.QuickFix,
             diagnostics: [diagnostic],
             command: {
                 title: `Search for idea to replace '${refText}'`,
-                command: REQLAN_SEARCH_REFERENCE_COMMAND,
-                arguments: [args]
+                command: REQLAN_SEARCH_REFERENCE_COMMAND
             }
         };
     }

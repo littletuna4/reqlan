@@ -445,8 +445,15 @@ function topLevelAsKeyword(text: string, offset: number): RegExpExecArray | null
     if (braceDepthBefore(text, offset) !== 0) {
         return null;
     }
+    // `as` is reserved only on from/import lines — not after arbitrary top-level identifiers
+    // (e.g. one-liner prose "such as this").
+    const linePrefix = text.slice(lineStartOffset(text, offset), offset);
+    if (!/^[ \t]*(?:from|import)\b/.test(linePrefix)) {
+        return null;
+    }
     const before = textBeforeOnLine(text, offset);
-    if (/(?:[_a-zA-Z][\w-]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/.test(before)) {
+    // After import path (optionally qualified) or after a from-import specifier name.
+    if (/(?:(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')(?:\.[A-Za-z_][\w-]*)*|[A-Za-z_][\w-]*)$/.test(before)) {
         return makeMatch(text, offset, 2);
     }
     return null;

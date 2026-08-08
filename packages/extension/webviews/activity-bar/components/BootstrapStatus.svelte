@@ -46,9 +46,14 @@
     });
 </script>
 
-<section class="bootstrap-status" class:bootstrap-error={phase === 'error'} aria-live="polite">
+<section
+    class="bootstrap-status"
+    class:bootstrap-error={phase === 'error'}
+    role={phase === 'error' ? 'alert' : 'status'}
+    aria-live={phase === 'error' ? 'assertive' : 'polite'}
+>
     <p class="bootstrap-title">{title}</p>
-    <p class="muted bootstrap-detail">{detail}</p>
+    <p class="bootstrap-detail" class:muted={phase !== 'error'}>{detail}</p>
     {#if phase === 'waiting_index' && app.indexStatus?.syncProgress && app.indexStatus.syncProgress.total > 0}
         {@const pct = Math.round(
             (app.indexStatus.syncProgress.processed / app.indexStatus.syncProgress.total) * 100

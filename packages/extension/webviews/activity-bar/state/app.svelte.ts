@@ -11,9 +11,10 @@ import type {
     ReqlanContextModel
 } from '@reqlan/analytical';
 import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
-import type { PhonebookLinkView, ReferenceListsPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';
+import type { PhonebookLinkView, ReferenceListsPayload, IdeaSearchHitView, IdeaSearchProgressPayload, IdeaSearchResultsPayload, TodoIdeaHitView, TodoListPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';
 import { buildReferencesPayloadFromCurrentFile, groupReferences } from '../../../src/activity_bar_module/context-helpers.js';
 import { getVsCodeApi, postToExtension } from '../lib/vscode.js';
+import { indexStatusText } from '../../ideas-summary/lib/index-status-text.js';
 
 /** High-level content sequencing for the pane stack below the header. */
 export type ActivityBarContentPhase =
@@ -24,6 +25,7 @@ export type ActivityBarContentPhase =
     | 'error';
 
 const HOST_CONNECT_TIMEOUT_MS = 15_000;
+const IDEA_SEARCH_DEBOUNCE_MS = 200;
 
 export class AppState {
     syncWithEditor = $state(true);
@@ -58,6 +60,21 @@ export class AppState {
     ancestors = $state<AncestorChainResult | undefined>(undefined);
     ancestorsLoading = $state(false);
     ancestorsError = $state<string | undefined>(undefined);
+    ideaSearchQuery = $state('');
+    ideaSearchResults = $state<IdeaSearchHitView[]>([]);
+    ideaSearchTotal = $state(0);
+    ideaSearchTruncated = $state(false);
+    ideaSearchLoading = $state(false);
+    ideaSearchProgress = $state<IdeaSearchProgressPayload | undefined>(undefined);
+    /** Seconds since the current search wait began; ticks while loading for liveness. */
+    ideaSearchElapsedSec = $state(0);
+    ideaSearchError = $state<string | undefined>(undefined);
+    todoResults = $state<TodoIdeaHitView[]>([]);
+    todoTotal = $state(0);
+    todoTruncated = $state(false);
+    todoLoading = $state(false);
+    todoError = $state<string | undefined>(undefined);
+    todoLoaded = $state(false);
     indexStatus = $state<IndexStatusView | undefined>(undefined);
     /** Base id the user requested; cleared when indexHealth confirms activeBaseId. */
     pendingBaseId = $state<string | undefined>(undefined);
@@ -68,6 +85,12 @@ export class AppState {
 
     private requestCounter = 0;
     private referencesRequestId = 0;
+    private ideaSearchRequestId = 0;
+    private ideaSearchTimer: ReturnType<typeof setTimeout> | undefined;
+    private ideaSearchElapsedTimer: ReturnType<typeof setInterval> | undefined;
+    private ideaSearchStartedAt = 0;
+    private todoRequestId = 0;
+    private lastTodoFingerprint: string | undefined;
     private hostTimeout: ReturnType<typeof setTimeout> | undefined;
     private pendingByRequestId = new Map<number, ActivityBarErrorScope>();
 
@@ -112,6 +135,7 @@ export class AppState {
         return () => {
             window.removeEventListener('message', onMessage);
             this.clearHostTimeout();
+            this.clearIdeaSearchTimer();
         };
     }
 
@@ -279,6 +303,38 @@ export class AppState {
                 this.ancestorsLoading = false;
                 this.ancestorsError = undefined;
                 break;
+            case 'ideaSearchResults':
+                if (
+                    message.requestId !== undefined &&
+                    message.requestId < this.ideaSearchRequestId
+                ) {
+                    break;
+                }
+                this.clearPending(message.requestId);
+                this.applyIdeaSearchResults(message.payload);
+                break;
+            case 'ideaSearchProgress':
+                if (
+                    message.requestId !== undefined &&
+                    message.requestId < this.ideaSearchRequestId
+                ) {
+                    break;
+                }
+                this.ideaSearchProgress = message.payload;
+                this.ideaSearchLoading = true;
+                this.ideaSearchError = undefined;
+                this.ensureIdeaSearchElapsedTimer();
+                break;
+            case 'todoList':
+                if (
+                    message.requestId !== undefined &&
+                    message.requestId < this.todoRequestId
+                ) {
+                    break;
+                }
+                this.clearPending(message.requestId);
+                this.applyTodoList(message.payload);
+                break;
             case 'indexHealth':
                 this.indexStatus = message.status;
                 if (
@@ -288,19 +344,23 @@ export class AppState {
                     this.pendingBaseId = undefined;
                 }
                 if (message.status.ready) {
-                    const issueHint = message.status.fileIssueCount > 0
-                        ? ` · ${message.status.fileIssueCount} issue(s)`
-                        : '';
-                    this.statusText = `${message.status.ideaCount} ideas indexed${issueHint}`;
-                    this.statusError = message.status.fileIssueCount > 0 || Boolean(message.status.lastError);
+                    const { text, error } = indexStatusText(message.status);
+                    this.statusText = text;
+                    this.statusError = error;
                     this.bootstrapError = undefined;
+                    const fingerprint = `${message.status.activeBaseId ?? ''}:${message.status.ideaCount}`;
+                    if (fingerprint !== this.lastTodoFingerprint) {
+                        this.loadTodos();
+                    }
                 } else if (message.status.state === 'error' && message.status.lastError?.summary) {
-                    this.statusText = message.status.lastError.summary;
-                    this.statusError = true;
+                    const { text, error } = indexStatusText(message.status);
+                    this.statusText = text;
+                    this.statusError = error;
                     this.bootstrapError = message.status.lastError.summary;
                 } else if (message.status.lastError?.summary) {
-                    this.statusText = message.status.lastError.summary;
-                    this.statusError = true;
+                    const { text, error } = indexStatusText(message.status);
+                    this.statusText = text;
+                    this.statusError = error;
                 } else if (message.status.syncProgress) {
                     this.statusText = this.indexProgressLabel ?? `Index: ${message.status.state}`;
                     this.statusError = false;
@@ -358,6 +418,16 @@ export class AppState {
                 this.ancestorsLoading = false;
                 this.ancestorsError = message;
                 break;
+            case 'search':
+                this.ideaSearchLoading = false;
+                this.ideaSearchProgress = undefined;
+                this.clearIdeaSearchElapsedTimer();
+                this.ideaSearchError = message;
+                break;
+            case 'todos':
+                this.todoLoading = false;
+                this.todoError = message;
+                break;
             case 'context':
                 this.contextError = message;
                 this.statusText = message;
@@ -409,6 +479,13 @@ export class AppState {
     }
 
     openIdea(fileUri: string, line: number, column = 0): void {
+        // Drop pending/in-flight search work so the host can open immediately.
+        this.clearIdeaSearchTimer();
+        this.clearPending(this.ideaSearchRequestId);
+        this.ideaSearchRequestId = ++this.requestCounter;
+        this.ideaSearchLoading = false;
+        this.ideaSearchProgress = undefined;
+        this.clearIdeaSearchElapsedTimer();
         postToExtension({ type: 'openIdea', fileUri, line, column });
     }
 
@@ -451,6 +528,113 @@ export class AppState {
         this.ancestorsLoading = true;
         this.ancestorsError = undefined;
         postToExtension({ type: 'loadAncestors', ideaId, requestId });
+    }
+
+    onIdeaSearchInput(query: string): void {
+        this.ideaSearchQuery = query;
+        this.clearIdeaSearchTimer();
+        const trimmed = query.trim();
+        if (!trimmed) {
+            this.ideaSearchResults = [];
+            this.ideaSearchTotal = 0;
+            this.ideaSearchTruncated = false;
+            this.ideaSearchLoading = false;
+            this.ideaSearchProgress = undefined;
+            this.clearIdeaSearchElapsedTimer();
+            this.ideaSearchError = undefined;
+            return;
+        }
+        // Debounce before flipping loading — keep current hits clickable while typing.
+        this.ideaSearchTimer = setTimeout(() => {
+            this.ideaSearchTimer = undefined;
+            this.searchIdeas(trimmed);
+        }, IDEA_SEARCH_DEBOUNCE_MS);
+    }
+
+    searchIdeas(query: string): void {
+        const requestId = this.nextRequestId('search');
+        this.ideaSearchRequestId = requestId;
+        this.ideaSearchLoading = true;
+        this.ideaSearchProgress = {
+            phase: 'catalog',
+            message: 'Starting search…'
+        };
+        this.ideaSearchError = undefined;
+        this.startIdeaSearchElapsedTimer();
+        postToExtension({ type: 'searchIdeas', query, requestId });
+    }
+
+    loadTodos(): void {
+        if (!this.indexStatus?.ready) {
+            return;
+        }
+        const requestId = this.nextRequestId('todos');
+        this.todoRequestId = requestId;
+        this.todoLoading = true;
+        this.todoError = undefined;
+        this.lastTodoFingerprint = `${this.indexStatus.activeBaseId ?? ''}:${this.indexStatus.ideaCount}`;
+        postToExtension({ type: 'loadTodos', requestId });
+    }
+
+    insertReference(hit: IdeaSearchHitView): void {
+        postToExtension({
+            type: 'insertReference',
+            fileUri: hit.fileUri,
+            name: hit.name,
+            kind: hit.kind
+        });
+    }
+
+    private applyIdeaSearchResults(payload: IdeaSearchResultsPayload): void {
+        // Keep the draft query as source of truth — do not clobber mid-typing input.
+        this.ideaSearchResults = payload.results;
+        this.ideaSearchTotal = payload.total;
+        this.ideaSearchTruncated = payload.truncated;
+        this.ideaSearchLoading = false;
+        this.ideaSearchProgress = undefined;
+        this.clearIdeaSearchElapsedTimer();
+        this.ideaSearchError = undefined;
+    }
+
+    private applyTodoList(payload: TodoListPayload): void {
+        this.todoResults = payload.results;
+        this.todoTotal = payload.total;
+        this.todoTruncated = payload.truncated;
+        this.todoLoading = false;
+        this.todoError = undefined;
+        this.todoLoaded = true;
+    }
+
+    private clearIdeaSearchTimer(): void {
+        if (this.ideaSearchTimer !== undefined) {
+            clearTimeout(this.ideaSearchTimer);
+            this.ideaSearchTimer = undefined;
+        }
+    }
+
+    private startIdeaSearchElapsedTimer(): void {
+        this.clearIdeaSearchElapsedTimer();
+        this.ideaSearchStartedAt = Date.now();
+        this.ideaSearchElapsedSec = 0;
+        this.ideaSearchElapsedTimer = setInterval(() => {
+            this.ideaSearchElapsedSec = Math.floor((Date.now() - this.ideaSearchStartedAt) / 1000);
+        }, 250);
+    }
+
+    private ensureIdeaSearchElapsedTimer(): void {
+        if (this.ideaSearchElapsedTimer !== undefined) {
+            return;
+        }
+        this.startIdeaSearchElapsedTimer();
+    }
+
+    private clearIdeaSearchElapsedTimer(): void {
+        if (this.ideaSearchElapsedTimer !== undefined) {
+            clearInterval(this.ideaSearchElapsedTimer);
+            this.ideaSearchElapsedTimer = undefined;
+        }
+        this.ideaSearchElapsedSec = 0;
+        this.ideaSearchStartedAt = 0;
     }
 
     refreshIndex(): void {
@@ -528,6 +712,18 @@ export class AppState {
         });
     }
 
+    /** Open Ideas Summary ideas table, prefilling the advanced search with the pane query. */
+    openAdvancedIdeaSearch(): void {
+        const search = this.ideaSearchQuery.trim();
+        postToExtension({
+            type: 'openIdeasSummary',
+            intent: {
+                activeTab: 'ideas',
+                pathFilter: search || undefined
+            }
+        });
+    }
+
     onGraphRendered(): void {
         this.graph.rendering = false;
     }
@@ -551,13 +747,39 @@ export class AppState {
         postToExtension({ type: 'openPhonebookLink', linkId: 'site' });
     }
 
-    persistPaneState(state: Record<string, boolean>): void {
-        getVsCodeApi().setState({ panes: state });
+    persistViewState(state: {
+        panes: Record<string, boolean>;
+        heights: Record<string, number>;
+    }): void {
+        getVsCodeApi().setState({
+            panes: state.panes,
+            heights: state.heights
+        });
     }
 
+    restoreViewState(): {
+        panes: Record<string, boolean>;
+        heights: Record<string, number>;
+    } {
+        const saved = getVsCodeApi().getState() as {
+            panes?: Record<string, boolean>;
+            heights?: Record<string, number>;
+        } | undefined;
+        return {
+            panes: saved?.panes ?? {},
+            heights: saved?.heights ?? {}
+        };
+    }
+
+    /** @deprecated Prefer persistViewState — kept for older webview bundles. */
+    persistPaneState(state: Record<string, boolean>): void {
+        const heights = this.restoreViewState().heights;
+        this.persistViewState({ panes: state, heights });
+    }
+
+    /** @deprecated Prefer restoreViewState — kept for older webview bundles. */
     restorePaneState(): Record<string, boolean> {
-        const saved = getVsCodeApi().getState() as { panes?: Record<string, boolean> } | undefined;
-        return saved?.panes ?? {};
+        return this.restoreViewState().panes;
     }
 }
 

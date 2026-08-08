@@ -250,9 +250,12 @@
 
     <section>
         <h2>Export</h2>
-        <p class="subtle">Share or print this workspace as HTML or PDF.</p>
+        <p class="subtle">Share the active base as HTML, Markdown, JSON, CSV, or PDF.</p>
         <div class="overview-links">
             <button type="button" onclick={() => app.openExport('html')}>Export HTML…</button>
+            <button type="button" class="secondary" onclick={() => app.openExport('markdown')}>Export Markdown…</button>
+            <button type="button" class="secondary" onclick={() => app.openExport('json')}>Export JSON…</button>
+            <button type="button" class="secondary" onclick={() => app.openExport('csv')}>Export CSV…</button>
             <button type="button" class="secondary" onclick={() => app.openExport('pdf')}>Export PDF…</button>
             <button type="button" class="secondary" onclick={() => app.openExport()}>Open export form…</button>
         </div>

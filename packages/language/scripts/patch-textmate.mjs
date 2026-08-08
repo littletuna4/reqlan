@@ -60,9 +60,10 @@ grammar.repository['import-keywords'] = {
             }
         },
         {
-            match: `^(\\s*from\\b\\s+)(${importPath})(\\s+\\bimport\\b)`,
+            match: `^(\\s*from\\b\\s+)(${importPath})(\\s+)\\b(import)\\b`,
             captures: {
-                '2': { name: 'string.quoted.reqlan' }
+                '2': { name: 'string.quoted.reqlan' },
+                '4': { name: 'keyword.control.reqlan' }
             }
         },
         {
@@ -73,7 +74,8 @@ grammar.repository['import-keywords'] = {
             }
         },
         {
-            match: `^(\\s*from\\b\\s+${importPath}\\s+\\bimport\\b\\s+\\w+\\s+)\\b(as)\\b`,
+            // Alias after from-import specifier(s): `… import idea as alias` or `… import a as b, c as d`
+            match: `^(\\s*from\\b\\s+${importPath}\\s+\\bimport\\b\\s+(?:\\w+\\s*,\\s*)*\\w+\\s+)\\b(as)\\b`,
             captures: {
                 '2': { name: 'keyword.control.reqlan' }
             }

@@ -90,10 +90,21 @@ const LANG_CLASS: Record<string, string> = {
 
 const ASSET_EXT: Record<string, string> = {
   logo: "svg",
-  "montage-ide": "svg",
-  "activity-bar": "svg",
-  "chat-search": "svg",
-  "file-link": "svg",
+  "montage-ide": "png",
+  "activity-bar": "png",
+  "chat-search": "png",
+  "file-link": "png",
+};
+
+/** Layout hint for capture PNGs so slides fit without overflow. */
+type AssetShape = "logo" | "portrait" | "landscape";
+
+const ASSET_SHAPE: Record<string, AssetShape> = {
+  logo: "logo",
+  "activity-bar": "portrait",
+  "chat-search": "portrait",
+  "montage-ide": "landscape",
+  "file-link": "landscape",
 };
 
 function escapeHtml(value: string): string {
@@ -107,6 +118,10 @@ function escapeHtml(value: string): string {
 function assetUrl(key: string): string {
   const ext = ASSET_EXT[key] || "svg";
   return sitePath(`/presentations/assets/${encodeURIComponent(key)}.${ext}`);
+}
+
+function assetShape(key: string): AssetShape {
+  return ASSET_SHAPE[key] || "landscape";
 }
 
 function isReqlanLang(lang?: string): boolean {
@@ -149,49 +164,63 @@ function renderSlide(slide: Slide): string {
   const content = slide.content || {};
   const bgClass = slide.background ? `bg-${slide.background}` : "bg-brand-dark";
   const transition = slide.transition || "fade";
-  const parts: string[] = [];
+  const mediaKey =
+    content.asset && content.asset !== "logo" ? content.asset : undefined;
+  const shape = mediaKey ? assetShape(mediaKey) : undefined;
+  const hasCode = Boolean(content.code || content.code_b);
 
+  const copy: string[] = [];
   if (content.asset === "logo") {
-    parts.push(
+    copy.push(
       `<img class="slide-asset logo" src="${assetUrl("logo")}" alt="reqlan" width="72" height="72" />`,
     );
   }
   if (content.kicker) {
-    parts.push(`<p class="kicker">${escapeHtml(content.kicker)}</p>`);
+    copy.push(`<p class="kicker">${escapeHtml(content.kicker)}</p>`);
   }
   if (content.heading) {
-    parts.push(`<h2>${escapeHtml(content.heading)}</h2>`);
+    copy.push(`<h2>${escapeHtml(content.heading)}</h2>`);
   }
   if (content.body) {
-    parts.push(`<p class="body">${escapeHtml(content.body)}</p>`);
+    copy.push(`<p class="body">${escapeHtml(content.body)}</p>`);
   }
   if (content.code) {
-    parts.push(
+    copy.push(
       renderCodeBlock(content.code, content.code_lang, content.code_label),
     );
   }
   if (content.code_b) {
-    parts.push(
+    copy.push(
       renderCodeBlock(content.code_b, content.code_b_lang, content.code_b_label),
-    );
-  }
-  if (content.asset && content.asset !== "logo") {
-    parts.push(
-      `<img class="slide-asset" src="${assetUrl(content.asset)}" alt="" />`,
     );
   }
   if (Array.isArray(content.fragments)) {
     for (const fragment of content.fragments) {
-      parts.push(
+      copy.push(
         `<p class="fragment fade-in highlight-cta">${escapeHtml(fragment)}</p>`,
       );
     }
   }
-  if (slide.notes) {
-    parts.push(`<aside class="notes">${escapeHtml(slide.notes)}</aside>`);
+
+  const notes = slide.notes
+    ? `<aside class="notes">${escapeHtml(slide.notes)}</aside>`
+    : "";
+
+  let bodyHtml: string;
+  if (mediaKey && shape) {
+    const media = `<figure class="slide-media"><img class="slide-asset slide-asset--${shape}" src="${assetUrl(mediaKey)}" alt="" /></figure>`;
+    const layout =
+      shape === "portrait"
+        ? "slide-layout slide-layout--split-portrait"
+        : hasCode
+          ? "slide-layout slide-layout--split-landscape"
+          : "slide-layout slide-layout--stack-landscape";
+    bodyHtml = `<div class="${layout}"><div class="slide-copy">${copy.join("\n")}</div>${media}</div>`;
+  } else {
+    bodyHtml = `<div class="slide-layout slide-layout--copy">${copy.join("\n")}</div>`;
   }
 
-  return `<section data-transition="${escapeHtml(transition)}" class="${bgClass}" data-slide-id="${escapeHtml(slide.id || "")}">${parts.join("\n")}</section>`;
+  return `<section data-transition="${escapeHtml(transition)}" class="${bgClass}" data-slide-id="${escapeHtml(slide.id || "")}">${bodyHtml}${notes}</section>`;
 }
 
 function ensureStylesheet(href: string, datasetKey: string): void {

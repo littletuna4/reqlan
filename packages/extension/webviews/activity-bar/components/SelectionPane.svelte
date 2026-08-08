@@ -5,22 +5,29 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
     let selection = $derived(app.context?.selection);
+    let ideas = $derived(selection?.ideas ?? []);
 </script>
 
-{#if selection && selection.ideas.length > 0}
-    <CollapsiblePane title="Selection" id="selection" {expanded} {onToggle}>
+<CollapsiblePane title="Selection" id="selection" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
+    {#if !selection || ideas.length === 0}
+        <p class="muted pane-status">Select multiple ideas in the editor to list them here.</p>
+    {:else}
         <p class="muted">
-            Lines {selection.startLine + 1}–{selection.endLine + 1} · {selection.ideas.length} idea(s)
+            Lines {selection.startLine + 1}–{selection.endLine + 1} · {ideas.length} idea(s)
         </p>
-        <NestedSection title="Selected ideas" count={selection.ideas.length} defaultExpanded={true}>
+        <NestedSection title="Selected ideas" count={ideas.length} defaultExpanded={true}>
             <ul class="list">
-                {#each selection.ideas as idea}
+                {#each ideas as idea}
                     <li>
                         <button class="link" onclick={() => app.openIdea(idea.fileUri, idea.lineStart)}>
                             {idea.name}
@@ -33,5 +40,5 @@
                 {/each}
             </ul>
         </NestedSection>
-    </CollapsiblePane>
-{/if}
+    {/if}
+</CollapsiblePane>

@@ -6,7 +6,7 @@ import type {
 } from '../core/types.js';
 import type { GraphViewSlice } from '../index-store/webview-graph-queries.js';
 
-export type ExportFormat = 'html' | 'pdf';
+export type ExportFormat = 'html' | 'pdf' | 'markdown' | 'json' | 'csv';
 export type ExportScope = 'workspace' | 'currentFile';
 export type ExportRuntimeMode = 'interactive' | 'document' | 'print';
 export type ExportClusterStrategy = 'deterministic' | 'hybrid';

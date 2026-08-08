@@ -1,3 +1,6 @@
+import "../phonebook.rq" as phonebook_reqs
+import "../../scripts/phonebook.ts" as phonebook_script
+
 scope these requirements describe the actual development of the reqlan language and tooling itself
 
 modulurisation files should be small
@@ -12,6 +15,34 @@ stack {
     - VSCode Extension is implemented with vscode-langium in ["../../packages/extension"]
     - vscode webviews are implemented with svelte
     - Extension build pipeline is documented in ["./build.rq"]
+}
+
+pnpm {
+    Must use pnpm for all js package management across the monorepo (packages, extension, site).
+}
+
+iconify_stack {
+    Icons use Iconify offline — bundled at build time, not fetched from a CDN at runtime.
+    Icon data comes from npm packages listed under the `icons` key in ["../phonebook.json"] per [phonebook_reqs.phonebook_icons].
+}
+
+phonebook_icon_keys {
+    per [phonebook_reqs.phonebook_icons]
+    Each phonebook link or package carries an `icon` object with `set` and `name`.
+    Set ids and lookup URLs are canonical in ["../phonebook.json"].icons.
+    Use each set's `search` URL to find replacement slugs when a name changes or an icon is removed upstream.
+    Typed helpers live in [phonebook_script]: `formatPhonebookIconKey`, `getPhonebookIconSearchUrl`.
+}
+
+current_link_icons {
+    Slugs are defined on each link in ["../phonebook.json"]:
+    - `site` → mdi / web
+    - `vsc` → simple-icons / visualstudiocode
+    - `openvsx` → simple-icons / vscodium (proxy; no Open VSX slug in Simple Icons)
+    - `github` → simple-icons / github
+    - `email` → mdi / email-outline
+    Package entries under `packages` all use simple-icons / npm:
+    - `language`, `analytical`, `cli`
 }
 
 rust_mindset {

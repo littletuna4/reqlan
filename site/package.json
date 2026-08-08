@@ -13,6 +13,7 @@
         "validate:showcase": "tsx scripts/validate-showcase-rq.mts",
         "sync:presentations": "tsx scripts/sync-presentations.mts",
         "generate:images": "node scripts/generate-images.mjs",
+        "generate:docs-images": "tsx scripts/docs-images/capture.mts",
         "serve:site": "npx serve out -l 3000"
     },
     "dependencies": {
@@ -40,6 +41,7 @@
         "eslint": "^9",
         "eslint-plugin-react-hooks": "^7.0.1",
         "langium": "~4.3.0",
+        "playwright": "^1.62.1",
         "sharp": "^0.34.5",
         "tailwindcss": "^4",
         "to-ico": "^1.1.5",

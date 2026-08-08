@@ -12,7 +12,8 @@ import {
     isFilterUnspecified,
     isSpecialFilterValue,
     statusFilterKeyFromAttributes,
-    tagsFilterKeysFromAttributes
+    tagsFilterKeysFromAttributes,
+    todoNoteFromAttributes
 } from '../src/core/filter-specials.js';
 
 describe('filter-specials', () => {
@@ -45,5 +46,13 @@ describe('filter-specials', () => {
         expect(tagsFilterKeysFromAttributes({ tags: [] })).toEqual([FILTER_EMPTY]);
         expect(tagsFilterKeysFromAttributes({ tags: ['', ' '] })).toEqual([FILTER_EMPTY]);
         expect(tagsFilterKeysFromAttributes({ tags: ['core', 'ui'] })).toEqual(['core', 'ui']);
+    });
+
+    test('todoNoteFromAttributes omits bare flags and returns notes', () => {
+        expect(todoNoteFromAttributes({})).toBeUndefined();
+        expect(todoNoteFromAttributes({ todo: true })).toBeUndefined();
+        expect(todoNoteFromAttributes({ todo: '' })).toBeUndefined();
+        expect(todoNoteFromAttributes({ todo: 'ship host query' })).toBe('ship host query');
+        expect(todoNoteFromAttributes({ todo: ['a', 'b'] })).toBe('a, b');
     });
 });

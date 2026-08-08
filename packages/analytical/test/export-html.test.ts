@@ -220,6 +220,8 @@ describe('html export pipeline', () => {
         expect(stylesCss).toContain('grid-template-columns: minmax(0, 1fr)');
         expect(stylesCss).toContain('.print-card');
         expect(stylesCss).toContain('overflow-wrap: anywhere');
+        expect(stylesCss).toContain('scroll-padding-top');
+        expect(stylesCss).toContain('scroll-margin-top');
         expect(stylesCss).toContain('.print-button');
         expect(stylesCss).toContain('.print-attrs');
         expect(exportJson).toContain('"scope": "workspace"');

@@ -5,9 +5,13 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
 
@@ -17,7 +21,7 @@
     }
 </script>
 
-<CollapsiblePane title="Mini graph" id="graph" {expanded} {onToggle}>
+<CollapsiblePane title="Mini graph" id="graph" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     {#if expanded}
         <svelte:boundary>
             <MiniGraphCanvas

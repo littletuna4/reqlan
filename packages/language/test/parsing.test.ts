@@ -120,7 +120,10 @@ next_idea still here`);
             .map(idea => idea.name);
         expect(names).toEqual([
             'welcome',
-            'resources',
+            'block_ideas',
+            'references',
+            'attributes',
+            'project_resources',
             'extension_overview',
             'language_overview',
             'acknowledgements'
@@ -445,6 +448,22 @@ second_idea line two`);
             copy from import as needed.
         }`);
         expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_keywords]
+    test('keeps top-level one-liner prose as ordinary words', async () => {
+        const document = await parse('demo_idea treat as ordinary words such as this');
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements.find(isOneLinerIdea);
+        expect(idea?.$cstNode?.text).toContain('as ordinary');
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".import_keywords]
+    test('still parses import alias as keyword on import lines', async () => {
+        const document = await parse(`import "./other.rq" as other
+from "./other.rq" import idea as idea_alias`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        expect(document.parseResult.value.imports).toHaveLength(2);
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
@@ -796,8 +815,8 @@ myidea {
     test('parse docs.rq markdown folder link', async () => {
         const document = await parse(readFileSync(join(repoDir, 'reqlan rq/docs/docs.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
-        const oneLiner = document.parseResult.value.elements.find(isOneLinerIdea);
-        const markdownLink = oneLiner?.body?.content.find(part => typeof part !== 'string' && part.$type === 'MarkdownLink');
+        const bodyLine = bodyLineContaining(document, 'reqlan rq folder');
+        const markdownLink = bodyLine?.parts.find(part => part.$type === 'MarkdownLink');
         expect(markdownLink && 'raw' in markdownLink && markdownLink.raw).toBe(
             '[the reqlan rq folder of this repo](../../reqlan rq)'
         );

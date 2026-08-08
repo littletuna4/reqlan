@@ -13,6 +13,7 @@ import { gitDatesAnalyser } from './analysis/git-dates-analyser.js';
 import { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
 import { localGraphAnalyser } from './analysis/local-graph-analyser.js';
 import { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
+import { fuzzySearchAnalyser } from './analysis/fuzzy-search-analyser.js';
 import { WorkspaceIndex } from './index-store/workspace-index.js';
 
 export interface AnalysisRuntimeOptions {
@@ -60,6 +61,7 @@ function registerDefaultAnalysers(analysers: AnalyserRegistry): void {
     analysers.register(completionTrackingAnalyser);
     analysers.register(localGraphAnalyser);
     analysers.register(semanticSearchAnalyser);
+    analysers.register(fuzzySearchAnalyser);
 }
 
 /**

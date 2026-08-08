@@ -4,6 +4,7 @@
 
 html,
 body {
+    height: 100%;
     overflow-x: hidden;
     max-width: 100%;
 }
@@ -23,10 +24,57 @@ body {
     padding: 0;
 }
 
+#app {
+    height: 100%;
+    min-height: 0;
+}
+
 .activity-bar {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     min-width: 0;
+    height: 100%;
+    max-height: 100%;
     overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.pane-stack {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+}
+
+.section {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
+    background: var(--vscode-sideBar-background);
+}
+
+.section-fill {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.section-fill .section-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* When a pane owns an internal scroll region, keep the body from double-scrolling. */
+.section-fill .section-body:has(> .search-results) {
+    overflow: hidden;
 }
 
 button {
@@ -48,6 +96,10 @@ button:disabled {
     padding: 6px 8px;
     border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
     background: var(--vscode-sideBar-background);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-shrink: 0;
 }
 
 .toolbar-button {
@@ -80,6 +132,10 @@ button:disabled {
 
 /* Status / error — wrap long messages, never widen the sidebar */
 .status-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.5rem;
     font-size: 0.9em;
     padding: 6px 10px;
     margin: 0;
@@ -92,6 +148,21 @@ button:disabled {
 .status-line.error {
     color: var(--vscode-errorForeground);
     background: var(--vscode-inputValidation-errorBackground, transparent);
+    border-bottom-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+    font-weight: 600;
+}
+
+.status-error-label {
+    flex: 0 0 auto;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.status-line-text {
+    flex: 1 1 12rem;
+    min-width: 0;
 }
 
 .bootstrap-status {
@@ -101,6 +172,8 @@ button:disabled {
 
 .bootstrap-status.bootstrap-error {
     background: var(--vscode-inputValidation-errorBackground, transparent);
+    border-left: 3px solid var(--vscode-errorForeground);
+    padding-left: 7px;
 }
 
 .bootstrap-title {
@@ -112,22 +185,20 @@ button:disabled {
     margin: 0 0 8px;
 }
 
-.bootstrap-error .bootstrap-title {
+.bootstrap-error .bootstrap-title,
+.bootstrap-error .bootstrap-detail {
     color: var(--vscode-errorForeground);
+}
+
+.bootstrap-error .bootstrap-detail {
+    font-weight: 600;
 }
 
 .pane-status {
     margin: 0;
 }
 
-/* Full-width sidebar sections (not cards) */
-.section {
-    width: 100%;
-    min-width: 0;
-    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
-    background: var(--vscode-sideBar-background);
-}
-
+/* Full-width sidebar sections (not cards) — base .section / .section-fill above */
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -140,9 +211,42 @@ button:disabled {
     letter-spacing: 0.04em;
     cursor: pointer;
     user-select: none;
+    flex-shrink: 0;
+    gap: 8px;
     color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
     background: var(--vscode-sideBarSectionHeader-background, var(--vscode-sideBar-background));
     border: none;
+}
+
+.section-title {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.section-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.section-header-link {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-size: 0.9em;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+    line-height: 1.2;
+}
+
+.section-header-link:hover {
+    text-decoration: underline;
 }
 
 .section-header:hover {
@@ -169,6 +273,27 @@ button:disabled {
     overflow-x: hidden;
     word-break: break-word;
     overflow-wrap: anywhere;
+}
+
+.section-resize-handle {
+    flex-shrink: 0;
+    height: 5px;
+    margin: 0;
+    cursor: ns-resize;
+    touch-action: none;
+    background: transparent;
+    border-top: 1px solid transparent;
+}
+
+.section-resize-handle:hover,
+.section-resizing .section-resize-handle {
+    background: var(--vscode-focusBorder);
+    border-top-color: var(--vscode-focusBorder);
+}
+
+.section-resize-handle:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
 }
 
 .section-actions {
@@ -464,11 +589,17 @@ button.link:hover {
     z-index: 0;
     width: 100%;
     height: 200px;
-    min-height: 200px;
+    min-height: 160px;
     border: 1px solid var(--vscode-panel-border);
     border-radius: 0;
     overflow: hidden;
     background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.section-fill .graph-surface-wrap {
+    height: 100%;
+    flex: 1 1 auto;
+    min-height: 160px;
 }
 
 .graph-surface-wrap.is-booting .graph-surface {

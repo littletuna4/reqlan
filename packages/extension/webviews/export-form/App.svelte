@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import type {
+        ExportFormBaseOption,
         ExtensionToExportFormMessage,
     } from '../../src/analytical_submodule/export/export-form-messages.js';
     import {
@@ -11,7 +12,9 @@
 
     let settings = $state<ExportFormSettings | undefined>(undefined);
     let resolvedOutputDir = $state('');
-    let workspaceRoot = $state('');
+    let baseRoot = $state('');
+    let selectedBaseId = $state('');
+    let bases = $state<ExportFormBaseOption[]>([]);
     let canExportCurrentFile = $state(false);
     let activeRqFileName = $state<string | undefined>(undefined);
     let settingsPath = $state('');
@@ -22,6 +25,13 @@
     let progressMessage = $state('Exporting…');
     let progressCompleted = $state<number | undefined>(undefined);
     let progressTotal = $state<number | undefined>(undefined);
+
+    let isHtml = $derived(settings?.format === 'html');
+    let isPdf = $derived(settings?.format === 'pdf');
+    let isMarkdown = $derived(settings?.format === 'markdown');
+    let isJson = $derived(settings?.format === 'json');
+    let isCsv = $derived(settings?.format === 'csv');
+    let showBasePicker = $derived(bases.length > 1);
 
     let progressPercent = $derived.by(() => {
         if (
@@ -34,6 +44,22 @@
         return Math.min(100, Math.round((progressCompleted / progressTotal) * 100));
     });
 
+    let heroLede = $derived.by(() => {
+        if (isPdf) {
+            return 'Prepare a printable report from the selected base, then use your browser’s Print → Save as PDF.';
+        }
+        if (isMarkdown) {
+            return 'Export the selected base as markdown — a README index plus optional per-idea pages for docs and AI tools.';
+        }
+        if (isJson) {
+            return 'Export the selected base as structured JSON for tooling and AI consumption.';
+        }
+        if (isCsv) {
+            return 'Export ideas and references as CSV with tags and attributes flattened into columns.';
+        }
+        return 'Export the requirement graph from the selected base. Choose a format, then adjust shared and format-specific options.';
+    });
+
     function handleMessage(event: MessageEvent<ExtensionToExportFormMessage>): void {
         const message = event.data;
         if (!message || typeof message !== 'object') {
@@ -43,7 +69,9 @@
             case 'init':
                 settings = { ...message.payload.settings };
                 resolvedOutputDir = message.payload.resolvedOutputDir;
-                workspaceRoot = message.payload.workspaceRoot;
+                baseRoot = message.payload.baseRoot;
+                selectedBaseId = message.payload.selectedBaseId;
+                bases = message.payload.bases;
                 canExportCurrentFile = message.payload.canExportCurrentFile;
                 activeRqFileName = message.payload.activeRqFileName;
                 settingsPath = message.payload.settingsPath;
@@ -85,6 +113,15 @@
         }
     }
 
+    function onBaseChange(event: Event): void {
+        const value = (event.currentTarget as HTMLSelectElement).value;
+        if (!value || value === selectedBaseId) {
+            return;
+        }
+        loaded = false;
+        postToExtension({ type: 'selectBase', baseId: value });
+    }
+
     function pickOutputDir(): void {
         if (!settings) {
             return;
@@ -107,11 +144,13 @@
     }
 
     function resetDefaults(): void {
-        if (!workspaceRoot) {
+        if (!baseRoot || !settings) {
             return;
         }
-        settings = defaultExportFormSettings(workspaceRoot);
-        resolvedOutputDir = `${workspaceRoot.replace(/\/$/, '')}/reqlan-export`;
+        const next = defaultExportFormSettings(baseRoot);
+        next.format = settings.format;
+        settings = next;
+        resolvedOutputDir = `${baseRoot.replace(/\/$/, '')}/reqlan-export`;
         statusMessage = 'Reset to defaults (not saved yet).';
         statusOk = true;
     }
@@ -128,11 +167,8 @@
 
 <main class="export-form">
     <header class="hero">
-        <h1>Export HTML</h1>
-        <p class="lede">
-            Build a multi-file static site from the requirement graph. Simple options first; expand
-            advanced settings when you need page families, mount prefixes, or cluster strategy.
-        </p>
+        <h1>Export</h1>
+        <p class="lede">{heroLede}</p>
     </header>
 
     {#if !loaded || !settings}
@@ -148,10 +184,39 @@
             <section class="simple" aria-labelledby="simple-heading">
                 <h2 id="simple-heading">Export options</h2>
 
+                {#if showBasePicker}
+                    <label class="field">
+                        <span class="label">Base</span>
+                        <select value={selectedBaseId} onchange={onBaseChange} disabled={busy}>
+                            {#each bases as base (base.id)}
+                                <option value={base.id}>{base.label}</option>
+                            {/each}
+                        </select>
+                        <span class="hint mono">{baseRoot}</span>
+                    </label>
+                {:else if bases.length === 1}
+                    <p class="base-chip">
+                        <span class="label">Base</span>
+                        <span>{bases[0].label}</span>
+                        <span class="hint mono">{baseRoot}</span>
+                    </p>
+                {/if}
+
+                <label class="field">
+                    <span class="label">Format</span>
+                    <select bind:value={settings.format}>
+                        <option value="html">HTML — multi-file static site</option>
+                        <option value="markdown">Markdown — README + idea pages</option>
+                        <option value="json">JSON — structured graph dump</option>
+                        <option value="csv">CSV — ideas + references tables</option>
+                        <option value="pdf">PDF — printable report (print to PDF)</option>
+                    </select>
+                </label>
+
                 <label class="field">
                     <span class="label">Scope</span>
                     <select bind:value={settings.scope}>
-                        <option value="workspace">Workspace</option>
+                        <option value="workspace">Entire base</option>
                         <option value="currentFile" disabled={!canExportCurrentFile}>
                             Current file{activeRqFileName ? ` (${activeRqFileName})` : ''}
                         </option>
@@ -188,157 +253,239 @@
                     <span class="hint">Creates a subfolder under the output folder.</span>
                 </label>
 
-                <label class="field">
-                    <span class="label">Runtime mode</span>
-                    <select bind:value={settings.runtimeMode}>
-                        <option value="interactive">Interactive — search, graph, rich navigation</option>
-                        <option value="document">Document — lean pages</option>
-                        <option value="print">Print — printable-first output</option>
-                    </select>
-                </label>
-            </section>
-
-            <section class="advanced" aria-labelledby="advanced-heading">
-                <button
-                    type="button"
-                    class="advanced-toggle"
-                    aria-expanded={settings.advancedExpanded}
-                    onclick={() => {
-                        if (settings) {
-                            settings.advancedExpanded = !settings.advancedExpanded;
-                        }
-                    }}
-                >
-                    <span id="advanced-heading">Advanced settings</span>
-                    <span class="chevron" aria-hidden="true">{settings.advancedExpanded ? '−' : '+'}</span>
-                </button>
-
-                {#if settings.advancedExpanded}
-                    <div class="advanced-body">
-                        <label class="field">
-                            <span class="label">Template</span>
-                            <select bind:value={settings.templateId}>
-                                <option value="default">Default multi-page site</option>
-                            </select>
-                        </label>
-
-                        <label class="field">
-                            <span class="label">Cluster strategy</span>
-                            <select bind:value={settings.clusterStrategy}>
-                                <option value="hybrid">Hybrid — deterministic + communities</option>
-                                <option value="deterministic">Deterministic — file, folder, tag, status</option>
-                            </select>
-                        </label>
-
-                        <fieldset class="fieldset">
-                            <legend>Page families</legend>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeIdeaPages} />
-                                Idea pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeFilePages} />
-                                Requirement file pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeCodeFilePages} />
-                                Code file pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeClusterPages} />
-                                Cluster pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeAttributePages} />
-                                Attribute pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includePrintPages} />
-                                Print pages
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeRequirementsPage} />
-                                Requirements overview page
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.includeGraphPage} />
-                                Graph page
-                            </label>
-                        </fieldset>
-
-                        <fieldset class="fieldset">
-                            <legend>File filters</legend>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
-                                Exclude <code>*.secret.rq</code> ideas
-                            </label>
-                            <label class="check">
-                                <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
-                                Exclude <code>.rqignore</code>-matched files
-                            </label>
-                            <span class="hint">
-                                When unchecked, ideas from those files are included if present in the index.
-                            </span>
-                        </fieldset>
-
-                        <label class="field">
-                            <span class="label">URL base (mount prefix)</span>
-                            <input
-                                type="text"
-                                bind:value={settings.urlBase}
-                                placeholder="/spec"
-                                spellcheck="false"
-                            />
-                            <span class="hint">Optional. Root-relative hrefs for static hosts.</span>
-                        </label>
-
-                        <div class="grid-two">
-                            <label class="field">
-                                <span class="label">Header link href</span>
-                                <input
-                                    type="text"
-                                    bind:value={settings.headerHref}
-                                    placeholder="/"
-                                    spellcheck="false"
-                                />
-                            </label>
-                            <label class="field">
-                                <span class="label">Header link label</span>
-                                <input
-                                    type="text"
-                                    bind:value={settings.headerLabel}
-                                    placeholder="Home"
-                                    spellcheck="false"
-                                />
-                            </label>
-                        </div>
-
-                        <div class="grid-two">
-                            <label class="field">
-                                <span class="label">Print entry file</span>
-                                <input
-                                    type="text"
-                                    bind:value={settings.printEntryFileName}
-                                    spellcheck="false"
-                                />
-                            </label>
-                            <label class="field">
-                                <span class="label">Max neighbourhood graph nodes</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    bind:value={settings.maxGraphNodes}
-                                />
-                            </label>
-                        </div>
-                    </div>
+                {#if isHtml}
+                    <label class="field">
+                        <span class="label">Runtime mode</span>
+                        <select bind:value={settings.runtimeMode}>
+                            <option value="interactive">Interactive — search, graph, rich navigation</option>
+                            <option value="document">Document — lean pages</option>
+                            <option value="print">Print — printable-first output</option>
+                        </select>
+                    </label>
+                {:else if isPdf}
+                    <p class="hint">
+                        PDF export builds a print-oriented HTML report and opens it so you can save as PDF from the
+                        browser. Direct PDF rendering is not implemented yet.
+                    </p>
+                {:else if isMarkdown}
+                    <p class="hint">
+                        Writes <code>README.md</code> with an idea index. When idea pages are enabled, each idea gets
+                        its own <code>.md</code> file under <code>ideas/</code>.
+                    </p>
+                {:else if isJson}
+                    <p class="hint">
+                        Writes <code>export.json</code> with ideas, files, clusters, attributes, and references.
+                    </p>
+                {:else if isCsv}
+                    <p class="hint">
+                        Writes <code>ideas.csv</code> (tags and attributes as columns) and <code>references.csv</code>.
+                    </p>
                 {/if}
             </section>
 
+            {#if isHtml}
+                <section class="advanced" aria-labelledby="advanced-heading">
+                    <button
+                        type="button"
+                        class="advanced-toggle"
+                        aria-expanded={settings.advancedExpanded}
+                        onclick={() => {
+                            if (settings) {
+                                settings.advancedExpanded = !settings.advancedExpanded;
+                            }
+                        }}
+                    >
+                        <span id="advanced-heading">Advanced HTML settings</span>
+                        <span class="chevron" aria-hidden="true">{settings.advancedExpanded ? '−' : '+'}</span>
+                    </button>
+
+                    {#if settings.advancedExpanded}
+                        <div class="advanced-body">
+                            <label class="field">
+                                <span class="label">Template</span>
+                                <select bind:value={settings.templateId}>
+                                    <option value="default">Default multi-page site</option>
+                                </select>
+                            </label>
+
+                            <label class="field">
+                                <span class="label">Cluster strategy</span>
+                                <select bind:value={settings.clusterStrategy}>
+                                    <option value="hybrid">Hybrid — deterministic + communities</option>
+                                    <option value="deterministic">Deterministic — file, folder, tag, status</option>
+                                </select>
+                            </label>
+
+                            <fieldset class="fieldset">
+                                <legend>Page families</legend>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeIdeaPages} />
+                                    Idea pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeFilePages} />
+                                    Requirement file pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeCodeFilePages} />
+                                    Code file pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeClusterPages} />
+                                    Cluster pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeAttributePages} />
+                                    Attribute pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includePrintPages} />
+                                    Print pages
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeRequirementsPage} />
+                                    Requirements overview page
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.includeGraphPage} />
+                                    Graph page
+                                </label>
+                            </fieldset>
+
+                            <fieldset class="fieldset">
+                                <legend>File filters</legend>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
+                                    Exclude <code>*.secret.rq</code> ideas
+                                </label>
+                                <label class="check">
+                                    <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
+                                    Exclude <code>.rqignore</code>-matched files
+                                </label>
+                                <span class="hint">
+                                    When unchecked, ideas from those files are included if present in the index.
+                                </span>
+                            </fieldset>
+
+                            <label class="field">
+                                <span class="label">URL base (mount prefix)</span>
+                                <input
+                                    type="text"
+                                    bind:value={settings.urlBase}
+                                    placeholder="/spec"
+                                    spellcheck="false"
+                                />
+                                <span class="hint">Optional. Root-relative hrefs for static hosts.</span>
+                            </label>
+
+                            <div class="grid-two">
+                                <label class="field">
+                                    <span class="label">Header link href</span>
+                                    <input
+                                        type="text"
+                                        bind:value={settings.headerHref}
+                                        placeholder="/"
+                                        spellcheck="false"
+                                    />
+                                </label>
+                                <label class="field">
+                                    <span class="label">Header link label</span>
+                                    <input
+                                        type="text"
+                                        bind:value={settings.headerLabel}
+                                        placeholder="Home"
+                                        spellcheck="false"
+                                    />
+                                </label>
+                            </div>
+
+                            <div class="grid-two">
+                                <label class="field">
+                                    <span class="label">Print entry file</span>
+                                    <input
+                                        type="text"
+                                        bind:value={settings.printEntryFileName}
+                                        spellcheck="false"
+                                    />
+                                </label>
+                                <label class="field">
+                                    <span class="label">Max neighbourhood graph nodes</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="1"
+                                        bind:value={settings.maxGraphNodes}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    {/if}
+                </section>
+            {:else if isPdf}
+                <section class="advanced" aria-labelledby="pdf-settings-heading">
+                    <h2 id="pdf-settings-heading">PDF settings</h2>
+                    <fieldset class="fieldset">
+                        <legend>File filters</legend>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
+                            Exclude <code>*.secret.rq</code> ideas
+                        </label>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
+                            Exclude <code>.rqignore</code>-matched files
+                        </label>
+                    </fieldset>
+                    <label class="field">
+                        <span class="label">Print entry file</span>
+                        <input
+                            type="text"
+                            bind:value={settings.printEntryFileName}
+                            spellcheck="false"
+                        />
+                    </label>
+                </section>
+            {:else if isMarkdown}
+                <section class="advanced" aria-labelledby="markdown-settings-heading">
+                    <h2 id="markdown-settings-heading">Markdown settings</h2>
+                    <label class="check">
+                        <input type="checkbox" bind:checked={settings.includeIdeaPages} />
+                        Per-idea markdown pages under <code>ideas/</code>
+                    </label>
+                    <span class="hint">
+                        When off, idea bodies are inlined in <code>README.md</code> instead of separate files.
+                    </span>
+                    <fieldset class="fieldset">
+                        <legend>File filters</legend>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
+                            Exclude <code>*.secret.rq</code> ideas
+                        </label>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
+                            Exclude <code>.rqignore</code>-matched files
+                        </label>
+                    </fieldset>
+                </section>
+            {:else if isJson || isCsv}
+                <section class="advanced" aria-labelledby="data-settings-heading">
+                    <h2 id="data-settings-heading">{isJson ? 'JSON' : 'CSV'} settings</h2>
+                    <fieldset class="fieldset">
+                        <legend>File filters</legend>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeSecretFiles} />
+                            Exclude <code>*.secret.rq</code> ideas
+                        </label>
+                        <label class="check">
+                            <input type="checkbox" bind:checked={settings.excludeIgnoredFiles} />
+                            Exclude <code>.rqignore</code>-matched files
+                        </label>
+                    </fieldset>
+                </section>
+            {/if}
+
             <div class="actions">
                 <button type="submit" class="primary" disabled={busy}>
-                    {busy ? 'Exporting…' : 'Export'}
+                    {busy ? 'Exporting…' : isPdf ? 'Prepare PDF…' : 'Export'}
                 </button>
                 <button type="button" class="secondary" disabled={busy} onclick={saveSettings}>
                     Save settings
@@ -444,6 +591,13 @@
         gap: 0.3rem;
     }
 
+    .base-chip {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        margin: 0;
+    }
+
     .label {
         font-size: 0.9em;
         font-weight: 600;
@@ -519,10 +673,6 @@
         align-items: center;
         gap: 0.45rem;
         font-size: 0.92em;
-    }
-
-    .check.block {
-        margin-top: 0.15rem;
     }
 
     .advanced-toggle {

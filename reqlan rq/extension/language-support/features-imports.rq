@@ -57,16 +57,37 @@ import_code_completion {
     [import_code_completion_rendering]
 }
 
-import_code_completion_rendering{
-    The reference code completion for an import, should indicate the file path as well.
-    see also [reference_code_completion]
-    @todo
+import_code_completion_rendering {
+    Reference code completion for ideas from other files shows the relative import path in the completion detail.
+    Same-file ideas omit the path detail.
+    [reference_code_completion]
+    [import_code_completion]
+    [import_code_completion_auto_file_import]
+    @status done
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
 }
 
 import_code_completion_auto_file_import {
     When a code completion for an idea in another file is selected, the import should be automatically added to the current file.
-    The remote import []
-    @todo
+    This prevents the user from selecting a presented idea, and then having to add the import for the same thing.
+    Uses the same from-import insertion as [import_error] quick fixes; skips the edit when the idea is already imported.
+    [reference_code_completion]
+    [import_code_completion]
+    [import_code_completion_rendering]
+    [import_error]
+    @status done
+    @tests (
+        ["../../../packages/language/test/completion.test.ts"]
+    )
+    @implementation (
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-import-edits.ts"]
+    )
 }
 
 import_code_completion_explicit_extension {

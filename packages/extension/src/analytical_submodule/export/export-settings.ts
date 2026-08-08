@@ -1,5 +1,5 @@
 /**
- * Persist HTML export form defaults under `<workspace>/.reqlan/export_settings.json`.
+ * Persist export form defaults under `<base>/.reqlan/export_settings.json`.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
@@ -15,6 +15,7 @@ export {
     EXPORT_SETTINGS_FILENAME,
     defaultExportFormSettings,
     mergeExportFormSettings,
+    type ExportFormFormat,
     type ExportFormSettings
 } from './export-form-settings-types.js';
 

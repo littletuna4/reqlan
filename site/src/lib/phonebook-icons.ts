@@ -1,4 +1,4 @@
-/** Phonebook icon registry — see site/reqs/icons.rq icon_registry */
+/** Phonebook icon registry — see reqlan rq/development/core.rq iconify_stack; site.rq icon_registry */
 import emailOutline from "@iconify-icons/mdi/email-outline";
 import web from "@iconify-icons/mdi/web";
 import github from "@iconify-icons/simple-icons/github";

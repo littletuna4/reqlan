@@ -33,6 +33,10 @@ export const SHARED_STYLES = `
     font-family: Inter, system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
+html {
+    /* Keep fragment targets below the sticky .topbar (nav + padding ≈ 4.5–5rem). */
+    scroll-padding-top: 5.5rem;
+}
 body {
     margin: 0;
     background: var(--bg);
@@ -426,6 +430,7 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     max-width: 100%;
     overflow-wrap: anywhere;
     word-break: break-word;
+    scroll-margin-top: 5.5rem;
 }
 .print-card > h3 { overflow-wrap: anywhere; }
 .print-attrs {

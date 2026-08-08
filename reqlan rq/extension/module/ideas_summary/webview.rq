@@ -1,6 +1,6 @@
 import "../../features-views.rq" as views
 import "../../features-export.rq" as features_export
-import "../../features-html-export.rq" as html_export
+import "../../../core_analysis/html_export.rq" as html_export
 import "../index.rq" as index_reqs
 import "./graphical_graph.rq" as graphical_graph_doc
 import "./base-scope.rq" as ideas_summary_base
@@ -56,7 +56,8 @@ ontology_aligned_tabs {
 
 pages {
     - ideas summary [ideas_summary_panel]
-       - header / status chrome with base switcher and link to [features_export.export_webview]
+       - header / status chrome with base switcher and link to [features_export.export_webview];
+         error state of the status chrome per ["../activitybar.rq".error_status_bar]
        - [overview_page] [OverviewPanel]
        - [bases_tab] [BasesTable]
        - ideas list [IdeasTable]
@@ -84,7 +85,7 @@ overview_page {
     - Coverage: collapsible [overview_coverage_scores] (lazy, non-blocking).
     - Search: live cross-surface search over ideas, ideasets, attributes, and references for the active base;
       results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
-    - Export: buttons that open export functionality — Export form / HTML, and PDF ([features_export.export_webview], [features_export] pdf path).
+    - Export: buttons that open [features_export.export_webview] with HTML, Markdown, JSON, CSV, or PDF pre-selected (or the form without a format override).
     - Links: project site, support/email, GitHub.
     - Recent changes preview (idea names when available) with a link to [timeline_page].
     @todo outstanding-by-status / todos rollup
@@ -136,7 +137,9 @@ timeline_page {
     Sources:
     - Git idea lifecycle from indexed `git_created_at` / `git_modified_at` (created + last edited as separate events when they differ)
     - Session idea reindex activity (one event per idea persisted, with name / status / summary when available)
-    Opening the tab backfills missing git dates via the `git_dates` analyser (capped batch) so the feed is useful without visiting every idea in the Activity Bar.
+    Missing git dates are filled by the silent background indexer
+    (["../../features-graph-analysers.rq".git_dates] / ["../git-codelens.rq".git_dates_background_indexing]) —
+    opening Timeline must not run git log on the UI path.
     Reindex must preserve existing git dates across upsert.
     Entries are reverse-chronological, filterable by source (git / reindexed), and clickable to open the idea.
     Each event surfaces idea-centric info: name, short summary, status, kind/tags, and path.
@@ -146,6 +149,14 @@ timeline_page {
         [ideas_summary_panel]
         ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
         ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"]
+        ["../../../../packages/extension/src/extension/register-git-dates-background.ts"]
+        ["../../../../packages/extension/src/extension/git-dates-background.ts"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
+        ["../../../../packages/extension/test/git-dates-background.test.ts"]
+        ["../../../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
     )
     @status done
     @tags (timeline, ideas, git)

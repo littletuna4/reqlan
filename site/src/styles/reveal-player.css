@@ -57,21 +57,80 @@
 
 .presentation-player .reveal .slides section {
   text-align: left;
-  padding: 1.25rem 1.6rem 1.5rem;
+  padding: 1rem 1.35rem 1.15rem;
+  box-sizing: border-box;
+}
+
+.presentation-player .reveal .slide-layout {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.presentation-player .reveal .slide-layout--copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.presentation-player .reveal .slide-layout--split-portrait {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+  height: 100%;
+}
+
+.presentation-player .reveal .slide-layout--split-landscape {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.85rem 1.1rem;
+  align-items: start;
+  height: 100%;
+}
+
+.presentation-player .reveal .slide-layout--stack-landscape {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.presentation-player .reveal .slide-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.presentation-player .reveal .slide-media {
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.presentation-player .reveal .slide-layout--stack-landscape .slide-media {
+  flex: 1 1 auto;
+  align-items: center;
 }
 
 .presentation-player .reveal .kicker {
   color: var(--rq-aqua);
-  font-size: 0.52em;
+  font-size: 0.48em;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin: 0 0 0.7rem;
+  margin: 0 0 0.45rem;
 }
 
 .presentation-player .reveal h1,
 .presentation-player .reveal h2 {
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.45rem;
   line-height: 1.12;
   letter-spacing: -0.025em;
   font-weight: 600;
@@ -79,27 +138,66 @@
   text-wrap: balance;
 }
 
+.presentation-player .reveal .slide-layout--split-portrait h2,
+.presentation-player .reveal .slide-layout--split-landscape h2 {
+  font-size: 0.92em;
+}
+
 .presentation-player .reveal .body {
   color: var(--rq-text-muted);
-  font-size: 0.72em;
-  line-height: 1.4;
-  max-width: 34em;
-  margin: 0 0 0.95rem;
+  font-size: 0.62em;
+  line-height: 1.35;
+  max-width: 28em;
+  margin: 0 0 0.55rem;
   text-wrap: pretty;
 }
 
 .presentation-player .reveal .slide-asset {
   display: block;
-  max-width: min(58%, 380px);
-  margin: 1rem 0 0;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: top center;
   border-radius: 6px;
   border: 1px solid var(--rq-border);
+  background: color-mix(in srgb, var(--rq-panel) 70%, transparent);
+}
+
+.presentation-player .reveal .slide-asset--portrait {
+  max-height: min(58vh, 26rem);
+  width: auto;
+}
+
+.presentation-player .reveal .slide-asset--landscape {
+  max-height: min(42vh, 18rem);
+  max-width: min(100%, 34rem);
+}
+
+.presentation-player .reveal .slide-layout--stack-landscape .slide-asset--landscape {
+  max-height: min(48vh, 20rem);
+  max-width: min(100%, 38rem);
 }
 
 .presentation-player .reveal .slide-asset.logo {
   max-width: 72px;
-  margin: 0 0 1.1rem;
+  max-height: 72px;
+  margin: 0 0 0.85rem;
   border: 0;
+  background: transparent;
+}
+
+@media (max-width: 720px) {
+  .presentation-player .reveal .slide-layout--split-portrait,
+  .presentation-player .reveal .slide-layout--split-landscape {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .presentation-player .reveal .slide-asset--portrait,
+  .presentation-player .reveal .slide-asset--landscape {
+    max-height: min(40vh, 16rem);
+  }
 }
 
 .presentation-player .reveal .code-label {
@@ -130,6 +228,15 @@
   max-width: 44em;
   margin: 0 0 0.75rem;
   overflow: auto;
+}
+
+.presentation-player .reveal .slide-layout--split-portrait pre.code,
+.presentation-player .reveal .slide-layout--split-landscape pre.code,
+.presentation-player .reveal .slide-layout--stack-landscape pre.code {
+  max-width: 100%;
+  max-height: min(28vh, 12rem);
+  font-size: 0.42em;
+  margin-bottom: 0.35rem;
 }
 
 .presentation-player .reveal pre.code code,

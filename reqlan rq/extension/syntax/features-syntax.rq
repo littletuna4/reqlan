@@ -106,3 +106,8 @@ code_completion_import_file_paths {
     ["../../language/imports.rq"]
     ["../code_completion.rq"]
 }
+
+
+syntax_welcome_demonstration {
+    the ["@/packages/extension/templates/thanks-for-installing.template.rq"] should feature some of the core syntax features as reference.
+}

@@ -12,6 +12,7 @@ import {
     listAllIdeasAnalyser,
     localGraphAnalyser,
     semanticSearchAnalyser,
+    fuzzySearchAnalyser,
     type AnalyticalStore
 } from '@reqlan/analytical';
 import { IndexService } from './index-store/index-service.js';
@@ -22,6 +23,7 @@ import { registerWebviewModule } from '../webview_module/index.js';
 import { registerAiCommandsModule } from '../ai_commands_module/index.js';
 import { registerMutationHooksModule } from '../mutation_hooks_module/index.js';
 import { registerIndexDiagnosticsModule } from '../diagnostics_module/index.js';
+import { registerGitDatesBackgroundIndexing } from '../extension/register-git-dates-background.js';
 
 export type {
     AnalyticalState,
@@ -72,6 +74,7 @@ export function activateAnalyticalSubmodule(
     analysers.register(completionTrackingAnalyser);
     analysers.register(localGraphAnalyser);
     analysers.register(semanticSearchAnalyser);
+    analysers.register(fuzzySearchAnalyser);
 
     const submodule = { store, index, analysers };
 
@@ -92,6 +95,7 @@ export function activateAnalyticalSubmodule(
     registerStep('AI commands', () => registerAiCommandsModule(context, submodule));
     registerStep('mutation hooks', () => registerMutationHooksModule(context, submodule));
     registerStep('index diagnostics', () => registerIndexDiagnosticsModule(context, submodule));
+    registerStep('git dates background', () => registerGitDatesBackgroundIndexing(context, submodule));
 
     context.subscriptions.push({
         dispose: () => {

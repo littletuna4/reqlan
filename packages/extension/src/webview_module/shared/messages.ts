@@ -392,7 +392,7 @@ export type WebviewToExtensionMessage =
     | { type: 'requestWebviewReload' }
     | { type: 'openIdea'; fileUri: string; line: number; column?: number }
     | { type: 'openExternal'; href: string }
-    | { type: 'openExport'; format?: 'html' | 'pdf' }
+    | { type: 'openExport'; format?: 'html' | 'pdf' | 'markdown' | 'json' | 'csv' }
     | { type: 'dumpFullGraph' }
     | { type: 'persistGraphUiState'; state: GraphUiPersistedState }
     | { type: 'persistTableUiState'; state: TableUiPersistedState };

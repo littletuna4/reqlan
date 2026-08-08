@@ -150,6 +150,68 @@ describe('Completion', () => {
         expect(labels).toContain('my');
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+    test('reference completions show source path and auto-import edits for other files', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        await parseDocumentsTogether(['exampleimport.rq']);
+
+        const content = 'consumer {\n    see [\n}';
+        const consumerUri = URI.parse(pathToFileURL(join(exampleDir, 'consumer-completion.rq')).href);
+        document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            content,
+            consumerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 1, character: 9 }
+        });
+        const remote = (result?.items ?? []).find(item => item.label === 'myimportableIdea');
+        expect(remote).toBeDefined();
+        expect(remote?.detail).toBe('./exampleimport.rq');
+        expect(remote?.additionalTextEdits).toEqual([
+            {
+                range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+                newText: 'from "./exampleimport.rq" import myimportableIdea\n\n'
+            }
+        ]);
+
+        const local = (result?.items ?? []).find(item => item.label === 'consumer');
+        expect(local).toBeDefined();
+        expect(local?.detail).toBeUndefined();
+        expect(local?.additionalTextEdits).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+    test('skips auto-import edit when the idea is already imported', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        await parseDocumentsTogether(['exampleimport.rq']);
+
+        const content = 'from "./exampleimport.rq" import myimportableIdea\n\nconsumer {\n    see [\n}';
+        const consumerUri = URI.parse(pathToFileURL(join(exampleDir, 'consumer-already-imported.rq')).href);
+        document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            content,
+            consumerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 3, character: 9 }
+        });
+        const remote = (result?.items ?? []).find(item => item.label === 'myimportableIdea');
+        expect(remote?.detail).toBe('./exampleimport.rq');
+        expect(remote?.additionalTextEdits).toBeUndefined();
+    });
+
     // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
     test('orders reference completions by distance then alphabetically', async () => {
         document = await parse(`hub {

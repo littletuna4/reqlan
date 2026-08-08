@@ -21,6 +21,8 @@ function mockIdea(name: string, fileUri: string, overrides: Partial<IdeaRecord> 
 }
 
 describe('idea timeline git dates', () => {
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
     test('upsert preserves analyser git dates across reindex', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const fileUri = 'file:///workspace/timeline.rq';
@@ -62,6 +64,7 @@ describe('idea timeline git dates', () => {
         await store.close();
     });
 
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('listIdeaIdsMissingGitDates returns ideas without dates', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const fileUri = 'file:///workspace/timeline.rq';
@@ -72,6 +75,30 @@ describe('idea timeline git dates', () => {
 
         const ids = await store.listIdeaIdsMissingGitDates(10);
         expect(ids).toEqual([missing.id]);
+        await store.close();
+    });
+
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+    // rq:["../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+    test('listIdeaIdsMissingGitDates can filter or prefer a file', async () => {
+        const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
+        const current = 'reqlan rq/current.rq';
+        const other = 'reqlan rq/other.rq';
+        const currentIdea = mockIdea('current_undated', current);
+        const otherIdea = mockIdea('other_undated', other);
+        await store.upsertDocument(current, 'hash-a', [currentIdea], []);
+        await store.upsertDocument(other, 'hash-b', [otherIdea], []);
+
+        expect(await store.listIdeaIdsMissingGitDates(10, { fileUri: current })).toEqual([currentIdea.id]);
+        expect(await store.listIdeaIdsMissingGitDates(10, { preferFileUri: current })).toEqual([
+            currentIdea.id,
+            otherIdea.id
+        ]);
+        expect(await store.listIdeaIdsMissingGitDates(10, { preferFileUri: other })).toEqual([
+            otherIdea.id,
+            currentIdea.id
+        ]);
         await store.close();
     });
 });

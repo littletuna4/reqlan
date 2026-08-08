@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "format": "markdown",
   "scope": "workspace",
   "outputDir": "export",
   "exportName": "export",
@@ -14,7 +15,7 @@
   "includeClusterPages": true,
   "includeAttributePages": true,
   "includePrintPages": true,
-  "excludeSecretFiles": false,
+  "excludeSecretFiles": true,
   "excludeIgnoredFiles": false,
   "urlBase": "",
   "headerHref": "",

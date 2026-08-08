@@ -45,6 +45,7 @@ workspace_loading {
     Index sync progress belongs in [workspace_pane]; do not treat "index not ready" as a hard global error during cold start.
     Host posts index health on view resolve and on `ready`; soft-waits when the index is not ready instead of erroring the whole bar.
     Waiting for index: use [workspace_pane] sync progress affordance.
+    When the status line *is* in error, show it prominently per ["../activitybar.rq".error_status_bar].
 }
 
 workspace_content_styling {

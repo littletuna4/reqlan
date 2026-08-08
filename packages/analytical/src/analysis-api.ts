@@ -8,6 +8,9 @@ import type {
 } from './core/types.js';
 import type { AnalysisRuntime } from './create-runtime.js';
 import { exportHtml } from './export/export-html.js';
+import { exportMarkdown } from './export/export-markdown.js';
+import { exportJson } from './export/export-json.js';
+import { exportCsv } from './export/export-csv.js';
 import type { ExportProgressCallback, ExportRequest, ExportResult } from './export/types.js';
 
 export interface RequirementMatch {
@@ -126,6 +129,53 @@ export class AnalysisApi {
         await this.ensureReady();
         return exportHtml(this.runtime.index.indexStore, {
             ...request,
+            workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
+        }, onProgress);
+    }
+
+    /**
+     * Export the indexed requirement graph as markdown (README + optional idea pages).
+     */
+    async exportMarkdown(
+        request: Omit<ExportRequest, 'workspaceRoot'> & {
+            workspaceRoot?: string;
+        },
+        onProgress?: ExportProgressCallback
+    ): Promise<ExportResult> {
+        await this.ensureReady();
+        return exportMarkdown(this.runtime.index.indexStore, {
+            ...request,
+            format: 'markdown',
+            workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
+        }, onProgress);
+    }
+
+    /** Export structured JSON for tooling and AI consumption. */
+    async exportJson(
+        request: Omit<ExportRequest, 'workspaceRoot'> & {
+            workspaceRoot?: string;
+        },
+        onProgress?: ExportProgressCallback
+    ): Promise<ExportResult> {
+        await this.ensureReady();
+        return exportJson(this.runtime.index.indexStore, {
+            ...request,
+            format: 'json',
+            workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
+        }, onProgress);
+    }
+
+    /** Export ideas/references as CSV with flattened tags and attributes. */
+    async exportCsv(
+        request: Omit<ExportRequest, 'workspaceRoot'> & {
+            workspaceRoot?: string;
+        },
+        onProgress?: ExportProgressCallback
+    ): Promise<ExportResult> {
+        await this.ensureReady();
+        return exportCsv(this.runtime.index.indexStore, {
+            ...request,
+            format: 'csv',
             workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
         }, onProgress);
     }

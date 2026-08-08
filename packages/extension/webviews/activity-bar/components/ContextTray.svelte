@@ -4,14 +4,18 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
 </script>
 
-<CollapsiblePane title="Context tray" id="tray" {expanded} {onToggle}>
+<CollapsiblePane title="Context tray" id="tray" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     {#if app.tray.length === 0}
         <p class="muted">Pin ideas from reference rows to build AI context.</p>
     {:else}

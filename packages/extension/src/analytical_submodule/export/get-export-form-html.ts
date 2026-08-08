@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-/** Svelte HTML export form webview shell. */
+/** Svelte multi-format export form webview shell. */
 export function getExportFormHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const nonce = getNonce();
     const baseUri = vscode.Uri.joinPath(extensionUri, 'media', 'webviews', 'export-form');
@@ -19,7 +19,7 @@ export function getExportFormHtml(webview: vscode.Webview, extensionUri: vscode.
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Export HTML</title>
+  <title>Export</title>
   <link rel="stylesheet" href="${styleUri}">
 </head>
 <body>

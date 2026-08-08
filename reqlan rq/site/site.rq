@@ -1,3 +1,228 @@
+import "../distribution/distribution.rq" as distribution_reqs
+import "../phonebook.rq" as phonebook_reqs
+import "../development/core.rq" as development_core
+import "../core_analysis/html_export.rq" as html_export
+import "../cli/cli_package.rq" as cli_package
+import "../../site/src/components/Contact.tsx" as contact_component
+import "../../site/src/components/Hero.tsx" as hero_component
+import "../../site/src/components/PhonebookIcon.tsx" as phonebook_icon_component
+import "../../site/src/lib/phonebook-icons.ts" as phonebook_icon_registry
+
+site {
+    the /site folder contains a static Next.js App Router landing page for reqlan.
+    should align with [brand]
+}
+
+simple_lightweight_and_static {
+    must be fully statically exported for GitHub Pages.
+    All routes, including showcase detail pages, are generated at build time.
+    The deploy workflow must upload only static HTML, JS, and assets from site/out.
+    Build also embeds the workspace requirement graph under `/spec` per [spec_html_export].
+}
+
+spec_html_export {
+    The site static build exports the workspace requirement graph (excluding `*.secret.rq`) under `out/spec/` via `reqlan export`.
+    It must pass [html_export.html_export_url_base] for `/spec` (honouring `SITE_BASE_PATH`, e.g. `/reqlan/spec` in production) so `/spec` loads with or without a trailing slash.
+    It must pass [html_export.html_export_header_link] pointing at the marketing site home so readers can leave the embedded spec and return to the parent site.
+    Pipeline: ["../../site/scripts/build-static.mts"] → ["../../site/scripts/export-spec.mts"] → ["../../site/scripts/verify-static-export.mts"].
+    Host options come from [html_export.html_export] / CLI [cli_package.commands].
+    @status done
+    @implementation (
+        ["../../site/scripts/export-spec.mts"]
+        ["../../site/scripts/verify-static-export.mts"]
+        ["../../site/scripts/build-static.mts"]
+    )
+}
+
+workflow {
+    Site deployment runs when an `site/v*` tag is pushed. 
+    Tags are created automatically on main by the release workflow per [distribution_reqs.deployment_flow].
+    The site workflow does not deploy on ordinary commits.
+    per [distribution_reqs.site_distribution]
+}
+
+single_page {
+   just one page.
+}
+
+components {
+    - sidebar
+    - footer
+    - hero
+    - sticky page nav graph (landing)
+    - links/contact
+    - showcases
+    - tutorials per [tutorials_section]
+    - content
+        - motivation
+        - syntax
+        - example
+        - roadmap per [roadmap_section]
+    - CTA:
+        - download the extension
+        per [cta_icon]
+    - 404 page (just something silly / a redirect)
+}
+
+roadmap_section {
+    Landing page section `#roadmap` after example and before links.
+    Compact vertical scaled-center carousel (snap + distance-based scale/opacity peeks).
+    Flat Now / Next / Later items — one focused at a time; neighbours peek smaller.
+    Copy lives in site content (per [copy]); nav and sticky page graph include the section.
+    Keep the list honest and thin — no fake dates, no wall of tickets.
+    @status done
+    @implementation (
+        ["../../site/src/components/Roadmap.tsx"]
+        ["../../site/src/content/site.ts"]
+        ["../../site/src/views/HomePage.tsx"]
+        ["../../site/src/components/NavGraph.tsx"]
+    )
+    @todo refresh items when product priorities shift
+}
+
+tutorials_section {
+    The site exposes `/tutorials` and `/tutorials/[slug]/` as statically generated pages.
+    Catalog and deck ids come from authored ["../../presentations/manifest.jsonc"].
+    Each detail page embeds the Reveal player iframe at `/presentations/player/?deck=<id>` using [assets] / SITE_BASE_PATH-aware `sitePath`.
+    Each detail page hosts a unified transport chrome (`<<` `<` steps `>` `>>`) that drives slide nav in the embedded player via postMessage, plus lesson jumps.
+    Location hierarchy chrome: [tutorial_location_crumb].
+    Blurb and try-this live on the catalog and inside the slides, not as page chrome.
+    The player is an App Router page ([presentation_player_route]) so it static-exports under `trailingSlash` without colliding with `public/` HTML.
+    Sync ([sync_presentations]) converts authored deck/catalog JSONC under ["../../presentations/"] into runtime JSON under `public/presentations/`, and copies assets plus vendored Reveal.js (player shell excluded).
+    @status done
+    @implementation (
+        ["../../site/src/app/tutorials/page.tsx"]
+        ["../../site/src/app/tutorials/[slug]/page.tsx"]
+        ["../../site/src/app/presentations/player/page.tsx"]
+        ["../../site/src/content/tutorials.ts"]
+        ["../../site/src/components/TutorialPlayerShell.tsx"]
+        ["../../site/src/components/PresentationPlayer.tsx"]
+        ["../../site/scripts/sync-presentations.mts"]
+        ["../../site/src/lib/parse-jsonc.ts"]
+    )
+}
+
+tutorial_location_crumb {
+    Tutorial detail chrome shows a compact location trail: catalog → course → lesson → slide.
+    Hierarchy must be obvious without a wide single-line title dump.
+    Layout: each tier is a stacked chip — role (and optional completion control) on the top row;
+    title / index value muted underneath. Titles colour up on hover, focus-within, or when the peer menu is open.
+    **Folder navigation:** each tier acts like a path segment / folder. Hover or focus reveals a peer menu
+    for that level of the tree so the user can jump without using the transport row:
+    - catalog → courses (enter first lesson of the chosen course, or the catalog index)
+    - course → peer courses
+    - lesson → peer lessons in the active course
+    - slide → peer slides in the active lesson (updates the embedded player / `?slide=`)
+    Current peer is marked; menus stay keyboard-reachable via focus-within.
+    **Sizing:** the crumb container grows to fit text; wrap before truncating. Ellipsis only as a last resort
+    on very narrow viewports — do not cap chip width so aggressively that titles ellipsize while space remains.
+    Course deep-links also exist at `/tutorials/#course-<series>`; catalog at `/tutorials/`.
+    Slide shows `n/total` and updates live with the embedded player.
+    Completion toggles stay on the role row.
+    The crumb lesson tier always shows the **current** lesson only — it must not share hover/preview
+    state with the transport lesson step dots. Step-dot hover may preview a title near the dots, never in the crumb.
+    @status done
+    @implementation (
+        ["../../site/src/components/TutorialPlayerShell.tsx"]
+        ["../../site/src/components/TutorialPlayerShell.module.css"]
+    )
+}
+
+sync_presentations {
+    `scripts/sync-presentations.mts` reads authored `*.jsonc` decks and `manifest.jsonc`, emits comment-free `*.json` for the static player, and syncs assets/vendor into `public/presentations/`.
+    @status done
+    @implementation (
+        ["../../site/scripts/sync-presentations.mts"]
+        ["../../site/src/lib/parse-jsonc.ts"]
+    )
+}
+
+presentation_player_route {
+    `/presentations/player/` is a statically exported Next page that loads runtime deck JSON from `/presentations/decks/` and Reveal from `/presentations/vendor/reveal.js/`.
+    Runtime JSON is generated from authored JSONC by [sync_presentations].
+    It must not use SiteShell; it is iframe-hosted by tutorial detail pages.
+    Do not place `public/presentations/player/index.html` — that path is owned by the App Router export.
+    @status done
+}
+
+code_block_styling {
+    Code blocks should be styled per language as a function of a classname; or by using an appropriate lightweight external dependency.
+    .rq, .ts, .md, and .py should be supported for code sections.
+    If using a dependency, it should parse at build, not in the browser.
+}
+
+logo {
+    - there is a logo in the sidebar.
+}
+
+assets {
+    this site is published in in gh pages at the "/reqlan" path. Any assets in the /public folder should be referenced as "/reqlan/assets/...".
+    Embedded spec export hrefs follow the same base via [spec_html_export] / [html_export.html_export_url_base].
+}
+
+brand {
+    must be aligned with ["../brand.rq"]
+}
+
+images {
+    The source logo is in the /public folder. A sharp dev script is used to generate pngs and favicons etc which should be executed if the svg source logo changes.
+}
+
+copy {
+    - In a ts object decoupled from the actual layout/styling.
+    - copy should be really super minimal and concise if at all. (show don't tell)
+}
+
+links {
+    per [phonebook_reqs.phonebook]
+    per [phonebook_reqs.npm_packages]
+    Contact shows phonebook `links` then a Packages subsection for phonebook `packages`.
+    per [link_icons]
+    per [package_icons]
+}
+
+// Site icon rendering for phonebook links and CTAs — policy in [development_core.iconify_stack]
+
+icon_registry {
+    [phonebook_icon_registry] maps phonebook icon keys to bundled Iconify data for the site.
+    Every link and package icon in the phonebook must have a matching registry entry; the module throws at startup if one is missing.
+    When adding or changing an icon in ["../phonebook.json"], update the registry import for that slug.
+    per [development_core.iconify_stack]
+    per [development_core.phonebook_icon_keys]
+}
+
+phonebook_icon_component {
+    [phonebook_icon_component] is the site's single render entry point for phonebook icons (`@iconify/react`).
+    It accepts a phonebook `icon` ref and renders an inline SVG with `aria-hidden`.
+    Default sizing uses the `.phonebook-icon` class in ["../../site/src/styles/globals.css"].
+    Must remain compatible with static export per [simple_lightweight_and_static].
+    per [development_core.iconify_stack]
+}
+
+link_icons {
+    The contact link row in [contact_component] renders an icon beside each phonebook link label.
+    per [links]
+    per [development_core.current_link_icons]
+}
+
+package_icons {
+    The contact Packages row in [contact_component] renders an icon beside each phonebook package label.
+    Package entries come from ["../phonebook.json"].packages per [phonebook_reqs.npm_packages].
+    per [links]
+    per [development_core.current_link_icons]
+}
+
+cta_icon {
+    The hero install control is a single "Install" menu button that opens an editor/download chooser (Cursor, VS Code, Open VSX, Download VSIX) — it must not assume the user's editor or pre-select one silently.
+    Each menu row shows the target's icon beside its full label; icons resolve through [phonebook_icon_registry] via the quickstart icon set/name refs in ["../../site/src/content/install-actions.ts"].
+    per [components]
+    per [development_core.iconify_stack]
+}
+
+styling_architecture {
+    styling should be handled primarily at the compoenent level with co-located css module files that are imported in the react components.
+}
+
 // Showcase content plan for the marketing site.
 // Objective: demonstrate, with precision and taste, the highest-value edges
 // of the reqlan toolset — with examples in different domains.
@@ -562,3 +787,4 @@ showcase_plan (
     phase_5_detail_layout,
     phase_6_capture_media
 )
+

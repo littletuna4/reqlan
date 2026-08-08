@@ -87,6 +87,7 @@ function tokenizeLine(line: string): RqToken[] {
             atLineStart: true,
             inBlock: indent.length > 0,
             inList: false,
+            importLine: false,
         }),
     );
 
@@ -97,6 +98,8 @@ type ScanContext = {
     atLineStart: boolean;
     inBlock: boolean;
     inList: boolean;
+    /** Top-level line began with `from` / `import` — enables mid-line `import` / `as`. */
+    importLine: boolean;
 };
 
 function scanInline(text: string, context: ScanContext): RqToken[] {
@@ -129,6 +132,14 @@ function scanInline(text: string, context: ScanContext): RqToken[] {
         tokens.push(next.token);
         index += next.length;
 
+        if (
+            next.token.type === 'keyword' &&
+            (next.token.text === 'from' || next.token.text === 'import')
+        ) {
+            ctx = { ...ctx, importLine: true, atLineStart: false };
+            continue;
+        }
+
         if (next.token.text === '(') {
             ctx = { ...ctx, inList: true, atLineStart: false };
             continue;
@@ -152,6 +163,7 @@ function scanToken(
     const patterns: Array<{
         match: RegExp;
         build: (value: string) => RqToken;
+        when?: (context: ScanContext) => boolean;
     }> = [
         {
             match: /^https?:\/\/[^\s)\]}>'"]+/,
@@ -170,11 +182,21 @@ function scanToken(
             build: (value) => ({ type: 'ref', text: value }),
         },
         {
+            // Attributes only at line start; mid-line `@foo` is prose.
             match: /^@\w+/,
+            when: (ctx) => ctx.atLineStart,
             build: (value) => ({ type: 'attribute', text: value }),
         },
         {
-            match: /^(from|import|as)\b/,
+            // `from` / leading `import` only at top-level line start.
+            match: /^(from|import)\b/,
+            when: (ctx) => ctx.atLineStart && !ctx.inBlock,
+            build: (value) => ({ type: 'keyword', text: value }),
+        },
+        {
+            // Mid-line `import` / `as` only on an import statement line.
+            match: /^(import|as)\b/,
+            when: (ctx) => ctx.importLine && !ctx.inBlock,
             build: (value) => ({ type: 'keyword', text: value }),
         },
         {
@@ -212,6 +234,9 @@ function scanToken(
     ];
 
     for (const pattern of patterns) {
+        if (pattern.when && !pattern.when(context)) {
+            continue;
+        }
         const match = text.match(pattern.match);
         if (match) {
             return {

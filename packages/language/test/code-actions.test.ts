@@ -126,10 +126,9 @@ describe('Import error code actions', () => {
 
         const search = actions.find(action => action.title.startsWith('Search for idea'));
         expect(search?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
-        expect(search?.command?.arguments?.[0]).toMatchObject({
-            refText: 'missing_target',
-            documentUri: document.textDocument.uri
-        });
+        // Args are resolved in the extension host from the active editor so VS Code
+        // does not dispose a cached delegating command on code-action refresh.
+        expect(search?.command?.arguments).toBeUndefined();
 
         const create = actions.find(action => action.title.startsWith('Create'));
         expect(create?.command?.command).toBe(REQLAN_IMPORT_ERROR_CREATE_COMMAND);
@@ -162,13 +161,8 @@ describe('Import error code actions', () => {
 
         const search = actions.find(action => action.title.includes('Search for idea'));
         expect(search?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
-        expect(search?.command?.arguments?.[0]).toMatchObject({
-            refText: 'alpha',
-            documentUri: document.textDocument.uri,
-            mode: 'replace'
-        });
-        expect(search?.command?.arguments?.[0]).toHaveProperty('context.ideaName', 'consumer');
-        expect(search?.command?.arguments?.[0]).toHaveProperty('context.target', 'alpha');
+        expect(search?.command?.arguments).toBeUndefined();
+        expect(search?.title).toContain('alpha');
     });
 
     // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
@@ -205,10 +199,8 @@ describe('Import error code actions', () => {
 
         const wrap = actions.find(action => action.title.includes('Wrap'));
         expect(wrap?.command?.command).toBe(REQLAN_SEARCH_REFERENCE_COMMAND);
-        expect(wrap?.command?.arguments?.[0]).toMatchObject({
-            mode: 'wrap',
-            refText: 'showcase'
-        });
+        expect(wrap?.command?.arguments).toBeUndefined();
+        expect(wrap?.title).toContain('showcase');
     });
 
     // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]

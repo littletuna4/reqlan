@@ -1,29 +1,37 @@
 
-import "./features-html-export.rq" as html_export
+import "./features-html-export.rq" as html_export_ui
 import "./features-export.rq" as features_export
+import "../core_analysis/html_export.rq" as html_export
+import "../core_analysis/export.rq" as analysis_export
 
 export_configurability {
-    exports should be built in mind with a print menu that will available for user configuration.
+    Exports should be built with a print/export menu available for user configuration.
     The initial export should accept a user prompt input for a file name.
     Preferred UI is [features_export.export_webview] rather than separate QuickPick chains per format.
 }
 
-export_csv { 
-    A command palette action should open [features_export.export_webview] (or run csv export) with tags flattened for quick filtering.
-    [features_export.csv_export]
+export_csv {
+    A command palette action should open [features_export.export_webview] with CSV selected.
+    UI: [features_export.csv_export]. Execution: [analysis_export.csv_export].
 }
 
 export_JSON {
-     A command palette action should open [features_export.export_webview] (or run json export).
-     [features_export.json_export]
+    A command palette action should open [features_export.export_webview] with JSON selected.
+    UI: [features_export.json_export]. Execution: [analysis_export.json_export].
 }
 
 export_html {
-    A command palette action should open [features_export.export_webview] with HTML selected.
-    [html_export.html_export]
+    A command palette action should open [features_export.export_webview] with HTML selected ([html_export_ui.html_export_form]).
+    Execution: [html_export.html_export].
     Host options for embedded mounts include [html_export.html_export_header_link] and [html_export.html_export_url_base].
 }
 
 export_pdf {
-    A command palette action should export requirements to pdf (preserving links.) via [features_export.export_webview] when available.
+    A command palette action should open [features_export.export_webview] with PDF selected.
+    UI: [features_export.pdf_export]. Execution: [analysis_export.pdf_export].
+}
+
+export_markdown {
+    A command palette action should open [features_export.export_webview] with Markdown selected.
+    UI: [features_export.markdown_export]. Execution: [analysis_export.markdown_export].
 }

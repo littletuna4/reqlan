@@ -3,19 +3,15 @@
  * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  */
 import {
-    fileBasenameAlias,
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
 import type { IdeaSummary } from '@reqlan/analytical';
+import { filterAndScoreIdeas } from '@reqlan/analytical';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
-import {
-    isSameIndexedFile,
-    relativeImportPathForIndexedFile
-} from './reference-search-import-path.js';
-import { filterAndScoreIdeas } from './reference-search-scoring.js';
+import { applyIdeaReferenceEdit } from './insert-idea-reference.js';
 
-export { filterAndScoreIdeas } from './reference-search-scoring.js';
+export { filterAndScoreIdeas } from '@reqlan/analytical';
 
 const VIEW_TYPE = 'reqlan.referenceSearch';
 const PAGE_SIZE = 8;
@@ -117,7 +113,7 @@ export class ReferenceSearchPanel {
             return;
         }
         if (message.type === 'select') {
-            await applyReferenceSelection(this.args, {
+            await applyIdeaReferenceEdit(this.args, {
                 fileUri: message.fileUri,
                 name: message.name,
                 kind: message.kind
@@ -152,128 +148,6 @@ export class ReferenceSearchPanel {
         };
         void this.panel.webview.postMessage(payload);
     }
-}
-
-async function applyReferenceSelection(
-    args: SearchReferenceCommandArgs,
-    selected: { fileUri: string; name: string; kind: string }
-): Promise<void> {
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(args.documentUri));
-    const editor = await vscode.window.showTextDocument(document);
-    const workspaceRoot = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath
-        ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-    const edit = new vscode.WorkspaceEdit();
-    const replaceRange = new vscode.Range(
-        args.range.start.line,
-        args.range.start.character,
-        args.range.end.line,
-        args.range.end.character
-    );
-    const replacement = (args.mode ?? 'replace') === 'wrap'
-        ? `[${selected.name}]`
-        : selected.name;
-    edit.replace(document.uri, replaceRange, replacement);
-
-    if (!isSameIndexedFile(args.documentUri, selected.fileUri, workspaceRoot)) {
-        const importPath = relativeImportPathForIndexedFile(
-            args.documentUri,
-            selected.fileUri,
-            workspaceRoot
-        );
-        if (selected.kind === 'ideaset') {
-            appendNamespaceImport(edit, document, importPath, fileBasenameAlias(selected.fileUri));
-        } else {
-            appendFromImport(edit, document, importPath, selected.name);
-        }
-    }
-
-    const applied = await vscode.workspace.applyEdit(edit);
-    if (!applied) {
-        void vscode.window.showErrorMessage('Could not apply reference selection.');
-        return;
-    }
-    const end = replaceRange.start.character + replacement.length;
-    editor.selection = new vscode.Selection(
-        replaceRange.start.line,
-        end,
-        replaceRange.start.line,
-        end
-    );
-}
-
-function appendFromImport(
-    edit: vscode.WorkspaceEdit,
-    document: vscode.TextDocument,
-    importPath: string,
-    symbolName: string
-): void {
-    const text = document.getText();
-    const fromPattern = new RegExp(
-        `^from\\s+["']${escapeRegExp(importPath)}["']\\s+import\\s+(.+)$`,
-        'm'
-    );
-    const existing = fromPattern.exec(text);
-    if (existing) {
-        const lineStart = text.slice(0, existing.index).split(/\r?\n/).length - 1;
-        const lineText = document.lineAt(lineStart).text;
-        if (new RegExp(`\\b${escapeRegExp(symbolName)}\\b`).test(lineText)) {
-            return;
-        }
-        edit.replace(
-            document.uri,
-            document.lineAt(lineStart).range,
-            `${lineText.replace(/\s*$/, '')}, ${symbolName}`
-        );
-        return;
-    }
-    const insertLine = findPlainImportInsertLine(text);
-    const suffix = insertLine === 0 ? '\n' : '';
-    edit.insert(
-        document.uri,
-        new vscode.Position(insertLine, 0),
-        `from "${importPath}" import ${symbolName}\n${suffix}`
-    );
-}
-
-function appendNamespaceImport(
-    edit: vscode.WorkspaceEdit,
-    document: vscode.TextDocument,
-    importPath: string,
-    alias: string
-): void {
-    const text = document.getText();
-    if (new RegExp(`^import\\s+["']${escapeRegExp(importPath)}["']`, 'm').test(text)) {
-        return;
-    }
-    const insertLine = findPlainImportInsertLine(text);
-    const suffix = insertLine === 0 ? '\n' : '';
-    edit.insert(
-        document.uri,
-        new vscode.Position(insertLine, 0),
-        `import "${importPath}" as ${alias}\n${suffix}`
-    );
-}
-
-function findPlainImportInsertLine(text: string): number {
-    const lines = text.split(/\r?\n/);
-    let lastImport = -1;
-    for (let index = 0; index < lines.length; index++) {
-        const trimmed = lines[index]!.trimStart();
-        if (trimmed.startsWith('import ') || trimmed.startsWith('from ')) {
-            lastImport = index;
-            continue;
-        }
-        if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
-            continue;
-        }
-        break;
-    }
-    return lastImport >= 0 ? lastImport + 1 : 0;
-}
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function renderSearchHtml(): string {

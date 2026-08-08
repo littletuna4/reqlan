@@ -12,9 +12,13 @@
 
     interface Props {
         expanded: boolean;
+        fill?: boolean;
+        height?: number;
+        resizable?: boolean;
         onToggle: (id: string, expanded: boolean) => void;
+        onResize?: (id: string, height: number) => void;
     }
-    let { expanded, onToggle }: Props = $props();
+    let { expanded, fill = false, height, resizable = false, onToggle, onResize }: Props = $props();
 
     const app = getApp();
     let context = $derived(app.context);
@@ -194,7 +198,7 @@
     }
 </script>
 
-<CollapsiblePane title="Scope" id="scope" {expanded} {onToggle}>
+<CollapsiblePane title="Scope" id="scope" {expanded} {fill} {height} {resizable} {onToggle} {onResize}>
     {#if app.contextError}
         <p class="error-text" role="alert">{app.contextError}</p>
     {:else if !context}

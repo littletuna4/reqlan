@@ -31,13 +31,15 @@ activity_bar_module {
 reference_code_completion {
   references should code complete the available namespace of ideas
   this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
+  Cross-file candidates show import paths and may auto-insert imports:
+  ["../language-support/features-imports.rq".import_code_completion_rendering]
+  ["../language-support/features-imports.rq".import_code_completion_auto_file_import]
   Implemented by ["../../../packages/language/src/reqlan-completion-provider.ts"].
 
   @tags (
     autocompletion
     )
   @tests (
-    ["../../../packages/language/test/completion.test.ts"]
     ["../../../packages/language/test/completion.test.ts"]
   )
   ["../code_completion.rq"]
@@ -68,10 +70,12 @@ view_references_as_inlay_hints {
   References should be shown as inlay hints in the editor.
   This should be a toggleable setting, which should be available in the command palette.
   N-lines (configurable setting) of hints should be shown below the idea.
+  Inbound lookup must stay interactive on large graphs via [inbound_inlay_index_performance].
   Implemented by ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-settings.ts"], and ["../../../packages/extension/src/extension/register-reference-inlay-hints.ts"].
   @status incomplete
   @tests (
     ["../../../packages/language/test/inlay-hints.test.ts"]
+    ["../../../packages/language/test/inbound-referencer-index-perf.test.ts"]
   )
 }
 
@@ -88,15 +92,32 @@ traceable_inlay_hints {
 
 inbound_inlay_hints_whole_graph {
   Inbound references shown in [view_references_as_inlay_hints] should include referencers from the whole requirement graph across the workspace, not only ideas declared in the current file.
+  Whole-graph coverage must not regress to per-idea full-index scans — see [inbound_inlay_index_performance].
   Implemented by ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"].
   @status done
   @tests (
     ["../../../packages/language/test/inlay-hints.test.ts"]
+    ["../../../packages/language/test/inbound-referencer-index-perf.test.ts"]
   )
   [view_references_as_inlay_hints]
   [traceable_inlay_hints]
+  [inbound_inlay_index_performance]
   @broken
   @todo
+}
+
+inbound_inlay_index_performance {
+  Computing inbound reference inlay hints for a document with many ideas must build (or reuse) a single inverse referencer index for the workspace, then look up each declaration in near-constant time.
+  Must not call Langium `findAllReferences` / equivalent full-index scans once per idea (that is O(ideas × workspace refs) and freezes the editor on dense graphs).
+  Implemented by ["../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"] (`buildInboundReferencerIndex`, `lookupInboundReferencers`) and ["../../../packages/language/src/reqlan-inlay-hint-provider.ts"].
+  @status done
+  @tests (
+    ["../../../packages/language/test/inbound-referencer-index-perf.test.ts"]
+    ["../../../packages/language/test/inbound-referencer-index-perf.test.ts:matches findReferences results for inbound refs"]
+    ["../../../packages/language/test/inbound-referencer-index-perf.test.ts:one-pass index stays well under repeated findReferences cost"]
+  )
+  [view_references_as_inlay_hints]
+  [inbound_inlay_hints_whole_graph]
 }
 
 code_lens_reference_types {

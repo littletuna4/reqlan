@@ -66,6 +66,26 @@ export type { GitDateInfo } from './analysis/git-dates-analyser.js';
 export { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
 export { localGraphAnalyser } from './analysis/local-graph-analyser.js';
 export { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
+export { fuzzySearchAnalyser } from './analysis/fuzzy-search-analyser.js';
+export type { FuzzySearchParams } from './analysis/fuzzy-search-analyser.js';
+export {
+    filterAndScoreIdeas,
+    filterAndScoreIdeasAsync,
+    fuzzySubsequence,
+    normalizeSearchSeparators
+} from './analysis/fuzzy-search.js';
+export type { FuzzySearchHit } from './analysis/fuzzy-search.js';
+export {
+    FuzzySearchWorkerClient,
+    SearchCancelledError,
+    resolveFuzzySearchWorkerPath
+} from './analysis/fuzzy-search-worker-client.js';
+export type {
+    FuzzySearchWorkerIdea,
+    FuzzySearchWorkerInbound,
+    FuzzySearchWorkerOutbound
+} from './analysis/fuzzy-search-worker.js';
+export type { FuzzySearchWorkerSearchResult } from './analysis/fuzzy-search-worker-client.js';
 export { extractIndexedDocument } from './index-store/idea-extractor.js';
 export { SqliteIndexStore } from './index-store/sqlite-store.js';
 export type {
@@ -256,6 +276,10 @@ export { AnalysisApi } from './analysis-api.js';
 export type { InteractionDescriptor, RequirementMatch } from './analysis-api.js';
 export { buildExportSnapshot } from './export/build-export-snapshot.js';
 export { exportHtml } from './export/export-html.js';
+export { exportMarkdown } from './export/export-markdown.js';
+export { exportJson } from './export/export-json.js';
+export { exportCsv } from './export/export-csv.js';
+export { csvEscape } from './export/write-csv-export.js';
 export { writeHtmlExport } from './export/write-html-export.js';
 export { isSecretRqPath } from './export/secret-rq.js';
 export type {

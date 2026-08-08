@@ -8,16 +8,29 @@ export interface IndexStatusText {
 export function indexStatusText(status: IndexStatusView): IndexStatusText {
     const issueCount = status.fileIssueCount ?? 0;
     const isGlobalError = Boolean(status.lastError && !status.lastError.file);
+    const healthyCounts = `${status.ideaCount} ideas, ${status.edgeCount} references indexed`;
 
     if (status.ready) {
-        const issueHint = issueCount > 0 ? `, ${issueCount} issue(s) from last index` : '';
-        return {
-            text: `${status.ideaCount} ideas, ${status.edgeCount} references indexed${issueHint}`,
-            error: issueCount > 0
-        };
+        if (isGlobalError && status.lastError) {
+            return {
+                text: `${status.lastError.summary} · ${healthyCounts}`,
+                error: true
+            };
+        }
+        if (issueCount > 0) {
+            return {
+                text: `${issueCount} issue(s) from last index · ${healthyCounts}`,
+                error: true
+            };
+        }
+        return { text: healthyCounts, error: false };
     }
 
     if (isGlobalError && status.lastError) {
+        return { text: status.lastError.summary, error: true };
+    }
+
+    if (status.lastError?.summary) {
         return { text: status.lastError.summary, error: true };
     }
 

@@ -1,3 +1,11 @@
+/**
+ * Surfaces creation and last-modified dates for ideas via git history.
+ * Persists into the ideas index for silent background fill and Timeline consumers.
+ *
+ * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+ */
 import { URI } from 'langium';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -7,7 +15,8 @@ import { resolveWorkspaceFileUri } from '../core/workspace-paths.js';
 const execFileAsync = promisify(execFile);
 
 const GIT_LOG_TIMEOUT_MS = 4_000;
-const LOOKUP_CONCURRENCY = 4;
+/** Keep background indexing gentle on the extension host. */
+const LOOKUP_CONCURRENCY = 2;
 
 export interface GitDateInfo {
     ideaId: string;
@@ -83,12 +92,12 @@ async function lookupGitDates(
     try {
         const { stdout: createdStdout } = await execFileAsync(
             'git',
-            ['log', '--diff-filter=A', '--format=%aI', '-1', '--', filePath],
+            ['log', '--follow', '--diff-filter=A', '--format=%aI', '-1', '--', filePath],
             { cwd, timeout: GIT_LOG_TIMEOUT_MS }
         );
         const { stdout: modifiedStdout } = await execFileAsync(
             'git',
-            ['log', '--format=%aI', '-1', '--', filePath],
+            ['log', '--follow', '--format=%aI', '-1', '--', filePath],
             { cwd, timeout: GIT_LOG_TIMEOUT_MS }
         );
         return {

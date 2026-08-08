@@ -15,6 +15,9 @@ import {
 } from './reqlan-idea-reference-site.js';
 import { isIdea, isOneLinerIdea, type IdeaDeclaration } from './generated/ast.js';
 
+/** Custom LSP request: resolve search/wrap site at a range (no command-arg cache). */
+export const REQLAN_REFERENCE_SEARCH_SITE_REQUEST = 'reqlan/referenceSearchSite';
+
 export type ReferenceSearchMode = 'replace' | 'wrap';
 
 export interface ReferenceSearchContext {
@@ -33,6 +36,28 @@ export interface ReferenceSearchSite {
     mode: ReferenceSearchMode;
     kind: 'bracket' | 'wikilink' | 'prose';
     context?: ReferenceSearchContext;
+}
+
+/** Result of {@link REQLAN_REFERENCE_SEARCH_SITE_REQUEST} / extension command payload. */
+export interface ReferenceSearchSiteRequestResult {
+    documentUri: string;
+    refText: string;
+    range: Range;
+    mode: ReferenceSearchMode;
+    context?: ReferenceSearchContext;
+}
+
+export function toReferenceSearchCommandArgs(
+    documentUri: string,
+    site: ReferenceSearchSite
+): ReferenceSearchSiteRequestResult {
+    return {
+        documentUri,
+        refText: site.refText,
+        range: site.range,
+        mode: site.mode,
+        context: site.context
+    };
 }
 
 /**

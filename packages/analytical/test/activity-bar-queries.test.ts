@@ -316,4 +316,66 @@ auto_reframe {
         expect(fileNode?.fileUri).toBe('packages/extension/src/foo.ts');
         await store.close();
     });
+
+    test('listTodoIdeas returns ideas with @todo attribute, not status=todo', async () => {
+        const fileUri = 'file:///workspace/todos.rq';
+        const store = await openTestStore();
+        const bare = ideaId(fileUri, 'bare_todo');
+        const noted = ideaId(fileUri, 'noted_todo');
+        const statusOnly = ideaId(fileUri, 'status_todo');
+        const plain = ideaId(fileUri, 'plain');
+        await store.upsertDocument(fileUri, 'todohash', [
+            {
+                id: bare,
+                name: 'bare_todo',
+                kind: 'block',
+                fileUri,
+                lineStart: 0,
+                lineEnd: 1,
+                summary: 'bare',
+                attributesJson: '{"todo":true}',
+                contentHash: 'b'
+            },
+            {
+                id: noted,
+                name: 'noted_todo',
+                kind: 'block',
+                fileUri,
+                lineStart: 2,
+                lineEnd: 3,
+                summary: 'noted',
+                attributesJson: '{"todo":"wire host query"}',
+                contentHash: 'n'
+            },
+            {
+                id: statusOnly,
+                name: 'status_todo',
+                kind: 'block',
+                fileUri,
+                lineStart: 4,
+                lineEnd: 5,
+                summary: 'status only',
+                attributesJson: '{"status":"todo"}',
+                contentHash: 's'
+            },
+            {
+                id: plain,
+                name: 'plain',
+                kind: 'block',
+                fileUri,
+                lineStart: 6,
+                lineEnd: 7,
+                summary: 'no todo',
+                attributesJson: '{}',
+                contentHash: 'p'
+            }
+        ], []);
+
+        const result = await store.listTodoIdeas(40);
+        expect(result.total).toBe(2);
+        expect(result.ideas.map(idea => idea.name)).toEqual(['bare_todo', 'noted_todo']);
+        expect(result.ideas[0]?.todoNote).toBeUndefined();
+        expect(result.ideas[1]?.todoNote).toBe('wire host query');
+        await store.close();
+    });
 });

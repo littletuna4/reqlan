@@ -59,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright Chromium
+        working-directory: site
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Build static site
         working-directory: site
         # env:

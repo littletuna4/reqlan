@@ -65,6 +65,24 @@ deprecation_impact_analysis {
 
 git_dates {
     The extension should surface creation and last-modified dates for ideas via git history where available.
+    Dates are written into the ideas index by the `git_dates` analyser as a silent background job after
+    soft-sync / catalog updates (batched, yielded) — not triggered by Activity Bar focus or opening Timeline.
+    Background queue prefers ideas in the active `.rq` editor file before the rest of the backlog.
+    Consumers (Activity Bar signals, Timeline, future inlays) read indexed columns only.
+    Detail and host wiring: ["git-codelens.rq".git_idea_timeline_analysis] and
+    ["git-codelens.rq".git_dates_background_indexing].
+    Implemented by ["../../packages/analytical/src/analysis/git-dates-analyser.ts"],
+    ["../../packages/analytical/src/index-store/sqlite-store.ts"],
+    ["../../packages/extension/src/extension/git-dates-background.ts"], and
+    ["../../packages/extension/src/extension/register-git-dates-background.ts"].
+    @status done
+    @tests (
+        ["../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
+        ["../../packages/extension/test/git-dates-background.test.ts"]
+        ["../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
+        ["../../packages/extension/test/git-dates-background.test.ts:stops early when shouldStop flips so a new file can be prioritised"]
+    )
 }
 
 completion_tracking {

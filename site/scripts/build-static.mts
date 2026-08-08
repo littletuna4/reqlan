@@ -32,6 +32,9 @@ run(
   workspaceRoot,
 );
 
+console.log("Capturing docs images from extension webviews…");
+run("tsx", ["scripts/docs-images/capture.mts"]);
+
 console.log("Validating showcase .rq blocks…");
 run("tsx", ["scripts/validate-showcase-rq.mts"]);
 

@@ -18,7 +18,10 @@ import {
 
 type Listener = () => void;
 
-let memory = emptyTutorialProgress();
+/** Stable empty progress for SSR/hydration — must not allocate a new object each call. */
+const SERVER_SNAPSHOT: TutorialProgress = emptyTutorialProgress();
+
+let memory: TutorialProgress = SERVER_SNAPSHOT;
 let hydrated = false;
 const listeners = new Set<Listener>();
 
@@ -46,7 +49,7 @@ function getSnapshot(): TutorialProgress {
 }
 
 function getServerSnapshot(): TutorialProgress {
-  return emptyTutorialProgress();
+  return SERVER_SNAPSHOT;
 }
 
 function commit(next: TutorialProgress) {

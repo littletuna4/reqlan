@@ -65,6 +65,22 @@ export function attributePresence(attributes: IdeaAttributeMap, key: string): At
     return 'empty';
 }
 
+/** Display note for `@todo` — undefined when bare / empty / missing. */
+export function todoNoteFromAttributes(attributes: IdeaAttributeMap): string | undefined {
+    if (attributePresence(attributes, 'todo') !== 'valued') {
+        return undefined;
+    }
+    const value = attributes.todo;
+    if (typeof value === 'string') {
+        return value.trim();
+    }
+    if (Array.isArray(value)) {
+        const parts = value.map(entry => String(entry).trim()).filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : undefined;
+    }
+    return undefined;
+}
+
 /** Rollup/filter key for @status from raw attributes. */
 export function statusFilterKeyFromAttributes(attributes: IdeaAttributeMap): string {
     const presence = attributePresence(attributes, 'status');

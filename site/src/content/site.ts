@@ -67,6 +67,13 @@ export type NavGraphEdge = {
   to: string;
 };
 
+export type RoadmapItem = {
+  id: string;
+  horizon: "Now" | "Next" | "Later";
+  label: string;
+  detail: string;
+};
+
 export const siteContent = {
   meta: {
     title: "reqlan",
@@ -84,6 +91,7 @@ export const siteContent = {
     { id: "motivation", label: "Why reqlan" },
     { id: "syntax", label: "Syntax" },
     { id: "example", label: "Example" },
+    { id: "roadmap", label: "Roadmap" },
     { id: "showcase", label: "Showcases", href: "/showcase" },
     { id: "spec", label: "Spec", href: "/spec" },
     { id: "contact", label: "Links" },
@@ -95,17 +103,19 @@ export const siteContent = {
       { id: "hero", label: "reqlan", kind: "hub", target: "hero", x: 50, y: 42 },
       { id: "motivation", label: "Why", kind: "section", target: "motivation", x: 22, y: 26 },
       { id: "syntax", label: "Syntax", kind: "section", target: "syntax", x: 16, y: 58 },
-      { id: "example", label: "Example", kind: "section", target: "example", x: 38, y: 82 },
-      { id: "contact", label: "Links", kind: "section", target: "contact", x: 68, y: 78 },
+      { id: "example", label: "Example", kind: "section", target: "example", x: 34, y: 82 },
+      { id: "roadmap", label: "Roadmap", kind: "section", target: "roadmap", x: 54, y: 86 },
+      { id: "contact", label: "Links", kind: "section", target: "contact", x: 72, y: 74 },
       { id: "quickstart", label: "Start", kind: "page", target: "/quickstart", x: 78, y: 20 },
       { id: "tutorials", label: "Learn", kind: "page", target: "/tutorials", x: 90, y: 46 },
-      { id: "showcase", label: "Shows", kind: "page", target: "/showcase", x: 74, y: 56 },
+      { id: "showcase", label: "Shows", kind: "page", target: "/showcase", x: 80, y: 56 },
     ] satisfies NavGraphNode[],
     edges: [
       { from: "hero", to: "motivation" },
       { from: "motivation", to: "syntax" },
       { from: "syntax", to: "example" },
-      { from: "example", to: "contact" },
+      { from: "example", to: "roadmap" },
+      { from: "roadmap", to: "contact" },
       { from: "hero", to: "contact" },
       { from: "hero", to: "quickstart" },
       { from: "hero", to: "tutorials" },
@@ -125,84 +135,84 @@ export const siteContent = {
   },
 
   motivation: {
-    title: "Why reqlan",
-    lead: "Notes apps store paragraphs. reqlan stores named handles — a graph your editors, agents, and scripts can search without a paste dump.",
+    title: "What is reqlan?",
+    lead: "A token efficient language for writing named-linked-tagged functional requirments — plus an editor extension and a CLI on the same index. Engineers who wrangle complexity use it so they can write the alpha once and stop re-explaining the system every sprint.",
     slides: [
       {
         id: "language",
         label: "Language",
-        what: "A small text format for requirements: named ideas, links, and metadata in `.rq` files.",
-        why: "People and models can cite `auth.login` instead of re-pasting a paragraph every thread.",
+        what: "`.rq` files: a name, a short body, links to ideas, code, and tests.",
+        why: "You write the alpha. Everything else points back to it. No more hunting the “real” rule in a six-month-old chat.",
         features: [
           {
             id: "named-ideas",
-            label: "Named ideas",
-            what: "Each requirement is a stable name plus a short body.",
-            why: "Search and chat start from handles, not file dumps.",
+            label: "Names",
+            what: "`auth.login` beats “that password thing from the deck.”",
+            why: "Handles survive threads. Paragraphs don't.",
           },
           {
             id: "links",
             label: "Links",
-            what: "Ideas point at other ideas, source files, and tests.",
-            why: "You can answer “what depends on this?” without a wiki crawl.",
+            what: "Ideas cite other ideas, source files, and tests.",
+            why: "Ask “what depends on this?” and get an answer, not a wiki hike.",
           },
           {
             id: "attributes",
-            label: "Attributes",
-            what: "`@status`, `@todo`, and `@tests` sit next to the prose.",
-            why: "Progress and proof travel with the requirement, not in a sidecar sheet.",
+            label: "Status",
+            what: "`@status`, `@todo`, `@tests` sit next to the prose.",
+            why: "Status lives with the requirement. Not in a sheet nobody opens.",
           },
         ],
       },
       {
         id: "extension",
         label: "Extension",
-        what: "A VS Code / Cursor extension: language server, graph views, and agent hooks on the same index.",
-        why: "Requirements stay where you already edit code and talk to models.",
+        what: "VS Code / Cursor: language server, graph views, agent hooks — one `.reqlan` index.",
+        why: "Complexity shows up where you already type. Catch dead links before review does.",
         features: [
           {
             id: "lsp",
-            label: "Language server",
-            what: "Go-to-definition, find references, validation, and semantic tokens for `.rq`.",
-            why: "Broken links show up in the editor, not after a review misses them.",
+            label: "LSP",
+            what: "Go-to-def, find refs, validation on `.rq`.",
+            why: "A red squiggle today beats a surprised PM tomorrow.",
           },
           {
             id: "graph-views",
-            label: "Graph views",
-            what: "Ideas Summary, neighbourhood context, and semantic search over the base.",
-            why: "You see the slice that matters for the file open now — not the whole graph.",
+            label: "Graph",
+            what: "Ideas Summary and a neighbourhood scoped to the file you have open.",
+            why: "You need the slice in front of you — not the whole galaxy.",
           },
           {
             id: "agent-hooks",
-            label: "Agent hooks",
-            what: "@reqlan chat, MCP tools, and rq-* skills for Cursor and Copilot.",
-            why: "Agents get a shaped neighbourhood of ideas instead of forty files of noise.",
+            label: "Agents",
+            what: "@reqlan chat, MCP tools, rq-* skills.",
+            why: "Feed the model six linked ideas. Not forty files of noise.",
           },
         ],
       },
       {
         id: "cli",
         label: "CLI",
-        what: "`reqlan` / `rq` — search, analyse, and export against the same `.reqlan` index as the extension.",
-        why: "CI and terminals share one source of truth with the editor. No second index to keep in sync.",
+        what: "`reqlan` / `rq` — search, analyse, export. Same index as the extension.",
+        why: "Terminals and CI ask the editor's questions. No twin database to drift.",
         features: [
           {
             id: "search",
             label: "Search",
-            what: "`reqlan search` returns ranked ideas from the workspace index.",
-            why: "Scripts and agents query requirements the same way the IDE does.",
+            what: "`reqlan search oauth` hits the workspace index.",
+            why: "Scripts get the same ranked ideas your IDE shows.",
           },
           {
             id: "analyse",
             label: "Analyse",
-            what: "`reqlan analyse` rebuilds and checks the ideas index.",
-            why: "Broken refs fail in the pipeline before they fail in a demo.",
+            what: "`reqlan analyse` rebuilds and checks the graph.",
+            why: "Broken refs fail the pipeline, not the demo.",
           },
           {
             id: "export",
             label: "Export",
-            what: "HTML, JSON, or CSV from the same graph the editor shows.",
-            why: "Reviews and handoffs use the live index, not a stale copy.",
+            what: "HTML, JSON, Markdown or CSV from the live graph.",
+            why: "Handoffs ship what you see now — not last quarter's export.",
           },
         ],
       },
@@ -210,8 +220,8 @@ export const siteContent = {
   },
 
   syntax: {
-    title: "Write it like you mean it",
-    lead: "The language teaches itself — each rule is a valid idea. Flip to example inside any block for a practical slice.",
+    title:"How are ideas actually written",
+    lead: "reqlan is super easy to learn, here's a few self explanatory examples.",
     examples: [
       {
         label: "one-liner",
@@ -381,6 +391,43 @@ session_refresh {
     @tags: (auth, security)
     @todo: reject reuse of the old refresh token
 }`,
+  },
+
+  roadmap: {
+    title: "Roadmap",
+    lead: "A short list. Scroll for the next one.",
+    items: [
+      {
+        id: "context",
+        horizon: "Now",
+        label: "Context that decides",
+        detail: "Activity-bar signals for the next move — not just where a file came from.",
+      },
+      {
+        id: "search",
+        horizon: "Next",
+        label: "Search in context",
+        detail: "Rank matches from the ideas and files you already have open.",
+      },
+      {
+        id: "rank",
+        horizon: "Next",
+        label: "Rank the neighbourhood",
+        detail: "Pagerank and multi-seed distance so agents get the right slice.",
+      },
+      {
+        id: "git",
+        horizon: "Later",
+        label: "Idea git history",
+        detail: "CodeLens timeline on an idea — relative dates, moves included.",
+      },
+      {
+        id: "walk",
+        horizon: "Later",
+        label: "How the graph is walked",
+        detail: "Remember traversal patterns; recommend better next hops.",
+      },
+    ] satisfies RoadmapItem[],
   },
 
   contact: {

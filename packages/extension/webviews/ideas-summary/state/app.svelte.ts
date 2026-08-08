@@ -170,7 +170,7 @@ export class AppState {
         postToExtension({ type: 'openExternal', href });
     }
 
-    openExport(format?: 'html' | 'pdf'): void {
+    openExport(format?: 'html' | 'pdf' | 'markdown' | 'json' | 'csv'): void {
         postToExtension({ type: 'openExport', format });
     }
 
