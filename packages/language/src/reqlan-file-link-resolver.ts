@@ -1,7 +1,8 @@
 /**
- * Resolves file references and import paths to target URIs and editor ranges.
+ * Resolves file references, idea references, and import paths to target URIs and editor ranges.
+ * Document links use these so same-file and cross-file refs share the same underline/click affordance.
  */
-import type { CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
+import type { AstNode, CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, Reference, URI } from 'langium';
 import { AstUtils, CstUtils, GrammarUtils } from 'langium';
 import type { Range } from 'vscode-languageserver';
 import { resolveFileUri } from './reqlan-comment-resolver.js';
@@ -26,6 +27,7 @@ import {
     type FileReference,
     type FileSymbolReference,
     type Import,
+    type LocalReference,
     type MarkdownLink,
     type QualifiedReference
 } from './generated/ast.js';
@@ -368,6 +370,52 @@ function fileStartRange(): Range {
     };
 }
 
+/**
+ * Document link for a resolved Langium cross-reference (same-file or imported idea/ideaset).
+ * Source range is the reference name; target is the declaration name (or whole node).
+ */
+export function resolveLinkedAstReferenceLink(reference: Reference<AstNode> | undefined): ResolvedFileLink | undefined {
+    const target = reference?.ref;
+    const sourceNode = reference?.$refNode;
+    if (!target || !sourceNode) {
+        return undefined;
+    }
+    const targetDocument = AstUtils.getDocument(target);
+    const nameNode = GrammarUtils.findNodeForProperty(target.$cstNode, 'name') ?? target.$cstNode;
+    if (!nameNode) {
+        return undefined;
+    }
+    return {
+        sourceRange: sourceNode.range,
+        targetUri: targetDocument.textDocument.uri,
+        targetRange: nameNode.range,
+        resolution: 'file'
+    };
+}
+
+/** Idea/ideaset name links inside bracket and qualified references (not namespace-file aliases). */
+export function resolveIdeaReferenceLinks(
+    reference: LocalReference | QualifiedReference
+): ResolvedFileLink[] {
+    if (isLocalReference(reference)) {
+        if (isNamespaceImportOnlyReference(reference)) {
+            return [];
+        }
+        const link = resolveLinkedAstReferenceLink(reference.idea);
+        return link ? [link] : [];
+    }
+    const links: ResolvedFileLink[] = [];
+    const ideasetLink = resolveLinkedAstReferenceLink(reference.ideaset);
+    if (ideasetLink) {
+        links.push(ideasetLink);
+    }
+    const ideaLink = resolveLinkedAstReferenceLink(reference.idea);
+    if (ideaLink) {
+        links.push(ideaLink);
+    }
+    return links;
+}
+
 export function collectFileLinks(
     document: LangiumDocument,
     documents: LangiumDocuments,
@@ -377,40 +425,43 @@ export function collectFileLinks(
     const pathContext = withFileSystem(fileSystem, context);
     const links: ResolvedFileLink[] = [];
     const linkedRanges: string[] = [];
+    const pushLink = (link: ResolvedFileLink): void => {
+        links.push(link);
+        linkedRanges.push(rangeKey(link.sourceRange));
+    };
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
         if (isFileReference(node) || isFileSymbolReference(node)) {
             const link = resolveFileReferenceLink(node, documents, fileSystem, pathContext);
             if (link) {
-                links.push(link);
-                linkedRanges.push(rangeKey(link.sourceRange));
+                pushLink(link);
             }
         }
         if ((isLocalReference(node) || isQualifiedReference(node)) && isNamespaceImportOnlyReference(node)) {
             const link = resolveNamespaceImportReferenceLink(node, documents, fileSystem, pathContext);
             if (link) {
-                links.push(link);
-                linkedRanges.push(rangeKey(link.sourceRange));
+                pushLink(link);
+            }
+        } else if (isLocalReference(node) || isQualifiedReference(node)) {
+            for (const link of resolveIdeaReferenceLinks(node)) {
+                pushLink(link);
             }
         }
         if (isImport(node)) {
             const link = resolveImportPathLink(node, documents, pathContext);
             if (link) {
-                links.push(link);
-                linkedRanges.push(rangeKey(link.sourceRange));
+                pushLink(link);
             }
         }
         if (isQualifiedReference(node) && node.path && !node.path.ref) {
             const link = resolveQualifiedReferencePathLink(node, documents, pathContext);
             if (link) {
-                links.push(link);
-                linkedRanges.push(rangeKey(link.sourceRange));
+                pushLink(link);
             }
         }
         if (isMarkdownLink(node)) {
             const link = resolveMarkdownLinkTargetLink(node, document, documents, fileSystem, pathContext);
             if (link) {
-                links.push(link);
-                linkedRanges.push(rangeKey(link.sourceRange));
+                pushLink(link);
             }
         }
     }
@@ -421,8 +472,7 @@ export function collectFileLinks(
         }
         const link = resolveEmbeddedFileReferenceLink(reference, document, documents, fileSystem, pathContext);
         if (link) {
-            links.push(link);
-            linkedRanges.push(key);
+            pushLink(link);
         }
     }
     return links;

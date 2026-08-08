@@ -119,6 +119,77 @@ describe('Linking tests', () => {
             .toArray();
         const texts = references.map(reference => document!.textDocument.getText(reference.segment.range));
         expect(texts.filter(text => text === 'reference_brackets').length).toBeGreaterThanOrEqual(2);
+
+        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const ideaLink = documentLinks?.find(entry =>
+            document!.textDocument.getText(entry.range) === 'reference_brackets'
+        );
+        expect(ideaLink?.target).toBeDefined();
+        expect(ideaLink?.target).toContain(document.textDocument.uri);
+        expect(ideaLink?.target).toMatch(/#L\d+/);
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    test('same-file idea references produce document links', async () => {
+        document = await parse(s`
+            alpha {
+                body
+            }
+            beta {
+                see [alpha] and [[alpha]]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const links = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const alphaLinks = (links ?? []).filter(entry =>
+            document!.textDocument.getText(entry.range) === 'alpha'
+        );
+        expect(alphaLinks.length).toBeGreaterThanOrEqual(2);
+        for (const link of alphaLinks) {
+            expect(link.target).toContain(document.textDocument.uri);
+            expect(link.target).toMatch(/#L\d+/);
+        }
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    test('cross-file imported idea references produce document links', async () => {
+        const docs = await parseDocumentsTogether(['exampleimport.rq', 'exampleimport2.rq', 'sub idea.rq']);
+        const subDoc = docs.find(d => d.uri.path.includes('sub'))!;
+        const links = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(subDoc, {
+            textDocument: { uri: subDoc.textDocument.uri }
+        }) ?? [];
+        // "myimportableIdea" appears in [["./exampleimport.rq".myimportableIdea]] and [[exampleimport2.myimportableIdea]]
+        const ideaLinks = links.filter(l => subDoc.textDocument.getText(l.range) === 'myimportableIdea');
+        expect(ideaLinks.length).toBeGreaterThanOrEqual(1);
+        for (const link of ideaLinks) {
+            expect(link.target).toContain('exampleimport');
+            expect(link.target).toMatch(/#L\d+/);
+        }
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    test('qualified reference idea token produces document link', async () => {
+        const docs = await parseDocumentsTogether(['exampleimport.rq', 'exampleimport2.rq', 'sub idea.rq']);
+        const subDoc = docs.find(d => d.uri.path.includes('sub'))!;
+
+        // Find a qualified ref with a resolved idea ref (path-style or alias-style, whichever linked)
+        const qualRef = [...AstUtils.streamAst(subDoc.parseResult.value)]
+            .filter(isQualifiedReference)
+            .find(n => n.idea?.$refText === 'myimportableIdea' && n.idea?.ref !== undefined);
+        expect(qualRef).toBeDefined();
+        if (!qualRef?.idea?.$refNode) return;
+
+        const defs = await services.Reqlan.lsp.DefinitionProvider?.getDefinition(subDoc, {
+            textDocument: { uri: subDoc.textDocument.uri },
+            position: qualRef.idea.$refNode.range.start
+        });
+        expect(defs).toHaveLength(1);
+        expect(defs![0].targetUri).toContain('exampleimport');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]

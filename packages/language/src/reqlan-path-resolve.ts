@@ -60,6 +60,13 @@ export interface PathResolveContext {
      * `null` skips loading and uses defaults only.
      */
     config?: RqConfig | null;
+    /**
+     * Shared cache for resolved configs, keyed by directory URI string.
+     * When provided, `resolveRqConfig` reads and populates this cache instead of hitting the filesystem
+     * on every call. Lives on the workspace manager so it is scoped to a service instance and cleared
+     * on workspace reinitialisation.
+     */
+    configCache?: Map<string, RqConfig | undefined>;
 }
 
 export function defaultRqConfig(): RqConfig {
@@ -297,9 +304,21 @@ export function resolveRqConfig(document: LangiumDocument, context?: PathResolve
         return context.config;
     }
     if (context?.fileSystem) {
-        const loaded = loadApplyingRqConfig(UriUtils.dirname(document.uri), context.fileSystem);
-        if (loaded) {
-            return loaded;
+        const dirKey = UriUtils.dirname(document.uri).toString();
+        const cache = context.configCache;
+        if (cache) {
+            if (!cache.has(dirKey)) {
+                cache.set(dirKey, loadApplyingRqConfig(UriUtils.dirname(document.uri), context.fileSystem));
+            }
+            const cached = cache.get(dirKey);
+            if (cached) {
+                return cached;
+            }
+        } else {
+            const loaded = loadApplyingRqConfig(UriUtils.dirname(document.uri), context.fileSystem);
+            if (loaded) {
+                return loaded;
+            }
         }
     }
     return defaultRqConfig();
@@ -351,7 +370,10 @@ export function workspaceFolderUrisFromManager(
 export function pathResolveContextFromServices(services: {
     shared: {
         workspace: {
-            WorkspaceManager: { workspaceFolders?: ReadonlyArray<{ uri: string }> };
+            WorkspaceManager: {
+                workspaceFolders?: ReadonlyArray<{ uri: string }>;
+                rqConfigCache?: Map<string, RqConfig | undefined>;
+            };
             FileSystemProvider: FileSystemProvider;
         };
     };
@@ -360,6 +382,7 @@ export function pathResolveContextFromServices(services: {
         fileSystem: services.shared.workspace.FileSystemProvider,
         workspaceFolderUris: workspaceFolderUrisFromManager(
             services.shared.workspace.WorkspaceManager.workspaceFolders
-        )
+        ),
+        configCache: services.shared.workspace.WorkspaceManager.rqConfigCache
     };
 }

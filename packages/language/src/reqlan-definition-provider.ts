@@ -2,7 +2,7 @@
  * Go-to-definition for imports, file references, symbols, and embedded comment references.
  */
 import type { CstNode, FileSystemProvider, LangiumDocument, MaybePromise } from 'langium';
-import { AstUtils, CstUtils, GrammarUtils, URI } from 'langium';
+import { CstUtils, GrammarUtils, URI } from 'langium';
 import { DefaultDefinitionProvider, type GoToLink } from 'langium/lsp';
 import type { DefinitionParams, Position } from 'vscode-languageserver';
 import { LocationLink } from 'vscode-languageserver';
@@ -60,6 +60,12 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
+        // Fast path: when the cursor is on an idea token inside a bracket/wiki reference the
+        // answer is just the cached Langium ref target — no text scans, no file-system calls.
+        // Same-file and cross-file idea refs both take this path, so neither is slower than the other.
+        if (this.isIdeaReferencePosition(document, params.position)) {
+            return super.getDefinition(document, params);
+        }
         if (isMarkdownLinkLabelPosition(document, params.position)) {
             return undefined;
         }
@@ -93,6 +99,51 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
             return [this.toLocationLink(importPathLink)];
         }
         return super.getDefinition(document, params);
+    }
+
+    /**
+     * Returns true when the cursor sits on an idea/ideaset name token inside a bracket or
+     * wikilink reference (LocalReference or QualifiedReference) but NOT on the path/qualifier
+     * token that points to an import.  This lets us skip all text-scan pre-checks and jump
+     * straight to the cached Langium ref resolution.
+     */
+    private isIdeaReferencePosition(document: LangiumDocument, position: Position): boolean {
+        const root = document.parseResult.value.$cstNode;
+        if (!root) {
+            return false;
+        }
+        const offset = document.textDocument.offsetAt(position);
+        let current: CstNode | undefined = CstUtils.findLeafNodeAtOffset(root, offset);
+        while (current) {
+            const node = current.astNode;
+            if (isLocalReference(node)) {
+                // A local ref whose idea is already resolved → fast O(1) path.
+                // Unresolved ones still go through the normal flow so file-link checks can try.
+                return node.idea?.ref !== undefined;
+            }
+            if (isQualifiedReference(node)) {
+                const assignment = GrammarUtils.findAssignment(current);
+                if (!assignment) {
+                    current = current.container;
+                    continue;
+                }
+                // On the path/qualifier token → defer to import-path checks.
+                if (assignment.feature === 'path' || assignment.feature === 'qualifier') {
+                    return false;
+                }
+                // On the idea or ideaset token → O(1) cached ref lookup.
+                if (assignment.feature === 'idea' || assignment.feature === 'ideaset') {
+                    return node.idea?.ref !== undefined || node.ideaset?.ref !== undefined;
+                }
+                return false;
+            }
+            // FileReference / FileSymbolReference / Import → not idea refs, stop.
+            if (isFileReference(node) || isFileSymbolReference(node) || isImport(node)) {
+                return false;
+            }
+            current = current.container;
+        }
+        return false;
     }
 
     protected override findLinks(source: CstNode): GoToLink[] {
@@ -229,24 +280,30 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     private findAnonymousImportPathLinkAtPosition(document: LangiumDocument, position: Position): GoToLink | undefined {
+        const root = document.parseResult.value.$cstNode;
+        if (!root) {
+            return undefined;
+        }
         const offset = document.textDocument.offsetAt(position);
-        for (const node of AstUtils.streamAst(document.parseResult.value)) {
-            if (!isQualifiedReference(node) || node.path?.ref) {
-                continue;
+        // Walk up from the leaf node — O(depth) rather than O(all AST nodes).
+        let current: CstNode | undefined = CstUtils.findLeafNodeAtOffset(root, offset);
+        while (current) {
+            const node = current.astNode;
+            if (isQualifiedReference(node) && !node.path?.ref) {
+                const pathNode = node.path?.$refNode ?? GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
+                if (pathNode && offset >= pathNode.offset && offset < pathNode.end) {
+                    const resolved = resolveQualifiedReferencePathLink(node, this.documents, this.pathContext());
+                    if (!resolved) {
+                        return undefined;
+                    }
+                    const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri.split('#')[0]));
+                    if (!targetDocument) {
+                        return undefined;
+                    }
+                    return resolvedFileLinkToGoToTarget(resolved, pathNode, targetDocument);
+                }
             }
-            const pathNode = node.path?.$refNode ?? GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
-            if (!pathNode || offset < pathNode.offset || offset >= pathNode.end) {
-                continue;
-            }
-            const resolved = resolveQualifiedReferencePathLink(node, this.documents, this.pathContext());
-            if (!resolved) {
-                continue;
-            }
-            const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri.split('#')[0]));
-            if (!targetDocument) {
-                continue;
-            }
-            return resolvedFileLinkToGoToTarget(resolved, pathNode, targetDocument);
+            current = current.container;
         }
         return undefined;
     }

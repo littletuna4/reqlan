@@ -10,6 +10,36 @@ reference_rendering {
     Reference kinds (dependency, incompatible with, applies to, related to) should be surfaced where declared or inferred.
 }
 
+reference_document_links {
+    Bracket and wikilink idea references — both same-file and cross-file — must receive a VS Code document-link
+    underline so the editor treats them identically to file-path references.
+    All resolved `LocalReference` and `QualifiedReference` idea/ideaset tokens should emit links targeting the
+    declaration name, regardless of whether the target lives in the same file or an imported one.
+    Namespace-import alias tokens (`[alias]` → file) keep their existing file-target link.
+    Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
+    (`resolveIdeaReferenceLinks`, `collectFileLinks`) and
+    ["../../../packages/language/src/reqlan-document-link-provider.ts"].
+    @tests (
+        ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+        ["../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+        ["../../../packages/language/test/linking.test.ts:qualified reference idea token produces document link"]
+    )
+    @status done
+}
+
+reference_goto_definition_speed {
+    Go-to-definition on any resolved idea bracket-reference must be instant — same-file refs must not
+    be slower than cross-file ones, and neither should require a full document text scan at click time.
+    The definition provider must use cached Langium ref objects (O(1)) for idea tokens and must not
+    run character-level text scans (comment-reference scan, markdown-link regex) when the CST already
+    covers the cursor position.
+    Implemented by ["../../../packages/language/src/reqlan-definition-provider.ts"]
+    (CST-first fast path for idea refs) and
+    ["../../../packages/language/src/reqlan-markdown-links.ts"]
+    (no redundant text scan when CST is available).
+    @status done
+}
+
 reference_resolution_folder {
   If the reference path is a folder, the extension should render a popup with a list of files in that folder.
   The link should not try to resolve to a file if it doesn't exist.  

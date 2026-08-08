@@ -40,6 +40,8 @@ export function isMarkdownLinkLabelPosition(document: LangiumDocument, position:
     const offset = document.textDocument.offsetAt(position);
     const root = document.parseResult.value.$cstNode;
     if (root) {
+        // The CST covers the entire document. Walk up from the leaf; if no MarkdownLink ancestor
+        // is found, the position is definitively not inside a markdown label — no text scan needed.
         const leaf = CstUtils.findLeafNodeAtOffset(root, offset);
         let current: CstNode | undefined = leaf;
         while (current) {
@@ -52,7 +54,9 @@ export function isMarkdownLinkLabelPosition(document: LangiumDocument, position:
             }
             current = current.container;
         }
+        return false;
     }
+    // No CST (e.g. plain-text document) — fall back to text scan.
     return isMarkdownLinkLabelOffsetInText(document.textDocument.getText(), offset);
 }
 

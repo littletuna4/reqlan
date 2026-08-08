@@ -1,5 +1,6 @@
 /**
- * Clickable document links for file references and import paths.
+ * Clickable document links for idea references, file references, and import paths.
+ * Same-file and cross-file idea refs both get links so the editor underline is consistent.
  */
 import type { LangiumDocument } from 'langium';
 import type { DocumentLinkProvider } from 'langium/lsp';

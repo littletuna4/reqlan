@@ -49,6 +49,7 @@ refactor_support {
 file_references {
     A file reference should act as a link in the editor.
     If the target file is empty or has a parse error, the link should remain available and clickable, but should show a warning underline.
+    Same-file and imported idea bracket references should use the same document-link underline as file targets — no visual distinction between local and external refs.
 
     Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../packages/language/src/reqlan-document-link-provider.ts"], ["../../../packages/language/src/reqlan-definition-provider.ts"], and ["../../../packages/language/src/reqlan-validator.ts"].
     @tests (
@@ -57,6 +58,7 @@ file_references {
         ["../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
         ["../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]
         ["../../../packages/language/test/linking.test.ts:missing file references do not produce document links"]
+        ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
     )
 }
 

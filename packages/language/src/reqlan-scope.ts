@@ -43,10 +43,25 @@ export class ReqlanScopeComputation extends DefaultScopeComputation {
     }
 }
 
+interface ScopeEntry {
+    version: number | undefined;
+    scope: Scope;
+}
+
 export class ReqlanScopeProvider extends DefaultScopeProvider {
 
     protected readonly documents: ReqlanServices['shared']['workspace']['LangiumDocuments'];
     private readonly services: ReqlanServices;
+    /**
+     * Per-document cache for `scopeForFileIdeas`. Key is the document URI string.
+     * Invalidated when the document version changes so edits always get a fresh scope.
+     */
+    private readonly fileIdeasCache = new Map<string, ScopeEntry>();
+    /**
+     * Per-(document, importPath) cache for `scopeForImportPath`. Key is the imported document URI string.
+     * The cached scope is keyed to the imported document's version.
+     */
+    private readonly importPathCache = new Map<string, ScopeEntry>();
 
     constructor(services: ReqlanServices) {
         super(services);
@@ -120,6 +135,17 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private scopeForFileIdeas(document: LangiumDocument): Scope {
+        const key = document.uri.toString();
+        const cached = this.fileIdeasCache.get(key);
+        if (cached && cached.version === document.textDocument.version) {
+            return cached.scope;
+        }
+        const scope = this.buildFileIdeasScope(document);
+        this.fileIdeasCache.set(key, { version: document.textDocument.version, scope });
+        return scope;
+    }
+
+    private buildFileIdeasScope(document: LangiumDocument): Scope {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
             return new StreamScope(stream([]));
@@ -279,6 +305,11 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         if (!imported) {
             return undefined;
         }
+        const key = imported.uri.toString();
+        const cached = this.importPathCache.get(key);
+        if (cached && cached.version === imported.textDocument.version) {
+            return cached.scope;
+        }
         const model = imported.parseResult.value;
         if (!isModel(model)) {
             return undefined;
@@ -286,7 +317,9 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         const descriptions = model.elements
             .filter(element => isIdea(element) || isOneLinerIdea(element))
             .map(idea => this.descriptions.createDescription(idea, idea.name, imported));
-        return new StreamScope(stream(descriptions));
+        const scope = new StreamScope(stream(descriptions));
+        this.importPathCache.set(key, { version: imported.textDocument.version, scope });
+        return scope;
     }
 
     private findImportedDocument(path: string, document: LangiumDocument): LangiumDocument | undefined {
