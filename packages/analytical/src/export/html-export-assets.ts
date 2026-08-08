@@ -407,7 +407,7 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
 }
 .entity-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
 }
 .entity-card {

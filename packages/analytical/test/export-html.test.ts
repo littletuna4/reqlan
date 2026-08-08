@@ -216,7 +216,8 @@ describe('html export pipeline', () => {
         expect(printHomeHtml).toContain('onclick="window.print()"');
         expect(printHomeHtml).toContain('class="print-button hide-on-print"');
         expect(clusterPrintHtml).toContain('Printable cluster sheet');
-        expect(stylesCss).toContain('minmax(min(100%, 280px), 1fr)');
+        expect(stylesCss).toContain('.entity-list');
+        expect(stylesCss).toContain('grid-template-columns: minmax(0, 1fr)');
         expect(stylesCss).toContain('.print-card');
         expect(stylesCss).toContain('overflow-wrap: anywhere');
         expect(stylesCss).toContain('.print-button');

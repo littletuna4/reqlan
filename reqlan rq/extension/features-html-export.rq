@@ -338,8 +338,8 @@ html_export_printable_pages {
 }
 
 html_export_print_idea_cards {
-    The printable report page lists ideas as cards that must remain within the page width on narrow viewports — no horizontal spill from long summaries, file paths, refs, or attribute values.
-    Cards use a responsive grid (`auto-fit` with a fluid min track) and wrapping/overflow rules so content reflows instead of overflowing the layout.
+    The printable report page lists ideas as cards in a single column that must remain within the page width on narrow viewports — no horizontal spill from long summaries, file paths, refs, or attribute values.
+    Cards use a one-column grid (`minmax(0, 1fr)`) and wrapping/overflow rules so content reflows instead of overflowing the layout.
     Cross-refs [html_export_printable_pages], [html_export_print_in_page_anchors], [html_export_print_all_attributes].
     @status done
     @implementation (
