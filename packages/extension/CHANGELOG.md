@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.8.2
+
+### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+- Updated dependencies [fc3cdb6]
+  - @reqlan/analytical@0.8.2
+  - @reqlan/language@1.8.2
+
 ## 1.8.1
 
 ### Patch Changes

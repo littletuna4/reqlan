@@ -1,5 +1,11 @@
 # site
 
+## 0.12.2
+
+### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+
 ## 0.12.1
 
 ### Patch Changes

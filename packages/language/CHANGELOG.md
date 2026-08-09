@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.8.2
+
+### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+
 ## 1.8.1
 
 ### Patch Changes
