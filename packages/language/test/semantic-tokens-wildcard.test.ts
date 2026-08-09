@@ -28,7 +28,11 @@ describe('semantic tokens for wildcard references', () => {
         ].join('\n'));
 
         const provider = services.Reqlan.lsp.SemanticTokenProvider!;
-        const result = await provider.semanticHighlight(document, {}, CancellationToken.None);
+        const result = await provider.semanticHighlight(
+            document,
+            { textDocument: { uri: document.textDocument.uri } },
+            CancellationToken.None
+        );
         expect(result.data.length).toBeGreaterThan(0);
         expect(result.data.length % 5).toBe(0);
 

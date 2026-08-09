@@ -69,6 +69,7 @@ describe('references table column filters', () => {
         ]);
         expect(edgeKindsForReferenceViewTypes(['sub-idea'])).toEqual([
             'references',
+            'wildcard_reference',
             'import',
             'ideaset_member'
         ]);

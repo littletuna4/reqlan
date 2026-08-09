@@ -20,7 +20,8 @@ import {
     resolveWildcardReferenceMatches,
     wildcardArgsFromReference,
     type Model,
-    type WildcardMatch
+    type WildcardMatch,
+    type WildcardReference
 } from '@reqlan/language';
 import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
 import { REQLAN_OPEN_WILDCARD_COMMAND } from '../src/reqlan-wildcard-resolve.js';
@@ -263,7 +264,7 @@ describe('wildcard references', () => {
         const wildcards = AstUtils.streamAst(host.parseResult.value)
             .filter(node => isBracketReference(node) || isWikiLink(node))
             .map(node => (isBracketReference(node) || isWikiLink(node) ? node.target : undefined))
-            .filter((target): target is NonNullable<typeof target> => !!target && isWildcardReference(target))
+            .filter((target): target is WildcardReference => !!target && isWildcardReference(target))
             .toArray();
         // Bracket + wikilink both parse as WildcardReference.
         expect(wildcards.length).toBe(2);
