@@ -1,6 +1,19 @@
 /**
  * Host chat open helpers for add_to_chat / activity-bar affordances.
  * per ["../../../../reqlan rq/extension/features-commands.rq"]
+ *
+ * Cursor vs VS Code (verified against Cursor workbench.desktop.main.js):
+ * - `workbench.action.chat.open` in Cursor ALWAYS `createComposer({ openInNewTab: true })`
+ *   with `partialState.text` from `query` — it never targets the current chat.
+ * - Current chat: `composer.focusComposer` (selected composer + focusMainInputBox), then paste.
+ * - New chat: `composer.createNew` with `{ openInNewTab: true, partialState: { text, richText } }`
+ *   (same pattern as Cursor's own "Add Files to New Chat" / deeplink prefill).
+ * - VS Code Copilot: `workbench.action.chat.open` + `isPartialQuery` for current;
+ *   `workbench.action.chat.newChat` then open for new.
+ *
+ * Refs:
+ * - https://github.com/microsoft/vscode-discussions/discussions/2480 (isPartialQuery)
+ * - https://forum.cursor.com/t/a-command-for-passing-a-prompt-to-the-chat/138049
  */
 import * as vscode from 'vscode';
 
@@ -8,9 +21,8 @@ export type ChatOpenTarget = 'current' | 'new';
 
 export interface OpenChatOptions {
     /**
-     * When true, place `query` in the chat input without submitting
-     * (`workbench.action.chat.open` `isPartialQuery`).
-     * Defaults to true for add-to-chat flows.
+     * When true, place `query` in the chat input without submitting.
+     * Honored on VS Code Copilot; Cursor paste/createNew paths are non-submitting.
      */
     isPartialQuery?: boolean;
     /**
@@ -20,10 +32,11 @@ export interface OpenChatOptions {
     target?: ChatOpenTarget;
 }
 
+const PASTE_SETTLE_MS = 80;
+const CLIPBOARD_RESTORE_MS = 250;
+
 /**
  * Open the host chat UI with the given text.
- * Prefers current-chat open for `target: 'current'`; uses new-session
- * commands only when `target: 'new'`.
  */
 export async function openChatWithText(
     text: string,
@@ -31,25 +44,31 @@ export async function openChatWithText(
 ): Promise<boolean> {
     const isPartialQuery = options?.isPartialQuery ?? true;
     const target = options?.target ?? 'current';
-    const payload: { query: string; message: string; isPartialQuery?: boolean } = {
-        query: text,
-        message: text
-    };
-    if (isPartialQuery) {
-        payload.isPartialQuery = true;
-    }
 
     if (target === 'new') {
-        return openNewChatWithText(payload);
+        return openNewChatWithText(text, isPartialQuery);
     }
-    return openCurrentChatWithText(payload);
+    return openCurrentChatWithText(text, isPartialQuery);
 }
 
 async function openCurrentChatWithText(
-    payload: { query: string; message: string; isPartialQuery?: boolean }
+    text: string,
+    isPartialQuery: boolean
 ): Promise<boolean> {
-    // Do not fall back to new-chat commands — that would violate "current by default".
+    // Cursor: never use workbench.action.chat.open here — it always opens a new tab.
+    if (await focusCursorCurrentComposer()) {
+        return pasteTextIntoFocusedInput(text);
+    }
+
+    // VS Code Copilot / hosts that honor isPartialQuery on the current widget.
     try {
+        const payload: { query: string; message: string; isPartialQuery?: boolean } = {
+            query: text,
+            message: text
+        };
+        if (isPartialQuery) {
+            payload.isPartialQuery = true;
+        }
         await vscode.commands.executeCommand('workbench.action.chat.open', payload);
         return true;
     } catch {
@@ -58,31 +77,112 @@ async function openCurrentChatWithText(
 }
 
 async function openNewChatWithText(
-    payload: { query: string; message: string; isPartialQuery?: boolean }
+    text: string,
+    isPartialQuery: boolean
 ): Promise<boolean> {
-    const newSessionCommands = [
-        'composer.newAgentChat',
-        'aichat.newchataction',
-        'workbench.action.chat.newChat'
-    ];
-    let openedSession = false;
-    for (const command of newSessionCommands) {
-        try {
-            await vscode.commands.executeCommand(command, payload);
-            openedSession = true;
-            break;
-        } catch {
-            // try next host-specific new-chat command
-        }
+    // Cursor: create a new composer tab with the prompt prefilled (do not call chat.open afterward).
+    try {
+        await vscode.commands.executeCommand('composer.createNew', {
+            openInNewTab: true,
+            unifiedMode: 'agent',
+            partialState: {
+                text,
+                richText: text
+            }
+        });
+        return true;
+    } catch {
+        // fall through
     }
-    if (!openedSession) {
+
+    // Cursor fallback: new agent chat, then paste (forum workaround).
+    try {
+        await vscode.commands.executeCommand('composer.newAgentChat');
+        await delay(PASTE_SETTLE_MS);
+        if (await pasteTextIntoFocusedInput(text)) {
+            return true;
+        }
+        return true;
+    } catch {
+        // fall through
+    }
+
+    try {
+        await vscode.commands.executeCommand('aichat.newchataction');
+        await delay(PASTE_SETTLE_MS);
+        if (await pasteTextIntoFocusedInput(text)) {
+            return true;
+        }
+        return true;
+    } catch {
+        // fall through
+    }
+
+    // VS Code: new chat session, then seed input.
+    try {
+        await vscode.commands.executeCommand('workbench.action.chat.newChat');
+    } catch {
+        // optional
+    }
+    try {
+        const payload: { query: string; message: string; isPartialQuery?: boolean } = {
+            query: text,
+            message: text
+        };
+        if (isPartialQuery) {
+            payload.isPartialQuery = true;
+        }
+        await vscode.commands.executeCommand('workbench.action.chat.open', payload);
+        return true;
+    } catch {
         return false;
     }
-    // Many hosts ignore the payload on new-session commands; seed the new chat input after.
+}
+
+/** Focus the selected Cursor composer input without creating a new chat. */
+async function focusCursorCurrentComposer(): Promise<boolean> {
     try {
-        await vscode.commands.executeCommand('workbench.action.chat.open', payload);
+        await vscode.commands.executeCommand('composer.focusComposer');
+        await delay(PASTE_SETTLE_MS);
+        return true;
     } catch {
-        // Session opened; input seed optional when unsupported
+        // try alternate open/focus commands
     }
-    return true;
+    for (const command of ['composer.startComposerPrompt'] as const) {
+        try {
+            await vscode.commands.executeCommand(command);
+            await delay(PASTE_SETTLE_MS);
+            return true;
+        } catch {
+            // try next
+        }
+    }
+    return false;
+}
+
+async function pasteTextIntoFocusedInput(text: string): Promise<boolean> {
+    let previous: string | undefined;
+    try {
+        previous = await vscode.env.clipboard.readText();
+    } catch {
+        previous = undefined;
+    }
+    try {
+        await vscode.env.clipboard.writeText(text);
+        await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+        return true;
+    } catch {
+        return false;
+    } finally {
+        if (previous !== undefined) {
+            const restore = previous;
+            setTimeout(() => {
+                void vscode.env.clipboard.writeText(restore);
+            }, CLIPBOARD_RESTORE_MS);
+        }
+    }
+}
+
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }

@@ -68,12 +68,16 @@ add_to_chat {
     A set of [command_palette] functions that add the selected idea, ideaset, or file to the chat.
     Commands: Add Idea/Ideaset/File to **Current** Chat (primary) and to **New** Chat (secondary); category Reqlan.
     Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick.
-    Primary: inject `#requirement` / `#file` context into the **current** chat input (`isPartialQuery: true`) without submitting.
+    Primary: inject `#requirement` / `#file` context into the **current** chat input without submitting.
     Secondary: open a **new** chat/agent session, then seed the same payload into its input.
     Discoverability: editor context uses a **Reqlan: Add to Chat** submenu (current + new for idea/ideaset/file). Palette titles name Current vs New explicitly.
+    Host APIs (Cursor vs VS Code) — see open-chat helper:
+    - Cursor: `workbench.action.chat.open` always creates a **new** tab (`openInNewTab: true`); do **not** use it for current-chat.
+      Current = `composer.focusComposer` + paste; New = `composer.createNew({ openInNewTab: true, partialState: { text, richText } })`.
+    - VS Code Copilot: current = `workbench.action.chat.open` + `isPartialQuery: true`; new = `workbench.action.chat.newChat` then open.
     Clipboard fallback when no chat command is available.
     Host open helper: ["../../packages/extension/src/ai_commands_module/open-chat.ts"] (`target: 'current' | 'new'`).
-    Activity bar search hits: ["./module/activitybar-panels/search.rq".search_add_to_chat] — split button with ▾ menu (not hidden right-click only).
+    Activity bar search hits: ["./module/activitybar-panels/search.rq".search_add_to_chat] — split button with ▾ menu.
     @implementation (
         ["../../packages/extension/src/ai_commands_module/register-ai-commands.ts"]
         ["../../packages/extension/src/ai_commands_module/open-chat.ts"]

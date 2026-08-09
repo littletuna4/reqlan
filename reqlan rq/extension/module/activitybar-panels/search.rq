@@ -47,6 +47,7 @@ search_add_to_chat {
     Tooltips name both behaviours; secondary is not right-click-only.
     Same payload shape as [commands.add_to_chat] (idea name, path:line, summary) via [open_chat].
     Host: [open_chat] with `{ query, isPartialQuery: true, target: 'current' | 'new' }`.
+    Cursor note: do not use `workbench.action.chat.open` for **current** (it always opens a new tab); see [commands.add_to_chat] / [open_chat].
     Clipboard fallback when no chat command is available (same spirit as [commands.add_to_chat]).
     Wire: [AddToChatButton] / [SearchPane] → [app_state] `addToChat(hit, target)` → [activity_bar_messages] → [activity_bar_webview] → [open_chat].
     @implementation (
