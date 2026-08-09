@@ -1,5 +1,17 @@
 # reqlan-extension
 
+## 1.8.0
+
+### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
+### Patch Changes
+
+- Updated dependencies [93368c6]
+  - @reqlan/analytical@0.8.0
+  - @reqlan/language@1.8.0
+
 ## 1.7.0
 
 ### Minor Changes
