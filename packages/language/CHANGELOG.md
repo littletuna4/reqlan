@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.8.1
+
+### Patch Changes
+
+- d46b740: Fix missed build and test errors.
+
 ## 1.8.0
 
 ### Minor Changes
