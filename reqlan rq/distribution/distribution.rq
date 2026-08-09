@@ -101,6 +101,7 @@ extension_distribution {
   Tags are created by ["./distribution.rq".deployment_flow].
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
+  Because the workspace build includes the site static build, the pipeline installs Playwright Chromium (`pnpm --filter ./site exec playwright install --with-deps chromium`) before `pnpm run build`, matching ["../docs/docs.rq".docs_playwright_capture].
   VSIX packaging follows ["./distribution.rq".vsix_export].
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
 }
