@@ -379,6 +379,11 @@ features_tier_2 {
         cytoscape_graph_view {
             Status/tag filters and the indirect-reference depth toggle.
         }
+        wildcard_path_idea_refs {
+            Qualified path + idea-pattern references — `["../mod/**/*.rq".*_pane]` —
+            fan out across files; navigation opens a matches panel.
+            See ["../language/imports.rq".wildcard_references].
+        }
         html_multipage_export {
             HTML multi-page export as an actual deliverable.
         }
@@ -391,7 +396,7 @@ features_tier_2 {
 
 features_not_demonstrated {
     Deliberately not demonstrated — they do not exist yet.
-    Typed relation kinds, reference wildcards, hover cards, autoformatting,
+    Typed relation kinds, hover cards, autoformatting,
     JSON/CSV export palette commands, PDF binary, vector-embedding search.
     Keyword-scored search must not be marketed as semantic search / embeddings.
 }

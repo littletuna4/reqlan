@@ -153,7 +153,7 @@ export const siteContent = {
           {
             id: "links",
             label: "Links",
-            what: "Ideas cite other ideas, source files, and tests.",
+            what: "Ideas cite other ideas, source files, tests — or a path+name pattern that fans out.",
             why: "Ask “what depends on this?” and get an answer, not a wiki hike.",
           },
           {
@@ -173,7 +173,7 @@ export const siteContent = {
           {
             id: "lsp",
             label: "LSP",
-            what: "Go-to-def, find refs, validation on `.rq`.",
+            what: "Go-to-def, find refs, validation on `.rq` — wildcards open a match panel, not a guess.",
             why: "A red squiggle today beats a surprised PM tomorrow.",
           },
           {
@@ -321,6 +321,25 @@ auth_surface (login, session.session_expiry, session.session_refresh)`,
         },
       },
       {
+        label: "wildcards",
+        rule: {
+          language: "rq",
+          code: `wildcard_refs {
+    One edge that fans out — path glob plus idea pattern.
+    ["../panels/*.rq".*_pane] matches every *_pane idea under panels/.
+}`,
+        },
+        practical: {
+          label: "surface.rq",
+          language: "rq",
+          code: `extension_surface {
+    Panes live across files — open the set, not each name by hand.
+    See ["../extension/**/*.rq".*_pane]
+    @status done
+}`,
+        },
+      },
+      {
         label: "typescript",
         rule: {
           language: "ts",
@@ -377,13 +396,14 @@ class SessionStore:
 
   example: {
     title: "A slice of a real graph",
-    lead: "Imports, file anchors, wikilinks, status, tags, and tests — one idea that tools can find.",
+    lead: "Imports, file anchors, wildcards, wikilinks, status, tags, and tests — one idea that tools can find.",
     code: `from "auth.rq" import login
 import "./session.rq" as session
 
 session_refresh {
     refresh tokens rotate on use
     aligns with [session.session_expiry] and [login]
+    related panes ["./ui/**/*.rq".*_pane]
     implemented in ["./src/auth/session.ts".rotateRefresh]
     proven by ["./src/auth/session.test.ts:rejects reused refresh token"]
 

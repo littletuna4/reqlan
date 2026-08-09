@@ -1,5 +1,10 @@
 import "../../../core-architecture.rq" as core_architecture
+import "../codestyle/typescript.rq" as typescript_codestyle
 
 event_driven the application should be event driven.
 
-state_machine_mindset the application should be designed as a collection of state machines; built using zustand if in js.
+state_machine_mindset {
+    The application should be designed as a collection of state machines.
+    Non-Svelte JS lifecycle stores use zustand; Svelte webview UI follows [typescript_codestyle.ui_state_management]
+    and [typescript_codestyle.zustand_boundary] (runes AppState, not zustand in webviews).
+}

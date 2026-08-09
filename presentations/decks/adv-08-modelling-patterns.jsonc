@@ -23,10 +23,10 @@
       "background": "brand-panel",
       "content": {
         "heading": "Series recap",
-        "body": "Imports · attributes · maps · context · comments · export · CLI · patterns",
+        "body": "Imports · attributes · maps · context · comments · export · CLI · patterns · wildcards next",
         "asset": "montage-ide"
       },
-      "notes": "Eight themes converge on readable graphs for people and models."
+      "notes": "Eight themes so far — wildcards close the series."
     },
     {
       "id": "vignette",
@@ -102,10 +102,10 @@
         "body": "Link the neighbour. Ship the slice.",
         "asset": "logo",
         "fragments": [
-          "Back to tutorials · site · docs · marketplace"
+          "Next — Wildcard references"
         ]
       },
-      "notes": "Thanks for watching the advanced series."
+      "notes": "Thanks for watching — one more craft theme: wildcards."
     }
   ]
 }

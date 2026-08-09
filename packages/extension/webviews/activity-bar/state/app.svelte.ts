@@ -61,6 +61,10 @@ export class AppState {
     ancestorsLoading = $state(false);
     ancestorsError = $state<string | undefined>(undefined);
     ideaSearchQuery = $state('');
+    /** Optional hard path filter (glob or substring) applied with idea search. */
+    ideaSearchPathFilter = $state<string | undefined>(undefined);
+    /** Request Search pane expand when seeded from the host. */
+    ideaSearchExpandRequest = $state(0);
     ideaSearchResults = $state<IdeaSearchHitView[]>([]);
     ideaSearchTotal = $state(0);
     ideaSearchTruncated = $state(false);
@@ -325,6 +329,22 @@ export class AppState {
                 this.ideaSearchError = undefined;
                 this.ensureIdeaSearchElapsedTimer();
                 break;
+            case 'focusIdeaSearch':
+                this.ideaSearchPathFilter = message.pathFilter?.trim() || undefined;
+                this.ideaSearchQuery = message.query;
+                if (message.expand !== false) {
+                    this.ideaSearchExpandRequest += 1;
+                }
+                if (message.query.trim()) {
+                    this.searchIdeas(message.query.trim());
+                } else {
+                    this.ideaSearchResults = [];
+                    this.ideaSearchTotal = 0;
+                    this.ideaSearchTruncated = false;
+                    this.ideaSearchLoading = false;
+                    this.ideaSearchProgress = undefined;
+                }
+                break;
             case 'todoList':
                 if (
                     message.requestId !== undefined &&
@@ -532,6 +552,10 @@ export class AppState {
 
     onIdeaSearchInput(query: string): void {
         this.ideaSearchQuery = query;
+        // Typing clears a host-seeded path filter unless the user is only refining the query.
+        if (!query.trim()) {
+            this.ideaSearchPathFilter = undefined;
+        }
         this.clearIdeaSearchTimer();
         const trimmed = query.trim();
         if (!trimmed) {
@@ -561,7 +585,12 @@ export class AppState {
         };
         this.ideaSearchError = undefined;
         this.startIdeaSearchElapsedTimer();
-        postToExtension({ type: 'searchIdeas', query, requestId });
+        postToExtension({
+            type: 'searchIdeas',
+            query,
+            pathFilter: this.ideaSearchPathFilter,
+            requestId
+        });
     }
 
     loadTodos(): void {

@@ -1,10 +1,12 @@
 import "./ideas_summary" as ideas_summary
 import "../../development/core.rq" as development_core
+import "../../codestyle/typescript.rq" as typescript_codestyle
 
 webview {
     Extension webviews are Svelte UIs hosted by the VS Code extension per [development_core].
     They should be performance conscious: prefer capped, paginated, or scoped slices and avoid full-graph dumps unless the user explicitly requests one.
     The extension host loads compiled assets from `packages/extension/media/webviews/`.
+    UI state conventions: [typescript_codestyle.ui_state_management] / [typescript_codestyle.webview_app_state].
 
     Webview modules in the extension:
     - Ideas Summary — overview, ontology tables (bases/ideas/ideasets/attributes/references), graph, and index (last): [ideas_summary] / ["./ideas_summary/webview.rq".ideas_summary] / ["./ideas_summary/webview.rq".ontology_aligned_tabs]

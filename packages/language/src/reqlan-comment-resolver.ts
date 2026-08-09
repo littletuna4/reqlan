@@ -169,6 +169,11 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
         if (char === '/' && next === '*') {
+            // Empty slash-star-star-slash is a glob segment, not a block comment (same as .rq lexer).
+            if (text[index + 2] === '*' && text[index + 3] === '/') {
+                index += 4;
+                continue;
+            }
             blockComment = 'slash';
             lineCommentStart = index;
             index += 2;

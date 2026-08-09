@@ -66,7 +66,8 @@ extension_package {
     Ideas index engine lives in [analytical_package] / [indexer]; the extension only hosts a thin VS Code adapter ([editor_index_adapter]) for watchers and UI.
     Host entry: [extension_main]. LSP process entry: [language_server_main].
     Depends on [language_package] and [analytical_package].
-    Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] (zustand) for JS state.
+    Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] for JS state;
+    webview UI standards in ["../codestyle/typescript.rq".ui_state_management].
     This is the one Marketplace/Open VSX shippable; see [package_versioning].
 }
 

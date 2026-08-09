@@ -7,6 +7,7 @@ import {
     isInvalidFromImport,
     isModel,
     isOneLinerIdea,
+    isWildcardReference,
     type AnonymousBlock,
     type Model
 } from './generated/ast.js';
@@ -23,6 +24,11 @@ import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
+import {
+    resolveWildcardReferenceMatches,
+    parseWildcardPathPattern,
+    wildcardReferenceLabel
+} from './reqlan-wildcard-resolve.js';
 
 /**
  * Registers validation hooks for the requirement graph AST.
@@ -58,6 +64,7 @@ export class ReqlanValidator {
         this.checkImportSyntax(model, accept);
         this.checkImportTargets(model, accept);
         this.checkFileReferenceTargets(model, accept);
+        this.checkWildcardReferences(model, accept);
     }
 
     /**
@@ -202,6 +209,33 @@ export class ReqlanValidator {
                 node: model,
                 range: link.sourceRange
             });
+        }
+    }
+
+    checkWildcardReferences(model: Model, accept: ValidationAcceptor): void {
+        const { shared } = this.services;
+        const context = pathResolveContextFromServices(this.services);
+        for (const node of AstUtils.streamAst(model)) {
+            if (!isWildcardReference(node)) {
+                continue;
+            }
+            const path = parseWildcardPathPattern(node.pathPattern);
+            if (!path.trim()) {
+                accept('warning', 'Wildcard path pattern is empty.', { node, property: 'pathPattern' });
+                continue;
+            }
+            const matches = resolveWildcardReferenceMatches(
+                node,
+                shared.workspace.LangiumDocuments,
+                context
+            );
+            if (matches.length === 0) {
+                accept(
+                    'warning',
+                    `No ideas match wildcard reference [${wildcardReferenceLabel(path, node.ideaPattern)}].`,
+                    { node }
+                );
+            }
         }
     }
 }

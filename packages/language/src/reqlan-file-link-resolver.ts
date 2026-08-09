@@ -24,12 +24,14 @@ import {
     isLocalReference,
     isMarkdownLink,
     isQualifiedReference,
+    isWildcardReference,
     type FileReference,
     type FileSymbolReference,
     type Import,
     type LocalReference,
     type MarkdownLink,
-    type QualifiedReference
+    type QualifiedReference,
+    type WildcardReference
 } from './generated/ast.js';
 import { parseMarkdownLink } from './reqlan-references.js';
 import { reqlanStringDelimiter } from './reqlan-quoted-strings.js';
@@ -37,8 +39,14 @@ import {
     isNamespaceImportOnlyReference,
     resolveNamespaceImportReferenceLink
 } from './reqlan-namespace-import-links.js';
+import {
+    resolveWildcardReferenceMatches,
+    wildcardArgsFromReference,
+    type WildcardMatch,
+    type WildcardReferenceArgs
+} from './reqlan-wildcard-resolve.js';
 
-export type ReferenceResolution = 'file' | 'folder' | 'missing';
+export type ReferenceResolution = 'file' | 'folder' | 'missing' | 'wildcard';
 
 export type FileLinkTargetIssue = 'empty' | 'parse-error';
 
@@ -49,6 +57,9 @@ export interface ResolvedFileLink {
     resolution?: ReferenceResolution;
     folderFiles?: string[];
     targetIssue?: FileLinkTargetIssue;
+    /** Present when resolution is `wildcard`. */
+    wildcardArgs?: WildcardReferenceArgs;
+    wildcardMatches?: WildcardMatch[];
 }
 
 function withFileSystem(
@@ -416,6 +427,34 @@ export function resolveIdeaReferenceLinks(
     return links;
 }
 
+export function resolveWildcardReferenceLink(
+    reference: WildcardReference,
+    documents: LangiumDocuments,
+    context?: PathResolveContext
+): ResolvedFileLink | undefined {
+    const pathNode = GrammarUtils.findNodeForProperty(reference.$cstNode, 'pathPattern');
+    const ideaNode = GrammarUtils.findNodeForProperty(reference.$cstNode, 'ideaPattern');
+    const sourceRange = reference.$cstNode?.range
+        ?? (pathNode && ideaNode
+            ? {
+                start: pathNode.range.start,
+                end: ideaNode.range.end
+            }
+            : pathNode?.range);
+    if (!sourceRange) {
+        return undefined;
+    }
+    const matches = resolveWildcardReferenceMatches(reference, documents, context);
+    const args = wildcardArgsFromReference(reference);
+    return {
+        sourceRange,
+        targetUri: AstUtils.getDocument(reference).uri.toString(),
+        resolution: 'wildcard',
+        wildcardArgs: args,
+        wildcardMatches: matches
+    };
+}
+
 export function collectFileLinks(
     document: LangiumDocument,
     documents: LangiumDocuments,
@@ -432,6 +471,12 @@ export function collectFileLinks(
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
         if (isFileReference(node) || isFileSymbolReference(node)) {
             const link = resolveFileReferenceLink(node, documents, fileSystem, pathContext);
+            if (link) {
+                pushLink(link);
+            }
+        }
+        if (isWildcardReference(node)) {
+            const link = resolveWildcardReferenceLink(node, documents, pathContext);
             if (link) {
                 pushLink(link);
             }
@@ -490,7 +535,7 @@ function rangesOverlap(left: Range, right: Range): boolean {
 }
 
 export function resolvedFileLinkTargetUri(link: ResolvedFileLink): string | undefined {
-    if (link.resolution === 'folder' || link.resolution === 'missing') {
+    if (link.resolution === 'folder' || link.resolution === 'missing' || link.resolution === 'wildcard') {
         return undefined;
     }
     if (link.targetRange) {

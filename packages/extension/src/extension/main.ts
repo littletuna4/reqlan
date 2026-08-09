@@ -4,6 +4,11 @@ import * as path from 'node:path';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
+import {
+    registerWildcardReferenceCommand,
+    withWildcardReferenceMiddleware
+} from './register-wildcard-reference-handling.js';
+import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
@@ -45,6 +50,11 @@ export function activate(context: vscode.ExtensionContext): void {
     runStep('analytical submodule', () => {
         submodule = activateAnalyticalSubmodule(context, () => activityBarPainted.signal());
         registerImportErrorCommands(context, submodule.index);
+        registerWildcardReferenceCommand(
+            context,
+            () => submodule?.index,
+            () => getActivityBarWebviewProvider()
+        );
     });
 
     if (submodule) {
@@ -92,7 +102,7 @@ function scheduleBackgroundStartup(
         LANGUAGE_CLIENT_FALLBACK_DELAY_MS
     );
     void languageClientStartGate.then(() => {
-        void startLanguageClient(context)
+        void startLanguageClient(context, submodule)
             .then(started => {
                 client = started;
                 // Register catalog sync once the client exists. The initial push
@@ -123,7 +133,10 @@ export function deactivate(): Thenable<void> | undefined {
     return client.stop().catch(() => undefined);
 }
 
-async function startLanguageClient(context: vscode.ExtensionContext): Promise<LanguageClient> {
+async function startLanguageClient(
+    context: vscode.ExtensionContext,
+    submodule: AnalyticalSubmodule
+): Promise<LanguageClient> {
     const serverModule = context.asAbsolutePath(path.join('out', 'language', 'main.cjs'));
     const runtime = resolveLanguageServerRuntime();
     // The debug options for the server
@@ -140,9 +153,14 @@ async function startLanguageClient(context: vscode.ExtensionContext): Promise<La
 
     // Options to control the language client
     let client!: LanguageClient;
-    const clientOptions: LanguageClientOptions = withFolderReferenceMiddleware(
-        { documentSelector: [{ scheme: '*', language: 'reqlan' }] },
-        () => client
+    const clientOptions: LanguageClientOptions = withWildcardReferenceMiddleware(
+        withFolderReferenceMiddleware(
+            { documentSelector: [{ scheme: '*', language: 'reqlan' }] },
+            () => client
+        ),
+        () => client,
+        () => submodule.index,
+        () => getActivityBarWebviewProvider()
     );
 
     // Create the language client and start the client.

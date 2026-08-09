@@ -107,7 +107,7 @@
       "title": "Beyond one file",
       "series": "advanced",
       "order": 0,
-      "blurb": "Eight craft themes: imports, attributes, maps, tokens, comments, export, CLI/MCP, patterns.",
+      "blurb": "Nine craft themes: imports, attributes, maps, tokens, comments, export, CLI/MCP, patterns, wildcards.",
       "tryThis": "Pick a first deep dive — start with imports and ideasets.",
       "deck": "decks/adv-overview.jsonc"
     },
@@ -190,6 +190,16 @@
       "blurb": "Durable habits plus a non-software vignette — judgement over more syntax.",
       "tryThis": "Write the idea. Link the neighbour. Ship the slice.",
       "deck": "decks/adv-08-modelling-patterns.jsonc"
+    },
+    {
+      "id": "adv-09-wildcard-references",
+      "slug": "adv-09-wildcard-references",
+      "title": "Wildcard references",
+      "series": "advanced",
+      "order": 9,
+      "blurb": "Path glob plus idea pattern — one stroke for a set; matches panel, not N jumps.",
+      "tryThis": "Add [\"../reqs/**/*.rq\".*_checklist] from a surface idea and open the matches panel.",
+      "deck": "decks/adv-09-wildcard-references.jsonc"
     }
   ]
 }

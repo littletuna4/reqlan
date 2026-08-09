@@ -7,6 +7,7 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  */
 import type { LangiumDocument } from 'langium';
+import { collectIdeaCandidatesFromDocuments } from '@reqlan/language';
 import { stat } from 'node:fs/promises';
 import type { AnalyticalStore } from '../core/analytical-store.js';
 import { normalizeIndexedDocument } from '../core/workspace-paths.js';
@@ -15,6 +16,17 @@ import { pathDepthFromUri } from './index-diagnostics-store.js';
 import { extractIndexedDocument } from './idea-extractor.js';
 import { collectParseIssues, fileIssue, fileIssueFromError, unnamedIdeaIssues, validIdeas } from './index-parse-issues.js';
 import type { SqliteIndexStore } from './sqlite-store.js';
+
+function fileUriToPath(fileUri: string): string {
+    if (fileUri.startsWith('file://')) {
+        try {
+            return decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
+        } catch {
+            return fileUri.replace(/^file:\/\//, '');
+        }
+    }
+    return fileUri;
+}
 
 export interface IndexOneFileDeps {
     sqlite: SqliteIndexStore;
@@ -63,7 +75,16 @@ export async function indexOneFile(deps: IndexOneFileDeps, filePath: string): Pr
     }
 
     const parseIssues = collectParseIssues(document);
-    const extractedRaw = extractIndexedDocument(document);
+    const ideaCatalog = await deps.sqlite.listAllIdeas();
+    const ideaCandidates = [
+        ...ideaCatalog.map(idea => ({
+            fileUri: idea.fileUri,
+            filePath: fileUriToPath(idea.fileUri),
+            ideaName: idea.name
+        })),
+        ...collectIdeaCandidatesFromDocuments([document])
+    ];
+    const extractedRaw = extractIndexedDocument(document, { ideaCandidates });
     if (!extractedRaw) {
         const issues = parseIssues.length > 0
             ? parseIssues

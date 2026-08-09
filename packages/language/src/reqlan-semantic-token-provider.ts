@@ -20,6 +20,7 @@ import {
     isQualifiedImport,
     isQualifiedReference,
     isOneLinerIdea,
+    isWildcardReference,
     type Import
 } from './generated/ast.js';
 import { isWellFormedFromImport } from './reqlan-import-bindings.js';
@@ -48,6 +49,11 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
                 type: SemanticTokenTypes.namespace,
                 modifier: SemanticTokenModifiers.definition
             });
+            return;
+        }
+        if (isWildcardReference(node)) {
+            acceptor({ node, property: 'pathPattern', type: SemanticTokenTypes.string });
+            acceptor({ node, property: 'ideaPattern', type: SemanticTokenTypes.variable });
             return;
         }
         if (isQualifiedReference(node)) {

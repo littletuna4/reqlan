@@ -119,4 +119,61 @@ describe('comments in string context', () => {
     test('full-line comments still work', async () => {
         await expectValid('// leading comment\ndemo { body }');
     });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    // rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+    test('e2e: /**/ glob survives tokenize → parse in prose, naked quotes, and reference STRING', async () => {
+        const services = createReqlanServices(EmptyFileSystem);
+
+        const prose = 'demo { see ../mod/**/*.rq here }';
+        const proseTokens = services.Reqlan.parser.Lexer.tokenize(prose);
+        expect(proseTokens.tokens.map(token => token.image).join('')).toContain('**');
+        const proseDoc = await expectValid(prose);
+        expect(blockBodyText(proseDoc)).toContain('**');
+
+        const naked = 'demo { see "../mod/**/*.rq" here }';
+        const nakedTokens = services.Reqlan.parser.Lexer.tokenize(naked);
+        expect(nakedTokens.tokens.map(token => token.image).join('')).toContain('**');
+        const nakedDoc = await expectValid(naked);
+        expect(nakedDoc.textDocument.getText()).toContain('/**/');
+
+        const reference = 'demo { ["../mod/**/*.rq".*_pane] keep }';
+        const referenceDoc = await expectValid(reference);
+        const ref = [...AstUtils.streamAst(referenceDoc.parseResult.value)]
+            .find(node => node.$type === 'BracketReference');
+        expect(ref?.$cstNode?.text).toBe('["../mod/**/*.rq".*_pane]');
+        expect(referenceDoc.textDocument.getText()).toContain('/**/');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    test('e2e: real block comments still hide body text', async () => {
+        const document = await expectValid('demo {\n    keep /* hidden\n       block */ this\n}');
+        expect(blockBodyText(document)).toContain('keep');
+        expect(blockBodyText(document)).toContain('this');
+        expect(blockBodyText(document)).not.toContain('hidden');
+        expect(blockBodyText(document)).not.toContain('block');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    test('e2e: reference STRING with // tokenizes, parses, and keeps path text', async () => {
+        const services = createReqlanServices(EmptyFileSystem);
+        const input = `demo {\n    ["a reference containing '//' that doesn't start a comment"]\n    ["https://host/file.rq".idea]\n}`;
+        const tokens = services.Reqlan.parser.Lexer.tokenize(input);
+        expect(tokens.tokens.some(token => token.tokenType.name === 'STRING' && token.image.includes('//'))).toBe(true);
+        const document = await expectValid(input);
+        const refs = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(node => node.$type === 'BracketReference')
+            .map(node => node.$cstNode?.text);
+        expect(refs).toEqual(expect.arrayContaining([
+            `["a reference containing '//' that doesn't start a comment"]`,
+            '["https://host/file.rq".idea]'
+        ]));
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    test('e2e: meta comment after reference still hides trailing text', async () => {
+        const document = await expectValid('demo {\n    ["path.rq".idea] // meta only\n    keep\n}');
+        expect(blockBodyText(document)).toContain('keep');
+        expect(blockBodyText(document)).not.toContain('meta only');
+    });
 });

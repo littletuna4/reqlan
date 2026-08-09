@@ -134,7 +134,113 @@ import_tokenisation {
 }
 
 wildcard_references {
-    Wildcard references use regex to match ideasets or namespaces or symbols.
-    They might refer to all files in a directory, or all files with a specific 
-    @todo
+    Qualified path + idea-pattern references match multiple ideas across files.
+    Surface forms: bracket `[…]` and wikilink `[[…]]` (same `WildcardReference` target).
+    Path is a quoted string that may include shell-style globs (`*`, `**`, `?`) and `@/` import-root aliases
+    ([configuration_import_root_alias]). Relative globs resolve against the defining document directory;
+    `.` / `..` segments are collapsed before matching.
+    Idea pattern is an unquoted `WILDCARD_NAME` that must contain at least one `*` or `?`
+    (e.g. `import_*`, `*_pane`, `widget_*_v2`). Exact `["./file.rq".idea]` stays ["./syntax.rq".reference_qualified].
+    Matching uses anchored globs (not full JS regex): path `*` is one segment, `**` crosses segments;
+    idea `*` / `?` match within the idea name. Zero matches produce a warning diagnostic.
+    Path segment `/**/` must not be lexed as an empty block comment — see ["./syntax.rq".comments].
+    Lexer note: `ID` is a prefix of many wildcard names (`import_` vs `import_*`); the token builder
+    sets `ID.LONGER_ALT = WILDCARD_NAME` so `import_*` is one token. Body prose `*` tokens are accepted
+    via `WILDCARD_NAME` in PlainText so ordinary `*` characters still parse.
+    Without that longer-alt, a live wildcard inside a block body can fail Idea recovery and leave later
+    top-level ideas unindexed (soft mtime sync will not rebuild until the `.rq` file changes).
+    Navigation does not emit N LocationLinks — document links and go-to open
+    `reqlan.openWildcardReference` with `{ pathPattern, ideaPattern, fromUri }` (see [wildcard_references_webview]).
+    Indexing (["../indexer/indexer.rq".index]) fans out to one resolved `references` edge per matching catalog idea;
+    empty catalog / zero matches yield a single unresolved edge labeled with the pattern text.
+    LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
+    Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink].
+
+    Illustrative forms (fenced so this file does not embed live wildcards):
+    ```
+    ["../extension/**/*.rq".*_pane]
+    ["./modules/*.rq".import_*]
+    [["./mods/*.rq".widget_*|widgets]]
+    ```
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-wildcard-resolve.ts"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+        ["../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../packages/analytical/src/index-store/workspace-index-file.ts"]
+        ["../../packages/extension/src/language/main.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/wildcard-references.test.ts"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: tokenize → parse → resolve → document link → definition → command args"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: imports.rq captures wildcard ideas with status and implementation"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: extractIndexedDocument fans out edges for matching catalog ideas"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: imports.rq extract includes webview and path_filter ideas"]
+    )
+}
+
+wildcard_references_webview {
+    On traversal of a [wildcard_references] target (document-link click or go-to-definition middleware),
+    the extension runs `reqlan.openWildcardReference` and opens a dedicated **wildcard matches** webview
+    (beside the editor) that lists:
+    - Stats: matching idea count, distinct file count, and @status breakdown
+    - Requirements: each matching idea with name, status, path, and summary (click opens the idea)
+    - Files: each matching file with idea count (click opens the file)
+    Secondary action **Open in Search** seeds the activity-bar
+    ["../extension/module/activitybar-panels/search.rq".search_pane] via `focusIdeaSearch` with:
+    - `query`: idea pattern with glob meta softened for fuzzy search (`import_*` → `import`)
+    - `pathFilter`: the path glob as a hard AND filter ([idea_path_filter])
+    Payload builder: `buildWildcardMatchesPayload` filters the index catalog by idea glob + path filter.
+    Protocol for the matches panel is inline host↔webview (`init` / `openIdea` / `openFile` / `openSearch`).
+    Middleware short-circuits definition when `reqlan/wildcardReferenceAt` returns a pattern;
+    document-link clicks use the same command URI shape as the language document-link provider.
+    Highlighting of the source reference must stay link-styled — see
+    ["../extension/syntax/features-syntax.rq".syntax_highlighting] and
+    ["../extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting].
+
+    @status done
+    @implementation (
+        ["../../packages/extension/src/extension/register-wildcard-reference-handling.ts"]
+        ["../../packages/extension/src/extension/wildcard-matches-panel.ts"]
+        ["../../packages/extension/src/extension/main.ts"]
+        ["../../packages/extension/src/activity_bar_module/wildcard-matches-payload.ts"]
+        ["../../packages/extension/src/activity_bar_module/idea-path-filter.ts"]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: buildWildcardMatchesPayload lists stats, ideas, and files"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: wildcardSearchSeed maps command args to focusIdeaSearch payload"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: command args → seed → pathFilter gates search hits"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: tokenize → parse → resolve → document link → definition → command args"]
+        ["../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+    )
+}
+
+idea_path_filter {
+    Shared path-filter helper for [wildcard_references_webview] search seeding.
+    Glob or substring match against workspace-relative path and file URI; leading `./` / `../`
+    segments are stripped for relative filters; `**/` is implied when the filter has glob meta
+    but is not already rooted with `**/`.
+    Used only as a hard AND after fuzzy ranking — it never replaces the idea-name query.
+
+    @status done
+    @implementation (
+        ["../../packages/extension/src/activity_bar_module/idea-path-filter.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: command args → seed → pathFilter gates search hits"]
+    )
 }

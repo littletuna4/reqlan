@@ -33,6 +33,7 @@ import {
     isInvalidFromImport,
     isLocalReference,
     isQualifiedReference,
+    isWildcardReference,
     type FileReference,
     type FileSymbolReference,
     type Import,
@@ -41,6 +42,7 @@ import {
 } from './generated/ast.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { findWildcardReferenceAtPosition } from './reqlan-wildcard-resolve.js';
 
 export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
 
@@ -69,6 +71,11 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         if (isMarkdownLinkLabelPosition(document, params.position)) {
             return undefined;
         }
+        // Wildcard refs open the activity-bar search pane via extension command (document link / middleware).
+        const offset = document.textDocument.offsetAt(params.position);
+        if (findWildcardReferenceAtPosition(document, offset)) {
+            return undefined;
+        }
         const commentPart = findCommentReferencePartAt(document, params.position);
         if (commentPart?.property === 'idea') {
             return this.createCommentIdeaReferenceLinks(document, commentPart.reference);
@@ -81,7 +88,11 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
             this.pathContext()
         );
         if (fileReference) {
-            if (fileReference.resolution === 'folder' || fileReference.resolution === 'missing') {
+            if (
+                fileReference.resolution === 'folder'
+                || fileReference.resolution === 'missing'
+                || fileReference.resolution === 'wildcard'
+            ) {
                 return undefined;
             }
             return [this.resolvedFileLinkToLocationLink(fileReference)];
@@ -137,8 +148,13 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
                 }
                 return false;
             }
-            // FileReference / FileSymbolReference / Import → not idea refs, stop.
-            if (isFileReference(node) || isFileSymbolReference(node) || isImport(node)) {
+            // FileReference / FileSymbolReference / Import / WildcardReference → not idea refs, stop.
+            if (
+                isFileReference(node)
+                || isFileSymbolReference(node)
+                || isImport(node)
+                || isWildcardReference(node)
+            ) {
                 return false;
             }
             current = current.container;

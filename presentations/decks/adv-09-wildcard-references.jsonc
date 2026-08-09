@@ -1,0 +1,95 @@
+// Deck: adv-09-wildcard-references — authored JSONC; sync emits runtime decks/adv-09-wildcard-references.json for the player.
+{
+  "id": "adv-09-wildcard-references",
+  "title": "Wildcard references",
+  "series": "advanced",
+  "transition": "fade",
+  "slides": [
+    {
+      "id": "title",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "kicker": "Advanced · 09",
+        "heading": "Wildcard references",
+        "body": "One pattern. Many matches. Same graph.",
+        "asset": "logo"
+      },
+      "notes": "Path glob plus idea pattern — fan-out without naming every neighbour."
+    },
+    {
+      "id": "one-stroke",
+      "transition": "none",
+      "background": "brand-contrast",
+      "content": {
+        "heading": "One stroke, a set",
+        "body": "Exact links name a neighbour. Wildcards name membership.",
+        "code": "See [\"../extension/**/*.rq\".*_pane]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Quoting the path keeps globs out of comment syntax."
+    },
+    {
+      "id": "shape",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Path plus pattern",
+        "body": "Path may use * ** ?. Idea token must include * or ?.",
+        "code": "[\"./mods/*.rq\".import_*]",
+        "code_lang": "rq",
+        "code_label": ".rq"
+      },
+      "notes": "Exact [\"file.rq\".idea] stays a qualified reference."
+    },
+    {
+      "id": "matches-panel",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Matches panel",
+        "body": "Stats, requirements, files — click to open. Search stays optional.",
+        "asset": "activity-bar"
+      },
+      "notes": "Go-to opens the panel, not N LocationLinks."
+    },
+    {
+      "id": "judgement",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Judgement",
+        "body": "Wildcard when the set is the contract. Exact when one neighbour must not drift.",
+      },
+      "notes": "Membership vs identity — pick the arrow that matches the intent."
+    },
+    {
+      "id": "try-this",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Try this",
+        "body": "Add [\"../reqs/**/*.rq\".*_checklist] from a surface idea and open the matches panel.",
+        "fragments": [
+          "Write the idea · link the neighbour · ship the slice"
+        ]
+      },
+      "notes": "End of the advanced deep dives — habits over more syntax."
+    },
+    {
+      "id": "end",
+      "transition": "fade",
+      "background": "brand-dark",
+      "content": {
+        "heading": "Write the idea",
+        "body": "Link the neighbour. Ship the slice.",
+        "asset": "logo",
+        "fragments": [
+          "Back to tutorials · site · docs · marketplace"
+        ]
+      },
+      "notes": "Thanks for watching the advanced series."
+    }
+  ]
+}

@@ -2,8 +2,8 @@ from "../constitution.rq" import mission_statement, llm_first, vsc_first, genera
 from "../brand.rq" import brand
 from "../ui.rq" import show_dont_tell
 from "../ontology.rq" import idea, ideaset, file, base, reference, attribute, attribute_body, cartographic_map, extension, referenced_files, configuration
-from "../language/syntax.rq" import simple_idea, block_idea, reference_brackets, reference_wikilink
-from "../language/imports.rq" import import_from, import_namespace
+from "../language/syntax.rq" import simple_idea, block_idea, reference_brackets, reference_wikilink, reference_qualified
+from "../language/imports.rq" import import_from, import_namespace, wildcard_references, wildcard_references_webview
 from "../language/attributes.rq" import attribute_configuration
 from "../bases/base.rq" import base as base_detail, create_base_onboarding, base_nesting, multi_base_environment, implied_context
 from "../extension/onboarding/page-thanks-for-installing.rq" import installation_event
@@ -189,7 +189,8 @@ slide_decks (
     adv_05_comment_references,
     adv_06_html_export,
     adv_07_cli_and_mcp,
-    adv_08_modelling_patterns
+    adv_08_modelling_patterns,
+    adv_09_wildcard_references
 )
 
 // --- Get started series -------------------------------------------------------
@@ -1599,17 +1600,19 @@ advanced_series (
     adv_05_comment_references,
     adv_06_html_export,
     adv_07_cli_and_mcp,
-    adv_08_modelling_patterns
+    adv_08_modelling_patterns,
+    adv_09_wildcard_references
 )
 
 advanced_series_brief {
-    Advanced series: eight episodes in [advanced_series], about 8–12 minutes each, plus [adv_overview].
+    Advanced series: nine episodes in [advanced_series], about 8–12 minutes each, plus [adv_overview].
     Assumes get-started fluency and ideally [concepts_series] vocabulary (or equivalent).
     Goal: multi-file graphs, purposeful attributes, cartographic navigation, AI token discipline,
-    code-comment traceability, HTML publishing, headless CLI/MCP craft (beyond [con_03_cli]), and modelling patterns that stay readable.
+    code-comment traceability, HTML publishing, headless CLI/MCP craft (beyond [con_03_cli]),
+    modelling patterns that stay readable, and wildcard references that fan out across files.
     Include at least one non-software vignette (ops runbook or editorial brief) to honour [general_purpose].
     Bases appear as craft judgement (active base, nested boundaries) — not a second create-base lesson.
-    Decks: [adv_overview] and adv_01–adv_08 under [slide_decks].
+    Decks: [adv_overview] and adv_01–adv_09 under [slide_decks].
     @status draft
     @tags (
         advanced
@@ -1618,7 +1621,7 @@ advanced_series_brief {
 
 adv_overview {
     Audience: viewers who finished get-started and concepts (or equivalent) and want the map of craft themes before committing to a deep dive.
-    Outcome: name the eight advanced themes, understand how they connect to get-started discipline, and pick a first episode.
+    Outcome: name the nine advanced themes, understand how they connect to get-started discipline, and pick a first episode.
     Runtime: 3–4 min.
     Demo: `reqlan-tutorials-demo` at advanced baseline — multi-file graph, `.reqlan` present, no new files typed; montage only.
     Related: [advanced_series_brief] [general_purpose] [llm_first] [concepts_series] [base] [multi_base_environment]
@@ -1633,6 +1636,7 @@ adv_overview {
         // 06 HTML export          → graph leaves the editor
         // 07 CLI/MCP              → same index, headless agents
         // 08 modelling patterns   → habits that age well (+ non-software vignette)
+        // 09 wildcard references  → one pattern, many matches
         ```
     }
     @script {
@@ -1641,16 +1645,9 @@ adv_overview {
         VO: You already know the loop — name ideas, link neighbours, create a base, inspect locally, ask with a small slice.
             Advanced reqlan is not a second install tour. It is judgement about how graphs scale without becoming noise.
 
-        SCR: Theme map slide builds one tile at a time: imports, attributes, graph maps, context, comment links, export, CLI/MCP, modelling.
+        SCR: Theme map slide builds one tile at a time: imports, attributes, graph maps, context, comment links, export, CLI/MCP, modelling, wildcards.
 
-        VO: Eight themes ahead. Imports and ideasets keep multi-file graphs honest.
-            Attributes and plans stay slim unless they drive a view.
-            Ideas Summary is a map you choose — not a mandatory god's-eye dump.
-            Context and tokens carry forward the get-started habit: small slices beat whole-repo pastes.
-            Comment references close the loop from code back to requirements.
-            HTML export and CLI/MCP share the same analytical core — different hosts, same graph.
-            Modelling patterns tie it together — including work that is not software.
-
+        VO: Nine themes ahead. Imports and ideasets keep multi-file graphs honest.
         SCR: Quick beat on active base picker / `.reqlan` in Explorer — no create-base CTA. Nested base shown as dashed boundary on slide only.
 
         VO: Bases show up here as craft, not ceremony. One active base at a time.
@@ -1691,10 +1688,10 @@ adv_overview {
             id map
             transition slide
             background brand-panel
-            heading Eight themes ahead
-            body Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling patterns
+            heading Nine themes ahead
+            body Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling · wildcards
             code_lang rq
-            code from "./auth.rq" import login_api · @status in-progress · Ideas Summary graph · rq:[password_rules]
+            code from "./auth.rq" import login_api · ["../ui/**/*.rq".*_pane] · rq:[password_rules]
             notes Each theme has its own deck. Ontology, extension map, and CLI live in Concepts.
         }
         {
@@ -2773,9 +2770,9 @@ adv_08_modelling_patterns {
             transition slide
             background brand-panel
             heading Series recap
-            body Imports · attributes · maps · context · comments · export · CLI · patterns
+            body Imports · attributes · maps · context · comments · export · CLI · patterns · wildcards next
             asset montage-ide
-            notes Eight themes converge on readable graphs for people and models.
+            notes Eight themes so far — wildcards close the series.
         }
         {
             id vignette
@@ -2834,6 +2831,116 @@ adv_08_modelling_patterns {
             heading Write the idea
             body Link the neighbour. Ship the slice.
             asset logo
+            fragments Next — Wildcard references
+            notes Thanks for watching the advanced series.
+        }
+    )
+}
+
+adv_09_wildcard_references {
+    Audience: authors with multi-file graphs who keep typing the same neighbour names — panes, widgets, status ideas — across folders.
+    Outcome: write a path+idea wildcard; navigate it to the matches panel; read stats and open a hit; know when an exact qualified link still wins.
+    Runtime: 8–10 min.
+    Demo: advanced baseline with several `*_pane` ideas under `reqs/extension/` (or mock `panels/`); caret in a surface idea that should cite them all; index ready.
+    Related: [wildcard_references] [wildcard_references_webview] [reference_qualified] [adv_01_imports_ideasets]
+    @example {
+        ```rq
+        extension_surface {
+            Panes live across files — open the set, not each name by hand.
+            See ["../extension/**/*.rq".*_pane]
+            @status done
+        }
+        ```
+    }
+    @script {
+        SCR: Split: Explorer shows several `*_pane` ideas in different `.rq` files under `reqs/extension/`. Surface idea open with no wildcard yet.
+
+        VO: Exact links name one neighbour. Wildcards name a set —
+            path glob, then idea pattern. One stroke when the set is the point.
+
+        SCR: In `extension_surface`, type `See ["../extension/**/*.rq".*_pane]`. Save. Link paints as a reference — not comment-grey.
+
+        VO: The quoted path may use `*`, `**`, and `?`. The idea token must include a wildcard —
+            `*_pane`, `import_*`, `widget_*_v2`. Exact `["./file.rq".idea]` stays an ordinary qualified link.
+
+        SCR: Ctrl/Cmd-click the wildcard. Matches panel opens beside the editor — idea count, file count, status chips, requirement list.
+
+        VO: Navigation does not dump N go-to locations. It opens a panel: stats first, then the requirements and files that matched.
+            Click a row to open that idea. Optional: Open in Search seeds the activity bar with the same path filter.
+
+        SCR: Misconception beat: replace the wildcard with three hand-typed exact refs. Then undo — show the fan-out edge in Ideas Summary / references.
+
+        VO: Prefer wildcards when membership is the contract — every pane, every import_* idea under a folder.
+            Prefer exact links when one neighbour must never drift with a rename pattern.
+
+        VO: Try this: add `["./reqs/**/*.rq".*_checklist]` from a product surface idea and open the matches panel.
+
+        SCR: End card → "Write the idea. Link the neighbour. Ship the slice." — series close.
+    }
+    @slides (
+        {
+            id title
+            transition fade
+            background brand-dark
+            kicker Advanced · 09
+            heading Wildcard references
+            body One pattern. Many matches. Same graph.
+            asset logo
+            notes Path glob plus idea pattern — fan-out without naming every neighbour.
+        }
+        {
+            id one-stroke
+            transition none
+            background brand-contrast
+            heading One stroke, a set
+            body Exact links name a neighbour. Wildcards name membership.
+            code_lang rq
+            code See ["../extension/**/*.rq".*_pane]
+            notes Quoting the path keeps globs out of comment syntax.
+        }
+        {
+            id shape
+            transition none
+            background brand-panel
+            heading Path plus pattern
+            body Path may use * ** ?. Idea token must include * or ?.
+            code_lang rq
+            code ["./mods/*.rq".import_*]
+            notes Exact ["file.rq".idea] stays a qualified reference.
+        }
+        {
+            id matches-panel
+            transition fade
+            background brand-panel
+            heading Matches panel
+            body Stats, requirements, files — click to open. Search stays optional.
+            asset activity-bar
+            notes Go-to opens the panel, not N LocationLinks.
+        }
+        {
+            id judgement
+            transition fade
+            background brand-panel
+            heading Judgement
+            body Wildcard when the set is the contract. Exact when one neighbour must not drift.
+            notes Membership vs identity — pick the arrow that matches the intent.
+        }
+        {
+            id try-this
+            transition fade
+            background brand-dark
+            heading Try this
+            body Add ["../reqs/**/*.rq".*_checklist] from a surface idea and open the matches panel.
+            fragments Write the idea · link the neighbour · ship the slice
+            notes End of the advanced deep dives — habits over more syntax.
+        }
+        {
+            id end
+            transition fade
+            background brand-dark
+            heading Write the idea
+            body Link the neighbour. Ship the slice.
+            asset logo
             fragments Back to tutorials · site · docs · marketplace
             notes Thanks for watching the advanced series.
         }
@@ -2843,7 +2950,7 @@ adv_08_modelling_patterns {
 // --- Production notes ---------------------------------------------------------
 
 tutorial_production {
-    Recording order: get-started 01→07, concepts 01→03, then advanced overview → 01→08; pickups allowed out of order.
+    Recording order: get-started 01→07, concepts 01→03, then advanced overview → 01→09; pickups allowed out of order.
     Before each take: reset `reqlan-tutorials-demo` to the Demo pre-state listed on the episode; confirm hop depth / filters are at defaults.
     Slide decks for [slide_decks] live under ["../../presentations/"] as authored JSONC plus generated runtime JSON and a shared player shell.
     After editing `@slides`, rewrite the matching `presentations/decks/<id>.jsonc`, update catalog blurbs in ["../../presentations/manifest.jsonc"],

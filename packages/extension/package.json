@@ -327,6 +327,11 @@
                 "title": "Open Folder Reference"
             },
             {
+                "command": "reqlan.openWildcardReference",
+                "title": "Open Wildcard Reference Matches",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.openIdeasSummary",
                 "title": "Open Ideas Summary",
                 "category": "Reqlan",

@@ -15,6 +15,12 @@ const importPath = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 const id = '[A-Za-z_][\\w-]*';
 const quotedName = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 const ideaName = `(?:(${id})|(${quotedName}))`;
+// Matches WILDCARD_NAME: must contain * or ? (see reqlan.langium).
+const wildcardName = '(?:\\*[\\w*?-]*|\\?[\\w*?-]*|[A-Za-z_][\\w-]*[*?][\\w*?-]*)';
+const quotedPath = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
+// Path + optional .ID / .WILDCARD_NAME segments (qualified + wildcard refs).
+const bracketPathRef = `\\[(${quotedPath})(?:\\.(?:${id}|${wildcardName}))*\\]`;
+const wikiPathRef = `\\[\\[(${quotedPath})(?:\\.(?:${id}|${wildcardName}))(\\|[^\\]]+)?\\]\\]`;
 
 const removedRootIncludes = new Set([
     '#import-keywords',
@@ -92,7 +98,8 @@ grammar.repository.comments = {
     patterns: [
         {
             name: 'comment.block.reqlan',
-            begin: '/\\*(?!/)',
+            // Reject empty slash-star-star-slash (recursive glob segment), same as ML_COMMENT lexer.
+            begin: '/\\*(?!\\*/)',
             beginCaptures: {
                 '0': { name: 'punctuation.definition.comment.reqlan' }
             },
@@ -138,12 +145,25 @@ grammar.repository.attributes = {
 };
 
 grammar.repository.wikilinks = {
-    name: 'markup.underline.link.reqlan',
-    match: '\\[\\[([^\\]|]+)(\\|[^\\]]+)?\\]\\]',
-    captures: {
-        '1': { name: 'entity.name.tag.reference.reqlan' },
-        '2': { name: 'string.other.link.title.reqlan' }
-    }
+    patterns: [
+        {
+            name: 'markup.underline.link.reqlan',
+            match: wikiPathRef,
+            captures: {
+                '1': { name: 'string.other.link.reqlan' },
+                '2': { name: 'entity.name.tag.reference.reqlan' },
+                '3': { name: 'string.other.link.title.reqlan' }
+            }
+        },
+        {
+            name: 'markup.underline.link.reqlan',
+            match: '\\[\\[([^\\]|]+)(\\|[^\\]]+)?\\]\\]',
+            captures: {
+                '1': { name: 'entity.name.tag.reference.reqlan' },
+                '2': { name: 'string.other.link.title.reqlan' }
+            }
+        }
+    ]
 };
 
 grammar.repository['markdown-links'] = {
@@ -165,7 +185,7 @@ grammar.repository['idea-bracket-references'] = {
 
 grammar.repository['bracket-references'] = {
     name: 'markup.underline.link.reqlan',
-    match: '\\[(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')(?:\\.[A-Za-z_][\\w-]*)*\\]',
+    match: bracketPathRef,
     captures: {
         '1': { name: 'string.other.link.reqlan' }
     }
@@ -182,24 +202,24 @@ grammar.repository['code-snippets'] = {
 
 grammar.repository['one-liner-body'] = {
     patterns: [
-        { include: '#comments' },
         { include: '#wikilinks' },
         { include: '#markdown-links' },
-        { include: '#idea-bracket-references' },
         { include: '#bracket-references' },
-        { include: '#code-snippets' }
+        { include: '#idea-bracket-references' },
+        { include: '#code-snippets' },
+        { include: '#comments' }
     ]
 };
 
 grammar.repository['block-inner'] = {
     patterns: [
-        { include: '#comments' },
         { include: '#attributes' },
         { include: '#wikilinks' },
         { include: '#markdown-links' },
-        { include: '#idea-bracket-references' },
         { include: '#bracket-references' },
+        { include: '#idea-bracket-references' },
         { include: '#code-snippets' },
+        { include: '#comments' },
         { include: '#named-block-item' },
         { include: '#named-list' },
         { include: '#nested-list' },

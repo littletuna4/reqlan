@@ -20,6 +20,8 @@ definition {
 
 index {
     The ideas graph indexer: parse `.rq` with `@reqlan/language`, extract ideas/edges, persist to sql.js SQLite.
+    Wildcard path+idea refs (["../language/imports.rq".wildcard_references]) expand to one `references` edge per catalog match
+    during extract (`idea-extractor`); unresolved when the catalog has zero hits.
     Owned by [ownership]; consumed per [consumption].
 }
 

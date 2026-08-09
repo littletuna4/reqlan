@@ -27,6 +27,33 @@ reference_document_links {
     @status done
 }
 
+wildcard_reference_highlighting {
+    Bracket and wikilink forms of ["../../language/imports.rq".wildcard_references]
+    (`["path/**/*.rq".idea_*]`, `[["path/*.rq".*_pane|label]]`) must TextMate-scope as
+    `markup.underline.link.reqlan` with the path as `string.other.link.reqlan` — never as
+    `comment.block.reqlan`. The grey "comment" paint happened when `#bracket-references` only
+    allowed ID suffixes, so `/*` inside an unmatched path opened a block comment.
+    Fixes: TextMate `#bracket-references` / wiki path patterns accept `WILDCARD_NAME` suffixes;
+    `#comments` block begin rejects empty slash-star-star-slash; body rules try references before
+    comments. Semantic tokens paint `WildcardReference.pathPattern` as string and `ideaPattern`
+    as variable (["./features-syntax.rq".syntax_highlighting]).
+    Related: ["../../language/syntax.rq".comments], ["../../language/imports.rq".wildcard_references_webview].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../../packages/language/test/textmate-wildcard-highlight.test.ts:e2e: bracket wildcard path ref matches link scope and not block comment"]
+        ["../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+        ["../../../packages/language/test/semantic-tokens-wildcard.test.ts:e2e: WildcardReference emits string + variable tokens"]
+        ["../../../packages/language/test/comment-in-string.test.ts:e2e: /**/ glob survives tokenize → parse in prose, naked quotes, and reference STRING"]
+    )
+}
+
 reference_goto_definition_speed {
     Go-to-definition on any resolved idea bracket-reference must be instant — same-file refs must not
     be slower than cross-file ones, and neither should require a full document text scan at click time.

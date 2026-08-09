@@ -24,10 +24,14 @@ search_pane {
     - Empty query: prompt to type (do not dump the full idea catalog into the pane).
     - Soft-wait when the index is not ready; scoped errors stay in the pane.
     - Loading UX: [search_progress].
+    - Host may seed the pane via `focusIdeaSearch` (query + optional pathFilter) from the
+      wildcard-matches webview **Open in Search** action
+      (["../../../language/imports.rq".wildcard_references_webview]).
     Implemented by [SearchPane] under [CollapsiblePane]; host wire in [activity_bar_webview] / [activity_bar_messages] / [app_state].
     @tests (
         ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
         ["../../../../packages/extension/test/insert-idea-reference.test.ts"]
+        ["../../../../packages/extension/test/wildcard-reference-open-search.test.ts"]
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]

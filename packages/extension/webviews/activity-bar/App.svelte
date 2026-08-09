@@ -45,6 +45,17 @@
 
     let fillAlone = $derived(shouldFillAlone(paneState));
 
+    $effect(() => {
+        const request = app.ideaSearchExpandRequest;
+        if (request <= 0) {
+            return;
+        }
+        if (!paneState.search) {
+            paneState = { ...paneState, search: true };
+            app.persistViewState({ panes: paneState, heights: paneHeights });
+        }
+    });
+
     function handlePaneToggle(id: string, expanded: boolean): void {
         paneState = { ...paneState, [id]: expanded };
         app.persistViewState({ panes: paneState, heights: paneHeights });

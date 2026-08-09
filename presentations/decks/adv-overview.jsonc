@@ -33,9 +33,9 @@
       "transition": "slide",
       "background": "brand-panel",
       "content": {
-        "heading": "Eight themes ahead",
-        "body": "Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling patterns",
-        "code": "from \"./auth.rq\" import login_api · @status in-progress · Ideas Summary graph · rq:[password_rules]",
+        "heading": "Nine themes ahead",
+        "body": "Imports · attributes · graph maps · context · comment links · HTML export · CLI/MCP · modelling · wildcards",
+        "code": "from \"./auth.rq\" import login_api · [\"../ui/**/*.rq\".*_pane] · rq:[password_rules]",
         "code_lang": "rq",
         "code_label": ".rq"
       },

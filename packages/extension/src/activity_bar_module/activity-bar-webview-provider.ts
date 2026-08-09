@@ -35,6 +35,7 @@ import type {
     ExtensionToActivityBarMessage,
     IdeasSummaryIntent
 } from './activity-bar-messages.js';
+import { matchesIdeaPathFilter } from './idea-path-filter.js';
 import { insertIdeaReferenceAtCursor } from '../extension/insert-idea-reference.js';
 import { openChatWithText } from '../ai_commands_module/open-chat.js';
 
@@ -44,6 +45,12 @@ const EDITOR_DEBOUNCE_MS = 250;
 const NAVIGATION_QUIET_MS = 450;
 const IDEA_SEARCH_LIMIT = 40;
 const TODO_LIST_LIMIT = 40;
+
+let activeActivityBarProvider: ActivityBarWebviewProvider | undefined;
+
+export function getActivityBarWebviewProvider(): ActivityBarWebviewProvider | undefined {
+    return activeActivityBarProvider;
+}
 
 function yieldEventLoop(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, 0));
@@ -182,6 +189,20 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
 
     private post(message: ExtensionToActivityBarMessage): void {
         void this.view?.webview.postMessage(message);
+    }
+
+    /**
+     * Focus the activity-bar Search pane with a seeded query and optional path filter.
+     * rq:["../../../../reqlan rq/language/imports.rq".wildcard_references_webview]
+     */
+    async openSearch(options: { query: string; pathFilter?: string }): Promise<void> {
+        await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
+        this.post({
+            type: 'focusIdeaSearch',
+            query: options.query,
+            pathFilter: options.pathFilter,
+            expand: true
+        });
     }
 
     private postEditorContext(): void {
@@ -585,7 +606,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'searchIdeas':
                     // Fire-and-forget: scoring runs in a worker; do not block the message loop.
-                    void this.searchIdeas(message.query, requestId);
+                    void this.searchIdeas(message.query, requestId, message.pathFilter);
                     break;
                 case 'loadTodos':
                     await this.loadTodos(requestId);
@@ -931,7 +952,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         void this.refreshFromEditor();
     }
 
-    private async searchIdeas(query: string, requestId?: number): Promise<void> {
+    private async searchIdeas(query: string, requestId?: number, pathFilter?: string): Promise<void> {
         if (!this.submodule.index.isReady) {
             this.post({
                 type: 'error',
@@ -983,29 +1004,38 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 return;
             }
             postProgress('search', 'Scoring ideas…');
-            const { hits, total, truncated } = await this.getSearchWorker().search(
+            // Over-fetch when path filtering so the visible page can still fill.
+            const fetchLimit = pathFilter?.trim()
+                ? Math.max(IDEA_SEARCH_LIMIT * 8, 200)
+                : IDEA_SEARCH_LIMIT;
+            const { hits } = await this.getSearchWorker().search(
                 trimmed,
                 searchRequestId,
-                { limit: IDEA_SEARCH_LIMIT, requireQuery: true }
+                { limit: fetchLimit, requireQuery: true }
             );
             if (epoch !== this.ideaSearchEpoch) {
                 return;
             }
+            const mapped = hits.map(hit => ({
+                id: hit.id,
+                name: hit.name,
+                kind: hit.kind,
+                path: vscode.workspace.asRelativePath(hit.fileUri),
+                summary: hit.summary,
+                fileUri: hit.fileUri,
+                lineStart: hit.lineStart
+            }));
+            const filtered = pathFilter?.trim()
+                ? mapped.filter(hit => matchesIdeaPathFilter(hit.path, hit.fileUri, pathFilter))
+                : mapped;
+            const results = filtered.slice(0, IDEA_SEARCH_LIMIT);
             this.post({
                 type: 'ideaSearchResults',
                 payload: {
                     query: trimmed,
-                    total,
-                    truncated,
-                    results: hits.map(hit => ({
-                        id: hit.id,
-                        name: hit.name,
-                        kind: hit.kind,
-                        path: vscode.workspace.asRelativePath(hit.fileUri),
-                        summary: hit.summary,
-                        fileUri: hit.fileUri,
-                        lineStart: hit.lineStart
-                    }))
+                    total: filtered.length,
+                    truncated: filtered.length > results.length,
+                    results
                 },
                 requestId
             });
@@ -1156,6 +1186,7 @@ export function registerActivityBarWebview(
         activationGeneration,
         onPainted
     );
+    activeActivityBarProvider = provider;
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
             webviewOptions: { retainContextWhenHidden: true }
@@ -1177,7 +1208,14 @@ export function registerActivityBarWebview(
         vscode.commands.registerCommand('reqlan.openIdeaFromActivityBar', async (fileUri: string, line: number) => {
             await openIndexFile(fileUri, line);
         }),
-        { dispose: () => provider.disposeSubscriptions() }
+        {
+            dispose: () => {
+                provider.disposeSubscriptions();
+                if (activeActivityBarProvider === provider) {
+                    activeActivityBarProvider = undefined;
+                }
+            }
+        }
     );
     return provider;
 }

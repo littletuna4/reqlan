@@ -1,11 +1,13 @@
 /**
- * Custom token builder so line comments do not match `//` in URLs or inside string literals,
- * and so `@` only introduces attributes at the start of a line.
+ * Custom token builder so line/block comments do not match inside string literals,
+ * empty slash-star-star-slash glob segments do not steal path text, and `@` only
+ * introduces attributes at the start of a line.
  */
 import type { Grammar } from 'langium';
 import { DefaultTokenBuilder, type TokenBuilderOptions } from 'langium';
 
 const SL_COMMENT_PATTERN = /\/\/[^\n\r]*/y;
+const ML_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//y;
 
 function isInsideNakedQuote(text: string, offset: number): boolean {
     let inDouble = false;
@@ -51,6 +53,28 @@ const slCommentPattern = (text: string, offset: number): RegExpExecArray | null 
     }
     SL_COMMENT_PATTERN.lastIndex = offset;
     return SL_COMMENT_PATTERN.exec(text);
+};
+
+// Block comments must not open inside quotes. Reject the empty four-character
+// slash-star-star-slash form so recursive globs like ../mod/**/*.rq stay path text
+// in prose and naked quotes (reference STRING paths already consume the whole literal).
+const mlCommentPattern = (text: string, offset: number): RegExpExecArray | null => {
+    if (text.charCodeAt(offset) !== 47 || text.charCodeAt(offset + 1) !== 42) {
+        return null;
+    }
+    if (isInsideNakedQuote(text, offset)) {
+        return null;
+    }
+    ML_COMMENT_PATTERN.lastIndex = offset;
+    const match = ML_COMMENT_PATTERN.exec(text);
+    if (!match) {
+        return null;
+    }
+    // /* immediately followed by */ — recursive glob segment, not a comment.
+    if (match[0].length === 4) {
+        return null;
+    }
+    return match;
 };
 
 function makeMatch(text: string, offset: number, length: number): RegExpExecArray {
@@ -558,6 +582,16 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             };
             other.LINE_BREAKS = false;
         }
+        // ID is a prefix of WILDCARD_NAME (e.g. import_ vs import_*) — require longer-alt check.
+        const idToken = tokens.find(entry => entry.name === 'ID');
+        const wildcardToken = tokens.find(entry => entry.name === 'WILDCARD_NAME');
+        if (idToken && wildcardToken) {
+            const existing = idToken.LONGER_ALT;
+            const alts = Array.isArray(existing) ? existing : existing ? [existing] : [];
+            if (!alts.includes(wildcardToken)) {
+                idToken.LONGER_ALT = [...alts, wildcardToken];
+            }
+        }
         return tokens;
     }
 
@@ -568,6 +602,14 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
                 GROUP: 'hidden',
                 LINE_BREAKS: true,
                 PATTERN: slCommentPattern
+            };
+        }
+        if (terminal.name === 'ML_COMMENT') {
+            return {
+                name: 'ML_COMMENT',
+                GROUP: 'hidden',
+                LINE_BREAKS: true,
+                PATTERN: mlCommentPattern
             };
         }
         if (terminal.name === 'MARKDOWN_LINK') {

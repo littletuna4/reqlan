@@ -1,0 +1,204 @@
+import "../extension/architecture.rq" as extension_architecture
+import "../extension/module/webview.rq" as webview_doc
+import "../development/core.rq" as development_core
+import "../core-architecture.rq" as core_architecture
+
+scope {
+    TypeScript package standards for `packages/extension` (npm `reqlan-extension`), especially UI state.
+    Complements [development_core.rust_mindset] and [extension_architecture.state_machine_mindset].
+    Webview inventory: [webview_doc.webview]. Package role: [core_architecture.extension_package].
+
+    @apply_to (
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/module/**/*.rq".*webview*]
+        ["../extension/module/ideas_summary/*.rq".*]
+    )
+}
+
+ui_state_management {
+    Extension UI state is explicit, typed, and layered — not a single global store shared across host and webview.
+    Choose the layer by lifetime and owner:
+    - Host session / durable prefs live in the extension process (`ExtensionContext`, plain modules).
+    - Webview view-models live in Svelte 5 runes (`$state` / `$derived` / `$effect`).
+    - Cross-boundary traffic uses typed `postMessage` contracts only.
+    Prefer small state machines (named phases, request ids, clear transitions) over ad-hoc flags.
+    Related: [webview_app_state], [persistence_tiers], [zustand_boundary], [host_webview_ownership].
+
+    @status done
+    @apply_to (
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/module/**/*.rq".*webview*]
+        ["../extension/library/*.rq".graph_*]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"]
+        ["../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../packages/extension/src/webview_module/shared/table-ui-state.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-session.ts"]
+    )
+}
+
+webview_app_state {
+    Complex webviews (activity bar, Ideas Summary) own a single `AppState` class in `state/app.svelte.ts`.
+    Fields that drive UI are Svelte 5 `$state` properties on that class; side effects and host I/O are methods.
+    Export one module singleton (`export const app = new AppState()`) and inject it via [svelte_app_context].
+    Do not use `svelte/store` writable/readable stores for new UI, and do not put zustand inside webview code
+    ([zustand_boundary]).
+    Simple panels (export form, onboarding, index diagnostics) may keep `$state` on the root `App.svelte`
+    instead of a separate AppState module when the surface is a single form/flow.
+    Related: ["../extension/module/ideas_summary/webview.rq".table_column_filters] `$derived` binding rule;
+    ["../extension/module/ideas_summary/graphical_graph.rq".graph_ui_persistence].
+
+    @status done
+    @apply_to (
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/module/ideas_summary/*.rq".*]
+        ["../extension/module/webview.rq".webview]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"]
+        ["../../packages/extension/webviews/export-form/App.svelte"]
+        ["../../packages/extension/webviews/onboarding/App.svelte"]
+        ["../../packages/extension/webviews/index-diagnostics/App.svelte"]
+    )
+    @tests (
+        ["../../packages/extension/test/graph-ui-state.test.ts"]
+    )
+}
+
+svelte_app_context {
+    Webview components read AppState through Svelte context helpers (`setAppContext` / `getApp` with a `Symbol` key)
+    in `state/context.ts` — not by importing the singleton from deep child leaves when a context is available.
+    Root `App.svelte` sets context once after constructing/using `app`.
+
+    @status done
+    @apply_to (
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/module/ideas_summary/*.rq".*]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/activity-bar/state/context.ts"]
+        ["../../packages/extension/webviews/ideas-summary/state/context.ts"]
+    )
+}
+
+derived_host_bindings {
+    Components that display host-driven AppState fields must bind through Svelte 5 `$derived` / `$derived.by`
+    (not legacy `$:`) so updates from the message listener re-render reliably.
+    Keep ephemeral widget-only UI (open menus, local filter drafts, selection) as component-local `$state`.
+    Do not mirror host payloads into a second parallel store inside the component.
+
+    @status done
+    @apply_to (
+        ["../extension/module/ideas_summary/*.rq".table_*]
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte"]
+        ["../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
+    )
+}
+
+host_webview_ownership {
+    The extension host owns durable data, index/analysis queries, and VS Code APIs.
+    The webview owns presentation state and posts intents (search, navigate, persist UI prefs, export).
+    Host session objects (e.g. activity-bar context session) mutate on the host and push snapshots to the webview;
+    the webview must not invent a second source of truth for the same domain fields.
+    Typed message modules define the contract; keep request ids / error scopes on async host calls.
+
+    @status done
+    @apply_to (
+        ["../extension/module/**/*.rq".*webview*]
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+    )
+    @implementation (
+        ["../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../packages/extension/src/webview_module/shared/messages.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-session.ts"]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+    )
+}
+
+persistence_tiers {
+    Three persistence tiers — pick the shallowest that matches lifetime:
+    1. `acquireVsCodeApi().getState` / `setState` — ephemeral webview session (pane expand/heights, active tab).
+    2. `ExtensionContext.workspaceState` — durable UI prefs shared across reloads (graph/table UI keys under
+       `reqlan.ideasSummary.*`, optionally per-base). Normalize + default on read
+       (`normalizeGraphUiState` / table defaults); never trust raw JSON shape.
+    3. `ExtensionContext.globalState` — install/user-level flags (e.g. onboarding), not pane view-models.
+    Debounce persist posts (~200–250ms) when UI controls churn. Related: [webview_app_state].
+
+    @status done
+    @apply_to (
+        ["../extension/module/ideas_summary/*.rq".*ui*]
+        ["../extension/module/ideas_summary/*.rq".graph_*]
+    )
+    @implementation (
+        ["../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../packages/extension/src/webview_module/shared/table-ui-state.ts"]
+        ["../../packages/extension/src/extension/onboarding-state.ts"]
+        ["../../packages/extension/webviews/activity-bar/lib/vscode.ts"]
+        ["../../packages/extension/webviews/ideas-summary/lib/vscode.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../packages/extension/test/onboarding-state.test.ts"]
+    )
+}
+
+postmessage_clone_safety {
+    Before `postMessage` from a Svelte webview, JSON-clone payloads (`JSON.parse(JSON.stringify(...))`)
+    so `$state` proxies remain structured-clone safe. Shared helpers live in each webview's `lib/vscode.ts`.
+
+    @status done
+    @apply_to (
+        ["../extension/module/**/*.rq".*webview*]
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/activity-bar/lib/vscode.ts"]
+        ["../../packages/extension/webviews/ideas-summary/lib/vscode.ts"]
+    )
+}
+
+zustand_boundary {
+    [extension_architecture.state_machine_mindset] still applies: design UI and host flows as state machines.
+    Zustand (`zustand/vanilla`) is the standard for **non-Svelte** JS lifecycle stores — today the analytical
+    index store in [core_architecture.analytical_package], not webview UI.
+    Do not introduce zustand (or Redux-like globals) inside `packages/extension/webviews/**`.
+    Extension-host TypeScript may keep plain mutable session modules when the surface is small and
+    message-pushed; reach for a dedicated store only when multiple host consumers share the machine.
+
+    @status done
+    @apply_to (
+        ["../extension/module/**/*.rq".*webview*]
+        ["../extension/module/activitybar-panels/*.rq".*_pane]
+    )
+    @implementation (
+        ["../../packages/analytical/src/core/analytical-store.ts"]
+        ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-session.ts"]
+    )
+}
+
+imperative_view_controllers {
+    Heavy imperative widgets (Cytoscape graph) keep lifecycle state on a controller class
+    (`GraphCyController`), not inside AppState `$state` fields.
+    AppState holds query/slice/loading/error and persisted UI prefs; the component holds the controller instance.
+    See ["../extension/library/graph.rq".webview_threading] and
+    ["../extension/module/ideas_summary/graphical_graph.rq".graph_loading].
+
+    @status done
+    @apply_to (
+        ["../extension/library/*.rq".graph_*]
+        ["../extension/module/ideas_summary/*.rq".graph_*]
+        ["../extension/module/activitybar-panels/*.rq".*graph*]
+    )
+    @implementation (
+        ["../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"]
+    )
+}

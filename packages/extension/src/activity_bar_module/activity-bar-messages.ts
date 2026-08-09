@@ -79,7 +79,7 @@ export type ActivityBarToExtensionMessage =
     | { type: 'loadReferences'; ideaId: string; search?: string; brokenOnly?: boolean; requestId?: number }
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'loadAncestors'; ideaId: string; maxDepth?: number; requestId?: number }
-    | { type: 'searchIdeas'; query: string; requestId?: number }
+    | { type: 'searchIdeas'; query: string; pathFilter?: string; requestId?: number }
     | { type: 'loadTodos'; requestId?: number }
     | { type: 'insertReference'; fileUri: string; name: string; kind: string }
     | {
@@ -129,6 +129,12 @@ export type ExtensionToActivityBarMessage =
           type: 'ideaSearchProgress';
           payload: IdeaSearchProgressPayload;
           requestId?: number;
+      }
+    | {
+          type: 'focusIdeaSearch';
+          query: string;
+          pathFilter?: string;
+          expand?: boolean;
       }
     | { type: 'todoList'; payload: TodoListPayload; requestId?: number }
     | { type: 'indexHealth'; status: IndexStatusView }

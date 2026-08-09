@@ -80,11 +80,11 @@ CodeSnippet:
 // ---------------------------------------------------------------------------
 
 OneLinerText returns string:
-    WORD | ID | NUMBER | INLINE_CODE | OTHER | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
 
 // PlainText must not include INLINE_CODE — that terminal is its own RichTextPart/InlineTextPart alt.
 PlainText returns string:
-    WORD | ID | NUMBER | OTHER | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
 
 PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
@@ -113,7 +113,7 @@ NonBangInlineTextPart:
 
 // No '!' (negated flag) and no leading ':' (attribute separator).
 NonBangPlainText returns string:
-    WORD | ID | NUMBER | OTHER | NonBangPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | OTHER | WILDCARD_NAME | NonBangPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
 
 NonBangPunctuation returns string:
     '.' | ',' | ';' | '?' | '-';
@@ -152,7 +152,7 @@ ListItemBody:
     content+=(MarkdownLink | BracketReference | WikiLink | ListItemText)+;
 
 ListItemText returns string:
-    WORD | ID | NUMBER | INLINE_CODE | OTHER | ListItemPunctuation | '(' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | ListItemPunctuation | '(' | '|' | 'from' | 'import' | 'as' | '`';
 
 ListItemPunctuation returns string:
     '.' | ':' | ';' | '!' | '?' | '-';
@@ -180,18 +180,23 @@ BracketReference:
     '[' target=ReferenceTarget ']';
 
 // Order and shape chosen so alternatives do not share a common LL prefix:
+// - WildcardReference is STRING.WILDCARD_NAME (idea pattern must contain * or ?)
 // - QualifiedReference covers STRING.ID / ID.ID (incl. idea.attribute surface form)
 // - FileSymbolReference only for STRING.ID.ID.ID+ (3+ symbol segments)
 // - FileReference is bare STRING
 // - LocalReference is a bare local name
 ReferenceTarget:
-    QualifiedReference | FileSymbolReference | FileReference | LocalReference;
+    WildcardReference | QualifiedReference | FileSymbolReference | FileReference | LocalReference;
 
 FileReference:
     file=STRING;
 
 FileSymbolReference:
     file=STRING '.' symbols+=ID '.' symbols+=ID '.' symbols+=ID ('.' symbols+=ID)*;
+
+// Path may include globs (* ** ?); ideaPattern must include * or ? so exact qualified refs stay QualifiedReference.
+WildcardReference:
+    pathPattern=STRING '.' ideaPattern=WILDCARD_NAME;
 
 QualifiedReference:
     (path=[Import:STRING] | qualifier=[Import:ID]) '.'
@@ -234,10 +239,10 @@ InvalidFromImport:
     'from' head=InvalidImportHeadToken tokens+=InvalidImportToken*;
 
 InvalidImportHeadToken returns string:
-    ID | WORD | NUMBER | OTHER | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
+    ID | WORD | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
 
 InvalidImportToken returns string:
-    ID | STRING | WORD | NUMBER | OTHER | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
+    ID | STRING | WORD | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
 
 // ---------------------------------------------------------------------------
 // comments, string_literals
@@ -250,6 +255,8 @@ hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 
 terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
 terminal ID: /[_a-zA-Z][\w-]*/;
+// Must contain * or ? so it does not steal ordinary ID tokens.
+terminal WILDCARD_NAME: /\*[\w*?-]*|\?[\w*?-]*|[_a-zA-Z][\w-]*[*?][\w*?-]*/;
 terminal STRING: /"(\\.|[^"\\\r\n])*"|'(\\.|[^'\\\r\n])*'/;
 terminal NUMBER: /\d+/;
 terminal WORD: /[A-Za-z_][\w']*/;

@@ -130,7 +130,8 @@ reference_embedding {
     References may appear inline in description, plan, or other attribute values.
     References may be declared explicitly in @references or implied by mention elsewhere.
     Reference kinds include dependency, incompatible with, applies to, and related to.
-    References may use wildcards and apply to namespaces or ideasets.
+    References may use wildcards and apply to namespaces or ideasets — see
+    ["./imports.rq".wildcard_references] for the qualified path + idea-pattern form.
 }
 
 attribute_marker {
@@ -183,16 +184,40 @@ lists {
 }
 
 comments {
-    Line comments use double slash through end of line.
-    Block comments use slash-star and star-slash delimiters and may span multiple lines.
-    Meta comments on the same line after content are allowed.
-    Comments should not be triggered in a string context - e.g. a 'https://not a comment.com', "https://not a comment.com", or `https://not a comment.com`
-    "//also not a comment"
-    """
-    // multiline string that also not a comment
-    """
-    //rq-ignore-error
-    ["a reference containing '//' that doesn't start a comment"]
+    Line comments use `//` through end of line (hidden `SL_COMMENT`).
+    Block comments use `/* … */` and may span multiple lines (hidden `ML_COMMENT`).
+    Meta comments on the same line after content are allowed (`keep this // meta`).
+    Comments must not open inside a string / reference-string context:
+    - Naked body quotes (["naked_strings_in_body"]): `"//also not a comment"`, `'https://…'`,
+      `"../mod/**/*.rq"`.
+    - Reference / import `STRING` paths (`["…"]`, `from "…" import …`) — the lexer consumes the
+      whole quoted path as one `STRING`, so neither `//` nor `/*` inside the quotes starts a comment.
+      Example: `["a reference containing '//' that doesn't start a comment"]`,
+      `["../extension/module/**/*.rq".*webview*]`.
+    - URL / path-segment guard: `//` immediately after `:` or `/` is not a line comment.
+    Multiline / glob clash: the empty block form `/**/` is **not** a comment — it is the recursive
+    glob segment used in paths such as `../mod/**/*.rq`. A real block comment needs a non-empty body
+    (`/* note */`, `/*\n  note\n*/`). The token builder rejects length-4 `/**/` matches; comment-span
+    scanners skip the same sequence so embedded `rq:[…]` discovery stays aligned.
+    Related: [comment_reference_ignore], [string_literals], ["./imports.rq".wildcard_references].
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../packages/language/src/reqlan-ignore-error.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/comment-in-string.test.ts"]
+        ["../../packages/language/test/comment-in-string.test.ts:e2e: /**/ glob survives tokenize → parse in prose, naked quotes, and reference STRING"]
+        ["../../packages/language/test/comment-in-string.test.ts:e2e: real block comments still hide body text"]
+        ["../../packages/language/test/comment-in-string.test.ts:e2e: reference STRING with // tokenizes, parses, and keeps path text"]
+        ["../../packages/language/test/references.test.ts:ignores // inside string literals when locating line comments"]
+        ["../../packages/language/test/references.test.ts:e2e: findCommentSpansInText skips empty /**/ glob segments"]
+        ["../../packages/language/test/ignore-error.test.ts"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
+    )
 }
 
 comment_reference_ignore {

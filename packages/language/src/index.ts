@@ -23,6 +23,7 @@ export * from './reqlan-path-resolve.js';
 export * from './reqlan-imports.js';
 export * from './reqlan-quoted-strings.js';
 export * from './reqlan-references.js';
+export * from './reqlan-wildcard-resolve.js';
 export * from './reqlan-reference-at-position.js';
 export * from './reqlan-attribute-catalog.js';
 export * from './reqlan-completion-context.js';

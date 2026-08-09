@@ -8,6 +8,7 @@ import type { DocumentLink, DocumentLinkParams } from 'vscode-languageserver';
 import { DocumentLink as LspDocumentLink } from 'vscode-languageserver';
 import { collectFileLinks, resolvedFileLinkTargetUri } from './reqlan-file-link-resolver.js';
 import { folderReferenceCommandTarget } from './reqlan-reference-at-position.js';
+import { wildcardReferenceCommandTarget } from './reqlan-wildcard-resolve.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 
@@ -34,6 +35,12 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
                 return [LspDocumentLink.create(
                     link.sourceRange,
                     folderReferenceCommandTarget(link.targetUri)
+                )];
+            }
+            if (link.resolution === 'wildcard' && link.wildcardArgs) {
+                return [LspDocumentLink.create(
+                    link.sourceRange,
+                    wildcardReferenceCommandTarget(link.wildcardArgs)
                 )];
             }
             const target = resolvedFileLinkTargetUri(link);

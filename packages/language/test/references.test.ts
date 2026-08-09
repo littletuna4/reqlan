@@ -120,6 +120,22 @@ describe('Comment and file reference utilities', () => {
         );
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    test('e2e: findLineCommentStart skips // inside bracket reference strings', () => {
+        const line = `["a reference containing '//' that doesn't start a comment"] // real`;
+        expect(findLineCommentStart(line)).toBe(line.indexOf('// real'));
+        expect(findLineCommentStart('["https://host/file.rq".idea]')).toBe(-1);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comments]
+    test('e2e: findCommentSpansInText skips empty /**/ glob segments', () => {
+        const text = 'see ../mod/**/*.rq /* real comment */ done';
+        const spans = findCommentSpansInText(text);
+        expect(spans).toHaveLength(1);
+        expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe('/* real comment */');
+        expect(text.slice(0, spans[0]!.start)).toContain('/**/');
+    });
+
     // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('ignores rq references outside comment spans', () => {
         const sample = findCommentReferencesInText('const x = "https://x.com // rq:[\\"./main.rq\\".myidea]";');

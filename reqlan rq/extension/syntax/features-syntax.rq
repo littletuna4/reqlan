@@ -10,6 +10,19 @@ syntax_features {
 syntax_highlighting {
     .rq files should receive full syntax highlighting coverage for all reqlan constructs.
     Semantic token highlighting should distinguish ideas, attributes, references, imports, and keywords.
+    Path + wildcard idea refs (`["…/*.rq".idea_*]`) must highlight as links/strings — not comment-grey —
+    see ["features-syntax-highlighting.rq".wildcard_reference_highlighting].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+    )
 }
 
 syntax_hovering {

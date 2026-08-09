@@ -9,12 +9,15 @@ import {
     createSourceTextDocument,
     fileReferenceAtRequestResult,
     findFileReferenceAtPosition,
+    findWildcardReferenceAtPosition,
     pathResolveContextFromServices,
     REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION,
     REQLAN_FILE_REFERENCE_AT_REQUEST,
     REQLAN_NAME_CATALOG_NOTIFICATION,
+    REQLAN_WILDCARD_REFERENCE_AT_REQUEST,
     sharedAttributeCatalog,
     sharedNameCatalog,
+    wildcardArgsFromReference,
     type AttributeCatalog,
     type NameCatalog
 } from '@reqlan/language';
@@ -40,6 +43,19 @@ connection.onRequest(
             pathResolveContextFromServices({ shared })
         );
         return link ? fileReferenceAtRequestResult(link) : null;
+    }
+);
+
+connection.onRequest(
+    REQLAN_WILDCARD_REFERENCE_AT_REQUEST,
+    (params: { uri: string; text?: string; position: Position }) => {
+        const document = getTextDocument(params);
+        if (!document) {
+            return null;
+        }
+        const offset = document.textDocument.offsetAt(params.position);
+        const reference = findWildcardReferenceAtPosition(document, offset);
+        return reference ? wildcardArgsFromReference(reference) : null;
     }
 );
 

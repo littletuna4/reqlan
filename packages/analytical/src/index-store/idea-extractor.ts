@@ -20,14 +20,20 @@ import {
     isListValue,
     isScalarValue,
     isWikiLink,
+    isWildcardReference,
+    matchWildcardAgainstCatalog,
     namespaceImportBindingName,
     parseMarkdownLink,
+    parseWildcardPathPattern,
     summarizeIdeaDeclaration,
     unquoteReqlanString,
+    wildcardReferenceLabel,
     type Attribute,
     type IdeaDeclaration,
     type Model,
-    type ReferenceTarget
+    type ReferenceTarget,
+    type WildcardIdeaCandidate,
+    type WildcardReference
 } from '@reqlan/language';
 import {
     edgeId,
@@ -40,7 +46,15 @@ import {
 } from '../core/types.js';
 import { createHash } from 'node:crypto';
 
-export function extractIndexedDocument(document: LangiumDocument): IndexedDocument | undefined {
+export interface ExtractIndexedDocumentOptions {
+    /** Workspace idea catalog for expanding wildcard references. */
+    ideaCandidates?: readonly WildcardIdeaCandidate[];
+}
+
+export function extractIndexedDocument(
+    document: LangiumDocument,
+    options?: ExtractIndexedDocumentOptions
+): IndexedDocument | undefined {
     const model = document.parseResult.value;
     if (!isModel(model)) {
         return undefined;
@@ -50,14 +64,15 @@ export function extractIndexedDocument(document: LangiumDocument): IndexedDocume
     const contentHash = hashText(text);
     const ideas: IdeaRecord[] = [];
     const edges: EdgeRecord[] = [];
+    const candidates = options?.ideaCandidates;
 
     for (const element of model.elements) {
         if (isIdea(element)) {
             ideas.push(toIdeaRecord(element, 'block', fileUri, document));
-            collectIdeaEdges(element, fileUri, edges);
+            collectIdeaEdges(element, fileUri, edges, candidates);
         } else if (isOneLinerIdea(element)) {
             ideas.push(toIdeaRecord(element, 'oneliner', fileUri, document));
-            collectIdeaEdges(element, fileUri, edges);
+            collectIdeaEdges(element, fileUri, edges, candidates);
         } else if (isIdeaSet(element)) {
             ideas.push(toIdeasetRecord(element, fileUri, document));
             for (const member of element.members) {
@@ -77,7 +92,7 @@ export function extractIndexedDocument(document: LangiumDocument): IndexedDocume
         }
     }
 
-    for (const edge of collectReferenceEdges(model, fileUri)) {
+    for (const edge of collectReferenceEdges(model, fileUri, candidates)) {
         edges.push(edge);
     }
     for (const edge of collectFileReferenceEdges(text, fileUri, ideas)) {
@@ -197,12 +212,16 @@ function normalizeAttributeText(text: string | undefined): string {
     return text?.replace(/\s+/g, ' ').trim() ?? '';
 }
 
-function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRecord[]): void {
+function collectIdeaEdges(
+    idea: IdeaDeclaration,
+    fileUri: string,
+    edges: EdgeRecord[],
+    candidates?: readonly WildcardIdeaCandidate[]
+): void {
     const sourceId = ideaId(fileUri, idea.name);
     for (const node of AstUtils.streamAst(idea)) {
         if (isWikiLink(node) || isBracketReference(node)) {
-            const edge = referenceToEdge(sourceId, node.target, fileUri, node);
-            if (edge) {
+            for (const edge of referenceToEdges(sourceId, node.target, fileUri, node, candidates)) {
                 edges.push(edge);
             }
         }
@@ -223,7 +242,11 @@ function collectIdeaEdges(idea: IdeaDeclaration, fileUri: string, edges: EdgeRec
     }
 }
 
-function collectReferenceEdges(model: Model, fileUri: string): EdgeRecord[] {
+function collectReferenceEdges(
+    model: Model,
+    fileUri: string,
+    candidates?: readonly WildcardIdeaCandidate[]
+): EdgeRecord[] {
     const edges: EdgeRecord[] = [];
     for (const node of AstUtils.streamAst(model)) {
         if (!isWikiLink(node) && !isBracketReference(node)) {
@@ -235,8 +258,13 @@ function collectReferenceEdges(model: Model, fileUri: string): EdgeRecord[] {
         if (!owningIdea) {
             continue;
         }
-        const edge = referenceToEdge(ideaId(fileUri, owningIdea.name), node.target, fileUri, node);
-        if (edge) {
+        for (const edge of referenceToEdges(
+            ideaId(fileUri, owningIdea.name),
+            node.target,
+            fileUri,
+            node,
+            candidates
+        )) {
             edges.push(edge);
         }
     }
@@ -309,6 +337,70 @@ function namespaceAliasFileEdge(
         ...meta,
         isResolved: true
     };
+}
+
+function referenceToEdges(
+    sourceId: string,
+    target: ReferenceTarget,
+    fileUri: string,
+    sourceNode?: { $cstNode?: { range?: { start: { line: number } }; text?: string } },
+    candidates?: readonly WildcardIdeaCandidate[]
+): EdgeRecord[] {
+    if (isWildcardReference(target)) {
+        return wildcardReferenceEdges(sourceId, target, sourceNode, candidates);
+    }
+    const edge = referenceToEdge(sourceId, target, fileUri, sourceNode);
+    return edge ? [edge] : [];
+}
+
+function wildcardReferenceEdges(
+    sourceId: string,
+    target: WildcardReference,
+    sourceNode?: { $cstNode?: { range?: { start: { line: number } }; text?: string } },
+    candidates?: readonly WildcardIdeaCandidate[]
+): EdgeRecord[] {
+    const meta = sourceNode ? edgeMetaFromNode(sourceNode) : {};
+    const path = parseWildcardPathPattern(target.pathPattern);
+    const label = wildcardReferenceLabel(path, target.ideaPattern);
+    if (!candidates?.length) {
+        return [{
+            id: edgeId(sourceId, 'references', `unresolved:${label}`),
+            sourceId,
+            kind: 'references',
+            label,
+            ...meta,
+            isResolved: false
+        }];
+    }
+    const document = AstUtils.getDocument(target);
+    const matches = matchWildcardAgainstCatalog(
+        target.pathPattern,
+        target.ideaPattern,
+        document,
+        candidates
+    );
+    if (matches.length === 0) {
+        return [{
+            id: edgeId(sourceId, 'references', `unresolved:${label}`),
+            sourceId,
+            kind: 'references',
+            label,
+            ...meta,
+            isResolved: false
+        }];
+    }
+    return matches.map(match => {
+        const targetId = ideaId(match.fileUri, match.ideaName);
+        return {
+            id: edgeId(sourceId, 'references', targetId),
+            sourceId,
+            targetId,
+            kind: 'references' as const,
+            label: match.ideaName,
+            ...meta,
+            isResolved: true
+        };
+    });
 }
 
 function referenceToEdge(
