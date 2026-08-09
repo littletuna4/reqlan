@@ -134,26 +134,43 @@ barrel_page {
     When a `.rq` page grows large, barrel it into a container: create one sibling file per top-level idea, import those files into the current page, and replace the page body with a single container idea whose name the user chooses (default: the sanitized file basename).
     Same-file sibling refs are rewritten to qualified imports in the child files. Existing page imports are copied into each child. Top-level ideasets are preserved in the container file.
     Behaviour lives in ["../core-architecture.rq".analytical_package] and is exposed via [cli] / ["../cli/cli_package.rq".commands] (`reqlan barrel`).
+    Extension: file-level source code action **Barrel page into container…** and command palette **Barrel Page** (`reqlan.barrelPage`) prompt for the container name, confirm, then create child files and rewrite the active page via WorkspaceEdit.
     Related: [file_based_code_actions] [decompose]
     @status done
     @implementation (
         ["../../packages/analytical/src/core/barrel-page.ts"]
         ["../../packages/cli/src/commands/barrel.ts"]
         ["../../packages/cli/src/main.ts"]
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/refactor_module/register-barrel-page-command.ts"]
+        ["../../packages/extension/src/refactor_module/barrel-page-apply.ts"]
+        ["../../packages/extension/package.json"]
     )
     @tests (
         ["../../packages/analytical/test/barrel-page.test.ts:creates one child file per idea and a container defaulting to file basename"]
         ["../../packages/analytical/test/barrel-page.test.ts:writes child files and replaces the source with a container"]
+        ["../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
+        ["../../packages/language/test/code-actions.test.ts:omits barrel page when only quickfix is requested or there are no ideas"]
+        ["../../packages/extension/test/barrel-page-apply.test.ts:maps child file names next to the source path"]
+        ["../../packages/extension/test/barrel-page-apply.test.ts:detects overwrite conflicts and source-self collision"]
     )
 }
 
 file_based_code_actions {
     Code actions should be available for the whole file. The should include:
-    - barrel page
+    (regardless of cursor positions)
+    - barrel page — done via [barrel_page] (`source.barrelPage` / `reqlan.barrelPage`)
         - barrel idea
     - decompose idea
     - search for refernces.
     [code_actions]
     @todo
     @ideating.
+    @implementation (
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/refactor_module/register-barrel-page-command.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
+    )
 }

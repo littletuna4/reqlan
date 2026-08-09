@@ -10,7 +10,7 @@ inlay_hints {
 }
 
 code_actions {
-    
+    Language-server code actions for `.rq` files: quick fixes (import errors), refactor actions (move/delete idea, search/wrap references), and file-level source actions such as ["./features-commands.rq".barrel_page].
 }
 
 quick_fixes {}

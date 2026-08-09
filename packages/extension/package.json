@@ -323,6 +323,11 @@
                 "category": "Reqlan"
             },
             {
+                "command": "reqlan.barrelPage",
+                "title": "Barrel Page",
+                "category": "Reqlan"
+            },
+            {
                 "command": "reqlan.openFolderReference",
                 "title": "Open Folder Reference"
             },

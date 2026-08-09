@@ -13,6 +13,8 @@ import {
     createReqlanServices,
     findIdeaReferenceAtPosition,
     findReferenceSearchSite,
+    REQLAN_BARREL_PAGE_COMMAND,
+    REQLAN_BARREL_PAGE_KIND,
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     ReqlanCodeActionProvider,
@@ -264,5 +266,74 @@ describe('Import error code actions', () => {
         const actions = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
         const addImport = actions.find(action => action.title.includes('Add import from'));
         expect(addImport?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(', beta');
+    });
+});
+
+describe('File-based barrel page code action', () => {
+    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+    test('offers barrel page source action when the file has top-level ideas', async () => {
+        const document = await parse(s`
+            alpha {
+                a
+            }
+            beta {
+                b
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        expect(REQLAN_BARREL_PAGE_COMMAND).toBe('reqlan.barrelPage');
+        expect(REQLAN_BARREL_PAGE_KIND).toBe('source.barrelPage');
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const barrel = actions.find(action => action.title.includes('Barrel page'));
+        expect(barrel).toBeDefined();
+        expect(barrel?.title).toBe('Barrel page into container…');
+        expect(barrel?.command?.command).toBe(REQLAN_BARREL_PAGE_COMMAND);
+        expect(barrel?.command?.arguments).toBeUndefined();
+        expect(barrel?.kind).toBe(REQLAN_BARREL_PAGE_KIND);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+    test('omits barrel page when only quickfix is requested or there are no ideas', async () => {
+        const withIdeas = await parseUri(s`
+            alpha {
+                a
+            }
+        `, 'file:///workspace/barrel/with-ideas.rq');
+        const empty = await parseUri(s`
+            import "./x.rq" as x
+        `, 'file:///workspace/barrel/empty.rq');
+        await services.shared.workspace.DocumentBuilder.build([withIdeas, empty], { validation: false });
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const quickFixOnly = provider.getCodeActions(withIdeas, {
+            textDocument: { uri: withIdeas.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [], only: ['quickfix'] }
+        }).filter(isCodeAction);
+        expect(quickFixOnly.some(action => action.command?.command === REQLAN_BARREL_PAGE_COMMAND)).toBe(false);
+
+        const sourceOnly = provider.getCodeActions(withIdeas, {
+            textDocument: { uri: withIdeas.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [], only: ['source'] }
+        }).filter(isCodeAction);
+        expect(sourceOnly.some(action => action.command?.command === REQLAN_BARREL_PAGE_COMMAND)).toBe(true);
+
+        const noIdeas = provider.getCodeActions(empty, {
+            textDocument: { uri: empty.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+        expect(noIdeas.some(action => action.command?.command === REQLAN_BARREL_PAGE_COMMAND)).toBe(false);
     });
 });

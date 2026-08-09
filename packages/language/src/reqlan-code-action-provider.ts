@@ -1,8 +1,11 @@
 /**
  * Quick fixes for unresolved references: add import, rewrite qualified ref, search, create.
  * Also offers a search code action when the cursor is inside a [reference] / [[wikilink]].
+ * File-level source actions include barrel page.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
  * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { AstUtils, DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
@@ -34,6 +37,9 @@ export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile
 export const REQLAN_SEARCH_REFERENCE_COMMAND = 'reqlan.searchReference';
 export const REQLAN_REFACTOR_DELETE_IDEA_COMMAND = 'reqlan.refactor.deleteIdea';
 export const REQLAN_REFACTOR_MOVE_IDEA_COMMAND = 'reqlan.refactor.moveIdea';
+export const REQLAN_BARREL_PAGE_COMMAND = 'reqlan.barrelPage';
+/** Source-action kind for whole-file barrel page. */
+export const REQLAN_BARREL_PAGE_KIND = `${CodeActionKind.Source}.barrelPage`;
 
 /** Args for idea move/delete refactor commands. */
 export interface IdeaRefactorCommandArgs {
@@ -88,7 +94,38 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
             actions.push(searchFromCursor);
         }
         actions.push(...this.createIdeaRefactorActions(document, params));
+        const barrelPage = this.createBarrelPageAction(document, params);
+        if (barrelPage) {
+            actions.push(barrelPage);
+        }
         return actions;
+    }
+
+    /**
+     * Whole-file source action: barrel top-level ideas into sibling files + container.
+     * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+     * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+     */
+    private createBarrelPageAction(
+        document: LangiumDocument,
+        params: CodeActionParams
+    ): CodeActionLike | undefined {
+        if (!actionKindAllowed(params.context.only, REQLAN_BARREL_PAGE_KIND)) {
+            return undefined;
+        }
+        if (!documentHasTopLevelIdeas(document)) {
+            return undefined;
+        }
+        // No command arguments: VS Code caches arg-bearing commands and may dispose
+        // them when code actions refresh. The extension resolves the active editor.
+        return {
+            title: 'Barrel page into container…',
+            kind: REQLAN_BARREL_PAGE_KIND,
+            command: {
+                title: 'Barrel page',
+                command: REQLAN_BARREL_PAGE_COMMAND
+            }
+        };
     }
 
     /**
@@ -361,6 +398,26 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
 
 function isResolvableIdeaProperty(property: string | undefined): boolean {
     return property === 'idea' || property === 'ideaset' || property === 'members';
+}
+
+/** True when `only` is unset or the action kind matches a requested kind (LSP subtype rules). */
+export function actionKindAllowed(only: readonly string[] | undefined, kind: string): boolean {
+    if (!only || only.length === 0) {
+        return true;
+    }
+    return only.some(requested =>
+        kind === requested
+        || kind.startsWith(`${requested}.`)
+        || requested.startsWith(`${kind}.`)
+    );
+}
+
+function documentHasTopLevelIdeas(document: LangiumDocument): boolean {
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return false;
+    }
+    return model.elements.some(element => isRefactorIdeaDeclaration(element));
 }
 
 function rangesOverlap(

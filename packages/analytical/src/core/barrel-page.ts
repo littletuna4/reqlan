@@ -1,8 +1,9 @@
 /**
  * Barrel a large `.rq` page into a container that imports one file per top-level idea.
- * Shared by CLI `barrel` and other headless tools.
+ * Shared by CLI `barrel`, extension code action / command, and other headless tools.
  *
  * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
