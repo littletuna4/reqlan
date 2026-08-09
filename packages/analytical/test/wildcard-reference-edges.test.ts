@@ -1,5 +1,7 @@
 /**
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+ * rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+ * rq:["../../../reqlan rq/indexer/indexer.rq".index]
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references_webview]
  * rq:["../../../reqlan rq/language/imports.rq".idea_path_filter]
  */
@@ -64,7 +66,7 @@ describe('wildcard reference edge fan-out', () => {
         expect(indexed).toBeDefined();
         const hostId = ideaId(host.uri.toString(), 'host');
         const refs = indexed!.edges.filter(
-            edge => edge.sourceId === hostId && edge.kind === 'references' && edge.isResolved
+            edge => edge.sourceId === hostId && edge.kind === 'wildcard_reference' && edge.isResolved
         );
         // collectIdeaEdges + collectReferenceEdges both walk the AST — dedupe by targetId.
         const targetIds = [...new Set(refs.map(edge => edge.targetId))].sort();
@@ -95,6 +97,7 @@ describe('wildcard reference edge fan-out', () => {
             edge => edge.sourceId === hostId && edge.isResolved === false
         );
         expect(unresolved.length).toBeGreaterThan(0);
+        expect(unresolved.every(edge => edge.kind === 'wildcard_reference')).toBe(true);
         expect(unresolved.some(edge => edge.label?.includes('missing_*'))).toBe(true);
     });
 
@@ -138,7 +141,12 @@ describe('wildcard reference edge fan-out', () => {
         const hostId = ideaId(host.uri.toString(), 'host');
         const resolved = [...new Set(
             indexed!.edges
-                .filter(edge => edge.sourceId === hostId && edge.isResolved && edge.targetId)
+                .filter(edge =>
+                    edge.sourceId === hostId
+                    && edge.isResolved
+                    && edge.targetId
+                    && edge.kind === 'wildcard_reference'
+                )
                 .map(edge => edge.targetId!)
         )].sort();
 
@@ -149,8 +157,42 @@ describe('wildcard reference edge fan-out', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+    // rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+    test('stores wildcard fan-out as wildcard_reference kind', async () => {
+        clearDocuments(services.shared, services.shared.workspace.LangiumDocuments.all.toArray());
+        const host = await parse(
+            [
+                'host {',
+                '    Related ["./mods/*.rq".widget_*].',
+                '}',
+                ''
+            ].join('\n'),
+            {
+                documentUri: URI.file('/workspace/host-kind.rq'),
+                validation: false
+            }
+        );
+        const indexed = extractIndexedDocument(host, {
+            ideaCandidates: [
+                {
+                    fileUri: 'file:///workspace/mods/alpha.rq',
+                    filePath: '/workspace/mods/alpha.rq',
+                    ideaName: 'widget_a'
+                }
+            ]
+        });
+        const hostId = ideaId(host.uri.toString(), 'host');
+        const edges = indexed!.edges.filter(edge => edge.sourceId === hostId);
+        expect(edges.length).toBeGreaterThan(0);
+        expect(edges.every(edge => edge.kind === 'wildcard_reference')).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
     // rq:["../../../reqlan rq/language/imports.rq".wildcard_references_webview]
     // rq:["../../../reqlan rq/language/imports.rq".idea_path_filter]
+    // rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
     test('e2e: imports.rq extract includes webview and path_filter ideas', async () => {
         clearDocuments(services.shared, services.shared.workspace.LangiumDocuments.all.toArray());
         const importsPath = join(repoDir, 'reqlan rq/language/imports.rq');
@@ -173,10 +215,50 @@ describe('wildcard reference edge fan-out', () => {
 
         const webview = indexed!.ideas.find(idea => idea.name === 'wildcard_references_webview');
         expect(webview?.kind).toBe('block');
-        expect(webview?.summary).toMatch(/focusIdeaSearch|pathFilter|openWildcardReference/);
+        expect(webview?.summary).toMatch(/wildcard matches|focusIdeaSearch|pathFilter|openWildcardReference/);
 
         const filter = indexed!.ideas.find(idea => idea.name === 'idea_path_filter');
         expect(filter?.kind).toBe('block');
         expect(filter?.summary.length).toBeGreaterThan(20);
+    });
+
+    // rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".webview_export_graph_parity]
+    test('e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas', async () => {
+        clearDocuments(services.shared, services.shared.workspace.LangiumDocuments.all.toArray());
+        const indexerPath = join(repoDir, 'reqlan rq/indexer/indexer.rq');
+        const graphPath = join(repoDir, 'reqlan rq/extension/module/ideas_summary/graphical_graph.rq');
+
+        const indexerDoc = await parse(readFileSync(indexerPath, 'utf8'), {
+            documentUri: URI.parse(pathToFileURL(indexerPath).href),
+            validation: false
+        });
+        const graphDoc = await parse(readFileSync(graphPath, 'utf8'), {
+            documentUri: URI.parse(pathToFileURL(graphPath).href),
+            validation: false
+        });
+
+        const indexerIndexed = extractIndexedDocument(indexerDoc);
+        const graphIndexed = extractIndexedDocument(graphDoc);
+        expect(indexerIndexed).toBeDefined();
+        expect(graphIndexed).toBeDefined();
+
+        const edgeIdea = indexerIndexed!.ideas.find(idea => idea.name === 'wildcard_reference_edges');
+        expect(edgeIdea?.kind).toBe('block');
+        expect(JSON.parse(edgeIdea!.attributesJson).status).toBe('done');
+        expect(edgeIdea?.summary).toMatch(/wildcard_reference/);
+        expect(edgeIdea?.summary).toMatch(/wildcard_refs_toggle|idea-extractor/);
+
+        const toggle = graphIndexed!.ideas.find(idea => idea.name === 'wildcard_refs_toggle');
+        expect(toggle?.kind).toBe('block');
+        expect(JSON.parse(toggle!.attributesJson).status).toBe('done');
+        expect(toggle?.summary).toMatch(/includeWildcardRefs/);
+        expect(toggle?.summary).toMatch(/wildcard_reference_edges|wildcard_reference/);
+
+        const parity = graphIndexed!.ideas.find(idea => idea.name === 'webview_export_graph_parity');
+        expect(parity?.kind).toBe('block');
+        expect(JSON.parse(parity!.attributesJson).status).toBe('done');
+        expect(parity?.summary).toMatch(/html_export|Wildcard refs|export/i);
     });
 });

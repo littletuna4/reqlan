@@ -365,17 +365,32 @@
             },
             {
                 "command": "reqlan.addIdeaToChat",
-                "title": "Add Idea to Chat",
+                "title": "Add Idea to Current Chat",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addIdeaToNewChat",
+                "title": "Add Idea to New Chat",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.addIdeasetToChat",
-                "title": "Add Ideaset to Chat",
+                "title": "Add Ideaset to Current Chat",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addIdeasetToNewChat",
+                "title": "Add Ideaset to New Chat",
                 "category": "Reqlan"
             },
             {
                 "command": "reqlan.addFileToChat",
-                "title": "Add File to Chat",
+                "title": "Add File to Current Chat",
+                "category": "Reqlan"
+            },
+            {
+                "command": "reqlan.addFileToNewChat",
+                "title": "Add File to New Chat",
                 "category": "Reqlan"
             },
             {
@@ -387,6 +402,12 @@
                 "command": "reqlan.runPrompt",
                 "title": "Run Chat Prompt",
                 "category": "Reqlan"
+            }
+        ],
+        "submenus": [
+            {
+                "id": "reqlan.addToChat",
+                "label": "Reqlan: Add to Chat"
             }
         ],
         "menus": {
@@ -405,6 +426,39 @@
                     "command": "reqlan.refreshActivityBar",
                     "when": "view == reqlan.activityBar",
                     "group": "navigation@3"
+                }
+            ],
+            "editor/context": [
+                {
+                    "submenu": "reqlan.addToChat",
+                    "when": "editorLangId == reqlan",
+                    "group": "reqlan@1"
+                }
+            ],
+            "reqlan.addToChat": [
+                {
+                    "command": "reqlan.addIdeaToChat",
+                    "group": "1_idea@1"
+                },
+                {
+                    "command": "reqlan.addIdeaToNewChat",
+                    "group": "1_idea@2"
+                },
+                {
+                    "command": "reqlan.addIdeasetToChat",
+                    "group": "2_ideaset@1"
+                },
+                {
+                    "command": "reqlan.addIdeasetToNewChat",
+                    "group": "2_ideaset@2"
+                },
+                {
+                    "command": "reqlan.addFileToChat",
+                    "group": "3_file@1"
+                },
+                {
+                    "command": "reqlan.addFileToNewChat",
+                    "group": "3_file@2"
                 }
             ]
         }

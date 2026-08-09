@@ -304,6 +304,8 @@ export interface GraphViewQuery {
     tagFilter?: string[];
     /** @deprecated Prefer hopDepth */
     includeIndirect: boolean;
+    /** When false, omit wildcard_reference edges from the slice. Default true. */
+    includeWildcardRefs?: boolean;
     hopDepth?: number;
     maxNodes?: number;
     /** When the matching set exceeds maxNodes, which ordering decides who stays. */

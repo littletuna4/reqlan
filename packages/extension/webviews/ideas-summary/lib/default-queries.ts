@@ -57,6 +57,7 @@ export function defaultAttributesQuery(): AttributesTableQuery {
 export function defaultGraphQuery(): GraphViewQuery {
     return {
         includeIndirect: false,
+        includeWildcardRefs: true,
         maxNodes: 120,
         truncationBasis: 'path'
     };

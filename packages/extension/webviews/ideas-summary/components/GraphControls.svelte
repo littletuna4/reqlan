@@ -20,6 +20,7 @@
         statusFilter: string[];
         tagFilter: string[];
         toggleIndirect: void;
+        toggleWildcardRefs: void;
         clearCenter: void;
         toggleKey: void;
         toggleControls: void;
@@ -73,6 +74,16 @@
             onclick={() => dispatch('toggleIndirect')}
         >
             Indirect refs
+        </button>
+        <button
+            type="button"
+            class="graph-chip"
+            class:active={query.includeWildcardRefs !== false}
+            aria-pressed={query.includeWildcardRefs !== false}
+            title="Show edges expanded from path+idea wildcard references"
+            onclick={() => dispatch('toggleWildcardRefs')}
+        >
+            Wildcard refs
         </button>
     </section>
 

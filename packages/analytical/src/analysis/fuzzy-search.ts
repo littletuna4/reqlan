@@ -1,6 +1,7 @@
 /**
  * Fuzzy / partial idea search with interchangeable separators.
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
  */
 import type { IdeaSummary } from '../core/types.js';
 
@@ -26,6 +27,15 @@ export function normalizeSearchSeparators(value: string): string {
     return value.toLowerCase().replace(SEPARATOR_RE, '');
 }
 
+/** Split on interchangeable separators into lowercase word tokens. */
+export function splitSearchTokens(value: string): string[] {
+    return value
+        .toLowerCase()
+        .split(SEPARATOR_RE)
+        .map(token => token.trim())
+        .filter(Boolean);
+}
+
 export function filterAndScoreIdeas(ideas: IdeaSummary[], query: string): FuzzySearchHit[] {
     return rankScoredIdeas(scoreIdeas(ideas, query));
 }
@@ -48,6 +58,7 @@ export async function filterAndScoreIdeasAsync(
     const isCancelled = options?.isCancelled;
     const rawNeedle = query.trim().toLowerCase();
     const needle = normalizeSearchSeparators(rawNeedle);
+    const queryTokens = splitSearchTokens(rawNeedle);
     const scored: FuzzySearchHit[] = [];
 
     for (let index = 0; index < ideas.length; index += 1) {
@@ -64,7 +75,7 @@ export async function filterAndScoreIdeasAsync(
         if (idea.kind === 'ideaset') {
             continue;
         }
-        const score = rawNeedle ? scoreIdeaMatch(idea, rawNeedle, needle) : 1;
+        const score = rawNeedle ? scoreIdeaMatch(idea, rawNeedle, needle, queryTokens) : 1;
         if (score <= 0) {
             continue;
         }
@@ -88,12 +99,13 @@ export async function filterAndScoreIdeasAsync(
 function scoreIdeas(ideas: IdeaSummary[], query: string): FuzzySearchHit[] {
     const rawNeedle = query.trim().toLowerCase();
     const needle = normalizeSearchSeparators(rawNeedle);
+    const queryTokens = splitSearchTokens(rawNeedle);
     const scored: FuzzySearchHit[] = [];
     for (const idea of ideas) {
         if (idea.kind === 'ideaset') {
             continue;
         }
-        const score = rawNeedle ? scoreIdeaMatch(idea, rawNeedle, needle) : 1;
+        const score = rawNeedle ? scoreIdeaMatch(idea, rawNeedle, needle, queryTokens) : 1;
         if (score <= 0) {
             continue;
         }
@@ -125,7 +137,12 @@ function yieldEventLoop(): Promise<void> {
     });
 }
 
-function scoreIdeaMatch(idea: IdeaSummary, rawNeedle: string, needle: string): number {
+function scoreIdeaMatch(
+    idea: IdeaSummary,
+    rawNeedle: string,
+    needle: string,
+    queryTokens: string[]
+): number {
     const nameRaw = idea.name.toLowerCase();
     const name = normalizeSearchSeparators(idea.name);
     const summaryRaw = idea.summary.toLowerCase();
@@ -142,17 +159,90 @@ function scoreIdeaMatch(idea: IdeaSummary, rawNeedle: string, needle: string): n
         score = 30;
     }
 
+    const nameTokenKind = matchQueryTokens(splitSearchTokens(idea.name), queryTokens);
+    if (nameTokenKind === 'ordered') {
+        score = Math.max(score, 45);
+    } else if (nameTokenKind === 'reordered') {
+        score = Math.max(score, 35);
+    }
+
     if (summaryRaw.includes(rawNeedle) || (needle && summary.includes(needle))) {
         score = Math.max(score, 20) + 5;
+    } else {
+        const summaryTokenKind = matchQueryTokens(splitSearchTokens(idea.summary), queryTokens);
+        if (summaryTokenKind === 'ordered') {
+            score = Math.max(score, 22);
+        } else if (summaryTokenKind === 'reordered') {
+            score = Math.max(score, 18);
+        }
     }
     for (const tag of idea.tags) {
         const tagRaw = tag.toLowerCase();
         const tagNorm = normalizeSearchSeparators(tag);
         if (tagRaw.includes(rawNeedle) || (needle && tagNorm.includes(needle))) {
             score = Math.max(score, 15) + 2;
+        } else if (matchQueryTokens(splitSearchTokens(tag), queryTokens) !== null) {
+            score = Math.max(score, 15) + 2;
         }
     }
     return score;
+}
+
+/**
+ * Match every query token against hay tokens.
+ * Prefers order-preserving matches; still accepts reordered tokens (missing
+ * intermediate hay words are fine either way).
+ */
+export function matchQueryTokens(
+    hayTokens: string[],
+    queryTokens: string[]
+): 'ordered' | 'reordered' | null {
+    if (queryTokens.length === 0 || hayTokens.length === 0) {
+        return null;
+    }
+
+    let hayIndex = 0;
+    let ordered = true;
+    for (const queryToken of queryTokens) {
+        let found = -1;
+        for (let index = hayIndex; index < hayTokens.length; index += 1) {
+            if (tokenMatches(hayTokens[index]!, queryToken)) {
+                found = index;
+                break;
+            }
+        }
+        if (found < 0) {
+            ordered = false;
+            break;
+        }
+        hayIndex = found + 1;
+    }
+    if (ordered) {
+        return 'ordered';
+    }
+
+    const used = new Set<number>();
+    for (const queryToken of queryTokens) {
+        let found = -1;
+        for (let index = 0; index < hayTokens.length; index += 1) {
+            if (used.has(index)) {
+                continue;
+            }
+            if (tokenMatches(hayTokens[index]!, queryToken)) {
+                found = index;
+                break;
+            }
+        }
+        if (found < 0) {
+            return null;
+        }
+        used.add(found);
+    }
+    return 'reordered';
+}
+
+function tokenMatches(hayToken: string, queryToken: string): boolean {
+    return hayToken === queryToken || hayToken.startsWith(queryToken);
 }
 
 /** True when needle characters appear in order inside hay (simple fuzzy). */

@@ -89,6 +89,7 @@ const DEFAULT_ATTRIBUTES_QUERY: AttributesTableQuery = {
 
 const DEFAULT_GRAPH_QUERY: GraphViewQuery = {
     includeIndirect: false,
+    includeWildcardRefs: true,
     maxNodes: GRAPH_MAX_NODES,
     truncationBasis: 'path'
 };
@@ -1025,6 +1026,7 @@ function normalizeGraphQuery(query: GraphViewQuery): GraphViewQuery {
         statusFilter: normalizeGraphFilterList(query.statusFilter),
         tagFilter: normalizeGraphFilterList(query.tagFilter),
         includeIndirect: Boolean(query.includeIndirect),
+        includeWildcardRefs: query.includeWildcardRefs !== false,
         maxNodes: Math.min(Math.max(1, query.maxNodes ?? GRAPH_MAX_NODES), GRAPH_NODES_HARD_CAP),
         truncationBasis
     };

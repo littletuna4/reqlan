@@ -47,6 +47,8 @@ export interface GraphViewQuery {
     tagFilter?: string[];
     /** @deprecated Prefer hopDepth — true maps to depth 2 when hopDepth is omitted */
     includeIndirect: boolean;
+    /** When false, omit edges produced by wildcard path+idea references. Default true. */
+    includeWildcardRefs?: boolean;
     /** Neighbourhood hop depth from center (1 = direct edges only). */
     hopDepth?: number;
     maxNodes?: number;
@@ -80,6 +82,10 @@ export interface GraphEdgeView {
     targetId: string;
     kind: string;
     label?: string;
+}
+
+export function isWildcardReferenceEdge(edge: { kind: string }): boolean {
+    return edge.kind === 'wildcard_reference';
 }
 
 export interface GraphViewSlice {
@@ -332,11 +338,15 @@ async function expandFromCenter(
 
     // Breadth-first expansion, one batched edge/idea round trip per level rather
     // than a query per visited node (avoids the N+1 fan-out that froze the tab).
+    const includeWildcardRefs = query.includeWildcardRefs !== false;
     let frontier: string[] = [centerId];
     for (let level = 0; level < depth && frontier.length > 0; level += 1) {
         const frontierEdges = await store.getEdgesForNodes(frontier);
         const neighborIds = new Set<string>();
         for (const edge of frontierEdges) {
+            if (!includeWildcardRefs && isWildcardReferenceEdge(edge)) {
+                continue;
+            }
             edges.set(edge.id, edge);
             for (const endpoint of [edge.sourceId, edge.targetId]) {
                 if (endpoint && !visited.has(endpoint)) {
@@ -368,22 +378,29 @@ async function expandFromCenter(
     // Capture edges incident to the outermost ring so inter-node links are not dropped.
     if (frontier.length > 0) {
         for (const edge of await store.getEdgesForNodes(frontier)) {
+            if (!includeWildcardRefs && isWildcardReferenceEdge(edge)) {
+                continue;
+            }
             edges.set(edge.id, edge);
         }
     }
 
     const nodeIds = new Set(nodes.keys());
-    const visibleEdges = filterVisibleEdges(edges, nodeIds);
+    const visibleEdges = filterVisibleEdges(edges, nodeIds, includeWildcardRefs);
     return finalizeSlice(query, centerId, depth, truncated, undefined, nodes, visibleEdges);
 }
 
 /** Keep edges whose endpoints are both present (or whose target is an external file). */
 function filterVisibleEdges(
     edges: Map<string, EdgeRecord>,
-    nodeIds: Set<string>
+    nodeIds: Set<string>,
+    includeWildcardRefs = true
 ): Map<string, EdgeRecord> {
     const visible = new Map<string, EdgeRecord>();
     for (const edge of edges.values()) {
+        if (!includeWildcardRefs && isWildcardReferenceEdge(edge)) {
+            continue;
+        }
         const connectsVisible =
             nodeIds.has(edge.sourceId) &&
             (edge.targetId ? nodeIds.has(edge.targetId) : Boolean(edge.targetFile));
@@ -404,18 +421,22 @@ async function collectSliceFromSeeds(
     totalMatching: number
 ): Promise<GraphViewSlice> {
     const nodes = new Map<string, IdeaSummary>(seedNodes.map(node => [node.id, node]));
+    const includeWildcardRefs = query.includeWildcardRefs !== false;
 
     // One batched query for every edge incident to a seed, replacing the
     // per-seed inbound/outbound fan-out.
     const seedEdges = await store.getEdgesForNodes(seedNodes.map(node => node.id));
     const edges = new Map<string, EdgeRecord>();
     for (const edge of seedEdges) {
+        if (!includeWildcardRefs && isWildcardReferenceEdge(edge)) {
+            continue;
+        }
         edges.set(edge.id, edge);
     }
 
     if (depth > 1) {
         const neighborIds = new Set<string>();
-        for (const edge of seedEdges) {
+        for (const edge of edges.values()) {
             for (const endpoint of [edge.sourceId, edge.targetId]) {
                 if (endpoint && !nodes.has(endpoint)) {
                     neighborIds.add(endpoint);
@@ -440,7 +461,7 @@ async function collectSliceFromSeeds(
     }
 
     const nodeIds = new Set(nodes.keys());
-    const visibleEdges = filterVisibleEdges(edges, nodeIds);
+    const visibleEdges = filterVisibleEdges(edges, nodeIds, includeWildcardRefs);
 
     return finalizeSlice(query, undefined, depth, truncated, totalMatching, nodes, visibleEdges);
 }

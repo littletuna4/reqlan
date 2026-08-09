@@ -7,6 +7,7 @@ import { AnalyseCommand } from './commands/analyse.js';
 import { SearchCommand } from './commands/search.js';
 import { ExportCommand } from './commands/export.js';
 import { InitCommand } from './commands/init.js';
+import { BarrelCommand } from './commands/barrel.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf8')) as {
@@ -26,5 +27,6 @@ cli.register(AnalyseCommand);
 cli.register(SearchCommand);
 cli.register(ExportCommand);
 cli.register(InitCommand);
+cli.register(BarrelCommand);
 
 await cli.runExit(process.argv.slice(2));

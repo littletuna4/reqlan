@@ -110,8 +110,10 @@ describe('Inbound referencer index', () => {
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
     test('one-pass index stays well under repeated findReferences cost', async () => {
-        // Large enough that per-idea findAllReferences dominates fixed overhead / timer noise.
-        const documentCount = 400;
+        // Quadratic findAllReferences cost must dominate index constants (CST/location work).
+        // At ~400 docs under a full suite, both sides sit in the same tens-of-ms band and
+        // GC/timer noise flips the ratio; larger N keeps the asymptotic gap stable.
+        const documentCount = 900;
         const { targets } = await buildMultiDocumentWorkspace(documentCount);
         const documents = services.shared.workspace.LangiumDocuments;
         const locator = services.Reqlan.workspace.AstNodeLocator;
@@ -143,16 +145,16 @@ describe('Inbound referencer index', () => {
 
         // Warm both paths so first-call JIT / cache noise does not dominate.
         buildInboundReferencerIndex(services.Reqlan);
-        for (const target of targets.slice(0, 3)) {
+        for (const target of targets.slice(0, 5)) {
             resolveReferencerNames(target);
         }
 
-        // Median of a few trials — single-shot ratios are noisy when both sides are fast.
+        // Median of several trials — single-shot ratios are noisy when both sides are fast.
         const indexSamples: number[] = [];
         const findSamples: number[] = [];
         let indexedHits = 0;
         let findHits = 0;
-        for (let trial = 0; trial < 3; trial++) {
+        for (let trial = 0; trial < 5; trial++) {
             const indexStarted = performance.now();
             const index = buildInboundReferencerIndex(services.Reqlan);
             indexedHits = 0;
@@ -179,8 +181,8 @@ describe('Inbound referencer index', () => {
         expect(indexedHits).toBe(documentCount);
         expect(findHits).toBe(documentCount);
         // Absolute budget keeps CI honest on slow hosts; relative guard catches per-idea scans.
-        // Use a soft factor (not 0.5): on fast hosts both sides are small and GC/timer noise bites.
+        // Soft factor: suite load still adds noise, but N=900 keeps index clearly ahead.
         expect(indexMs).toBeLessThan(2_000);
         expect(indexMs).toBeLessThan(findMs * 0.85);
-    }, 30_000);
+    }, 60_000);
 });

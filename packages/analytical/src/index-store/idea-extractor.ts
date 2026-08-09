@@ -364,9 +364,9 @@ function wildcardReferenceEdges(
     const label = wildcardReferenceLabel(path, target.ideaPattern);
     if (!candidates?.length) {
         return [{
-            id: edgeId(sourceId, 'references', `unresolved:${label}`),
+            id: edgeId(sourceId, 'wildcard_reference', `unresolved:${label}`),
             sourceId,
-            kind: 'references',
+            kind: 'wildcard_reference',
             label,
             ...meta,
             isResolved: false
@@ -381,9 +381,9 @@ function wildcardReferenceEdges(
     );
     if (matches.length === 0) {
         return [{
-            id: edgeId(sourceId, 'references', `unresolved:${label}`),
+            id: edgeId(sourceId, 'wildcard_reference', `unresolved:${label}`),
             sourceId,
-            kind: 'references',
+            kind: 'wildcard_reference',
             label,
             ...meta,
             isResolved: false
@@ -392,10 +392,10 @@ function wildcardReferenceEdges(
     return matches.map(match => {
         const targetId = ideaId(match.fileUri, match.ideaName);
         return {
-            id: edgeId(sourceId, 'references', targetId),
+            id: edgeId(sourceId, 'wildcard_reference', targetId),
             sourceId,
             targetId,
-            kind: 'references' as const,
+            kind: 'wildcard_reference' as const,
             label: match.ideaName,
             ...meta,
             isResolved: true

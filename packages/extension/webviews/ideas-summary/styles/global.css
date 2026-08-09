@@ -932,6 +932,11 @@ button.member-chip:hover {
     border-top-color: var(--vscode-panel-border);
 }
 
+.graph-key-line.dotted {
+    border-top-style: dotted;
+    border-top-width: 3px;
+}
+
 .graph-surface:active {
     cursor: grabbing;
 }

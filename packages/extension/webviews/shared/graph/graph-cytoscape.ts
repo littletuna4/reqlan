@@ -305,7 +305,8 @@ export function buildCytoscapeElements(
             id: edge.id,
             source: edge.sourceId,
             target: edge.targetId,
-            isExternal: externalNodeIds.has(edge.targetId)
+            isExternal: externalNodeIds.has(edge.targetId),
+            isWildcard: edge.kind === 'wildcard_reference'
         }
     }));
 
@@ -499,6 +500,13 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
             style: {
                 'line-style': 'dashed',
                 'line-color': GRAPH_NODE_COLORS.external
+            }
+        },
+        {
+            selector: 'edge[?isWildcard]',
+            style: {
+                'line-style': 'dotted',
+                width: 2
             }
         }
     ];

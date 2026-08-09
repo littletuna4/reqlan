@@ -41,6 +41,15 @@ export {
 export type { RqIgnoreFilter } from './core/rqignore.js';
 export { createBase } from './core/create-base.js';
 export type { CreateBaseResult } from './core/create-base.js';
+export { barrelPage, planBarrelPage, rewriteSiblingRefs } from './core/barrel-page.js';
+export type {
+    BarrelPageChildPlan,
+    BarrelPageOptions,
+    BarrelPagePlan,
+    BarrelPagePlanOptions,
+    BarrelPageResult
+} from './core/barrel-page.js';
+
 export {
     baseForPath,
     childBasesOf,
@@ -72,7 +81,9 @@ export {
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
     fuzzySubsequence,
-    normalizeSearchSeparators
+    matchQueryTokens,
+    normalizeSearchSeparators,
+    splitSearchTokens
 } from './analysis/fuzzy-search.js';
 export type { FuzzySearchHit } from './analysis/fuzzy-search.js';
 export {
@@ -136,6 +147,7 @@ export {
     buildGraphViewSlice,
     buildGraphSliceForIdeaIds,
     toGraphNodeView,
+    isWildcardReferenceEdge,
     CONTEXT_MIN_HOP_DEPTH,
     CONTEXT_MAX_HOP_DEPTH,
     clampGraphHopDepth

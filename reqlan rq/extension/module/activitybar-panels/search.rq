@@ -3,6 +3,7 @@ import "../../../core_analysis/search.rq" as core_search
 import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
 import "../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte" as AddToChatButton
 import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
 import "../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts" as app_state
 import "../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
@@ -20,7 +21,7 @@ search_pane {
     - Pane header link **Advanced** opens Ideas Summary ideas table with the current query prefilled.
     - Results list capped (default ~40) with name, path, and one-line summary; click opens the idea.
     - Each hit has an **Insert reference** button that inserts `[idea_name]` at the active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import when the target is in another file — same rules as [commands.search_code_actions].
-    - Each hit has an **Add to chat** button per [search_add_to_chat].
+    - Each hit has an **Add to chat** split control per [search_add_to_chat] (primary = current; ▾ menu = current or new).
     - Empty query: prompt to type (do not dump the full idea catalog into the pane).
     - Soft-wait when the index is not ready; scoped errors stay in the pane.
     - Loading UX: [search_progress].
@@ -40,12 +41,16 @@ search_pane {
 }
 
 search_add_to_chat {
-    From each [search_pane] hit, **Add to chat** places compact `#requirement` context into the **current** chat input without submitting.
+    From each [search_pane] hit, a split **Add to chat** control:
+    - Primary button: place compact `#requirement` context into the **current** chat input without submitting.
+    - ▾ menu (visible secondary affordance): **Add to current chat** or **Add to new chat** (new session, then seed the same payload).
+    Tooltips name both behaviours; secondary is not right-click-only.
     Same payload shape as [commands.add_to_chat] (idea name, path:line, summary) via [open_chat].
-    Host calls `workbench.action.chat.open` with `{ query, isPartialQuery: true }` so the user can edit or send.
+    Host: [open_chat] with `{ query, isPartialQuery: true, target: 'current' | 'new' }`.
     Clipboard fallback when no chat command is available (same spirit as [commands.add_to_chat]).
-    Wire: [SearchPane] → [app_state] `addToChat` → [activity_bar_messages] → [activity_bar_webview] → [open_chat].
+    Wire: [AddToChatButton] / [SearchPane] → [app_state] `addToChat(hit, target)` → [activity_bar_messages] → [activity_bar_webview] → [open_chat].
     @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]

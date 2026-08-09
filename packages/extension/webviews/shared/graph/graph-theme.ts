@@ -59,7 +59,7 @@ export interface GraphLegendNodeItem {
 export interface GraphLegendEdgeItem {
     kind: 'edge';
     label: string;
-    variant: 'solid' | 'dashed';
+    variant: 'solid' | 'dashed' | 'dotted';
 }
 
 export interface GraphLegendCompoundItem {
@@ -89,6 +89,7 @@ export const GRAPH_LEGEND_ITEMS: GraphLegendItem[] = [
     { kind: 'group-emphasis', label: 'Group hover — member border', variant: 'hover' },
     { kind: 'group-emphasis', label: 'Group selected — member border', variant: 'selected' },
     { kind: 'edge', label: 'Reference', variant: 'solid' },
+    { kind: 'edge', label: 'Wildcard reference', variant: 'dotted' },
     { kind: 'edge', label: 'External file reference', variant: 'dashed' }
 ];
 

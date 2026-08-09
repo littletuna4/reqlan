@@ -1098,12 +1098,13 @@ function isInteractiveMessage(message: ActivityBarToExtensionMessage): boolean {
     }
 }
 
-/** Compact #requirement payload for search hits → current chat input (isPartialQuery). */
+/** Compact #requirement payload for search hits → chat input (isPartialQuery). */
 async function addSearchHitToChat(hit: {
     name: string;
     path: string;
     summary: string;
     lineStart: number;
+    target?: 'current' | 'new';
 }): Promise<void> {
     const location = `${hit.path}:${hit.lineStart + 1}`;
     const contextText = [
@@ -1112,11 +1113,14 @@ async function addSearchHitToChat(hit: {
         hit.summary || '(no summary)'
     ].join('\n');
     const query = `#requirement ${hit.name}\n\n${contextText}`;
-    const opened = await openChatWithText(query, { isPartialQuery: true });
+    const target = hit.target ?? 'current';
+    const opened = await openChatWithText(query, { isPartialQuery: true, target });
     if (!opened) {
         await vscode.env.clipboard.writeText(query);
         void vscode.window.showInformationMessage(
-            'Idea context copied to clipboard. Paste it into chat.'
+            target === 'new'
+                ? 'Idea context copied to clipboard. Paste it into a new chat.'
+                : 'Idea context copied to clipboard. Paste it into chat.'
         );
     }
 }

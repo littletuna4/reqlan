@@ -1,0 +1,9 @@
+import_alpha {
+    alpha idea
+}
+import_beta {
+    beta idea
+}
+other_thing {
+    not matched by import_*
+}

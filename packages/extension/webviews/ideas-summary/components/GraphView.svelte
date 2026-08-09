@@ -315,6 +315,11 @@
         emitQuery({ ...query, includeIndirect: !query.includeIndirect });
     }
 
+    function toggleWildcardRefs(): void {
+        const include = query.includeWildcardRefs !== false;
+        emitQuery({ ...query, includeWildcardRefs: !include });
+    }
+
     function clearCenter(): void {
         emitQuery({ ...query, centerId: undefined });
     }
@@ -496,6 +501,7 @@
             on:statusFilter={(event) => handleMultiFilterChange('statusFilter', event.detail)}
             on:tagFilter={(event) => handleMultiFilterChange('tagFilter', event.detail)}
             on:toggleIndirect={toggleIndirect}
+            on:toggleWildcardRefs={toggleWildcardRefs}
             on:clearCenter={clearCenter}
             on:toggleKey={toggleKey}
             on:toggleControls={toggleControls}

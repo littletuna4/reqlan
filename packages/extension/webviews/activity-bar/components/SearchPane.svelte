@@ -1,5 +1,6 @@
 <script lang="ts">
     import { getApp } from '../state/context.js';
+    import AddToChatButton from './AddToChatButton.svelte';
     import CollapsiblePane from './CollapsiblePane.svelte';
 
     interface Props {
@@ -122,12 +123,7 @@
                                 title="Insert [{hit.name}] at cursor"
                                 onclick={() => app.insertReference(hit)}
                             >Insert ref</button>
-                            <button
-                                type="button"
-                                class="action-button"
-                                title="Add #requirement {hit.name} to current chat input"
-                                onclick={() => app.addToChat(hit)}
-                            >Add to chat</button>
+                            <AddToChatButton {hit} />
                             <button
                                 type="button"
                                 class="action-button"

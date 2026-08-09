@@ -151,10 +151,14 @@ wildcard_references {
     top-level ideas unindexed (soft mtime sync will not rebuild until the `.rq` file changes).
     Navigation does not emit N LocationLinks — document links and go-to open
     `reqlan.openWildcardReference` with `{ pathPattern, ideaPattern, fromUri }` (see [wildcard_references_webview]).
-    Indexing (["../indexer/indexer.rq".index]) fans out to one resolved `references` edge per matching catalog idea;
-    empty catalog / zero matches yield a single unresolved edge labeled with the pattern text.
+    Indexing fans out per ["../indexer/indexer.rq".wildcard_reference_edges]
+    (owned under ["../indexer/indexer.rq".index]): one `wildcard_reference` edge per catalog match;
+    empty catalog / zero matches → one unresolved edge of that kind labeled with the pattern text.
+    Ideas Summary graph toggles those edges via
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
-    Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink].
+    Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink],
+    ["../indexer/indexer.rq".wildcard_reference_edges].
 
     Illustrative forms (fenced so this file does not embed live wildcards):
     ```
@@ -182,8 +186,12 @@ wildcard_references {
         ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: imports.rq captures wildcard ideas with status and implementation"]
         ["../../packages/analytical/test/wildcard-reference-edges.test.ts"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:expands wildcard refs to one edge per matching idea"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
         ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: extractIndexedDocument fans out edges for matching catalog ideas"]
         ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: imports.rq extract includes webview and path_filter ideas"]
+        ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
     )
 }
 

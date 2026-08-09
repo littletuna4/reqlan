@@ -17,6 +17,7 @@ html_export {
     [html_export_internal_links]
     [html_export_search]
     [html_export_list_views]
+    [html_export_overview_links]
     [html_export_idea_pages]
     [html_export_file_pages]
     [html_export_code_reference_pages]
@@ -55,6 +56,7 @@ html_export_multi_file {
 html_export_internal_links {
     Every exported idea should have a stable html page path and stable in-page anchors.
     References, breadcrumbs, search results, graph nodes, cluster members, attribute listings, file listings, and code-file listings should link to html pages rather than only showing text labels.
+    Overview status/tag rollups and list-table facet cells follow [html_export_overview_links].
     On the printable report, same-page idea links use those in-page anchors per [html_export_print_in_page_anchors].
     Graph node links must follow [html_export_graph_links].
     When [html_export_url_base] is set, those same links must be root-relative under the mount prefix so static hosts resolve them with or without a trailing slash.
@@ -70,17 +72,39 @@ html_export_list_views {
     Html export should provide searchable list views for ideas, files, code files, references, clusters, and attributes.
     List views should preserve the usability of the current ideas summary tables with counts, sorting, filters, and quick navigation.
     Every interactive table column should be sortable by header click and filterable with a per-column filter, in addition to any page-level search bar.
+    Navigable facet cells in those tables (status, tags, paths, attribute values, cluster labels/kinds) should be links to the matching detail page or to a list page with the matching column filter applied via [html_export_overview_links].
     Long lists that sit above other page content follow [html_export_scrollable_lists].
     [html_export_attributes_index]
     [html_export_file_pages]
     [html_export_code_reference_pages]
     [html_export_scrollable_lists]
+    [html_export_overview_links]
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
         ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
+html_export_overview_links {
+    The interactive overview page status rollup, tags rollup, and highlighted clusters must be interactive navigation, not plain labels.
+    Status and tag rollup entries should open the matching status/tag cluster page when [html_export_cluster_pages] is enabled; otherwise they should open the ideas list with the Status or Tags column filter seeded from the rollup key.
+    Highlighted clusters should open the matching cluster page (or the clusters index when cluster pages are disabled).
+    List pages must honour URL query parameters that seed per-column filters (for example `ideas.html?status=todo` or `ideas.html?tags=export`) so overview and in-table facet links land with the filter already applied.
+    Query keys match stable `data-filter-key` values on table headers; filter values use the same display labels as the rollup (including Not present / Empty).
+    Cross-refs [html_export_list_views], [html_export_cluster_pages], [html_export_internal_links].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../packages/analytical/test/export-html.test.ts:overview status and tag rollups link with filters"]
     )
 }
 
@@ -175,6 +199,10 @@ html_export_graph_page {
     The graph should support scoped views for workspace, file, cluster, and idea contexts.
     The workspace graph page must include every idea in the export scope — blocks, oneliners, and ideasets — and must not apply the interactive Ideas Summary GRAPH_MAX_NODES budget.
     Ideasets are visible by default with a Hide ideasets / Show ideasets toggle, matching the external-file visibility control.
+    Wildcard fan-out edges (`wildcard_reference`) are visible by default with a "Wildcard refs" chip
+    (same label/default as Ideas Summary); turning it off client-filters those edges and draws them dotted when on —
+    see ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle] and
+    ["../extension/module/ideas_summary/graphical_graph.rq".webview_export_graph_parity].
     Status and tag filters are multi-select and distinguish [graph_status_tag_filters].
     Per-idea, per-file, and per-cluster neighbourhood graphs may still use a capped budget for focused pages.
     [html_export_graph_links]
@@ -195,6 +223,7 @@ html_export_graph_page {
     )
     @tests (
         ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
     )
 }
 

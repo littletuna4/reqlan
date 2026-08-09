@@ -116,7 +116,23 @@ describe('html export pipeline', () => {
         expect(indexHtml).toContain('assets/search-index.js');
         expect(indexHtml).not.toContain('type="module"');
         expect(indexHtml).toContain('Code files');
+        expect(indexHtml).toContain('Status Rollup');
+        expect(indexHtml).toContain('class="rollup-link"');
+        const todoStatusCluster = snapshot.clusters.find(cluster => cluster.kind === 'status' && cluster.id === 'status:todo');
+        const exportTagCluster = snapshot.clusters.find(cluster => cluster.kind === 'tag' && cluster.id === 'tag:export');
+        expect(todoStatusCluster).toBeTruthy();
+        expect(exportTagCluster).toBeTruthy();
+        expect(indexHtml).toContain(todoStatusCluster!.page.path);
+        expect(indexHtml).toContain(exportTagCluster!.page.path);
+        expect(indexHtml).toContain(snapshot.clusters[0]!.page.path);
         expect(ideasIndexHtml).toContain('Filter ideas');
+        expect(ideasIndexHtml).toContain('data-filter-key="status"');
+        expect(ideasIndexHtml).toContain('data-filter-key="tags"');
+        expect(ideasIndexHtml).toContain(todoStatusCluster!.page.path);
+        expect(ideasIndexHtml).toContain(exportTagCluster!.page.path);
+        expect(appJs).toContain('dataset.filterKey');
+        expect(appJs).toContain('URLSearchParams');
+        expect(stylesCss).toContain('.rollup-link');
         expect(filesIndexHtml).toContain('List view by source file');
         expect(codeFilesIndexHtml).toContain('Code reference index');
         expect(codeFilesIndexHtml).toContain('app.ts');
@@ -251,6 +267,58 @@ describe('html export pipeline', () => {
         await store.close();
     });
 
+    test('overview status and tag rollups link with filters', async () => {
+        const store = await openTestStore();
+        const fileA = 'reqs/a.rq';
+        const ideaA: IdeaRecord = {
+            id: ideaId(fileA, 'alpha'),
+            name: 'alpha',
+            kind: 'block',
+            fileUri: fileA,
+            lineStart: 0,
+            lineEnd: 2,
+            summary: 'alpha summary',
+            attributesJson: '{"status":"todo","tags":["export"]}',
+            contentHash: 'a'
+        };
+        await store.upsertDocument(fileA, 'hash-a', [ideaA], []);
+
+        const request = {
+            format: 'html' as const,
+            outputDir: join(tmpdir(), `reqlan-export-out-${randomUUID()}`),
+            exportName: 'overview-links',
+            workspaceRoot: '/workspace/reqlan',
+            templateId: 'default',
+            scope: 'workspace' as const,
+            includeRequirementsPage: false,
+            includeGraphPage: false,
+            printEntryFileName: 'print.html',
+            runtimeMode: 'interactive' as const,
+            includeIdeaPages: true,
+            includeFilePages: true,
+            includeCodeFilePages: false,
+            includeClusterPages: false,
+            includeAttributePages: true,
+            includePrintPages: false,
+            clusterStrategy: 'deterministic' as const
+        };
+        const snapshot = await buildExportSnapshot(store, request);
+        const result = await writeHtmlExport(snapshot, request);
+        const indexHtml = await readFile(result.indexFilePath, 'utf8');
+        const ideasIndexHtml = await readFile(result.ideasIndexFilePath!, 'utf8');
+        const appJs = await readFile(join(result.outputDir, 'assets/app.js'), 'utf8');
+
+        expect(indexHtml).toContain('ideas.html?status=todo');
+        expect(indexHtml).toContain('ideas.html?tags=export');
+        expect(indexHtml).toContain('clusters.html?kind=');
+        expect(ideasIndexHtml).toContain('data-filter-key="status"');
+        expect(ideasIndexHtml).toContain('ideas.html?status=todo');
+        expect(appJs).toContain('URLSearchParams');
+        expect(appJs).toContain('dataset.filterKey');
+
+        await store.close();
+    });
+
     test('document runtime mode keeps scroll windows unconstrained by interactive max-height selectors', async () => {
         const store = await openTestStore();
         const fileA = 'reqs/a.rq';
@@ -371,6 +439,9 @@ describe('html export pipeline', () => {
         await store.close();
     });
 
+    // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_graph_page]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".webview_export_graph_parity]
     test('workspace graph includes every idea even when maxGraphNodes is below idea count', async () => {
         const store = await openTestStore();
         const ideaCount = 150;
@@ -440,9 +511,15 @@ describe('html export pipeline', () => {
         expect(snapshot.graphs.workspace.truncated).toBe(false);
         expect(graphHtml).toContain('data-graph-toggle-ideasets');
         expect(graphHtml).toContain('Hide ideasets');
+        expect(graphHtml).toContain('data-graph-toggle-wildcard');
+        expect(graphHtml).toContain('Wildcard refs');
         expect(appJs).toContain("querySelector('[data-graph-toggle-ideasets]')");
         expect(appJs).toContain('hideIdeasets');
         expect(appJs).toContain('Show ideasets');
+        expect(appJs).toContain("querySelector('[data-graph-toggle-wildcard]')");
+        expect(appJs).toContain('includeWildcardRefs');
+        expect(appJs).toContain("edge.kind === 'wildcard_reference'");
+        expect(appJs).toContain('setLineDash');
         expect(new Set(ideaNodes.map(node => node.name))).toEqual(
             new Set([...ideas.map(idea => idea.name), ideaset.name])
         );

@@ -485,7 +485,7 @@ export class SqliteIndexStore {
             const nextFrontier: string[] = [];
             for (const currentId of frontier) {
                 for (const edge of await this.getEdgesFrom(currentId)) {
-                    if (edge.kind !== 'references' || !edge.targetId || visited.has(edge.targetId)) {
+                    if ((edge.kind !== 'references' && edge.kind !== 'wildcard_reference') || !edge.targetId || visited.has(edge.targetId)) {
                         continue;
                     }
                     visited.add(edge.targetId);

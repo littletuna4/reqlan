@@ -7,6 +7,7 @@ import type {
 } from './types.js';
 import {
     filterDisplayLabel,
+    FILTER_NOT_PRESENT,
     isFilterEmpty,
     isFilterNotPresent,
     isFilterUnspecified
@@ -126,6 +127,102 @@ export function renderOptionalTagsCell(idea: { tags?: readonly string[] | null }
     return tags.length > 0 ? escapeHtml(tags.join(', ')) : '';
 }
 
+/** Find the deterministic status/tag cluster for a rollup or filter key. */
+export function findValueCluster(
+    snapshot: ExportSnapshot,
+    kind: 'status' | 'tag',
+    valueKey: string
+): ExportClusterRecord | undefined {
+    const id = `${kind}:${valueKey}`;
+    return snapshot.clustersById[id] ?? snapshot.clusters.find(cluster =>
+        cluster.kind === kind && (cluster.id === id || cluster.label === `${kind}: ${filterDisplayLabel(valueKey)}`)
+    );
+}
+
+/** Build `page?key=value` hrefs that seed column filters on list pages. */
+export function listFilterHref(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    page: ExportPageInfo,
+    filters: Record<string, string>
+): string {
+    const base = pageHref(currentPath, page, snapshot.urlBase);
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) {
+        if (value) {
+            params.set(key, value);
+        }
+    }
+    const query = params.toString();
+    return query ? `${base}?${query}` : base;
+}
+
+/**
+ * Destination for a status or tag facet: prefer the matching cluster page,
+ * otherwise the ideas index with a seeded Status/Tags column filter.
+ */
+export function statusOrTagFacetHref(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    kind: 'status' | 'tag',
+    valueKey: string
+): string {
+    const cluster = findValueCluster(snapshot, kind, valueKey);
+    if (cluster && snapshot.pageOptions.includeClusterPages) {
+        return pageHref(currentPath, cluster.page, snapshot.urlBase);
+    }
+    const filterKey = kind === 'status' ? 'status' : 'tags';
+    return listFilterHref(snapshot, currentPath, snapshot.manifest.ideasIndex, {
+        [filterKey]: filterDisplayLabel(valueKey)
+    });
+}
+
+export function renderLinkedStatusCell(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    idea: ExportIdeaRecord
+): string {
+    const key = idea.statusKey ?? FILTER_NOT_PRESENT;
+    const label = filterDisplayLabel(key);
+    const visible = ideaStatus(idea);
+    const href = statusOrTagFacetHref(snapshot, currentPath, 'status', key);
+    const sortValue = escapeHtml(label);
+    if (!visible) {
+        return `<span data-sort-value="${sortValue}"></span>`;
+    }
+    return `<a href="${escapeHtml(href)}" data-sort-value="${sortValue}">${escapeHtml(visible)}</a>`;
+}
+
+export function renderLinkedTagsCell(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    idea: ExportIdeaRecord
+): string {
+    const keys = idea.tagsKeys ?? [FILTER_NOT_PRESENT];
+    const tags = ideaTags(idea);
+    const sortValue = escapeHtml(tags.length > 0 ? tags.join(', ') : filterDisplayLabel(keys[0] ?? FILTER_NOT_PRESENT));
+    if (tags.length === 0) {
+        return `<span data-sort-value="${sortValue}"></span>`;
+    }
+    const links = tags.map(tag => {
+        const href = statusOrTagFacetHref(snapshot, currentPath, 'tag', tag);
+        return `<a href="${escapeHtml(href)}">${escapeHtml(tag)}</a>`;
+    });
+    return `<span data-sort-value="${sortValue}">${links.join(', ')}</span>`;
+}
+
+export function renderFilePathCell(
+    snapshot: ExportSnapshot,
+    currentPath: string,
+    fileUri: string
+): string {
+    const target = resolveExportFilePage(snapshot, { fileUri });
+    if (target && filePageEnabled(snapshot, target.kind)) {
+        return `<a href="${escapeHtml(pageHref(currentPath, target.page, snapshot.urlBase))}" data-sort-value="${escapeHtml(fileUri)}">${escapeHtml(fileUri)}</a>`;
+    }
+    return escapeHtml(fileUri);
+}
+
 export function pageHref(currentPath: string, page: ExportPageInfo, urlBase?: string): string {
     return hrefFor(currentPath, page.path, urlBase);
 }
@@ -187,7 +284,10 @@ export function filePageEnabled(snapshot: ExportSnapshot, kind: 'file' | 'code-f
         : snapshot.pageOptions.includeCodeFilePages;
 }
 
-export function renderDefinitionList(values: Record<string, number>): string {
+export function renderDefinitionList(
+    values: Record<string, number>,
+    hrefForKey?: (key: string) => string | undefined
+): string {
     const entries = Object.entries(values);
     if (entries.length === 0) {
         return '<p class="subtle">No data available.</p>';
@@ -203,10 +303,13 @@ export function renderDefinitionList(values: Record<string, number>): string {
                         : isFilterUnspecified(key)
                             ? 'rollup-special rollup-unspecified'
                             : '';
+                const href = hrefForKey?.(key);
+                const term = href
+                    ? `<dt><a class="rollup-link" href="${escapeHtml(href)}">${escapeHtml(label)}</a></dt><dd><a class="rollup-link" href="${escapeHtml(href)}">${escapeHtml(String(value))}</a></dd>`
+                    : `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd>`;
                 return `
                 <div${specialClass ? ` class="${specialClass}"` : ''}>
-                    <dt>${escapeHtml(label)}</dt>
-                    <dd>${escapeHtml(String(value))}</dd>
+                    ${term}
                 </div>`;
             }).join('')}
         </dl>

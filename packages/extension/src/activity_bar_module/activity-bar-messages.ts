@@ -88,6 +88,8 @@ export type ActivityBarToExtensionMessage =
           path: string;
           summary: string;
           lineStart: number;
+          /** Prefer current chat input (default) or open a new chat. */
+          target?: 'current' | 'new';
       }
     | { type: 'loadIndexHealth' }
     | { type: 'refreshIndex' }

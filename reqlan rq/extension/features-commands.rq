@@ -4,6 +4,8 @@
 import  "./export_functions.rq" as export_functions
 from "./features-graph-analysers.rq" import local_graph_analysis
 import "@/reqlan rq/core_analysis/search.rq" as search_analysis
+import "../cli/cli_package.rq" as cli
+from "./vsc-primitives.rq" import code_actions
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
@@ -64,13 +66,18 @@ pallete_function_create_todo {
 
 add_to_chat {
     A set of [command_palette] functions that add the selected idea, ideaset, or file to the chat.
-    Commands: Add Idea to Chat, Add Ideaset to Chat, Add File to Chat (category Reqlan).
-    Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick. Opens chat with #requirement / #file context, with clipboard fallback.
-    Host open helper: ["../../packages/extension/src/ai_commands_module/open-chat.ts"] (`workbench.action.chat.open`).
-    Activity bar search hits also offer **Add to chat** via ["./module/activitybar-panels/search.rq".search_add_to_chat] — same `#requirement` payload, with `isPartialQuery: true` so the text lands in the current chat input without submitting.
+    Commands: Add Idea/Ideaset/File to **Current** Chat (primary) and to **New** Chat (secondary); category Reqlan.
+    Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick.
+    Primary: inject `#requirement` / `#file` context into the **current** chat input (`isPartialQuery: true`) without submitting.
+    Secondary: open a **new** chat/agent session, then seed the same payload into its input.
+    Discoverability: editor context uses a **Reqlan: Add to Chat** submenu (current + new for idea/ideaset/file). Palette titles name Current vs New explicitly.
+    Clipboard fallback when no chat command is available.
+    Host open helper: ["../../packages/extension/src/ai_commands_module/open-chat.ts"] (`target: 'current' | 'new'`).
+    Activity bar search hits: ["./module/activitybar-panels/search.rq".search_add_to_chat] — split button with ▾ menu (not hidden right-click only).
     @implementation (
         ["../../packages/extension/src/ai_commands_module/register-ai-commands.ts"]
         ["../../packages/extension/src/ai_commands_module/open-chat.ts"]
+        ["../../packages/extension/package.json"]
     )
     @status done
 }
@@ -113,11 +120,36 @@ search_code_actions {
     )
 }
 
-file_based_code_actions {
-    [code_actions]
-    Code actions should be available for the whole file. The should include:
+format_page {
+    - set the whitespace etc appropriate for the page.
+    @todo
+    @ideating
+}
 
-    [file_based_code_actions]
+barrel_page {
+    When a `.rq` page grows large, barrel it into a container: create one sibling file per top-level idea, import those files into the current page, and replace the page body with a single container idea whose name the user chooses (default: the sanitized file basename).
+    Same-file sibling refs are rewritten to qualified imports in the child files. Existing page imports are copied into each child. Top-level ideasets are preserved in the container file.
+    Behaviour lives in ["../core-architecture.rq".analytical_package] and is exposed via [cli] / ["../cli/cli_package.rq".commands] (`reqlan barrel`).
+    Related: [file_based_code_actions] [decompose]
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/core/barrel-page.ts"]
+        ["../../packages/cli/src/commands/barrel.ts"]
+        ["../../packages/cli/src/main.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/barrel-page.test.ts:creates one child file per idea and a container defaulting to file basename"]
+        ["../../packages/analytical/test/barrel-page.test.ts:writes child files and replaces the source with a container"]
+    )
+}
+
+file_based_code_actions {
+    Code actions should be available for the whole file. The should include:
+    - barrel page
+        - barrel idea
+    - decompose idea
+    - search for refernces.
+    [code_actions]
     @todo
     @ideating.
 }

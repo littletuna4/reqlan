@@ -407,9 +407,9 @@ session_refresh {
     implemented in ["./src/auth/session.ts".rotateRefresh]
     proven by ["./src/auth/session.test.ts:rejects reused refresh token"]
 
-    @status: in-progress
-    @tags: (auth, security)
-    @todo: reject reuse of the old refresh token
+    @status in-progress
+    @tags (auth, security)
+    @todo reject reuse of the old refresh token
 }`,
   },
 

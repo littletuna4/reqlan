@@ -20,9 +20,48 @@ definition {
 
 index {
     The ideas graph indexer: parse `.rq` with `@reqlan/language`, extract ideas/edges, persist to sql.js SQLite.
-    Wildcard path+idea refs (["../language/imports.rq".wildcard_references]) expand to one `references` edge per catalog match
-    during extract (`idea-extractor`); unresolved when the catalog has zero hits.
+    Wildcard path+idea fan-out: [wildcard_reference_edges]
+    (["../language/imports.rq".wildcard_references]).
+    Ideas Summary graph can hide those edges via [ideas_summary_doc] /
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     Owned by [ownership]; consumed per [consumption].
+}
+
+wildcard_reference_edges {
+    Extract (`idea-extractor`) expands each AST `WildcardReference` against the idea catalog
+    (`matchWildcardAgainstCatalog` / workspace candidate list).
+    Persist one edge of kind `wildcard_reference` per matching idea (label = target idea name);
+    never emit plain `references` for wildcard forms.
+    Zero matches → one unresolved edge of the same kind (`isResolved: false`, label = pattern text).
+    Edge ids use `edgeId(source, 'wildcard_reference', targetOrUnresolvedKey)`.
+    Ancestor / reference-chain walks treat `wildcard_reference` like `references`
+    (["../../packages/analytical/src/index-store/sqlite-store.ts"]).
+    Ideas Summary references table groups them under sub-idea with other idea-to-idea links;
+    graph visibility is [ideas_summary_doc] /
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    Soft mtime sync skips unchanged files — after introducing this edge kind, reindex (or touch)
+    `.rq` files that contain wildcards so stored rows leave any legacy `references` fan-out.
+
+    Related: ["../language/imports.rq".wildcard_references], [index],
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../packages/analytical/src/core/types.ts"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/analytical/src/index-store/webview-table-queries.ts"]
+        ["../../packages/language/src/reqlan-wildcard-resolve.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:expands wildcard refs to one edge per matching idea"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:emits unresolved edge when catalog has no matches"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: extractIndexedDocument fans out edges for matching catalog ideas"]
+        ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+    )
 }
 
 ownership {

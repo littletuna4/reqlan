@@ -614,13 +614,14 @@ export class AppState {
         });
     }
 
-    addToChat(hit: IdeaSearchHitView): void {
+    addToChat(hit: IdeaSearchHitView, target: 'current' | 'new' = 'current'): void {
         postToExtension({
             type: 'addToChat',
             name: hit.name,
             path: hit.path,
             summary: hit.summary,
-            lineStart: hit.lineStart
+            lineStart: hit.lineStart,
+            target
         });
     }
 

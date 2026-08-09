@@ -1,5 +1,6 @@
 from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
 from "./webview.rq" import ideas_summary
+from "../../../core_analysis/html_export.rq" import html_export_graph_page
 
 
 
@@ -11,8 +12,11 @@ graphical_graph {
     By default the view focuses on the active editor file's first idea; without a focus it shows a capped slice of matching ideas rather than dumping the full graph.
     Users can filter by search text, path, multi-select @status, and multi-select tags per [graph_status_tag_filters].
     An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
+    A "Wildcard refs" toggle includes or hides edges expanded from path+idea wildcards per [wildcard_refs_toggle]
+    (["../../language/imports.rq".wildcard_references]).
+    Interactive graph controls that also exist on HTML export must stay aligned per [webview_export_graph_parity].
     Clicking a node opens its source; double-click or "Focus graph" recenters the slice on that idea.
-    External file references render as dashed edges to file nodes.
+    External file references render as dashed edges to file nodes; wildcard-fan-out edges render dotted.
     A toggleable key explains node colours and edge styles and toggles node-type visibility per [key_panel_toggle]; a toggleable [control_panel] exposes layout, physics, and node-budget settings. Key and Controls state persist per workspace via [graph_ui_persistence].
     Pan, zoom, and drag repositioning per [view_controls].
     [manual_reframe] via "Fit to view" in [ui_controls]; [auto_reframe] when the loaded node set changes; [reframe_animation] for smooth transitions after the first paint.
@@ -36,6 +40,77 @@ ui_controls {
     The Key button toggles a draggable legend panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
     The Controls button toggles [control_panel].
     Overlay panels (Key and Controls) are siblings of the cytoscape mount inside a graph-surface-wrap — never children of the cy container — so native form controls receive pointer events.
+}
+
+wildcard_refs_toggle {
+    Toolbar chip "Wildcard refs" (next to Indirect refs) on GraphControls toggles `GraphViewQuery.includeWildcardRefs`.
+    Default true — edges of kind `wildcard_reference` from the indexer fan-out stay visible
+    (["../../indexer/indexer.rq".wildcard_reference_edges]).
+    When false, `buildGraphViewSlice` omits those edges and does not expand neighbourhood through them
+    (`includeWildcardRefs !== false` normalisation in Ideas Summary host + analytical query).
+    Distinct from plain `references` and from the Indirect refs depth toggle; Key legend shows a dotted
+    "Wildcard reference" row; cytoscape marks `edge[?isWildcard]` with `line-style: dotted`.
+    Query field flows Ideas Summary loadGraph → `buildGraphViewSlice` in
+    ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"].
+    HTML export workspace graph has the same chip (client filter on embedded edges; dotted stroke) per
+    [webview_export_graph_parity] and [html_export_graph_page].
+    Related: ["../../language/imports.rq".wildcard_references],
+    ["../../indexer/indexer.rq".wildcard_reference_edges],
+    ["../../indexer/indexer.rq".index],
+    [graphical_graph], [ui_controls], [webview_export_graph_parity].
+
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/messages.ts"]
+        ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/lib/default-queries.ts"]
+        ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/styles/global.css"]
+        ["../../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
+        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts"]
+        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+    )
+}
+
+webview_export_graph_parity {
+    Interactive graph behaviour that authors rely on in Ideas Summary must have a matching affordance
+    on the HTML export workspace graph ([html_export_graph_page]) unless a requirement explicitly
+    scopes it to one host.
+    Shared today: Labels auto/on/off, live physics, Fit, status/tag filters, path/search filters,
+    hide external files, hide ideasets, and [wildcard_refs_toggle] (default on; dotted wildcard edges).
+    Ideas Summary may still differ where the host model differs: Indirect refs rebuilds hop depth via
+    `buildGraphViewSlice` (export freezes neighbourhood at snapshot time — no Indirect chip);
+    Key / Controls panels and node-budget controls are webview-only; export uses client-side filters
+    on the embedded graph JSON rather than re-querying the index.
+    When adding a new Ideas Summary graph chip or edge style, update [html_export_graph_page] (or
+    document an intentional exception here) and keep labels / defaults aligned across surfaces.
+    Related: [graphical_graph], [wildcard_refs_toggle], [ui_controls],
+    [graph_labels], [graph_label_modes], [graph_status_tag_filters].
+
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+    )
 }
 
 graph_loading {

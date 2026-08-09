@@ -1648,6 +1648,14 @@ adv_overview {
         SCR: Theme map slide builds one tile at a time: imports, attributes, graph maps, context, comment links, export, CLI/MCP, modelling, wildcards.
 
         VO: Nine themes ahead. Imports and ideasets keep multi-file graphs honest.
+            Attributes and plans stay slim unless they drive a view.
+            Ideas Summary is a map you choose — not a mandatory god's-eye dump.
+            Context and tokens carry forward the get-started habit: small slices beat whole-repo pastes.
+            Comment references close the loop from code back to requirements.
+            HTML export and CLI/MCP share the same analytical core — different hosts, same graph.
+            Modelling patterns tie it together — including work that is not software.
+            Wildcard references name a set of neighbours in one stroke — path glob plus idea pattern.
+
         SCR: Quick beat on active base picker / `.reqlan` in Explorer — no create-base CTA. Nested base shown as dashed boundary on slide only.
 
         VO: Bases show up here as craft, not ceremony. One active base at a time.
@@ -2843,6 +2851,8 @@ adv_09_wildcard_references {
     Runtime: 8–10 min.
     Demo: advanced baseline with several `*_pane` ideas under `reqs/extension/` (or mock `panels/`); caret in a surface idea that should cite them all; index ready.
     Related: [wildcard_references] [wildcard_references_webview] [reference_qualified] [adv_01_imports_ideasets]
+    ["../indexer/indexer.rq".wildcard_reference_edges]
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
     @example {
         ```rq
         extension_surface {
@@ -2868,10 +2878,12 @@ adv_09_wildcard_references {
         VO: Navigation does not dump N go-to locations. It opens a panel: stats first, then the requirements and files that matched.
             Click a row to open that idea. Optional: Open in Search seeds the activity bar with the same path filter.
 
-        SCR: Misconception beat: replace the wildcard with three hand-typed exact refs. Then undo — show the fan-out edge in Ideas Summary / references.
+        SCR: Misconception beat: replace the wildcard with three hand-typed exact refs. Then undo — show the fan-out
+            as `wildcard_reference` edges in Ideas Summary / references and the Graph tab (dotted; Wildcard refs chip).
 
         VO: Prefer wildcards when membership is the contract — every pane, every import_* idea under a folder.
             Prefer exact links when one neighbour must never drift with a rename pattern.
+            On the graph, turn off Wildcard refs to hide fan-out without dropping exact references.
 
         VO: Try this: add `["./reqs/**/*.rq".*_checklist]` from a product surface idea and open the matches panel.
 

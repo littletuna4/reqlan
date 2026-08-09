@@ -1,6 +1,7 @@
 /**
  * Worker-thread fuzzy idea search — keeps scoring off the extension-host event loop.
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
  */
 import { parentPort } from 'node:worker_threads';
 import { filterAndScoreIdeas, type FuzzySearchHit } from './fuzzy-search.js';

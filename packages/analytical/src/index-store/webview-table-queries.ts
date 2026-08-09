@@ -194,6 +194,7 @@ export function edgeKindsForReferenceViewTypes(types: string[]): string[] {
                 break;
             case 'sub-idea':
                 kinds.add('references');
+                kinds.add('wildcard_reference');
                 kinds.add('import');
                 kinds.add('ideaset_member');
                 break;

@@ -15,7 +15,16 @@ import {
     installCursorSkills,
     workspaceHasCursorSkills
 } from './install-cursor-skills.js';
-import { openChatWithText } from './open-chat.js';
+import { openChatWithText, type ChatOpenTarget } from './open-chat.js';
+
+interface AddToChatArgs {
+    /** When true, open a new chat instead of the current one. */
+    newChat?: boolean;
+}
+
+function chatTargetFromArgs(args?: AddToChatArgs): ChatOpenTarget {
+    return args?.newChat ? 'new' : 'current';
+}
 
 export function registerAiCommandsModule(
     context: vscode.ExtensionContext,
@@ -64,28 +73,40 @@ export function registerAiCommandsModule(
             await vscode.commands.executeCommand('reqlan.addIdeaToChat');
         }),
 
-        vscode.commands.registerCommand('reqlan.addIdeaToChat', async () => {
+        vscode.commands.registerCommand('reqlan.addIdeaToChat', async (args?: AddToChatArgs) => {
             const idea = await resolveIdeaForChat(submodule);
             if (!idea) {
                 return;
             }
-            await sendIdeaToChat(idea);
+            await sendIdeaToChat(idea, chatTargetFromArgs(args));
         }),
 
-        vscode.commands.registerCommand('reqlan.addIdeasetToChat', async () => {
+        vscode.commands.registerCommand('reqlan.addIdeaToNewChat', async () => {
+            await vscode.commands.executeCommand('reqlan.addIdeaToChat', { newChat: true });
+        }),
+
+        vscode.commands.registerCommand('reqlan.addIdeasetToChat', async (args?: AddToChatArgs) => {
             const ideaset = await resolveIdeasetForChat(submodule);
             if (!ideaset) {
                 return;
             }
-            await sendIdeasetToChat(submodule, ideaset);
+            await sendIdeasetToChat(submodule, ideaset, chatTargetFromArgs(args));
         }),
 
-        vscode.commands.registerCommand('reqlan.addFileToChat', async () => {
+        vscode.commands.registerCommand('reqlan.addIdeasetToNewChat', async () => {
+            await vscode.commands.executeCommand('reqlan.addIdeasetToChat', { newChat: true });
+        }),
+
+        vscode.commands.registerCommand('reqlan.addFileToChat', async (args?: AddToChatArgs) => {
             const file = await resolveRqFileForChat(submodule);
             if (!file) {
                 return;
             }
-            await sendFileToChat(submodule, file);
+            await sendFileToChat(submodule, file, chatTargetFromArgs(args));
+        }),
+
+        vscode.commands.registerCommand('reqlan.addFileToNewChat', async () => {
+            await vscode.commands.executeCommand('reqlan.addFileToChat', { newChat: true });
         }),
 
         vscode.commands.registerCommand('reqlan.writePlan', async () => {
@@ -461,41 +482,61 @@ async function formatFileContext(
     ].join('\n');
 }
 
-async function sendIdeaToChat(idea: IdeaSummary): Promise<void> {
+async function sendIdeaToChat(
+    idea: IdeaSummary,
+    target: ChatOpenTarget = 'current'
+): Promise<void> {
     const contextText = formatIdeaContext(idea);
     const copied = await copyToClipboard(contextText);
-    const opened = await openChatWithText(`#requirement ${idea.name}\n\n${contextText}`);
+    const opened = await openChatWithText(`#requirement ${idea.name}\n\n${contextText}`, {
+        isPartialQuery: true,
+        target
+    });
     if (!opened && copied) {
         void vscode.window.showInformationMessage(
-            'Idea context copied to clipboard. Paste it into chat.'
+            target === 'new'
+                ? 'Idea context copied to clipboard. Paste it into a new chat.'
+                : 'Idea context copied to clipboard. Paste it into chat.'
         );
     }
 }
 
 async function sendIdeasetToChat(
     submodule: AnalyticalSubmodule,
-    ideaset: IdeaSummary
+    ideaset: IdeaSummary,
+    target: ChatOpenTarget = 'current'
 ): Promise<void> {
     const contextText = await formatIdeasetContext(submodule, ideaset);
     const copied = await copyToClipboard(contextText);
-    const opened = await openChatWithText(`#requirement ${ideaset.name}\n\n${contextText}`);
+    const opened = await openChatWithText(`#requirement ${ideaset.name}\n\n${contextText}`, {
+        isPartialQuery: true,
+        target
+    });
     if (!opened && copied) {
         void vscode.window.showInformationMessage(
-            'Ideaset context copied to clipboard. Paste it into chat.'
+            target === 'new'
+                ? 'Ideaset context copied to clipboard. Paste it into a new chat.'
+                : 'Ideaset context copied to clipboard. Paste it into chat.'
         );
     }
 }
 
 async function sendFileToChat(
     submodule: AnalyticalSubmodule,
-    file: { fileUri: string; relativePath: string }
+    file: { fileUri: string; relativePath: string },
+    target: ChatOpenTarget = 'current'
 ): Promise<void> {
     const contextText = await formatFileContext(submodule, file.fileUri, file.relativePath);
     const copied = await copyToClipboard(contextText);
-    const opened = await openChatWithText(`#file ${file.relativePath}\n\n${contextText}`);
+    const opened = await openChatWithText(`#file ${file.relativePath}\n\n${contextText}`, {
+        isPartialQuery: true,
+        target
+    });
     if (!opened && copied) {
         void vscode.window.showInformationMessage(
-            'File context copied to clipboard. Paste it into chat.'
+            target === 'new'
+                ? 'File context copied to clipboard. Paste it into a new chat.'
+                : 'File context copied to clipboard. Paste it into chat.'
         );
     }
 }

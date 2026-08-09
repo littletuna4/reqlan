@@ -1,6 +1,7 @@
 /**
  * Fuzzy idea search with interchangeable separators.
  * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+ * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
  */
 import { describe, expect, test } from 'vitest';
 import { FILTER_NOT_PRESENT } from '../src/core/filter-specials.js';
@@ -9,9 +10,10 @@ import {
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
     fuzzySubsequence,
-    normalizeSearchSeparators
+    matchQueryTokens,
+    normalizeSearchSeparators,
+    splitSearchTokens
 } from '../src/analysis/fuzzy-search.js';
-import { Worker } from 'node:worker_threads';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FuzzySearchWorkerClient } from '../src/analysis/fuzzy-search-worker-client.js';
@@ -38,6 +40,24 @@ describe('normalizeSearchSeparators', () => {
         expect(normalizeSearchSeparators('cli...package')).toBe('clipackage');
         expect(normalizeSearchSeparators('cli…package')).toBe('clipackage');
         expect(normalizeSearchSeparators('  CLI__Package  ')).toBe('clipackage');
+    });
+});
+
+describe('splitSearchTokens', () => {
+    test('splits on interchangeable separators', () => {
+        expect(splitSearchTokens('cli_package')).toEqual(['cli', 'package']);
+        expect(splitSearchTokens('search-code-actions')).toEqual(['search', 'code', 'actions']);
+        expect(splitSearchTokens('parent...nodes pane')).toEqual(['parent', 'nodes', 'pane']);
+        expect(splitSearchTokens('  CLI__Package  ')).toEqual(['cli', 'package']);
+    });
+});
+
+describe('matchQueryTokens', () => {
+    test('prefers order, allows reordering and missing hay words', () => {
+        expect(matchQueryTokens(['search', 'code', 'actions'], ['search', 'actions'])).toBe('ordered');
+        expect(matchQueryTokens(['cli', 'package'], ['package', 'cli'])).toBe('reordered');
+        expect(matchQueryTokens(['cli', 'package'], ['cli', 'package', 'extra'])).toBe(null);
+        expect(matchQueryTokens(['search', 'code', 'actions'], ['sea'])).toBe('ordered');
     });
 });
 
@@ -73,6 +93,32 @@ describe('filterAndScoreIdeas', () => {
         expect(filterAndScoreIdeas(ideas, 'cli-package')[0]?.name).toBe('cli_package');
         expect(filterAndScoreIdeas(ideas, 'search code actions')[0]?.name).toBe('search-code-actions');
         expect(filterAndScoreIdeas(ideas, 'parent...nodes')[0]?.name).toBe('parent_nodes_pane');
+    });
+
+    test('matches reordered and partial word queries', () => {
+        const ideas = [
+            idea({ name: 'cli_package', summary: '' }),
+            idea({ name: 'search_code_actions', summary: '' }),
+            idea({ name: 'parent_nodes_pane', summary: '' }),
+            idea({ name: 'unrelated_thing', summary: '' })
+        ];
+
+        const reordered = filterAndScoreIdeas(ideas, 'package cli');
+        expect(reordered[0]?.name).toBe('cli_package');
+        expect(reordered.some(hit => hit.name === 'unrelated_thing')).toBe(false);
+
+        const missingMiddle = filterAndScoreIdeas(ideas, 'search actions');
+        expect(missingMiddle[0]?.name).toBe('search_code_actions');
+
+        const orderedBeatsReordered = filterAndScoreIdeas(
+            [
+                idea({ name: 'actions_search' }),
+                idea({ name: 'search_code_actions' })
+            ],
+            'search actions'
+        );
+        expect(orderedBeatsReordered[0]?.name).toBe('search_code_actions');
+        expect(orderedBeatsReordered[0]!.score).toBeGreaterThan(orderedBeatsReordered[1]!.score);
     });
 
     test('empty query returns all non-ideaset ideas', () => {

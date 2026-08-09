@@ -478,6 +478,14 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem;
 }
 .rollup-list dd { margin: 0; }
+.rollup-list a.rollup-link {
+    color: inherit;
+    text-decoration: none;
+}
+.rollup-list a.rollup-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
 .distribution-track {
     height: 0.7rem;
     min-width: 6rem;
@@ -1022,6 +1030,7 @@ function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState
 function wireTables(root) {
     const tables = root.querySelectorAll('table');
     const tableControllers = [];
+    const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 
     for (const table of tables) {
         const thead = table.tHead;
@@ -1071,8 +1080,12 @@ function wireTables(root) {
 
         headers.forEach((th, index) => {
             const label = String(th.textContent || '').trim() || \`Column \${index + 1}\`;
+            const filterKey = String(th.getAttribute('data-filter-key') || '').trim();
             th.classList.add('sortable-th');
             th.replaceChildren();
+            if (filterKey) {
+                th.setAttribute('data-filter-key', filterKey);
+            }
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'sort-button';
@@ -1118,12 +1131,16 @@ function wireTables(root) {
         filterRow.className = 'column-filter-row';
         headers.forEach((th, index) => {
             const label = String(th.querySelector('.sort-button span')?.textContent || \`Column \${index + 1}\`);
+            const filterKey = String(th.getAttribute('data-filter-key') || '').trim().toLowerCase();
             const cell = document.createElement('th');
             const input = document.createElement('input');
             input.type = 'search';
             input.className = 'column-filter';
             input.placeholder = 'Filter…';
             input.dataset.colFilter = String(index);
+            if (filterKey) {
+                input.dataset.filterKey = filterKey;
+            }
             input.setAttribute('aria-label', \`Filter \${label}\`);
             input.addEventListener('input', () => controller.applyFilters());
             filterInputs.push(input);
@@ -1133,6 +1150,32 @@ function wireTables(root) {
         thead.appendChild(filterRow);
         filterToggle = ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState);
         tableControllers.push(controller);
+
+        let seeded = false;
+        for (const input of filterInputs) {
+            const key = String(input.dataset.filterKey || '').trim().toLowerCase();
+            if (!key) continue;
+            const aliases = [key];
+            if (key === 'tags') aliases.push('tag');
+            if (key === 'status') aliases.push('statuses');
+            if (key === 'cluster') aliases.push('label');
+            let value = '';
+            for (const alias of aliases) {
+                if (params.has(alias)) {
+                    value = params.get(alias) || '';
+                    break;
+                }
+            }
+            if (!value) continue;
+            input.value = value;
+            seeded = true;
+        }
+        if (seeded) {
+            filterRow.classList.add('is-open');
+            filterToggle.classList.add('is-active', 'has-filters');
+            filterToggle.setAttribute('aria-expanded', 'true');
+            controller.applyFilters();
+        }
     }
 
     const inputs = root.querySelectorAll('[data-filter-input]');
@@ -1187,6 +1230,7 @@ function wireGraph(root) {
         const tagHost = controls.querySelector('[data-graph-tag-scd]');
         const toggleExternal = controls.querySelector('[data-graph-toggle-external]');
         const toggleIdeasets = controls.querySelector('[data-graph-toggle-ideasets]');
+        const toggleWildcard = controls.querySelector('[data-graph-toggle-wildcard]');
         const toggleLabels = controls.querySelector('[data-graph-toggle-labels]');
         const togglePhysics = controls.querySelector('[data-graph-toggle-physics]');
         const fitButton = controls.querySelector('[data-graph-fit]');
@@ -1196,6 +1240,7 @@ function wireGraph(root) {
         element.classList.add('is-booting');
         let hideExternal = false;
         let hideIdeasets = false;
+        let includeWildcardRefs = true;
         let labelMode = 'auto';
         let statusSelected = [];
         let tagSelected = [];
@@ -1464,11 +1509,14 @@ function wireGraph(root) {
                 const source = positions.get(edge.sourceId);
                 const target = positions.get(edge.targetId);
                 if (!source || !target) continue;
+                const isWildcard = edge.kind === 'wildcard_reference';
+                ctx.setLineDash(isWildcard ? [2 / scale, 3.5 / scale] : []);
                 ctx.beginPath();
                 ctx.moveTo(source.x, source.y);
                 ctx.lineTo(target.x, target.y);
                 ctx.stroke();
             }
+            ctx.setLineDash([]);
             ctx.globalAlpha = 1;
 
             pulsePhase = (pulsePhase + 0.035) % (Math.PI * 2);
@@ -1780,9 +1828,11 @@ function wireGraph(root) {
         function refresh() {
             const visibleNodes = (graph.nodes || []).filter(matches);
             const visibleIds = new Set(visibleNodes.map(node => node.id));
-            const visibleEdges = (graph.edges || []).filter(edge =>
-                visibleIds.has(edge.sourceId) && visibleIds.has(edge.targetId)
-            );
+            const visibleEdges = (graph.edges || []).filter(edge => {
+                if (!visibleIds.has(edge.sourceId) || !visibleIds.has(edge.targetId)) return false;
+                if (!includeWildcardRefs && edge.kind === 'wildcard_reference') return false;
+                return true;
+            });
             mountGraph(visibleNodes, visibleEdges);
         }
 
@@ -1800,6 +1850,12 @@ function wireGraph(root) {
             hideIdeasets = !hideIdeasets;
             toggleIdeasets.classList.toggle('is-active', hideIdeasets);
             toggleIdeasets.textContent = hideIdeasets ? 'Show ideasets' : 'Hide ideasets';
+            refresh();
+        });
+        toggleWildcard?.addEventListener('click', () => {
+            includeWildcardRefs = !includeWildcardRefs;
+            toggleWildcard.classList.toggle('is-active', includeWildcardRefs);
+            toggleWildcard.setAttribute('aria-pressed', includeWildcardRefs ? 'true' : 'false');
             refresh();
         });
         toggleLabels?.addEventListener('click', () => {
@@ -1832,9 +1888,12 @@ function wireGraph(root) {
             tagFilter.clear();
             hideExternal = false;
             hideIdeasets = false;
+            includeWildcardRefs = true;
             labelMode = 'auto';
             toggleExternal?.classList.remove('is-active');
             toggleIdeasets?.classList.remove('is-active');
+            toggleWildcard?.classList.add('is-active');
+            toggleWildcard?.setAttribute('aria-pressed', 'true');
             syncLabelsButton();
             if (toggleExternal) toggleExternal.textContent = 'Hide external';
             if (toggleIdeasets) toggleIdeasets.textContent = 'Hide ideasets';

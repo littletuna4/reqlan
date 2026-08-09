@@ -1,6 +1,7 @@
 /**
  * Analyser entry for fuzzy idea search.
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
  */
 import type { Analyser } from './analyser-registry.js';
 import { filterAndScoreIdeasAsync, type FuzzySearchHit } from './fuzzy-search.js';

@@ -13,13 +13,26 @@ search {
 
 fuzzy_search {
     Quick ranked idea search by name, summary, and tags.
-    Matching treats `_`, `-`, `.` / `...` / `…`, and whitespace as interchangeable separators
-    so queries like `cli package`, `cli_package`, and `cli-package` hit the same idea.
+    Separator and word-order behaviour: [fuzzy_search_whitespace].
     Also supports prefix, substring, and character-subsequence (fuzzy) ranking.
     Skips ideaset container rows; empty query returns all non-ideaset ideas (callers may require a non-empty query).
     Implementation: [fuzzy_search_impl] / [fuzzy_search_analyser] (`fuzzy_search` analyser id).
     @tests (
         ["../../packages/analytical/test/fuzzy-search.test.ts"]
+    )
+    @status done
+}
+
+fuzzy_search_whitespace {
+    Matching treats `_`, `-`, `.` / `...` / `…`, and whitespace as interchangeable separators
+    so queries like `cli package`, `cli_package`, and `cli-package` hit the same idea.
+    Prefers query word order, but still matches when words are reordered or when intermediate name words are missing
+    (e.g. `package cli` → `cli_package`, `search actions` → `search_code_actions`).
+    Extends [fuzzy_search]; implementation [fuzzy_search_impl].
+    @tests (
+        ["../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../packages/analytical/test/fuzzy-search.test.ts:matches across separator substitutions"]
+        ["../../packages/analytical/test/fuzzy-search.test.ts:matches reordered and partial word queries"]
     )
     @status done
 }

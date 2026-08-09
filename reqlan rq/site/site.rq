@@ -279,7 +279,7 @@ showcase_problems {
     Prose dressed as semantics.
     A file ref followed by the word "implements" and an idea ref reads like a typed
     relation, but "implements" is body text. Reqlan has five edge kinds
-    (references, file_reference, ideaset_member, import, comment_link)
+    (references, wildcard_reference, file_reference, ideaset_member, import, comment_link)
     and none are user-declared. We imply a feature that does not exist while
     hiding the ones that do.
 
@@ -377,12 +377,15 @@ features_tier_2 {
             real shipped analysers nobody is showing.
         }
         cytoscape_graph_view {
-            Status/tag filters and the indirect-reference depth toggle.
+            Status/tag filters, indirect-reference depth toggle, and Wildcard refs edge toggle
+            (["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]).
         }
         wildcard_path_idea_refs {
             Qualified path + idea-pattern references — `["../mod/**/*.rq".*_pane]` —
-            fan out across files; navigation opens a matches panel.
-            See ["../language/imports.rq".wildcard_references].
+            fan out across files as `wildcard_reference` edges
+            (["../indexer/indexer.rq".wildcard_reference_edges]); navigation opens a matches panel.
+            See ["../language/imports.rq".wildcard_references],
+            ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
         }
         html_multipage_export {
             HTML multi-page export as an actual deliverable.
