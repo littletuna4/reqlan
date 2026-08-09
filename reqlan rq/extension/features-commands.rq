@@ -1,7 +1,9 @@
-from "./features-graph-analysers.rq" import local_graph_analysis
-import "@/reqlan rq/core_analysis/search.rq" as search_analysis
+
+
 
 import  "./export_functions.rq" as export_functions
+from "./features-graph-analysers.rq" import local_graph_analysis
+import "@/reqlan rq/core_analysis/search.rq" as search_analysis
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
@@ -64,6 +66,12 @@ add_to_chat {
     A set of [command_palette] functions that add the selected idea, ideaset, or file to the chat.
     Commands: Add Idea to Chat, Add Ideaset to Chat, Add File to Chat (category Reqlan).
     Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick. Opens chat with #requirement / #file context, with clipboard fallback.
+    Host open helper: ["../../packages/extension/src/ai_commands_module/open-chat.ts"] (`workbench.action.chat.open`).
+    Activity bar search hits also offer **Add to chat** via ["./module/activitybar-panels/search.rq".search_add_to_chat] — same `#requirement` payload, with `isPartialQuery: true` so the text lands in the current chat input without submitting.
+    @implementation (
+        ["../../packages/extension/src/ai_commands_module/register-ai-commands.ts"]
+        ["../../packages/extension/src/ai_commands_module/open-chat.ts"]
+    )
     @status done
 }
 
@@ -107,4 +115,9 @@ search_code_actions {
 
 file_based_code_actions {
     [code_actions]
+    Code actions should be available for the whole file. The should include:
+
+    [file_based_code_actions]
+    @todo
+    @ideating.
 }

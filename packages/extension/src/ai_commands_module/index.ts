@@ -5,3 +5,5 @@ export {
     workspaceHasCursorSkills
 } from './install-cursor-skills.js';
 export type { CursorSkillsInstallResult } from './install-cursor-skills.js';
+export { openChatWithText } from './open-chat.js';
+export type { OpenChatOptions } from './open-chat.js';

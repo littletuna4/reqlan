@@ -585,6 +585,16 @@ export class AppState {
         });
     }
 
+    addToChat(hit: IdeaSearchHitView): void {
+        postToExtension({
+            type: 'addToChat',
+            name: hit.name,
+            path: hit.path,
+            summary: hit.summary,
+            lineStart: hit.lineStart
+        });
+    }
+
     private applyIdeaSearchResults(payload: IdeaSearchResultsPayload): void {
         // Keep the draft query as source of truth — do not clobber mid-typing input.
         this.ideaSearchResults = payload.results;

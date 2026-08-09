@@ -15,6 +15,7 @@ import {
     installCursorSkills,
     workspaceHasCursorSkills
 } from './install-cursor-skills.js';
+import { openChatWithText } from './open-chat.js';
 
 export function registerAiCommandsModule(
     context: vscode.ExtensionContext,
@@ -502,23 +503,6 @@ async function sendFileToChat(
 async function copyToClipboard(text: string): Promise<boolean> {
     await vscode.env.clipboard.writeText(text);
     return true;
-}
-
-async function openChatWithText(text: string): Promise<boolean> {
-    const commands = [
-        'workbench.action.chat.open',
-        'aichat.newchataction',
-        'composer.newAgentChat'
-    ];
-    for (const command of commands) {
-        try {
-            await vscode.commands.executeCommand(command, { query: text, message: text });
-            return true;
-        } catch {
-            // try next host-specific chat command
-        }
-    }
-    return false;
 }
 
 async function openChatPrompt(

@@ -9,6 +9,7 @@ import "../../../../packages/extension/src/activity_bar_module/activity-bar-webv
 import "../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts" as activity_bar_messages
 import "../../../../packages/extension/src/extension/insert-idea-reference.ts" as insert_idea_reference
 import "../../../../packages/extension/src/extension/insert-idea-reference-helpers.ts" as insert_idea_reference_helpers
+import "../../../../packages/extension/src/ai_commands_module/open-chat.ts" as open_chat
 
 search_pane {
     Workspace idea search in the activity bar — find rq ideas by name, summary, or tags without leaving the sidebar.
@@ -19,6 +20,7 @@ search_pane {
     - Pane header link **Advanced** opens Ideas Summary ideas table with the current query prefilled.
     - Results list capped (default ~40) with name, path, and one-line summary; click opens the idea.
     - Each hit has an **Insert reference** button that inserts `[idea_name]` at the active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import when the target is in another file — same rules as [commands.search_code_actions].
+    - Each hit has an **Add to chat** button per [search_add_to_chat].
     - Empty query: prompt to type (do not dump the full idea catalog into the pane).
     - Soft-wait when the index is not ready; scoped errors stay in the pane.
     - Loading UX: [search_progress].
@@ -29,6 +31,22 @@ search_pane {
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+search_add_to_chat {
+    From each [search_pane] hit, **Add to chat** places compact `#requirement` context into the **current** chat input without submitting.
+    Same payload shape as [commands.add_to_chat] (idea name, path:line, summary) via [open_chat].
+    Host calls `workbench.action.chat.open` with `{ query, isPartialQuery: true }` so the user can edit or send.
+    Clipboard fallback when no chat command is available (same spirit as [commands.add_to_chat]).
+    Wire: [SearchPane] → [app_state] `addToChat` → [activity_bar_messages] → [activity_bar_webview] → [open_chat].
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/ai_commands_module/open-chat.ts"]
     )
     @status done
 }

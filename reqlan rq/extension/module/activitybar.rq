@@ -198,8 +198,8 @@ workspace_pane {
 }
 
 search_pane {
-    Workspace idea search with insert-at-cursor — details in [search_panel.search_pane].
-    Ranking: [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]; insert: [insert_idea_reference].
+    Workspace idea search with insert-at-cursor and add-to-chat — details in [search_panel.search_pane].
+    Ranking: [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]; insert: [insert_idea_reference]; chat: [search_panel.search_add_to_chat].
 }
 
 todo_pane {
@@ -218,7 +218,7 @@ performance {
     - Debounce editor selection and cursor events before rebuilding slices.
     - Lazy-mount cytoscape only for visible sub-panes; destroy when collapsed or hidden.
     - Reuse [graph_analysers.local_graph_analysis] and graph query builders rather than ad-hoc index walks in the webview.
-    - Interactive actions (`openIdea`, insert ref, phonebook / Ideas Summary links) are handled on a priority path: they cancel in-flight search/refresh work and briefly quiet editor-driven rebuilds so subsequent clicks stay snappy.
+    - Interactive actions (`openIdea`, insert ref, add to chat, phonebook / Ideas Summary links) are handled on a priority path: they cancel in-flight search/refresh work and briefly quiet editor-driven rebuilds so subsequent clicks stay snappy.
     - Idea search scoring runs in a worker thread with a preloaded catalog; catalog load yields while reading sql.js so it cannot monopolize the host.
     @tests (
         ["../../../packages/extension/test/startup-gate.test.ts"]

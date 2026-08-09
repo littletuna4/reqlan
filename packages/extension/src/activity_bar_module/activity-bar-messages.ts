@@ -82,6 +82,13 @@ export type ActivityBarToExtensionMessage =
     | { type: 'searchIdeas'; query: string; requestId?: number }
     | { type: 'loadTodos'; requestId?: number }
     | { type: 'insertReference'; fileUri: string; name: string; kind: string }
+    | {
+          type: 'addToChat';
+          name: string;
+          path: string;
+          summary: string;
+          lineStart: number;
+      }
     | { type: 'loadIndexHealth' }
     | { type: 'refreshIndex' }
     | { type: 'cancelIndexSync' }

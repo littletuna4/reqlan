@@ -125,6 +125,12 @@
                             <button
                                 type="button"
                                 class="action-button"
+                                title="Add #requirement {hit.name} to current chat input"
+                                onclick={() => app.addToChat(hit)}
+                            >Add to chat</button>
+                            <button
+                                type="button"
+                                class="action-button"
                                 onclick={() => app.pinIdea(hit.id)}
                             >Pin</button>
                         </div>

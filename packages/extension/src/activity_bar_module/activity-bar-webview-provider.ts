@@ -36,6 +36,7 @@ import type {
     IdeasSummaryIntent
 } from './activity-bar-messages.js';
 import { insertIdeaReferenceAtCursor } from '../extension/insert-idea-reference.js';
+import { openChatWithText } from '../ai_commands_module/open-chat.js';
 
 const VIEW_ID = 'reqlan.activityBar';
 const EDITOR_DEBOUNCE_MS = 250;
@@ -511,6 +512,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         kind: message.kind
                     });
                     break;
+                case 'addToChat':
+                    await addSearchHitToChat(message);
+                    break;
                 case 'openPhonebookLink':
                     await openPhonebookLink(message.linkId);
                     break;
@@ -592,6 +596,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         name: message.name,
                         kind: message.kind
                     });
+                    break;
+                case 'addToChat':
+                    await addSearchHitToChat(message);
                     break;
                 case 'loadIndexHealth':
                     await this.postIndexHealth();
@@ -1052,11 +1059,35 @@ function isInteractiveMessage(message: ActivityBarToExtensionMessage): boolean {
     switch (message.type) {
         case 'openIdea':
         case 'insertReference':
+        case 'addToChat':
         case 'openPhonebookLink':
         case 'openIdeasSummary':
             return true;
         default:
             return false;
+    }
+}
+
+/** Compact #requirement payload for search hits → current chat input (isPartialQuery). */
+async function addSearchHitToChat(hit: {
+    name: string;
+    path: string;
+    summary: string;
+    lineStart: number;
+}): Promise<void> {
+    const location = `${hit.path}:${hit.lineStart + 1}`;
+    const contextText = [
+        `**${hit.name}**`,
+        location,
+        hit.summary || '(no summary)'
+    ].join('\n');
+    const query = `#requirement ${hit.name}\n\n${contextText}`;
+    const opened = await openChatWithText(query, { isPartialQuery: true });
+    if (!opened) {
+        await vscode.env.clipboard.writeText(query);
+        void vscode.window.showInformationMessage(
+            'Idea context copied to clipboard. Paste it into chat.'
+        );
     }
 }
 
