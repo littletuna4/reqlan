@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.8.0
+
+### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
 ## 1.7.0
 
 ### Minor Changes

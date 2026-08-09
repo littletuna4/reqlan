@@ -1,5 +1,11 @@
 # site
 
+## 0.12.0
+
+### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
 ## 0.11.0
 
 ### Minor Changes
