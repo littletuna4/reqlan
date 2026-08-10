@@ -1,5 +1,11 @@
 # site
 
+## 0.13.0
+
+### Minor Changes
+
+- b2b015f: Add hierarchical sidebar (same-page section children) and a FAQ page.
+
 ## 0.12.2
 
 ### Patch Changes
