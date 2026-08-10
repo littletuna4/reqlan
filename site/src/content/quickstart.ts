@@ -38,10 +38,18 @@ function toQuickstartIde(action: InstallAction): QuickstartIde {
   };
 }
 
+export type QuickstartRelatedLink = {
+  id: string;
+  href: string;
+  label: string;
+  detail: string;
+};
+
 export const quickstartContent = {
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".tutorials]
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series_brief]
+  //rq:["../../../reqlan rq/site/site.rq".quickstart_page]
   title: "Get started",
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_01_why_reqlan]
   intro:
@@ -58,6 +66,26 @@ export const quickstartContent = {
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_05_activity_bar]
     "Open the reqlan activity bar for neighbourhood context, then try @reqlan / rq-* skills.",
   ],
+  related: [
+    {
+      id: "tutorials",
+      href: "/tutorials",
+      label: "Tutorials",
+      detail: "Short decks for the first-hour loop.",
+    },
+    {
+      id: "showcase",
+      href: "/showcase",
+      label: "Showcases",
+      detail: "Mechanisms against real domain problems.",
+    },
+    {
+      id: "faq",
+      href: "/faq",
+      label: "FAQ",
+      detail: "Token efficiency, when to use, how to support.",
+    },
+  ] satisfies QuickstartRelatedLink[],
 } as const;
 
 export type QuickstartContent = typeof quickstartContent;

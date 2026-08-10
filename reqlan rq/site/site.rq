@@ -43,9 +43,10 @@ workflow {
 
 routes {
     Marketing routes are statically generated App Router pages under ["../../site/src/app"].
-    Home `/` hosts landing sections; other top-level pages include quickstart, tutorials, showcase, FAQ, and the embedded `/spec` export.
+    Home `/` hosts landing sections; other top-level pages include quickstart per [quickstart_page], tutorials, showcase, FAQ, and the embedded `/spec` export.
     per [sidebar_nav]
     per [faq_page]
+    per [quickstart_page]
 }
 
 components {
@@ -102,6 +103,20 @@ faq_page {
         ["../../site/src/content/site.ts"]
         ["../../site/src/components/Sidebar.tsx"]
         ["../../site/src/components/NavGraph.tsx"]
+    )
+}
+
+quickstart_page {
+    The site exposes `/quickstart/` as the install / get-started page.
+    After install steps, it links onward to Tutorials, Showcases, and FAQ so visitors can continue without returning to the home nav.
+    Related link copy lives in ["../../site/src/content/quickstart.ts"] per [copy].
+    @status done
+    @implementation (
+        ["../../site/src/app/quickstart/page.tsx"]
+        ["../../site/src/views/QuickstartPage.tsx"]
+        ["../../site/src/components/QuickstartClient.tsx"]
+        ["../../site/src/components/QuickstartClient.module.css"]
+        ["../../site/src/content/quickstart.ts"]
     )
 }
 

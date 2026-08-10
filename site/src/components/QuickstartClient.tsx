@@ -71,7 +71,7 @@ function CopyButton({ value }: { value: string }) {
 }
 
 export function QuickstartClient({ initialIde }: QuickstartClientProps) {
-  const { ides, defaultIde, nextSteps } = quickstartContent;
+  const { ides, defaultIde, nextSteps, related } = quickstartContent;
   const [activeId, setActiveId] = useState<QuickstartIdeId>(
     initialIde ?? defaultIde,
   );
@@ -214,6 +214,22 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
         <ul className={shared.featureList}>
           {nextSteps.map((step) => (
             <li key={step}>{step}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className={styles.related} aria-labelledby="quickstart-related-title">
+        <h2 id="quickstart-related-title" className={styles.nextTitle}>
+          Keep going
+        </h2>
+        <ul className={styles.relatedList}>
+          {related.map((item) => (
+            <li key={item.id}>
+              <a href={sitePath(`${item.href}/`)} className={styles.relatedLink}>
+                <span className={styles.relatedLabel}>{item.label}</span>
+                <span className={styles.relatedDetail}>{item.detail}</span>
+              </a>
+            </li>
           ))}
         </ul>
       </section>
