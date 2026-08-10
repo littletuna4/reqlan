@@ -1,16 +1,109 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import clsx from "clsx";
 
-import { siteContent } from "@/content/site";
-import { sitePath } from "@/lib/paths";
+import { siteContent, type NavItem } from "@/content/site";
+import { siteBasePath, sitePath } from "@/lib/paths";
 import styles from "./Sidebar.module.css";
+
+function normalizePathname(pathname: string): string {
+  const base = siteBasePath();
+  let path = pathname;
+  if (base && path.startsWith(base)) {
+    path = path.slice(base.length) || "/";
+  }
+  if (path.length > 1 && path.endsWith("/")) {
+    path = path.slice(0, -1);
+  }
+  return path || "/";
+}
+
+function itemPath(item: NavItem): string {
+  return item.href ?? "/";
+}
+
+function isOnItemPage(pathname: string, item: NavItem): boolean {
+  const target = itemPath(item);
+  if (target === "/") {
+    return pathname === "/";
+  }
+  return pathname === target || pathname.startsWith(`${target}/`);
+}
+
+function itemHref(item: NavItem, parent?: NavItem): string {
+  if (item.href) {
+    return sitePath(`${item.href}/`);
+  }
+  if (parent) {
+    const parentHref = parent.href ?? "/";
+    if (parentHref === "/") {
+      return sitePath(`/#${item.id}`);
+    }
+    return sitePath(`${parentHref}/#${item.id}`);
+  }
+  return sitePath("/");
+}
 
 export function Sidebar() {
   const { brand, nav } = siteContent;
   const [open, setOpen] = useState(false);
+  const [pathname, setPathname] = useState("/");
+  const [sectionId, setSectionId] = useState<string | null>(null);
   const navId = useId();
+
+  useEffect(() => {
+    const syncLocation = () => {
+      setPathname(normalizePathname(window.location.pathname));
+      const hash = window.location.hash.replace(/^#/, "");
+      setSectionId(hash || null);
+    };
+
+    syncLocation();
+    window.addEventListener("hashchange", syncLocation);
+    window.addEventListener("popstate", syncLocation);
+    return () => {
+      window.removeEventListener("hashchange", syncLocation);
+      window.removeEventListener("popstate", syncLocation);
+    };
+  }, []);
+
+  useEffect(() => {
+    const current = nav.find((item) => isOnItemPage(pathname, item));
+    const sectionIds = current?.children?.map((child) => child.id) ?? [];
+    if (sectionIds.length === 0) {
+      return;
+    }
+
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (sections.length === 0) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const top = visible[0]?.target;
+        if (top?.id) {
+          setSectionId(top.id);
+        }
+      },
+      {
+        rootMargin: "-20% 0px -55% 0px",
+        threshold: [0.08, 0.2, 0.4, 0.6],
+      },
+    );
+
+    for (const section of sections) {
+      observer.observe(section);
+    }
+
+    return () => observer.disconnect();
+  }, [pathname, nav]);
 
   useEffect(() => {
     if (!open) return;
@@ -40,6 +133,8 @@ export function Sidebar() {
   }, []);
 
   const close = () => setOpen(false);
+
+  const items = useMemo(() => nav, [nav]);
 
   return (
     <aside className={clsx(styles.sidebar, open && styles.open)}>
@@ -79,21 +174,51 @@ export function Sidebar() {
         onClick={close}
       />
 
-      <nav id={navId} className={styles.nav} aria-label="Page sections">
-        <ul>
-          {nav.map((item) => (
-            <li key={item.id}>
-              {item.href ? (
-                <a href={sitePath(`${item.href}/`)} onClick={close}>
+      <nav id={navId} className={styles.nav} aria-label="Site">
+        <ul className={styles.topList}>
+          {items.map((item) => {
+            const onPage = isOnItemPage(pathname, item);
+            const children = item.children ?? [];
+            const showChildren = onPage && children.length > 0;
+            const pageCurrent = onPage && !sectionId;
+
+            return (
+              <li key={item.id} className={styles.topItem}>
+                <a
+                  href={itemHref(item)}
+                  className={clsx(styles.link, onPage && styles.linkCurrent)}
+                  aria-current={pageCurrent || (onPage && children.length === 0) ? "page" : undefined}
+                  onClick={close}
+                >
                   {item.label}
                 </a>
-              ) : (
-                <a href={sitePath(`/#${item.id}`)} onClick={close}>
-                  {item.label}
-                </a>
-              )}
-            </li>
-          ))}
+
+                {showChildren ? (
+                  <ul className={styles.childList} aria-label={`${item.label} on this page`}>
+                    {children.map((child) => {
+                      const childCurrent = sectionId === child.id;
+                      return (
+                        <li key={child.id}>
+                          <a
+                            href={itemHref(child, item)}
+                            className={clsx(
+                              styles.link,
+                              styles.childLink,
+                              childCurrent && styles.linkCurrent,
+                            )}
+                            aria-current={childCurrent ? "location" : undefined}
+                            onClick={close}
+                          >
+                            {child.label}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </aside>

@@ -1,7 +1,10 @@
 export type NavItem = {
   id: string;
   label: string;
+  /** Page path (e.g. `/faq`). Omit for the home hub (`/`). */
   href?: string;
+  /** Same-page section anchors shown only while on this item's page. */
+  children?: readonly NavItem[];
 };
 
 export type SyntaxSnippet = {
@@ -22,6 +25,7 @@ import {
   phonebookLinks,
   phonebookPackages,
   type PhonebookLink,
+  type PhonebookLinkId,
   type PhonebookPackage,
 } from "@/lib/phonebook";
 
@@ -67,6 +71,18 @@ export type NavGraphEdge = {
   to: string;
 };
 
+export type FaqSupportLink = {
+  id: PhonebookLinkId;
+  label: string;
+};
+
+export type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
+  links?: readonly FaqSupportLink[];
+};
+
 export type RoadmapItem = {
   id: string;
   horizon: "Now" | "Next" | "Later";
@@ -86,15 +102,32 @@ export const siteContent = {
   },
 
   nav: [
+    {
+      id: "home",
+      label: "Home",
+      children: [
+        { id: "motivation", label: "Why reqlan" },
+        { id: "syntax", label: "Syntax" },
+        { id: "example", label: "Example" },
+        { id: "roadmap", label: "Roadmap" },
+        { id: "contact", label: "Links" },
+      ],
+    },
     { id: "quickstart", label: "Get started", href: "/quickstart" },
     { id: "tutorials", label: "Tutorials", href: "/tutorials" },
-    { id: "motivation", label: "Why reqlan" },
-    { id: "syntax", label: "Syntax" },
-    { id: "example", label: "Example" },
-    { id: "roadmap", label: "Roadmap" },
     { id: "showcase", label: "Showcases", href: "/showcase" },
+    {
+      id: "faq",
+      label: "FAQ",
+      href: "/faq",
+      children: [
+        { id: "token-efficiency", label: "Token efficiency" },
+        { id: "de-facto-standard", label: "De facto standard?" },
+        { id: "when-to-use", label: "When to use" },
+        { id: "support-reqlan", label: "Support reqlan" },
+      ],
+    },
     { id: "spec", label: "Spec", href: "/spec" },
-    { id: "contact", label: "Links" },
   ] satisfies NavItem[],
 
   navGraph: {
@@ -109,6 +142,7 @@ export const siteContent = {
       { id: "quickstart", label: "Start", kind: "page", target: "/quickstart", x: 78, y: 20 },
       { id: "tutorials", label: "Learn", kind: "page", target: "/tutorials", x: 90, y: 46 },
       { id: "showcase", label: "Shows", kind: "page", target: "/showcase", x: 80, y: 56 },
+      { id: "faq", label: "FAQ", kind: "page", target: "/faq", x: 68, y: 28 },
     ] satisfies NavGraphNode[],
     edges: [
       { from: "hero", to: "motivation" },
@@ -120,6 +154,7 @@ export const siteContent = {
       { from: "hero", to: "quickstart" },
       { from: "hero", to: "tutorials" },
       { from: "hero", to: "showcase" },
+      { from: "hero", to: "faq" },
     ] satisfies NavGraphEdge[],
   },
 
@@ -455,6 +490,43 @@ session_refresh {
     packagesTitle: "Packages",
     links: phonebookLinks satisfies LinkItem[],
     packages: phonebookPackages satisfies PackageItem[],
+  },
+
+  faq: {
+    title: "FAQ",
+    lead: "Short answers. Links, not lectures.",
+    items: [
+      {
+        id: "token-efficiency",
+        question: "How does reqlan support token efficiency?",
+        answer:
+          "Named ideas and edges are the unit of context — not whole files. Agents get a small linked slice (MCP tools, chat, skills) instead of a repo dump. Barrel imports and scoped graph views keep the same discipline for humans.",
+      },
+      {
+        id: "de-facto-standard",
+        question:
+          "Is reqlan the de facto standard for efficient developer-centric context management and semantic mapping?",
+        answer:
+          "No. It is an open toolset for that job — a graph of named requirements your IDE and agents can search and link. Use it where the fit is clear; it is not claiming industry-wide default status.",
+      },
+      {
+        id: "when-to-use",
+        question: "When should I use reqlan?",
+        answer:
+          "When requirements sprawl across chats, wikis, and code comments, and you want one writable graph that stays next to the code — for yourself, a team, or an agent that should stop re-explaining the system every sprint.",
+      },
+      {
+        id: "support-reqlan",
+        question: "How can I support reqlan?",
+        answer:
+          "Star the GitHub repo and the VS Marketplace listing. Open issues for bugs; send PRs for fixes and docs. Sponsorship and donations: email reqlan@reqlan.com. Contribution welcome on the same GitHub repo.",
+        links: [
+          { id: "github", label: "GitHub (stars, issues, PRs)" },
+          { id: "vsc", label: "VS Marketplace (stars)" },
+          { id: "email", label: "Sponsorship / donation" },
+        ] satisfies FaqSupportLink[],
+      },
+    ] satisfies FaqItem[],
   },
 
   footer: {

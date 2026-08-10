@@ -41,18 +41,22 @@ workflow {
     per [distribution_reqs.site_distribution]
 }
 
-single_page {
-   just one page.
+routes {
+    Marketing routes are statically generated App Router pages under ["../../site/src/app"].
+    Home `/` hosts landing sections; other top-level pages include quickstart, tutorials, showcase, FAQ, and the embedded `/spec` export.
+    per [sidebar_nav]
+    per [faq_page]
 }
 
 components {
-    - sidebar
+    - sidebar per [sidebar_nav]
     - footer
     - hero
     - sticky page nav graph (landing)
     - links/contact
     - showcases
     - tutorials per [tutorials_section]
+    - FAQ per [faq_page]
     - content
         - motivation
         - syntax
@@ -62,6 +66,42 @@ components {
         - download the extension
         per [cta_icon]
     - 404 page (just something silly / a redirect)
+}
+
+sidebar_nav {
+    The site sidebar is a hierarchical page nav, not a flat list of mixed anchors and routes.
+    Top-level entries are pages (or the home hub). Same-page section anchors nest as children under their parent page.
+    Children render only while the visitor is on that parent page — off-page section lists stay collapsed so the sidebar reflects the current route.
+    The active page uses `aria-current="page"`; the in-view same-page section uses `aria-current="location"` when known.
+    Nav model and labels live in site content per [copy]; the Sidebar client reads pathname (and hash/section when on home) to decide expansion and current markers.
+    FAQ is a top-level page entry per [faq_page].
+    @status done
+    @implementation (
+        ["../../site/src/components/Sidebar.tsx"]
+        ["../../site/src/components/Sidebar.module.css"]
+        ["../../site/src/content/site.ts"]
+    )
+}
+
+faq_page {
+    The site exposes `/faq/` as a statically generated page answering a short set of common questions.
+    Copy stays minimal per [copy]. Support answers point at phonebook surfaces (GitHub stars, marketplace stars, issues/contribution, email for sponsorship or donation) rather than inventing URLs.
+    Required topics:
+    - how reqlan supports token efficiency
+    - whether reqlan is the de facto standard for efficient developer-centric context management and semantic mapping
+    - when to use reqlan
+    - how to support reqlan (GitHub stars, sponsorship, VS Marketplace stars, donation, contribution, bug reporting)
+    Sidebar nests FAQ question anchors as same-page children per [sidebar_nav].
+    Landing nav graph includes FAQ as a page node.
+    @status done
+    @implementation (
+        ["../../site/src/app/faq/page.tsx"]
+        ["../../site/src/views/FaqPage.tsx"]
+        ["../../site/src/views/faq.module.css"]
+        ["../../site/src/content/site.ts"]
+        ["../../site/src/components/Sidebar.tsx"]
+        ["../../site/src/components/NavGraph.tsx"]
+    )
 }
 
 roadmap_section {
