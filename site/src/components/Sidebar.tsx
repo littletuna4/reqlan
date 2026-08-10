@@ -48,7 +48,8 @@ function itemHref(item: NavItem, parent?: NavItem): string {
 export function Sidebar() {
   const { brand, nav } = siteContent;
   const [open, setOpen] = useState(false);
-  const [pathname, setPathname] = useState("/");
+  // null until mount — avoid flashing Home children on every route
+  const [pathname, setPathname] = useState<string | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const navId = useId();
 
@@ -69,6 +70,10 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
+    if (pathname === null) {
+      return;
+    }
+
     const current = nav.find((item) => isOnItemPage(pathname, item));
     const sectionIds = current?.children?.map((child) => child.id) ?? [];
     if (sectionIds.length === 0) {
@@ -177,8 +182,10 @@ export function Sidebar() {
       <nav id={navId} className={styles.nav} aria-label="Site">
         <ul className={styles.topList}>
           {items.map((item) => {
-            const onPage = isOnItemPage(pathname, item);
+            const onPage =
+              pathname !== null && isOnItemPage(pathname, item);
             const children = item.children ?? [];
+            // Stay collapsed until pathname is known (defaults closed on load)
             const showChildren = onPage && children.length > 0;
             const pageCurrent = onPage && !sectionId;
 

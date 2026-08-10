@@ -72,6 +72,7 @@ sidebar_nav {
     The site sidebar is a hierarchical page nav, not a flat list of mixed anchors and routes.
     Top-level entries are pages (or the home hub). Same-page section anchors nest as children under their parent page.
     Children render only while the visitor is on that parent page — off-page section lists stay collapsed so the sidebar reflects the current route.
+    Until pathname is known after mount, children stay closed (do not default to Home) so static HTML / hydration does not flash a mismatched hierarchy.
     The active page uses `aria-current="page"`; the in-view same-page section uses `aria-current="location"` when known.
     Nav model and labels live in site content per [copy]; the Sidebar client reads pathname (and hash/section when on home) to decide expansion and current markers.
     FAQ is a top-level page entry per [faq_page].
