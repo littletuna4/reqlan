@@ -99,7 +99,7 @@ jobs:
       - task: PublishBuildArtifacts@1
         displayName: Publish VSIX artifact
         condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
-        timeoutInMinutes: 5
+        timeoutInMinutes: 8
         inputs:
           PathtoPublish: packages/extension
           ArtifactName: reqlan-vsix
