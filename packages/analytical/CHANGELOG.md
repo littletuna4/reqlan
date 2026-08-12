@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.9.0
+
+### Minor Changes
+
+- 2294beb: minor improvements to graph and search and website
+
 ## 0.8.2
 
 ### Patch Changes
