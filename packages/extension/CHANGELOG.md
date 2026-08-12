@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.9.1
+
+### Patch Changes
+
+- 4dbb28e: update timeout.
+
 ## 1.9.0
 
 ### Minor Changes
