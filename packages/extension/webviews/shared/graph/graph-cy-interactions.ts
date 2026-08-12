@@ -2,8 +2,8 @@
  * Pointer/selection event wiring for the Ideas Summary graph.
  *
  * Kept separate from the controller so the controller owns lifecycle/physics only.
- * Handlers receive node ids (compound container nodes are filtered out here); the
- * controller decides what selection/open/focus/drag mean.
+ * Leaf handlers receive non-compound node ids; compound grab/drag/free and title
+ * open are reported separately so file containers can move with pinned children.
  * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cy_controller
  */
 import type cytoscape from 'cytoscape';
@@ -15,10 +15,18 @@ export interface GraphInteractionHandlers {
     onNodeGrab: (nodeId: string) => void;
     onNodeDrag: (nodeId: string, position: { x: number; y: number }) => void;
     onNodeFree: (nodeId: string, position: { x: number; y: number }) => void;
+    /** Compound container grab — pin descendants for live physics. */
+    onCompoundGrab?: (compoundId: string) => void;
+    onCompoundDrag?: (compoundId: string) => void;
+    onCompoundFree?: (compoundId: string) => void;
+}
+
+function isCompoundNode(node: cytoscape.NodeSingular): boolean {
+    return Boolean(node.data('isCompound'));
 }
 
 function isRealNode(node: cytoscape.NodeSingular): boolean {
-    return !node.data('isCompound');
+    return !isCompoundNode(node);
 }
 
 /** Bind graph interaction events. Returns an unbind function. */
@@ -50,7 +58,8 @@ export function bindGraphInteractions(
 
     const onGrabNode = (event: cytoscape.EventObject): void => {
         const node = event.target as cytoscape.NodeSingular;
-        if (!isRealNode(node)) {
+        if (isCompoundNode(node)) {
+            handlers.onCompoundGrab?.(node.id());
             return;
         }
         handlers.onNodeGrab(node.id());
@@ -58,7 +67,8 @@ export function bindGraphInteractions(
 
     const onDragNode = (event: cytoscape.EventObject): void => {
         const node = event.target as cytoscape.NodeSingular;
-        if (!isRealNode(node)) {
+        if (isCompoundNode(node)) {
+            handlers.onCompoundDrag?.(node.id());
             return;
         }
         handlers.onNodeDrag(node.id(), node.position());
@@ -66,7 +76,8 @@ export function bindGraphInteractions(
 
     const onFreeNode = (event: cytoscape.EventObject): void => {
         const node = event.target as cytoscape.NodeSingular;
-        if (!isRealNode(node)) {
+        if (isCompoundNode(node)) {
+            handlers.onCompoundFree?.(node.id());
             return;
         }
         handlers.onNodeFree(node.id(), node.position());

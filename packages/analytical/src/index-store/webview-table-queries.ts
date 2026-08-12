@@ -9,7 +9,17 @@ import { parseAttributes } from '../core/types.js';
 
 export type SortDirection = 'asc' | 'desc';
 
-export type IdeasSortColumn = 'title' | 'path' | 'body' | 'kind' | 'outRefs' | 'inRefs' | `attr:${string}`;
+export type IdeasSortColumn =
+    | 'title'
+    | 'path'
+    | 'body'
+    | 'kind'
+    | 'outRefs'
+    | 'inRefs'
+    | 'gitCreatedAt'
+    | 'gitModifiedAt'
+    | 'gitChangeCount'
+    | `attr:${string}`;
 
 export interface ReferenceFilter {
     direction: 'inbound' | 'outbound';
@@ -286,6 +296,15 @@ export function buildIdeasOrderClause(query: IdeasTableQuery): string {
             break;
         case 'inRefs':
             primary = `inbound_count ${direction}, i.name ASC`;
+            break;
+        case 'gitCreatedAt':
+            primary = `i.git_created_at IS NULL ASC, i.git_created_at ${direction}, i.name ASC`;
+            break;
+        case 'gitModifiedAt':
+            primary = `i.git_modified_at IS NULL ASC, i.git_modified_at ${direction}, i.name ASC`;
+            break;
+        case 'gitChangeCount':
+            primary = `i.git_change_count IS NULL ASC, i.git_change_count ${direction}, i.name ASC`;
             break;
         case 'path':
         default:

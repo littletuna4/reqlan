@@ -49,4 +49,12 @@ describe('normalizeGraphUiState', () => {
         expect(normalizeGraphUiState({ labelMode: 'nope' }).labelMode).toBe('auto');
         expect(DEFAULT_GRAPH_UI_STATE.labelMode).toBe('auto');
     });
+
+    test('keeps valid fileTreatment and defaults unknown values to linked', () => {
+        expect(normalizeGraphUiState({ fileTreatment: 'compound' }).fileTreatment).toBe('compound');
+        expect(normalizeGraphUiState({ fileTreatment: 'linked' }).fileTreatment).toBe('linked');
+        expect(normalizeGraphUiState({ fileTreatment: 'invisible' }).fileTreatment).toBe('invisible');
+        expect(normalizeGraphUiState({ fileTreatment: 'nope' }).fileTreatment).toBe('linked');
+        expect(DEFAULT_GRAPH_UI_STATE.fileTreatment).toBe('linked');
+    });
 });

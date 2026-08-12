@@ -14,7 +14,19 @@ export const MEMBER_HOVER_KEY = 'groupMemberHover';
 export const MEMBER_SELECTED_KEY = 'groupMemberSelected';
 
 export interface CompoundHighlightHandlers {
-    onCompoundTap?: (compoundId: string) => void;
+    onCompoundTap?: (compoundId: string, meta: { titleHit: boolean }) => void;
+    onCompoundDblTap?: (compoundId: string) => void;
+}
+
+/** True when the pointer is in the top label band of a compound node. */
+export function isCompoundTitleHit(
+    compound: cytoscape.NodeSingular,
+    modelPosition: { x: number; y: number }
+): boolean {
+    const bb = compound.boundingBox({ includeLabels: false, includeOverlays: false });
+    const height = Math.max(1, bb.y2 - bb.y1);
+    const labelBand = Math.min(28, Math.max(16, height * 0.22));
+    return modelPosition.y >= bb.y1 - 4 && modelPosition.y <= bb.y1 + labelBand;
 }
 
 /** Compound container under the pointer, or the innermost compound ancestor of a member node. */
@@ -109,7 +121,16 @@ export function bindCompoundHighlight(
         if (!node.data('isCompound')) {
             return;
         }
-        handlers.onCompoundTap?.(node.id());
+        const titleHit = isCompoundTitleHit(node, event.position);
+        handlers.onCompoundTap?.(node.id(), { titleHit });
+    };
+
+    const onCompoundDblTap = (event: cytoscape.EventObject): void => {
+        const node = event.target as cytoscape.NodeSingular;
+        if (!node.data('isCompound')) {
+            return;
+        }
+        handlers.onCompoundDblTap?.(node.id());
     };
 
     const onCompoundSelectChange = (): void => {
@@ -119,6 +140,7 @@ export function bindCompoundHighlight(
     cy.on('mouseover', 'node', onNodePointerOver);
     cy.on('mouseover', onBackgroundOver);
     cy.on('tap', 'node[?isCompound]', onCompoundTap);
+    cy.on('dbltap', 'node[?isCompound]', onCompoundDblTap);
     cy.on('select unselect', 'node[?isCompound]', onCompoundSelectChange);
 
     const container = cy.container();
@@ -128,6 +150,7 @@ export function bindCompoundHighlight(
         cy.removeListener('mouseover', 'node', onNodePointerOver);
         cy.removeListener('mouseover', onBackgroundOver);
         cy.removeListener('tap', 'node[?isCompound]', onCompoundTap);
+        cy.removeListener('dbltap', 'node[?isCompound]', onCompoundDblTap);
         cy.removeListener('select unselect', 'node[?isCompound]', onCompoundSelectChange);
         container?.removeEventListener('mouseleave', onPointerLeave);
         activeHoverCompoundId = undefined;

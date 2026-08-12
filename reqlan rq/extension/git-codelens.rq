@@ -3,23 +3,27 @@ import "./features-graph-analysers.rq" as graph_analysers
 import "./module/ideas_summary/webview.rq" as ideas_summary_webview
 
 git_idea_timeline_analysis {
-    Idea creation and last-modified dates are derived from git history by the `git_dates` analyser
-    and stored on the ideas index (`git_created_at` / `git_modified_at`).
+    Idea creation and last-modified dates, plus change count, are derived from git history by the
+    `git_dates` analyser and stored on the ideas index
+    (`git_created_at` / `git_modified_at` / `git_change_count`).
     Calculation is owned by [git_dates_background_indexing] / [graph_analysers.git_dates] — not by
-    on-the-fly editor, Activity Bar focus, or Timeline open actions.
+    on-the-fly editor, Activity Bar focus, Timeline open, or Ideas table load.
     Active-editor queue priority for fill-in is specified on [git_dates_background_indexing].
     Implemented by ["../../packages/analytical/src/analysis/git-dates-analyser.ts"] and
     ["../../packages/analytical/src/index-store/sqlite-store.ts"].
     @status done
     @tests (
         ["../../packages/analytical/test/idea-timeline.test.ts"]
-        ["../../packages/analytical/test/idea-timeline.test.ts:upsert preserves analyser git dates across reindex"]
+        ["../../packages/analytical/test/idea-timeline.test.ts:upsert preserves analyser git dates and change count across reindex"]
         ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates returns ideas without dates"]
+        ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates includes ideas missing change count"]
         ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
         ["../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
+        ["../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
     )
     [git_dates_background_indexing]
     [graph_analysers.git_dates]
+    [ideas_summary_webview.ideas_list]
 }
 
 

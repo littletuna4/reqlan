@@ -90,8 +90,7 @@ export function AssessmentPage() {
           </p>
           <h1 className={shared.sectionTitle}>Tutorial assessment</h1>
           <p className={styles.lede}>
-            Eight questions on get-started and concepts. Pass at 80%, then claim
-            a certificate link.
+            Pass at 80% for a certificate of completion.
           </p>
         </header>
 
@@ -208,8 +207,7 @@ export function AssessmentPage() {
               <>
                 <h2 className={styles.resultTitle}>Certificate ready</h2>
                 <p className={styles.resultBody}>
-                  Share or bookmark this link — it encodes your name and
-                  completion date.
+                  Share or bookmark this link — or open and save it.
                 </p>
                 <div className={styles.linkRow}>
                   <input

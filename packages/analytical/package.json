@@ -40,6 +40,10 @@
         "./filter-specials": {
             "types": "./out/core/filter-specials.d.ts",
             "default": "./out/core/filter-specials.js"
+        },
+        "./file-treatment": {
+            "types": "./out/index-store/file-treatment.d.ts",
+            "default": "./out/index-store/file-treatment.js"
         }
     },
     "scripts": {

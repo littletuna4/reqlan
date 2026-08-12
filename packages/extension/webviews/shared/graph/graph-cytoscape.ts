@@ -6,6 +6,14 @@ import type cytoscape from 'cytoscape';
 import type { ElementDefinition, StylesheetStyle } from 'cytoscape';
 import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
+    applyFileTreatment,
+    DEFAULT_FILE_TREATMENT,
+    fileCompoundNodeId,
+    fileIdeasetDisplayName,
+    isFileIdeasetNode,
+    type FileTreatment
+} from '@reqlan/analytical/file-treatment';
+import {
     GROUP_HOVER_KEY,
     MEMBER_HOVER_KEY,
     MEMBER_SELECTED_KEY
@@ -148,6 +156,8 @@ export interface BuildElementsOptions {
      */
     groupBasis?: GroupBasis;
     centerId?: string;
+    /** Hosting-.rq file treatment. Default invisible. */
+    fileTreatment?: FileTreatment;
 }
 
 function groupLabel(groupId: string): string {
@@ -249,10 +259,43 @@ function buildCompoundElements(
     };
 }
 
+function buildFileCompoundElements(
+    nodes: GraphNodeView[]
+): { compounds: ElementDefinition[]; parentByNodeId: Map<string, string> } {
+    const compounds = new Map<string, ElementDefinition>();
+    const parentByNodeId = new Map<string, string>();
+
+    for (const node of nodes) {
+        if (node.isExternal || isFileIdeasetNode(node) || !node.fileUri) {
+            continue;
+        }
+        const id = fileCompoundNodeId(node.fileUri);
+        if (!compounds.has(id)) {
+            compounds.set(id, {
+                data: {
+                    id,
+                    label: fileIdeasetDisplayName(node.fileUri),
+                    isCompound: true,
+                    isFileCompound: true,
+                    fileUri: node.fileUri
+                }
+            });
+        }
+        parentByNodeId.set(node.id, id);
+    }
+
+    return {
+        compounds: [...compounds.values()],
+        parentByNodeId
+    };
+}
+
 export function buildCytoscapeElements(
     slice: GraphViewSlice,
     options: BuildElementsOptions
 ): ElementDefinition[] {
+    const fileTreatment = options.fileTreatment ?? DEFAULT_FILE_TREATMENT;
+    const treated = applyFileTreatment(slice, fileTreatment);
     const { useCompound, compoundBasis, groupBasis, centerId } = options;
     const nodeElements: ElementDefinition[] = [];
 
@@ -260,25 +303,61 @@ export function buildCytoscapeElements(
     // (folders, a strict tree) and flat multi-membership (tags, allows sharing).
     const useGroups = useCompound && Boolean(groupBasis);
     const groupElements = useGroups
-        ? buildGroupElements(slice.nodes, groupBasis!)
+        ? buildGroupElements(treated.nodes, groupBasis!)
         : undefined;
     const compoundElements = useCompound && !useGroups
-        ? buildCompoundElements(slice.nodes, compoundBasis)
+        ? buildCompoundElements(treated.nodes, compoundBasis)
+        : undefined;
+    const fileCompoundElements = fileTreatment === 'compound'
+        ? buildFileCompoundElements(treated.nodes)
         : undefined;
 
-    for (const node of slice.nodes) {
+    // Nest file compounds under folder parents when both are active.
+    if (fileCompoundElements && compoundElements) {
+        for (const [nodeId, fileParentId] of fileCompoundElements.parentByNodeId) {
+            const folderParentId = compoundElements.parentByNodeId.get(nodeId);
+            if (!folderParentId) {
+                continue;
+            }
+            const fileCompound = fileCompoundElements.compounds.find(
+                element => element.data.id === fileParentId
+            );
+            if (fileCompound && !fileCompound.data.parent) {
+                fileCompound.data.parent = folderParentId;
+            }
+        }
+    } else if (fileCompoundElements && groupElements) {
+        for (const [nodeId, fileParentId] of fileCompoundElements.parentByNodeId) {
+            const groupParentId = groupElements.parentByNodeId.get(nodeId);
+            if (!groupParentId) {
+                continue;
+            }
+            const fileCompound = fileCompoundElements.compounds.find(
+                element => element.data.id === fileParentId
+            );
+            if (fileCompound && !fileCompound.data.parent) {
+                fileCompound.data.parent = groupParentId;
+            }
+        }
+    }
+
+    for (const node of treated.nodes) {
         const label = node.status
             ? `${truncate(node.name)}\n${truncate(node.status, 18)}`
             : truncate(node.name);
 
         const groupIds = groupElements?.groupIdsByNodeId.get(node.id);
-        const parentId = groupElements
+        const folderOrGroupParent = groupElements
             ? groupElements.parentByNodeId.get(node.id)
             : compoundElements?.parentByNodeId.get(node.id);
+        const fileParent = fileCompoundElements?.parentByNodeId.get(node.id);
+        // File compound is the innermost parent when present; folder/tag sits above it.
+        const parentId = fileParent ?? folderOrGroupParent;
         // groupIds drives physics separation/cohesion. In hierarchical mode a node
         // has exactly one membership (its immediate compound), so containers never
         // share and are always pushed apart; in group mode it can have several.
-        const effectiveGroupIds = groupIds ?? (parentId && compoundElements ? [parentId] : undefined);
+        const effectiveGroupIds = groupIds
+            ?? (parentId && (fileCompoundElements || compoundElements) ? [parentId] : undefined);
 
         nodeElements.push({
             data: {
@@ -298,9 +377,9 @@ export function buildCytoscapeElements(
     }
 
     const externalNodeIds = new Set(
-        slice.nodes.filter(node => node.isExternal).map(node => node.id)
+        treated.nodes.filter(node => node.isExternal).map(node => node.id)
     );
-    const edgeElements: ElementDefinition[] = slice.edges.map(edge => ({
+    const edgeElements: ElementDefinition[] = treated.edges.map(edge => ({
         data: {
             id: edge.id,
             source: edge.sourceId,
@@ -310,7 +389,10 @@ export function buildCytoscapeElements(
         }
     }));
 
-    const compounds = groupElements?.compounds ?? compoundElements?.compounds ?? [];
+    const compounds = [
+        ...(groupElements?.compounds ?? compoundElements?.compounds ?? []),
+        ...(fileCompoundElements?.compounds ?? [])
+    ];
     return [...compounds, ...nodeElements, ...edgeElements];
 }
 
@@ -421,8 +503,9 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 'text-max-width': '120px',
                 'font-size': '10px',
                 // Controller owns zoom fade via text-opacity ([graph_label_auto]); disable hard cut.
+                // Start invisible so text paint does not lag init/settle before auto opacity applies.
                 'min-zoomed-font-size': 0,
-                'text-opacity': 1,
+                'text-opacity': 0,
                 'text-valign': 'bottom',
                 'text-halign': 'center',
                 'text-margin-y': 6,
@@ -456,6 +539,17 @@ export function buildCytoscapeStylesheet(): StylesheetStyle[] {
                 color: description,
                 padding: '16px',
                 shape: 'round-rectangle'
+            }
+        },
+        {
+            // File compound titles are openable — underline + accent cue.
+            selector: 'node[?isFileCompound]',
+            style: {
+                'background-color': GRAPH_NODE_COLORS.ideaset,
+                'border-color': (node: cytoscape.NodeSingular) => compoundBorderColor(node, borderColors),
+                color: GRAPH_NODE_COLORS.ideaset,
+                'text-decoration': 'underline',
+                'underlay-padding': '4px'
             }
         },
         // Style mappers (not boolean selectors) so emphasis flags applied at runtime

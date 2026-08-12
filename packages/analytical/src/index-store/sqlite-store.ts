@@ -168,13 +168,14 @@ export class SqliteIndexStore {
     ): Promise<void> {
         await run(this.db, 'BEGIN');
         try {
-            // Preserve analyser-populated git dates across delete+reinsert reindex.
+            // Preserve analyser-populated git dates/counts across delete+reinsert reindex.
             const existingGit = await all<{
                 id: string;
                 git_created_at: string | null;
                 git_modified_at: string | null;
+                git_change_count: number | null;
             }>(this.db, `
-                SELECT id, git_created_at, git_modified_at
+                SELECT id, git_created_at, git_modified_at, git_change_count
                 FROM ideas
                 WHERE file_uri = ?
             `, fileUri);
@@ -192,10 +193,10 @@ export class SqliteIndexStore {
             const insertIdeaSql = `
                 INSERT INTO ideas (
                     id, name, kind, file_uri, line_start, line_end, summary,
-                    attributes_json, content_hash, git_created_at, git_modified_at
+                    attributes_json, content_hash, git_created_at, git_modified_at, git_change_count
                 ) VALUES (
                     ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?
+                    ?, ?, ?, ?, ?
                 )
             `;
             for (const idea of ideas) {
@@ -211,7 +212,8 @@ export class SqliteIndexStore {
                     idea.attributesJson,
                     idea.contentHash,
                     idea.gitCreatedAt ?? previous?.git_created_at ?? null,
-                    idea.gitModifiedAt ?? previous?.git_modified_at ?? null
+                    idea.gitModifiedAt ?? previous?.git_modified_at ?? null,
+                    idea.gitChangeCount ?? previous?.git_change_count ?? null
                 );
             }
 
@@ -310,7 +312,7 @@ export class SqliteIndexStore {
     async getIdea(id: string): Promise<IdeaSummary | undefined> {
         const row = await get<SummaryRow>(this.db, `
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas WHERE id = ?
         `, id);
         return row ? this.toSummary(row) : undefined;
@@ -328,7 +330,7 @@ export class SqliteIndexStore {
     async getIdeaAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
         const row = await get<SummaryRow>(this.db, `
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas
             WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind != 'ideaset'
             ORDER BY line_start DESC
@@ -341,7 +343,7 @@ export class SqliteIndexStore {
     async getIdeasetAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
         const row = await get<SummaryRow>(this.db, `
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas
             WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind = 'ideaset'
             ORDER BY line_start DESC
@@ -353,7 +355,7 @@ export class SqliteIndexStore {
     async listIdeasInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
         const rows = await all<SummaryRowWithEnd>(this.db, `
             SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas
             WHERE file_uri = ? AND kind != 'ideaset'
             ORDER BY line_start ASC
@@ -367,7 +369,7 @@ export class SqliteIndexStore {
     async listIdeasetsInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
         const rows = await all<SummaryRowWithEnd>(this.db, `
             SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas
             WHERE file_uri = ? AND kind = 'ideaset'
             ORDER BY line_start ASC
@@ -592,7 +594,19 @@ export class SqliteIndexStore {
         return rows.map(mapIdeaRow);
     }
 
-    async updateGitDates(id: string, createdAt?: string, modifiedAt?: string): Promise<void> {
+    async updateGitDates(
+        id: string,
+        createdAt?: string,
+        modifiedAt?: string,
+        changeCount?: number
+    ): Promise<void> {
+        if (changeCount !== undefined) {
+            await run(this.db, `
+                UPDATE ideas SET git_created_at = ?, git_modified_at = ?, git_change_count = ?
+                WHERE id = ?
+            `, createdAt ?? null, modifiedAt ?? null, changeCount, id);
+            return;
+        }
         await run(this.db, `
             UPDATE ideas SET git_created_at = ?, git_modified_at = ?
             WHERE id = ?
@@ -729,6 +743,9 @@ export class SqliteIndexStore {
                 i.line_start,
                 i.summary,
                 i.attributes_json,
+                i.git_created_at,
+                i.git_modified_at,
+                i.git_change_count,
                 (
                     SELECT COUNT(*)
                     FROM edges e
@@ -972,27 +989,32 @@ export class SqliteIndexStore {
     }
 
     /**
-     * Idea ids that still need git date backfill for the Timeline tab.
+     * Idea ids that still need git date / change-count backfill.
+     * Missing when both dates are null, or when change count has not been indexed yet.
      * - `fileUri`: only ideas in that file (active-editor priority queue)
      * - `preferFileUri`: list that file's ideas first, then the rest of the backlog
      * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
      * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
      * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
      * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
      */
     async listIdeaIdsMissingGitDates(
         limit = 40,
         options?: { fileUri?: string; preferFileUri?: string }
     ): Promise<string[]> {
         const capped = Math.max(1, Math.min(limit, 200));
+        const missingSql = `(
+            (git_created_at IS NULL AND git_modified_at IS NULL)
+            OR git_change_count IS NULL
+        )`;
         const fileUri = options?.fileUri?.trim();
         if (fileUri) {
             const rows = await all<{ id: string }>(this.db, `
                 SELECT id
                 FROM ideas
                 WHERE kind != 'ideaset'
-                  AND git_created_at IS NULL
-                  AND git_modified_at IS NULL
+                  AND ${missingSql}
                   AND file_uri = ?
                 ORDER BY line_start ASC
                 LIMIT ?
@@ -1005,8 +1027,7 @@ export class SqliteIndexStore {
                 SELECT id
                 FROM ideas
                 WHERE kind != 'ideaset'
-                  AND git_created_at IS NULL
-                  AND git_modified_at IS NULL
+                  AND ${missingSql}
                 ORDER BY CASE WHEN file_uri = ? THEN 0 ELSE 1 END,
                          file_uri ASC, line_start ASC
                 LIMIT ?
@@ -1017,8 +1038,7 @@ export class SqliteIndexStore {
             SELECT id
             FROM ideas
             WHERE kind != 'ideaset'
-              AND git_created_at IS NULL
-              AND git_modified_at IS NULL
+              AND ${missingSql}
             ORDER BY file_uri ASC, line_start ASC
             LIMIT ?
         `, capped);
@@ -1043,7 +1063,7 @@ export class SqliteIndexStore {
             git_modified_at: string | null;
         }>(this.db, `
             SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at
+                   git_created_at, git_modified_at, git_change_count
             FROM ideas
             WHERE kind != 'ideaset'
               AND (git_modified_at IS NOT NULL OR git_created_at IS NOT NULL)
@@ -1100,7 +1120,8 @@ export class SqliteIndexStore {
             tags: ideaTags(attributes),
             tagsKeys: tagsFilterKeysFromAttributes(attributes),
             gitCreatedAt: row.git_created_at ?? undefined,
-            gitModifiedAt: row.git_modified_at ?? undefined
+            gitModifiedAt: row.git_modified_at ?? undefined,
+            gitChangeCount: row.git_change_count ?? undefined
         };
     }
 
@@ -1289,6 +1310,7 @@ interface SummaryRow {
     attributes_json: string;
     git_created_at?: string | null;
     git_modified_at?: string | null;
+    git_change_count?: number | null;
 }
 
 interface IdeaPageRow {
@@ -1302,6 +1324,9 @@ interface IdeaPageRow {
     outbound_count: number;
     inbound_count: number;
     reference_count: number;
+    git_created_at: string | null;
+    git_modified_at: string | null;
+    git_change_count: number | null;
 }
 
 interface IdeasetPageRow {
@@ -1360,6 +1385,9 @@ function toIdeaTableRow(
         inboundReferences,
         fileUri: row.file_uri,
         lineStart: row.line_start,
+        gitCreatedAt: row.git_created_at ?? undefined,
+        gitModifiedAt: row.git_modified_at ?? undefined,
+        gitChangeCount: row.git_change_count ?? undefined,
         stabilityCue,
         stabilityLabel
     };
@@ -1565,6 +1593,7 @@ interface SqliteIdeaRow {
     content_hash: string;
     git_created_at: string | null;
     git_modified_at: string | null;
+    git_change_count?: number | null;
 }
 
 function mapEdgeRow(row: SqliteEdgeRow): EdgeRecord {
@@ -1595,6 +1624,7 @@ function mapIdeaRow(row: SqliteIdeaRow): IdeaRecord {
         attributesJson: row.attributes_json,
         contentHash: row.content_hash,
         gitCreatedAt: row.git_created_at ?? undefined,
-        gitModifiedAt: row.git_modified_at ?? undefined
+        gitModifiedAt: row.git_modified_at ?? undefined,
+        gitChangeCount: row.git_change_count ?? undefined
     };
 }

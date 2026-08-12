@@ -36,12 +36,15 @@ git_history_lens {
     Focus hero: history cue (last commit age / branch), not `git: staged|unstaged`.
     Fingerprint Git axis and drilldown list commits/authors (dirty paths secondary) per [fingerprint_axis_drilldown] and [tooltip_detail].
     Aligns with ["../context-scope.rq".git_context] and [context_scope_v2.development_history_signals].
+    Performance: heavy focus history must not block link open or first context paint —
+    see ["../activitybar.rq".link_open_decoupled_from_git] and ["../activitybar.rq".git_focus_cache_by_head].
     Implemented by [ScopePane] [ContextFingerprint].
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte"]
         ["../../../../packages/extension/src/activity_bar_module/git-context.ts"]
         ["../../../../packages/extension/src/activity_bar_module/git-context-helpers.ts"]
+        ["../../../../packages/extension/test/git-context.test.ts"]
         ["../../../../packages/analytical/src/core/context-model.ts"]
         ["../../../../packages/analytical/src/core/context-signals.ts"]
     )

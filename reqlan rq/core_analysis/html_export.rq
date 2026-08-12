@@ -198,7 +198,12 @@ html_export_graph_page {
     Html export should provide an interactive graph page with search, filters, and links back into idea and cluster pages.
     The graph should support scoped views for workspace, file, cluster, and idea contexts.
     The workspace graph page must include every idea in the export scope — blocks, oneliners, and ideasets — and must not apply the interactive Ideas Summary GRAPH_MAX_NODES budget.
-    Ideasets are visible by default with a Hide ideasets / Show ideasets toggle, matching the external-file visibility control.
+    Ideasets are visible by default with a Hide ideasets / Show ideasets toggle, matching the external-file visibility control
+    (explicit AST ideasets only — distinct from hosting-file treatment).
+    Hosting `.rq` files (implicit ideasets) use a Files `<select>` — hidden / compound / linked —
+    with option tooltips, per ["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle]
+    (parity with Ideas Summary). Compound mode draws hittable/draggable bounding boxes with clickable titles;
+    linked mode adds synthetic ideaset nodes that navigate via `hostFilePageUrl` / `pageUrl`.
     Wildcard fan-out edges (`wildcard_reference`) are visible by default with a "Wildcard refs" chip
     (same label/default as Ideas Summary); turning it off client-filters those edges and draws them dotted when on —
     see ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle] and
@@ -208,6 +213,7 @@ html_export_graph_page {
     [html_export_graph_links]
     [html_export_graph_layout]
     [html_export_graph_animation]
+    [html_export_graph_background_load]
     [html_export_graph_subject]
     [html_export_graph_labels]
     [html_export_graph_label_modes]
@@ -219,11 +225,13 @@ html_export_graph_page {
         ["../../packages/analytical/src/export/html-export-assets.ts"]
         ["../../packages/analytical/src/export/html-export-template.ts"]
         ["../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../packages/analytical/src/index-store/file-treatment.ts"]
         ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-html.test.ts"]
         ["../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+        ["../../packages/analytical/test/file-treatment.test.ts"]
     )
 }
 
@@ -232,6 +240,8 @@ html_export_graph_links {
     Node urls should be export-root-relative so path segments such as ideas/ are not dropped when resolving from nested pages.
     When [html_export_url_base] is set, runtime resolution of those urls must honour the mount prefix (same contract as page and asset hrefs).
     External file nodes should resolve to [html_export_file_pages] or [html_export_code_reference_pages] when those page families are enabled.
+    Hosting-file linked nodes (["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle] linked mode) prefer `hostFilePageUrl` stamped during graph URL enrichment
+    (file / code-file page for the idea's `fileUri`), falling back to a member idea `pageUrl` when file pages are disabled.
     @implementation (
         ["../../packages/analytical/src/export/html-export-template.ts"]
         ["../../packages/analytical/src/export/html-export-assets.ts"]
@@ -256,12 +266,31 @@ html_export_graph_layout {
 html_export_graph_animation {
     Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/analytical/src/graph/physics-core.js"] (same module as ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]).
     A Live physics toggle pauses and resumes the same simulation state (default off); when off, the graph batch-settles then sleeps.
+    Batch settle must remain responsive per [html_export_graph_background_load] — yield between chunks rather than freezing the page for large graphs.
     Simulation should converge and sleep when calm, waking on filter changes or when Live physics is turned back on, aligned with [layout_physics].
     Large graphs use a spatial grid + repulsion cutoff in the shared core; all nodes and full labels remain visible.
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
         ["../../packages/analytical/src/graph/physics-core.js"]
         ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
+    )
+}
+
+html_export_graph_background_load {
+    Interactive HTML export graph boot and layout settle must not monopolise the main thread on large graphs.
+    Page chrome (nav, filters, search, other controls) should stay responsive while the graph initialises.
+    Graph wiring should start after the first paint / idle opportunity rather than synchronously blocking `DOMContentLoaded`.
+    When Live physics is off, the initial batch settle should run in yielded chunks (animation frames or idle callbacks) so the browser can paint and handle input between steps; keep the boot spinner until the first usable canvas frame, then show progressive settle status.
+    A new filter/refresh or remount must cancel any in-flight background settle before starting another.
+    Cross-refs [html_export_graph_page], [html_export_graph_animation], [html_export_graph_interaction].
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../packages/analytical/src/export/html-export-template.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../packages/analytical/test/export-html.test.ts:builds workspace snapshot and writes multi-file html export"]
     )
 }
 
@@ -300,6 +329,7 @@ html_export_graph_label_modes {
 
 html_export_graph_label_auto {
     Export-surface wiring for [graph_label_auto]: canvas paint applies continuous zoom opacity (GRAPH_LABEL_FADE_START → GRAPH_LABEL_FADE_END); hover/drag stays fully opaque.
+    Labels stay fully invisible while the graph is initialising or batch-settling so text paint does not lag those phases; zoom fade applies only after settle completes.
     Zoom and Fit from [html_export_graph_interaction] / [manual_reframe] update opacity each paint.
     @status done
     @implementation (
@@ -315,6 +345,11 @@ html_export_graph_interaction {
     Click-through to idea pages must remain available after drag via click-versus-drag discrimination.
     A Fit control should reframe the viewport to the current node set without restarting layout or clearing live physics state.
     Zoom and Fit must continuously drive [graph_label_auto] / [html_export_graph_label_auto] opacity when Labels is in auto mode.
+    When ["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle] is compound: file bounding boxes are hittable — drag moves member nodes together;
+    clicking the underlined title navigates to the hosting file page (when `hostFilePageUrl` / `pageUrl` is present).
+    When linked: synthetic file ideaset nodes are dragged and clicked like other leaves.
+    Related: ["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle],
+    ["../extension/module/ideas_summary/graphical_graph.rq".webview_export_graph_parity].
     @implementation (
         ["../../packages/analytical/src/export/html-export-assets.ts"]
         ["../../packages/analytical/src/export/html-export-template.ts"]

@@ -18,7 +18,8 @@ import {
     buildGitSummary,
     buildHistoryCue,
     parseGitLogRecords,
-    rollupAuthors
+    rollupAuthors,
+    shouldRefreshGitFocusCache
 } from './git-context-helpers.js';
 
 export {
@@ -26,13 +27,13 @@ export {
     buildHistoryCue,
     formatRelativeAge,
     parseGitLogRecords,
-    rollupAuthors
+    rollupAuthors,
+    shouldRefreshGitFocusCache
 } from './git-context-helpers.js';
 
 const execFileAsync = promisify(execFile);
 
 const FOCUS_COMMIT_LIMIT = 8;
-const HISTORY_CACHE_TTL_MS = 60_000;
 const GIT_LOG_TIMEOUT_MS = 4_000;
 
 /**
@@ -73,6 +74,11 @@ export interface CollectGitContextOptions {
     lineEnd?: number;
     /** Prefer `git log -L` when a line range is available (`.rq` ideas). */
     useLineHistory?: boolean;
+    /**
+     * When false, skip `git log -L` / focus stats (first context paint).
+     * Default true for deferred enrichment.
+     */
+    includeFocusHistory?: boolean;
     focusIdea?: {
         id: string;
         name: string;
@@ -107,6 +113,7 @@ interface RepoCommitMeta {
 const historyCache = new Map<string, HistoryCacheEntry>();
 const statsCache = new Map<string, StatsCacheEntry>();
 const repoRootCache = new Map<string, string | undefined>();
+const headAuthoredAtCache = new Map<string, { hash: string; authoredAtMs: number }>();
 const ideaPresenceCache = new Map<string, Set<string>>();
 const rangeCommitCountCache = new Map<string, { count: number; at: number }>();
 
@@ -115,6 +122,7 @@ export function clearGitHistoryCache(): void {
     historyCache.clear();
     statsCache.clear();
     repoRootCache.clear();
+    headAuthoredAtCache.clear();
     ideaPresenceCache.clear();
     rangeCommitCountCache.clear();
 }
@@ -156,6 +164,29 @@ export async function collectGitContext(
         return undefined;
     }
 
+    const dirtyCount = stagedUris.size + unstagedUris.size;
+    const includeFocusHistory = options.includeFocusHistory !== false;
+    if (!includeFocusHistory) {
+        return {
+            branch,
+            headShort,
+            stagedCount: stagedUris.size,
+            unstagedCount: unstagedUris.size,
+            changedFiles,
+            focusCommits: [],
+            topAuthors: [],
+            focusStats: undefined,
+            summary: buildGitSummary({
+                branch,
+                headShort,
+                commits: [],
+                authors: [],
+                dirtyCount
+            }),
+            historyCue: buildHistoryCue({ branch, commits: [] })
+        };
+    }
+
     const history = await loadFocusHistory(options, workspaceRoot);
     const focusStats = await loadFocusStats(options, workspaceRoot, history.commits);
     const summary = buildGitSummary({
@@ -163,7 +194,7 @@ export async function collectGitContext(
         headShort,
         commits: history.commits,
         authors: history.authors,
-        dirtyCount: stagedUris.size + unstagedUris.size
+        dirtyCount
     });
     const historyCue = buildHistoryCue({
         branch,
@@ -206,7 +237,8 @@ async function loadFocusHistory(
         options.useLineHistory ? 'L' : 'P'
     ].join('|');
     const cached = historyCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS) {
+    const latestCommitMs = await getHeadAuthoredAtMs(workspaceRoot);
+    if (cached && !shouldRefreshGitFocusCache(cached.at, latestCommitMs)) {
         return { commits: cached.commits, authors: cached.authors };
     }
 
@@ -267,7 +299,8 @@ async function loadFocusStats(
         options.peerIdeas?.map(idea => `${idea.id}:${idea.lineStart}-${idea.lineEnd}`).join(',') ?? ''
     ].join('|');
     const cached = statsCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS) {
+    const latestCommitMs = await getHeadAuthoredAtMs(workspaceRoot);
+    if (cached && !shouldRefreshGitFocusCache(cached.at, latestCommitMs)) {
         return cached.stats;
     }
 
@@ -469,7 +502,8 @@ async function countRangeCommits(
 ): Promise<number> {
     const cacheKey = `${repoRoot}|${filePath}|${lineStart}|${lineEnd}`;
     const cached = rangeCommitCountCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS) {
+    const latestCommitMs = await getHeadAuthoredAtMs(repoRoot);
+    if (cached && !shouldRefreshGitFocusCache(cached.at, latestCommitMs)) {
         return cached.count;
     }
     const start = Math.min(lineStart, lineEnd) + 1;
@@ -522,6 +556,28 @@ async function resolveRepoRoot(cwd: string): Promise<string | undefined> {
     const root = (await runGitText(['rev-parse', '--show-toplevel'], cwd))?.trim() || undefined;
     repoRootCache.set(cwd, root);
     return root;
+}
+
+/** HEAD authored-at in ms; re-reads when HEAD hash changes. */
+async function getHeadAuthoredAtMs(cwd: string): Promise<number | undefined> {
+    const hash = (await runGitText(['rev-parse', 'HEAD'], cwd))?.trim();
+    if (!hash) {
+        return undefined;
+    }
+    const cached = headAuthoredAtCache.get(cwd);
+    if (cached?.hash === hash) {
+        return cached.authoredAtMs;
+    }
+    const iso = (await runGitText(['log', '-1', '--format=%aI', hash], cwd))?.trim();
+    if (!iso) {
+        return undefined;
+    }
+    const authoredAtMs = Date.parse(iso);
+    if (Number.isNaN(authoredAtMs)) {
+        return undefined;
+    }
+    headAuthoredAtCache.set(cwd, { hash, authoredAtMs });
+    return authoredAtMs;
 }
 
 async function runGitText(

@@ -311,6 +311,27 @@ a.pill:hover { color: var(--accent-strong); border-color: color-mix(in srgb, var
     border-color: var(--rust);
     color: var(--fg);
 }
+.graph-file-treatment {
+    display: inline-flex;
+    align-items: center;
+}
+.graph-file-treatment .graph-select,
+select.graph-action {
+    border-radius: 8px;
+    padding-right: 1.6rem;
+    cursor: pointer;
+}
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 .graph-status {
     color: var(--muted);
     font-size: 0.92rem;
@@ -1203,6 +1224,80 @@ const GRAPH_HIT_PAD = 6;
 const GRAPH_LABEL_FADE_START = 0.62;
 const GRAPH_LABEL_FADE_END = 0.82;
 const GRAPH_LABEL_MODES = ['auto', 'on', 'off'];
+const FILE_TREATMENT_MODES = ['invisible', 'compound', 'linked'];
+
+function fileIdeasetNodeId(fileUri) {
+    return 'rq-file:' + fileUri;
+}
+
+function isFileIdeasetNode(node) {
+    return Boolean(node && (node.isFileIdeaset || String(node.id || '').startsWith('rq-file:')));
+}
+
+function fileIdeasetDisplayName(fileUri) {
+    const trimmed = String(fileUri || '').replace(/\\\\/g, '/');
+    const slash = trimmed.lastIndexOf('/');
+    const fileName = slash >= 0 ? trimmed.slice(slash + 1) : trimmed;
+    return fileName.endsWith('.rq') ? fileName.slice(0, -3) : fileName;
+}
+
+function fileTreatmentLabel(mode) {
+    if (mode === 'compound') return 'Files: compound';
+    if (mode === 'linked') return 'Files: linked';
+    return 'Files: hidden';
+}
+
+function applyFileTreatment(graph, treatment) {
+    const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
+    const edges = Array.isArray(graph.edges) ? graph.edges : [];
+    const baseNodes = nodes.filter(node => !isFileIdeasetNode(node));
+    const keep = new Set(baseNodes.map(node => node.id));
+    const baseEdges = edges.filter(edge => keep.has(edge.sourceId) && keep.has(edge.targetId));
+    if (treatment !== 'linked') {
+        return { ...graph, nodes: baseNodes, edges: baseEdges };
+    }
+    const membersByFile = new Map();
+    for (const node of baseNodes) {
+        if (node.isExternal || !node.fileUri) continue;
+        const list = membersByFile.get(node.fileUri) || [];
+        list.push(node);
+        membersByFile.set(node.fileUri, list);
+    }
+    const extraNodes = [];
+    const extraEdges = [];
+    for (const fileUri of [...membersByFile.keys()].sort()) {
+        const members = membersByFile.get(fileUri) || [];
+        if (!members.length) continue;
+        const id = fileIdeasetNodeId(fileUri);
+        const name = fileIdeasetDisplayName(fileUri);
+        extraNodes.push({
+            id,
+            name,
+            kind: 'ideaset',
+            fileUri,
+            lineStart: 0,
+            tags: [],
+            isFileIdeaset: true,
+            pageUrl: members.find(member => member.hostFilePageUrl)?.hostFilePageUrl
+                || members.find(member => member.pageUrl)?.pageUrl
+                || undefined
+        });
+        for (const member of members) {
+            extraEdges.push({
+                id: id + '->ideaset_member:' + member.id,
+                sourceId: id,
+                targetId: member.id,
+                kind: 'ideaset_member',
+                label: name
+            });
+        }
+    }
+    return {
+        ...graph,
+        nodes: baseNodes.concat(extraNodes),
+        edges: baseEdges.concat(extraEdges)
+    };
+}
 
 function wireGraph(root) {
     const graphRoots = root.querySelectorAll('[data-graph-json]');
@@ -1230,6 +1325,7 @@ function wireGraph(root) {
         const tagHost = controls.querySelector('[data-graph-tag-scd]');
         const toggleExternal = controls.querySelector('[data-graph-toggle-external]');
         const toggleIdeasets = controls.querySelector('[data-graph-toggle-ideasets]');
+        const fileTreatmentSelect = controls.querySelector('[data-graph-file-treatment]');
         const toggleWildcard = controls.querySelector('[data-graph-toggle-wildcard]');
         const toggleLabels = controls.querySelector('[data-graph-toggle-labels]');
         const togglePhysics = controls.querySelector('[data-graph-toggle-physics]');
@@ -1240,6 +1336,7 @@ function wireGraph(root) {
         element.classList.add('is-booting');
         let hideExternal = false;
         let hideIdeasets = false;
+        let fileTreatment = fileTreatmentSelect?.value || 'linked';
         let includeWildcardRefs = true;
         let labelMode = 'auto';
         let statusSelected = [];
@@ -1256,6 +1353,10 @@ function wireGraph(root) {
         tagSelected = tagFilter.getSelected();
         let livePhysics = false;
         let animationFrame = 0;
+        let settleFrame = 0;
+        let settleGeneration = 0;
+        // While true, auto labels stay at opacity 0 so text paint does not lag settle.
+        let settlingLayout = false;
         let calmTicks = 0;
         let simNodes = [];
         let simEdges = [];
@@ -1269,12 +1370,15 @@ function wireGraph(root) {
         let view = { x: 0, y: 0, w: 1200, h: 640 };
         let userViewport = false;
         let dragNodeId = null;
+        let dragCompound = null;
         let dragMoved = false;
         let panMode = false;
         let panOrigin = null;
         let suppressClickUntil = 0;
         let hoverNodeId = null;
+        let hoverCompound = null;
         let pulsePhase = 0;
+        let compoundRegions = [];
 
         function resolveGraphNodeUrl(pageUrl) {
             let cleaned = String(pageUrl || '').replace(/^\\.\\//, '');
@@ -1496,11 +1600,92 @@ function wireGraph(root) {
             ctx.fillRect(0, 0, cssWidth, cssHeight);
 
             const { scale, offsetX, offsetY } = viewportTransform();
-            const ambientLabelOpacity = labelOpacityAtScale(scale);
+            // Auto labels stay invisible during batch settle ([graph_label_auto] / html_export_graph_label_auto).
+            const ambientLabelOpacity =
+                settlingLayout && labelMode === 'auto' ? 0 : labelOpacityAtScale(scale);
             ctx.save();
             ctx.translate(offsetX, offsetY);
             ctx.scale(scale, scale);
             ctx.translate(-view.x, -view.y);
+
+            if (fileTreatment === 'compound') {
+                compoundRegions = [];
+                const byFile = new Map();
+                for (const node of simNodes) {
+                    if (node.isExternal || isFileIdeasetNode(node) || !node.fileUri) continue;
+                    const list = byFile.get(node.fileUri) || [];
+                    list.push(node);
+                    byFile.set(node.fileUri, list);
+                }
+                for (const [fileUri, members] of byFile) {
+                    let minX = Infinity;
+                    let minY = Infinity;
+                    let maxX = -Infinity;
+                    let maxY = -Infinity;
+                    let any = false;
+                    let pageUrl;
+                    for (const node of members) {
+                        const pos = positions.get(node.id);
+                        if (!pos) continue;
+                        const r = nodeRadius(node) + 14;
+                        any = true;
+                        minX = Math.min(minX, pos.x - r);
+                        minY = Math.min(minY, pos.y - r);
+                        maxX = Math.max(maxX, pos.x + r);
+                        maxY = Math.max(maxY, pos.y + r);
+                        pageUrl = pageUrl || node.hostFilePageUrl || node.pageUrl;
+                    }
+                    if (!any) continue;
+                    const pad = 8;
+                    const x = minX - pad;
+                    const y = minY - pad;
+                    const w = (maxX - minX) + pad * 2;
+                    const h = (maxY - minY) + pad * 2;
+                    const titleH = 18;
+                    const label = fileIdeasetDisplayName(fileUri);
+                    compoundRegions.push({
+                        fileUri,
+                        pageUrl,
+                        memberIds: members.map(member => member.id),
+                        x,
+                        y,
+                        w,
+                        h,
+                        titleY: y - titleH,
+                        titleH,
+                        label
+                    });
+                    const radius = 10;
+                    const hover = hoverCompound && hoverCompound.fileUri === fileUri;
+                    ctx.beginPath();
+                    ctx.moveTo(x + radius, y);
+                    ctx.arcTo(x + w, y, x + w, y + h, radius);
+                    ctx.arcTo(x + w, y + h, x, y + h, radius);
+                    ctx.arcTo(x, y + h, x, y, radius);
+                    ctx.arcTo(x, y, x + w, y, radius);
+                    ctx.closePath();
+                    ctx.fillStyle = hover ? 'rgba(209, 134, 22, 0.14)' : 'rgba(209, 134, 22, 0.08)';
+                    ctx.fill();
+                    ctx.strokeStyle = hover ? 'rgba(224, 162, 74, 0.85)' : 'rgba(209, 134, 22, 0.45)';
+                    ctx.lineWidth = (hover ? 1.8 : 1.2) / scale;
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgba(224, 162, 74, 0.95)';
+                    ctx.font = \`600 \${11 / scale}px "IBM Plex Sans", system-ui, sans-serif\`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(label, x + 6, y - 4 / scale);
+                    // Underline title to signal clickability.
+                    const titleWidth = ctx.measureText(label).width;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 6, y - 2 / scale);
+                    ctx.lineTo(x + 6 + titleWidth, y - 2 / scale);
+                    ctx.strokeStyle = 'rgba(224, 162, 74, 0.85)';
+                    ctx.lineWidth = 1 / scale;
+                    ctx.stroke();
+                }
+            } else {
+                compoundRegions = [];
+            }
 
             ctx.lineWidth = 1.1 / scale;
             ctx.strokeStyle = 'rgba(61,47,40,0.85)';
@@ -1588,6 +1773,14 @@ function wireGraph(root) {
             }
         }
 
+        function cancelSettle() {
+            settleGeneration += 1;
+            if (settleFrame) {
+                cancelAnimationFrame(settleFrame);
+                settleFrame = 0;
+            }
+        }
+
         function scheduleTick() {
             if (animationFrame) return;
             animationFrame = requestAnimationFrame(() => {
@@ -1615,16 +1808,54 @@ function wireGraph(root) {
             if (livePhysics) scheduleTick();
         }
 
-        function batchSettle(nodes, edges) {
+        function settleChunkSize(nodeCount) {
+            if (nodeCount > 400) return 1;
+            if (nodeCount > 200) return 2;
+            if (nodeCount > 80) return 4;
+            return 8;
+        }
+
+        function batchSettleAsync(nodes, edges, onDone) {
+            cancelSettle();
+            const generation = settleGeneration;
             const iterations = Math.min(96, 36 + Math.floor(nodes.length * 0.45));
-            for (let i = 0; i < iterations; i += 1) {
-                physicsStep(nodes, edges);
+            const chunkSize = settleChunkSize(nodes.length);
+            let step = 0;
+
+            function finish() {
+                if (generation !== settleGeneration) return;
+                for (const velocity of velocities.values()) {
+                    velocity.vx = 0;
+                    velocity.vy = 0;
+                }
+                calmTicks = EXPORT_PHYSICS_SETTINGS.restTicks;
+                settleFrame = 0;
+                onDone();
             }
-            for (const velocity of velocities.values()) {
-                velocity.vx = 0;
-                velocity.vy = 0;
+
+            function runChunk() {
+                if (generation !== settleGeneration) return;
+                const end = Math.min(step + chunkSize, iterations);
+                for (; step < end; step += 1) {
+                    physicsStep(nodes, edges);
+                }
+                paint();
+                if (statusText && iterations > 0) {
+                    const pct = Math.min(99, Math.round((step / iterations) * 100));
+                    statusText.textContent = \`Settling layout… \${pct}%\`;
+                }
+                if (step >= iterations) {
+                    finish();
+                    return;
+                }
+                settleFrame = requestAnimationFrame(runChunk);
             }
-            calmTicks = EXPORT_PHYSICS_SETTINGS.restTicks;
+
+            if (iterations <= 0) {
+                finish();
+                return;
+            }
+            settleFrame = requestAnimationFrame(runChunk);
         }
 
         function hitTest(point) {
@@ -1645,6 +1876,29 @@ function wireGraph(root) {
             return best;
         }
 
+        function hitTestCompound(point) {
+            // Prefer title hits, then body (for drag).
+            let bodyHit = null;
+            for (let i = compoundRegions.length - 1; i >= 0; i -= 1) {
+                const region = compoundRegions[i];
+                const inTitle = point.x >= region.x
+                    && point.x <= region.x + region.w
+                    && point.y >= region.titleY
+                    && point.y <= region.y + 2;
+                if (inTitle) {
+                    return { region, titleHit: true };
+                }
+                const inBody = point.x >= region.x
+                    && point.x <= region.x + region.w
+                    && point.y >= region.y
+                    && point.y <= region.y + region.h;
+                if (inBody && !bodyHit) {
+                    bodyHit = { region, titleHit: false };
+                }
+            }
+            return bodyHit;
+        }
+
         function resizeCanvas() {
             const rect = element.getBoundingClientRect();
             cssWidth = Math.max(320, Math.floor(rect.width || 1200));
@@ -1657,6 +1911,7 @@ function wireGraph(root) {
 
         function mountGraph(filteredNodes, filteredEdges) {
             stopLoop();
+            cancelSettle();
             simNodes = filteredNodes;
             simEdges = filteredEdges;
             const validIds = new Set(filteredNodes.map(node => node.id));
@@ -1673,15 +1928,22 @@ function wireGraph(root) {
             element.appendChild(canvas);
             resizeCanvas();
             wireViewport(canvas);
-            if (statusText) {
-                statusText.textContent = \`\${filteredNodes.length} nodes, \${filteredEdges.length} edges\`;
-            }
             userViewport = false;
+            const finishStatus = () => {
+                settlingLayout = false;
+                if (statusText) {
+                    statusText.textContent = \`\${filteredNodes.length} nodes, \${filteredEdges.length} edges\`;
+                }
+                paint();
+            };
             if (!livePhysics) {
-                batchSettle(filteredNodes, filteredEdges);
+                settlingLayout = true;
+                if (statusText) statusText.textContent = 'Settling layout…';
                 paint();
+                batchSettleAsync(filteredNodes, filteredEdges, finishStatus);
             } else {
-                paint();
+                settlingLayout = false;
+                finishStatus();
                 wake();
             }
         }
@@ -1716,9 +1978,35 @@ function wireGraph(root) {
                 const hit = hitTest(point);
                 if (hit) {
                     dragNodeId = hit.id;
+                    dragCompound = null;
                     dragMoved = false;
                     pinnedIds.add(hit.id);
                     velocities.set(hit.id, { vx: 0, vy: 0 });
+                    target.classList.add('is-dragging-node');
+                    target.setPointerCapture(event.pointerId);
+                    event.preventDefault();
+                    paint();
+                    return;
+                }
+                const compoundHit = hitTestCompound(point);
+                if (compoundHit) {
+                    dragCompound = {
+                        ...compoundHit.region,
+                        titleHit: compoundHit.titleHit,
+                        origin: point,
+                        memberOrigins: Object.fromEntries(
+                            compoundHit.region.memberIds.map(id => {
+                                const pos = positions.get(id) || { x: 0, y: 0 };
+                                return [id, { x: pos.x, y: pos.y }];
+                            })
+                        )
+                    };
+                    dragNodeId = null;
+                    dragMoved = false;
+                    for (const id of compoundHit.region.memberIds) {
+                        pinnedIds.add(id);
+                        velocities.set(id, { vx: 0, vy: 0 });
+                    }
                     target.classList.add('is-dragging-node');
                     target.setPointerCapture(event.pointerId);
                     event.preventDefault();
@@ -1741,6 +2029,22 @@ function wireGraph(root) {
                     paint();
                     return;
                 }
+                if (dragCompound) {
+                    const point = clientToGraph(event);
+                    const dx = point.x - dragCompound.origin.x;
+                    const dy = point.y - dragCompound.origin.y;
+                    if (Math.abs(dx) + Math.abs(dy) > 1) {
+                        dragMoved = true;
+                    }
+                    for (const id of dragCompound.memberIds) {
+                        const origin = dragCompound.memberOrigins[id];
+                        if (!origin) continue;
+                        positions.set(id, { x: origin.x + dx, y: origin.y + dy });
+                    }
+                    wake();
+                    paint();
+                    return;
+                }
                 if (panMode && panOrigin) {
                     const rect = target.getBoundingClientRect();
                     const { scale } = viewportTransform();
@@ -1752,10 +2056,14 @@ function wireGraph(root) {
                     paint();
                     return;
                 }
-                const hit = hitTest(clientToGraph(event));
+                const point = clientToGraph(event);
+                const hit = hitTest(point);
                 const nextHover = hit?.id || null;
-                if (nextHover !== hoverNodeId) {
+                const compoundHit = hit ? null : hitTestCompound(point);
+                const nextCompound = compoundHit?.region || null;
+                if (nextHover !== hoverNodeId || nextCompound?.fileUri !== hoverCompound?.fileUri) {
                     hoverNodeId = nextHover;
+                    hoverCompound = nextCompound;
                     paint();
                 }
             });
@@ -1777,6 +2085,23 @@ function wireGraph(root) {
                     }
                     return;
                 }
+                if (dragCompound) {
+                    const compound = dragCompound;
+                    const moved = dragMoved;
+                    const openTitle = !moved && compound.titleHit;
+                    for (const id of compound.memberIds) {
+                        pinnedIds.delete(id);
+                    }
+                    dragCompound = null;
+                    wake();
+                    paint();
+                    if (openTitle && compound.pageUrl && Date.now() > suppressClickUntil) {
+                        window.location.href = resolveGraphNodeUrl(compound.pageUrl);
+                    } else if (moved) {
+                        suppressClickUntil = Date.now() + 250;
+                    }
+                    return;
+                }
                 if (panMode) {
                     panMode = false;
                     panOrigin = null;
@@ -1789,6 +2114,13 @@ function wireGraph(root) {
                 if (dragNodeId) {
                     pinnedIds.delete(dragNodeId);
                     dragNodeId = null;
+                    wake();
+                }
+                if (dragCompound) {
+                    for (const id of dragCompound.memberIds) {
+                        pinnedIds.delete(id);
+                    }
+                    dragCompound = null;
                     wake();
                 }
                 panMode = false;
@@ -1808,7 +2140,7 @@ function wireGraph(root) {
             const query = lower(searchInput?.value?.trim());
             const pathQuery = lower(pathInput?.value?.trim());
             if (hideExternal && node.isExternal) return false;
-            if (hideIdeasets && node.kind === 'ideaset') return false;
+            if (hideIdeasets && node.kind === 'ideaset' && !isFileIdeasetNode(node)) return false;
             const haystack = [node.name, node.kind, node.fileUri, node.status || '', ...(node.tags || [])].map(lower).join(' ');
             if (query && !haystack.includes(query)) return false;
             if (pathQuery && !lower(node.fileUri).includes(pathQuery)) return false;
@@ -1825,10 +2157,20 @@ function wireGraph(root) {
             return true;
         }
 
+        function syncFilesSelect() {
+            if (!fileTreatmentSelect) return;
+            fileTreatmentSelect.value = fileTreatment;
+            const selected = fileTreatmentSelect.selectedOptions?.[0];
+            if (selected?.title) {
+                fileTreatmentSelect.title = selected.title;
+            }
+        }
+
         function refresh() {
-            const visibleNodes = (graph.nodes || []).filter(matches);
+            const treated = applyFileTreatment(graph, fileTreatment);
+            const visibleNodes = (treated.nodes || []).filter(matches);
             const visibleIds = new Set(visibleNodes.map(node => node.id));
-            const visibleEdges = (graph.edges || []).filter(edge => {
+            const visibleEdges = (treated.edges || []).filter(edge => {
                 if (!visibleIds.has(edge.sourceId) || !visibleIds.has(edge.targetId)) return false;
                 if (!includeWildcardRefs && edge.kind === 'wildcard_reference') return false;
                 return true;
@@ -1852,6 +2194,11 @@ function wireGraph(root) {
             toggleIdeasets.textContent = hideIdeasets ? 'Show ideasets' : 'Hide ideasets';
             refresh();
         });
+        fileTreatmentSelect?.addEventListener('change', () => {
+            fileTreatment = fileTreatmentSelect.value || 'invisible';
+            syncFilesSelect();
+            refresh();
+        });
         toggleWildcard?.addEventListener('click', () => {
             includeWildcardRefs = !includeWildcardRefs;
             toggleWildcard.classList.toggle('is-active', includeWildcardRefs);
@@ -1869,6 +2216,10 @@ function wireGraph(root) {
             togglePhysics.classList.toggle('is-active', livePhysics);
             togglePhysics.setAttribute('aria-pressed', livePhysics ? 'true' : 'false');
             if (livePhysics) {
+                cancelSettle();
+                if (statusText) {
+                    statusText.textContent = \`\${simNodes.length} nodes, \${simEdges.length} edges\`;
+                }
                 wake();
             } else {
                 stopLoop();
@@ -1888,6 +2239,7 @@ function wireGraph(root) {
             tagFilter.clear();
             hideExternal = false;
             hideIdeasets = false;
+            fileTreatment = 'linked';
             includeWildcardRefs = true;
             labelMode = 'auto';
             toggleExternal?.classList.remove('is-active');
@@ -1895,6 +2247,7 @@ function wireGraph(root) {
             toggleWildcard?.classList.add('is-active');
             toggleWildcard?.setAttribute('aria-pressed', 'true');
             syncLabelsButton();
+            syncFilesSelect();
             if (toggleExternal) toggleExternal.textContent = 'Hide external';
             if (toggleIdeasets) toggleIdeasets.textContent = 'Hide ideasets';
             positions.clear();
@@ -1904,8 +2257,22 @@ function wireGraph(root) {
             refresh();
         });
         syncLabelsButton();
-        refresh();
+        syncFilesSelect();
+        // Defer first mount so page chrome paints before JSON/layout work.
+        requestAnimationFrame(() => {
+            refresh();
+        });
     }
+}
+
+function scheduleBackground(task) {
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => task(), { timeout: 250 });
+        return;
+    }
+    requestAnimationFrame(() => {
+        setTimeout(task, 0);
+    });
 }
 
 function boot() {
@@ -1913,8 +2280,9 @@ function boot() {
     // Interactive Status/Tags triggers before heavy table/graph init.
     enhanceScdPlaceholders(root);
     wireTables(root);
-    wireGraph(root);
     void wireGlobalSearch(root);
+    // Graph boot + settle run in the background so large exports stay responsive.
+    scheduleBackground(() => wireGraph(root));
 }
 
 if (document.readyState === 'loading') {

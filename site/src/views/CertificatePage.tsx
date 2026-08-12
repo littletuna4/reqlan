@@ -111,7 +111,7 @@ function CertificateFromQuery() {
         </p>
         <p className={styles.date}>{completedLabel}</p>
         <p className={styles.footnote}>
-          Honor-system curiosity — if you spoofed this cert, you can have it.
+          semantic engineering with reqlan
         </p>
       </article>
       <div className={styles.toolbar}>

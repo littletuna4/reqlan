@@ -102,20 +102,21 @@
     </svelte:fragment>
 </TableToolbar>
 
+<div class="table-scroll">
 <table>
     <thead>
         <tr>
             {#if show('name')}
-                <SortableTh label="Name" sortKey="name" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="22%" on:sort={handleSort} />
+                <SortableTh label="Name" sortKey="name" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12rem" on:sort={handleSort} />
             {/if}
             {#if show('path')}
-                <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="28%" on:sort={handleSort} />
+                <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="16rem" on:sort={handleSort} />
             {/if}
             {#if show('kind')}
-                <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
+                <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="8rem" on:sort={handleSort} />
             {/if}
             {#if show('members')}
-                <SortableTh label="Members" sortKey="members" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="36%" on:sort={handleSort} />
+                <SortableTh label="Members" sortKey="members" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="18rem" on:sort={handleSort} />
             {/if}
         </tr>
         <ColumnFilterRow
@@ -152,6 +153,7 @@
         {/each}
     </tbody>
 </table>
+</div>
 
 <Pager
     page={query.page}

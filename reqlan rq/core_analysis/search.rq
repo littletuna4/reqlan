@@ -1,8 +1,10 @@
-from "../modelling/advanced_analysis.rq" import pagerank
+from "../modelling/advanced_analysis.rq" import pagerank, search_with_context, idea_graph_distance
 from "../extension/module/context-scope-v2.rq" import context_scope_v2
 import "../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
 import "../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
 import "../../packages/analytical/src/analysis/semantic-search-analyser.ts" as semantic_search_analyser
+import "../../packages/analytical/src/analysis/contextual-search.ts" as contextual_search_impl
+import "../../packages/cli/src/commands/search.ts" as search_cli
 
 search {
     Search over the requirement graph — find ideas by name, body, tags, and related signals.
@@ -38,10 +40,18 @@ fuzzy_search_whitespace {
 }
 
 contextual_search {
-    Accepting a references to ideas, and a search string, or set of strings. Uses [pagerank]
-    May also accept the rest of the [context_scope_v2].
+    Search string plus an optional context list of relative `.rq` paths, `path#idea` refs, or bare idea names.
+    Runs [semantic_search], then re-ranks with min undirected hop distance from any resolved context idea
+    and exponential decay ([idea_graph_distance]): `finalScore = textScore * 2^(-minHop)` (unreachable floor = 8 hops).
+    Surfaces: `AnalysisApi.searchRequirements(..., { context })`, CLI `reqlan search --context` ([search_cli]),
+    and the shared helper [contextual_search_impl].
+    Implements [search_with_context]. PageRank ([pagerank]) and full [context_scope_v2] ingestion remain future work.
     Complements [fuzzy_search] when neighbourhood / context should bias ranking.
-    @todo
+    @tests (
+        ["../../packages/analytical/test/contextual-search.test.ts"]
+        ["../../packages/analytical/test/context-signals.test.ts"]
+    )
+    @status done
 }
 
 semantic_search {

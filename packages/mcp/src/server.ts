@@ -37,13 +37,23 @@ export async function startMcpServer(): Promise<void> {
 
     server.tool(
         'search_requirements',
-        'Search requirements by keyword across names, summaries, tags, and references.',
+        'Search requirements by keyword across names, summaries, tags, and references. Optional context paths/ideas bias ranking by graph hop distance.',
         {
             query: z.string().describe('Search text'),
-            limit: z.number().int().positive().max(50).optional().describe('Maximum number of matches')
+            limit: z.number().int().positive().max(50).optional().describe('Maximum number of matches'),
+            context: z
+                .array(z.string())
+                .optional()
+                .describe(
+                    'Relative .rq paths, path#idea refs, or idea names that bias ranking by hop distance'
+                )
         },
-        async ({ query, limit }) => {
-            const matches = await api.searchRequirements(query, limit ?? 8);
+        async ({ query, limit, context }) => {
+            const matches = await api.searchRequirements(
+                query,
+                limit ?? 8,
+                context?.length ? { context } : undefined
+            );
             if (matches.length === 0) {
                 return textContent(`No requirements matched "${query}".`);
             }

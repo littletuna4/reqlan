@@ -27,6 +27,21 @@ export function parseGitLogRecords(stdout: string): GitFocusCommit[] {
     return commits;
 }
 
+/**
+ * Focus git caches refresh only when the cache write time is before HEAD's authored time.
+ * While `cachedAtMs >= latestCommitAuthoredAtMs`, reuse the entry (no fixed TTL).
+ * When HEAD authored time is unknown, keep the cache to avoid stampeding git.
+ */
+export function shouldRefreshGitFocusCache(
+    cachedAtMs: number,
+    latestCommitAuthoredAtMs: number | undefined
+): boolean {
+    if (latestCommitAuthoredAtMs === undefined) {
+        return false;
+    }
+    return cachedAtMs < latestCommitAuthoredAtMs;
+}
+
 export function rollupAuthors(commits: GitFocusCommit[], limit = 5): GitAuthorRollup[] {
     const counts = new Map<string, number>();
     for (const commit of commits) {

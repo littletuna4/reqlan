@@ -1,13 +1,18 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import type { GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
-    import type { GraphUiLabelMode } from '../../../src/webview_module/shared/graph-ui-state.js';
+    import type {
+        GraphUiFileTreatment,
+        GraphUiLabelMode
+    } from '../../../src/webview_module/shared/graph-ui-state.js';
     import SearchableCheckboxDropdown from './SearchableCheckboxDropdown.svelte';
+    import FileTreatmentSelect from './FileTreatmentSelect.svelte';
 
     export let query: GraphViewQuery;
     export let showKey = false;
     export let showControls = false;
     export let labelMode: GraphUiLabelMode = 'auto';
+    export let fileTreatment: GraphUiFileTreatment = 'linked';
     export let statusOptions: string[] = [];
     export let tagOptions: string[] = [];
     export let statusOptionCounts: Record<string, number> = {};
@@ -25,6 +30,7 @@
         toggleKey: void;
         toggleControls: void;
         cycleLabelMode: void;
+        fileTreatmentChange: GraphUiFileTreatment;
         reframeView: void;
     }>();
 
@@ -106,6 +112,10 @@
         >
             {labelModeText(labelMode)}
         </button>
+        <FileTreatmentSelect
+            value={fileTreatment}
+            on:change={(event) => dispatch('fileTreatmentChange', event.detail)}
+        />
         <button
             type="button"
             class="graph-action"

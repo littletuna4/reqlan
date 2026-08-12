@@ -189,7 +189,14 @@ describe('html export pipeline', () => {
         expect(appJs).toContain('GRAPH_LABEL_FADE_START');
         expect(appJs).toContain('GRAPH_LABEL_FADE_END');
         expect(appJs).toContain('labelOpacityAtScale');
+        expect(appJs).toContain('settlingLayout');
         expect(appJs).toContain('physicsStep');
+        // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_graph_background_load]
+        // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_graph_animation]
+        expect(appJs).toContain('batchSettleAsync');
+        expect(appJs).toContain('scheduleBackground');
+        expect(appJs).toContain('cancelSettle');
+        expect(appJs).toContain('Settling layout');
         expect(appJs).toContain('wireViewport');
         expect(appJs).toContain('formatNodeAttrs');
         expect(appJs).toContain('createElement(\'canvas\')');
@@ -511,11 +518,18 @@ describe('html export pipeline', () => {
         expect(snapshot.graphs.workspace.truncated).toBe(false);
         expect(graphHtml).toContain('data-graph-toggle-ideasets');
         expect(graphHtml).toContain('Hide ideasets');
+        expect(graphHtml).toContain('data-graph-file-treatment');
+        expect(graphHtml).toContain('Files: linked');
+        expect(graphHtml).toMatch(/value="linked"[^>]*selected|selected[^>]*value="linked"/);
         expect(graphHtml).toContain('data-graph-toggle-wildcard');
         expect(graphHtml).toContain('Wildcard refs');
         expect(appJs).toContain("querySelector('[data-graph-toggle-ideasets]')");
         expect(appJs).toContain('hideIdeasets');
         expect(appJs).toContain('Show ideasets');
+        expect(appJs).toContain("querySelector('[data-graph-file-treatment]')");
+        expect(appJs).toContain('fileTreatment');
+        expect(appJs).toContain('applyFileTreatment');
+        expect(appJs).toContain('hitTestCompound');
         expect(appJs).toContain("querySelector('[data-graph-toggle-wildcard]')");
         expect(appJs).toContain('includeWildcardRefs');
         expect(appJs).toContain("edge.kind === 'wildcard_reference'");

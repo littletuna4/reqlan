@@ -32,7 +32,15 @@ import {
 export type LinkItem = PhonebookLink;
 export type PackageItem = PhonebookPackage;
 
-export type CodeLanguage = "rq" | "ts" | "md" | "py" | "st" | "c" | "json" | "yaml";
+export type CodeLanguage =
+  | "rq"
+  | "ts"
+  | "md"
+  | "py"
+  | "st"
+  | "c"
+  | "json"
+  | "yaml";
 
 export type MotivationFeature = {
   id: string;
@@ -133,15 +141,78 @@ export const siteContent = {
   navGraph: {
     label: "Page graph",
     nodes: [
-      { id: "hero", label: "reqlan", kind: "hub", target: "hero", x: 50, y: 42 },
-      { id: "motivation", label: "Why", kind: "section", target: "motivation", x: 22, y: 26 },
-      { id: "syntax", label: "Syntax", kind: "section", target: "syntax", x: 16, y: 58 },
-      { id: "example", label: "Example", kind: "section", target: "example", x: 34, y: 82 },
-      { id: "roadmap", label: "Roadmap", kind: "section", target: "roadmap", x: 54, y: 86 },
-      { id: "contact", label: "Links", kind: "section", target: "contact", x: 72, y: 74 },
-      { id: "quickstart", label: "Start", kind: "page", target: "/quickstart", x: 78, y: 20 },
-      { id: "tutorials", label: "Learn", kind: "page", target: "/tutorials", x: 90, y: 46 },
-      { id: "showcase", label: "Shows", kind: "page", target: "/showcase", x: 80, y: 56 },
+      {
+        id: "hero",
+        label: "reqlan",
+        kind: "hub",
+        target: "hero",
+        x: 50,
+        y: 42,
+      },
+      {
+        id: "motivation",
+        label: "Why",
+        kind: "section",
+        target: "motivation",
+        x: 22,
+        y: 26,
+      },
+      {
+        id: "syntax",
+        label: "Syntax",
+        kind: "section",
+        target: "syntax",
+        x: 16,
+        y: 58,
+      },
+      {
+        id: "example",
+        label: "Example",
+        kind: "section",
+        target: "example",
+        x: 34,
+        y: 82,
+      },
+      {
+        id: "roadmap",
+        label: "Roadmap",
+        kind: "section",
+        target: "roadmap",
+        x: 54,
+        y: 86,
+      },
+      {
+        id: "contact",
+        label: "Links",
+        kind: "section",
+        target: "contact",
+        x: 72,
+        y: 74,
+      },
+      {
+        id: "quickstart",
+        label: "Start",
+        kind: "page",
+        target: "/quickstart",
+        x: 78,
+        y: 20,
+      },
+      {
+        id: "tutorials",
+        label: "Learn",
+        kind: "page",
+        target: "/tutorials",
+        x: 90,
+        y: 46,
+      },
+      {
+        id: "showcase",
+        label: "Shows",
+        kind: "page",
+        target: "/showcase",
+        x: 80,
+        y: 56,
+      },
       { id: "faq", label: "FAQ", kind: "page", target: "/faq", x: 68, y: 28 },
     ] satisfies NavGraphNode[],
     edges: [
@@ -255,7 +326,7 @@ export const siteContent = {
   },
 
   syntax: {
-    title:"How are ideas actually written",
+    title: "How are ideas actually written",
     lead: "reqlan is super easy to learn, here's a few self explanatory examples.",
     examples: [
       {
@@ -456,7 +527,8 @@ session_refresh {
         id: "context",
         horizon: "Now",
         label: "Context that decides",
-        detail: "Activity-bar signals for the next move — not just where a file came from.",
+        detail:
+          "Activity-bar signals for the next move — not just where a file came from.",
       },
       {
         id: "search",
@@ -468,13 +540,15 @@ session_refresh {
         id: "rank",
         horizon: "Next",
         label: "Rank the neighbourhood",
-        detail: "Pagerank and multi-seed distance so agents get the right slice.",
+        detail:
+          "Pagerank and multi-seed distance so agents get the right slice.",
       },
       {
         id: "git",
         horizon: "Later",
         label: "Idea git history",
-        detail: "CodeLens timeline on an idea — relative dates, moves included.",
+        detail:
+          "CodeLens timeline on an idea — relative dates, moves included.",
       },
       {
         id: "walk",
@@ -525,6 +599,12 @@ session_refresh {
           { id: "vsc", label: "VS Marketplace (stars)" },
           { id: "email", label: "Sponsorship / donation" },
         ] satisfies FaqSupportLink[],
+      },
+      {
+        id: "agents-md-comparison",
+        question: "How does reqlan context compare to AGENTS.md?",
+        answer:
+          "reqlan can provide the same function as AGENTS.md, but with more pointed control over the scope.",
       },
     ] satisfies FaqItem[],
   },

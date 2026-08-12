@@ -175,10 +175,6 @@
         grid-template-rows: auto;
     }
 
-    .search-progress-inline .search-progress-track {
-        display: none;
-    }
-
     .search-progress-spinner {
         width: 12px;
         height: 12px;

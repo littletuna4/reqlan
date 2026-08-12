@@ -24,6 +24,7 @@ spec_html_export {
     The site static build exports the workspace requirement graph (excluding `*.secret.rq`) under `out/spec/` via `reqlan export`.
     It must pass [html_export.html_export_url_base] for `/spec` (honouring `SITE_BASE_PATH`, e.g. `/reqlan/spec` in production) so `/spec` loads with or without a trailing slash.
     It must pass [html_export.html_export_header_link] pointing at the marketing site home so readers can leave the embedded spec and return to the parent site.
+    Embedded `/spec` graph pages inherit [html_export.html_export_graph_background_load] so large workspace graphs do not freeze the page while settling.
     Pipeline: ["../../site/scripts/build-static.mts"] → ["../../site/scripts/export-spec.mts"] → ["../../site/scripts/verify-static-export.mts"].
     Host options come from [html_export.html_export] / CLI [cli_package.commands].
     @status done

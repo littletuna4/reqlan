@@ -73,16 +73,17 @@
     </svelte:fragment>
 </TableToolbar>
 
+<div class="table-scroll">
 <table>
     <thead>
         <tr>
-            {#if show('label')}<th style="width:18%">Label</th>{/if}
-            {#if show('root')}<th style="width:28%">Path</th>{/if}
-            {#if show('ready')}<th style="width:10%">Ready</th>{/if}
-            {#if show('ideaCount')}<th style="width:10%">Ideas</th>{/if}
-            {#if show('edgeCount')}<th style="width:10%">Edges</th>{/if}
-            {#if show('fileIssueCount')}<th style="width:10%">Issues</th>{/if}
-            {#if show('state')}<th style="width:14%">State</th>{/if}
+            {#if show('label')}<th style="width:10rem;min-width:10rem">Label</th>{/if}
+            {#if show('root')}<th style="width:16rem;min-width:16rem">Path</th>{/if}
+            {#if show('ready')}<th style="width:5.5rem;min-width:5.5rem">Ready</th>{/if}
+            {#if show('ideaCount')}<th style="width:5.5rem;min-width:5.5rem">Ideas</th>{/if}
+            {#if show('edgeCount')}<th style="width:5.5rem;min-width:5.5rem">Edges</th>{/if}
+            {#if show('fileIssueCount')}<th style="width:5.5rem;min-width:5.5rem">Issues</th>{/if}
+            {#if show('state')}<th style="width:7rem;min-width:7rem">State</th>{/if}
         </tr>
         <ColumnFilterRow
             columns={filterColumns.filter(col => show(col.column))}
@@ -113,3 +114,4 @@
         {/each}
     </tbody>
 </table>
+</div>

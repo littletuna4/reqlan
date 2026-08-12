@@ -9,7 +9,16 @@ export type GraphUiTruncationBasis = 'path' | 'git-modified' | 'git-created';
 
 export type GraphUiLabelMode = 'auto' | 'on' | 'off';
 
+/** How hosting .rq files appear in the graph: hidden, compound parents, or linked ideaset nodes. */
+export type GraphUiFileTreatment = 'invisible' | 'compound' | 'linked';
+
 export const GRAPH_UI_LABEL_MODES: readonly GraphUiLabelMode[] = ['auto', 'on', 'off'];
+
+export const GRAPH_UI_FILE_TREATMENTS: readonly GraphUiFileTreatment[] = [
+    'invisible',
+    'compound',
+    'linked'
+];
 
 /** Physics sliders exposed in the Controls panel (other physics knobs keep defaults). */
 export interface GraphUiPhysicsPersisted {
@@ -30,6 +39,8 @@ export interface GraphUiPersistedState {
     animatePhysics: boolean;
     /** Labels: auto (zoom fade), on, or off. Default auto. */
     labelMode: GraphUiLabelMode;
+    /** Hosting-.rq / implicit-ideaset treatment. Default invisible. */
+    fileTreatment: GraphUiFileTreatment;
     maxNodes: number;
     truncationBasis: GraphUiTruncationBasis;
     physics: GraphUiPhysicsPersisted;
@@ -63,6 +74,7 @@ export const DEFAULT_GRAPH_UI_STATE: GraphUiPersistedState = {
     compoundBasisId: 'folder-path',
     animatePhysics: false,
     labelMode: 'auto',
+    fileTreatment: 'linked',
     maxNodes: 120,
     truncationBasis: 'path',
     physics: { ...DEFAULT_GRAPH_UI_PHYSICS }
@@ -122,6 +134,12 @@ export function normalizeGraphUiState(raw: unknown): GraphUiPersistedState {
         input.labelMode === 'on' || input.labelMode === 'off' || input.labelMode === 'auto'
             ? input.labelMode
             : DEFAULT_GRAPH_UI_STATE.labelMode;
+    const fileTreatment =
+        input.fileTreatment === 'compound'
+        || input.fileTreatment === 'linked'
+        || input.fileTreatment === 'invisible'
+            ? input.fileTreatment
+            : DEFAULT_GRAPH_UI_STATE.fileTreatment;
     const hiddenNodeTypes = Array.isArray(input.hiddenNodeTypes)
         ? input.hiddenNodeTypes.filter((id): id is GraphUiNodeTypeId =>
             typeof id === 'string' && NODE_TYPE_IDS.has(id as GraphUiNodeTypeId)
@@ -141,6 +159,7 @@ export function normalizeGraphUiState(raw: unknown): GraphUiPersistedState {
         compoundBasisId,
         animatePhysics: Boolean(input.animatePhysics),
         labelMode,
+        fileTreatment,
         maxNodes,
         truncationBasis,
         physics: normalizePhysics(input.physics)

@@ -86,6 +86,7 @@ export const GRAPH_LEGEND_ITEMS: GraphLegendItem[] = [
     { kind: 'node', label: 'Focused idea', color: GRAPH_LEGEND_CSS_COLORS.focus, typeId: 'focus' },
     { kind: 'node', label: 'External file', color: GRAPH_LEGEND_CSS_COLORS.external, typeId: 'external' },
     { kind: 'compound', label: 'Folder group (container)' },
+    { kind: 'compound', label: 'File group (container)' },
     { kind: 'group-emphasis', label: 'Group hover — member border', variant: 'hover' },
     { kind: 'group-emphasis', label: 'Group selected — member border', variant: 'selected' },
     { kind: 'edge', label: 'Reference', variant: 'solid' },

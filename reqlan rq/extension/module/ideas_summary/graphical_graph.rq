@@ -14,8 +14,11 @@ graphical_graph {
     An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
     A "Wildcard refs" toggle includes or hides edges expanded from path+idea wildcards per [wildcard_refs_toggle]
     (["../../language/imports.rq".wildcard_references]).
+    A "Files" dropdown selects hosting-`.rq` treatment per [file_treatment_toggle]
+    (hidden / compound containers / linked ideaset nodes), with per-option info tooltips.
     Interactive graph controls that also exist on HTML export must stay aligned per [webview_export_graph_parity].
     Clicking a node opens its source; double-click or "Focus graph" recenters the slice on that idea.
+    Linked file ideaset nodes and file-compound titles open the hosting `.rq` file per [file_treatment_toggle].
     External file references render as dashed edges to file nodes; wildcard-fan-out edges render dotted.
     A toggleable key explains node colours and edge styles and toggles node-type visibility per [key_panel_toggle]; a toggleable [control_panel] exposes layout, physics, and node-budget settings. Key and Controls state persist per workspace via [graph_ui_persistence].
     Pan, zoom, and drag repositioning per [view_controls].
@@ -36,6 +39,8 @@ ui_controls {
     [manual_reframe] — "Fit to view" calls GraphCyController.reframeToViewport per [reframe_view].
     [auto_reframe] and [reframe_animation] are handled by the shared controller; no extra UI beyond pan/zoom/drag.
     Labels control cycles [graph_label_modes] (auto / on / off) and applies [graph_label_auto] via GraphCyController.setLabelMode.
+    Files dropdown ([file_treatment_toggle]) uses ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
+    with Hidden / Compound / Linked options and info tooltips; selection patches `fileTreatment` in [graph_ui_persistence].
     Status and tag filters are multi-select dropdowns per [graph_status_tag_filters].
     The Key button toggles a draggable legend panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
     The Controls button toggles [control_panel].
@@ -84,30 +89,77 @@ wildcard_refs_toggle {
     )
 }
 
+file_treatment_toggle {
+    Toolbar dropdown selects how hosting `.rq` files (implicit ideasets) appear in the graph —
+    distinct from explicit AST `ideaset` declarations and from external `file:` reference nodes.
+    Options (with info tooltips / help text):
+      - invisible / Hidden — no file containers or file leaf nodes; ideas float free
+      - compound — one compound parent per hosting file (basename label); nests under folder/tag
+        compounds when Controls → Compound is also on. Containers are draggable (members move with
+        the box; live physics pins descendants while dragging). Clicking the title opens the file;
+        double-click also opens.
+      - linked / Linked nodes (default) — synthetic ideaset-styled leaf per hosting file (`rq-file:…`) with `ideaset_member`
+        edges to ideas in that file; click/dbl-click opens the hosting file like other nodes.
+    Client reshape via `applyFileTreatment` in
+    ["../../../packages/analytical/src/index-store/file-treatment.ts"]; no re-query on mode flip.
+    Ideas Summary: `FileTreatmentSelect` on GraphControls; persisted as `fileTreatment` in
+    [graph_ui_persistence].
+    HTML export: same three options via a select; compound boxes are hittable/draggable with
+    clickable titles; linked nodes carry `pageUrl` / `hostFilePageUrl` for navigation.
+    Related: [graphical_graph], [ui_controls], [webview_export_graph_parity],
+    ["../../ontology.rq".file], ["../../ontology.rq".ideaset],
+    [html_export_graph_page].
+
+    @status done
+    @implementation (
+        ["../../../packages/analytical/src/index-store/file-treatment.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/file-treatment.test.ts"]
+        ["../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../packages/analytical/test/export-html.test.ts"]
+    )
+}
+
 webview_export_graph_parity {
     Interactive graph behaviour that authors rely on in Ideas Summary must have a matching affordance
     on the HTML export workspace graph ([html_export_graph_page]) unless a requirement explicitly
     scopes it to one host.
     Shared today: Labels auto/on/off, live physics, Fit, status/tag filters, path/search filters,
-    hide external files, hide ideasets, and [wildcard_refs_toggle] (default on; dotted wildcard edges).
+    hide external files, hide ideasets (explicit AST), [file_treatment_toggle] (dropdown with the same
+    three modes, compound drag/title-open, linked-node open), and [wildcard_refs_toggle]
+    (default on; dotted wildcard edges).
     Ideas Summary may still differ where the host model differs: Indirect refs rebuilds hop depth via
     `buildGraphViewSlice` (export freezes neighbourhood at snapshot time — no Indirect chip);
     Key / Controls panels and node-budget controls are webview-only; export uses client-side filters
-    on the embedded graph JSON rather than re-querying the index.
+    on the embedded graph JSON rather than re-querying the index; Ideas Summary uses cytoscape
+    compound parents while export draws AABB compound boxes on canvas.
     When adding a new Ideas Summary graph chip or edge style, update [html_export_graph_page] (or
     document an intentional exception here) and keep labels / defaults aligned across surfaces.
-    Related: [graphical_graph], [wildcard_refs_toggle], [ui_controls],
+    Related: [graphical_graph], [wildcard_refs_toggle], [file_treatment_toggle], [ui_controls],
     [graph_labels], [graph_label_modes], [graph_status_tag_filters].
 
     @status done
     @implementation (
         ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
         ["../../../packages/analytical/src/export/html-export-template.ts"]
         ["../../../packages/analytical/src/export/html-export-assets.ts"]
     )
     @tests (
         ["../../../packages/analytical/test/export-html.test.ts"]
         ["../../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+        ["../../../packages/analytical/test/file-treatment.test.ts"]
         ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
         ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
     )
@@ -160,6 +212,7 @@ key_panel_toggle {
     the key panel should be able to toggle inclusion/visibility of the different node types.
     Node-type rows in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] are toggle buttons; hidden types render dimmed with a struck-through label.
     Toggleable types are block, one-liner, ideaset, focused idea, and external file — GraphNodeTypeId in ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"], classified per node by graphNodeTypeId (same priority as node fill colour).
+    Linked file ideaset nodes (`isFileIdeaset`) classify as ideaset for Key toggles; file compound containers are legend-only ("File group") and follow member visibility like other compounds.
     GraphView tracks hidden types and calls GraphCyController.setHiddenNodeTypes in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"], which flags matching nodes with data typeHidden; a display:none stylesheet rule in ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"] hides them, and cytoscape hides edges whose endpoint is hidden.
     Compound containers whose members are all hidden are hidden too. Hiding is client-side visibility only: the slice still contains the nodes, node/edge counts are unchanged, and flags reapply after every slice sync.
     Key open state and hidden node types persist per [graph_ui_persistence].
@@ -169,7 +222,7 @@ graph_ui_persistence {
     Key and Controls state is stored in VS Code ExtensionContext.workspaceState under key GRAPH_UI_WORKSPACE_STATE_KEY (reqlan.ideasSummary.graphUi).
     Shape and normalisation live in ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]; the host reads/writes it from ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
     On webview ready the extension posts graphUiState; the webview posts persistGraphUiState (debounced) whenever AppState.patchGraphUi runs in ["../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"].
-    Persisted fields: showKey, showControls, hiddenNodeTypes, layoutId, useCompound, compoundBasisId, animatePhysics, labelMode, maxNodes, truncationBasis, and the five physics sliders (gravity, repulsion, linkStrength, linkDistance, damping).
-    GraphView in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types/label mode to GraphCyController when those fields change.
+    Persisted fields: showKey, showControls, hiddenNodeTypes, layoutId, useCompound, compoundBasisId, animatePhysics, labelMode, fileTreatment, maxNodes, truncationBasis, and the five physics sliders (gravity, repulsion, linkStrength, linkDistance, damping).
+    GraphView in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types/label mode/fileTreatment to GraphCyController when those fields change.
     The first graph load waits for graphUiState so restored node budget is included in loadGraph.
 }

@@ -41,8 +41,8 @@ import { openChatWithText } from '../ai_commands_module/open-chat.js';
 
 const VIEW_ID = 'reqlan.activityBar';
 const EDITOR_DEBOUNCE_MS = 250;
-/** Suppress editor-driven pane rebuilds briefly after programmatic open from search. */
-const NAVIGATION_QUIET_MS = 450;
+/** Suppress editor-driven pane rebuilds briefly after programmatic open / file switch. */
+const NAVIGATION_QUIET_MS = 650;
 const IDEA_SEARCH_LIMIT = 40;
 const TODO_LIST_LIMIT = 40;
 
@@ -76,6 +76,8 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private refreshEpoch = 0;
     /** Until this timestamp, editor selection/focus events defer pane rebuilds. */
     private navigationQuietUntil = 0;
+    /** Last editor document URI used for refresh — detects file switches vs selection moves. */
+    private lastEditorDocumentUri?: string;
     private searchWorker: FuzzySearchWorkerClient | undefined;
     private searchCatalogBaseId: string | undefined;
     private searchCatalogLoading: Promise<void> | undefined;
@@ -140,6 +142,26 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     recordEditorActivity(fileUri: string, line: number): void {
         recordFileVisit(this.contextSession, fileUri);
         recordFileEdit(this.contextSession, fileUri, line);
+    }
+
+    /** Active base root for lean openIndexFile (skip discoverBases on the click path). */
+    activeBaseRoot(): string | undefined {
+        return this.submodule.index.getActiveBase()?.descriptor.root;
+    }
+
+    /**
+     * Quiet editor-driven rebuilds when the active document changes (document-link /
+     * go-to-definition / openIdea). Selection moves within the same file stay on debounce only.
+     */
+    noteEditorNavigation(editor: vscode.TextEditor | undefined): void {
+        if (!editor || !isWorkspaceEditor(editor)) {
+            return;
+        }
+        const documentUri = editor.document.uri.toString();
+        if (this.lastEditorDocumentUri !== undefined && this.lastEditorDocumentUri !== documentUri) {
+            this.beginInteractiveNavigation();
+        }
+        this.lastEditorDocumentUri = documentUri;
     }
 
     disposeSubscriptions(): void {
@@ -221,7 +243,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.post({ type: 'tray', tray: { pinned: [...this.contextSession.manualIdeas] } });
     }
 
-    private async buildContextInput(editor: vscode.TextEditor) {
+    private async buildContextInput(
+        editor: vscode.TextEditor,
+        options?: { includeFocusHistory?: boolean; git?: Awaited<ReturnType<typeof collectGitContext>> }
+    ) {
         const active = this.submodule.index.getActiveBase();
         const baseRoot = active?.descriptor.root;
         const snapshot = this.submodule.index.getStatusSnapshot();
@@ -287,16 +312,19 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             // History falls back to path log.
         }
 
-        const git = await collectGitContext({
-            relativePath,
-            workspaceRoot,
-            focusFileUri: fileUri,
-            lineStart,
-            lineEnd,
-            useLineHistory,
-            focusIdea,
-            peerIdeas
-        });
+        const git =
+            options?.git ??
+            (await collectGitContext({
+                relativePath,
+                workspaceRoot,
+                focusFileUri: fileUri,
+                lineStart,
+                lineEnd,
+                useLineHistory,
+                focusIdea,
+                peerIdeas,
+                includeFocusHistory: options?.includeFocusHistory
+            }));
 
         return {
             session: this.contextSession,
@@ -392,6 +420,8 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         if (options?.followEditorBase) {
             this.submodule.index.activateBaseForPath(editor.document.uri.fsPath);
         }
+        const documentUri = editor.document.uri.toString();
+        this.lastEditorDocumentUri = documentUri;
         const fileUri = toIndexFileUri(editor.document.uri);
         recordFileVisit(this.contextSession, fileUri);
         if (!this.contextSession.expandedLens) {
@@ -432,7 +462,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     /** Cancel background search/refresh so openIdea stays on the interactive path. */
-    private beginInteractiveNavigation(): void {
+    beginInteractiveNavigation(): void {
         this.ideaSearchEpoch += 1;
         this.refreshEpoch += 1;
         this.navigationQuietUntil = Date.now() + NAVIGATION_QUIET_MS;
@@ -524,7 +554,12 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             switch (message.type) {
                 case 'openIdea':
                     this.beginInteractiveNavigation();
-                    await openIndexFile(message.fileUri, message.line, message.column);
+                    await openIndexFile(
+                        message.fileUri,
+                        message.line,
+                        message.column,
+                        this.activeBaseRoot()
+                    );
                     break;
                 case 'insertReference':
                     await insertIdeaReferenceAtCursor({
@@ -754,7 +789,12 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'openIdea':
                     this.beginInteractiveNavigation();
-                    await openIndexFile(message.fileUri, message.line, message.column);
+                    await openIndexFile(
+                        message.fileUri,
+                        message.line,
+                        message.column,
+                        this.activeBaseRoot()
+                    );
                     break;
                 case 'createStubIdea':
                     await this.createStubIdea(message.sourceIdeaId, message.refText);
@@ -829,7 +869,11 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             await this.postIndexHealth();
             return undefined;
         }
-        const model = await data.build(await this.buildContextInput(editor));
+        const epoch = this.refreshEpoch;
+        // First paint: index-backed context + light git chrome only (no git log -L / parse-at-rev).
+        const model = await data.build(
+            await this.buildContextInput(editor, { includeFocusHistory: false })
+        );
         this.post({ type: 'context', model, requestId });
         this.post({ type: 'scope', scope: model.currentFile, requestId });
         const focusId = model.footprint.effectiveCenterId;
@@ -837,7 +881,38 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             const payload = await data.loadReferences(focusId);
             this.post({ type: 'references', payload, requestId });
         }
+        void this.enrichContextGitHistory(editor, data, requestId, epoch);
         return model;
+    }
+
+    /** Deferred focus git history — must not block open or first context post. */
+    private async enrichContextGitHistory(
+        editor: vscode.TextEditor,
+        data: ActivityBarDataService,
+        requestId: number | undefined,
+        epoch: number
+    ): Promise<void> {
+        try {
+            await yieldEventLoop();
+            if (epoch !== this.refreshEpoch) {
+                return;
+            }
+            if (vscode.window.activeTextEditor?.document.uri.toString() !== editor.document.uri.toString()) {
+                return;
+            }
+            const input = await this.buildContextInput(editor, { includeFocusHistory: true });
+            if (epoch !== this.refreshEpoch) {
+                return;
+            }
+            const model = await data.build(input);
+            if (epoch !== this.refreshEpoch) {
+                return;
+            }
+            this.post({ type: 'context', model, requestId });
+            this.post({ type: 'scope', scope: model.currentFile, requestId });
+        } catch {
+            // Git enrichment is best-effort; first paint already shipped.
+        }
     }
 
     /** @deprecated use loadContext */
@@ -1195,9 +1270,10 @@ export function registerActivityBarWebview(
         vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
             webviewOptions: { retainContextWhenHidden: true }
         }),
-        vscode.window.onDidChangeActiveTextEditor(() =>
-            provider.refreshFromEditorDebounced({ followEditorBase: true })
-        ),
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            provider.noteEditorNavigation(editor);
+            provider.refreshFromEditorDebounced({ followEditorBase: true });
+        }),
         vscode.window.onDidChangeTextEditorSelection(event => {
             if (isWorkspaceEditor(event.textEditor)) {
                 const fileUri = toIndexFileUri(event.textEditor.document.uri);
@@ -1210,7 +1286,13 @@ export function registerActivityBarWebview(
             provider.refreshFromEditorDebounced({ followEditorBase: true });
         }),
         vscode.commands.registerCommand('reqlan.openIdeaFromActivityBar', async (fileUri: string, line: number) => {
-            await openIndexFile(fileUri, line);
+            provider.beginInteractiveNavigation();
+            await openIndexFile(
+                fileUri,
+                line,
+                0,
+                provider.activeBaseRoot()
+            );
         }),
         {
             dispose: () => {

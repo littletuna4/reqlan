@@ -200,6 +200,7 @@ workspace_pane {
 search_pane {
     Workspace idea search with insert-at-cursor and add-to-chat — details in [search_panel.search_pane].
     Ranking: [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]; insert: [insert_idea_reference]; chat: [search_panel.search_add_to_chat].
+    @todo
 }
 
 todo_pane {
@@ -220,10 +221,66 @@ performance {
     - Reuse [graph_analysers.local_graph_analysis] and graph query builders rather than ad-hoc index walks in the webview.
     - Interactive actions (`openIdea`, insert ref, add to chat, phonebook / Ideas Summary links) are handled on a priority path: they cancel in-flight search/refresh work and briefly quiet editor-driven rebuilds so subsequent clicks stay snappy.
     - Idea search scoring runs in a worker thread with a preloaded catalog; catalog load yields while reading sql.js so it cannot monopolize the host.
+    - Link navigation must stay snappy once a target is already resolved: [link_open_decoupled_from_git], [link_open_interactive_quiet], [lean_resolved_open], [git_focus_cache_by_head].
     @tests (
         ["../../../packages/extension/test/startup-gate.test.ts"]
         ["../../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
         ["../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../packages/extension/test/git-context.test.ts"]
+    )
+    @status done
+}
+
+link_open_decoupled_from_git {
+    Opening a resolved idea/file link must not await git focus history or idea-at-revision parsing.
+    Host posts index-backed context (scope, references, graph, ancestors) first; [current_context_scope.git_history_lens]
+    enrichment runs asynchronously afterward and may re-post context when ready.
+    Light git chrome (branch / dirty from the VS Code git API) may ride along with the first paint; `git log -L`,
+    `git show` + Langium parse-at-revision, and focus stats must not block open or the first context post.
+    Implemented by ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    and ["../../../packages/extension/src/activity_bar_module/git-context.ts"].
+    @tests (
+        ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../packages/extension/src/activity_bar_module/git-context.ts"]
+    )
+    @status done
+}
+
+link_open_interactive_quiet {
+    Programmatic and editor file-switch navigation share the interactive quiet path with webview `openIdea`:
+    cancel in-flight search/refresh and briefly suppress editor-driven pane rebuilds so the open settles
+    before context rebuild. Selection moves within the same document keep the short debounce only
+    (no full interactive cancel). Document-link / go-to-definition opens that change the active file
+    are covered by active-editor-switch quieting.
+    Implemented by ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"].
+    @tests (
+        ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+lean_resolved_open {
+    When a link already carries a resolved `fileUri` / `targetPath`, open that URI at the given line —
+    do not re-classify resolution or walk base discovery on the click path.
+    Pass the active base root into ["../../../packages/extension/src/analytical_submodule/index-store/open-index-file.ts"]
+    so ["../../../packages/extension/src/analytical_submodule/index-store/resolve-index-file-uri.ts"] skips `discoverBases`.
+    @tests (
+        ["../../../packages/extension/src/analytical_submodule/index-store/open-index-file.ts"]
+        ["../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+git_focus_cache_by_head {
+    Focus git history / stats caches are not TTL-evicted on a fixed wall-clock window.
+    Refresh a cache entry only when its write timestamp is **before** the repository's latest commit
+    authored time (HEAD); while `cache.at >= latestCommitAuthoredAt`, reuse the entry.
+    Applies to focus history, focus stats, and range-commit count caches in
+    ["../../../packages/extension/src/activity_bar_module/git-context.ts"].
+    Related UX: [current_context_scope.git_history_lens].
+    @tests (
+        ["../../../packages/extension/test/git-context.test.ts"]
+        ["../../../packages/extension/src/activity_bar_module/git-context.ts"]
     )
     @status done
 }

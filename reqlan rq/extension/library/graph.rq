@@ -30,7 +30,9 @@ graph_cy_controller {
     syncGeneration cancels stale layout callbacks when the slice changes mid-layout.
     Selection and drag-pinned positions are tracked in userPositionedNodes on the controller.
     syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
-    Pointer/selection wiring lives in ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]; compound hover/selection in ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"].
+    Pointer/selection wiring lives in ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]; compound hover/selection/title-hit in ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"].
+    Compound grab/drag/free pins and unpins all childless descendants so live physics does not snap members back while the container moves; released child positions are stored in userPositionedNodes.
+    File compounds (`isFileCompound`): title-band tap or double-tap opens the hosting `.rq` via onOpen(compoundId); GraphView resolves `compound:rq-file:…` to a file URI.
     Live physics is the custom simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"]; one instance persists with the cytoscape instance and is paused/resumed, never rebuilt. Grabbing a node pins it in the running sim (its live position keeps exerting forces); release unpins with no restart and no snap.
     ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
     Mount only while the graph container is visible and non-zero — do not keep cytoscape alive under display:none; WebGL init on a zero-size hidden container can break the host webview before messaging is attached.
@@ -60,11 +62,13 @@ layout_physics {
     group container constraints live in ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node.
     the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it.
     dragging pins the held node while the sim keeps running around it; release rejoins the node at rest with no snap; clicks never disturb the sim.
+    Dragging a compound container pins every childless descendant for the same reason (see [graph_cy_controller]).
     cycling the Animate toggle pauses and resumes the same simulation state, so it converges to the same attractor as leaving it on.
 }
 
 view_controls {
     pan, zoom, and drag repositioning are supported on the canvas.
+    Leaf nodes and compound containers are both draggable; compound drag moves members with the parent.
     zoom range is wide rather than tightly capped so users can inspect fine detail or see the whole neighbourhood.
     [reframe_view] fits and centres the camera on the graph bounding box without changing node positions or restarting layout/physics.
     Zoom and Fit must continuously drive [graph_label_auto] opacity when Labels is in auto mode.
@@ -101,18 +105,20 @@ graph_label_modes {
 }
 
 graph_label_auto {
-    In Labels auto mode, visibility follows viewport zoom continuously rather than a hard cut.
+    In Labels auto mode, visibility follows viewport zoom continuously rather than a hard cut. (fade)
     Below a low zoom threshold labels are fully hidden; above a slightly higher threshold they are fully opaque; between those thresholds opacity ramps briefly through a muted / semi-transparent phase (GRAPH_LABEL_FADE_START → GRAPH_LABEL_FADE_END).
+    Labels start fully invisible during graph initialisation and layout settling so text paint does not lag those phases; zoom fade only applies once settle/reframe has finished.
     Hovered or dragged nodes remain fully opaque even when ambient auto opacity is low or zero.
     Zoom and Fit from [view_controls] / [reframe_view] must update this opacity on each paint or zoom event.
     Applies to Ideas Summary GraphCyController and HTML export canvas graph alike.
     @status done
     @implementation (
         ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
         ["../../../packages/analytical/src/export/html-export-assets.ts"]
     )
     @tests (
-        ["../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../packages/extension/test/graph-label-opacity.test.ts"]
         ["../../../packages/analytical/test/export-html.test.ts"]
     )
 }
@@ -189,6 +195,9 @@ layout_options {
 
 compound_graph {
     folder hierarchy is to be supported with compound layouts.
+    Hosting `.rq` files can also act as compound parents via
+    ["../module/ideas_summary/graphical_graph.rq".file_treatment_toggle] (mode `compound`).
+    File compounds are styled distinctly (ideaset accent, underlined title), remain draggable with members, and open the hosting file on title click / double-click (see [graph_cy_controller]).
 }
 
 physics_options {

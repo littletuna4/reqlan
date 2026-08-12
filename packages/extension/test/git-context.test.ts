@@ -4,7 +4,8 @@ import {
     buildHistoryCue,
     formatRelativeAge,
     parseGitLogRecords,
-    rollupAuthors
+    rollupAuthors,
+    shouldRefreshGitFocusCache
 } from '../src/activity_bar_module/git-context-helpers.js';
 
 describe('git-context history helpers', () => {
@@ -116,5 +117,13 @@ describe('git-context history helpers', () => {
             })
         ).toBe('2d ago · main');
         expect(buildHistoryCue({ branch: 'main', commits: [] })).toBe('main');
+    });
+
+    test('shouldRefreshGitFocusCache refreshes only when cache is before latest commit', () => {
+        const latest = Date.parse('2026-08-01T12:00:00Z');
+        expect(shouldRefreshGitFocusCache(Date.parse('2026-07-31T12:00:00Z'), latest)).toBe(true);
+        expect(shouldRefreshGitFocusCache(Date.parse('2026-08-01T12:00:00Z'), latest)).toBe(false);
+        expect(shouldRefreshGitFocusCache(Date.parse('2026-08-02T12:00:00Z'), latest)).toBe(false);
+        expect(shouldRefreshGitFocusCache(Date.now(), undefined)).toBe(false);
     });
 });

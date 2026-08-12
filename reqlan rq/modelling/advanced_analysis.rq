@@ -10,7 +10,8 @@ centroid_search {
 
 search_with_context {
     function (exposed in cli) that allows user to specify current contex (set of ideas or ideasets or files), and a search term, yielding the closest matches, in a context aware way.
-    @todo
+    Implemented as ["../core_analysis/search.rq".contextual_search] (`AnalysisApi.searchRequirements` + `reqlan search --context`).
+    @status done
 }
 
 pagerank {
@@ -20,6 +21,6 @@ pagerank {
 
 idea_graph_distance {
     allow searches to match based on partial match and exponential decay of distance to to ideas matching the search term.
-    @idea
-    @todo 
+    Used by ["../core_analysis/search.rq".contextual_search]: `finalScore = textScore * 2^(-minHop)` with unreachable floor 8.
+    @status done
 }

@@ -23,6 +23,36 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.8.2
+
+#### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+- Updated dependencies [fc3cdb6]
+  - @reqlan/analytical@0.8.2
+  - @reqlan/language@1.8.2
+
+### 1.8.1
+
+#### Patch Changes
+
+- d46b740: Fix missed build and test errors.
+- Updated dependencies [d46b740]
+  - @reqlan/analytical@0.8.1
+  - @reqlan/language@1.8.1
+
+### 1.8.0
+
+#### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
+#### Patch Changes
+
+- Updated dependencies [93368c6]
+  - @reqlan/analytical@0.8.0
+  - @reqlan/language@1.8.0
+
 ### 1.7.0
 
 #### Minor Changes

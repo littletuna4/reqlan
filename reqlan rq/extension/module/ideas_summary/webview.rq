@@ -25,6 +25,7 @@ import "../../../../packages/extension/webviews/ideas-summary/components/BasesTa
 import "../../../../packages/extension/webviews/ideas-summary/components/AttributesTable.svelte" as AttributesTable
 import "../../../../packages/extension/webviews/ideas-summary/components/TimelinePanel.svelte" as TimelinePanel
 import "../webview.rq" as webview_doc
+from "../../git-codelens.rq" import git_idea_timeline_analysis
 
 ideas_summary {
     The Ideas Summary webview is a workspace-wide page for tables (and graph) summarising ideas
@@ -60,15 +61,7 @@ pages {
          error state of the status chrome per ["../activitybar.rq".error_status_bar]
        - [overview_page] [OverviewPanel]
        - [bases_tab] [BasesTable]
-       - ideas list [IdeasTable]
-          - filterable and sortable via [TableToolbar], [ColumnFilterRow], and [SortableTh]
-          - column show/hide via [TableOptionsMenu] / [table_column_options]
-          - groupable by idea kind (block / oneliner) per [group_by_type]
-          - other attributes shown as expandable chips per [ChipList]
-          - clicking an attribute chip adds a column, filters to ideas with a non-null value for that attribute, and sorts by it (combinable with other filters)
-          - references split into outbound and inbound chip columns with counts
-          - clicking a reference chip filters ideas that share that edge (combinable with other filters)
-          - block idea bodies shown in a scrollable cell per [IdeaBodyCell]
+       - [ideas_list]
        - ideasets [IdeasetsTable] / [idea_sets_tab]
           - filterable and sortable via ui-sql layer; column filters and options
        - [attributes_tab] [AttributesTable]
@@ -79,6 +72,88 @@ pages {
        - [index_panel] [IndexPanel] (last tab — index health)
 }
 
+ideas_list {
+    -  [IdeasTable]
+    - filterable and sortable via [TableToolbar], [ColumnFilterRow], and [SortableTh]
+    - column show/hide via [TableOptionsMenu] / [table_column_options]
+    - wide tables scroll horizontally in a `.table-scroll` viewport (columns keep min widths; no crush-to-fit)
+    - groupable by idea kind (block / oneliner) per [group_by_type]
+    - other attributes shown as expandable chips per [ChipList]
+    - clicking an attribute chip adds a column, filters to ideas with a non-null value for that attribute, and sorts by it (combinable with other filters)
+    - references split into outbound and inbound chip columns with counts
+    - clicking a reference chip filters ideas that share that edge (combinable with other filters)
+    - block idea bodies shown in a scrollable cell per [IdeaBodyCell]
+    - columns for [git_idea_timeline_analysis]: first committed, last modified, and change count
+        - read from indexed `git_created_at` / `git_modified_at` / `git_change_count` only
+        - empty cells until ["../../git-codelens.rq".git_dates_background_indexing] fills them;
+          main table load never runs git
+    @implementation (
+        [IdeasTable]
+        [webview_table_queries]
+        ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:upsert preserves analyser git dates and change count across reindex"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates includes ideas missing change count"]
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts:orders by git date and change count columns"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
+        ["../../../../packages/extension/test/format-git-date.test.ts"]
+        ["../../../../packages/analytical/test/git-dates-parse.test.ts"]
+    )
+    @status done
+    @tags (ideas, git, table)
+    [ideas_list_git_columns_performance]
+    [ideas_list_git_date_format]
+}
+
+ideas_list_git_columns_performance {
+    Ideas table pages that show [git_idea_timeline_analysis] columns must read indexed
+    `git_created_at` / `git_modified_at` / `git_change_count` only — never invoke git or the
+    `git_dates` analyser on the UI query path.
+    At ~2k ideas, a 50-row page (including sorts by git modified / change count) must stay
+    interactive: absolute budgets plus relative guards vs path sort and vs a simulated
+    per-row git walk. Missing-id backlog queries for background fill must also stay fast
+    once the index is filled.
+    Implemented by ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+    (`listIdeasPage`, `listIdeaIdsMissingGitDates`).
+    @status done
+    @tags (ideas, git, performance)
+    @tests (
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:listIdeasPage reads indexed git columns without running the analyser"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:indexed git page load stays interactive and under simulated git-per-row cost"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:listIdeaIdsMissingGitDates stays fast on a large filled index"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:git change-count sort page stays within absolute budget"]
+    )
+    [ideas_list]
+    [git_idea_timeline_analysis]
+}
+
+ideas_list_git_date_format {
+    First committed / last modified cells in [ideas_list] must display a stable `YYYY-MM-DD`
+    authored calendar date from indexed git `%aI` timestamps (not locale-dependent
+    `toLocaleDateString`, and not raw ISO / patch junk).
+    Invalid, empty, or non-date values render as an em dash (`—`).
+    The `git_dates` analyser must only persist ISO author-date lines so patch hunks never
+    become stored "dates".
+    Implemented by ["../../../../packages/extension/webviews/ideas-summary/lib/format-git-date.ts"]
+    and ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"] (`parseGitAuthorDates`).
+    @status done
+    @tags (ideas, git, formatting)
+    @tests (
+        ["../../../../packages/extension/test/format-git-date.test.ts"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:formats git %aI timestamps as YYYY-MM-DD"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:keeps authored calendar day (does not shift across timezone)"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:renders empty and invalid values as an em dash"]
+        ["../../../../packages/analytical/test/git-dates-parse.test.ts"]
+        ["../../../../packages/analytical/test/git-dates-parse.test.ts:keeps only ISO author-date lines from git -L output with patch noise"]
+    )
+    [ideas_list]
+    [git_idea_timeline_analysis]
+}
+
 overview_page {
     First tab: a workspace overview for the active base — product-facing copy (not index/debug jargon).
     - At a glance: idea count, reference count, issues, bases, and a friendly readiness status.
@@ -87,7 +162,8 @@ overview_page {
       results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
     - Export: buttons that open [features_export.export_webview] with HTML, Markdown, JSON, CSV, or PDF pre-selected (or the form without a format override).
     - Links: project site, support/email, GitHub.
-    - Recent changes preview (idea names when available) with a link to [timeline_page].
+    - Recent index / analyse activity preview (idea names when available) with a link to [timeline_page]
+      for idea git history — this preview is not a git surface.
     @todo outstanding-by-status / todos rollup
     @todo deep links into HTML export pages when an export exists
     @implementation (
@@ -202,6 +278,9 @@ table_column_filters {
     matching the usability of [html_export.html_export_list_views].
     Text / path / body columns use searchable inputs; closed sets (idea kind, reference type, ideaset kind, base ready)
     use select / multi-select from a fixed option list.
+    Typed filter/search text must keep spaces through the host round-trip (do not trim the echoed query —
+    SQL matchers may trim only when building LIKE patterns).
+    Select filters must support deselect / clear back to "All" (controlled select value + clear control for multi-select).
     Column filters are applied in the ui-sql layer ([webview_table_queries]) together with existing chip filters.
     Table panels must bind AppState query/rows via Svelte 5 `$derived` (not legacy `$:`) so filtered results from
     the extension message listener re-render — same pattern as [graphical_graph_doc.graphical_graph] / GraphView.
@@ -215,10 +294,13 @@ table_column_filters {
         [ReferencesTable]
         [AttributesTable]
         [BasesTable]
+        [ideas_summary_panel]
+        ["../../../../packages/extension/src/webview_module/shared/table-query-normalize.ts"]
     )
     @tests (
         ["../../../../packages/analytical/test/webview-table-queries.test.ts"]
         ["../../../../packages/extension/test/bases-table-filter.test.ts"]
+        ["../../../../packages/extension/test/table-column-filters-normalize.test.ts"]
     )
     @status done
 }

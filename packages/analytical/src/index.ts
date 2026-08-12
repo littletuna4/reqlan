@@ -75,6 +75,14 @@ export type { GitDateInfo } from './analysis/git-dates-analyser.js';
 export { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
 export { localGraphAnalyser } from './analysis/local-graph-analyser.js';
 export { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
+export {
+    applyContextDistanceScoring,
+    CONTEXT_UNREACHABLE_HOP,
+    normalizeContextRef,
+    rerankMatchesWithContext,
+    resolveSearchContextRefs
+} from './analysis/contextual-search.js';
+export type { SearchContextIndex, SearchContextStore } from './analysis/contextual-search.js';
 export { fuzzySearchAnalyser } from './analysis/fuzzy-search-analyser.js';
 export type { FuzzySearchParams } from './analysis/fuzzy-search-analyser.js';
 export {
@@ -131,6 +139,24 @@ export type {
     GraphEdgeView,
     GraphTruncationBasis
 } from './index-store/webview-graph-queries.js';
+export {
+    applyFileTreatment,
+    cycleFileTreatment,
+    DEFAULT_FILE_TREATMENT,
+    FILE_TREATMENT_MODES,
+    FILE_TREATMENT_OPTIONS,
+    fileCompoundNodeId,
+    fileIdeasetDisplayName,
+    fileIdeasetNodeId,
+    fileTreatmentLabel,
+    fileTreatmentOption,
+    fileUriFromFileCompoundId,
+    fileUriFromFileIdeasetId,
+    isFileIdeasetNode,
+    isFileIdeasetNodeId,
+    normalizeFileTreatment
+} from './index-store/file-treatment.js';
+export type { FileTreatment, FileTreatmentOption } from './index-store/file-treatment.js';
 export {
     computeOverviewCoverageScores
 } from './index-store/overview-coverage.js';
@@ -202,6 +228,7 @@ export {
     formatFingerprintMarkdown,
     formatSynthesisMarkdown,
     hopDistancesFromCenter,
+    hopDistancesFromCenters,
     hotspotBandFromRisk,
     hotspotBorderColor,
     hotspotBorderWidth,
@@ -285,7 +312,7 @@ export {
 } from './create-runtime.js';
 export type { AnalysisRuntime, AnalysisRuntimeOptions } from './create-runtime.js';
 export { AnalysisApi } from './analysis-api.js';
-export type { InteractionDescriptor, RequirementMatch } from './analysis-api.js';
+export type { InteractionDescriptor, RequirementMatch, SearchRequirementsOptions } from './analysis-api.js';
 export { buildExportSnapshot } from './export/build-export-snapshot.js';
 export { exportHtml } from './export/export-html.js';
 export { exportMarkdown } from './export/export-markdown.js';

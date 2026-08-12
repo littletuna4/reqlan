@@ -24,6 +24,7 @@ export interface IdeaRecord {
     contentHash: string;
     gitCreatedAt?: string;
     gitModifiedAt?: string;
+    gitChangeCount?: number;
 }
 
 export interface EdgeRecord {
@@ -70,6 +71,7 @@ export interface IdeaSummary {
     tagsKeys: string[];
     gitCreatedAt?: string;
     gitModifiedAt?: string;
+    gitChangeCount?: number;
 }
 
 export interface IdeaWithRange extends IdeaSummary {
@@ -212,6 +214,12 @@ export interface IdeaTableRow {
     inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
+    /** Indexed git first-commit ISO timestamp; empty until background analyser fills. */
+    gitCreatedAt?: string;
+    /** Indexed git last-modified ISO timestamp; empty until background analyser fills. */
+    gitModifiedAt?: string;
+    /** Indexed git change count for the idea range / file; empty until analyser fills. */
+    gitChangeCount?: number;
     stabilityCue?: number;
     stabilityLabel?: string;
 }

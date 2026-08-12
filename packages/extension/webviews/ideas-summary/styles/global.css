@@ -81,6 +81,24 @@ table {
     table-layout: fixed;
 }
 
+.table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+.table-scroll > table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+}
+
+.table-scroll th,
+.table-scroll td {
+    min-width: 5.5rem;
+}
+
 th,
 td {
     border-bottom: 1px solid var(--vscode-panel-border);
@@ -992,6 +1010,93 @@ button.member-chip:hover {
     min-width: 148px;
 }
 
+.ftd {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.ftd-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ftd-trigger-label {
+    white-space: nowrap;
+}
+
+.ftd-chevron {
+    font-size: 0.75em;
+    opacity: 0.75;
+    transition: transform 0.12s ease;
+}
+
+.ftd.is-open .ftd-chevron {
+    transform: rotate(180deg);
+}
+
+.ftd-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 30;
+    min-width: 260px;
+    max-width: min(360px, 80vw);
+    padding: 4px;
+    border: 1px solid var(--vscode-panel-border, #3c3c3c);
+    border-radius: 8px;
+    background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ftd-option {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ftd-option:hover,
+.ftd-option.is-selected {
+    background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.06));
+}
+
+.ftd-option.is-selected {
+    outline: 1px solid var(--vscode-focusBorder, #007fd4);
+}
+
+.ftd-option-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.ftd-option-label {
+    font-weight: 600;
+}
+
+.ftd-option-info {
+    flex: 0 0 auto;
+    opacity: 0.7;
+    cursor: help;
+}
+
+.ftd-option-hint {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
 .scd-trigger {
     display: flex;
     align-items: center;
@@ -1241,6 +1346,36 @@ button.member-chip:hover {
     border: 1px solid var(--vscode-input-border);
     padding: 2px 6px;
     border-radius: 2px;
+}
+
+.column-filter-select-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.column-filter-select-wrap .column-filter {
+    flex: 1;
+    min-width: 0;
+}
+
+.column-filter-clear {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0 6px;
+    line-height: 1.4;
+    font: inherit;
+    font-size: 0.95em;
+    color: var(--vscode-descriptionForeground);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.column-filter-clear:hover {
+    color: var(--vscode-foreground);
+    border-color: var(--vscode-input-border);
 }
 
 button.secondary.has-filters {

@@ -18,6 +18,11 @@
     }
 </script>
 
-<th class:sort-active={active} style:width={width} onclick={handleSort}>
+<th
+    class:sort-active={active}
+    style:width={width}
+    style:min-width={width}
+    onclick={handleSort}
+>
     {label}{indicator}
 </th>

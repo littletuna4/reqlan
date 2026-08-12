@@ -44,7 +44,17 @@ export const ATTRIBUTES_PAGE_SIZE = 50;
 
 export type SortDirection = 'asc' | 'desc';
 
-export type IdeasSortColumn = 'title' | 'path' | 'body' | 'kind' | 'outRefs' | 'inRefs' | `attr:${string}`;
+export type IdeasSortColumn =
+    | 'title'
+    | 'path'
+    | 'body'
+    | 'kind'
+    | 'outRefs'
+    | 'inRefs'
+    | 'gitCreatedAt'
+    | 'gitModifiedAt'
+    | 'gitChangeCount'
+    | `attr:${string}`;
 
 export interface ReferenceFilter {
     direction: 'inbound' | 'outbound';
@@ -154,6 +164,12 @@ export interface IdeaTableRow {
     inboundReferences: IdeaReferenceChip[];
     fileUri: string;
     lineStart: number;
+    /** Indexed git first-commit ISO timestamp; empty until background analyser fills. */
+    gitCreatedAt?: string;
+    /** Indexed git last-modified ISO timestamp; empty until background analyser fills. */
+    gitModifiedAt?: string;
+    /** Indexed git change count; empty until background analyser fills. */
+    gitChangeCount?: number;
     /** Thin context-scope v2 card cue from ref fanout. */
     stabilityCue?: number;
     stabilityLabel?: string;
@@ -317,7 +333,8 @@ export interface GraphNodeView {
     name: string;
     kind: string;
     fileUri: string;
-    path: string;
+    /** Workspace-relative display path when enriched by the host. */
+    path?: string;
     lineStart: number;
     status?: string;
     /** FILTER_NOT_PRESENT | FILTER_EMPTY | concrete @status value. */
@@ -326,6 +343,8 @@ export interface GraphNodeView {
     /** [FILTER_NOT_PRESENT] | [FILTER_EMPTY] | concrete tags. */
     tagsKeys?: string[];
     isExternal?: boolean;
+    /** Synthetic leaf for a hosting .rq file (file treatment = linked). */
+    isFileIdeaset?: boolean;
     /** Context-scope v2 hotspot overlay band for churn/risk. */
     hotspotBand?: 'low' | 'medium' | 'high';
 }

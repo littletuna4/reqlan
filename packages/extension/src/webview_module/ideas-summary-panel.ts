@@ -35,6 +35,10 @@ import {
     TABLE_UI_WORKSPACE_STATE_KEY,
     normalizeTableUiState
 } from './shared/table-ui-state.js';
+import {
+    normalizeColumnFilters,
+    preserveFilterText
+} from './shared/table-query-normalize.js';
 import type { IdeasSummaryNavigateIntent } from './shared/messages.js';
 import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
@@ -1100,11 +1104,16 @@ async function defaultGraphCenterId(submodule: AnalyticalSubmodule): Promise<str
     return ideas[0]?.id;
 }
 
+/**
+ * Preserve typed search/filter text through the host round-trip.
+ * Do not trim: trimming collapses "foo " → "foo" and blocks spaces in controlled inputs.
+ * SQL matchers already treat whitespace-only as empty via their own `.trim()` checks.
+ */
 function normalizeIdeasQuery(query: IdeasTableQuery): IdeasTableQuery {
     return {
         page: Math.max(0, query.page),
         pageSize: query.pageSize || IDEAS_PAGE_SIZE,
-        search: query.search?.trim() || undefined,
+        search: preserveFilterText(query.search),
         sortBy: query.sortBy ?? 'path',
         sortDir: query.sortDir ?? 'asc',
         attributeColumns: [...new Set(query.attributeColumns)],
@@ -1127,26 +1136,11 @@ function dedupeReferenceFilters(filters: ReferenceFilter[]): ReferenceFilter[] {
     return result;
 }
 
-function normalizeColumnFilters(
-    filters: IdeasTableQuery['columnFilters']
-): IdeasTableQuery['columnFilters'] {
-    if (!filters?.length) {
-        return [];
-    }
-    return filters
-        .filter(filter => typeof filter.column === 'string' && filter.column.length > 0)
-        .map(filter => ({
-            column: filter.column,
-            text: filter.text?.trim() || undefined,
-            selected: filter.selected?.filter(value => value.length > 0)
-        }));
-}
-
 function normalizeIdeasetsQuery(query: IdeasetsTableQuery): IdeasetsTableQuery {
     return {
         page: Math.max(0, query.page),
         pageSize: query.pageSize || IDEASETS_PAGE_SIZE,
-        search: query.search?.trim() || undefined,
+        search: preserveFilterText(query.search),
         sortBy: query.sortBy ?? 'path',
         sortDir: query.sortDir ?? 'asc',
         columnFilters: normalizeColumnFilters(query.columnFilters)
@@ -1157,7 +1151,7 @@ function normalizeReferencesQuery(query: ReferencesTableQuery): ReferencesTableQ
     return {
         page: Math.max(0, query.page),
         pageSize: query.pageSize || REFERENCES_PAGE_SIZE,
-        search: query.search?.trim() || undefined,
+        search: preserveFilterText(query.search),
         sortBy: query.sortBy ?? 'source',
         sortDir: query.sortDir ?? 'asc',
         columnFilters: normalizeColumnFilters(query.columnFilters),
@@ -1169,7 +1163,7 @@ function normalizeAttributesQuery(query: AttributesTableQuery): AttributesTableQ
     return {
         page: Math.max(0, query.page),
         pageSize: query.pageSize || ATTRIBUTES_PAGE_SIZE,
-        search: query.search?.trim() || undefined,
+        search: preserveFilterText(query.search),
         sortBy: query.sortBy ?? 'ideaCount',
         sortDir: query.sortDir ?? 'desc',
         columnFilters: normalizeColumnFilters(query.columnFilters)

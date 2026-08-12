@@ -11,6 +11,7 @@ import {
     formatFingerprintMarkdown,
     formatSynthesisMarkdown,
     hopDistancesFromCenter,
+    hopDistancesFromCenters,
     impactOpacityForHopDistance,
     requirementCardCue,
     synthesizeFocusContext,
@@ -195,6 +196,22 @@ describe('graph helpers', () => {
         expect(impactOpacityForHopDistance(0)).toBe(1);
         expect(impactOpacityForHopDistance(1)).toBe(0.75);
         expect(impactOpacityForHopDistance(3)).toBe(0.2);
+    });
+
+    test('multi-source hop distances take the minimum', () => {
+        const distances = hopDistancesFromCenters(
+            ['a', 'd'],
+            [
+                { sourceId: 'a', targetId: 'b' },
+                { sourceId: 'b', targetId: 'c' },
+                { sourceId: 'd', targetId: 'c' }
+            ]
+        );
+        expect(distances.get('a')).toBe(0);
+        expect(distances.get('d')).toBe(0);
+        expect(distances.get('b')).toBe(1);
+        // c is 2 hops from a, 1 hop from d → min 1
+        expect(distances.get('c')).toBe(1);
     });
 
     test('requirement card cue and thin churn', () => {

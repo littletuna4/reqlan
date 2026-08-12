@@ -12,11 +12,20 @@ import { exportMarkdown } from './export/export-markdown.js';
 import { exportJson } from './export/export-json.js';
 import { exportCsv } from './export/export-csv.js';
 import type { ExportProgressCallback, ExportRequest, ExportResult } from './export/types.js';
+import {
+    rerankMatchesWithContext,
+    resolveSearchContextRefs
+} from './analysis/contextual-search.js';
 
 export interface RequirementMatch {
     idea: IdeaSummary;
     score?: number;
     reasons?: string[];
+}
+
+export interface SearchRequirementsOptions {
+    /** Relative `.rq` paths, `path#idea` refs, or bare idea names that bias ranking by hop distance. */
+    context?: string[];
 }
 
 export interface InteractionDescriptor {
@@ -35,14 +44,37 @@ export class AnalysisApi {
         await this.runtime.index.syncWorkspace();
     }
 
-    async searchRequirements(query: string, limit = 8): Promise<RequirementMatch[]> {
+    async searchRequirements(
+        query: string,
+        limit = 8,
+        options?: SearchRequirementsOptions
+    ): Promise<RequirementMatch[]> {
         await this.ensureReady();
+        const contextRefs = options?.context?.filter(Boolean) ?? [];
+        const contextIdeaIds =
+            contextRefs.length > 0
+                ? await resolveSearchContextRefs(
+                      this.runtime.index,
+                      this.runtime.index.indexStore,
+                      contextRefs
+                  )
+                : [];
+        const fetchLimit =
+            contextIdeaIds.length > 0 ? Math.max(limit * 3, 24) : limit;
         const matches = await this.runtime.analysers.run<{ query: string; limit?: number }, SemanticMatch[]>(
             this.runtime.makeContext(),
             'semantic_analysis',
-            { query, limit }
+            { query, limit: fetchLimit }
         );
-        return matches.map(match => ({
+        const ranked =
+            contextIdeaIds.length > 0
+                ? await rerankMatchesWithContext(
+                      this.runtime.index.indexStore,
+                      matches,
+                      contextIdeaIds
+                  )
+                : matches;
+        return ranked.slice(0, limit).map(match => ({
             idea: match.idea,
             score: match.score,
             reasons: match.reasons

@@ -11,7 +11,7 @@
 - `reqlan` / `rq` Clipanion CLI for requirement workspaces
 - `parse` — parse a `.rq` file and print diagnostics or an AST summary
 - `analyse` / `analyze` — file, idea, or workspace graph analysis via `AnalysisApi`
-- `search` — semantic search across indexed requirements (`--json` for scripting)
+- `search` — semantic search across indexed requirements (`--context`, `--json` for scripting)
 
 ## Install
 
@@ -27,7 +27,7 @@ npx @reqlan/cli --help
 reqlan parse <file> [--json]
 reqlan analyse [--file <path> | --idea <name>] [--depth <n>] [--cwd <dir>] [--json]
 reqlan analyze   # alias of analyse
-reqlan search <query> [--limit <n>] [--cwd <dir>] [--json]
+reqlan search <query> [--limit <n>] [--context <path|path#idea|name>]... [--cwd <dir>] [--json]
 ```
 
 Set `REQLAN_WORKSPACE` or pass `--cwd` to override the workspace root.

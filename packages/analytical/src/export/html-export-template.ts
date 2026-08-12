@@ -542,6 +542,14 @@ export function renderGraphPage(snapshot: ExportSnapshot): string {
                     ${renderMultiFilterSelect('tag', tags, 'Filter by tag')}
                     <button type="button" class="graph-action" data-graph-toggle-external="true">Hide external</button>
                     <button type="button" class="graph-action" data-graph-toggle-ideasets="true">Hide ideasets</button>
+                    <label class="graph-file-treatment">
+                        <span class="visually-hidden">File treatment</span>
+                        <select class="graph-action graph-select" data-graph-file-treatment aria-label="Hosting .rq file treatment" title="How hosting .rq files appear in the graph">
+                            <option value="invisible" title="Do not show hosting .rq files — ideas float freely.">Files: hidden</option>
+                            <option value="compound" title="Draw each hosting .rq file as a container. Drag the box; click the title to open the file.">Files: compound</option>
+                            <option value="linked" selected title="Show each hosting .rq file as a linked ideaset node. Click the node to open the file.">Files: linked</option>
+                        </select>
+                    </label>
                     <button type="button" class="graph-action is-active" data-graph-toggle-wildcard aria-pressed="true" title="Show edges expanded from path+idea wildcard references">Wildcard refs</button>
                     <button type="button" class="graph-action is-active" data-graph-toggle-labels data-label-mode="auto" aria-pressed="mixed">Labels: auto</button>
                     <button type="button" class="graph-action" data-graph-toggle-physics aria-pressed="false">Live physics</button>
@@ -1119,6 +1127,12 @@ function enrichGraphUrls(snapshot: ExportSnapshot, graph: unknown, _currentPath:
                 node.attributeKeys = attributeKeys;
             } else {
                 delete node.attributeKeys;
+            }
+            const hostFile = resolveExportFilePage(snapshot, { fileUri: idea.fileUri });
+            if (hostFile && filePageEnabled(snapshot, hostFile.kind)) {
+                node.hostFilePageUrl = hostFile.page.url;
+            } else {
+                delete node.hostFilePageUrl;
             }
         } else {
             const fileTarget = resolveExportFilePage(snapshot, {

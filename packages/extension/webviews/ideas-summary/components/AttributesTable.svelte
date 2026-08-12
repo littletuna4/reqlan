@@ -81,20 +81,21 @@
     </svelte:fragment>
 </TableToolbar>
 
+<div class="table-scroll">
 <table>
     <thead>
         <tr>
             {#if show('key')}
-                <SortableTh label="Key" sortKey="key" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="22%" on:sort={handleSort} />
+                <SortableTh label="Key" sortKey="key" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12rem" on:sort={handleSort} />
             {/if}
             {#if show('ideaCount')}
-                <SortableTh label="Ideas" sortKey="ideaCount" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12%" on:sort={handleSort} />
+                <SortableTh label="Ideas" sortKey="ideaCount" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="5.5rem" on:sort={handleSort} />
             {/if}
             {#if show('valueCount')}
-                <SortableTh label="Values" sortKey="valueCount" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12%" on:sort={handleSort} />
+                <SortableTh label="Values" sortKey="valueCount" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="5.5rem" on:sort={handleSort} />
             {/if}
             {#if show('sampleValues')}
-                <th style="width:54%">Sample values</th>
+                <th style="width:18rem;min-width:18rem">Sample values</th>
             {/if}
         </tr>
         <ColumnFilterRow
@@ -123,6 +124,7 @@
         {/each}
     </tbody>
 </table>
+</div>
 
 <Pager
     page={query.page}

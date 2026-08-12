@@ -487,9 +487,9 @@ export function impactOpacityForHopDistance(distance: number | undefined): numbe
     return 0.2;
 }
 
-/** BFS hop distances from a center over undirected edges. */
-export function hopDistancesFromCenter(
-    centerId: string,
+/** BFS hop distances from one or more centers over undirected edges (min distance). */
+export function hopDistancesFromCenters(
+    centerIds: readonly string[],
     edges: { sourceId: string; targetId: string }[]
 ): Map<string, number> {
     const adjacency = new Map<string, Set<string>>();
@@ -505,8 +505,13 @@ export function hopDistancesFromCenter(
     }
 
     const distances = new Map<string, number>();
-    const queue: string[] = [centerId];
-    distances.set(centerId, 0);
+    const queue: string[] = [];
+    for (const centerId of centerIds) {
+        if (!distances.has(centerId)) {
+            distances.set(centerId, 0);
+            queue.push(centerId);
+        }
+    }
     while (queue.length > 0) {
         const current = queue.shift()!;
         const nextDist = (distances.get(current) ?? 0) + 1;
@@ -518,6 +523,14 @@ export function hopDistancesFromCenter(
         }
     }
     return distances;
+}
+
+/** BFS hop distances from a center over undirected edges. */
+export function hopDistancesFromCenter(
+    centerId: string,
+    edges: { sourceId: string; targetId: string }[]
+): Map<string, number> {
+    return hopDistancesFromCenters([centerId], edges);
 }
 
 /** Thin requirement-card cue from ref counts (Ideas Summary rows). */

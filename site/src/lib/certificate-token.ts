@@ -1,9 +1,8 @@
 /**
  * Honor-system certificate tokens for the tutorial assessment.
- * Spoofing is expected — the passphrase is the joke.
  */
 export const CERTIFICATE_PASSPHRASE =
-  "if you spoofed this cert, you can have it";
+  "You better not spoof this cert.";
 
 const SALT = new TextEncoder().encode("reqlan-tutorial-cert-v1");
 const PBKDF2_ITERATIONS = 100_000;

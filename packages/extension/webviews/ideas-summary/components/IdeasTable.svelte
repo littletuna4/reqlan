@@ -1,6 +1,7 @@
 <script lang="ts">
     /**
-     * Ideas table — filters, group-by kind, column options.
+     * Ideas table — filters, group-by kind, column options, indexed git columns.
+     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_table_filters]
      * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
      */
@@ -12,6 +13,7 @@
     } from '../../../src/webview_module/shared/messages.js';
     import { attributeKeyFromChipItem } from '../lib/chip-labels.js';
     import { buildGroupHeaders, isColumnVisible } from '../lib/table-columns.js';
+    import { formatGitDate } from '../lib/format-git-date.js';
     import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';
     import ColumnFilterRow from './ColumnFilterRow.svelte';
@@ -43,6 +45,9 @@
         { id: 'path', label: 'Path' },
         { id: 'kind', label: 'Kind' },
         { id: 'body', label: 'Body' },
+        { id: 'gitCreatedAt', label: 'First committed' },
+        { id: 'gitModifiedAt', label: 'Last modified' },
+        { id: 'gitChangeCount', label: 'Changes' },
         { id: 'otherAttributes', label: 'Other attributes' },
         { id: 'outCount', label: 'Out #' },
         { id: 'outRefs', label: 'Out refs' },
@@ -74,6 +79,15 @@
         }
         if (isColumnVisible(visible, 'body')) {
             specs.push({ column: 'body', label: 'Body', kind: 'text' });
+        }
+        if (isColumnVisible(visible, 'gitCreatedAt')) {
+            specs.push({ column: 'gitCreatedAt', label: 'First', kind: 'none' });
+        }
+        if (isColumnVisible(visible, 'gitModifiedAt')) {
+            specs.push({ column: 'gitModifiedAt', label: 'Modified', kind: 'none' });
+        }
+        if (isColumnVisible(visible, 'gitChangeCount')) {
+            specs.push({ column: 'gitChangeCount', label: 'Changes', kind: 'none' });
         }
         if (isColumnVisible(visible, 'otherAttributes')) {
             specs.push({ column: 'otherAttributes', label: 'Other', kind: 'none' });
@@ -192,6 +206,10 @@
         return chips.map(chip => chip.filterKey);
     }
 
+    function formatGitChangeCount(value: number | undefined): string {
+        return value === undefined ? '—' : String(value);
+    }
+
     function show(id: string): boolean {
         return isColumnVisible(visibleColumns, id);
     }
@@ -219,6 +237,9 @@
         (show('path') ? 1 : 0) +
         (show('kind') ? 1 : 0) +
         (show('body') ? 1 : 0) +
+        (show('gitCreatedAt') ? 1 : 0) +
+        (show('gitModifiedAt') ? 1 : 0) +
+        (show('gitChangeCount') ? 1 : 0) +
         (show('otherAttributes') ? 1 : 0) +
         query.attributeColumns.length +
         (show('outCount') ? 1 : 0) +
@@ -263,23 +284,33 @@
     {/if}
 </TableToolbar>
 
+<div class="table-scroll">
 <table>
     <thead>
         <tr>
             {#if show('title')}
-                <SortableTh label="Title" sortKey="title" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
+                <SortableTh label="Title" sortKey="title" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10rem" on:sort={handleSort} />
             {/if}
             {#if show('path')}
-                <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14%" on:sort={handleSort} />
+                <SortableTh label="Path" sortKey="path" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12rem" on:sort={handleSort} />
             {/if}
             {#if show('kind')}
-                <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="8%" on:sort={handleSort} />
+                <SortableTh label="Kind" sortKey="kind" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="6rem" on:sort={handleSort} />
             {/if}
             {#if show('body')}
-                <SortableTh label="Body" sortKey="body" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="12%" on:sort={handleSort} />
+                <SortableTh label="Body" sortKey="body" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="14rem" on:sort={handleSort} />
+            {/if}
+            {#if show('gitCreatedAt')}
+                <SortableTh label="First committed" sortKey="gitCreatedAt" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="8rem" on:sort={handleSort} />
+            {/if}
+            {#if show('gitModifiedAt')}
+                <SortableTh label="Last modified" sortKey="gitModifiedAt" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="8rem" on:sort={handleSort} />
+            {/if}
+            {#if show('gitChangeCount')}
+                <SortableTh label="Changes" sortKey="gitChangeCount" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="5rem" on:sort={handleSort} />
             {/if}
             {#if show('otherAttributes')}
-                <th style="width:12%">Other attributes</th>
+                <th style="width:10rem;min-width:10rem">Other attributes</th>
             {/if}
             {#each query.attributeColumns as key (key)}
                 <SortableTh
@@ -287,21 +318,21 @@
                     sortKey={`attr:${key}`}
                     sortBy={query.sortBy}
                     sortDir={query.sortDir ?? 'asc'}
-                    width="8%"
+                    width="8rem"
                     on:sort={handleSort}
                 />
             {/each}
             {#if show('outCount')}
-                <SortableTh label="Out #" sortKey="outRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="5%" on:sort={handleSort} />
+                <SortableTh label="Out #" sortKey="outRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="4.5rem" on:sort={handleSort} />
             {/if}
             {#if show('outRefs')}
-                <SortableTh label="Out refs" sortKey="outRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10%" on:sort={handleSort} />
+                <SortableTh label="Out refs" sortKey="outRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10rem" on:sort={handleSort} />
             {/if}
             {#if show('inCount')}
-                <SortableTh label="In #" sortKey="inRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="5%" on:sort={handleSort} />
+                <SortableTh label="In #" sortKey="inRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="4.5rem" on:sort={handleSort} />
             {/if}
             {#if show('inRefs')}
-                <SortableTh label="In refs" sortKey="inRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10%" on:sort={handleSort} />
+                <SortableTh label="In refs" sortKey="inRefs" sortBy={query.sortBy} sortDir={query.sortDir ?? 'asc'} width="10rem" on:sort={handleSort} />
             {/if}
         </tr>
         <ColumnFilterRow
@@ -350,6 +381,15 @@
                         <td class="body-cell" onclick={(event) => event.stopPropagation()}>
                             <IdeaBodyCell text={row.mainAttribute} />
                         </td>
+                    {/if}
+                    {#if show('gitCreatedAt')}
+                        <td onclick={() => openRow(row)}>{formatGitDate(row.gitCreatedAt)}</td>
+                    {/if}
+                    {#if show('gitModifiedAt')}
+                        <td onclick={() => openRow(row)}>{formatGitDate(row.gitModifiedAt)}</td>
+                    {/if}
+                    {#if show('gitChangeCount')}
+                        <td class="ref-count" onclick={() => openRow(row)}>{formatGitChangeCount(row.gitChangeCount)}</td>
                     {/if}
                     {#if show('otherAttributes')}
                         <td onclick={(event) => event.stopPropagation()}>
@@ -402,6 +442,7 @@
         {/each}
     </tbody>
 </table>
+</div>
 
 <Pager
     page={query.page}

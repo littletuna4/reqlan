@@ -59,6 +59,34 @@ describe('ideas table column filters', () => {
         });
         expect(order.startsWith('i.kind ASC')).toBe(true);
     });
+
+    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    test('orders by git date and change count columns', () => {
+        expect(buildIdeasOrderClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            sortBy: 'gitCreatedAt',
+            sortDir: 'desc'
+        })).toContain('i.git_created_at DESC');
+        expect(buildIdeasOrderClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            sortBy: 'gitModifiedAt',
+            sortDir: 'asc'
+        })).toContain('i.git_modified_at ASC');
+        expect(buildIdeasOrderClause({
+            page: 0,
+            pageSize: 50,
+            attributeColumns: [],
+            referenceFilters: [],
+            sortBy: 'gitChangeCount',
+            sortDir: 'desc'
+        })).toContain('i.git_change_count DESC');
+    });
 });
 
 describe('references table column filters', () => {

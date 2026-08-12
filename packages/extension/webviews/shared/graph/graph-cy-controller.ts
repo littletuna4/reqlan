@@ -12,6 +12,11 @@ import fcose from 'cytoscape-fcose';
 import cola from 'cytoscape-cola';
 import type { GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 import {
+    applyFileTreatment,
+    DEFAULT_FILE_TREATMENT,
+    type FileTreatment
+} from '@reqlan/analytical/file-treatment';
+import {
     buildCytoscapeStylesheet,
     DEFAULT_LAYOUT_ID,
     getLayoutConfig,
@@ -71,6 +76,14 @@ export function labelOpacityForMode(mode: GraphLabelMode, zoom: number): number 
     return (zoom - GRAPH_LABEL_FADE_START) / (GRAPH_LABEL_FADE_END - GRAPH_LABEL_FADE_START);
 }
 
+/** Auto-mode ambient opacity; stays 0 until init/settle finishes so labels do not lag layout. */
+export function ambientAutoLabelOpacity(zoom: number, settled: boolean): number {
+    if (!settled) {
+        return 0;
+    }
+    return labelOpacityForMode('auto', zoom);
+}
+
 export interface ReframeViewportOptions {
     padding?: number;
     /** When true, animate pan/zoom; first paint on a controller should stay false. */
@@ -106,8 +119,10 @@ export function reframeGraphToViewport(
     cy.center();
 }
 
-function computeNodeSetKey(slice: GraphViewSlice): string {
-    return slice.nodes.map(node => node.id).sort().join('\u0000');
+function computeNodeSetKey(slice: GraphViewSlice, fileTreatment: FileTreatment = DEFAULT_FILE_TREATMENT): string {
+    const treated = applyFileTreatment(slice, fileTreatment);
+    const compoundMarker = fileTreatment === 'compound' ? '\u0001file-compound' : '';
+    return treated.nodes.map(node => node.id).sort().join('\u0000') + compoundMarker;
 }
 
 type GraphLifecycle = 'uninitialized' | 'idle' | 'syncing' | 'layouting' | 'physics';
@@ -119,6 +134,8 @@ export interface GraphSyncOptions {
     groupBasis?: GroupBasis;
     centerId?: string;
     selectedId?: string;
+    /** Hosting-.rq file treatment. Default invisible. */
+    fileTreatment?: FileTreatment;
 }
 
 export interface GraphCyControllerOptions {
@@ -205,8 +222,20 @@ export class GraphCyController {
         this.bindInteractions(this.cy);
         this.bindLabelOpacity(this.cy);
         this.unbindCompoundHighlight = bindCompoundHighlight(this.cy, {
-            onCompoundTap: (compoundId) => {
+            onCompoundTap: (compoundId, meta) => {
                 this.selectCompound(compoundId);
+                const compound = this.cy?.$id(compoundId);
+                const isFile = Boolean(compound?.data('isFileCompound'));
+                if (isFile && (meta.titleHit || this.options.interactionMode === 'sidebar')) {
+                    this.options.onOpen?.(compoundId);
+                }
+            },
+            onCompoundDblTap: (compoundId) => {
+                this.selectCompound(compoundId);
+                const compound = this.cy?.$id(compoundId);
+                if (compound?.data('isFileCompound')) {
+                    this.options.onOpen?.(compoundId);
+                }
             }
         });
         this.lifecycle = 'idle';
@@ -355,12 +384,20 @@ export class GraphCyController {
         this.applyLabelOpacity();
     }
 
+    /** Auto labels stay hidden while syncing/layouting so text paint does not lag settle. */
+    private labelsSettledForAuto(): boolean {
+        return this.lifecycle === 'idle' || this.lifecycle === 'physics';
+    }
+
     private applyLabelOpacity(): void {
         const cy = this.cy;
         if (!cy || cy.destroyed()) {
             return;
         }
-        const opacity = labelOpacityForMode(this.labelMode, cy.zoom());
+        const opacity =
+            this.labelMode === 'auto'
+                ? ambientAutoLabelOpacity(cy.zoom(), this.labelsSettledForAuto())
+                : labelOpacityForMode(this.labelMode, cy.zoom());
         if (Math.abs(opacity - this.lastLabelOpacity) < 0.01 && this.lastLabelOpacity >= 0) {
             return;
         }
@@ -588,8 +625,64 @@ export class GraphCyController {
                 } else if (wasMoved) {
                     this.userPositionedNodes.set(nodeId, { x: position.x, y: position.y });
                 }
+            },
+            onCompoundGrab: (compoundId) => {
+                this.draggingCount += 1;
+                this.nodesActuallyMoved.delete(compoundId);
+                const childIds = this.compoundChildIds(compoundId);
+                if (this.lifecycle === 'physics') {
+                    for (const childId of childIds) {
+                        this.physics?.pin(childId);
+                    }
+                } else {
+                    this.stopLayout();
+                    if (this.lifecycle === 'layouting') {
+                        this.lifecycle = 'idle';
+                        this.finishRender(this.activeSyncGeneration);
+                    }
+                }
+            },
+            onCompoundDrag: (compoundId) => {
+                this.nodesActuallyMoved.add(compoundId);
+                if (this.lifecycle === 'physics') {
+                    return;
+                }
+                for (const childId of this.compoundChildIds(compoundId)) {
+                    const child = this.cy?.$id(childId);
+                    if (child && child.length > 0) {
+                        const pos = child.position();
+                        this.userPositionedNodes.set(childId, { x: pos.x, y: pos.y });
+                    }
+                }
+            },
+            onCompoundFree: (compoundId) => {
+                const wasMoved = this.nodesActuallyMoved.has(compoundId);
+                this.nodesActuallyMoved.delete(compoundId);
+                this.draggingCount = Math.max(0, this.draggingCount - 1);
+                const childIds = this.compoundChildIds(compoundId);
+                for (const childId of childIds) {
+                    const child = this.cy?.$id(childId);
+                    const pos = child && child.length > 0 ? child.position() : undefined;
+                    if (this.lifecycle === 'physics') {
+                        this.physics?.unpin(childId, wasMoved);
+                    }
+                    if (wasMoved && pos) {
+                        this.userPositionedNodes.set(childId, { x: pos.x, y: pos.y });
+                    }
+                }
             }
         });
+    }
+
+    private compoundChildIds(compoundId: string): string[] {
+        if (!this.cy) {
+            return [];
+        }
+        const compound = this.cy.$id(compoundId);
+        if (compound.length === 0 || !compound.data('isCompound')) {
+            return [];
+        }
+        return compound.descendants(':childless').map(node => node.id());
     }
 
     private flushPendingSync(): void {
@@ -619,6 +712,7 @@ export class GraphCyController {
         this.physics?.prune(validNodeIds);
 
         this.lifecycle = 'syncing';
+        this.applyLabelOpacity();
         graphLog('flush start', { generation, nodes: slice.nodes.length, edges: slice.edges.length });
 
         try {
@@ -630,7 +724,8 @@ export class GraphCyController {
                     useCompound: options.useCompound,
                     compoundBasis: options.compoundBasis,
                     groupBasis: options.groupBasis,
-                    centerId: options.centerId
+                    centerId: options.centerId,
+                    fileTreatment: options.fileTreatment
                 },
                 persistedPositions
             );
@@ -639,6 +734,7 @@ export class GraphCyController {
             this.applySelection(options.selectedId);
             this.applyHiddenNodeTypes();
             this.lifecycle = 'layouting';
+            this.applyLabelOpacity();
 
             graphLog('elements synced', {
                 added: result.added,
@@ -655,7 +751,7 @@ export class GraphCyController {
                 this.settleAfterSync(generation);
             }
 
-            this.lastSyncedNodeSetKey = computeNodeSetKey(slice);
+            this.lastSyncedNodeSetKey = computeNodeSetKey(slice, options.fileTreatment ?? DEFAULT_FILE_TREATMENT);
             this.lastSliceEdges = slice.edges.map(edge => ({
                 sourceId: edge.sourceId,
                 targetId: edge.targetId
@@ -686,6 +782,8 @@ export class GraphCyController {
     private finishRender(generation: number): void {
         if (generation === this.activeSyncGeneration) {
             this.maybeAutoReframeAfterSync();
+            // Reveal auto labels only after settle/reframe so init paint stays cheap.
+            this.applyLabelOpacity();
             graphLog('render complete', {
                 generation,
                 nodes: this.cy?.nodes().length ?? 0,

@@ -1,6 +1,12 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import type { GraphNodeView, GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
+    import type { GraphUiFileTreatment } from '../../../src/webview_module/shared/graph-ui-state.js';
+    import {
+        applyFileTreatment,
+        fileUriFromFileCompoundId,
+        fileUriFromFileIdeasetId
+    } from '@reqlan/analytical/file-treatment';
     import { getApp } from '../state/context.js';
     import TableToolbar from './TableToolbar.svelte';
     import GraphControls from './GraphControls.svelte';
@@ -63,6 +69,7 @@
     let compoundBasisId = $derived(ui.compoundBasisId);
     let animatePhysics = $derived(ui.animatePhysics);
     let labelMode = $derived(ui.labelMode);
+    let fileTreatment = $derived(ui.fileTreatment);
     let physicsSettings = $derived<GraphPhysicsSettings>({
         ...DEFAULT_PHYSICS_SETTINGS,
         ...ui.physics
@@ -84,7 +91,11 @@
     const legendItems = GRAPH_LEGEND_ITEMS;
 
     let graphNodes = $derived(slice?.nodes ?? []);
-    let nodeById = $derived(new Map(graphNodes.map(node => [node.id, node])));
+    let treatedSlice = $derived(
+        slice ? applyFileTreatment(slice, fileTreatment) : undefined
+    );
+    let treatedNodes = $derived(treatedSlice?.nodes ?? []);
+    let nodeById = $derived(new Map(treatedNodes.map(node => [node.id, node])));
     let centerId = $derived(slice?.centerId);
     let selectedNode = $derived(selectedId ? nodeById.get(selectedId) : undefined);
     // Specials first so Status/Tags triggers paint before the slice arrives.
@@ -106,7 +117,8 @@
             slice.edges.map(edge => edge.id).join('\u0000'),
             centerId ?? '',
             useCompound ? '1' : '0',
-            compoundBasisId
+            compoundBasisId,
+            fileTreatment
         ].join('\u0001')
         : '');
 
@@ -208,7 +220,8 @@
             compoundBasis: activeCompoundBasis ?? compoundBasis,
             groupBasis: activeGroupBasis,
             centerId,
-            selectedId
+            selectedId,
+            fileTreatment
         });
     }
 
@@ -325,7 +338,7 @@
     }
 
     function focusNode(node: GraphNodeView): void {
-        if (node.isExternal) {
+        if (node.isExternal || node.isFileIdeaset) {
             app.openIdea(node.fileUri, node.lineStart);
             return;
         }
@@ -334,6 +347,22 @@
 
     function openNode(node: GraphNodeView): void {
         app.openIdea(node.fileUri, node.lineStart);
+    }
+
+    function openGraphTarget(id: string): void {
+        const node = nodeById.get(id);
+        if (node) {
+            openNode(node);
+            return;
+        }
+        const fileUri = fileUriFromFileCompoundId(id) ?? fileUriFromFileIdeasetId(id);
+        if (fileUri) {
+            app.openIdea(fileUri, 0);
+        }
+    }
+
+    function handleFileTreatmentChange(mode: GraphUiFileTreatment): void {
+        app.patchGraphUi({ fileTreatment: mode });
     }
 
     function handleLayoutChange(layout: string): void {
@@ -444,10 +473,7 @@
                 selectedId = id;
             },
             onOpen: id => {
-                const node = nodeById.get(id);
-                if (node) {
-                    openNode(node);
-                }
+                openGraphTarget(id);
             },
             onFocus: id => {
                 const node = nodeById.get(id);
@@ -492,6 +518,7 @@
             {showKey}
             {showControls}
             {labelMode}
+            {fileTreatment}
             {statusOptions}
             {tagOptions}
             {statusOptionCounts}
@@ -506,6 +533,7 @@
             on:toggleKey={toggleKey}
             on:toggleControls={toggleControls}
             on:cycleLabelMode={cycleLabelMode}
+            on:fileTreatmentChange={(event) => handleFileTreatmentChange(event.detail)}
             on:reframeView={() => controller?.reframeToViewport()}
         />
     </TableToolbar>

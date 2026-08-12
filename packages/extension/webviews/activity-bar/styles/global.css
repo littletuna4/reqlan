@@ -73,7 +73,8 @@ body {
 }
 
 /* When a pane owns an internal scroll region, keep the body from double-scrolling. */
-.section-fill .section-body:has(> .search-results) {
+.section-fill .section-body:has(> .search-results),
+.section-fill .section-body:has(> .todo-results) {
     overflow: hidden;
 }
 

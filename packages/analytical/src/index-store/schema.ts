@@ -2,7 +2,7 @@
  * SQLite schema for the workspace idea graph index.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Initial schema — always safe to re-run (IF NOT EXISTS). */
 export const BASE_MIGRATIONS: string[] = [
@@ -21,7 +21,8 @@ export const BASE_MIGRATIONS: string[] = [
         attributes_json TEXT NOT NULL DEFAULT '{}',
         content_hash TEXT NOT NULL,
         git_created_at TEXT,
-        git_modified_at TEXT
+        git_modified_at TEXT,
+        git_change_count INTEGER
     )`,
     `CREATE INDEX IF NOT EXISTS idx_ideas_file ON ideas(file_uri)`,
     `CREATE INDEX IF NOT EXISTS idx_ideas_name ON ideas(name)`,
@@ -53,6 +54,9 @@ export const VERSION_MIGRATIONS: Record<number, string[]> = {
     ],
     3: [
         `ALTER TABLE documents ADD COLUMN mtime_ms REAL`
+    ],
+    4: [
+        `ALTER TABLE ideas ADD COLUMN git_change_count INTEGER`
     ]
 };
 

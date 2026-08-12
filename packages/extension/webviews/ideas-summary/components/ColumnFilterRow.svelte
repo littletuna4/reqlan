@@ -15,7 +15,8 @@
 
     function setText(column: string, text: string): void {
         const next = filters.filter(filter => filter.column !== column);
-        if (text.trim()) {
+        // Keep exact typed text (including spaces). Only clear when the field is empty.
+        if (text.length > 0) {
             next.push({ column, text });
         }
         dispatch('change', next);
@@ -32,12 +33,24 @@
     function handleSelectChange(column: string, multiple: boolean, event: Event): void {
         const select = event.currentTarget as HTMLSelectElement;
         if (multiple) {
-            const selected = [...select.selectedOptions].map(option => option.value).filter(Boolean);
+            const selected = [...select.selectedOptions]
+                .map(option => option.value)
+                .filter(Boolean);
             setSelected(column, selected);
             return;
         }
         const value = select.value;
         setSelected(column, value ? [value] : []);
+    }
+
+    function clearSelected(column: string): void {
+        setSelected(column, []);
+    }
+
+    /** Controlled select value — prefer `value` over option `selected` so deselect syncs. */
+    function selectValue(column: string, multiple: boolean): string | string[] {
+        const selected = filterFor(column)?.selected ?? [];
+        return multiple ? selected : (selected[0] ?? '');
     }
 </script>
 
@@ -57,25 +70,36 @@
                         oninput={(event) => setText(col.column, (event.currentTarget as HTMLInputElement).value)}
                     />
                 {:else}
-                    <select
-                        class="column-filter"
-                        aria-label="Filter {col.label}"
-                        multiple={col.multiple}
-                        size={col.multiple ? Math.min(4, (col.options?.length ?? 0) + 1) : undefined}
-                        onchange={(event) => handleSelectChange(col.column, Boolean(col.multiple), event)}
-                    >
-                        {#if !col.multiple}
-                            <option value="">All</option>
-                        {/if}
-                        {#each col.options ?? [] as option (option.value)}
-                            <option
-                                value={option.value}
-                                selected={(filterFor(col.column)?.selected ?? []).includes(option.value)}
+                    <div class="column-filter-select-wrap">
+                        <select
+                            class="column-filter"
+                            aria-label="Filter {col.label}"
+                            multiple={col.multiple}
+                            size={col.multiple ? Math.min(4, (col.options?.length ?? 0) + (col.multiple ? 0 : 1)) : undefined}
+                            value={selectValue(col.column, Boolean(col.multiple))}
+                            onchange={(event) => handleSelectChange(col.column, Boolean(col.multiple), event)}
+                        >
+                            {#if !col.multiple}
+                                <option value="">All</option>
+                            {/if}
+                            {#each col.options ?? [] as option (option.value)}
+                                <option value={option.value}>
+                                    {option.label}
+                                </option>
+                            {/each}
+                        </select>
+                        {#if (filterFor(col.column)?.selected?.length ?? 0) > 0}
+                            <button
+                                type="button"
+                                class="column-filter-clear"
+                                aria-label="Clear {col.label} filter"
+                                title="Clear"
+                                onclick={() => clearSelected(col.column)}
                             >
-                                {option.label}
-                            </option>
-                        {/each}
-                    </select>
+                                ×
+                            </button>
+                        {/if}
+                    </div>
                 {/if}
             </th>
         {/each}

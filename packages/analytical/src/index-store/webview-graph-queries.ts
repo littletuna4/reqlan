@@ -73,6 +73,8 @@ export interface GraphNodeView {
     /** [FILTER_NOT_PRESENT] | [FILTER_EMPTY] | concrete tags. */
     tagsKeys?: string[];
     isExternal?: boolean;
+    /** Synthetic leaf for a hosting .rq file (file treatment = linked). */
+    isFileIdeaset?: boolean;
     hotspotBand?: 'low' | 'medium' | 'high';
 }
 

@@ -9,13 +9,21 @@ export class SearchCommand extends Command {
         description: 'Search requirements by keyword across names, summaries, tags, and references.',
         examples: [
             ['Search ideas', '$0 search "cli package"'],
-            ['Limit results', '$0 search parse --limit 5 --json']
+            ['Limit results', '$0 search parse --limit 5 --json'],
+            [
+                'Bias by context',
+                '$0 search ranking --context "reqlan rq/core_analysis/search.rq" --context fuzzy_search'
+            ]
         ]
     });
 
     query = Option.String({ required: true });
     limit = Option.String('--limit', '8', {
         description: 'Maximum number of matches (default 8)'
+    });
+    contextRefs = Option.Array('--context', {
+        description:
+            'Relative .rq path, path#idea, or idea name that biases ranking by graph hop distance (repeatable)'
     });
     cwd = Option.String('--cwd', {
         description: 'Workspace root (default: walk from cwd, or REQLAN_WORKSPACE)'
@@ -30,7 +38,8 @@ export class SearchCommand extends Command {
             await withAnalysisApi(this.cwd, async api => {
                 const matches = await api.searchRequirements(
                     this.query,
-                    Number.isFinite(limit) && limit > 0 ? limit : 8
+                    Number.isFinite(limit) && limit > 0 ? limit : 8,
+                    this.contextRefs?.length ? { context: this.contextRefs } : undefined
                 );
                 if (this.json) {
                     emit(

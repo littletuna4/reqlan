@@ -274,11 +274,11 @@
 
     <section>
         <div class="overview-search-section-header">
-            <h2>Recent changes</h2>
+            <h2>Recent index activity</h2>
             <button type="button" class="secondary" onclick={() => app.setTab('timeline')}>Open Timeline</button>
         </div>
         {#if activity.length === 0}
-            <p class="subtle">No recent changes yet. Open Timeline for a fuller history.</p>
+            <p class="subtle">No recent index or analyse activity yet. Open Timeline for idea git history.</p>
         {:else}
             <ul class="activity-list">
                 {#each activity.slice(0, 6) as item (`${item.at}:${item.detail}`)}
