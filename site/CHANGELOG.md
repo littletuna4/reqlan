@@ -1,5 +1,11 @@
 # site
 
+## 0.13.1
+
+### Patch Changes
+
+- 8b9676d: use cloudflare reverse proxy
+
 ## 0.13.0
 
 ### Minor Changes
