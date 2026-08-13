@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.8.3
+
+### Patch Changes
+
+- 45d37df: Fix Windows CLI startup: dynamic import of `C:\...` is protocol `c:`; use `file://` URLs. Treat drive-letter paths as filesystem paths, not URI schemes.
+
 ## 1.8.2
 
 ### Patch Changes

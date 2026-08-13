@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.9.2
+
+### Patch Changes
+
+- 45d37df: Publish the MCP stdio server to npm as `@reqlan/mcp` on the `mcp/v*` Changesets channel. Install Cursor Skills uses `npx @reqlan/mcp` when the workspace has no local MCP bin.
+- Updated dependencies [45d37df]
+  - @reqlan/language@1.8.3
+  - @reqlan/analytical@0.9.1
+
 ## 1.9.1
 
 ### Patch Changes
