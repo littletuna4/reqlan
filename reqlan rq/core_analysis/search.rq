@@ -10,6 +10,7 @@ search {
     Search over the requirement graph — find ideas by name, body, tags, and related signals.
     Surfaces: [fuzzy_search], [contextual_search], [semantic_search].
     Consumed by CLI `reqlan search`, MCP/chat tools, Ideas Summary, and the activity-bar search pane.
+    Rust ranking engine: ["./rust_port.rq".search_rust].
     @todo flesh out shared search UX / ranking contract across surfaces
 }
 

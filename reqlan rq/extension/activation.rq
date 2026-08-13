@@ -37,12 +37,14 @@ background_startup {
 }
 
 first_paint_startup {
-    The activity-bar HTML shell is assigned synchronously by ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"].
+    The activity-bar HTML shell is assigned by ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"] after one event-loop turn (retry once on invalid-state).
+    Host `postMessage` starts only after the webview `ready` handshake; disposed/invalid-state errors are swallowed by ["../../packages/extension/src/shared/safe-webview-post.ts"].
     Its Svelte app installs the host message listener before mount, then sends the one-shot `ready` handshake from a task queued after its first animation frame.
     ["../../packages/extension/src/extension/startup-gate.ts"] resolves that handshake once; `IndexService.activate` then discovers bases and syncs. If no view opens, a bounded three-second fallback starts the index without any visible first paint to contend with.
     Parser services inside each `WorkspaceIndex` are lazy and are created only when a file is actually parsed, not while bases are discovered.
     The sql.js asm implementation is emitted as a separate lazy vendor bundle, so loading `main.cjs` does not parse the database engine before `activate`.
-    @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    Windows claim/dispose races: ["./startup-performance.rq".webview_claim_race].
+    @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/extension/test/safe-webview-post.test.ts", "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
     @status done
 }
 
@@ -54,9 +56,10 @@ analytical_submodule_activation {
 
 onboarding_check {
     Post-install onboarding is checked on every activation, not via a dedicated install event.
-    ["./onboarding/page-thanks-for-installing.rq".installation_event_trigger] is satisfied because `activate` always calls ["../../packages/extension/src/extension/open-thanks-for-installing.ts"].
+    ["./onboarding/page-thanks-for-installing.rq".installation_event_trigger] is satisfied because `activate` always schedules ["../../packages/extension/src/extension/open-thanks-for-installing.ts"] after the activity-bar paint gate or 400ms (["./startup-performance.rq".webview_claim_race]).
     The check reads global state key `onboarding` via ["../../packages/extension/src/extension/onboarding-state.ts"]:
     - `onboardingMessageShown` — when false, open the onboarding webview panel via ["../../packages/extension/src/extension/onboarding-panel.ts"].
     - `lastVersion` — updated each activation after the message has been shown so future releases can detect extension updates.
     The call is fire-and-forget; errors are logged and do not fail activation.
+    Command-palette Show Onboarding remains immediate.
 }

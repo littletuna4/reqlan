@@ -44,6 +44,83 @@ The ideas index is shared application memory at `<workspace>/.reqlan/ideas-index
 
 ## Changelog
 
+### 0.6.0
+
+#### Minor Changes
+
+- 2294beb: minor improvements to graph and search and website
+
+#### Patch Changes
+
+- Updated dependencies [2294beb]
+  - @reqlan/analytical@0.9.0
+
+### 0.5.2
+
+#### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+- Updated dependencies [fc3cdb6]
+  - @reqlan/analytical@0.8.2
+  - @reqlan/language@1.8.2
+
+### 0.5.1
+
+#### Patch Changes
+
+- d46b740: Fix missed build and test errors.
+- Updated dependencies [d46b740]
+  - @reqlan/analytical@0.8.1
+  - @reqlan/language@1.8.1
+
+### 0.5.0
+
+#### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
+#### Patch Changes
+
+- Updated dependencies [93368c6]
+  - @reqlan/analytical@0.8.0
+  - @reqlan/language@1.8.0
+
+### 0.4.0
+
+#### Minor Changes
+
+- f7023c1: various changes and improvements.
+
+#### Patch Changes
+
+- Updated dependencies [f7023c1]
+  - @reqlan/analytical@0.7.0
+  - @reqlan/language@1.7.0
+
+### 0.3.3
+
+#### Patch Changes
+
+- Updated dependencies [674da15]
+  - @reqlan/analytical@0.6.3
+
+### 0.3.2
+
+#### Patch Changes
+
+- Updated dependencies [eb9da11]
+  - @reqlan/language@1.6.2
+  - @reqlan/analytical@0.6.2
+
+### 0.3.1
+
+#### Patch Changes
+
+- 0a5649e: update the site base path, and untrack build artifacts
+- Updated dependencies [0a5649e]
+  - @reqlan/analytical@0.6.1
+  - @reqlan/language@1.6.1
+
 ### 0.3.0
 
 #### Minor Changes

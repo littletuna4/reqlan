@@ -24,7 +24,7 @@ installation_sequencing {
     3. [activation.activation_sequence] synchronously registers contributions and schedules [activation.background_startup]; [activation.onboarding_check] may open [welcome.installation_event] (Welcome to Reqlan webview) without blocking activation.
     4. If no `.reqlan` exists under workspace folders, surfaces offer create-base ([bases.create_base_onboarding]) — user-driven, never auto-created on extension install.
     5. [base_installation] seeds config / ignore / marker; index activate/sync follows ([app_memory.application_memory]).
-    6. Optionally, user runs Install Cursor Skills ([workspace_agent_files]) — copies rq-* skills and may update `.cursor/mcp.json`; independent of `.reqlan` seeding.
+    6. Optionally, user runs Install Cursor Skills ([workspace_agent_files]) — copies rq-* skills and writes `.cursor/mcp.json`; independent of `.reqlan` seeding.
     Ordering constraint: steps 1–3 are extension-scoped; steps 4–5 are base-scoped; step 6 is workspace agent tooling scoped to the open folder, not the `.reqlan` directory.
 }
 
@@ -52,7 +52,7 @@ welcome_webview_install {
 
 workspace_agent_files {
     Agent / AI host files are **workspace** artefacts, not files under `.reqlan/`.
-    Install Cursor Skills ([skills_mcp.cursor_skills_install]) copies bundled `rq-*` skills into `<workspace>/.cursor/skills/` and updates `<workspace>/.cursor/mcp.json` when the local MCP server is available ([install_cursor_skills_impl]).
+    Install Cursor Skills ([skills_mcp.cursor_skills_install]) copies bundled `rq-*` skills into `<workspace>/.cursor/skills/` and writes `<workspace>/.cursor/mcp.json` ([install_cursor_skills_impl]): local `packages/mcp/bin/mcp.js` when present, otherwise `npx -y @reqlan/mcp`.
     Requires an open workspace folder; does not create a base and does not write into `.reqlan`.
     Naming: skills / chat slash commands use `rq-` prefix ([skills_mcp.chat_skill_naming]); command palette stays category "Reqlan" ([configuration.ai_naming]).
     AI command surfaces that depend on skills being present: [agents.ai_integration], [agents.ai_build_requirement], [agents.ai_add_to_context], [agents.ai_write_plan].

@@ -78,6 +78,7 @@ jobs:
             ['language_before', readVersion('packages/language/package.json')],
             ['analytical_before', readVersion('packages/analytical/package.json')],
             ['cli_before', readVersion('packages/cli/package.json')],
+            ['mcp_before', readVersion('packages/mcp/package.json')],
           ];
 
           for (const [name, value] of outputs) {
@@ -120,6 +121,7 @@ jobs:
             { beforeEnv: 'LANGUAGE_BEFORE', path: 'packages/language/package.json', prefix: 'language/v' },
             { beforeEnv: 'ANALYTICAL_BEFORE', path: 'packages/analytical/package.json', prefix: 'analytical/v' },
             { beforeEnv: 'CLI_BEFORE', path: 'packages/cli/package.json', prefix: 'cli/v' },
+            { beforeEnv: 'MCP_BEFORE', path: 'packages/mcp/package.json', prefix: 'mcp/v' },
           ];
 
           const tags = [];
@@ -156,7 +158,8 @@ jobs:
             tags.find((tag) =>
               tag.startsWith('language/v') ||
               tag.startsWith('analytical/v') ||
-              tag.startsWith('cli/v'),
+              tag.startsWith('cli/v') ||
+              tag.startsWith('mcp/v'),
             ) ?? '';
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `site_tag=${siteTag}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `extension_tag=${extensionTag}\n`);
@@ -168,6 +171,7 @@ jobs:
           LANGUAGE_BEFORE: ${{ steps.versions.outputs.language_before }}
           ANALYTICAL_BEFORE: ${{ steps.versions.outputs.analytical_before }}
           CLI_BEFORE: ${{ steps.versions.outputs.cli_before }}
+          MCP_BEFORE: ${{ steps.versions.outputs.mcp_before }}
 
       - name: Push release commit
         if: steps.pending.outputs.has_pending == 'true' && steps.commit.outputs.committed == 'true'

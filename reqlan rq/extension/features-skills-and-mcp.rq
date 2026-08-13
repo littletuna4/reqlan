@@ -28,7 +28,8 @@ skill_namespace_references {
 }
 
 cursor_skills_install {
-    A command palette action (e.g. ctrl+p: reqlan install cursor skills) should copy rq-* skills from the extension into the workspace .cursor/skills folder and update .cursor/mcp.json when the local mcp server is available.
+    A command palette action (e.g. ctrl+p: reqlan install cursor skills) should copy rq-* skills from the extension into the workspace .cursor/skills folder and update .cursor/mcp.json.
+    Prefer the workspace `packages/mcp/bin/mcp.js` when present; otherwise `npx -y @reqlan/mcp` from ["../distribution/distribution.rq".npm_distribution].
     Place in install sequencing (workspace agent files, not `.reqlan`): ["./installation.rq".workspace_agent_files].
 }
 

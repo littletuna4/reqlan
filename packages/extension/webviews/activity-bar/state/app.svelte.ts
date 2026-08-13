@@ -61,6 +61,8 @@ export class AppState {
     ancestorsLoading = $state(false);
     ancestorsError = $state<string | undefined>(undefined);
     ideaSearchQuery = $state('');
+    /** Query that produced the current result list (highlights follow hits, not the draft). */
+    ideaSearchAppliedQuery = $state('');
     /** Optional hard path filter (glob or substring) applied with idea search. */
     ideaSearchPathFilter = $state<string | undefined>(undefined);
     /** Request Search pane expand when seeded from the host. */
@@ -339,6 +341,7 @@ export class AppState {
                     this.searchIdeas(message.query.trim());
                 } else {
                     this.ideaSearchResults = [];
+                    this.ideaSearchAppliedQuery = '';
                     this.ideaSearchTotal = 0;
                     this.ideaSearchTruncated = false;
                     this.ideaSearchLoading = false;
@@ -560,6 +563,7 @@ export class AppState {
         const trimmed = query.trim();
         if (!trimmed) {
             this.ideaSearchResults = [];
+            this.ideaSearchAppliedQuery = '';
             this.ideaSearchTotal = 0;
             this.ideaSearchTruncated = false;
             this.ideaSearchLoading = false;
@@ -628,6 +632,7 @@ export class AppState {
     private applyIdeaSearchResults(payload: IdeaSearchResultsPayload): void {
         // Keep the draft query as source of truth — do not clobber mid-typing input.
         this.ideaSearchResults = payload.results;
+        this.ideaSearchAppliedQuery = payload.query;
         this.ideaSearchTotal = payload.total;
         this.ideaSearchTruncated = payload.truncated;
         this.ideaSearchLoading = false;

@@ -1,6 +1,6 @@
 name: Publish npm packages
 
-# Triggered by language/v*, analytical/v*, and cli/v* tags (manual or release.yml)
+# Triggered by language/v*, analytical/v*, cli/v*, and mcp/v* tags (manual or release.yml)
 # per reqlan rq/distribution/distribution.rq npm_distribution.
 # release.yml also invokes this workflow directly because pushes made
 # with GITHUB_TOKEN do not trigger other workflows.
@@ -11,6 +11,7 @@ on:
       - "language/v*"
       - "analytical/v*"
       - "cli/v*"
+      - "mcp/v*"
   workflow_call:
     inputs:
       npm_ref:
@@ -59,10 +60,11 @@ jobs:
           pnpm run langium:generate
           pnpm exec tsc -b tsconfig.build.json
           pnpm --filter @reqlan/cli run build
+          pnpm --filter @reqlan/mcp run build
           pnpm run build:readme
 
       # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
-      # npmjs.com for @reqlan/language, @reqlan/analytical, and @reqlan/cli →
+      # npmjs.com for @reqlan/language, @reqlan/analytical, @reqlan/cli, and @reqlan/mcp →
       # GitHub Actions / littletuna4 / reqlan / deploy-npm.yml / npm publish.
       # Each package is a separate step so already-published versions can skip.
 
@@ -89,3 +91,11 @@ jobs:
       - name: Publish @reqlan/cli
         if: steps.check_cli.outputs.should_publish == 'true'
         run: pnpm --filter "@reqlan/cli" publish --access public --no-git-checks
+
+      - name: Check @reqlan/mcp
+        id: check_mcp
+        run: node scripts/skip-already-published.mjs --filter "@reqlan/mcp"
+
+      - name: Publish @reqlan/mcp
+        if: steps.check_mcp.outputs.should_publish == 'true'
+        run: pnpm --filter "@reqlan/mcp" publish --access public --no-git-checks

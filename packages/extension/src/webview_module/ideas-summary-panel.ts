@@ -44,6 +44,7 @@ import { getIdeasSummaryHtml } from './get-ideas-summary-html.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import { getPhonebookLink } from '../shared/phonebook.js';
+import { safeWebviewPost } from '../shared/safe-webview-post.js';
 import {
     buildFocusSignals,
     buildGraphViewSlice,
@@ -388,7 +389,7 @@ export class IdeasSummaryPanel {
     }
 
     private post(message: ExtensionToWebviewMessage): void {
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 
     private readGraphUiState(): GraphUiPersistedState {

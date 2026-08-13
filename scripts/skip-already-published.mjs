@@ -2,7 +2,7 @@
  * CI helper for npm publish under OIDC trusted publishing.
  *
  * Modes:
- *   (default) Mark every language/analytical/cli package whose version is
+ *   (default) Mark every language/analytical/cli/mcp package whose version is
  *     already on the public registry as `private: true` in the checkout only.
  *     Used with `changeset publish` to avoid the @changesets/cli + pnpm E403
  *     crash (changesets#2099). Edits are never committed.
@@ -21,6 +21,7 @@ const packagePaths = [
     'packages/language/package.json',
     'packages/analytical/package.json',
     'packages/cli/package.json',
+    'packages/mcp/package.json',
 ];
 
 function parseFilter(argv) {

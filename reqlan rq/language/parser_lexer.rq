@@ -6,6 +6,7 @@ lexer_bridge_to_syntax {
     The context-sensitive token builder is what makes [block_idea] and prose braces coexist:
     structural `{` / `}` are only those that open or close ideas, while [nested_curly_braces] stay body text.
     [context_sensitive_lexer_scaling] is the performance contract for that bridge; [code_snippets] is the opacity contract so fence interiors never feed the brace timeline.
+    Index-path Rust port: ["../core_analysis/rust_port.rq".lexer_rust] / ["../core_analysis/rust_port.rq".parser_rust].
 }
 
 recovery_vs_budget {

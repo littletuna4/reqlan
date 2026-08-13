@@ -2,6 +2,7 @@
  * Fuzzy / partial idea search with interchangeable separators.
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
+ * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
  */
 import type { IdeaSummary } from '../core/types.js';
 
@@ -260,4 +261,308 @@ export function fuzzySubsequence(hay: string, needle: string): boolean {
         }
     }
     return false;
+}
+
+export interface SearchHighlightRange {
+    start: number;
+    end: number;
+}
+
+export interface SearchHighlightPart {
+    text: string;
+    matched: boolean;
+}
+
+export interface SearchHighlightOptions {
+    /**
+     * When denser strategies miss, highlight in-order character subsequence.
+     * Use for short fields (idea names). Skip on long summaries/paths so
+     * scattered letters do not light up the whole line.
+     */
+    allowSparseFuzzy?: boolean;
+}
+
+/**
+ * Ranges in `hay` that correspond to the fuzzy query.
+ * Prefers contiguous / token / word-start matches over sparse subsequence.
+ */
+export function findSearchHighlightRanges(
+    hay: string,
+    query: string,
+    options?: SearchHighlightOptions
+): SearchHighlightRange[] {
+    const rawNeedle = query.trim();
+    if (!rawNeedle || !hay) {
+        return [];
+    }
+
+    const substring = findAllCaseInsensitiveSubstrings(hay, rawNeedle);
+    if (substring.length > 0) {
+        return substring;
+    }
+
+    const normalized = findNormalizedSubstringRanges(hay, rawNeedle);
+    if (normalized.length > 0) {
+        return normalized;
+    }
+
+    const tokens = findTokenPrefixRanges(hay, rawNeedle);
+    if (tokens.length > 0) {
+        return tokens;
+    }
+
+    const acronym = findWordStartRanges(hay, rawNeedle);
+    if (acronym.length > 0) {
+        return acronym;
+    }
+
+    if (options?.allowSparseFuzzy) {
+        return findFuzzySubsequenceRanges(hay, rawNeedle);
+    }
+    return [];
+}
+
+/** Split `hay` into matched / unmatched slices for rendering. */
+export function splitSearchHighlight(
+    hay: string,
+    query: string,
+    options?: SearchHighlightOptions
+): SearchHighlightPart[] {
+    const ranges = findSearchHighlightRanges(hay, query, options);
+    if (ranges.length === 0) {
+        return hay ? [{ text: hay, matched: false }] : [];
+    }
+    const parts: SearchHighlightPart[] = [];
+    let cursor = 0;
+    for (const range of ranges) {
+        if (range.start > cursor) {
+            parts.push({ text: hay.slice(cursor, range.start), matched: false });
+        }
+        if (range.end > range.start) {
+            parts.push({ text: hay.slice(range.start, range.end), matched: true });
+        }
+        cursor = Math.max(cursor, range.end);
+    }
+    if (cursor < hay.length) {
+        parts.push({ text: hay.slice(cursor), matched: false });
+    }
+    return parts;
+}
+
+function isSearchSeparator(char: string): boolean {
+    return /[_\-\s.…]/.test(char);
+}
+
+function findAllCaseInsensitiveSubstrings(hay: string, rawNeedle: string): SearchHighlightRange[] {
+    const needle = rawNeedle.toLowerCase();
+    const hayLower = hay.toLowerCase();
+    if (!needle) {
+        return [];
+    }
+    const ranges: SearchHighlightRange[] = [];
+    let from = 0;
+    while (from <= hayLower.length - needle.length) {
+        const index = hayLower.indexOf(needle, from);
+        if (index < 0) {
+            break;
+        }
+        ranges.push({ start: index, end: index + needle.length });
+        from = index + needle.length;
+    }
+    return ranges;
+}
+
+function findNormalizedSubstringRanges(hay: string, rawNeedle: string): SearchHighlightRange[] {
+    const needle = normalizeSearchSeparators(rawNeedle);
+    if (!needle) {
+        return [];
+    }
+    const origIndex: number[] = [];
+    let normalized = '';
+    for (let index = 0; index < hay.length; index += 1) {
+        const char = hay[index]!;
+        if (isSearchSeparator(char)) {
+            continue;
+        }
+        normalized += char.toLowerCase();
+        origIndex.push(index);
+    }
+    const ranges: SearchHighlightRange[] = [];
+    let from = 0;
+    while (from <= normalized.length - needle.length) {
+        const index = normalized.indexOf(needle, from);
+        if (index < 0) {
+            break;
+        }
+        const startOrig = origIndex[index]!;
+        const endOrig = origIndex[index + needle.length - 1]! + 1;
+        ranges.push({ start: startOrig, end: endOrig });
+        from = index + needle.length;
+    }
+    return ranges;
+}
+
+function tokensWithRanges(value: string): { token: string; start: number; end: number }[] {
+    const tokens: { token: string; start: number; end: number }[] = [];
+    let start = -1;
+    for (let index = 0; index <= value.length; index += 1) {
+        const atEnd = index === value.length;
+        const sep = atEnd || isSearchSeparator(value[index]!);
+        if (!sep && start < 0) {
+            start = index;
+        } else if (sep && start >= 0) {
+            tokens.push({
+                token: value.slice(start, index).toLowerCase(),
+                start,
+                end: index
+            });
+            start = -1;
+        }
+    }
+    return tokens;
+}
+
+function findTokenPrefixRanges(hay: string, rawNeedle: string): SearchHighlightRange[] {
+    const queryTokens = splitSearchTokens(rawNeedle);
+    const hayTokens = tokensWithRanges(hay);
+    if (queryTokens.length === 0 || hayTokens.length === 0) {
+        return [];
+    }
+
+    const ranges: SearchHighlightRange[] = [];
+    let hayIndex = 0;
+    let ordered = true;
+    for (const queryToken of queryTokens) {
+        let found = -1;
+        for (let index = hayIndex; index < hayTokens.length; index += 1) {
+            if (tokenMatches(hayTokens[index]!.token, queryToken)) {
+                found = index;
+                break;
+            }
+        }
+        if (found < 0) {
+            ordered = false;
+            break;
+        }
+        pushTokenPrefixRange(ranges, hayTokens[found]!, queryToken);
+        hayIndex = found + 1;
+    }
+    if (ordered) {
+        return mergeHighlightRanges(ranges);
+    }
+
+    const used = new Set<number>();
+    const reordered: SearchHighlightRange[] = [];
+    for (const queryToken of queryTokens) {
+        let found = -1;
+        for (let index = 0; index < hayTokens.length; index += 1) {
+            if (used.has(index)) {
+                continue;
+            }
+            if (tokenMatches(hayTokens[index]!.token, queryToken)) {
+                found = index;
+                break;
+            }
+        }
+        if (found < 0) {
+            return [];
+        }
+        used.add(found);
+        pushTokenPrefixRange(reordered, hayTokens[found]!, queryToken);
+    }
+    return mergeHighlightRanges(reordered);
+}
+
+function pushTokenPrefixRange(
+    ranges: SearchHighlightRange[],
+    hayToken: { start: number; end: number },
+    queryToken: string
+): void {
+    ranges.push({
+        start: hayToken.start,
+        end: Math.min(hayToken.start + queryToken.length, hayToken.end)
+    });
+}
+
+function findWordStartRanges(hay: string, rawNeedle: string): SearchHighlightRange[] {
+    const needleChars = normalizeSearchSeparators(rawNeedle);
+    const hayTokens = tokensWithRanges(hay);
+    if (!needleChars || hayTokens.length === 0) {
+        return [];
+    }
+    const ranges: SearchHighlightRange[] = [];
+    let needleIndex = 0;
+    for (const token of hayTokens) {
+        if (needleIndex >= needleChars.length) {
+            break;
+        }
+        if (token.token[0] === needleChars[needleIndex]) {
+            ranges.push({ start: token.start, end: token.start + 1 });
+            needleIndex += 1;
+        }
+    }
+    return needleIndex === needleChars.length ? ranges : [];
+}
+
+function findFuzzySubsequenceRanges(hay: string, rawNeedle: string): SearchHighlightRange[] {
+    const rawPositions = matchSubsequencePositions(hay.toLowerCase(), rawNeedle.toLowerCase());
+    if (rawPositions) {
+        return mergeHighlightRanges(rawPositions.map(index => ({ start: index, end: index + 1 })));
+    }
+    const needleNorm = normalizeSearchSeparators(rawNeedle);
+    if (!needleNorm) {
+        return [];
+    }
+    const origIndex: number[] = [];
+    let normalized = '';
+    for (let index = 0; index < hay.length; index += 1) {
+        const char = hay[index]!;
+        if (isSearchSeparator(char)) {
+            continue;
+        }
+        normalized += char.toLowerCase();
+        origIndex.push(index);
+    }
+    const normPositions = matchSubsequencePositions(normalized, needleNorm);
+    if (!normPositions) {
+        return [];
+    }
+    return mergeHighlightRanges(
+        normPositions.map(index => ({ start: origIndex[index]!, end: origIndex[index]! + 1 }))
+    );
+}
+
+function matchSubsequencePositions(hay: string, needle: string): number[] | null {
+    if (!needle) {
+        return [];
+    }
+    const positions: number[] = [];
+    let from = 0;
+    for (const char of needle) {
+        const index = hay.indexOf(char, from);
+        if (index < 0) {
+            return null;
+        }
+        positions.push(index);
+        from = index + 1;
+    }
+    return positions;
+}
+
+function mergeHighlightRanges(ranges: SearchHighlightRange[]): SearchHighlightRange[] {
+    if (ranges.length === 0) {
+        return [];
+    }
+    const sorted = [...ranges].sort((left, right) => left.start - right.start || left.end - right.end);
+    const merged: SearchHighlightRange[] = [{ start: sorted[0]!.start, end: sorted[0]!.end }];
+    for (let index = 1; index < sorted.length; index += 1) {
+        const current = sorted[index]!;
+        const last = merged[merged.length - 1]!;
+        if (current.start <= last.end) {
+            last.end = Math.max(last.end, current.end);
+        } else {
+            merged.push({ start: current.start, end: current.end });
+        }
+    }
+    return merged;
 }

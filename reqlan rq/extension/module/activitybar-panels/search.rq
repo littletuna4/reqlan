@@ -1,10 +1,13 @@
 import "../../features-commands.rq" as commands
 import "../../../core_analysis/search.rq" as core_search
+import "../ideas_summary/webview.rq" as ideas_summary_doc
 import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
 import "../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte" as SearchHighlight
 import "../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte" as AddToChatButton
 import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
 import "../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts" as app_state
 import "../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
 import "../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts" as activity_bar_messages
@@ -15,27 +18,127 @@ import "../../../../packages/extension/src/ai_commands_module/open-chat.ts" as o
 search_pane {
     Workspace idea search in the activity bar — find rq ideas by name, summary, or tags without leaving the sidebar.
     Complements the modal from [commands.search_code_actions]; this pane stays open for repeated lookups and inserts.
-    Ranking uses [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl] (separator-insensitive `_`/`-`/`...`/whitespace).
-    - Search input with debounced host query.
-    - Results fill the pane body (100% width) and scroll inside the pane; do not nest a second capped NestedSection scroll.
-    - Pane header link **Advanced** opens Ideas Summary ideas table with the current query prefilled.
-    - Results list capped (default ~40) with name, path, and one-line summary; click opens the idea.
-    - Each hit has an **Insert reference** button that inserts `[idea_name]` at the active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import when the target is in another file — same rules as [commands.search_code_actions].
-    - Each hit has an **Add to chat** split control per [search_add_to_chat] (primary = current; ▾ menu = current or new).
-    - Empty query: prompt to type (do not dump the full idea catalog into the pane).
-    - Soft-wait when the index is not ready; scoped errors stay in the pane.
-    - Loading UX: [search_progress].
-    - Host may seed the pane via `focusIdeaSearch` (query + optional pathFilter) from the
-      wildcard-matches webview **Open in Search** action
-      (["../../../language/imports.rq".wildcard_references_webview]).
     Implemented by [SearchPane] under [CollapsiblePane]; host wire in [activity_bar_webview] / [activity_bar_messages] / [app_state].
+    [search_pane_query]
+    [search_pane_layout]
+    [search_pane_results]
+    [search_pane_insert_reference]
+    [search_add_to_chat]
+    [search_pane_advanced]
+    [search_pane_empty_query]
+    [search_pane_scoped_status]
+    [search_progress]
+    [search_pane_seed]
+    [search_pane_match_highlighting]
     @tests (
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
-        ["../../../../packages/extension/test/insert-idea-reference.test.ts"]
-        ["../../../../packages/extension/test/wildcard-reference-open-search.test.ts"]
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+search_pane_query {
+    [search_pane] search input posts a debounced host query.
+    Ranking uses [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]
+    (separator-insensitive `_`/`-`/`...`/whitespace).
+    @tests (
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_layout {
+    [search_pane] results fill the pane body (100% width) and scroll inside the pane;
+    do not nest a second capped [NestedSection] scroll.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+    )
+    @status done
+}
+
+search_pane_results {
+    [search_pane] results list is capped (default ~40) with name, path, and one-line summary;
+    click opens the idea.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+    )
+    @status done
+}
+
+search_pane_insert_reference {
+    Each [search_pane] hit has an **Insert reference** button that inserts `[idea_name]` at the
+    active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import
+    when the target is in another file — same rules as [commands.search_code_actions].
+    Helpers: [insert_idea_reference_helpers].
+    @tests (
+        ["../../../../packages/extension/test/insert-idea-reference.test.ts"]
+        ["../../../../packages/extension/src/extension/insert-idea-reference.ts"]
+        ["../../../../packages/extension/src/extension/insert-idea-reference-helpers.ts"]
+    )
+    @status done
+}
+
+search_pane_advanced {
+    [search_pane] header link **Advanced** opens [ideas_summary_doc.ideas_list] with the current query prefilled.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_empty_query {
+    Empty query in [search_pane]: prompt to type (do not dump the full idea catalog into the pane).
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_scoped_status {
+    [search_pane] soft-waits when the index is not ready; scoped errors stay in the pane.
+    Loading UX: [search_progress].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_seed {
+    Host may seed [search_pane] via `focusIdeaSearch` (query + optional pathFilter) from the
+    wildcard-matches webview **Open in Search** action
+    (["../../../language/imports.rq".wildcard_references_webview]).
+    Path filter is a hard AND after ranking (["../../../language/imports.rq".idea_path_filter]).
+    @tests (
+        ["../../../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_match_highlighting {
+    The [search_pane_results] list highlights the parts of name, path, and summary that matched the query
+    via [SearchHighlight].
+    Resilient to [core_search.fuzzy_search] / [core_search.fuzzy_search_whitespace]: contiguous and
+    separator-insensitive spans, token prefixes / part matches, reordered words, and character-subsequence
+    (fuzzy / acronym) marks on short fields such as the idea name — not scattered letters in long summaries.
+    @implementation (
+        ["../../../../packages/analytical/src/analysis/fuzzy-search.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights exact and prefix substrings"]
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts:maps separator-insensitive matches back onto the original text"]
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights token prefixes and reordered words"]
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights acronym and sparse fuzzy matches on short fields"]
     )
     @status done
 }

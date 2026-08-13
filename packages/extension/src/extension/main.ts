@@ -23,6 +23,8 @@ import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analyt
 let client: LanguageClient | undefined;
 const LANGUAGE_CLIENT_FALLBACK_DELAY_MS = 1_000;
 const INDEX_STARTUP_FALLBACK_DELAY_MS = 3_000;
+/** Keep first-run onboarding from racing the activity-bar iframe on Windows. */
+const FIRST_RUN_ONBOARDING_DELAY_MS = 400;
 
 // This function is called when the extension is activated.
 //
@@ -63,8 +65,15 @@ export function activate(context: vscode.ExtensionContext): void {
         );
     }
 
-    void openThanksForInstallingIfNeeded(context).catch(error => {
-        console.error('[reqlan] Failed to open thanks-for-installing page:', error);
+    let onboardingCancelled = false;
+    context.subscriptions.push({ dispose: () => { onboardingCancelled = true; } });
+    void activityBarPainted.waitOrTimeout(FIRST_RUN_ONBOARDING_DELAY_MS).then(() => {
+        if (onboardingCancelled) {
+            return;
+        }
+        void openThanksForInstallingIfNeeded(context).catch(error => {
+            console.error('[reqlan] Failed to open thanks-for-installing page:', error);
+        });
     });
 }
 

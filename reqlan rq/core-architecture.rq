@@ -5,6 +5,8 @@ import "./extension/architecture.rq" as extension_architecture
 import "./development/core.rq" as development_core
 import "./development/build.rq" as development_build
 import "./distribution/distribution.rq" as distribution
+import "./language/parser_lexer.rq" as parser_lexer
+import "./constitution.rq" as constitution
 import "./extension/features-graph-analysers.rq" as graph_analysers
 import "./extension/module/activitybar.rq" as activitybar
 import "./extension/module/context-scope.rq" as context_scope_doc
@@ -27,6 +29,7 @@ import "../packages/cli/src/main.ts" as cli_main
 import "../.changeset/config.json" as changeset_config
 import "./bases/base.rq" as bases
 import "./indexer/indexer.rq" as indexer
+import "./core_analysis/rust_port.rq" as rust_port
 
 scope {
     These requirements describe the cross-package system architecture of the reqlan monorepo:
@@ -58,6 +61,35 @@ analytical_package {
     Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `WorkspaceIndex`.
     Consumers: [extension_package] (thin editor adapter), [mcp_package], [cli_package].
     Depends on [language_package]. Published to npm alongside [cli_package]; version graph role: [package_versioning].
+    Rust engine port (lexer/parser-for-index, indexer, search, export): [rust_port.analytical_rust_port], shipped per [distribution.rust_binary_distribution].
+    @status in-progress
+    @plan {
+        goal
+            Replace the TypeScript analysis engine (parse-for-index, extract, SQLite index, search, export) with a Rust library behind the existing `createAnalysisRuntime` / `AnalysisApi` facade, shipped as per-architecture binaries.
+
+        constraints
+            - Distribution: [distribution.rust_binary_distribution] — npm optional platform packages first, also website downloads; GitHub-release postinstall out of scope.
+            - Shared on-disk [ideas_index] under `<base>/.reqlan` stays schema-compatible across the TS/Rust cutover.
+            - [grammar_and_parser] / [language_server] stay Langium; this is not a tree-sitter or tower-lsp rewrite.
+            - Port the context-sensitive lexer ([rust_port.lexer_rust]) rather than a parser-generator that cannot honour [syntax] brace/fence rules.
+            - [indexer.nonblocking_index] and [parser_lexer.parse_budget_timeout] still apply; [development_core.rust_mindset] and [constitution.supply_chain] (mature crates).
+            - VSIX uses sql.js specifically to avoid native modules — first cutover is CLI/MCP, not a `.node` addon in the extension host.
+            - Zustand host state, webviews, and HTML-export client JS stay TypeScript.
+
+        steps
+            1. Scaffold `crates/` + golden tests vs Langium ([rust_port.rust_crate_layout]).
+            2. Lexer, then parser with recovery and budget ([rust_port.lexer_rust], [rust_port.parser_rust]).
+            3. Extractor + rusqlite + incremental sync ([indexer.indexer_rust]).
+            4. Search analysers ([rust_port.search_rust]).
+            5. Export snapshot + writers; keep interactive HTML JS ([rust_port.export_rust]).
+            6. napi-rs optional per-arch packages; CLI then MCP ([rust_port.native_bridge], [rust_port.cutover]).
+            7. Publish on `analytical/v*` and list binaries on the site.
+
+        open
+            - Literal `devDependencies` vs `optionalDependencies` for platform packages (runtime consumers need optionalDependencies).
+            - Extension follow-up: WASM from the same crates vs sidecar vs Electron-ABI native.
+            - CLI `parse` stays on Langium until parser parity, or switches with the indexer.
+    }
 }
 
 extension_package {
@@ -72,14 +104,18 @@ extension_package {
 }
 
 mcp_package {
-    `packages/mcp` (`reqlan-mcp`) is a stdio MCP server over the analytical analysis API — no VS Code host required.
-    Entry: [mcp_main]. Used by Cursor and other MCP clients per [chat_participant_doc.mcp] and [skills_and_mcp.mcp_tools].
-    Ignored by Changesets and `private` (not an npm publishable) per [distribution.version_management].
+    `packages/mcp` (`@reqlan/mcp`) is a stdio MCP server over the analytical analysis API — no VS Code host required.
+    Entry: [mcp_main] via ["../packages/mcp/bin/mcp.js"]. Binary name `reqlan-mcp`. Used by Cursor and other MCP clients per [chat_participant_doc.mcp] and [skills_and_mcp.mcp_tools].
+    Published to npm with language, analytical, and CLI per [package_versioning] and [distribution.version_management] (`mcp/v*`).
+    Windows ESM entry uses `pathToFileURL` like ["./cli/cli_package.rq".windows_esm_entry].
+    @tests (
+        ["../packages/cli/test/windows-esm-entry.test.ts:MCP bin converts the compiled entry with pathToFileURL"]
+    )
 }
 
 cli_package {
     `packages/cli` (`@reqlan/cli`) is a Clipanion CLI over [language_package] (parse) and [analytical_package] (`AnalysisApi` for analyse/search).
-    Entry: [cli_main]. Binary name `reqlan` (alias `rq`). Published to npm with language and analytical per [package_versioning] and [distribution.version_management].
+    Entry: [cli_main]. Binary name `reqlan` (alias `rq`). Published to npm with language, analytical, and MCP per [package_versioning] and [distribution.version_management].
 }
 
 site_package {
@@ -94,9 +130,9 @@ package_versioning {
     Release-driving channels:
     - Marketplace/Open VSX: [extension_package] (`ext/v*`)
     - GitHub Pages: [site_package] (`site/v*`)
-    - npm registry: [language_package], [analytical_package], and [cli_package] (`language/v*`, `analytical/v*`, `cli/v*`) via Changesets `changeset publish`
-    Changesets config is [changeset_config]. It ignores [mcp_package] only.
-    [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension and CLI).
+    - npm registry: [language_package], [analytical_package], [cli_package], and [mcp_package] (`language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`) via Changesets `changeset publish`
+    Changesets config is [changeset_config].
+    [language_package] and [analytical_package] stay in the Changesets graph so a lib change can bump their versions and patch dependents via `updateInternalDependencies: "patch"` (including the extension, CLI, and MCP).
     Extension webview folders may be private pnpm members (e.g. `@reqlan/ideas-summary-webview`) so Vite/Svelte can own deps; they bundle into extension media and are not Changesets publish targets. Activity-bar UI is not a separate package.json product.
     Contributors record release intent with a changeset on publishable packages when user-facing behaviour changes; see [distribution.version_management].
 }
@@ -119,6 +155,7 @@ language_server {
 ideas_index {
     The ideas index is built and maintained by the [indexer] in [analytical_package].
     Path: parse with [language_package] → extract ideas/edges → SQLite via [workspace_index].
+    Rust replacement of this path: [rust_port.analytical_rust_port].
     Application memory: each [bases.base] holds SQLite under `<base>/.reqlan/` (shared by extension, [cli_package], and [mcp_package]) — see ["./extension/module/index.rq".application_memory].
     Multi-base: a BaseRegistry owns one [workspace_index] per discovered base; the extension adapter routes file events to the owning base.
     In the editor, [editor_index_adapter] watches `**\*.rq` and forwards changes to the owning base's [workspace_index]; it serves UIs, commands, chat, and analysers.

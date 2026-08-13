@@ -7,12 +7,30 @@ from "../bases/base.rq" import create_base_onboarding
 cli_package {
     `packages/cli` (`@reqlan/cli`) is the Clipanion CLI published to npm as the `reqlan` (and `rq`) binary.
     It depends on `@reqlan/analytical` for base analysis and `@reqlan/language` for single-file parse.
-    Entry: ["../../packages/cli/src/main.ts"].
+    Entry: ["../../packages/cli/src/main.ts"] via ["../../packages/cli/bin/cli.js"] ([windows_esm_entry]).
     Analysis commands reuse [application_memory] (`<base>/.reqlan`) and the analytical ["../indexer/indexer.rq".index] so the CLI shares the ideas index with the extension and MCP.
 }
 
 architecture {
     The cli should be a thin wrapper around the analytical and language packages.
+}
+
+windows_esm_entry {
+    Node's ESM loader on Windows requires `file://` URLs for absolute dynamic `import()`.
+    A native path such as `C:\...\out\main.js` is read as protocol `c:` and crashes every command, including `init`.
+    `bin/cli.js` converts the compiled entry with `fsPathToEsmSpecifier` (`pathToFileURL`).
+    The MCP stdio entry ["../../packages/mcp/bin/mcp.js"] uses the same `pathToFileURL` conversion.
+    @status done
+    @implementation (
+        ["../../packages/cli/bin/cli.js"]
+        ["../../packages/cli/src/esm-path.ts"]
+        ["../../packages/mcp/bin/mcp.js"]
+    )
+    @tests (
+        ["../../packages/cli/test/windows-esm-entry.test.ts:does not treat a Windows drive letter as a URL scheme"]
+        ["../../packages/cli/test/windows-esm-entry.test.ts:CLI bin loads the compiled entry via an ESM file URL helper"]
+        ["../../packages/cli/test/windows-esm-entry.test.ts:MCP bin converts the compiled entry with pathToFileURL"]
+    )
 }
 
 commands {
@@ -49,6 +67,7 @@ init {
     @tests (
         ["../../packages/analytical/test/create-base.test.ts:creates .reqlan marker and reports created"]
         ["../../packages/analytical/test/create-base.test.ts:is idempotent when marker already exists"]
+        ["../../packages/cli/test/windows-esm-entry.test.ts:CLI bin loads the compiled entry via an ESM file URL helper"]
     )
 }
 

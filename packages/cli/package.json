@@ -26,7 +26,8 @@
     "scripts": {
         "clean": "shx rm -fr *.tsbuildinfo out",
         "build": "tsc -b tsconfig.json",
-        "build:clean": "pnpm run clean && pnpm run build"
+        "build:clean": "pnpm run clean && pnpm run build",
+        "test": "vitest run"
     },
     "dependencies": {
         "clipanion": "3.2.1",
@@ -35,6 +36,7 @@
         "@reqlan/language": "workspace:*"
     },
     "devDependencies": {
-        "shx": "~0.4.0"
+        "shx": "~0.4.0",
+        "vitest": "~3.1.3"
     }
 }

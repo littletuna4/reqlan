@@ -2,6 +2,7 @@
     import { getApp } from '../state/context.js';
     import AddToChatButton from './AddToChatButton.svelte';
     import CollapsiblePane from './CollapsiblePane.svelte';
+    import SearchHighlight from './SearchHighlight.svelte';
 
     interface Props {
         expanded: boolean;
@@ -15,6 +16,7 @@
 
     const app = getApp();
     let query = $derived(app.ideaSearchQuery);
+    let highlightQuery = $derived(app.ideaSearchAppliedQuery || query);
     let results = $derived(app.ideaSearchResults);
     let total = $derived(app.ideaSearchTotal);
     let truncated = $derived(app.ideaSearchTruncated);
@@ -110,11 +112,15 @@
                 {#each results as hit}
                     <li>
                         <button class="link" onclick={() => app.openIdea(hit.fileUri, hit.lineStart)}>
-                            {hit.name}
+                            <SearchHighlight text={hit.name} query={highlightQuery} allowSparseFuzzy />
                         </button>
-                        <div class="muted">{hit.path}</div>
+                        <div class="muted">
+                            <SearchHighlight text={hit.path} query={highlightQuery} />
+                        </div>
                         {#if hit.summary}
-                            <div class="muted">{hit.summary}</div>
+                            <div class="muted">
+                                <SearchHighlight text={hit.summary} query={highlightQuery} />
+                            </div>
                         {/if}
                         <div class="section-actions">
                             <button

@@ -5,11 +5,12 @@ import "../development/build.rq" as build
 
 extension_startup_reliability {
     Reqlan startup must make the activity-bar shell and contributed commands available before optional indexing, parser construction, database initialization, or language-client startup can monopolize the extension host.
-    The implementation contract is [first_paint_contract], [deferred_startup_sequence], [lazy_runtime_dependencies], and [development_bundle_freshness].
+    The implementation contract is [first_paint_contract], [webview_claim_race], [deferred_startup_sequence], [lazy_runtime_dependencies], and [development_bundle_freshness].
     Operational diagnosis follows [startup_diagnostics].
     [activation.activation_sequence] [activitybar.loading_state] [indexer.nonblocking_index] [build.extension_bundle]
     @tests (
         "../../packages/extension/test/startup-gate.test.ts"
+        "../../packages/extension/test/safe-webview-post.test.ts"
         "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
     )
     @status done
@@ -41,14 +42,35 @@ extension_host_process_model {
 
 first_paint_contract {
     The platform spinner ends only after VS Code loads the host module, calls `activate`, the provider registers, and `resolveWebviewView` assigns HTML.
-    Reqlan assigns the lightweight HTML/Svelte shell first.
+    `resolveWebviewView` is async: it binds the view, yields one turn so the overlay can be claimed, then assigns the lightweight HTML/Svelte shell (retry once on invalid-state). It does **not** `postMessage` in that method.
     The webview installs its host message listener, mounts, waits for its first animation frame, then posts the one-shot `ready` signal from a queued task.
-    Index discovery/sync waits for that post-paint signal so synchronous parser or database setup cannot race the first visible frame.
-    [activation.first_paint_startup]
+    Host messages start only after that handshake. Index discovery/sync waits for the same signal so synchronous parser or database setup cannot race the first visible frame.
+    Windows overlay restore can dispose and re-resolve the sidebar; the provider rebinds and waits for a new `ready`.
+    [activation.first_paint_startup] [webview_claim_race]
     ["../../packages/extension/webviews/activity-bar/App.svelte"]
     ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
     ["../../packages/extension/src/extension/startup-gate.ts"]
-    @tests ("../../packages/extension/test/startup-gate.test.ts")
+    ["../../packages/extension/src/shared/safe-webview-post.ts"]
+    @tests (
+        "../../packages/extension/test/startup-gate.test.ts"
+        "../../packages/extension/test/safe-webview-post.test.ts"
+    )
+    @status done
+}
+
+webview_claim_race {
+    Setting `webview.html` or calling `postMessage` before the workbench has claimed the overlay (or after it has disposed it) can fail with `Webview is in an invalid state` / `Webview is disposed`.
+    This is intermittent and more common on Windows during extension init, when the activity-bar view is restored in the same tick as another webview (first-run onboarding).
+    Contract:
+    - Activity-bar host posts only after the webview's `ready` signal; `post` is a no-op until then and swallows disposed/invalid-state errors.
+    - `resolveWebviewView` may run more than once: dispose prior view listeners, clear `webviewReady`, rebind, reassign HTML.
+    - First-run onboarding waits for the activity-bar paint gate or 400ms, whichever first, so it does not register a second webview service worker during sidebar claim. Palette `reqlan.showOnboarding` stays immediate.
+    Index and language-client startup still use the existing paint/timeout fallbacks — a dead sidebar must not strand indexing.
+    [first_paint_contract] [activation.onboarding_check]
+    ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    ["../../packages/extension/src/extension/main.ts"]
+    ["../../packages/extension/src/shared/safe-webview-post.ts"]
+    @tests ("../../packages/extension/test/safe-webview-post.test.ts")
     @status done
 }
 
@@ -56,10 +78,11 @@ deferred_startup_sequence {
     Required order:
     1. Load the smallest practical host entry.
     2. Synchronously register commands and the activity-bar provider; return from `activate`.
-    3. Assign the activity-bar shell and wait for the post-first-frame `ready` handshake.
+    3. Yield one turn, assign the activity-bar shell, and wait for the post-first-frame `ready` handshake. Do not `postMessage` until `ready`.
     4. Start index discovery/sync after `ready`; if the sidebar stays closed, start after a bounded three-second fallback so startup indexing and watchers are not lost.
     5. Start the language client after `ready`, with a one-second fallback so language features work when the sidebar stays closed.
-    6. Report incremental index progress inside the already-painted sidebar.
+    6. Open first-run onboarding after the same paint signal or 400ms, so it does not race the sidebar iframe ([webview_claim_race]).
+    7. Report incremental index progress inside the already-painted sidebar.
     The ready signal and both startup paths are one-shot/idempotent.
     [activation.background_startup]
     @status done
@@ -112,11 +135,12 @@ verification_contract {
     - The production extension build succeeds and emits both `out/extension/main.cjs` and `out/extension/vendor/sql-asm.cjs`.
     - The main bundle does not contain the sql.js asm implementation and imports the vendor lazily.
     - The lazy vendor can initialize a database.
-    - Extension startup-gate and analytical lazy-service tests pass.
+    - Extension startup-gate, webview-claim, and analytical lazy-service tests pass.
     - Activity-bar shell paint is visually checked in a newly restarted F5 development host; activation failures are cached for the lifetime of a failed host session.
     - Requirement analysis resolves the updated startup graph.
     @tests (
         "../../packages/extension/test/startup-gate.test.ts"
+        "../../packages/extension/test/safe-webview-post.test.ts"
         "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
     )
     @status done

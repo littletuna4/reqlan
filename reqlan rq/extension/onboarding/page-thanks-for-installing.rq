@@ -42,6 +42,6 @@ onboarding_state {
 
 installation_event_trigger {
     The installation event should be checked and triggered at extension [activation.activation].
-    Verified: ["../../packages/extension/src/extension/main.ts"] calls `openThanksForInstallingIfNeeded` at the end of `activate`, and [activation.onboarding_check] documents the gating behaviour.
+    Verified: ["../../packages/extension/src/extension/main.ts"] schedules `openThanksForInstallingIfNeeded` after the activity-bar paint gate or 400ms (not in the same tick as sidebar claim), and [activation.onboarding_check] documents the gating behaviour.
     @status done
 }

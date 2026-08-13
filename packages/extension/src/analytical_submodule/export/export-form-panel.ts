@@ -28,6 +28,7 @@ import {
     type ExportFormSettings
 } from './export-settings.js';
 import { getExportFormHtml } from './get-export-form-html.js';
+import { safeWebviewPost } from '../../shared/safe-webview-post.js';
 
 const VIEW_TYPE = 'reqlan.exportForm';
 
@@ -161,11 +162,11 @@ export class ExportFormPanel {
                 settingsPath: exportSettingsPath(baseRoot),
             },
         };
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 
     private post(message: ExtensionToExportFormMessage): void {
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 
     private async handleMessage(message: ExportFormToExtensionMessage): Promise<void> {

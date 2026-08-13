@@ -6,6 +6,7 @@ import {
     baseForPath,
     discoverBases,
     filesOwnedByBase,
+    isPathInsideOrEqual,
     selectDefaultBase,
     toBaseDescriptor
 } from '../src/core/base-discovery.js';
@@ -126,5 +127,16 @@ describe('base discovery', () => {
         markBase(child);
         const desc = toBaseDescriptor(child, root);
         expect(desc.label).toBe('sub');
+    });
+
+    test('isPathInsideOrEqual treats Windows drive paths as case-insensitive', () => {
+        expect(
+            isPathInsideOrEqual(
+                'c:\\Users\\tony\\reqlan\\reqlan rq\\cli\\cli_package.rq',
+                'C:\\Users\\tony\\reqlan'
+            )
+        ).toBe(true);
+        expect(isPathInsideOrEqual('C:\\Users\\tony\\reqlan', 'C:\\Users\\tony\\reqlan')).toBe(true);
+        expect(isPathInsideOrEqual('C:\\Users\\tony\\other\\file.rq', 'C:\\Users\\tony\\reqlan')).toBe(false);
     });
 });

@@ -12,6 +12,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { APPLICATION_MEMORY_DIR } from './application-memory.js';
 import { isIgnoredPath, loadRqIgnore, type RqIgnoreFilter } from './rqignore.js';
+import { relativeWindowsDrivePath } from './workspace-paths.js';
 
 export interface BaseDescriptor {
     /** Stable id: absolute normalized base root (forward slashes). */
@@ -127,13 +128,19 @@ export function baseForPath(bases: readonly BaseDescriptor[], absPath: string): 
 
 /** True if `filePath` is under `dir` (or equal). */
 export function isPathInsideOrEqual(filePath: string, dir: string): boolean {
+    const driveRelative = relativeWindowsDrivePath(filePath, dir);
+    if (driveRelative !== undefined) {
+        return !driveRelative.startsWith('..');
+    }
     const absFile = resolve(filePath);
     const absDir = resolve(dir);
-    if (absFile === absDir) {
+    const fileCmp = process.platform === 'win32' ? absFile.toLowerCase() : absFile;
+    const dirCmp = process.platform === 'win32' ? absDir.toLowerCase() : absDir;
+    if (fileCmp === dirCmp) {
         return true;
     }
-    const prefix = absDir.endsWith(sep) ? absDir : absDir + sep;
-    return absFile.startsWith(prefix);
+    const prefix = dirCmp.endsWith(sep) ? dirCmp : dirCmp + sep;
+    return fileCmp.startsWith(prefix);
 }
 
 /**

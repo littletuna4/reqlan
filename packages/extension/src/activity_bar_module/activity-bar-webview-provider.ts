@@ -38,6 +38,12 @@ import type {
 import { matchesIdeaPathFilter } from './idea-path-filter.js';
 import { insertIdeaReferenceAtCursor } from '../extension/insert-idea-reference.js';
 import { openChatWithText } from '../ai_commands_module/open-chat.js';
+import {
+    assignWebviewHtmlWithRetry,
+    safeAssignWebviewHtml,
+    safeWebviewPost,
+    yieldEventLoop
+} from '../shared/safe-webview-post.js';
 
 const VIEW_ID = 'reqlan.activityBar';
 const EDITOR_DEBOUNCE_MS = 250;
@@ -52,12 +58,11 @@ export function getActivityBarWebviewProvider(): ActivityBarWebviewProvider | un
     return activeActivityBarProvider;
 }
 
-function yieldEventLoop(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, 0));
-}
-
 export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private view?: vscode.WebviewView;
+    private viewBindings: vscode.Disposable[] = [];
+    /** True after this view instance posts `ready` — host must not post before then. */
+    private webviewReady = false;
     private data?: ActivityBarDataService;
     private readonly contextSession: ContextSessionState = createContextSession();
     private syncWithEditor = true;
@@ -101,42 +106,72 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    resolveWebviewView(
+    async resolveWebviewView(
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken
-    ): void {
+        token: vscode.CancellationToken
+    ): Promise<void> {
+        this.bindView(webviewView);
+        const assigned = await assignWebviewHtmlWithRetry({
+            isCurrent: () => this.view === webviewView,
+            isCancelled: () => token.isCancellationRequested,
+            assign: () =>
+                safeAssignWebviewHtml(
+                    webviewView.webview,
+                    getActivityBarHtml(webviewView.webview, this.context.extensionUri)
+                )
+        });
+        if (!assigned && this.view === webviewView && !token.isCancellationRequested) {
+            console.error('[reqlan] Activity bar webview html assignment failed.');
+        }
+    }
+
+    private bindView(webviewView: vscode.WebviewView): void {
+        this.disposeViewBindings();
         this.view = webviewView;
+        this.webviewReady = false;
+        this.visible = webviewView.visible;
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [
                 vscode.Uri.joinPath(this.context.extensionUri, 'media', 'webviews', 'activity-bar')
             ]
         };
-        webviewView.webview.html = getActivityBarHtml(webviewView.webview, this.context.extensionUri);
+        this.viewBindings.push(
+            webviewView.onDidChangeVisibility(() => {
+                if (this.view !== webviewView) {
+                    return;
+                }
+                this.visible = webviewView.visible;
+                this.postEditorContext();
+            }),
+            webviewView.webview.onDidReceiveMessage(message => {
+                if (this.view !== webviewView) {
+                    return;
+                }
+                const msg = message as ActivityBarToExtensionMessage;
+                // Interactive navigation must not sit behind search/refresh awaits.
+                if (isInteractiveMessage(msg)) {
+                    void this.handleInteractiveMessage(msg);
+                    return;
+                }
+                void this.handleMessage(msg);
+            }),
+            webviewView.onDidDispose(() => {
+                if (this.view !== webviewView) {
+                    return;
+                }
+                this.view = undefined;
+                this.webviewReady = false;
+            })
+        );
+    }
 
-        webviewView.onDidChangeVisibility(() => {
-            this.visible = webviewView.visible;
-            this.postEditorContext();
-        });
-
-        webviewView.webview.onDidReceiveMessage(message => {
-            const msg = message as ActivityBarToExtensionMessage;
-            // Interactive navigation must not sit behind search/refresh awaits.
-            if (isInteractiveMessage(msg)) {
-                void this.handleInteractiveMessage(msg);
-                return;
-            }
-            void this.handleMessage(msg);
-        });
-
-        void this.postIndexHealth();
-        void this.ensureData();
-        this.postPhonebookLinks();
-        this.postTray();
-        this.postEditorContext();
-        void this.preloadSearchCatalog();
-        void this.refreshFromEditor({ followEditorBase: true });
+    private disposeViewBindings(): void {
+        for (const binding of this.viewBindings) {
+            binding.dispose();
+        }
+        this.viewBindings = [];
     }
 
     recordEditorActivity(fileUri: string, line: number): void {
@@ -172,6 +207,9 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.searchWorker = undefined;
         this.statusUnsubscribe();
         this.catalogUnsubscribe();
+        this.disposeViewBindings();
+        this.view = undefined;
+        this.webviewReady = false;
     }
 
     /**
@@ -210,7 +248,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     }
 
     private post(message: ExtensionToActivityBarMessage): void {
-        void this.view?.webview.postMessage(message);
+        if (!this.webviewReady) {
+            return;
+        }
+        safeWebviewPost(this.view?.webview, message);
     }
 
     /**
@@ -607,11 +648,13 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         try {
             switch (message.type) {
                 case 'ready':
+                    this.webviewReady = true;
                     this.onPainted();
                     this.postPhonebookLinks();
                     await this.postIndexHealth();
                     this.postTray();
                     this.postEditorContext();
+                    void this.preloadSearchCatalog();
                     await this.refreshFromEditor({ followEditorBase: true });
                     this.post({ type: 'bootstrapComplete' });
                     break;

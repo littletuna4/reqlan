@@ -10,6 +10,7 @@ import { filterAndScoreIdeas } from '@reqlan/analytical';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { applyIdeaReferenceEdit } from './insert-idea-reference.js';
+import { safeWebviewPost } from '../shared/safe-webview-post.js';
 
 export { filterAndScoreIdeas } from '@reqlan/analytical';
 
@@ -146,7 +147,7 @@ export class ReferenceSearchPanel {
                 fileUri: hit.fileUri
             }))
         };
-        void this.panel.webview.postMessage(payload);
+        safeWebviewPost(this.panel.webview, payload);
     }
 }
 

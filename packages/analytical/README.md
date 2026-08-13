@@ -30,6 +30,71 @@ npm install @reqlan/analytical
 
 ## Changelog
 
+### 0.9.0
+
+#### Minor Changes
+
+- 2294beb: minor improvements to graph and search and website
+
+### 0.8.2
+
+#### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+- Updated dependencies [fc3cdb6]
+  - @reqlan/language@1.8.2
+
+### 0.8.1
+
+#### Patch Changes
+
+- d46b740: Fix missed build and test errors.
+- Updated dependencies [d46b740]
+  - @reqlan/language@1.8.1
+
+### 0.8.0
+
+#### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
+#### Patch Changes
+
+- Updated dependencies [93368c6]
+  - @reqlan/language@1.8.0
+
+### 0.7.0
+
+#### Minor Changes
+
+- f7023c1: various changes and improvements.
+
+#### Patch Changes
+
+- Updated dependencies [f7023c1]
+  - @reqlan/language@1.7.0
+
+### 0.6.3
+
+#### Patch Changes
+
+- 674da15: fix image in readme, update site copy, add graph navigator to landing.
+
+### 0.6.2
+
+#### Patch Changes
+
+- Updated dependencies [eb9da11]
+  - @reqlan/language@1.6.2
+
+### 0.6.1
+
+#### Patch Changes
+
+- 0a5649e: update the site base path, and untrack build artifacts
+- Updated dependencies [0a5649e]
+  - @reqlan/language@1.6.1
+
 ### 0.6.0
 
 #### Minor Changes

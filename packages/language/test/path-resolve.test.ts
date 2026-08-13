@@ -4,12 +4,15 @@ import { VirtualFileSystemProvider } from 'langium/test';
 import {
     createReqlanServices,
     createSourceTextDocument,
+    fileUriFromFsPath,
     findWorkspaceFolderUri,
+    isWindowsAbsolutePath,
     loadApplyingRqConfig,
     matchImportRootAlias,
     resolveDocumentPathUri,
     resolveImportUri,
-    rewriteRelativePath
+    rewriteRelativePath,
+    toDirectoryUri
 } from '@reqlan/language';
 
 describe('import root alias', () => {
@@ -102,5 +105,25 @@ describe('import root alias', () => {
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('services construct with EmptyFileSystem', () => {
         expect(() => createReqlanServices(EmptyFileSystem)).not.toThrow();
+    });
+});
+
+describe('Windows filesystem paths vs URI schemes', () => {
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    test('isWindowsAbsolutePath detects drive and UNC paths', () => {
+        expect(isWindowsAbsolutePath('C:\\Users\\tony\\lib')).toBe(true);
+        expect(isWindowsAbsolutePath('c:/Users/tony/lib')).toBe(true);
+        expect(isWindowsAbsolutePath('\\\\server\\share')).toBe(true);
+        expect(isWindowsAbsolutePath('/abs/lib')).toBe(false);
+        expect(isWindowsAbsolutePath('file:///C:/lib')).toBe(false);
+        expect(isWindowsAbsolutePath('./relative')).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    test('toDirectoryUri does not parse a drive letter as a URI scheme', () => {
+        const uri = toDirectoryUri('C:\\libs');
+        expect(uri.scheme).toBe('file');
+        expect(decodeURIComponent(uri.toString()).toLowerCase()).toContain('/c:/libs');
+        expect(fileUriFromFsPath('C:\\libs').scheme).toBe('file');
     });
 });

@@ -15,6 +15,7 @@ const npmPackages = [
   "packages/language",
   "packages/analytical",
   "packages/cli",
+  "packages/mcp",
 ] as const;
 
 type PackageManifest = {

@@ -24,5 +24,6 @@ This monorepo contains the reqlan language, VS Code extension, static site, and 
 - [`packages/extension`](./packages/extension) — VS Code extension
 - [`site`](./site) — marketing and documentation site
 - [`packages/cli`](./packages/cli) — command-line interface
+- [`packages/mcp`](./packages/mcp) — MCP server for requirement graph tools
 
 See [README.dev.md](./README.dev.md) for workspace setup and development notes.

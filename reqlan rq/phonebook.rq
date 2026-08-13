@@ -13,8 +13,8 @@ phonebook_icons {
 }
 
 npm_packages {
-    Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) live under the `packages` key in ["./phonebook.json"].
-    Package ids are `language`, `analytical`, and `cli`.
+    Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`) live under the `packages` key in ["./phonebook.json"].
+    Package ids are `language`, `analytical`, `cli`, and `mcp`.
     The site Links section renders them under Packages per ["./site/site.rq".links] / ["./site/site.rq".package_icons].
     Typed helpers: `phonebookPackages`, `getPhonebookPackage` in ["../scripts/phonebook.ts"].
 }
@@ -25,7 +25,7 @@ extension_readme_links {
 }
 
 npm_package_readme_links {
-    Publishable npm package READMEs (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) use the same phonebook link ids as [extension_readme_links].
+    Publishable npm package READMEs (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`) use the same phonebook link ids as [extension_readme_links].
     Generation is defined in ["./distribution/distribution.rq".npm_package_readme].
 }
 

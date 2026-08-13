@@ -1,5 +1,5 @@
 from "../core-architecture.rq" import ideas_index
-from "../ontology.rq" import base as ontology_base
+from "../ontology.rq" import base as ontology_base, extension
 import "../extension/configuration.rq" as extension_configuration
 import "../extension/module/index.rq" as app_memory_doc
 import "../../packages/analytical/src/core/base-discovery.ts" as base_discovery
@@ -11,6 +11,8 @@ import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../packages/extension/src/analytical_submodule/commands/register-commands.ts" as register_commands
 import "../../packages/language/src/reqlan-path-resolve.ts" as path_resolve
+from "../core_analysis/core.rq" import analysis_scope
+from "../cli/cli_package.rq" import cli_package
 
 base {
     A base is a container for ideas, ideasets, and files.
@@ -30,6 +32,7 @@ base {
         ["../../packages/analytical/test/base-discovery.test.ts:returns empty when no .reqlan exists"]
         ["../../packages/analytical/test/base-discovery.test.ts:discovers base at workspace root"]
         ["../../packages/analytical/test/base-discovery.test.ts:skips node_modules and does not treat .reqlan as a walkable base root"]
+        ["../../packages/analytical/test/base-discovery.test.ts:isPathInsideOrEqual treats Windows drive paths as case-insensitive"]
         ["../../packages/analytical/test/application-memory.test.ts:defaults to <workspace>/.reqlan"]
     )
 
@@ -200,4 +203,11 @@ create_base_onboarding {
     )
 }
 
+
+no_base_behaviour {
+    When no base is found, the extension should prompt the user to create a base at the workspace-folder root.
+    consideration should be made for the [cli_package], the [extension] and the [analysis_scope]
+    The indexing should not throw errors - it should default to a global tmp index scope the workspace; or current working directory.
+    In the cli; an warning should be shown on first command execution if no base is found.
+}
 

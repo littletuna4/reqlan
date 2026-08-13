@@ -1,7 +1,7 @@
 /**
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references_webview]
  * rq:["../../../reqlan rq/language/imports.rq".idea_path_filter]
- * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane]
+ * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_seed]
  */
 import { describe, expect, test } from 'vitest';
 import type { IdeaSummary } from '@reqlan/analytical';

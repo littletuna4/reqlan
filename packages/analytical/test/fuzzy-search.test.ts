@@ -9,9 +9,11 @@ import type { IdeaSummary } from '../src/core/types.js';
 import {
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
+    findSearchHighlightRanges,
     fuzzySubsequence,
     matchQueryTokens,
     normalizeSearchSeparators,
+    splitSearchHighlight,
     splitSearchTokens
 } from '../src/analysis/fuzzy-search.js';
 import { dirname, join } from 'node:path';
@@ -157,6 +159,39 @@ describe('fuzzySubsequence', () => {
     test('matches characters in order', () => {
         expect(fuzzySubsequence('search_code_actions', 'sca')).toBe(true);
         expect(fuzzySubsequence('search_code_actions', 'xyz')).toBe(false);
+    });
+});
+
+function highlighted(hay: string, query: string, allowSparseFuzzy = false): string {
+    return splitSearchHighlight(hay, query, { allowSparseFuzzy })
+        .map(part => (part.matched ? `[${part.text}]` : part.text))
+        .join('');
+}
+
+describe('findSearchHighlightRanges', () => {
+    test('highlights exact and prefix substrings', () => {
+        expect(highlighted('search_code_actions', 'sea')).toBe('[sea]rch_code_actions');
+        expect(highlighted('CLI package', 'cli package')).toBe('[CLI package]');
+        expect(findSearchHighlightRanges('search_code_actions', '')).toEqual([]);
+    });
+
+    test('maps separator-insensitive matches back onto the original text', () => {
+        expect(highlighted('cli_package', 'cli package')).toBe('[cli_package]');
+        expect(highlighted('cli_package', 'cli-package')).toBe('[cli_package]');
+        expect(highlighted('cli_package', 'clipack')).toBe('[cli_pack]age');
+    });
+
+    test('highlights token prefixes and reordered words', () => {
+        expect(highlighted('search_code_actions', 'search actions')).toBe('[search]_code_[actions]');
+        expect(highlighted('cli_package', 'package cli')).toBe('[cli]_[package]');
+        expect(highlighted('search_code_actions', 'sea act')).toBe('[sea]rch_code_[act]ions');
+    });
+
+    test('highlights acronym and sparse fuzzy matches on short fields', () => {
+        expect(highlighted('search_code_actions', 'sca', true)).toBe('[s]earch_[c]ode_[a]ctions');
+        expect(highlighted('search_code_actions', 'srch', true)).toBe('[s]ea[rch]_code_actions');
+        expect(highlighted('parent_nodes_pane', 'pde', true)).toBe('[p]arent_no[de]s_pane');
+        expect(findSearchHighlightRanges('a long summary about widgets and layout', 'sca')).toEqual([]);
     });
 });
 

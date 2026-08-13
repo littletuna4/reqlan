@@ -80,6 +80,14 @@
         "set": "simple-icons",
         "name": "npm"
       }
+    },
+    "mcp": {
+      "label": "@reqlan/mcp",
+      "href": "https://www.npmjs.com/package/@reqlan/mcp",
+      "icon": {
+        "set": "simple-icons",
+        "name": "npm"
+      }
     }
   }
 }

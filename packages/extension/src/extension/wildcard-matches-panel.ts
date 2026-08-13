@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { wildcardSearchSeed } from '../activity_bar_module/idea-path-filter.js';
+import { safeWebviewPost } from '../shared/safe-webview-post.js';
 import {
     buildWildcardMatchesPayload,
     type WildcardMatchesPayload
@@ -118,11 +119,11 @@ export class WildcardMatchesPanel {
                 pathPattern: this.args.pathPattern,
                 ideaPattern: this.args.ideaPattern
             };
-            void this.panel.webview.postMessage(empty);
+            safeWebviewPost(this.panel.webview, empty);
             return;
         }
         const message: HostToWebview = { type: 'init', payload: this.payload };
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 }
 

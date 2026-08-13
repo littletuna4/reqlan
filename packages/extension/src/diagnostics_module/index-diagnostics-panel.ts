@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { join } from 'node:path';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { getIndexDiagnosticsHtml } from './get-index-diagnostics-html.js';
+import { safeWebviewPost } from '../shared/safe-webview-post.js';
 import type {
     ExtensionToIndexDiagnosticsMessage,
     IndexDiagnosticsToExtensionMessage
@@ -70,7 +71,7 @@ export class IndexDiagnosticsPanel {
     }
 
     private post(message: ExtensionToIndexDiagnosticsMessage): void {
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 
     private async handleMessage(message: IndexDiagnosticsToExtensionMessage): Promise<void> {

@@ -2,6 +2,7 @@
  * Resolve authored file-reference paths against the defining idea's file.
  * Shared by graph slices and reference-list rows so open actions match the editor.
  */
+import { isWindowsAbsolutePath } from '@reqlan/language';
 import { posix } from 'node:path';
 
 function definingFilePath(sourceId: string): string {
@@ -18,11 +19,16 @@ function definingFilePath(sourceId: string): string {
  */
 export function resolveReferencedFilePath(targetFile: string, sourceId: string): string {
     const target = targetFile.replace(/\\/g, '/');
-    if (target.includes('://') || posix.isAbsolute(target)) {
+    if (target.includes('://') || posix.isAbsolute(target) || isWindowsAbsolutePath(targetFile) || isWindowsAbsolutePath(target)) {
         return targetFile;
     }
     const definingFile = definingFilePath(sourceId).replace(/\\/g, '/');
-    if (!definingFile || definingFile.includes('://') || posix.isAbsolute(definingFile)) {
+    if (
+        !definingFile
+        || definingFile.includes('://')
+        || posix.isAbsolute(definingFile)
+        || isWindowsAbsolutePath(definingFile)
+    ) {
         return targetFile;
     }
     return posix.join(posix.dirname(definingFile), target);

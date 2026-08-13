@@ -14,5 +14,8 @@ describe('resolveReferencedFilePath', () => {
     test('leaves absolute and scheme paths unchanged', () => {
         expect(resolveReferencedFilePath('/abs/foo.ts', 'a/b.rq#x')).toBe('/abs/foo.ts');
         expect(resolveReferencedFilePath('file:///tmp/x.ts', 'a/b.rq#x')).toBe('file:///tmp/x.ts');
+        expect(resolveReferencedFilePath('C:\\Users\\tony\\reqlan\\foo.ts', 'a/b.rq#x')).toBe(
+            'C:\\Users\\tony\\reqlan\\foo.ts'
+        );
     });
 });

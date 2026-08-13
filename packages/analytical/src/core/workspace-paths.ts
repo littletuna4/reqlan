@@ -1,6 +1,7 @@
 /**
  * Normalize file paths and idea ids relative to the workspace root.
  */
+import { fileUriFromFsPath, isWindowsAbsolutePath } from '@reqlan/language';
 import { URI } from 'langium';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { edgeId, ideaId, type IndexedDocument } from './types.js';
@@ -9,7 +10,7 @@ function normalizeSlashes(filePath: string): string {
     return filePath.replace(/\\/g, '/');
 }
 
-function relativeWindowsDrivePath(filePath: string, workspaceRoot: string): string | undefined {
+export function relativeWindowsDrivePath(filePath: string, workspaceRoot: string): string | undefined {
     const normalizedFile = normalizeSlashes(filePath);
     const normalizedRoot = normalizeSlashes(workspaceRoot).replace(/\/+$/, '');
 
@@ -21,11 +22,11 @@ function relativeWindowsDrivePath(filePath: string, workspaceRoot: string): stri
 
     const fileRest = (fileMatch[2] ?? '').replace(/^\/+/, '');
     const rootRest = (rootMatch[2] ?? '').replace(/^\/+/, '');
-    if (fileRest === rootRest) {
+    if (fileRest.toLowerCase() === rootRest.toLowerCase()) {
         return '';
     }
     const rootPrefix = rootRest ? `${rootRest}/` : '';
-    if (!rootRest || fileRest.startsWith(rootPrefix)) {
+    if (!rootRest || fileRest.toLowerCase().startsWith(rootPrefix.toLowerCase())) {
         return rootRest ? fileRest.slice(rootPrefix.length) : fileRest;
     }
     return undefined;
@@ -57,12 +58,15 @@ export function resolveWorkspaceFileUri(relativeOrAbsolute: string, workspaceRoo
     if (relativeOrAbsolute.startsWith('file://')) {
         return relativeOrAbsolute;
     }
+    if (isWindowsAbsolutePath(relativeOrAbsolute)) {
+        return fileUriFromFsPath(relativeOrAbsolute).toString();
+    }
     if (workspaceRoot) {
         const absolute = resolve(workspaceRoot, relativeOrAbsolute);
-        return URI.file(absolute).toString();
+        return fileUriFromFsPath(absolute).toString();
     }
     if (relativeOrAbsolute.startsWith('/')) {
-        return URI.file(relativeOrAbsolute).toString();
+        return fileUriFromFsPath(relativeOrAbsolute).toString();
     }
     return relativeOrAbsolute;
 }

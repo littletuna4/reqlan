@@ -13,6 +13,33 @@ export const REQLAN_DIR = '.reqlan';
 /** Config filename under `<base>/.reqlan/`. */
 export const CONFIG_FILENAME = 'config.json';
 
+const WINDOWS_DRIVE_ABS = /^[A-Za-z]:[\\/]/;
+const URI_SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+/** Drive-letter or UNC filesystem path (not a URI). */
+export function isWindowsAbsolutePath(value: string): boolean {
+    return WINDOWS_DRIVE_ABS.test(value) || value.startsWith('\\\\');
+}
+
+/** True for posix/Windows absolute paths and URIs, including `file:`. */
+export function isAbsoluteUriOrPath(value: string): boolean {
+    return value.startsWith('/') || isWindowsAbsolutePath(value) || URI_SCHEME.test(value);
+}
+
+/**
+ * Build a `file:` URI from a filesystem path.
+ * Windows drive paths must not go through `URI.parse` (scheme would be `c:`).
+ */
+export function fileUriFromFsPath(fsPath: string): URI {
+    if (WINDOWS_DRIVE_ABS.test(fsPath)) {
+        return UriCtor.parse(`file:///${fsPath.replace(/\\/g, '/')}`);
+    }
+    if (fsPath.startsWith('\\\\')) {
+        return UriCtor.parse(`file:${fsPath.replace(/\\/g, '/')}`);
+    }
+    return UriCtor.file(fsPath);
+}
+
 export interface ImportRootMapping {
     alias: string;
     /** Absolute URI of that alias’s import-root directory, when set. */
@@ -285,15 +312,14 @@ function parseHtmlExportConfig(raw: unknown): RqHtmlExportConfig | undefined {
     return Object.keys(config).length > 0 ? config : undefined;
 }
 
-function isAbsoluteUriOrPath(value: string): boolean {
-    return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value) || value.startsWith('/');
-}
-
-function toDirectoryUri(value: string): URI {
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) {
+export function toDirectoryUri(value: string): URI {
+    if (isWindowsAbsolutePath(value)) {
+        return fileUriFromFsPath(value);
+    }
+    if (URI_SCHEME.test(value)) {
         return UriCtor.parse(value);
     }
-    return UriCtor.file(value);
+    return fileUriFromFsPath(value);
 }
 
 export function resolveRqConfig(document: LangiumDocument, context?: PathResolveContext): RqConfig {

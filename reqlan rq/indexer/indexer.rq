@@ -123,6 +123,31 @@ index_code_files {
 
 
 indexer_rust {
-    indexer should be written in rust.
+    The [index] engine (parse-for-index → extract → SQLite persist → incremental sync) should be written in Rust.
+    Crate: `reqlan-index` over `reqlan-parse` per ["../core_analysis/rust_port.rq".rust_crate_layout].
+    Extractor ports ["../../packages/analytical/src/index-store/idea-extractor.ts"] including [wildcard_reference_edges].
+    Store ports schema v4 (["../../packages/analytical/src/index-store/schema.ts"]) via rusqlite so `<base>/.reqlan` round-trips with today's sql.js.
+    Sync keeps [nonblocking_index]: per-file upsert, mtime skip, hard rebuild, cancellable progress.
+    Not the Langium LSP. Comment-file indexing remains [index_code_files].
+    @status draft
     @todo
+    @plan {
+        goal
+            Native WorkspaceIndex: same rows and incremental behaviour, no Langium on the index path.
+
+        constraints
+            - Schema compatible with sql.js during ["../core_analysis/rust_port.rq".cutover].
+            - [nonblocking_index] and [index_diagnostics_timing] still apply.
+            - Wildcard fan-out stays [wildcard_reference_edges].
+            - Extension does not load native addons in the first cutover.
+
+        steps
+            1. Rust AST → IdeaRecord / EdgeRecord parity tests against the current extractor.
+            2. rusqlite store + migrations matching SCHEMA_VERSION 4.
+            3. Soft/hard sync, mtime skip, cancel, diagnostics.
+            4. Wire through ["../core_analysis/rust_port.rq".native_bridge] once parse+extract golden tests pass.
+
+        open
+            - sql.js writes a binary dump; confirm rusqlite opens that file (or migrate via SQL dump) before mixed-runtime workspaces.
+    }
 }

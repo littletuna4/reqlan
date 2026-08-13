@@ -1,8 +1,55 @@
-
-
 from "../ontology.rq" import extension
+import "./search.rq" as search_doc
+import "./export.rq" as export_doc
+import "./html_export.rq" as html_export
+import "./rust_port.rq" as rust_port
+import "../indexer/indexer.rq" as indexer
+import "../language/parser_lexer.rq" as parser_lexer
+import "../extension/features-graph-analysers.rq" as graph_analysers
+import "../core-architecture.rq" as core_arch
 
 analysis_scope {
-    The analysis functionality should be consumed by the ["../cli/cli_package.rq".cli_package] and the [extension].
-    Export writers live under ["./export.rq".export_pipeline] and ["./html_export.rq".html_export].
+    `@reqlan/analytical` — shared index + analysis API.
+    Hosts: CLI, [extension], MCP.
+    Native rewrite: [rust_port.analytical_rust_port].
+    [parse] [index] [search] [export] [analysers] [runtime]
 }
+
+parse {
+    Lex + parse `.rq` for the index path (not LSP).
+    [parser_lexer] → extract in [index].
+}
+
+index {
+    Ideas/edges → SQLite (`<base>/.reqlan`).
+    [indexer.index]
+}
+
+search {
+    Rank ideas: fuzzy, contextual, semantic.
+    [search_doc.search]
+}
+
+export {
+    Snapshot → html / md / json / csv.
+    [export_doc.export_pipeline] [html_export.html_export]
+}
+
+analysers {
+    Queries over [index]: list, file-related, local graph, completion, deprecation, git dates.
+    [graph_analysers]
+}
+
+runtime {
+    Headless facade: `createAnalysisRuntime` / `AnalysisApi`.
+    [core_arch.analysis_runtime]
+}
+
+modules (
+    parse,
+    index,
+    search,
+    export,
+    analysers,
+    runtime
+)

@@ -55,6 +55,7 @@ configuration_import_roots {
         ["../../packages/language/test/config.test.ts:importRoots alias only overrides the alias"]
         ["../../packages/language/test/config.test.ts:relative root resolves against the base root"]
         ["../../packages/language/test/config.test.ts:absolute filesystem root is used directly"]
+        ["../../packages/language/test/config.test.ts:Windows drive-letter root is used as a file URI not scheme c:"]
         ["../../packages/language/test/config.test.ts:file URI root is used directly"]
         ["../../packages/language/test/config.test.ts:multiple importRoots map aliases to different roots"]
         ["../../packages/language/test/config.test.ts:longest alias wins when mappings overlap"]
@@ -72,6 +73,7 @@ configuration_import_roots {
         ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest base config"]
         ["../../packages/language/test/path-resolve.test.ts:resolves using config importRoots mapping"]
         ["../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
+        ["../../packages/language/test/path-resolve.test.ts:toDirectoryUri does not parse a drive letter as a URI scheme"]
         ["../../packages/language/test/completion.test.ts:completes import-root alias paths"]
     )
 }

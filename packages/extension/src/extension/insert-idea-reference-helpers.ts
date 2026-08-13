@@ -1,6 +1,6 @@
 /**
  * Pure helpers for placing idea-reference imports in .rq source text.
- * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane]
+ * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_insert_reference]
  * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  */
 

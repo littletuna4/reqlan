@@ -13,10 +13,10 @@ import "../../../../packages/analytical/src/index-store/sqlite-store.ts" as sqli
 todo_pane {
     Workspace todo list in the activity bar — ideas that carry the `@todo` special attribute ([ai_support.special_attributes]), not ideas whose `@status` happens to be `todo`.
     Complements the planned Overview todos rollup in [ideas_summary_doc.overview_page]; this pane stays open for quick triage beside the editor.
-    Layout matches [search_panel.search_pane]: flat list in the pane body, not a nested boxed subsection.
+    Layout matches [search_panel.search_pane_layout]: flat list in the pane body, not a nested boxed subsection.
     - List ideas in the active base where the `todo` attribute is present (bare `@todo` / flag, or `@todo` with a note).
     - Each row: idea name, source path, and the todo note when present (omit empty / bare-true values).
-    - Click opens the idea in the editor (same navigation as [search_panel.search_pane]).
+    - Click opens the idea in the editor (same navigation as [search_panel.search_pane_results]).
     - Results fill the pane body (100% width) and scroll inside the pane; do not nest a second capped NestedSection scroll.
     - List capped (default ~40) with a “showing N of M” meta line when truncated; do not dump unbounded index results into the pane.
     - Soft-wait when the index is not ready; scoped errors stay in the pane.

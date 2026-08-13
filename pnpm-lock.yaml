@@ -20,6 +20,9 @@ importers:
       '@reqlan/language':
         specifier: workspace:*
         version: link:packages/language
+      '@reqlan/mcp':
+        specifier: workspace:*
+        version: link:packages/mcp
       '@sveltejs/vite-plugin-svelte':
         specifier: ~5.0.3
         version: 5.0.3(svelte@5.33.19)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0))
@@ -82,6 +85,9 @@ importers:
       shx:
         specifier: ~0.4.0
         version: 0.4.0
+      vitest:
+        specifier: ~3.1.3
+        version: 3.1.4(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.0)
 
   packages/extension:
     dependencies:

@@ -162,6 +162,18 @@ describe('config schema edges', () => {
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    test('Windows drive-letter root is used as a file URI not scheme c:', () => {
+        const fs = new VirtualFileSystemProvider();
+        insertConfig(fs, 'file:///workspace', {
+            importRoots: [{ alias: '@', root: 'C:\\libs' }]
+        });
+        const loaded = loadApplyingRqConfig(URI.parse('file:///workspace'), fs);
+        const rootUri = loaded?.importRoots[0]?.rootUri;
+        expect(rootUri?.scheme).toBe('file');
+        expect(decodeURIComponent(rootUri?.toString() ?? '').toLowerCase()).toContain('/c:/libs');
+    });
+
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
     test('file URI root is used directly', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {

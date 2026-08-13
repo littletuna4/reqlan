@@ -88,12 +88,19 @@ export type { FuzzySearchParams } from './analysis/fuzzy-search-analyser.js';
 export {
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
+    findSearchHighlightRanges,
     fuzzySubsequence,
     matchQueryTokens,
     normalizeSearchSeparators,
+    splitSearchHighlight,
     splitSearchTokens
 } from './analysis/fuzzy-search.js';
-export type { FuzzySearchHit } from './analysis/fuzzy-search.js';
+export type {
+    FuzzySearchHit,
+    SearchHighlightOptions,
+    SearchHighlightPart,
+    SearchHighlightRange
+} from './analysis/fuzzy-search.js';
 export {
     FuzzySearchWorkerClient,
     SearchCancelledError,

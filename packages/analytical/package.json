@@ -44,6 +44,10 @@
         "./file-treatment": {
             "types": "./out/index-store/file-treatment.d.ts",
             "default": "./out/index-store/file-treatment.js"
+        },
+        "./fuzzy-search": {
+            "types": "./out/analysis/fuzzy-search.d.ts",
+            "default": "./out/analysis/fuzzy-search.js"
         }
     },
     "scripts": {

@@ -29,10 +29,6 @@ import "../../../packages/extension/webviews/activity-bar/components/TodoPane.sv
 import "../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte" as ScopePane
 import "../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte" as ReferenceListsPane
 import "../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
-import "../../../packages/extension/src/extension/insert-idea-reference.ts" as insert_idea_reference
-import "../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
-import "../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
-import "../../core_analysis/search.rq" as core_search
 import "../../../packages/extension/webviews/activity-bar/lib/group-file-issues.ts" as group_file_issues
 from "../../ontology.rq" import base as bases
 import "../../bases/base.rq" as base_docs
@@ -199,8 +195,7 @@ workspace_pane {
 
 search_pane {
     Workspace idea search with insert-at-cursor and add-to-chat — details in [search_panel.search_pane].
-    Ranking: [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]; insert: [insert_idea_reference]; chat: [search_panel.search_add_to_chat].
-    @todo
+    Query: [search_panel.search_pane_query]; insert: [search_panel.search_pane_insert_reference]; chat: [search_panel.search_add_to_chat].
 }
 
 todo_pane {

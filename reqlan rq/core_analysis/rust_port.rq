@@ -1,0 +1,130 @@
+import "../distribution/distribution.rq" as distribution
+import "../indexer/indexer.rq" as indexer
+import "../language/parser_lexer.rq" as parser_lexer
+import "../language/syntax.rq" as syntax
+import "../language/syntax-edge-cases.rq" as syntax_edges
+import "./search.rq" as search_reqs
+import "./export.rq" as export_reqs
+import "./html_export.rq" as html_export
+import "../development/core.rq" as development_core
+import "../constitution.rq" as constitution
+import "../cli/cli_package.rq" as cli
+import "../bases/base.rq" as bases
+
+analytical_rust_port {
+    Port ["../core-architecture.rq".analytical_package] to Rust: lexer, parser (index path), extractor, SQLite index, search, and export.
+    `@reqlan/analytical` remains the published JS facade (`createAnalysisRuntime` / `AnalysisApi` / Zustand host state).
+    Native work lives in a `crates/` Cargo workspace and ships as per-architecture binaries per [distribution.rust_binary_distribution].
+    Langium LSP stays in ["../core-architecture.rq".language_package] / ["../core-architecture.rq".language_server] — this port is not a tower-lsp rewrite.
+    Component plans: [rust_crate_layout], [lexer_rust], [parser_rust], [indexer.indexer_rust], [search_rust], [export_rust], [native_bridge], [cutover].
+    @status draft
+    @todo apply the @plan; no crates exist yet
+    @plan {
+        goal
+            Same AnalysisApi behaviour, faster and native, distributed as optional per-arch npm packages (and website downloads) without breaking the shared `<base>/.reqlan` index or the Langium editor.
+
+        constraints
+            - Ship per [distribution.rust_binary_distribution]: npm platform packages first; website listing; GitHub-release postinstall is out of scope.
+            - On-disk ideas index schema stays compatible ([indexer.index]) so TS and Rust share application memory during cutover.
+            - Grammar truth remains [syntax] / Langium; do not switch the language to tree-sitter (["../core-architecture.rq".grammar_and_parser]).
+            - Port the context-sensitive lexer, not a naive parser-generator ([parser_lexer.lexer_bridge_to_syntax], [syntax_edges.nested_curly_braces], [syntax_edges.context_sensitive_lexer_scaling]).
+            - Honour [indexer.nonblocking_index], [parser_lexer.parse_budget_timeout], [development_core.rust_mindset], [constitution.supply_chain].
+            - sql.js is asm.js today so the VSIX has no native modules — do not load `.node` in the extension host in the first cutover.
+            - Interactive HTML graph/search JS and graph physics stay JS assets ([html_export.html_export_graph_layout]).
+            - [indexer.index_code_files] (comment-grammar indexing of non-`.rq` files) stays a later phase.
+
+        steps
+            1. Scaffold crates + CI + golden harness ([rust_crate_layout]).
+            2. Lexer then parser with recovery and budget ([lexer_rust], [parser_rust]).
+            3. Extractor + rusqlite index + incremental sync ([indexer.indexer_rust]).
+            4. Search and analysers ([search_rust]).
+            5. Export snapshot and writers ([export_rust]).
+            6. napi-rs loader in `@reqlan/analytical`; CLI/MCP first ([native_bridge], [cutover]).
+            7. Publish platform packages on `analytical/v*` and list binaries on the site ([distribution.rust_binary_distribution]).
+
+        open
+            - "optional dev dependencies" in [distribution.rust_binary_distribution] vs npm `optionalDependencies` (runtime CLI/MCP need the latter).
+            - Extension after CLI: WASM from the same crates vs sidecar binary vs Electron-ABI native.
+            - Whether CLI `parse` stays on Langium until LSP also moves, or switches once index-parser parity lands.
+    }
+}
+
+rust_crate_layout {
+    Cargo workspace at repo-root `crates/` (not inside `packages/analytical`), crates:
+    - `reqlan-parse` — lexer, parser, AST, recovery, parse budget
+    - `reqlan-index` — extract, rusqlite store, mtime sync, diagnostics
+    - `reqlan-search` — fuzzy / contextual / semantic ranking
+    - `reqlan-export` — snapshot + html/md/json/csv writers; embed existing HTML JS assets
+    - `reqlan-analytical` — facade matching `AnalysisApi` + `WorkspaceIndex` operations
+    - `reqlan-napi` — Node addon wrapping the facade for [native_bridge]
+    Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
+    Golden tests compare Rust parse/extract against Langium on `packages/language/test` fixtures and the `reqlan rq/` corpus.
+    @status draft
+}
+
+lexer_rust {
+    Hand-written Rust lexer that ports ["../../packages/language/src/reqlan-token-builder.ts"]:
+    structural vs prose `{` / `}`, fence opacity, quote-aware comments, `@` only at line start, glob `/**/` not a block comment.
+    Linear in document size with sparse brace-depth lookup ([syntax_edges.context_sensitive_lexer_scaling]).
+    Owned by `reqlan-parse`; consumed by [parser_rust]. Langium token builder remains the LSP lexer until a later language-server port.
+    @status draft
+    @todo
+}
+
+parser_rust {
+    Recursive-descent parser matching ["../../packages/language/src/reqlan.langium"] productions into a Rust AST the extractor can walk.
+    Recovery: nameless `{...}` and local import mistakes still yield a usable document ([parser_lexer.recovery_vs_budget]).
+    Wall-clock [parser_lexer.parse_budget_timeout] via native timeout/cancel — no Node worker process required on the index path.
+    Dual-parser window: every grammar change updates Langium *and* `reqlan-parse` until the index path is Rust-only.
+    CLI `parse` may keep Langium until this crate passes the language parsing tests.
+    @status draft
+    @todo
+}
+
+search_rust {
+    Port [search_reqs.fuzzy_search] (separator-insensitive ranking), [search_reqs.contextual_search] (hop-distance rerank), and [search_reqs.semantic_search] into `reqlan-search`.
+    Same `AnalysisApi.searchRequirements` / `--context` contract ([cli.commands]).
+    Client-side highlight helpers used by webviews may stay in the TS `./fuzzy-search` export until a shared WASM/JS copy is needed.
+    @status draft
+    @todo
+}
+
+export_rust {
+    Port [export_reqs.export_pipeline]: `buildExportSnapshot` then HTML / markdown / JSON / CSV writers in `reqlan-export`.
+    Interactive HTML JS (graph canvas, list filters, search bars) stays static assets bundled into the export — not rewritten in Rust ([html_export.html_export], [html_export.html_export_graph_animation]).
+    Hosts still call `AnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv`; they do not grow format writers.
+    PDF remains print-HTML ([export_reqs.pdf_export]); [html_export.html_export_print_order_by] stays a product follow-up, not a port blocker.
+    @status draft
+    @todo
+}
+
+native_bridge {
+    `@reqlan/analytical` loads a napi-rs addon from optional per-architecture packages (linux/darwin/win32 × x64/arm64 gnu/msvc).
+    JS keeps: Zustand store, VS Code adapter, barrel-page text edits, create-base / path helpers that are cheap to leave in TS.
+    Native owns: parse-for-index, persist, query, search, export execution.
+    First consumers: [cli.cli_package] and ["../core-architecture.rq".mcp_package]. Extension host keeps sql.js until [cutover] chooses WASM or a sidecar.
+    @status draft
+    @todo
+}
+
+cutover {
+    Feature-flag native vs TS inside `@reqlan/analytical` (env or package export).
+    Order: golden parse/extract → headless CLI `analyse`/`search`/`export` → MCP → extension (only after a no-native or WASM path exists).
+    Shared [bases.base] `.reqlan` DB must round-trip between sql.js and rusqlite on schema v4.
+    Remove the Langium dependency from the index path only after CLI/MCP run native in CI.
+    @status draft
+}
+
+port_phases (
+    rust_crate_layout,
+    lexer_rust,
+    parser_rust,
+    search_rust,
+    export_rust,
+    native_bridge,
+    cutover
+)
+
+ts_interface {
+    the ts interface over the rust functionality must remain fully typed - using specta
+}

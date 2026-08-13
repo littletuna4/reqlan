@@ -8,6 +8,7 @@ export_pipeline {
     Formats: ["./html_export.rq".html_export], [markdown_export], [json_export], [csv_export], [pdf_export].
     Progress phases (snapshot, then write completed/total) are reported to hosts for loading UI.
     Consumed under [analysis_scope].
+    Rust port of snapshot + writers: ["./rust_port.rq".export_rust].
     @status done
     @implementation (
         ["../../packages/analytical/src/analysis-api.ts"]

@@ -127,13 +127,12 @@ async function installPromptSkills(
 
 async function configureMcp(workspaceUri: vscode.Uri): Promise<{ configured: boolean; reason?: string }> {
     const localMcp = vscode.Uri.joinPath(workspaceUri, 'packages', 'mcp', 'bin', 'mcp.js');
+    let useLocalBin = false;
     try {
         await vscode.workspace.fs.stat(localMcp);
+        useLocalBin = true;
     } catch {
-        return {
-            configured: false,
-            reason: 'No packages/mcp/bin/mcp.js in this workspace; skills installed without MCP config.'
-        };
+        // published npm package
     }
 
     const mcpUri = vscode.Uri.joinPath(workspaceUri, '.cursor', 'mcp.json');
@@ -148,13 +147,21 @@ async function configureMcp(workspaceUri: vscode.Uri): Promise<{ configured: boo
     }
 
     config.mcpServers ??= {};
-    config.mcpServers.reqlan = {
-        command: 'node',
-        args: ['${workspaceFolder}/packages/mcp/bin/mcp.js'],
-        env: {
-            REQLAN_WORKSPACE: '${workspaceFolder}'
+    config.mcpServers.reqlan = useLocalBin
+        ? {
+            command: 'node',
+            args: ['${workspaceFolder}/packages/mcp/bin/mcp.js'],
+            env: {
+                REQLAN_WORKSPACE: '${workspaceFolder}'
+            }
         }
-    };
+        : {
+            command: 'npx',
+            args: ['-y', '@reqlan/mcp'],
+            env: {
+                REQLAN_WORKSPACE: '${workspaceFolder}'
+            }
+        };
 
     await vscode.workspace.fs.writeFile(
         mcpUri,

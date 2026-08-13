@@ -4,6 +4,7 @@
  */
 import * as vscode from 'vscode';
 import { getPhonebookLink } from '../shared/phonebook.js';
+import { safeAssignWebviewHtml, safeWebviewPost } from '../shared/safe-webview-post.js';
 import { getOnboardingHtml } from './get-onboarding-html.js';
 import type {
     ExtensionToOnboardingMessage,
@@ -46,7 +47,10 @@ export class OnboardingPanel {
             },
         );
 
-        this.panel.webview.html = getOnboardingHtml(this.panel.webview, context.extensionUri);
+        safeAssignWebviewHtml(
+            this.panel.webview,
+            getOnboardingHtml(this.panel.webview, context.extensionUri),
+        );
 
         this.panel.webview.onDidReceiveMessage(
             (message: OnboardingToExtensionMessage) => {
@@ -96,7 +100,7 @@ export class OnboardingPanel {
             resources: this.buildResources(),
             templateValues: this.buildTemplateValues(),
         };
-        void this.panel.webview.postMessage(message);
+        safeWebviewPost(this.panel.webview, message);
     }
 
     private async handleMessage(message: OnboardingToExtensionMessage): Promise<void> {

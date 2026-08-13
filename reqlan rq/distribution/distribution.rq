@@ -9,24 +9,55 @@ version_management {
   Publishable channels (each tag-driven):
   - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
-  - npm: `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` (tagged `language/v*`, `analytical/v*`, `cli/v*`)
-  Internal tool `reqlan-mcp` is ignored by Changesets and marked `private` so it is never published to npm (distributed with the extension / local MCP config instead).
+  - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
 
 npm_distribution {
-  npm publishing runs only when a `language/v*`, `analytical/v*`, or `cli/v*` tag is pushed.
+  npm publishing runs only when a `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language/analytical/cli once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then cli).
+  The deploy workflow builds language/analytical/cli/mcp once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then cli, then mcp).
   Before each package publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that step when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
-  Each of `@reqlan/language`, `@reqlan/analytical`, and `@reqlan/cli` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
+  Each of `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
-  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
-  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`) as with `reqlan-mcp` and `reqlan-extension`. CI publishes per-package and does not use `changeset publish`.
+  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
+  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`) as with `reqlan-extension`. CI publishes per-package and does not use `changeset publish`.
   Published packages declare `publishConfig.access: public`.
   Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+}
+
+rust_binary_distribution {
+  The core analytical library should have rust binaries available for download (initially via npm.)
+  They will be available for download via npm and via the website.
+  They will be listed as optional dev dependencies per system architecture in the package.json.
+  Intended shape: `@reqlan/analytical-<platform>-<arch>` napi addons (linux/darwin/win32 × x64/arm64) on `@reqlan/analytical`.
+  Published with the existing `analytical/v*` channel ([npm_distribution]); site lists the same artifacts for direct download (["./landers.rq".landers]).
+  (if they get large, they will be postinstalled from github releases in the future - this is out of scope for now.)
+  Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
+  @status draft
+  @todo
+  @plan {
+    goal
+      Ship per-architecture native addons beside `@reqlan/analytical` so CLI/MCP (and later the site downloads page) can run the Rust engine without a GitHub-releases postinstall.
+
+    constraints
+      - npm first; website second; GitHub-release postinstall out of scope.
+      - Do not put runtime binaries only in `devDependencies` — CLI and MCP need them at install time (`optionalDependencies`).
+      - Trusted publishing and `analytical/v*` tagging stay [npm_distribution] / [release_tagging].
+      - Extension VSIX must not gain a hard native-module requirement in the first cutover.
+
+    steps
+      1. napi-rs platform packages + optionalDependencies on `@reqlan/analytical`.
+      2. Cross-compile in the npm deploy workflow for the six primary targets.
+      3. Site download listing (same version as the npm analytical tag).
+      4. Defer GitHub-release postinstall until binaries are large enough to justify it.
+
+    open
+      - musl / alpine target in the first matrix, or gnu-only.
+      - Whether the website hosts copies or links to npm tarball URLs.
+  }
 }
 
 extension_package {
@@ -43,7 +74,7 @@ deployment_flow {
   On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
   This bumps package.json for each affected package and writes changelogs.
   The workflow commits the result, creates annotated tags for every bumped publishable package, and pushes the commit and tags back to main.
-  Release tags use `site/v{version}`, `ext/v{version}`, `language/v{version}`, `analytical/v{version}`, and `cli/v{version}` where `{version}` is the semver from that package's package.json.
+  Release tags use `site/v{version}`, `ext/v{version}`, `language/v{version}`, `analytical/v{version}`, `cli/v{version}`, and `mcp/v{version}` where `{version}` is the semver from that package's package.json.
   Deployment is tag-driven for every channel per ["./distribution.rq".release_tagging]; the release workflow only versions and tags.
   GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site and npm deploy are also invoked directly from the release workflow.
   Optional `RELEASE_PAT` allows tag pushes to trigger downstream workflows for manual reruns and external CI.
@@ -57,12 +88,12 @@ release_tagging {
   Tags are created automatically by ["./distribution.rq".deployment_flow], not manually.
   Site deployments are triggered by Git tags matching `site/v*` via ["./distribution.rq".site_distribution].
   VS Code extension publishing is triggered by Azure DevOps tags matching `ext/v*` via ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
-  npm publishing is triggered by Git tags matching `language/v*`, `analytical/v*`, or `cli/v*` via ["./distribution.rq".npm_distribution].
-  The tag suffix after the channel prefix (`site/v`, `ext/v`, `language/v`, `analytical/v`, `cli/v`) equals the package.json version at that tag.
+  npm publishing is triggered by Git tags matching `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` via ["./distribution.rq".npm_distribution].
+  The tag suffix after the channel prefix (`site/v`, `ext/v`, `language/v`, `analytical/v`, `cli/v`, `mcp/v`) equals the package.json version at that tag.
 }
 
 npm_package_readme {
-  Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`) ship README.md generated from each package's `README.template.md`.
+  Publishable npm packages (`@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`) ship README.md generated from each package's `README.template.md`.
   Pattern matches [extension_readme]: centered logo, package name, description, features, phonebook links, and Changesets changelog body.
   Generated by ["../../scripts/generate-npm-package-readmes.ts"] via root `pnpm run build:readme`.
   Contact and repository links come from [phonebook_reqs.phonebook] via ["../../scripts/phonebook.ts"] per [phonebook_reqs.npm_package_readme_links].

@@ -23,6 +23,17 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.9.0
+
+#### Minor Changes
+
+- 2294beb: minor improvements to graph and search and website
+
+#### Patch Changes
+
+- Updated dependencies [2294beb]
+  - @reqlan/analytical@0.9.0
+
 ### 1.8.2
 
 #### Patch Changes

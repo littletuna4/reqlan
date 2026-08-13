@@ -7,6 +7,7 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  */
 import type { LangiumDocument } from 'langium';
+import { URI } from 'langium';
 import { collectIdeaCandidatesFromDocuments } from '@reqlan/language';
 import { stat } from 'node:fs/promises';
 import type { AnalyticalStore } from '../core/analytical-store.js';
@@ -19,11 +20,7 @@ import type { SqliteIndexStore } from './sqlite-store.js';
 
 function fileUriToPath(fileUri: string): string {
     if (fileUri.startsWith('file://')) {
-        try {
-            return decodeURIComponent(fileUri.replace(/^file:\/\//, ''));
-        } catch {
-            return fileUri.replace(/^file:\/\//, '');
-        }
+        return URI.parse(fileUri).fsPath;
     }
     return fileUri;
 }

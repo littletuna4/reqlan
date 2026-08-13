@@ -29,6 +29,42 @@ npm install @reqlan/language
 
 ## Changelog
 
+### 1.8.2
+
+#### Patch Changes
+
+- fc3cdb6: fix cicd and release.
+
+### 1.8.1
+
+#### Patch Changes
+
+- d46b740: Fix missed build and test errors.
+
+### 1.8.0
+
+#### Minor Changes
+
+- 93368c6: Update exports; add support for wildcard import; update search functionality; add barrel import
+
+### 1.7.0
+
+#### Minor Changes
+
+- f7023c1: various changes and improvements.
+
+### 1.6.2
+
+#### Patch Changes
+
+- eb9da11: test references fix
+
+### 1.6.1
+
+#### Patch Changes
+
+- 0a5649e: update the site base path, and untrack build artifacts
+
 ### 1.6.0
 
 #### Minor Changes
