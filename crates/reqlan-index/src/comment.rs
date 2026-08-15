@@ -13,10 +13,10 @@ const MAX_CODE_FILE_BYTES: u64 = 1_048_576;
 
 const CODE_FILE_EXTENSIONS: &[&str] = &[
     "ts", "tsx", "js", "jsx", "mjs", "cjs", "cts", "mts", "py", "pyi", "rs", "go", "java", "kt",
-    "kts", "c", "h", "cpp", "cc", "cxx", "hpp", "cs", "rb", "php", "swift", "scala", "vue",
-    "svelte", "md", "mdx", "json", "toml", "yml", "yaml", "sh", "bash", "zsh", "css", "scss",
-    "less", "html", "xml", "graphql", "gql", "proto", "sql", "lua", "zig", "nim", "ex", "exs",
-    "erl", "hs", "ml", "r", "jl", "dart", "pl", "pm",
+    "kts", "c", "h", "cpp", "cc", "cxx", "hpp", "cs", "rb", "php", "swift", "scala", "vue", "svelte",
+    "md", "mdx", "json", "toml", "yml", "yaml", "sh", "bash", "zsh", "css", "scss", "less", "html",
+    "xml", "graphql", "gql", "proto", "sql", "lua", "zig", "nim", "ex", "exs", "erl", "hs", "ml",
+    "r", "jl", "dart", "pl", "pm",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +39,10 @@ pub fn looks_like_comment_reference_source(source: &str) -> bool {
 }
 
 pub fn too_large_for_comment_index(path: &Path) -> bool {
-    std::fs::metadata(path).ok().map(|meta| meta.len() > MAX_CODE_FILE_BYTES).unwrap_or(false)
+    std::fs::metadata(path)
+        .ok()
+        .map(|meta| meta.len() > MAX_CODE_FILE_BYTES)
+        .unwrap_or(false)
 }
 
 pub fn parse_comment_reference_target(target: &str) -> Option<(Option<String>, String)> {
@@ -107,7 +110,11 @@ pub fn comment_link_edges(
     for reference in find_comment_references_in_text(source) {
         let targets: Vec<&IdeaSummary> = if let Some(path) = &reference.path {
             let resolved = resolve_comment_path(code_file_uri, path);
-            by_file_name.get(&(resolved, reference.idea.clone())).copied().into_iter().collect()
+            by_file_name
+                .get(&(resolved, reference.idea.clone()))
+                .copied()
+                .into_iter()
+                .collect()
         } else {
             by_name.get(&reference.idea).cloned().unwrap_or_default()
         };
@@ -165,8 +172,11 @@ fn parse_qualified_target(target: &str) -> Option<(String, String)> {
     if !rest.starts_with('.') {
         return None;
     }
-    let names: Vec<&str> =
-        rest[1..].split('.').map(str::trim).filter(|part| !part.is_empty()).collect();
+    let names: Vec<&str> = rest[1..]
+        .split('.')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .collect();
     let idea = names.last()?.to_string();
     if !is_idea_name(&idea) {
         return None;
@@ -195,10 +205,7 @@ fn resolve_comment_path(from_file: &str, path: &str) -> String {
 
 fn is_windows_absolute(path: &str) -> bool {
     let bytes = path.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && (bytes[2] == b'\\' || bytes[2] == b'/')
 }
 
 fn normalize_posix(path: &str) -> String {
@@ -258,12 +265,8 @@ fn find_comment_spans(text: &str) -> Vec<(usize, usize)> {
         if let Some(kind) = block {
             let closed = match kind {
                 BlockKind::Slash => char == b'*' && next == Some(b'/'),
-                BlockKind::TripleSingle => {
-                    char == b'\'' && next == Some(b'\'') && next2 == Some(b'\'')
-                }
-                BlockKind::TripleDouble => {
-                    char == b'"' && next == Some(b'"') && next2 == Some(b'"')
-                }
+                BlockKind::TripleSingle => char == b'\'' && next == Some(b'\'') && next2 == Some(b'\''),
+                BlockKind::TripleDouble => char == b'"' && next == Some(b'"') && next2 == Some(b'"'),
             };
             if closed {
                 let end = match kind {
@@ -376,9 +379,7 @@ mod tests {
 
     #[test]
     fn finds_line_and_hash_comment_refs() {
-        let refs = find_comment_references_in_text(
-            "// see rq:[\"../main.rq\".myidea] for details\n# rq:[local_idea]\n",
-        );
+        let refs = find_comment_references_in_text("// see rq:[\"../main.rq\".myidea] for details\n# rq:[local_idea]\n");
         assert_eq!(refs.len(), 2);
         assert_eq!(refs[0].path.as_deref(), Some("../main.rq"));
         assert_eq!(refs[0].idea, "myidea");

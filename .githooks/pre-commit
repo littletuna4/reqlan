@@ -1,0 +1,4 @@
+#!/bin/sh
+# rq:["../reqlan rq/development/commit.rq".rust_fmt]
+root="$(git rev-parse --show-toplevel)" || exit 1
+exec node "$root/scripts/pre-commit-rust-fmt.mjs"

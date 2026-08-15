@@ -23,6 +23,8 @@
         "native:pack": "node scripts/pack-host-native-package.mjs",
         "native:stage": "node scripts/stage-host-native.mjs",
         "native:publish": "node scripts/publish-native-packages.mjs",
+        "prepare": "node scripts/install-git-hooks.mjs",
+        "fmt:rust": "cargo fmt --manifest-path crates/Cargo.toml --all",
         "changeset": "changeset",
         "version-packages": "changeset version && node scripts/prepare-native-packages.mjs",
         "release:npm": "changeset publish",

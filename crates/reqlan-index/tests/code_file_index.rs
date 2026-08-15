@@ -35,8 +35,7 @@ fn indexes_comment_references_from_non_rq_files() {
     assert_eq!(uris, vec!["src/app.ts".to_string()]);
 
     let edges = store.get_all_edges().unwrap();
-    let comments: Vec<_> =
-        edges.into_iter().filter(|edge| edge.kind == EdgeKind::CommentLink).collect();
+    let comments: Vec<_> = edges.into_iter().filter(|edge| edge.kind == EdgeKind::CommentLink).collect();
     assert_eq!(comments.len(), 1);
     assert_eq!(comments[0].target_file.as_deref(), Some("src/app.ts"));
     assert_eq!(comments[0].source_id, "demo.rq#alpha");
@@ -79,23 +78,13 @@ fn rq_reindex_restores_comment_links() {
     let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
     sync_workspace(&mut store, &options, &cancel).unwrap();
     assert_eq!(
-        store
-            .get_all_edges()
-            .unwrap()
-            .iter()
-            .filter(|edge| edge.kind == EdgeKind::CommentLink)
-            .count(),
+        store.get_all_edges().unwrap().iter().filter(|edge| edge.kind == EdgeKind::CommentLink).count(),
         1
     );
 
     index_one_file(&mut store, &root, root.join("demo.rq").to_str().unwrap()).unwrap();
     assert_eq!(
-        store
-            .get_all_edges()
-            .unwrap()
-            .iter()
-            .filter(|edge| edge.kind == EdgeKind::CommentLink)
-            .count(),
+        store.get_all_edges().unwrap().iter().filter(|edge| edge.kind == EdgeKind::CommentLink).count(),
         1
     );
     std::fs::remove_dir_all(&root).ok();

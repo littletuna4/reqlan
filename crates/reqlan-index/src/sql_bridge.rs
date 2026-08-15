@@ -64,11 +64,7 @@ pub fn execute_batch(conn: &Connection, sql: &str) -> Result<(), SqlBridgeError>
     Ok(())
 }
 
-pub fn execute(
-    conn: &Connection,
-    sql: &str,
-    params: &[JsonValue],
-) -> Result<usize, SqlBridgeError> {
+pub fn execute(conn: &Connection, sql: &str, params: &[JsonValue]) -> Result<usize, SqlBridgeError> {
     let values = json_params(params)?;
     let changed = conn.execute(sql, params_from_iter(values))?;
     Ok(changed)
@@ -81,8 +77,7 @@ pub fn query(
 ) -> Result<Vec<JsonValue>, SqlBridgeError> {
     let values = json_params(params)?;
     let mut stmt = conn.prepare(sql)?;
-    let column_names: Vec<String> =
-        stmt.column_names().iter().map(|name| (*name).to_string()).collect();
+    let column_names: Vec<String> = stmt.column_names().iter().map(|name| (*name).to_string()).collect();
     let mut rows = stmt.query(params_from_iter(values))?;
     let mut out = Vec::new();
     while let Some(row) = rows.next()? {
@@ -125,12 +120,15 @@ fn sqlite_to_json(value: Value) -> JsonValue {
     match value {
         Value::Null => JsonValue::Null,
         Value::Integer(int) => JsonValue::Number(Number::from(int)),
-        Value::Real(float) => {
-            Number::from_f64(float).map(JsonValue::Number).unwrap_or(JsonValue::Null)
-        }
+        Value::Real(float) => Number::from_f64(float)
+            .map(JsonValue::Number)
+            .unwrap_or(JsonValue::Null),
         Value::Text(text) => JsonValue::String(text),
         Value::Blob(bytes) => JsonValue::Array(
-            bytes.into_iter().map(|byte| JsonValue::Number(Number::from(byte))).collect(),
+            bytes
+                .into_iter()
+                .map(|byte| JsonValue::Number(Number::from(byte)))
+                .collect(),
         ),
     }
 }

@@ -1,0 +1,30 @@
+import "../../.github/workflows/ci-rust.yml" as ci_rust
+import "../../package.json" as workspace_package
+import "../../scripts/pre-commit-rust-fmt.mjs" as rust_fmt_hook
+import "../../scripts/install-git-hooks.mjs" as install_git_hooks
+import "../../.githooks/pre-commit" as pre_commit_hook
+import "../../crates/rustfmt.toml" as rustfmt_toml
+import "../../packages/analytical/test/rust-fmt-hook.test.ts" as rust_fmt_tests
+import "../core_analysis/rust_port.rq" as rust_port
+
+rust_fmt {
+    [ci_rust] checks `cargo fmt --all -- --check` on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
+    Git pre-commit runs the same formatter in write mode so local commits stay formatted; CI remains the enforcement layer.
+    Skip when no crate Rust is staged, format in place and restage, skip merge/rebase, `SKIP_RUST_FMT=1` escape hatch.
+    [workspace_package] `prepare` sets `core.hooksPath` to `.githooks`.
+    @status done
+    @implementation (
+        [ci_rust]
+        [pre_commit_hook]
+        [rust_fmt_hook]
+        [install_git_hooks]
+        [workspace_package]
+        [rustfmt_toml]
+    )
+    @tests (
+        [rust_fmt_tests]
+        ["../../packages/analytical/test/rust-fmt-hook.test.ts:selects only staged crate rust sources"]
+        ["../../packages/analytical/test/rust-fmt-hook.test.ts:runs cargo fmt --all in crates then restages the rust files"]
+        ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI still checks cargo fmt --all and prepare installs committed hooks"]
+    )
+}

@@ -1,3 +1,4 @@
+# rq:["../reqlan rq/development/commit.rq".rust_fmt]
 edition = "2021"
 max_width = 100
 use_small_heuristics = "Max"

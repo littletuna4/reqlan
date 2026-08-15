@@ -22,6 +22,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates
+      # rq:["../../reqlan rq/development/commit.rq".rust_fmt]
       - name: Format
         working-directory: crates
         run: cargo fmt --all -- --check

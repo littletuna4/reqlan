@@ -64,6 +64,7 @@ rust_crate_layout {
     - `reqlan-napi` — Node binding for the core engine ([native_bridge])
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
     Golden tests compare Rust extract against Langium on `reqlan rq/` files Langium parses without lexer/parser errors, plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
+    Format: ["../development/commit.rq".rust_fmt].
     @status done
     @tests (
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
