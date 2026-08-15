@@ -12,5 +12,7 @@ pub mod token;
 pub use ast::*;
 pub use budget::{ParseBudget, DEFAULT_PARSE_BUDGET, PARSE_HANG_SENTINEL};
 pub use lexer::{lex, LexResult};
-pub use parser::{parse_document, parse_document_with_budget, ParseDiagnostic, ParseResult, Severity};
+pub use parser::{
+    parse_document, parse_document_with_budget, ParseDiagnostic, ParseResult, Severity,
+};
 pub use token::{Span, Token, TokenKind};

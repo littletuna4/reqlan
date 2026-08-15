@@ -7,7 +7,8 @@ use crate::html_template::{
     render_clusters_index_page, render_code_file_detail_page, render_code_files_index_page,
     render_file_detail_page, render_files_index_page, render_graph_page, render_home_page,
     render_idea_detail_page, render_ideas_index_page, render_print_cluster_page,
-    render_print_code_file_page, render_print_file_page, render_print_home_page, render_print_idea_page,
+    render_print_code_file_page, render_print_file_page, render_print_home_page,
+    render_print_idea_page,
 };
 use crate::html_utils::stringify_json;
 use crate::json::ExportError;
@@ -52,7 +53,8 @@ pub fn write_html_export(
     let print_file_path = output_dir.join(&print_file_name);
     let data_file_path = data_dir.join("export.json");
     let manifest_file_path = output_dir.join(&snapshot.manifest.data_manifest.path);
-    let requirements_file_path = request.include_requirements_page.then(|| output_dir.join("requirements.html"));
+    let requirements_file_path =
+        request.include_requirements_page.then(|| output_dir.join("requirements.html"));
     let graph_file_path = request.include_graph_page.then(|| output_dir.join("graph.html"));
 
     fs::write(assets_dir.join("styles.css"), SHARED_STYLES)?;
@@ -88,11 +90,7 @@ pub fn write_html_export(
     let is_print_mode = snapshot.runtime_mode == "print";
     write_page(
         &index_file_path,
-        if is_print_mode {
-            render_print_home_page(snapshot)
-        } else {
-            render_home_page(snapshot)
-        },
+        if is_print_mode { render_print_home_page(snapshot) } else { render_home_page(snapshot) },
     )?;
     if snapshot.page_options.include_print_pages {
         write_page(&print_file_path, render_print_home_page(snapshot))?;
@@ -119,12 +117,18 @@ pub fn write_html_export(
         write_page(&attributes_index_file_path, render_attributes_index_page(snapshot))?;
         if snapshot.page_options.include_idea_pages {
             for idea in &snapshot.ideas {
-                write_page(&output_dir.join(&idea.page.path), render_idea_detail_page(snapshot, idea))?;
+                write_page(
+                    &output_dir.join(&idea.page.path),
+                    render_idea_detail_page(snapshot, idea),
+                )?;
             }
         }
         if snapshot.page_options.include_file_pages {
             for file in &snapshot.files {
-                write_page(&output_dir.join(&file.page.path), render_file_detail_page(snapshot, file))?;
+                write_page(
+                    &output_dir.join(&file.page.path),
+                    render_file_detail_page(snapshot, file),
+                )?;
             }
         }
         if snapshot.page_options.include_code_file_pages {
@@ -175,7 +179,10 @@ pub fn write_html_export(
         if snapshot.page_options.include_cluster_pages {
             for cluster in &snapshot.clusters {
                 if let Some(path) = &cluster.page.printable_path {
-                    write_page(&output_dir.join(path), render_print_cluster_page(snapshot, cluster))?;
+                    write_page(
+                        &output_dir.join(path),
+                        render_print_cluster_page(snapshot, cluster),
+                    )?;
                 }
             }
         }
@@ -189,7 +196,10 @@ pub fn write_html_export(
         requirements_file_path,
         graph_file_path: graph_file_path.filter(|_| snapshot.page_options.include_graph_page),
         ideas_index_file_path: Some(ideas_index_file_path),
-        files_index_file_path: snapshot.page_options.include_file_pages.then_some(files_index_file_path),
+        files_index_file_path: snapshot
+            .page_options
+            .include_file_pages
+            .then_some(files_index_file_path),
         code_files_index_file_path: snapshot
             .page_options
             .include_code_file_pages
@@ -211,8 +221,6 @@ fn write_page(path: &Path, html: String) -> Result<(), ExportError> {
 fn build_search_index_script(documents: &[crate::types::ExportSearchDocument]) -> String {
     format!(
         "globalThis.__REQLAN_SEARCH_INDEX__ = {};\n",
-        serde_json::to_string(documents)
-            .unwrap_or_else(|_| "[]".into())
-            .replace('<', "\\u003c")
+        serde_json::to_string(documents).unwrap_or_else(|_| "[]".into()).replace('<', "\\u003c")
     )
 }

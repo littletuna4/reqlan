@@ -33,10 +33,7 @@ fn html_export_honours_graph_page_url_base_and_header_link() {
             include_requirements_page: true,
             include_graph_page: true,
             url_base: Some("/spec".into()),
-            header_link: Some(ExportHeaderLinkDto {
-                href: "/".into(),
-                label: "reqlan".into(),
-            }),
+            header_link: Some(ExportHeaderLinkDto { href: "/".into(), label: "reqlan".into() }),
             ..ExportRequestDto::default()
         })
         .unwrap();

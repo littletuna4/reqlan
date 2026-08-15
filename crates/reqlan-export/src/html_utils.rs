@@ -1,6 +1,5 @@
 use crate::types::{
-    ExportCluster, ExportCodeFile, ExportFile, ExportIdea, ExportPageInfo,
-    ExportSnapshot,
+    ExportCluster, ExportCodeFile, ExportFile, ExportIdea, ExportPageInfo, ExportSnapshot,
 };
 use reqlan_index::{AttributeValue, FILTER_EMPTY, FILTER_NOT_PRESENT};
 
@@ -9,11 +8,7 @@ const FILTER_EMPTY_LABEL: &str = "Empty";
 const FILTER_UNSPECIFIED: &str = "unspecified";
 
 pub fn escape_html(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+    value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
 pub fn format_date(value: &str) -> String {
@@ -21,9 +16,7 @@ pub fn format_date(value: &str) -> String {
 }
 
 pub fn stringify_json(value: &impl serde::Serialize) -> String {
-    serde_json::to_string_pretty(value)
-        .unwrap_or_else(|_| "null".into())
-        .replace('<', "\\u003c")
+    serde_json::to_string_pretty(value).unwrap_or_else(|_| "null".into()).replace('<', "\\u003c")
 }
 
 pub fn normalize_url_base(url_base: Option<&str>) -> Option<String> {
@@ -55,7 +48,8 @@ pub fn href_for(current_path: &str, target_path: &str, url_base: Option<&str>) -
     if !from_dir.is_empty() {
         from_dir.pop();
     }
-    let mut to_segments: Vec<&str> = cleaned_target.split('/').filter(|part| !part.is_empty()).collect();
+    let mut to_segments: Vec<&str> =
+        cleaned_target.split('/').filter(|part| !part.is_empty()).collect();
     while !from_dir.is_empty() && !to_segments.is_empty() && from_dir[0] == to_segments[0] {
         from_dir.remove(0);
         to_segments.remove(0);
@@ -95,11 +89,7 @@ pub fn idea_status(idea: &ExportIdea) -> Option<String> {
 }
 
 pub fn idea_tags(idea: &ExportIdea) -> Vec<String> {
-    idea.tags
-        .iter()
-        .map(|tag| tag.trim().to_string())
-        .filter(|tag| !tag.is_empty())
-        .collect()
+    idea.tags.iter().map(|tag| tag.trim().to_string()).filter(|tag| !tag.is_empty()).collect()
 }
 
 pub fn is_filter_not_present(value: &str) -> bool {
@@ -179,12 +169,13 @@ pub fn status_or_tag_facet_href(
     )
 }
 
-pub fn render_linked_status_cell(snapshot: &ExportSnapshot, current_path: &str, idea: &ExportIdea) -> String {
-    let key = if idea.status_key.is_empty() {
-        FILTER_NOT_PRESENT
-    } else {
-        idea.status_key.as_str()
-    };
+pub fn render_linked_status_cell(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    idea: &ExportIdea,
+) -> String {
+    let key =
+        if idea.status_key.is_empty() { FILTER_NOT_PRESENT } else { idea.status_key.as_str() };
     let label = filter_display_label(key);
     let href = status_or_tag_facet_href(snapshot, current_path, "status", key);
     let sort_value = escape_html(&label);
@@ -198,7 +189,11 @@ pub fn render_linked_status_cell(snapshot: &ExportSnapshot, current_path: &str, 
     }
 }
 
-pub fn render_linked_tags_cell(snapshot: &ExportSnapshot, current_path: &str, idea: &ExportIdea) -> String {
+pub fn render_linked_tags_cell(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    idea: &ExportIdea,
+) -> String {
     let keys = if idea.tags_keys.is_empty() {
         vec![FILTER_NOT_PRESENT.to_string()]
     } else {
@@ -237,7 +232,11 @@ pub fn render_optional_tags_cell(idea: &ExportIdea) -> String {
     }
 }
 
-pub fn render_file_path_cell(snapshot: &ExportSnapshot, current_path: &str, file_uri: &str) -> String {
+pub fn render_file_path_cell(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    file_uri: &str,
+) -> String {
     if let Some((page, kind)) = resolve_export_file_page(snapshot, None, Some(file_uri)) {
         if file_page_enabled(snapshot, kind) {
             return format!(
@@ -396,11 +395,11 @@ pub fn render_metric(label: &str, value: &str, href: Option<&str>) -> String {
     }
 }
 
-pub fn related_clusters<'a>(snapshot: &'a ExportSnapshot, idea: &ExportIdea) -> Vec<&'a ExportCluster> {
-    idea.cluster_ids
-        .iter()
-        .filter_map(|id| snapshot.clusters_by_id.get(id))
-        .collect()
+pub fn related_clusters<'a>(
+    snapshot: &'a ExportSnapshot,
+    idea: &ExportIdea,
+) -> Vec<&'a ExportCluster> {
+    idea.cluster_ids.iter().filter_map(|id| snapshot.clusters_by_id.get(id)).collect()
 }
 
 pub fn file_by_idea<'a>(snapshot: &'a ExportSnapshot, idea: &ExportIdea) -> Option<&'a ExportFile> {
@@ -425,11 +424,8 @@ struct RefInner {
 
 fn summary_ref_inner(raw: &str) -> RefInner {
     let is_wiki = raw.starts_with("[[") && raw.ends_with("]]");
-    let inner = if is_wiki {
-        raw[2..raw.len() - 2].to_string()
-    } else {
-        raw[1..raw.len() - 1].to_string()
-    };
+    let inner =
+        if is_wiki { raw[2..raw.len() - 2].to_string() } else { raw[1..raw.len() - 1].to_string() };
     let mut target = inner.trim().to_string();
     if is_wiki {
         if let Some(pipe) = inner.find('|') {
@@ -453,12 +449,7 @@ fn summary_ref_display_name(raw: &str) -> String {
     if parsed.target.starts_with('"') || parsed.target.starts_with('\'') {
         return file_base_name(target);
     }
-    target
-        .split('.')
-        .filter(|part| !part.is_empty())
-        .next_back()
-        .unwrap_or(target)
-        .to_string()
+    target.split('.').filter(|part| !part.is_empty()).next_back().unwrap_or(target).to_string()
 }
 
 fn summary_ref_file_path(raw: &str) -> Option<String> {
@@ -481,7 +472,8 @@ fn find_idea_by_ref_name<'a>(
     display_name: &str,
 ) -> Option<&'a ExportIdea> {
     let parsed = summary_ref_inner(raw);
-    let qualified: Vec<&str> = parsed.target.split('.').map(str::trim).filter(|part| !part.is_empty()).collect();
+    let qualified: Vec<&str> =
+        parsed.target.split('.').map(str::trim).filter(|part| !part.is_empty()).collect();
     let idea_name = qualified.last().copied().unwrap_or(display_name).to_ascii_lowercase();
     if idea_name.is_empty() {
         return None;
@@ -595,22 +587,23 @@ fn render_line_with_refs(
             }
         });
         let file_target = if linked_idea.is_none() {
-            file_path.as_deref().and_then(|path| resolve_export_file_page(snapshot, None, Some(path)))
+            file_path
+                .as_deref()
+                .and_then(|path| resolve_export_file_page(snapshot, None, Some(path)))
         } else {
             None
         };
-        let label = linked_idea
-            .map(|idea| idea.name.clone())
-            .unwrap_or_else(|| {
-                if file_target.is_some() {
-                    file_base_name(file_path.as_deref().unwrap_or(&display_name))
-                } else {
-                    display_name.clone()
-                }
-            });
+        let label = linked_idea.map(|idea| idea.name.clone()).unwrap_or_else(|| {
+            if file_target.is_some() {
+                file_base_name(file_path.as_deref().unwrap_or(&display_name))
+            } else {
+                display_name.clone()
+            }
+        });
         let title = if let Some(linked) = linked_idea {
             format!("{} · {}", linked.file_uri, linked.name)
-        } else if let Some(path) = file_path.as_deref().or(row.map(|row| row.target_path.as_str())) {
+        } else if let Some(path) = file_path.as_deref().or(row.map(|row| row.target_path.as_str()))
+        {
             path.to_string()
         } else if row.is_some_and(|row| !row.is_resolved) {
             format!("Unresolved reference: {display_name}")
@@ -677,10 +670,14 @@ fn take_row<'a>(
         .chain(idea.references.inbound.iter())
         .filter(|row| {
             row.snippet.as_deref() == Some(raw)
-                || [row.label.as_str(), row.target_name.as_str(), file_base_name(&row.target_path).as_str()]
-                    .into_iter()
-                    .filter(|value| !value.is_empty())
-                    .any(|value| value.eq_ignore_ascii_case(display_name))
+                || [
+                    row.label.as_str(),
+                    row.target_name.as_str(),
+                    file_base_name(&row.target_path).as_str(),
+                ]
+                .into_iter()
+                .filter(|value| !value.is_empty())
+                .any(|value| value.eq_ignore_ascii_case(display_name))
         })
         .collect();
     let unused = candidates.iter().find(|row| !used.contains(&row.edge_id));
@@ -749,9 +746,14 @@ pub fn render_attribute_value_html(
             .collect::<Vec<_>>()
             .join(", "),
         AttributeValue::Text(text) if text.trim().is_empty() => "—".into(),
-        AttributeValue::Text(text) => {
-            render_text_with_refs_html(snapshot, current_path, text, idea, None, same_page_idea_anchors)
-        }
+        AttributeValue::Text(text) => render_text_with_refs_html(
+            snapshot,
+            current_path,
+            text,
+            idea,
+            None,
+            same_page_idea_anchors,
+        ),
     }
 }
 
@@ -771,7 +773,13 @@ pub fn render_print_idea_attributes_html(
             format!(
                 "<div><dt>{}</dt><dd>{}</dd></div>",
                 escape_html(key),
-                render_attribute_value_html(snapshot, current_path, value, Some(idea), same_page_idea_anchors)
+                render_attribute_value_html(
+                    snapshot,
+                    current_path,
+                    value,
+                    Some(idea),
+                    same_page_idea_anchors
+                )
             )
         })
         .collect::<Vec<_>>()

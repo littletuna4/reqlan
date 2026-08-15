@@ -340,10 +340,9 @@ impl AnalysisRuntime {
             include_print_pages: request.include_print_pages,
             max_graph_nodes: request.max_graph_nodes.map(|n| n as usize),
             url_base: request.url_base,
-            header_link: request.header_link.map(|link| ExportHeaderLink {
-                href: link.href,
-                label: link.label,
-            }),
+            header_link: request
+                .header_link
+                .map(|link| ExportHeaderLink { href: link.href, label: link.label }),
         };
         let snapshot = build_export_snapshot(&self.store, &native)?;
         let result = match format {

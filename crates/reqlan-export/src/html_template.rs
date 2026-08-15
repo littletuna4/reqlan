@@ -1,11 +1,12 @@
 use crate::html_utils::{
     escape_html, export_idea_anchor_id, file_by_idea, file_page_enabled, filter_display_label,
     format_date, href_for, idea_status, idea_tags, is_filter_empty, is_filter_not_present,
-    is_filter_unspecified, list_filter_href, page_href, related_clusters, render_attribute_value_html,
-    render_definition_list, render_file_path_cell, render_idea_summary_html, render_linked_status_cell,
-    render_linked_tags_cell, render_metric, render_optional_status_cell, render_optional_tags_cell,
-    render_print_idea_attributes_html, render_text_with_refs_html, resolve_export_file_page,
-    slug_attribute_key, status_or_tag_facet_href, stringify_json,
+    is_filter_unspecified, list_filter_href, page_href, related_clusters,
+    render_attribute_value_html, render_definition_list, render_file_path_cell,
+    render_idea_summary_html, render_linked_status_cell, render_linked_tags_cell, render_metric,
+    render_optional_status_cell, render_optional_tags_cell, render_print_idea_attributes_html,
+    render_text_with_refs_html, resolve_export_file_page, slug_attribute_key,
+    status_or_tag_facet_href, stringify_json,
 };
 use crate::types::{
     format_attribute_value, ExportAttribute, ExportCluster, ExportCodeFile, ExportFile, ExportIdea,
@@ -40,11 +41,19 @@ fn export_href(snapshot: &ExportSnapshot, current_path: &str, target_path: &str)
     href_for(current_path, target_path, snapshot.url_base.as_deref())
 }
 
-fn export_page_href(snapshot: &ExportSnapshot, current_path: &str, page: &ExportPageInfo) -> String {
+fn export_page_href(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    page: &ExportPageInfo,
+) -> String {
     page_href(current_path, page, snapshot.url_base.as_deref())
 }
 
-fn render_multi_filter_select(attr: &str, counts: &std::collections::BTreeMap<String, usize>, empty_label: &str) -> String {
+fn render_multi_filter_select(
+    attr: &str,
+    counts: &std::collections::BTreeMap<String, usize>,
+    empty_label: &str,
+) -> String {
     let mut values: BTreeSet<String> = counts.keys().cloned().collect();
     values.insert(FILTER_NOT_PRESENT.to_string());
     values.insert(FILTER_EMPTY.to_string());
@@ -102,7 +111,8 @@ fn render_multi_filter_select(attr: &str, counts: &std::collections::BTreeMap<St
 
 pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
     let current_path = snapshot.manifest.home.path.as_str();
-    let clusters_index_href = export_page_href(snapshot, current_path, &snapshot.manifest.clusters_index);
+    let clusters_index_href =
+        export_page_href(snapshot, current_path, &snapshot.manifest.clusters_index);
     let highlight_clusters = snapshot
         .clusters
         .iter()
@@ -129,7 +139,8 @@ pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
         })
         .collect::<Vec<_>>()
         .join("");
-    let status_href = |key: &str| Some(status_or_tag_facet_href(snapshot, current_path, "status", key));
+    let status_href =
+        |key: &str| Some(status_or_tag_facet_href(snapshot, current_path, "status", key));
     let tag_href = |key: &str| Some(status_or_tag_facet_href(snapshot, current_path, "tag", key));
     let body = format!(
         r#"<header class="hero">
@@ -180,12 +191,36 @@ pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
         escape_html(&snapshot.runtime_mode),
         escape_html(&format_date(&snapshot.generated_at)),
         escape_html(&snapshot.workspace_root),
-        render_metric("Ideas", &snapshot.counts.ideas.to_string(), Some(&export_page_href(snapshot, current_path, &snapshot.manifest.ideas_index))),
-        render_metric("References", &snapshot.counts.edges.to_string(), Some(&export_page_href(snapshot, current_path, &snapshot.manifest.graph))),
-        render_metric("Files", &snapshot.counts.files.to_string(), Some(&export_page_href(snapshot, current_path, &snapshot.manifest.files_index))),
-        render_metric("Code files", &snapshot.code_files.len().to_string(), Some(&export_page_href(snapshot, current_path, &snapshot.manifest.code_files_index))),
-        render_metric("Clusters", &snapshot.counts.clusters.to_string(), Some(&clusters_index_href)),
-        render_metric("Attributes", &snapshot.attributes.len().to_string(), Some(&export_page_href(snapshot, current_path, &snapshot.manifest.attributes_index))),
+        render_metric(
+            "Ideas",
+            &snapshot.counts.ideas.to_string(),
+            Some(&export_page_href(snapshot, current_path, &snapshot.manifest.ideas_index))
+        ),
+        render_metric(
+            "References",
+            &snapshot.counts.edges.to_string(),
+            Some(&export_page_href(snapshot, current_path, &snapshot.manifest.graph))
+        ),
+        render_metric(
+            "Files",
+            &snapshot.counts.files.to_string(),
+            Some(&export_page_href(snapshot, current_path, &snapshot.manifest.files_index))
+        ),
+        render_metric(
+            "Code files",
+            &snapshot.code_files.len().to_string(),
+            Some(&export_page_href(snapshot, current_path, &snapshot.manifest.code_files_index))
+        ),
+        render_metric(
+            "Clusters",
+            &snapshot.counts.clusters.to_string(),
+            Some(&clusters_index_href)
+        ),
+        render_metric(
+            "Attributes",
+            &snapshot.attributes.len().to_string(),
+            Some(&export_page_href(snapshot, current_path, &snapshot.manifest.attributes_index))
+        ),
         render_definition_list(&snapshot.by_status, Some(&status_href)),
         render_definition_list(&snapshot.by_tag, Some(&tag_href)),
         escape_html(&export_page_href(snapshot, current_path, &snapshot.manifest.print_home)),
@@ -551,13 +586,13 @@ pub fn render_attributes_index_page(snapshot: &ExportSnapshot) -> String {
     })
 }
 
-pub fn render_attribute_detail_page(snapshot: &ExportSnapshot, attribute: &ExportAttribute) -> String {
+pub fn render_attribute_detail_page(
+    snapshot: &ExportSnapshot,
+    attribute: &ExportAttribute,
+) -> String {
     let current_path = attribute.page.path.as_str();
-    let ideas: Vec<&ExportIdea> = attribute
-        .idea_ids
-        .iter()
-        .filter_map(|id| snapshot.ideas_by_id.get(id))
-        .collect();
+    let ideas: Vec<&ExportIdea> =
+        attribute.idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let total_ideas = attribute.idea_count.max(1);
     let value_rows = if attribute.values.is_empty() {
         r#"<tr><td colspan="4" class="subtle">No values.</td></tr>"#.into()
@@ -905,9 +940,27 @@ pub fn render_idea_detail_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> 
             escape_html(&idea.kind),
             render_idea_summary_html(snapshot, current_path, idea, "No summary provided.", false),
             render_idea_attributes(snapshot, current_path, idea),
-            render_reference_section(snapshot, current_path, "references-out", "Outbound references", &idea.references.outbound),
-            render_reference_section(snapshot, current_path, "references-in", "Inbound references", &idea.references.inbound),
-            render_reference_section(snapshot, current_path, "references-unresolved", "Unresolved references", &idea.references.unresolved),
+            render_reference_section(
+                snapshot,
+                current_path,
+                "references-out",
+                "Outbound references",
+                &idea.references.outbound
+            ),
+            render_reference_section(
+                snapshot,
+                current_path,
+                "references-in",
+                "Inbound references",
+                &idea.references.inbound
+            ),
+            render_reference_section(
+                snapshot,
+                current_path,
+                "references-unresolved",
+                "Unresolved references",
+                &idea.references.unresolved
+            ),
             stringify_json(&graph)
         ),
     })
@@ -1045,11 +1098,8 @@ pub fn render_file_detail_page(snapshot: &ExportSnapshot, file: &ExportFile) -> 
 
 pub fn render_code_file_detail_page(snapshot: &ExportSnapshot, file: &ExportCodeFile) -> String {
     let current_path = file.page.path.as_str();
-    let referencing: Vec<&ExportIdea> = file
-        .referencing_idea_ids
-        .iter()
-        .filter_map(|id| snapshot.ideas_by_id.get(id))
-        .collect();
+    let referencing: Vec<&ExportIdea> =
+        file.referencing_idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = if referencing.is_empty() {
         r#"<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>"#.into()
     } else {
@@ -1143,11 +1193,8 @@ pub fn render_cluster_detail_page(snapshot: &ExportSnapshot, cluster: &ExportClu
         snapshot.graphs.by_cluster_id.get(&cluster.id).unwrap_or(&empty),
         current_path,
     );
-    let members: Vec<&ExportIdea> = cluster
-        .idea_ids
-        .iter()
-        .filter_map(|id| snapshot.ideas_by_id.get(id))
-        .collect();
+    let members: Vec<&ExportIdea> =
+        cluster.idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = members
         .iter()
         .map(|idea| {
@@ -1288,11 +1335,8 @@ pub fn render_print_home_page(snapshot: &ExportSnapshot) -> String {
 }
 
 pub fn render_print_idea_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> String {
-    let current_path = idea
-        .page
-        .printable_path
-        .as_deref()
-        .unwrap_or(snapshot.manifest.print_home.path.as_str());
+    let current_path =
+        idea.page.printable_path.as_deref().unwrap_or(snapshot.manifest.print_home.path.as_str());
     let interactive = if snapshot.page_options.include_idea_pages {
         format!(
             r#"<p><strong>Interactive page:</strong> <a href="{}">{}</a></p>"#,
@@ -1387,11 +1431,8 @@ pub fn render_print_file_page(snapshot: &ExportSnapshot, file: &ExportFile) -> S
 
 pub fn render_print_code_file_page(snapshot: &ExportSnapshot, file: &ExportCodeFile) -> String {
     let current_path = file.print_page.path.as_str();
-    let referencing: Vec<&ExportIdea> = file
-        .referencing_idea_ids
-        .iter()
-        .filter_map(|id| snapshot.ideas_by_id.get(id))
-        .collect();
+    let referencing: Vec<&ExportIdea> =
+        file.referencing_idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = if referencing.is_empty() {
         r#"<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>"#.into()
     } else {
@@ -1448,11 +1489,8 @@ pub fn render_print_cluster_page(snapshot: &ExportSnapshot, cluster: &ExportClus
         .printable_path
         .as_deref()
         .unwrap_or(snapshot.manifest.print_home.path.as_str());
-    let members: Vec<&ExportIdea> = cluster
-        .idea_ids
-        .iter()
-        .filter_map(|id| snapshot.ideas_by_id.get(id))
-        .collect();
+    let members: Vec<&ExportIdea> =
+        cluster.idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = members
         .iter()
         .map(|idea| {
@@ -1587,7 +1625,11 @@ fn render_reference_section(
     )
 }
 
-fn enrich_graph_urls(snapshot: &ExportSnapshot, graph: &GraphViewSlice, _current_path: &str) -> GraphViewSlice {
+fn enrich_graph_urls(
+    snapshot: &ExportSnapshot,
+    graph: &GraphViewSlice,
+    _current_path: &str,
+) -> GraphViewSlice {
     let mut copy = graph.clone();
     let center_id = copy.center_id.clone();
     for node in &mut copy.nodes {
@@ -1612,7 +1654,9 @@ fn enrich_graph_urls(snapshot: &ExportSnapshot, graph: &GraphViewSlice, _current
             let mut keys: Vec<String> = idea.attributes.keys().cloned().collect();
             keys.sort();
             node.attribute_keys = if keys.is_empty() { None } else { Some(keys) };
-            if let Some((page, kind)) = resolve_export_file_page(snapshot, None, Some(&idea.file_uri)) {
+            if let Some((page, kind)) =
+                resolve_export_file_page(snapshot, None, Some(&idea.file_uri))
+            {
                 if file_page_enabled(snapshot, kind) {
                     node.host_file_page_url = Some(page.url.clone());
                 } else {
@@ -1635,7 +1679,11 @@ fn enrich_graph_urls(snapshot: &ExportSnapshot, graph: &GraphViewSlice, _current
     copy
 }
 
-fn render_idea_attributes(snapshot: &ExportSnapshot, current_path: &str, idea: &ExportIdea) -> String {
+fn render_idea_attributes(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    idea: &ExportIdea,
+) -> String {
     if idea.attributes.is_empty() {
         return r#"<p class="subtle">No attributes declared.</p>"#.into();
     }
@@ -1651,7 +1699,11 @@ fn render_idea_attributes(snapshot: &ExportSnapshot, current_path: &str, idea: &
                 .unwrap_or_else(|| {
                     format!(
                         "{}#attr-{}",
-                        export_page_href(snapshot, current_path, &snapshot.manifest.attributes_index),
+                        export_page_href(
+                            snapshot,
+                            current_path,
+                            &snapshot.manifest.attributes_index
+                        ),
                         slug_attribute_key(key)
                     )
                 });
@@ -1674,7 +1726,8 @@ fn render_idea_attributes(snapshot: &ExportSnapshot, current_path: &str, idea: &
 fn render_shell(options: RenderOptions<'_>) -> String {
     let stylesheet_href = export_href(options.snapshot, options.current_path, "assets/styles.css");
     let app_href = export_href(options.snapshot, options.current_path, "assets/app.js");
-    let search_index_href = export_href(options.snapshot, options.current_path, "assets/search-index.js");
+    let search_index_href =
+        export_href(options.snapshot, options.current_path, "assets/search-index.js");
     let search_href = export_href(
         options.snapshot,
         options.current_path,
@@ -1715,12 +1768,18 @@ fn render_shell(options: RenderOptions<'_>) -> String {
             &options.snapshot.manifest.clusters_index,
             options.snapshot.page_options.include_cluster_pages,
         ),
-        nav_link(&options, ActiveNav::Attributes, &options.snapshot.manifest.attributes_index, true),
+        nav_link(
+            &options,
+            ActiveNav::Attributes,
+            &options.snapshot.manifest.attributes_index,
+            true,
+        ),
         nav_link(
             &options,
             ActiveNav::Graph,
             &options.snapshot.manifest.graph,
-            options.snapshot.page_options.include_graph_page && options.snapshot.runtime_mode != "print",
+            options.snapshot.page_options.include_graph_page
+                && options.snapshot.runtime_mode != "print",
         ),
         nav_link(
             &options,
@@ -1800,17 +1859,18 @@ fn render_shell(options: RenderOptions<'_>) -> String {
     )
 }
 
-fn nav_link(options: &RenderOptions<'_>, nav_id: ActiveNav, page: &ExportPageInfo, enabled: bool) -> String {
+fn nav_link(
+    options: &RenderOptions<'_>,
+    nav_id: ActiveNav,
+    page: &ExportPageInfo,
+    enabled: bool,
+) -> String {
     if !enabled {
         return String::new();
     }
     let href = export_page_href(options.snapshot, options.current_path, page);
     let active = if options.active_nav == nav_id { "active" } else { "" };
-    format!(
-        r#"<a class="{active}" href="{}">{}</a>"#,
-        escape_html(&href),
-        escape_html(&page.title)
-    )
+    format!(r#"<a class="{active}" href="{}">{}</a>"#, escape_html(&href), escape_html(&page.title))
 }
 
 fn render_maybe_linked_card(enabled: bool, href: &str, title: &str, subtitle: &str) -> String {
@@ -1830,7 +1890,12 @@ fn render_maybe_linked_card(enabled: bool, href: &str, title: &str, subtitle: &s
     }
 }
 
-fn render_idea_anchor(snapshot: &ExportSnapshot, current_path: &str, idea: &ExportIdea, label: &str) -> String {
+fn render_idea_anchor(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    idea: &ExportIdea,
+    label: &str,
+) -> String {
     if snapshot.page_options.include_idea_pages {
         format!(
             r#"<a href="{}">{}</a>"#,

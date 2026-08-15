@@ -49,8 +49,10 @@ fn workspace_index_fuzzy_search_includes_file_name_hits() {
     runtime.ensure_ready().unwrap();
 
     let result = runtime.fuzzy_search("search", Some(8), true, None).unwrap();
-    assert!(result.hits.iter().any(|hit| hit.kind == reqlan_search::FuzzyHitKind::File
-        && hit.name == "search.rq"));
+    assert!(result
+        .hits
+        .iter()
+        .any(|hit| hit.kind == reqlan_search::FuzzyHitKind::File && hit.name == "search.rq"));
 
     let page = runtime.fuzzy_search("a", Some(1), true, Some(0)).unwrap();
     assert_eq!(page.hits.len(), 1);
@@ -76,7 +78,10 @@ fn workspace_index_fuzzy_search_includes_comment_code_files() {
     runtime.ensure_ready().unwrap();
 
     let result = runtime.fuzzy_search("app", Some(8), true, None).unwrap();
-    assert!(result.hits.iter().any(|hit| hit.kind == reqlan_search::FuzzyHitKind::File && hit.name == "app.ts"));
+    assert!(result
+        .hits
+        .iter()
+        .any(|hit| hit.kind == reqlan_search::FuzzyHitKind::File && hit.name == "app.ts"));
 
     std::fs::remove_dir_all(&root).ok();
 }

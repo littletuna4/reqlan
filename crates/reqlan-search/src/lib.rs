@@ -12,7 +12,7 @@ pub use contextual::{
 };
 pub use fuzzy::{
     file_basename, filter_and_score_files, filter_and_score_ideas, fuzzy_search, fuzzy_subsequence,
-    match_query_tokens, normalize_search_separators, search_ideas, search_index, split_search_tokens,
-    FuzzyHitKind, FuzzySearchHit, FuzzySearchResult, SearchIdeasOptions,
+    match_query_tokens, normalize_search_separators, search_ideas, search_index,
+    split_search_tokens, FuzzyHitKind, FuzzySearchHit, FuzzySearchResult, SearchIdeasOptions,
 };
 pub use semantic::semantic_search;

@@ -209,9 +209,7 @@ fn ranks_file_name_hits_with_ideas() {
 // rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
 #[test]
 fn pages_ranked_hits_with_offset_and_truncated() {
-    let ideas: Vec<_> = (0..5)
-        .map(|index| idea(&format!("alpha_{index}"), "shared"))
-        .collect();
+    let ideas: Vec<_> = (0..5).map(|index| idea(&format!("alpha_{index}"), "shared")).collect();
     let first = search_ideas(
         &ideas,
         "alpha",

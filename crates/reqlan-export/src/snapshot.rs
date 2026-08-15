@@ -63,10 +63,8 @@ pub fn build_export_snapshot(
     };
     let summaries = filter_export_ideas(summaries, request);
     let raw = store.all_idea_records()?;
-    let raw_by_id: HashMap<String, String> = raw
-        .iter()
-        .map(|record| (record.id.clone(), record.attributes_json.clone()))
-        .collect();
+    let raw_by_id: HashMap<String, String> =
+        raw.iter().map(|record| (record.id.clone(), record.attributes_json.clone())).collect();
     let edges = store.get_all_edges()?;
     let idea_lookup: HashMap<String, IdeaSummary> =
         summaries.iter().map(|idea| (idea.id.clone(), idea.clone())).collect();
@@ -89,18 +87,12 @@ pub fn build_export_snapshot(
         uris.dedup();
         uris
     };
-    let ideas_by_id = ideas
-        .iter()
-        .map(|idea| (idea.id.clone(), idea.clone()))
-        .collect::<BTreeMap<_, _>>();
-    let files_by_id = files
-        .iter()
-        .map(|file| (file.id.clone(), file.clone()))
-        .collect::<BTreeMap<_, _>>();
-    let code_files_by_id = code_files
-        .iter()
-        .map(|file| (file.id.clone(), file.clone()))
-        .collect::<BTreeMap<_, _>>();
+    let ideas_by_id =
+        ideas.iter().map(|idea| (idea.id.clone(), idea.clone())).collect::<BTreeMap<_, _>>();
+    let files_by_id =
+        files.iter().map(|file| (file.id.clone(), file.clone())).collect::<BTreeMap<_, _>>();
+    let code_files_by_id =
+        code_files.iter().map(|file| (file.id.clone(), file.clone())).collect::<BTreeMap<_, _>>();
     let clusters_by_id = clusters
         .iter()
         .map(|cluster| (cluster.id.clone(), cluster.clone()))
@@ -192,20 +184,16 @@ fn build_idea_records(
     let mut records: Vec<ExportIdea> = summaries
         .iter()
         .map(|summary| {
-            let attributes = raw_by_id
-                .get(&summary.id)
-                .map(|json| parse_attributes(json))
-                .unwrap_or_default();
+            let attributes =
+                raw_by_id.get(&summary.id).map(|json| parse_attributes(json)).unwrap_or_default();
             let file_segments = summary
                 .file_uri
                 .split('/')
                 .filter(|part| !part.is_empty())
                 .map(str::to_string)
                 .collect::<Vec<_>>();
-            let file_name = file_segments
-                .last()
-                .cloned()
-                .unwrap_or_else(|| summary.file_uri.clone());
+            let file_name =
+                file_segments.last().cloned().unwrap_or_else(|| summary.file_uri.clone());
             let slug = format!("{}--{}", slugify(&summary.name), slugify(&summary.id));
             ExportIdea {
                 id: summary.id.clone(),
@@ -227,7 +215,10 @@ fn build_idea_records(
                     Some(&format!("print/ideas/{slug}.html")),
                 ),
                 references: build_reference_groups(&summary.id, edges, idea_lookup),
-                ancestors: ExportAncestorChain { idea_id: summary.id.clone(), ancestors: Vec::new() },
+                ancestors: ExportAncestorChain {
+                    idea_id: summary.id.clone(),
+                    ancestors: Vec::new(),
+                },
                 cluster_ids: Vec::new(),
             }
         })
@@ -271,7 +262,10 @@ fn build_reference_groups(
     ExportIdeaReferenceGroups { inbound, outbound, unresolved, nearby }
 }
 
-fn to_outbound_row(edge: &EdgeRecord, idea_lookup: &HashMap<String, IdeaSummary>) -> ExportReferenceRow {
+fn to_outbound_row(
+    edge: &EdgeRecord,
+    idea_lookup: &HashMap<String, IdeaSummary>,
+) -> ExportReferenceRow {
     let target = edge.target_id.as_deref().and_then(|id| idea_lookup.get(id));
     let target_name = target
         .map(|idea| idea.name.clone())
@@ -307,7 +301,10 @@ fn to_outbound_row(edge: &EdgeRecord, idea_lookup: &HashMap<String, IdeaSummary>
     }
 }
 
-fn to_inbound_row(edge: &EdgeRecord, idea_lookup: &HashMap<String, IdeaSummary>) -> ExportReferenceRow {
+fn to_inbound_row(
+    edge: &EdgeRecord,
+    idea_lookup: &HashMap<String, IdeaSummary>,
+) -> ExportReferenceRow {
     let source = idea_lookup.get(&edge.source_id);
     let target_name = source.map(|idea| idea.name.clone()).unwrap_or_else(|| "unknown".into());
     ExportReferenceRow {
@@ -343,7 +340,8 @@ fn nearby_rows(
                 continue;
             }
             for edge in edges {
-                let touches = edge.source_id == *id || edge.target_id.as_deref() == Some(id.as_str());
+                let touches =
+                    edge.source_id == *id || edge.target_id.as_deref() == Some(id.as_str());
                 if !touches || !seen_edges.insert(edge.id.clone()) {
                     continue;
                 }
@@ -381,18 +379,29 @@ fn build_file_records(ideas: &[ExportIdea]) -> Vec<ExportFile> {
                 String::new()
             };
             let slug = slugify(&file_uri);
-            let edge_count = file_ideas.iter().map(|idea| {
-                idea.references.inbound.len()
-                    + idea.references.outbound.len()
-                    + idea.references.unresolved.len()
-            }).sum();
+            let edge_count = file_ideas
+                .iter()
+                .map(|idea| {
+                    idea.references.inbound.len()
+                        + idea.references.outbound.len()
+                        + idea.references.unresolved.len()
+                })
+                .sum();
             ExportFile {
                 id: format!("file:{file_uri}"),
                 file_uri,
                 name: name.clone(),
                 directory,
-                page: build_page_info(&name, &format!("files/{slug}.html"), Some(&format!("print/files/{slug}.html"))),
-                print_page: build_page_info(&format!("{name} print"), &format!("print/files/{slug}.html"), None),
+                page: build_page_info(
+                    &name,
+                    &format!("files/{slug}.html"),
+                    Some(&format!("print/files/{slug}.html")),
+                ),
+                print_page: build_page_info(
+                    &format!("{name} print"),
+                    &format!("print/files/{slug}.html"),
+                    None,
+                ),
                 statuses: rollup_statuses(&file_ideas),
                 tags: rollup_tags(&file_ideas),
                 ideas: file_ideas,
@@ -407,7 +416,9 @@ fn build_code_file_records(ideas: &[ExportIdea], files: &[ExportFile]) -> Vec<Ex
     let mut groups: BTreeMap<String, (BTreeSet<String>, BTreeSet<String>)> = BTreeMap::new();
     for idea in ideas {
         for row in idea.references.outbound.iter().chain(idea.references.unresolved.iter()) {
-            if row.kind != EdgeKind::FileReference.as_str() && row.kind != EdgeKind::CommentLink.as_str() {
+            if row.kind != EdgeKind::FileReference.as_str()
+                && row.kind != EdgeKind::CommentLink.as_str()
+            {
                 continue;
             }
             let file_uri = row.target_path.trim();
@@ -503,11 +514,7 @@ fn build_cluster_records(ideas: &[ExportIdea], strategy: &str) -> Vec<ExportClus
     for cluster in &mut clusters {
         cluster.page = build_page_info(
             &cluster.label,
-            &format!(
-                "clusters/{}--{}.html",
-                slugify(&cluster.kind),
-                slugify(&cluster.id)
-            ),
+            &format!("clusters/{}--{}.html", slugify(&cluster.kind), slugify(&cluster.id)),
             Some(&format!(
                 "print/clusters/{}--{}.html",
                 slugify(&cluster.kind),
@@ -521,11 +528,8 @@ fn build_cluster_records(ideas: &[ExportIdea], strategy: &str) -> Vec<ExportClus
 fn build_value_clusters(ideas: &[ExportIdea], kind: &str) -> Vec<ExportCluster> {
     let mut groups: BTreeMap<String, Vec<&ExportIdea>> = BTreeMap::new();
     for idea in ideas {
-        let keys = if kind == "tag" {
-            idea.tags_keys.clone()
-        } else {
-            vec![idea.status_key.clone()]
-        };
+        let keys =
+            if kind == "tag" { idea.tags_keys.clone() } else { vec![idea.status_key.clone()] };
         for key in keys {
             groups.entry(key).or_default().push(idea);
         }
@@ -586,10 +590,8 @@ fn build_community_clusters(ideas: &[ExportIdea]) -> Vec<ExportCluster> {
         if members.len() < 2 {
             continue;
         }
-        let member_ideas: Vec<&ExportIdea> = members
-            .iter()
-            .filter_map(|id| idea_by_id.get(id.as_str()).copied())
-            .collect();
+        let member_ideas: Vec<&ExportIdea> =
+            members.iter().filter_map(|id| idea_by_id.get(id.as_str()).copied()).collect();
         let slug = members.iter().map(|id| slugify(id)).collect::<Vec<_>>().join("-");
         let slug = slug.chars().take(80).collect::<String>();
         clusters.push(create_cluster(
@@ -623,7 +625,11 @@ fn create_cluster(
         kind: kind.to_string(),
         label: label.to_string(),
         description: description.to_string(),
-        page: build_page_info(label, &format!("clusters/{}--{}.html", slugify(kind), slugify(id)), None),
+        page: build_page_info(
+            label,
+            &format!("clusters/{}--{}.html", slugify(kind), slugify(id)),
+            None,
+        ),
         counts: ExportClusterCounts {
             ideas: idea_ids.len(),
             files: file_uris.len(),
@@ -754,7 +760,12 @@ fn build_search_documents(
             url: file.page.url.clone(),
             tags: file.tags.keys().cloned().collect(),
             status: None,
-            path_tokens: file.file_uri.split('/').filter(|part| !part.is_empty()).map(str::to_string).collect(),
+            path_tokens: file
+                .file_uri
+                .split('/')
+                .filter(|part| !part.is_empty())
+                .map(str::to_string)
+                .collect(),
             keywords: file.ideas.iter().map(|idea| idea.name.clone()).collect(),
         });
     }
@@ -773,7 +784,12 @@ fn build_search_documents(
                 .chain(file.labels.iter().cloned())
                 .collect(),
             status: None,
-            path_tokens: file.file_uri.split('/').filter(|part| !part.is_empty()).map(str::to_string).collect(),
+            path_tokens: file
+                .file_uri
+                .split('/')
+                .filter(|part| !part.is_empty())
+                .map(str::to_string)
+                .collect(),
             keywords: file
                 .labels
                 .iter()
@@ -794,7 +810,9 @@ fn build_search_documents(
             path_tokens: cluster
                 .file_uris
                 .iter()
-                .flat_map(|path| path.split('/').filter(|part| !part.is_empty()).map(str::to_string))
+                .flat_map(|path| {
+                    path.split('/').filter(|part| !part.is_empty()).map(str::to_string)
+                })
                 .take(12)
                 .collect(),
             keywords: cluster.idea_ids.clone(),
@@ -805,11 +823,7 @@ fn build_search_documents(
             id: format!("attribute:{}", attribute.key),
             title: attribute.key.clone(),
             kind: "attribute".into(),
-            summary: format!(
-                "{} ideas · {} values",
-                attribute.idea_count,
-                attribute.values.len()
-            ),
+            summary: format!("{} ideas · {} values", attribute.idea_count, attribute.values.len()),
             url: attribute.page.url.clone(),
             tags: vec!["attribute".into()],
             status: None,
@@ -844,23 +858,11 @@ fn build_graph_catalog(
 ) -> ExportGraphCatalog {
     let budget = request.max_graph_nodes.unwrap_or(GRAPH_MAX_NODES);
     let idea_ids: Vec<String> = ideas.iter().map(|idea| idea.id.clone()).collect();
-    let workspace = build_graph_slice_for_ids(
-        ideas,
-        edges,
-        &idea_ids,
-        budget.max(ideas.len()),
-        1,
-        None,
-        true,
-    );
+    let workspace =
+        build_graph_slice_for_ids(ideas, edges, &idea_ids, budget.max(ideas.len()), 1, None, true);
     let by_idea_id = ideas
         .iter()
-        .map(|idea| {
-            (
-                idea.id.clone(),
-                expand_from_center(ideas, edges, &idea.id, 2, budget),
-            )
-        })
+        .map(|idea| (idea.id.clone(), expand_from_center(ideas, edges, &idea.id, 2, budget)))
         .collect();
     let by_file_id = files
         .iter()
@@ -868,7 +870,15 @@ fn build_graph_catalog(
             let ids: Vec<String> = file.ideas.iter().map(|idea| idea.id.clone()).collect();
             (
                 file.id.clone(),
-                build_graph_slice_for_ids(ideas, edges, &ids, budget.max(ids.len()), 2, None, false),
+                build_graph_slice_for_ids(
+                    ideas,
+                    edges,
+                    &ids,
+                    budget.max(ids.len()),
+                    2,
+                    None,
+                    false,
+                ),
             )
         })
         .collect();
@@ -902,12 +912,19 @@ fn build_graph_slice_for_ids(
     include_ideasets: bool,
 ) -> GraphViewSlice {
     let allowed: HashSet<&str> = idea_ids.iter().map(String::as_str).collect();
-    let seeds: Vec<&ExportIdea> = ideas
-        .iter()
-        .filter(|idea| allowed.contains(idea.id.as_str()))
-        .take(max_nodes)
-        .collect();
-    collect_slice(ideas, edges, &seeds, depth, max_nodes, seeds.len() < allowed.len(), allowed.len(), center_id, include_ideasets)
+    let seeds: Vec<&ExportIdea> =
+        ideas.iter().filter(|idea| allowed.contains(idea.id.as_str())).take(max_nodes).collect();
+    collect_slice(
+        ideas,
+        edges,
+        &seeds,
+        depth,
+        max_nodes,
+        seeds.len() < allowed.len(),
+        allowed.len(),
+        center_id,
+        include_ideasets,
+    )
 }
 
 fn expand_from_center(
@@ -931,9 +948,8 @@ fn expand_from_center(
             for edge in edges.iter().filter(|edge| {
                 edge.source_id == *id || edge.target_id.as_deref() == Some(id.as_str())
             }) {
-                for endpoint in [Some(edge.source_id.as_str()), edge.target_id.as_deref()]
-                    .into_iter()
-                    .flatten()
+                for endpoint in
+                    [Some(edge.source_id.as_str()), edge.target_id.as_deref()].into_iter().flatten()
                 {
                     if !visited.insert(endpoint.to_string()) {
                         continue;
@@ -952,7 +968,17 @@ fn expand_from_center(
         frontier = next;
     }
     let seed_ids: Vec<&ExportIdea> = nodes.values().copied().collect();
-    collect_slice(ideas, edges, &seed_ids, depth, max_nodes, truncated, nodes.len(), Some(center_id), true)
+    collect_slice(
+        ideas,
+        edges,
+        &seed_ids,
+        depth,
+        max_nodes,
+        truncated,
+        nodes.len(),
+        Some(center_id),
+        true,
+    )
 }
 
 fn collect_slice(
@@ -987,7 +1013,11 @@ fn collect_slice(
                     if !nodes.contains_key(&external_id) {
                         nodes.insert(
                             external_id.clone(),
-                            external_graph_node(target_file, &edge.source_id, edge.label.as_deref()),
+                            external_graph_node(
+                                target_file,
+                                &edge.source_id,
+                                edge.label.as_deref(),
+                            ),
                         );
                     }
                     graph_edges.push(GraphEdgeView {
@@ -1006,7 +1036,8 @@ fn collect_slice(
         let incident = seed_ids.contains(&edge.source_id) || seed_ids.contains(target_id);
         if depth > 1 && incident && !both_visible {
             if let Some(missing) = ideas.iter().find(|idea| {
-                (idea.id == edge.source_id || idea.id == *target_id) && !nodes.contains_key(&idea.id)
+                (idea.id == edge.source_id || idea.id == *target_id)
+                    && !nodes.contains_key(&idea.id)
             }) {
                 if nodes.len() < max_nodes {
                     nodes.insert(missing.id.clone(), to_graph_node(missing));
@@ -1101,7 +1132,10 @@ fn empty_slice(center_id: Option<&str>, depth: u32) -> GraphViewSlice {
 
 pub fn resolve_referenced_file_path(target_file: &str, source_id: &str) -> String {
     let target = target_file.replace('\\', "/");
-    if target.contains("://") || target.starts_with('/') || is_windows_absolute(target_file) || is_windows_absolute(&target)
+    if target.contains("://")
+        || target.starts_with('/')
+        || is_windows_absolute(target_file)
+        || is_windows_absolute(&target)
     {
         return target_file.to_string();
     }

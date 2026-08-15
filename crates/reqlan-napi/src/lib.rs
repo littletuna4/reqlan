@@ -355,9 +355,8 @@ impl NativeWorkspaceIndex {
 
     fn with_mut<T>(&self, f: impl FnOnce(&mut WorkspaceIndexRuntime) -> Result<T>) -> Result<T> {
         let mut guard = self.lock()?;
-        let inner = guard
-            .as_mut()
-            .ok_or_else(|| Error::from_reason("native workspace index is closed"))?;
+        let inner =
+            guard.as_mut().ok_or_else(|| Error::from_reason("native workspace index is closed"))?;
         f(inner)
     }
 }
