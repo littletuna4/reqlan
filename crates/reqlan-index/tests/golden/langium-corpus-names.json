@@ -573,6 +573,12 @@
       "kind": "block"
     }
   ],
+  "reqlan rq/development/commit.rq": [
+    {
+      "name": "rust_fmt",
+      "kind": "block"
+    }
+  ],
   "reqlan rq/development/core.rq": [
     {
       "name": "scope",

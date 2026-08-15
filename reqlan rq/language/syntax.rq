@@ -300,7 +300,17 @@ naked_strings_in_body {
 }
 
 markdown_links {
-    markdown style links should be supported. [label](target) where label can be anythign and not be treated as reference
+    Markdown `[label](target)` links are supported; the label is not treated as an idea reference.
+    Example: [testing requirements](../development/core.rq) and the [golden corpus](../../crates/reqlan-index/tests/golden_corpus.rs).
+    Related: ["../development/core.rq".testing], ["../core_analysis/rust_port.rq".rust_crate_layout].
+    @status done
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse markdown links without treating label as a reference"]
+        ["../../packages/language/test/parsing.test.ts:parse docs.rq markdown folder link"]
+        ["../../packages/language/test/parsing.test.ts:markdown link labels are not treated as reference prefix context"]
+        ["../../packages/language/test/references.test.ts:parses markdown link label and target from raw link text"]
+        ["../../packages/language/test/references.test.ts:embedded file reference scan ignores markdown link labels"]
+    )
 }
 
 round_brackets {
