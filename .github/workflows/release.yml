@@ -88,7 +88,9 @@ jobs:
 
       - name: Apply changesets
         if: steps.pending.outputs.has_pending == 'true'
-        run: pnpm changeset version
+        run: |
+          pnpm changeset version
+          node scripts/prepare-native-packages.mjs
 
       - name: Commit version bumps
         if: steps.pending.outputs.has_pending == 'true'

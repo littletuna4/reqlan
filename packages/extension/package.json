@@ -1,525 +1,526 @@
 {
-    "name": "reqlan-extension",
-    "description": "Language support for the reqlan language",
-    "version": "1.9.2",
-    "private": true,
-    "displayName": "reqlan language support",
-    "icon": "media/logo.png",
-    "type": "module",
-    "publisher": "reqlan",
-    "license": "AGPL-3.0-only",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/littletuna4/reqlan.git"
-    },
-    "engines": {
-        "vscode": "^1.91.0"
-    },
-    "categories": [
-        "Programming Languages"
-    ],
-    "contributes": {
-        "languages": [
-            {
-                "id": "reqlan",
-                "aliases": [
-                    "reqlan",
-                    "rq"
-                ],
-                "extensions": [
-                    ".rq"
-                ],
-                "configuration": "./language-configuration.json",
-                "icon": {
-                    "light": "media/logo.png",
-                    "dark": "media/logo.png"
-                }
-            }
+  "name": "reqlan-extension",
+  "description": "Language support for the reqlan language",
+  "version": "1.9.2",
+  "private": true,
+  "displayName": "reqlan language support",
+  "icon": "media/logo.png",
+  "type": "module",
+  "publisher": "reqlan",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/littletuna4/reqlan.git"
+  },
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "reqlan",
+        "aliases": [
+          "reqlan",
+          "rq"
         ],
-        "grammars": [
-            {
-                "language": "reqlan",
-                "scopeName": "source.reqlan",
-                "path": "syntaxes/reqlan.tmLanguage.json"
-            }
+        "extensions": [
+          ".rq"
         ],
-        "semanticTokenScopes": [
-            {
-                "language": "reqlan",
-                "scopes": {
-                    "decorator": [
-                        "entity.name.tag.attribute.reqlan"
-                    ],
-                    "operator": [
-                        "punctuation.definition.attribute.reqlan"
-                    ]
-                }
-            }
-        ],
-        "configurationDefaults": {
-            "[reqlan]": {
-                "editor.semanticHighlighting.enabled": true
-            }
-        },
-        "jsonValidation": [
-            {
-                "fileMatch": [
-                    "**/.reqlan/config.json"
-                ],
-                "url": "./schemas/config.schema.json"
-            }
-        ],
-        "configuration": {
-            "title": "Reqlan",
-            "properties": {
-                "reqlan.referencesInlayHints.enabled": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Show inbound references as a @referenced-by inlay attribute on idea declarations in .rq editors."
-                },
-                "reqlan.referencesCodeLens.enabled": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links."
-                }
-            }
-        },
-        "viewsContainers": {
-            "activitybar": [
-                {
-                    "id": "reqlan",
-                    "title": "Reqlan",
-                    "icon": "media/logo.png"
-                }
-            ]
-        },
-        "views": {
-            "reqlan": [
-                {
-                    "id": "reqlan.activityBar",
-                    "name": "Context",
-                    "type": "webview"
-                }
-            ]
-        },
-        "chatAgents": [
-            {
-                "path": "./agents/reqlan.agent.md"
-            }
-        ],
-        "chatSkills": [
-            {
-                "path": "./skills/rq-requirements/SKILL.md"
-            },
-            {
-                "path": "./skills/rq-search/SKILL.md"
-            }
-        ],
-        "chatPromptFiles": [
-            {
-                "path": "./prompts/rq-build-requirement.prompt.md"
-            },
-            {
-                "path": "./prompts/rq-add-to-context.prompt.md"
-            },
-            {
-                "path": "./prompts/rq-write-plan.prompt.md"
-            },
-            {
-                "path": "./prompts/rq-search-requirements.prompt.md"
-            },
-            {
-                "path": "./prompts/rq-file-context.prompt.md"
-            }
-        ],
-        "chatParticipants": [
-            {
-                "id": "reqlan.reqlan-extension",
-                "name": "reqlan",
-                "fullName": "Reqlan",
-                "description": "Ask about requirements, search the graph, or attach #requirement / #file context.",
-                "isSticky": true,
-                "commands": [
-                    {
-                        "name": "rq-search",
-                        "description": "Search requirements by keyword across names, summaries, and tags"
-                    },
-                    {
-                        "name": "rq-context",
-                        "description": "Summarise requirements related to the active file"
-                    },
-                    {
-                        "name": "rq-graph",
-                        "description": "Show the local requirement graph around the current file"
-                    },
-                    {
-                        "name": "rq-related",
-                        "description": "List requirements that reference or are referenced by the active file"
-                    }
-                ]
-            }
-        ],
-        "languageModelTools": [
-            {
-                "name": "reqlan_requirement_reference",
-                "toolReferenceName": "requirement",
-                "displayName": "Requirement",
-                "modelDescription": "Resolve a reqlan requirement by name or keyword and return a compact summary for chat context.",
-                "userDescription": "Attach a requirement from the workspace graph.",
-                "canBeReferencedInPrompt": true,
-                "icon": "$(symbol-class)",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {
-                            "type": "string",
-                            "description": "Requirement name or search text. Leave empty to list nearby matches."
-                        }
-                    }
-                }
-            },
-            {
-                "name": "reqlan_file_reference",
-                "toolReferenceName": "file",
-                "displayName": "Reqlan File",
-                "modelDescription": "Resolve a .rq file and return the requirements indexed in that file.",
-                "userDescription": "Attach requirements from a reqlan file.",
-                "canBeReferencedInPrompt": true,
-                "icon": "$(file)",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Relative path fragment for a .rq file in the workspace."
-                        }
-                    }
-                }
-            }
-        ],
-        "commands": [
-            {
-                "command": "reqlan.listAllIdeas",
-                "title": "List All Ideas",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.fileRelatedRequirements",
-                "title": "File Related Requirements",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.deprecationImpact",
-                "title": "Deprecation Impact Analysis",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.completionStatus",
-                "title": "Completion Status",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.getLocalGraph",
-                "title": "Get Local Graph",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.semanticSearch",
-                "title": "Semantic Search",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.refreshIndex",
-                "title": "Refresh Idea Index",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.createBase",
-                "title": "Create Base",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.exportHtml",
-                "title": "Export HTML…",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.exportMarkdown",
-                "title": "Export Markdown…",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.exportJson",
-                "title": "Export JSON…",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.exportCsv",
-                "title": "Export CSV…",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.exportPdf",
-                "title": "Export PDF…",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.refreshActivityBar",
-                "title": "Refresh",
-                "icon": "$(refresh)"
-            },
-            {
-                "command": "reqlan.openIdeaFromActivityBar",
-                "title": "Open Idea"
-            },
-            {
-                "command": "reqlan.toggleReferenceInlayHints",
-                "title": "Toggle Reference Inlay Hints",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.toggleReferenceCodeLens",
-                "title": "Toggle Reference CodeLens",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.openReferenceCodeLens",
-                "title": "Open Reference CodeLens Card",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.showOnboarding",
-                "title": "Show Onboarding",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.openInboundReferencesSummary",
-                "title": "Open Inbound References Summary",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.importError.search",
-                "title": "Search Index for Unresolved Reference",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.searchReference",
-                "title": "Search Idea Reference",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.importError.createFile",
-                "title": "Create Idea File for Unresolved Reference",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.refactor.deleteIdea",
-                "title": "Delete Idea and Update References",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.refactor.moveIdea",
-                "title": "Move Idea to Another File",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.barrelPage",
-                "title": "Barrel Page",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.openFolderReference",
-                "title": "Open Folder Reference"
-            },
-            {
-                "command": "reqlan.openWildcardReference",
-                "title": "Open Wildcard Reference Matches",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.openIdeasSummary",
-                "title": "Open Ideas Summary",
-                "category": "Reqlan",
-                "icon": "$(table)"
-            },
-            {
-                "command": "reqlan.openIndexDiagnostics",
-                "title": "Open Index Diagnostics",
-                "category": "Reqlan",
-                "icon": "$(dashboard)"
-            },
-            {
-                "command": "reqlan.installCursorSkills",
-                "title": "Install Cursor Skills",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addAgentCommands",
-                "title": "Install Cursor Skills",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.buildRequirement",
-                "title": "Build New Requirement",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addToContext",
-                "title": "Add to Context",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addIdeaToChat",
-                "title": "Add Idea to Current Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addIdeaToNewChat",
-                "title": "Add Idea to New Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addIdeasetToChat",
-                "title": "Add Ideaset to Current Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addIdeasetToNewChat",
-                "title": "Add Ideaset to New Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addFileToChat",
-                "title": "Add File to Current Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.addFileToNewChat",
-                "title": "Add File to New Chat",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.writePlan",
-                "title": "Write Plan",
-                "category": "Reqlan"
-            },
-            {
-                "command": "reqlan.runPrompt",
-                "title": "Run Chat Prompt",
-                "category": "Reqlan"
-            }
-        ],
-        "submenus": [
-            {
-                "id": "reqlan.addToChat",
-                "label": "Reqlan: Add to Chat"
-            }
-        ],
-        "menus": {
-            "view/title": [
-                {
-                    "command": "reqlan.openIdeasSummary",
-                    "when": "view == reqlan.activityBar",
-                    "group": "navigation@1"
-                },
-                {
-                    "command": "reqlan.openIndexDiagnostics",
-                    "when": "view == reqlan.activityBar",
-                    "group": "navigation@2"
-                },
-                {
-                    "command": "reqlan.refreshActivityBar",
-                    "when": "view == reqlan.activityBar",
-                    "group": "navigation@3"
-                }
-            ],
-            "editor/context": [
-                {
-                    "submenu": "reqlan.addToChat",
-                    "when": "editorLangId == reqlan",
-                    "group": "reqlan@1"
-                }
-            ],
-            "reqlan.addToChat": [
-                {
-                    "command": "reqlan.addIdeaToChat",
-                    "group": "1_idea@1"
-                },
-                {
-                    "command": "reqlan.addIdeaToNewChat",
-                    "group": "1_idea@2"
-                },
-                {
-                    "command": "reqlan.addIdeasetToChat",
-                    "group": "2_ideaset@1"
-                },
-                {
-                    "command": "reqlan.addIdeasetToNewChat",
-                    "group": "2_ideaset@2"
-                },
-                {
-                    "command": "reqlan.addFileToChat",
-                    "group": "3_file@1"
-                },
-                {
-                    "command": "reqlan.addFileToNewChat",
-                    "group": "3_file@2"
-                }
-            ]
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "media/logo.png",
+          "dark": "media/logo.png"
         }
-    },
-    "activationEvents": [
-        "onStartupFinished",
-        "onChatParticipant:reqlan.reqlan-extension",
-        "onLanguage:python",
-        "onLanguage:javascript",
-        "onLanguage:typescript",
-        "onLanguage:typescriptreact"
+      }
     ],
-    "main": "./out/extension/main.cjs",
-    "scripts": {
-        "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp media/logo.svg",
-        "vscode:prepublish": "pnpm run build:force",
-        "build:media": "node scripts/generate-media.mjs",
-        "build:readme": "pnpm exec tsx scripts/generate-readme.ts",
-        "build:syntaxes": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json",
-        "sync:cursor": "node ../../scripts/sync-cursor-ai.mjs",
-        "build:prepare": "pnpm run build:syntaxes && pnpm run sync:cursor",
-        "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts",
-        "build": "node scripts/build.mjs",
-        "build:force": "node scripts/build.mjs --force",
-        "build:clean": "pnpm run clean && pnpm run build",
-        "watch": "bash scripts/watch.sh",
-        "test": "vitest run",
-        "package": "vsce package --no-dependencies",
-        "deploy": "vsce publish --no-dependencies",
-        "deploy:openvsx": "pnpm dlx ovsx publish ./*.vsix"
+    "grammars": [
+      {
+        "language": "reqlan",
+        "scopeName": "source.reqlan",
+        "path": "syntaxes/reqlan.tmLanguage.json"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "reqlan",
+        "scopes": {
+          "decorator": [
+            "entity.name.tag.attribute.reqlan"
+          ],
+          "operator": [
+            "punctuation.definition.attribute.reqlan"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[reqlan]": {
+        "editor.semanticHighlighting.enabled": true
+      }
     },
-    "dependencies": {
-        "cytoscape": "^3.33.1",
-        "cytoscape-cola": "^2.5.1",
-        "cytoscape-fcose": "^2.2.0",
-        "langium": "~4.3.0",
-        "vscode-languageclient": "~10.0.0",
-        "vscode-languageserver": "~10.0.0",
-        "vscode-languageserver-textdocument": "~1.0.12",
-        "zustand": "~5.0.8",
-        "@reqlan/analytical": "workspace:*",
-        "@reqlan/language": "workspace:*"
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "**/.reqlan/config.json"
+        ],
+        "url": "./schemas/config.schema.json"
+      }
+    ],
+    "configuration": {
+      "title": "reqlan",
+      "properties": {
+        "reqlan.referencesInlayHints.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show inbound references as a @referenced-by inlay attribute on idea declarations in .rq editors."
+        },
+        "reqlan.referencesCodeLens.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links."
+        }
+      }
     },
-    "devDependencies": {
-        "@sveltejs/vite-plugin-svelte": "~5.0.3",
-        "@tsconfig/svelte": "~5.0.4",
-        "@vscode/vsce": "^3.6.2",
-        "sharp": "^0.34.5",
-        "@types/vscode": "~1.91.0",
-        "concurrently": "~10.0.3",
-        "esbuild": "~0.28.1",
-        "svelte": "~5.33.14",
-        "vite": "~6.2.5",
-        "vitest": "~3.1.3"
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "reqlan",
+          "title": "reqlan",
+          "icon": "media/logo.png"
+        }
+      ]
     },
-    "vsce": {
-        "dependencies": true
+    "views": {
+      "reqlan": [
+        {
+          "id": "reqlan.activityBar",
+          "name": "Context",
+          "type": "webview"
+        }
+      ]
+    },
+    "chatAgents": [
+      {
+        "path": "./agents/reqlan.agent.md"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/rq-requirements/SKILL.md"
+      },
+      {
+        "path": "./skills/rq-search/SKILL.md"
+      }
+    ],
+    "chatPromptFiles": [
+      {
+        "path": "./prompts/rq-build-requirement.prompt.md"
+      },
+      {
+        "path": "./prompts/rq-add-to-context.prompt.md"
+      },
+      {
+        "path": "./prompts/rq-write-plan.prompt.md"
+      },
+      {
+        "path": "./prompts/rq-search-requirements.prompt.md"
+      },
+      {
+        "path": "./prompts/rq-file-context.prompt.md"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "reqlan.reqlan-extension",
+        "name": "reqlan",
+        "fullName": "reqlan",
+        "description": "Ask about requirements, search the graph, or attach #requirement / #file context.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "rq-search",
+            "description": "Search requirements by keyword across names, summaries, and tags"
+          },
+          {
+            "name": "rq-context",
+            "description": "Summarise requirements related to the active file"
+          },
+          {
+            "name": "rq-graph",
+            "description": "Show the local requirement graph around the current file"
+          },
+          {
+            "name": "rq-related",
+            "description": "List requirements that reference or are referenced by the active file"
+          }
+        ]
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "reqlan_requirement_reference",
+        "toolReferenceName": "requirement",
+        "displayName": "Requirement",
+        "modelDescription": "Resolve a reqlan requirement by name or keyword and return a compact summary for chat context.",
+        "userDescription": "Attach a requirement from the workspace graph.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(symbol-class)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Requirement name or search text. Leave empty to list nearby matches."
+            }
+          }
+        }
+      },
+      {
+        "name": "reqlan_file_reference",
+        "toolReferenceName": "file",
+        "displayName": "reqlan File",
+        "modelDescription": "Resolve a .rq file and return the requirements indexed in that file.",
+        "userDescription": "Attach requirements from a reqlan file.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Relative path fragment for a .rq file in the workspace."
+            }
+          }
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "reqlan.listAllIdeas",
+        "title": "List All Ideas",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.fileRelatedRequirements",
+        "title": "File Related Requirements",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.deprecationImpact",
+        "title": "Deprecation Impact Analysis",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.completionStatus",
+        "title": "Completion Status",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.getLocalGraph",
+        "title": "Get Local Graph",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.semanticSearch",
+        "title": "Semantic Search",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.refreshIndex",
+        "title": "Refresh Idea Index",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.createBase",
+        "title": "Create Base",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.exportHtml",
+        "title": "Export HTML…",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.exportMarkdown",
+        "title": "Export Markdown…",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.exportJson",
+        "title": "Export JSON…",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.exportCsv",
+        "title": "Export CSV…",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.exportPdf",
+        "title": "Export PDF…",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.refreshActivityBar",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "reqlan.openIdeaFromActivityBar",
+        "title": "Open Idea"
+      },
+      {
+        "command": "reqlan.toggleReferenceInlayHints",
+        "title": "Toggle Reference Inlay Hints",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.toggleReferenceCodeLens",
+        "title": "Toggle Reference CodeLens",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.openReferenceCodeLens",
+        "title": "Open Reference CodeLens Card",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.showOnboarding",
+        "title": "Show Onboarding",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.openInboundReferencesSummary",
+        "title": "Open Inbound References Summary",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.importError.search",
+        "title": "Search Index for Unresolved Reference",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.searchReference",
+        "title": "Search Idea Reference",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.importError.createFile",
+        "title": "Create Idea File for Unresolved Reference",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.refactor.deleteIdea",
+        "title": "Delete Idea and Update References",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.refactor.moveIdea",
+        "title": "Move Idea to Another File",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.barrelPage",
+        "title": "Barrel Page",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.openFolderReference",
+        "title": "Open Folder Reference"
+      },
+      {
+        "command": "reqlan.openWildcardReference",
+        "title": "Open Wildcard Reference Matches",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.openIdeasSummary",
+        "title": "Open Ideas Summary",
+        "category": "reqlan",
+        "icon": "$(table)"
+      },
+      {
+        "command": "reqlan.openIndexDiagnostics",
+        "title": "Open Index Diagnostics",
+        "category": "reqlan",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "reqlan.installCursorSkills",
+        "title": "Install Cursor Skills",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addAgentCommands",
+        "title": "Install Cursor Skills",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.buildRequirement",
+        "title": "Build New Requirement",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addToContext",
+        "title": "Add to Context",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addIdeaToChat",
+        "title": "Add Idea to Current Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addIdeaToNewChat",
+        "title": "Add Idea to New Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addIdeasetToChat",
+        "title": "Add Ideaset to Current Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addIdeasetToNewChat",
+        "title": "Add Ideaset to New Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addFileToChat",
+        "title": "Add File to Current Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.addFileToNewChat",
+        "title": "Add File to New Chat",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.writePlan",
+        "title": "Write Plan",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.runPrompt",
+        "title": "Run Chat Prompt",
+        "category": "reqlan"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "reqlan.addToChat",
+        "label": "Reqlan: Add to Chat"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "reqlan.openIdeasSummary",
+          "when": "view == reqlan.activityBar",
+          "group": "navigation@1"
+        },
+        {
+          "command": "reqlan.openIndexDiagnostics",
+          "when": "view == reqlan.activityBar",
+          "group": "navigation@2"
+        },
+        {
+          "command": "reqlan.refreshActivityBar",
+          "when": "view == reqlan.activityBar",
+          "group": "navigation@3"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "reqlan.addToChat",
+          "when": "editorLangId == reqlan",
+          "group": "reqlan@1"
+        }
+      ],
+      "reqlan.addToChat": [
+        {
+          "command": "reqlan.addIdeaToChat",
+          "group": "1_idea@1"
+        },
+        {
+          "command": "reqlan.addIdeaToNewChat",
+          "group": "1_idea@2"
+        },
+        {
+          "command": "reqlan.addIdeasetToChat",
+          "group": "2_ideaset@1"
+        },
+        {
+          "command": "reqlan.addIdeasetToNewChat",
+          "group": "2_ideaset@2"
+        },
+        {
+          "command": "reqlan.addFileToChat",
+          "group": "3_file@1"
+        },
+        {
+          "command": "reqlan.addFileToNewChat",
+          "group": "3_file@2"
+        }
+      ]
     }
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onChatParticipant:reqlan.reqlan-extension",
+    "onLanguage:python",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./out/extension/main.cjs",
+  "scripts": {
+    "clean": "shx rm -fr *.tsbuildinfo out syntaxes media/webviews media/logo.png media/logo-256.png media/logo.webp media/logo.svg",
+    "vscode:prepublish": "pnpm run build:force",
+    "build:media": "node scripts/generate-media.mjs",
+    "build:readme": "pnpm exec tsx scripts/generate-readme.ts",
+    "build:syntaxes": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json",
+    "sync:cursor": "node ../../scripts/sync-cursor-ai.mjs",
+    "build:prepare": "pnpm run build:syntaxes && pnpm run sync:cursor",
+    "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts",
+    "build": "node scripts/build.mjs",
+    "build:force": "node scripts/build.mjs --force",
+    "build:clean": "pnpm run clean && pnpm run build",
+    "watch": "bash scripts/watch.sh",
+    "test": "vitest run",
+    "package": "node ../../scripts/package-extension-targets.mjs --target linux-x64",
+    "package:all": "node ../../scripts/package-extension-targets.mjs",
+    "deploy": "node ../../scripts/package-extension-targets.mjs --publish",
+    "deploy:openvsx": "node ../../scripts/package-extension-targets.mjs --openvsx"
+  },
+  "dependencies": {
+    "cytoscape": "^3.33.1",
+    "cytoscape-cola": "^2.5.1",
+    "cytoscape-fcose": "^2.2.0",
+    "langium": "~4.3.0",
+    "vscode-languageclient": "~10.0.0",
+    "vscode-languageserver": "~10.0.0",
+    "vscode-languageserver-textdocument": "~1.0.12",
+    "zustand": "~5.0.8",
+    "@reqlan/analytical": "workspace:*",
+    "@reqlan/language": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "~5.0.3",
+    "@tsconfig/svelte": "~5.0.4",
+    "@vscode/vsce": "^3.6.2",
+    "sharp": "^0.34.5",
+    "@types/vscode": "~1.91.0",
+    "concurrently": "~10.0.3",
+    "esbuild": "~0.28.1",
+    "svelte": "~5.33.14",
+    "vite": "~6.2.5",
+    "vitest": "~3.1.3"
+  },
+  "vsce": {
+    "dependencies": true
+  }
 }

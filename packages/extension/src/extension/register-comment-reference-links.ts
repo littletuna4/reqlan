@@ -1,3 +1,9 @@
+/**
+ * Document links for `rq:[…]` tokens in non-`.rq` source comments.
+ * rq:["../../../../reqlan rq/ontology.rq".referenced_files]
+ * rq:["../../../../reqlan rq/ontology.rq".reference_types]
+ * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ */
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { findCommentReferencesInText } from '@reqlan/language';

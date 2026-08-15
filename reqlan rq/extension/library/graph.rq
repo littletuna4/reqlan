@@ -88,19 +88,19 @@ graph_label_modes {
     On forces full opacity; off hides all labels; auto follows [graph_label_auto].
     Reset / default restore auto.
     Ideas Summary: control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"], mode persisted via ["../module/ideas_summary/graphical_graph.rq".graph_ui_persistence].
-    HTML export: control in ["../../../packages/analytical/src/export/html-export-template.ts"] / ["../../../packages/analytical/src/export/html-export-assets.ts"].
+    HTML export: control in ["../../../crates/reqlan-export/src/html_template.rs"] / ["../../../crates/reqlan-export/assets/app.js"].
     Driven by the same viewport zoom as [view_controls].
     @status done
     @implementation (
         ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
         ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
     )
     @tests (
         ["../../../packages/extension/test/graph-ui-state.test.ts"]
-        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -115,11 +115,11 @@ graph_label_auto {
     @implementation (
         ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
         ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
         ["../../../packages/extension/test/graph-label-opacity.test.ts"]
-        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -132,14 +132,14 @@ graph_status_tag_filters {
     Do not invent unspecified for missing attributes in rollups, clusters, or filter options.
     Special options render differently from concrete values (italic muted Not present; info-tint Empty; warning-tint unspecified).
     Shared helpers live in ["../../../packages/analytical/src/core/filter-specials.ts"].
-    Surfaces: Ideas Summary SearchableCheckboxDropdown; HTML export SCD in ["../../../packages/analytical/src/export/html-export-assets.ts"].
+    Surfaces: Ideas Summary SearchableCheckboxDropdown; HTML export SCD in ["../../../crates/reqlan-export/assets/app.js"].
     @status done
     @implementation (
         ["../../../packages/analytical/src/core/filter-specials.ts"]
-        ["../../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../crates/reqlan-export/src/html_utils.rs"]
         ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
         ["../../../packages/analytical/src/index-store/sqlite-store.ts"]
         ["../../../packages/extension/webviews/ideas-summary/components/SearchableCheckboxDropdown.svelte"]
@@ -148,7 +148,7 @@ graph_status_tag_filters {
         ["../../../packages/extension/src/webview_module/shared/messages.ts"]
     )
     @tests (
-        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
         ["../../../packages/analytical/test/filter-specials.test.ts"]
     )
 }

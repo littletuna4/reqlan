@@ -7,7 +7,7 @@ argument-hint: "[keyword or requirement name]"
 disable-model-invocation: true
 ---
 
-# Reqlan Search
+# reqlan Search
 
 Find requirements efficiently without loading the entire graph.
 
@@ -19,11 +19,11 @@ Find requirements efficiently without loading the entire graph.
 
 ## Preferred tools
 
-| Goal | Tool / command |
-| --- | --- |
-| Keyword search | MCP `search_requirements` or `/rq-search-requirements` or `@reqlan /rq-search` |
-| Active file context | MCP `file_context` or `/rq-file-context` or `@reqlan /rq-context` |
-| Local neighbourhood | MCP `local_graph` or `@reqlan /rq-graph` |
+| Goal                   | Tool / command                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| Keyword search         | MCP `search_requirements` or `/rq-search-requirements` or `@reqlan /rq-search`       |
+| Active file context    | MCP `file_context` or `/rq-file-context` or `@reqlan /rq-context`                    |
+| Local neighbourhood    | MCP `local_graph` or `@reqlan /rq-graph`                                             |
 | Attach compact context | MCP `requirement_reference` / `file_reference` or `#requirement` / `#file` (VS Code) |
 
 ## Response format

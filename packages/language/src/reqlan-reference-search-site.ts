@@ -61,6 +61,19 @@ export function toReferenceSearchCommandArgs(
 }
 
 /**
+ * Shared path for the LSP `reqlan/referenceSearchSite` handler and the
+ * extension-host fallback when the language client is not yet running.
+ */
+export function resolveReferenceSearchSiteFromDocument(
+    documentUri: string,
+    document: LangiumDocument,
+    range: Range
+): ReferenceSearchSiteRequestResult | undefined {
+    const site = findReferenceSearchSite(document, range);
+    return site ? toReferenceSearchCommandArgs(documentUri, site) : undefined;
+}
+
+/**
  * Prefer an existing [reference]/[[wikilink]] under the cursor; otherwise a
  * selection or word in idea-body prose that can be wrapped as `[name]`.
  */

@@ -10,7 +10,7 @@ import "../../packages/analytical/src/core/create-base.ts" as create_base_impl
 import "../../packages/extension/src/ai_commands_module/install-cursor-skills.ts" as install_cursor_skills_impl
 
 installation {
-    Reqlan installation has **two sequenced layers** that must not be conflated:
+    reqlan installation has **two sequenced layers** that must not be conflated:
     1. [extension_installation] — host product (VS Code / Cursor extension) install and first activation.
     2. [base_installation] — marking a filesystem directory as a reqlan [bases.base] and seeding its `.reqlan` application memory.
     Extension install alone does **not** create a base. Base install alone does **not** open the welcome webview or install host agent skills.
@@ -54,7 +54,7 @@ workspace_agent_files {
     Agent / AI host files are **workspace** artefacts, not files under `.reqlan/`.
     Install Cursor Skills ([skills_mcp.cursor_skills_install]) copies bundled `rq-*` skills into `<workspace>/.cursor/skills/` and writes `<workspace>/.cursor/mcp.json` ([install_cursor_skills_impl]): local `packages/mcp/bin/mcp.js` when present, otherwise `npx -y @reqlan/mcp`.
     Requires an open workspace folder; does not create a base and does not write into `.reqlan`.
-    Naming: skills / chat slash commands use `rq-` prefix ([skills_mcp.chat_skill_naming]); command palette stays category "Reqlan" ([configuration.ai_naming]).
+    Naming: skills / chat slash commands use `rq-` prefix ([skills_mcp.chat_skill_naming]); command palette stays category "reqlan" ([configuration.ai_naming]).
     AI command surfaces that depend on skills being present: [agents.ai_integration], [agents.ai_build_requirement], [agents.ai_add_to_context], [agents.ai_write_plan].
     Dev sync of the same skill sources into this repo's `.cursor/skills` is a build concern (["../development/build.rq"]), distinct from end-user install sequencing.
 }

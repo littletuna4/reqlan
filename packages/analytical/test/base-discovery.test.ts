@@ -7,6 +7,7 @@ import {
     discoverBases,
     filesOwnedByBase,
     isPathInsideOrEqual,
+    nearestBaseRoot,
     selectDefaultBase,
     toBaseDescriptor
 } from '../src/core/base-discovery.js';
@@ -71,6 +72,28 @@ describe('base discovery', () => {
 
         const childOwned = filesOwnedByBase(nested, [parentFile, childFile], bases);
         expect(childOwned).toEqual([childFile]);
+    });
+
+    test('nearestBaseRoot walks ancestors instead of scanning sibling trees', () => {
+        const root = tempDir();
+        markBase(root);
+        const decoy = join(root, 'decoy');
+        mkdirSync(decoy, { recursive: true });
+        for (let index = 0; index < 80; index += 1) {
+            const sibling = join(decoy, `d${index}`);
+            mkdirSync(sibling, { recursive: true });
+            markBase(sibling);
+        }
+        const nested = join(root, 'src', 'nested');
+        mkdirSync(nested, { recursive: true });
+        markBase(nested);
+        const file = join(nested, 'a.rq');
+        writeFileSync(file, 'idea x\n');
+
+        expect(nearestBaseRoot(file)).toBe(resolve(nested));
+        expect(nearestBaseRoot(join(root, 'other.rq'), [root])).toBe(resolve(root));
+        expect(nearestBaseRoot(join(root, 'src', 'plain.rq'), [root])).toBe(resolve(root));
+        expect(nearestBaseRoot('/tmp/outside-reqlan-base-walk', [root])).toBeUndefined();
     });
 
     test('baseForPath picks longest matching root', () => {

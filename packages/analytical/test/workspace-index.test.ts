@@ -265,4 +265,49 @@ describe('WorkspaceIndex', () => {
         expect(keepIdeas.map(idea => idea.name)).toEqual(['keep']);
         await index.deactivate();
     });
+
+    // rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+    test('fuzzySearch ranks from the native index without listing all ideas in JS', async () => {
+        const root = await writeWorkspace({
+            'demo.rq': 'cli_package CLI package\nsearch_code_actions code action search\n'
+        });
+        const store = createAnalyticalStore();
+        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        await index.activate();
+
+        const empty = index.fuzzySearch('   ', { limit: 8, requireQuery: true });
+        expect(empty.hits).toEqual([]);
+        expect(empty.total).toBe(0);
+
+        const result = index.fuzzySearch('cli package', { limit: 8, requireQuery: true });
+        expect(result.hits[0]?.name).toBe('cli_package');
+        expect(result.hits.every(hit => hit.kind !== 'ideaset')).toBe(true);
+        await index.deactivate();
+    });
+
+    // rq:["../../reqlan rq/core_analysis/search.rq".file_search]
+    // rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+    test('fuzzySearch returns file-name hits and pages with offset', async () => {
+        const root = await writeWorkspace({
+            'core_analysis/search.rq': 'alpha {\n    body\n}\n',
+            'other.rq': 'beta {\n    body\n}\n'
+        });
+        const store = createAnalyticalStore();
+        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        await index.activate();
+
+        const uris = await index.indexStore.listDocumentUris();
+        expect(uris.sort()).toEqual(['core_analysis/search.rq', 'other.rq']);
+        const result = index.fuzzySearch('search', { limit: 8, requireQuery: true });
+        expect(result.hits.some(hit => hit.kind === 'file' && hit.name === 'search.rq')).toBe(true);
+
+        const page = index.fuzzySearch('a', { limit: 1, offset: 0, requireQuery: true });
+        expect(page.hits).toHaveLength(1);
+        if (page.truncated) {
+            const next = index.fuzzySearch('a', { limit: 1, offset: 1, requireQuery: true });
+            expect(next.hits.length).toBeGreaterThan(0);
+            expect(next.hits[0]?.id).not.toBe(page.hits[0]?.id);
+        }
+        await index.deactivate();
+    });
 });

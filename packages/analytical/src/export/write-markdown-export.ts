@@ -7,7 +7,7 @@ import type {
     ExportResult,
     ExportSnapshot
 } from './types.js';
-import { formatAttributeValue } from './html-export-utils.js';
+import { formatAttributeValue } from './export-utils.js';
 
 /** Build markdown paths from HTML-oriented snapshot page paths. */
 export function toMarkdownPath(htmlPath: string): string {

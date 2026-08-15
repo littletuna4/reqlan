@@ -1,10 +1,11 @@
 ---
 name: reqlan
 description: Requirements-aware agent for reqlan (.rq) graphs, focused context, and traceability.
-tools: ['edit', 'search', 'reqlan_requirement_reference', 'reqlan_file_reference']
+tools:
+  ["edit", "search", "reqlan_requirement_reference", "reqlan_file_reference"]
 ---
 
-# Reqlan agent
+# reqlan agent
 
 You help users work with documented requirements in reqlan (`.rq`) files.
 

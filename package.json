@@ -4,7 +4,7 @@
     "version": "0.0.1",
     "type": "module",
     "private": true,
-    "packageManager": "pnpm@11.9.0",
+    "packageManager": "pnpm@11.21.0",
     "scripts": {
         "clean": "pnpm -r run clean",
         "watch": "concurrently -n langium,tsc,ext -c magenta,blue,green \"pnpm run langium:watch\" \"tsc -b tsconfig.build.json --watch\" \"pnpm --filter ./packages/extension run watch\"",
@@ -16,23 +16,30 @@
         "physics:generate": "node packages/analytical/scripts/generate-physics-core-source.mjs",
         "langium:watch": "pnpm --filter ./packages/language run langium:watch",
         "test": "pnpm --filter ./packages/language run test && pnpm --filter ./packages/analytical run test && pnpm --filter ./packages/cli run test && pnpm --filter ./packages/extension run test",
+        "test:rust": "cargo test --manifest-path crates/Cargo.toml --workspace --exclude reqlan-napi",
+        "native:types": "cargo run --manifest-path crates/Cargo.toml -p reqlan-analytical --bin export-ts",
+        "native:prepare": "node scripts/prepare-native-packages.mjs",
+        "native:fetch": "node scripts/fetch-native-packages.mjs",
+        "native:pack": "node scripts/pack-host-native-package.mjs",
+        "native:stage": "node scripts/stage-host-native.mjs",
+        "native:publish": "node scripts/publish-native-packages.mjs",
         "changeset": "changeset",
-        "version-packages": "changeset version",
+        "version-packages": "changeset version && node scripts/prepare-native-packages.mjs",
         "release:npm": "changeset publish",
         "build:readme": "pnpm exec tsx scripts/generate-root-readme.ts && pnpm exec tsx scripts/generate-npm-package-readmes.ts"
     },
     "devDependencies": {
         "@changesets/cli": "^2.31.0",
-        "tsx": "^4.19.4",
-        "@sveltejs/vite-plugin-svelte": "~5.0.3",
-        "@reqlan/language": "workspace:*",
         "@reqlan/analytical": "workspace:*",
         "@reqlan/cli": "workspace:*",
+        "@reqlan/language": "workspace:*",
         "@reqlan/mcp": "workspace:*",
+        "@sveltejs/vite-plugin-svelte": "~5.0.3",
         "@types/node": "~20.19.42",
         "concurrently": "~10.0.3",
         "shx": "~0.4.0",
         "svelte": "~5.33.14",
+        "tsx": "^4.19.4",
         "typescript": "~5.9.3"
     }
 }

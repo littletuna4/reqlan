@@ -48,8 +48,9 @@ export interface ReqlanParseCallOptions {
 
 /**
  * Directory of this module (or of the CJS bundle that inlined it).
- * Avoid static `import.meta.url`: esbuild format cjs + target es2017 empties it
- * (see reqlan rq/extension/startup-performance.rq invalid_url_activation_failure).
+ * Prefer `__dirname` in the extension host CJS bundle. Under Node ESM, use
+ * `import.meta.url` — do not eval that expression; Node 24 treats a script eval
+ * as `Cannot use 'import.meta' outside a module`.
  */
 declare const __dirname: string | undefined;
 
@@ -57,9 +58,7 @@ function moduleDirectory(): string {
     if (typeof __dirname === 'string') {
         return __dirname;
     }
-    // Native ESM only — hide from esbuild's empty-import-meta rewrite.
-    const metaUrl = (0, eval)('import.meta.url') as string;
-    return dirname(fileURLToPath(metaUrl));
+    return dirname(fileURLToPath(import.meta.url));
 }
 
 export function resolveParseWorkerPath(explicit?: string): string {

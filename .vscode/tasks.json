@@ -22,7 +22,7 @@
             "command": "node packages/extension/scripts/build.mjs",
             "type": "shell",
             "problemMatcher": "$tsc",
-            "detail": "Generate dependencies and rebuild extension-host, language-server, and webview output before F5"
+            "detail": "Generate dependencies, stage the host native analytical engine, and rebuild extension-host, language-server, and webview output before F5"
         },
         {
             "label": "Watch reqlan",

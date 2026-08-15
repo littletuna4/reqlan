@@ -2,8 +2,6 @@ import * as vscode from 'vscode';
 import {
     CONTEXT_MAX_HOP_DEPTH,
     CONTEXT_MIN_HOP_DEPTH,
-    FuzzySearchWorkerClient,
-    SearchCancelledError,
     type FileRelatedRequirements
 } from '@reqlan/analytical';
 import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from '@reqlan/language';
@@ -83,12 +81,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private navigationQuietUntil = 0;
     /** Last editor document URI used for refresh — detects file switches vs selection moves. */
     private lastEditorDocumentUri?: string;
-    private searchWorker: FuzzySearchWorkerClient | undefined;
-    private searchCatalogBaseId: string | undefined;
-    private searchCatalogLoading: Promise<void> | undefined;
-    private readonly searchCatalogProgressHandlers = new Set<
-        (message: string, detail?: string) => void
-    >();
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -101,7 +93,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             this.refreshPanesIfIndexSettled();
         });
         this.catalogUnsubscribe = submodule.index.subscribeCatalogUpdates(() => {
-            this.invalidateSearchCatalog();
             this.refreshPanesIfIndexSettled();
         });
     }
@@ -203,8 +194,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         clearTimeout(this.editorTimer);
         this.refreshEpoch += 1;
         this.ideaSearchEpoch += 1;
-        this.searchWorker?.dispose();
-        this.searchWorker = undefined;
         this.statusUnsubscribe();
         this.catalogUnsubscribe();
         this.disposeViewBindings();
@@ -242,7 +231,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.lastPostedReady = ready;
         this.lastPostedActiveBaseId = activeBaseId;
         if (becameReady || baseChangedWhileReady) {
-            void this.preloadSearchCatalog();
             void this.refreshFromEditor({ followEditorBase: false });
         }
     }
@@ -372,7 +360,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             fileUri,
             line,
             pinnedFocusId: this.pinnedFocusId,
-            openFileUris: collectOpenWorkspaceFileUris(),
+            openFileUris: collectOpenWorkspaceFileUris(baseRoot),
             git,
             workspace: {
                 ready: snapshot.ready,
@@ -463,7 +451,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         }
         const documentUri = editor.document.uri.toString();
         this.lastEditorDocumentUri = documentUri;
-        const fileUri = toIndexFileUri(editor.document.uri);
+        const fileUri = toIndexFileUri(editor.document.uri, this.activeBaseRoot());
         recordFileVisit(this.contextSession, fileUri);
         if (!this.contextSession.expandedLens) {
             setExpandedLens(this.contextSession, 'current_file');
@@ -508,86 +496,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.refreshEpoch += 1;
         this.navigationQuietUntil = Date.now() + NAVIGATION_QUIET_MS;
         clearTimeout(this.editorTimer);
-        this.searchWorker?.cancelSearches();
-    }
-
-    private invalidateSearchCatalog(): void {
-        this.searchCatalogBaseId = undefined;
-        this.searchCatalogLoading = undefined;
-        this.searchCatalogProgressHandlers.clear();
-        this.searchWorker?.clearCatalog();
-    }
-
-    private getSearchWorker(): FuzzySearchWorkerClient {
-        if (!this.searchWorker) {
-            const workerPath = vscode.Uri.joinPath(
-                this.context.extensionUri,
-                'out',
-                'extension',
-                'fuzzy-search-worker.cjs'
-            ).fsPath;
-            this.searchWorker = new FuzzySearchWorkerClient({ workerPath });
-        }
-        return this.searchWorker;
-    }
-
-    /** Load idea summaries into the search worker off the interactive path. */
-    private async preloadSearchCatalog(options?: {
-        onProgress?: (message: string, detail?: string) => void;
-    }): Promise<void> {
-        if (!this.submodule.index.isReady) {
-            return;
-        }
-        const baseId = this.submodule.index.getActiveBaseId();
-        if (baseId && baseId === this.searchCatalogBaseId && this.getSearchWorker().hasCatalog) {
-            return;
-        }
-        const onProgress = options?.onProgress;
-        if (onProgress) {
-            this.searchCatalogProgressHandlers.add(onProgress);
-        }
-        const emitProgress = (message: string, detail?: string): void => {
-            for (const handler of this.searchCatalogProgressHandlers) {
-                handler(message, detail);
-            }
-        };
-        try {
-            if (this.searchCatalogLoading) {
-                emitProgress('Preparing search catalog…', 'Waiting for catalog load');
-                await this.searchCatalogLoading;
-                return;
-            }
-            this.searchCatalogLoading = (async () => {
-                emitProgress('Preparing search catalog…', 'Reading ideas from index');
-                await yieldEventLoop();
-                if (!this.submodule.index.isReady) {
-                    return;
-                }
-                const ideas = await this.submodule.index.indexStore.listAllIdeas();
-                emitProgress(
-                    'Preparing search catalog…',
-                    `${ideas.length} idea${ideas.length === 1 ? '' : 's'} loaded`
-                );
-                await yieldEventLoop();
-                await this.getSearchWorker().setCatalog(ideas);
-                this.searchCatalogBaseId = this.submodule.index.getActiveBaseId();
-                emitProgress(
-                    'Preparing search catalog…',
-                    `${ideas.length} idea${ideas.length === 1 ? '' : 's'} ready`
-                );
-            })()
-                .catch(() => {
-                    this.invalidateSearchCatalog();
-                })
-                .finally(() => {
-                    this.searchCatalogLoading = undefined;
-                });
-            await this.searchCatalogLoading;
-        } finally {
-            if (onProgress) {
-                this.searchCatalogProgressHandlers.delete(onProgress);
-            }
-        }
     }
 
     private async handleInteractiveMessage(message: ActivityBarToExtensionMessage): Promise<void> {
@@ -654,7 +562,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     await this.postIndexHealth();
                     this.postTray();
                     this.postEditorContext();
-                    void this.preloadSearchCatalog();
                     await this.refreshFromEditor({ followEditorBase: true });
                     this.post({ type: 'bootstrapComplete' });
                     break;
@@ -684,7 +591,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'searchIdeas':
                     // Fire-and-forget: scoring runs in a worker; do not block the message loop.
-                    void this.searchIdeas(message.query, requestId, message.pathFilter);
+                    void this.searchIdeas(message.query, requestId, message.pathFilter, message.offset);
                     break;
                 case 'loadTodos':
                     await this.loadTodos(requestId);
@@ -746,8 +653,6 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     }
                     // Pointer swap — status rebinds immediately; catch-up is fire-and-forget if not ready.
                     this.submodule.index.setActiveBaseId(baseId);
-                    this.invalidateSearchCatalog();
-                    void this.preloadSearchCatalog();
                     break;
                 }
                 case 'pinIdea':
@@ -961,11 +866,13 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     /** @deprecated use loadContext */
     private async loadScope(fileUri: string, line: number, requestId?: number): Promise<void> {
         const editor = vscode.window.activeTextEditor;
-        if (editor && toIndexFileUri(editor.document.uri) === fileUri) {
+        if (editor && toIndexFileUri(editor.document.uri, this.activeBaseRoot()) === fileUri) {
             await this.loadContext(editor, requestId);
             return;
         }
-        const document = await vscode.workspace.openTextDocument(resolveIndexFileUri(fileUri));
+        const document = await vscode.workspace.openTextDocument(
+            resolveIndexFileUri(fileUri, this.activeBaseRoot())
+        );
         const fakeEditor = {
             document,
             selection: new vscode.Selection(line, 0, line, 0)
@@ -983,7 +890,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             void vscode.window.showWarningMessage('Could not locate the source idea for create.');
             return;
         }
-        const documentUri = resolveIndexFileUri(idea.fileUri).toString();
+        const documentUri = resolveIndexFileUri(idea.fileUri, this.activeBaseRoot()).toString();
         await vscode.commands.executeCommand(REQLAN_IMPORT_ERROR_CREATE_COMMAND, {
             documentUri,
             refText: name,
@@ -1070,7 +977,14 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         void this.refreshFromEditor();
     }
 
-    private async searchIdeas(query: string, requestId?: number, pathFilter?: string): Promise<void> {
+    private async searchIdeas(
+        query: string,
+        requestId?: number,
+        pathFilter?: string,
+        offset = 0
+    ): Promise<void> {
+        // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
         if (!this.submodule.index.isReady) {
             this.post({
                 type: 'error',
@@ -1081,56 +995,49 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
         const trimmed = query.trim();
+        const requestedOffset = Math.max(0, offset);
         if (!trimmed) {
             this.post({
                 type: 'ideaSearchResults',
-                payload: { query: '', total: 0, truncated: false, results: [] },
+                payload: {
+                    query: '',
+                    total: 0,
+                    truncated: false,
+                    offset: 0,
+                    nextOffset: 0,
+                    results: []
+                },
                 requestId
             });
             return;
         }
         const epoch = ++this.ideaSearchEpoch;
         const searchRequestId = requestId ?? epoch;
-        const postProgress = (
-            phase: 'catalog' | 'search',
-            message: string,
-            detail?: string
-        ): void => {
-            if (epoch !== this.ideaSearchEpoch) {
+        const postProgress = (message: string, detail?: string): void => {
+            if (epoch !== this.ideaSearchEpoch || requestedOffset > 0) {
                 return;
             }
             this.post({
                 type: 'ideaSearchProgress',
-                payload: { phase, message, detail },
+                payload: { phase: 'search', message, detail },
                 requestId: searchRequestId
             });
         };
         try {
-            const needsCatalog =
-                !this.getSearchWorker().hasCatalog ||
-                this.searchCatalogBaseId !== this.submodule.index.getActiveBaseId() ||
-                Boolean(this.searchCatalogLoading);
-            if (needsCatalog) {
-                postProgress('catalog', 'Preparing search catalog…', 'Reading ideas from index');
-            }
-            await this.preloadSearchCatalog({
-                onProgress: (message, detail) => {
-                    postProgress('catalog', message, detail);
-                }
-            });
+            postProgress('Scoring ideas…');
+            await yieldEventLoop();
             if (epoch !== this.ideaSearchEpoch) {
                 return;
             }
-            postProgress('search', 'Scoring ideas…');
-            // Over-fetch when path filtering so the visible page can still fill.
+            // Over-fetch when path filtering so a page can still fill after the AND filter.
             const fetchLimit = pathFilter?.trim()
                 ? Math.max(IDEA_SEARCH_LIMIT * 8, 200)
                 : IDEA_SEARCH_LIMIT;
-            const { hits } = await this.getSearchWorker().search(
-                trimmed,
-                searchRequestId,
-                { limit: fetchLimit, requireQuery: true }
-            );
+            const { hits, truncated: nativeTruncated, total } = this.submodule.index.fuzzySearch(trimmed, {
+                limit: fetchLimit,
+                offset: requestedOffset,
+                requireQuery: true
+            });
             if (epoch !== this.ideaSearchEpoch) {
                 return;
             }
@@ -1143,22 +1050,35 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 fileUri: hit.fileUri,
                 lineStart: hit.lineStart
             }));
-            const filtered = pathFilter?.trim()
-                ? mapped.filter(hit => matchesIdeaPathFilter(hit.path, hit.fileUri, pathFilter))
-                : mapped;
-            const results = filtered.slice(0, IDEA_SEARCH_LIMIT);
+            const results: typeof mapped = [];
+            let consumed = 0;
+            for (const hit of mapped) {
+                consumed += 1;
+                if (
+                    pathFilter?.trim()
+                    && !matchesIdeaPathFilter(hit.path, hit.fileUri, pathFilter)
+                ) {
+                    continue;
+                }
+                results.push(hit);
+                if (results.length >= IDEA_SEARCH_LIMIT) {
+                    break;
+                }
+            }
             this.post({
                 type: 'ideaSearchResults',
                 payload: {
                     query: trimmed,
-                    total: filtered.length,
-                    truncated: filtered.length > results.length,
+                    total,
+                    truncated: nativeTruncated || consumed < mapped.length,
+                    offset: requestedOffset,
+                    nextOffset: requestedOffset + consumed,
                     results
                 },
                 requestId
             });
         } catch (error) {
-            if (error instanceof SearchCancelledError || epoch !== this.ideaSearchEpoch) {
+            if (epoch !== this.ideaSearchEpoch) {
                 return;
             }
             this.post({
@@ -1272,14 +1192,14 @@ function scopeForMessage(
     }
 }
 
-function collectOpenWorkspaceFileUris(): string[] {
+function collectOpenWorkspaceFileUris(baseRoot?: string): string[] {
     const uris = new Set<string>();
     for (const group of vscode.window.tabGroups.all) {
         for (const tab of group.tabs) {
             const input = tab.input;
             if (input instanceof vscode.TabInputText) {
                 if (vscode.workspace.getWorkspaceFolder(input.uri)) {
-                    uris.add(toIndexFileUri(input.uri));
+                    uris.add(toIndexFileUri(input.uri, baseRoot));
                 }
             }
         }
@@ -1319,7 +1239,7 @@ export function registerActivityBarWebview(
         }),
         vscode.window.onDidChangeTextEditorSelection(event => {
             if (isWorkspaceEditor(event.textEditor)) {
-                const fileUri = toIndexFileUri(event.textEditor.document.uri);
+                const fileUri = toIndexFileUri(event.textEditor.document.uri, provider.activeBaseRoot());
                 const line = event.selections[0]?.active.line ?? 0;
                 provider.recordEditorActivity(fileUri, line);
                 provider.refreshFromEditorDebounced({ followEditorBase: true });

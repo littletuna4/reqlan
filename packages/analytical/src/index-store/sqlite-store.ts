@@ -1,9 +1,10 @@
 /**
  * SQLite-backed persistence for the workspace idea graph index.
- * Uses a bundled asm.js build so VSIX installs do not depend on native modules.
+ * Backed by rusqlite via the core native engine (NativeSqlDb).
  */
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { basename, dirname } from 'node:path';
+import { unlink } from 'node:fs/promises';
+import { basename } from 'node:path';
+import { NativeSqlConnection } from '../native/native-sql-db.js';
 import { BASE_MIGRATIONS, SCHEMA_VERSION, VERSION_MIGRATIONS } from './schema.js';
 import type {
     EdgeKind,
@@ -61,29 +62,9 @@ import {
 } from './webview-table-queries.js';
 import { buildGraphFilterWhereClause } from './webview-graph-queries.js';
 
-interface SqlJsStatement {
-    step(): boolean;
-    getAsObject(): Record<string, unknown>;
-    free(): void;
-}
-
-interface SqlJsDatabaseHandle {
-    run(sql: string, params?: unknown[]): void;
-    exec(sql: string, params?: unknown[]): unknown;
-    prepare(sql: string, params?: unknown[]): SqlJsStatement;
-    export(): Uint8Array;
-    close(): void;
-}
-
-interface SqlJsModule {
-    Database: new(data?: Uint8Array | ArrayLike<number>) => SqlJsDatabaseHandle;
-}
-
 interface SqliteDatabase {
-    db: SqlJsDatabaseHandle;
-    dbPath: string;
+    conn: NativeSqlConnection;
     inTransaction: boolean;
-    dirty: boolean;
 }
 
 export class SqliteIndexStore {
@@ -94,28 +75,35 @@ export class SqliteIndexStore {
     }
 
     static async open(dbPath: string): Promise<SqliteIndexStore> {
-        const db = await openDatabase(dbPath);
-        await run(db, 'PRAGMA foreign_keys = ON');
-        const store = new SqliteIndexStore(db);
+        const conn = await NativeSqlConnection.open(dbPath);
+        return SqliteIndexStore.fromConnection(conn);
+    }
+
+    /** Wrap an already-open native connection (e.g. NativeWorkspaceIndex ideas DB). */
+    static async fromConnection(conn: NativeSqlConnection): Promise<SqliteIndexStore> {
+        conn.run('PRAGMA foreign_keys = ON');
+        const store = new SqliteIndexStore({ conn, inTransaction: false });
         await store.migrate();
         return store;
     }
 
     async close(): Promise<void> {
-        await closeDatabase(this.db);
+        this.db.conn.close();
     }
 
-    /** Close the in-memory database without writing back to disk. */
+    /** Close without extra flush work (file-backed rusqlite already durable). */
     closeWithoutPersist(): void {
-        this.db.db.close();
+        this.db.conn.close();
     }
 
     static async deleteDatabaseFile(dbPath: string): Promise<void> {
-        try {
-            await unlink(dbPath);
-        } catch (error) {
-            if (!isMissingFileError(error)) {
-                throw error;
+        for (const suffix of ['', '-wal', '-shm']) {
+            try {
+                await unlink(`${dbPath}${suffix}`);
+            } catch (error) {
+                if (!isMissingFileError(error)) {
+                    throw error;
+                }
             }
         }
     }
@@ -157,6 +145,15 @@ export class SqliteIndexStore {
             result.set(row.file_uri, row.mtime_ms == null ? undefined : row.mtime_ms);
         }
         return result;
+    }
+
+    async listDocumentUris(): Promise<string[]> {
+        // rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
+        const rows = await all<{ file_uri: string }>(
+            this.db,
+            'SELECT file_uri FROM documents ORDER BY file_uri'
+        );
+        return rows.map(row => row.file_uri);
     }
 
     async upsertDocument(
@@ -265,6 +262,11 @@ export class SqliteIndexStore {
         await run(this.db, 'BEGIN');
         try {
             for (const fileUri of fileUris) {
+                await run(
+                    this.db,
+                    "DELETE FROM edges WHERE kind = 'comment_link' AND target_file = ?",
+                    fileUri
+                );
                 await run(
                     this.db,
                     'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
@@ -1155,46 +1157,15 @@ export class SqliteIndexStore {
     }
 }
 
-async function openDatabase(path: string): Promise<SqliteDatabase> {
-    await mkdir(dirname(path), { recursive: true });
-    const SQL = await getSqlJsModule();
-    const bytes = await readDatabaseBytes(path);
-    return {
-        db: bytes ? new SQL.Database(bytes) : new SQL.Database(),
-        dbPath: path,
-        inTransaction: false,
-        dirty: false
-    };
-}
-
-async function closeDatabase(db: SqliteDatabase): Promise<void> {
-    await persistDatabase(db);
-    db.db.close();
-}
-
 async function run(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<void> {
-    db.db.run(sql, params);
+    db.conn.run(sql, ...params);
     const statementKind = classifyStatement(sql);
     if (statementKind === 'begin') {
         db.inTransaction = true;
         return;
     }
-    if (statementKind === 'commit') {
+    if (statementKind === 'commit' || statementKind === 'rollback') {
         db.inTransaction = false;
-        db.dirty = true;
-        await persistDatabase(db);
-        return;
-    }
-    if (statementKind === 'rollback') {
-        db.inTransaction = false;
-        db.dirty = false;
-        return;
-    }
-    if (statementKind === 'write') {
-        db.dirty = true;
-        if (!db.inTransaction) {
-            await persistDatabase(db);
-        }
     }
 }
 
@@ -1204,76 +1175,22 @@ async function get<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Pr
 }
 
 async function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T[]> {
-    const statement = db.db.prepare(sql, params);
-    const rows: T[] = [];
-    try {
-        while (statement.step()) {
-            rows.push(statement.getAsObject() as T);
-        }
-        return rows;
-    } finally {
-        statement.free();
-    }
+    return db.conn.all<T & Record<string, unknown>>(sql, ...params) as T[];
 }
 
-/** Like `all`, but yields to the event loop every chunk so interactive work can run. */
+/** Like `all`, but yields to the event loop so interactive work can run. */
 async function allYielding<T>(
     db: SqliteDatabase,
     sql: string,
     ...params: unknown[]
 ): Promise<T[]> {
-    const statement = db.db.prepare(sql, params);
-    const rows: T[] = [];
-    try {
-        let stepped = 0;
-        while (statement.step()) {
-            rows.push(statement.getAsObject() as T);
-            stepped += 1;
-            if (stepped % 250 === 0) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0));
-            }
-        }
-        return rows;
-    } finally {
-        statement.free();
-    }
+    const rows = await all<T>(db, sql, ...params);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    return rows;
 }
 
 async function exec(db: SqliteDatabase, sql: string): Promise<void> {
-    db.db.exec(sql);
-    db.dirty = true;
-    if (!db.inTransaction) {
-        await persistDatabase(db);
-    }
-}
-
-let sqlJsModulePromise: Promise<SqlJsModule> | undefined;
-
-async function getSqlJsModule(): Promise<SqlJsModule> {
-    sqlJsModulePromise ??= import('sql.js/dist/sql-asm.js').then(
-        ({ default: initSqlJs }) => initSqlJs({}) as Promise<SqlJsModule>
-    );
-    return sqlJsModulePromise;
-}
-
-async function readDatabaseBytes(path: string): Promise<Uint8Array | undefined> {
-    try {
-        const file = await readFile(path);
-        return new Uint8Array(file);
-    } catch (error) {
-        if (isMissingFileError(error)) {
-            return undefined;
-        }
-        throw error;
-    }
-}
-
-async function persistDatabase(db: SqliteDatabase): Promise<void> {
-    if (!db.dirty) {
-        return;
-    }
-    await writeFile(db.dbPath, db.db.export());
-    db.dirty = false;
+    db.conn.exec(sql);
 }
 
 function classifyStatement(sql: string): 'begin' | 'commit' | 'rollback' | 'write' | 'read' {

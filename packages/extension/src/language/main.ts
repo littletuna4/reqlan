@@ -2,7 +2,7 @@ import './object-group-by-polyfill.js';
 import { startLanguageServer } from 'langium/lsp';
 import { NodeFileSystem } from 'langium/node';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
-import type { Position } from 'vscode-languageserver';
+import type { Position, Range } from 'vscode-languageserver';
 import { URI } from 'langium';
 import {
     createReqlanServices,
@@ -14,7 +14,9 @@ import {
     REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION,
     REQLAN_FILE_REFERENCE_AT_REQUEST,
     REQLAN_NAME_CATALOG_NOTIFICATION,
+    REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_WILDCARD_REFERENCE_AT_REQUEST,
+    resolveReferenceSearchSiteFromDocument,
     sharedAttributeCatalog,
     sharedNameCatalog,
     wildcardArgsFromReference,
@@ -59,6 +61,17 @@ connection.onRequest(
     }
 );
 
+connection.onRequest(
+    REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
+    (params: { uri: string; text?: string; range: Range }) => {
+        const document = getParsedDocument(params);
+        if (!document) {
+            return null;
+        }
+        return resolveReferenceSearchSiteFromDocument(params.uri, document, params.range) ?? null;
+    }
+);
+
 connection.onNotification(REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION, (catalog: AttributeCatalog) => {
     sharedAttributeCatalog.update(catalog);
 });
@@ -77,6 +90,19 @@ function getTextDocument(params: { uri: string; text?: string }) {
         return undefined;
     }
     return createSourceTextDocument(params.uri, params.text);
+}
+
+/** Parsed Langium document for AST/CST site resolution (not the plaintext stub). */
+function getParsedDocument(params: { uri: string; text?: string }) {
+    const uri = URI.parse(params.uri);
+    const existing = shared.workspace.LangiumDocuments.getDocument(uri);
+    if (existing?.parseResult) {
+        return existing;
+    }
+    if (params.text === undefined) {
+        return undefined;
+    }
+    return shared.workspace.LangiumDocumentFactory.fromString(params.text, uri);
 }
 
 // Start the language server with the shared services

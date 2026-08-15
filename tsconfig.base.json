@@ -1,0 +1,20 @@
+{
+  // Shared compilerOptions only. Packages extend this file — do not add include/files here.
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "lib": [
+        "ES2020"
+    ],
+    "sourceMap": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "composite": true
+  }
+}

@@ -35,7 +35,7 @@ import type {
     ExportSearchDocument,
     ExportSnapshot
 } from './types.js';
-import { formatAttributeValue, normalizeUrlBase, slugAttributeKey } from './html-export-utils.js';
+import { formatAttributeValue, normalizeUrlBase, slugAttributeKey } from './export-utils.js';
 import { isSecretRqPath } from './secret-rq.js';
 
 export async function buildExportSnapshot(

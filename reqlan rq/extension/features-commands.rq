@@ -9,7 +9,7 @@ from "./vsc-primitives.rq" import code_actions
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
-    Command titles should not repeat the category prefix; use category "Reqlan" with plain titles so the palette shows "Reqlan: List All Ideas", not "Reqlan: Reqlan: ..." or "RQ: RQ: ...".
+    Command titles should not repeat the category prefix; use category "reqlan" with plain titles so the palette shows "Reqlan: List All Ideas", not "Reqlan: Reqlan: ..." or "RQ: RQ: ...".
 }
 
 view_all_requirements {
@@ -106,6 +106,8 @@ search_code_actions {
     the search menu should preserve/show the context of the would-be reference: the rest of the containing idea, with styling, and with the selected text pulsing / styled prominently.
     it should support fuzzy/partial searching via [search_analysis.fuzzy_search]. it should list the closest matches in a paginated view.
     selecting the idea should fill/replace the reference (or wrap the selection as [name]) and an import (if required) appropiately
+    The lightbulb command (`reqlan.searchReference`) is arg-less because VS Code caches arg-bearing code-action commands and may dispose them on refresh ("Actual command not found … /N").
+    At invoke time the extension resolves the site via LSP `reqlan/referenceSearchSite`, or a local parse of the active editor when the language client is not yet running — it must not fail with a false "language server is not ready" when a local site can be resolved.
     @status done
     @implementation (
         ["../../packages/language/src/reqlan-idea-reference-site.ts"]
@@ -116,10 +118,13 @@ search_code_actions {
         ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
         ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
         ["../../packages/extension/src/extension/register-import-error-commands.ts"]
+        ["../../packages/extension/src/extension/main.ts"]
+        ["../../packages/extension/src/language/main.ts"]
     )
     @tests (
         ["../../packages/language/test/code-actions.test.ts"]
         ["../../packages/extension/test/reference-search.test.ts"]
+        ["../../packages/extension/test/extension-package.test.ts"]
         ["../../packages/analytical/test/fuzzy-search.test.ts"]
     )
 }
@@ -173,4 +178,9 @@ file_based_code_actions {
     @tests (
         ["../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
     )
+}
+
+code_actions_ignore_error {
+There should be a [code_action] for a line with errors that adds the error suppression string.[comment_reference_ignore]
+@todo
 }

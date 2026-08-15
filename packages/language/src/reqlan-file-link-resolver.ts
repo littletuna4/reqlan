@@ -120,7 +120,8 @@ export function resolveImportPathLink(
     }
     const document = AstUtils.getDocument(importDecl);
     const pathNode = GrammarUtils.findNodeForProperty(importDecl.$cstNode, 'path');
-    if (!pathNode) {
+    const sourceRange = cstRange(pathNode);
+    if (!sourceRange) {
         return undefined;
     }
     const imported = findImportedDocument(path, document, documents, context);
@@ -129,7 +130,7 @@ export function resolveImportPathLink(
         return undefined;
     }
     return {
-        sourceRange: pathNode.range,
+        sourceRange,
         targetUri: imported.textDocument.uri,
         targetRange: target.range
     };
@@ -140,8 +141,10 @@ export function resolveQualifiedReferencePathLink(
     documents: LangiumDocuments,
     context?: PathResolveContext
 ): ResolvedFileLink | undefined {
-    const pathNode = reference.path?.$refNode;
-    if (!pathNode) {
+    const pathNode = reference.path?.$refNode
+        ?? GrammarUtils.findNodeForProperty(reference.$cstNode, 'path');
+    const sourceRange = cstRange(pathNode);
+    if (!sourceRange) {
         return undefined;
     }
     const document = AstUtils.getDocument(reference);
@@ -155,7 +158,7 @@ export function resolveQualifiedReferencePathLink(
         return undefined;
     }
     return {
-        sourceRange: pathNode.range,
+        sourceRange,
         targetUri: imported.textDocument.uri,
         targetRange: target.range
     };
@@ -388,7 +391,8 @@ function fileStartRange(): Range {
 export function resolveLinkedAstReferenceLink(reference: Reference<AstNode> | undefined): ResolvedFileLink | undefined {
     const target = reference?.ref;
     const sourceNode = reference?.$refNode;
-    if (!target || !sourceNode) {
+    const sourceRange = cstRange(sourceNode);
+    if (!target || !sourceRange) {
         return undefined;
     }
     const targetDocument = AstUtils.getDocument(target);
@@ -397,7 +401,7 @@ export function resolveLinkedAstReferenceLink(reference: Reference<AstNode> | un
         return undefined;
     }
     return {
-        sourceRange: sourceNode.range,
+        sourceRange,
         targetUri: targetDocument.textDocument.uri,
         targetRange: nameNode.range,
         resolution: 'file'
@@ -434,13 +438,13 @@ export function resolveWildcardReferenceLink(
 ): ResolvedFileLink | undefined {
     const pathNode = GrammarUtils.findNodeForProperty(reference.$cstNode, 'pathPattern');
     const ideaNode = GrammarUtils.findNodeForProperty(reference.$cstNode, 'ideaPattern');
-    const sourceRange = reference.$cstNode?.range
-        ?? (pathNode && ideaNode
+    const sourceRange = cstRange(reference.$cstNode)
+        ?? (pathNode && ideaNode && isValidRange(pathNode.range) && isValidRange(ideaNode.range)
             ? {
                 start: pathNode.range.start,
                 end: ideaNode.range.end
             }
-            : pathNode?.range);
+            : cstRange(pathNode));
     if (!sourceRange) {
         return undefined;
     }
@@ -465,6 +469,9 @@ export function collectFileLinks(
     const links: ResolvedFileLink[] = [];
     const linkedRanges: string[] = [];
     const pushLink = (link: ResolvedFileLink): void => {
+        if (!isValidRange(link.sourceRange)) {
+            return;
+        }
         links.push(link);
         linkedRanges.push(rangeKey(link.sourceRange));
     };
@@ -511,6 +518,9 @@ export function collectFileLinks(
         }
     }
     for (const reference of findEmbeddedFileReferencesInText(document.textDocument.getText())) {
+        if (!isValidRange(reference.range)) {
+            continue;
+        }
         const key = rangeKey(reference.range);
         if (linkedRanges.includes(key) || links.some(link => rangesOverlap(link.sourceRange, reference.range))) {
             continue;
@@ -521,6 +531,15 @@ export function collectFileLinks(
         }
     }
     return links;
+}
+
+function isValidRange(range: Range | undefined): range is Range {
+    return range?.start !== undefined && range.end !== undefined;
+}
+
+/** CST nodes from worker hydration / partial parses can lack a usable `range`. */
+function cstRange(node: CstNode | undefined): Range | undefined {
+    return isValidRange(node?.range) ? node.range : undefined;
 }
 
 function rangeKey(range: Range): string {

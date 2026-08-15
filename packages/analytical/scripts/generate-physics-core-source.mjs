@@ -9,7 +9,7 @@
  * relative to the bundled main.cjs anyway.
  *
  * This script pre-strips the exports and writes the result as a typed string
- * constant so html-export-assets.ts can import it directly. Run before tsc.
+ * constant so classic-script embeds can import it directly. Run before tsc.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

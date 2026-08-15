@@ -28,9 +28,15 @@ invalid_url_activation_failure {
     The concrete incident failed while requiring `out/extension/main.cjs`, before `activate()` ran:
     `TypeError: Invalid URL` in `embedPhysicsCoreSource`.
     Runtime `readFileSync(new URL(..., import.meta.url))` is unsafe when esbuild emits CommonJS for an ES2017 target: `import.meta.url` is unavailable/empty and source-relative assets do not exist beside the bundled entry.
-    The fix generates and imports `PHYSICS_CORE_CLASSIC_SOURCE` at build time instead of resolving the source file at extension runtime.
-    ["../../packages/analytical/src/export/html-export-assets.ts"]
-    ["../../packages/analytical/scripts/generate-physics-core-source.mjs"]
+    The HTML export used to embed physics via `html-export-assets.ts` `embedPhysicsCoreSource`. That writer is gone; export now inlines assets from ["../../crates/reqlan-export/assets/app.js"].
+    Code that still needs a module directory or `createRequire` (core engine loader, parse/fuzzy workers) must not mention `import.meta` statically in a way that esbuild CJS empties: prefer CJS `__dirname`/`__filename` when those exist (extension host bundle), and `import.meta.url` on the Node ESM path (CLI / MCP).
+    Do not eval `import.meta.url` — Node 24 treats that as a script eval and throws `Cannot use 'import.meta' outside a module`.
+    ["../../packages/analytical/src/native/load-native.ts"]
+    ["../../packages/language/src/reqlan-async-parser.ts"]
+    ["../../packages/analytical/src/analysis/fuzzy-search-worker-client.ts"]
+    @tests (
+        "../../packages/analytical/test/load-native.test.ts"
+    )
     @status done
 }
 
@@ -90,10 +96,9 @@ deferred_startup_sequence {
 
 lazy_runtime_dependencies {
     Base discovery must be cheap:
-    - Constructing `WorkspaceIndex` does not construct Langium/Chevrotain services; services are memoized on first parse.
-    - sql.js asm is not parsed as part of `main.cjs`; both index stores dynamically import the generated vendor bundle when a database first opens.
+    - Constructing `WorkspaceIndex` does not construct Langium/Chevrotain services; index sync uses the core native engine (rusqlite).
+    - The host-matching `reqlan_napi` `.node` is required at activate; there is no sql.js vendor bundle in the extension host.
     - Export/physics source is generated at build time rather than read via extension-runtime URLs.
-    The host bundle consequently fell from approximately 11.2 MB to 2.66 MB; sql.js occupies a separate approximately 8.0 MB lazy vendor bundle.
     ["../../packages/analytical/src/index-store/workspace-index.ts"]
     ["../../packages/analytical/src/index-store/sqlite-store.ts"]
     ["../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
@@ -132,9 +137,8 @@ activation_events_learning {
 
 verification_contract {
     Startup changes are complete only when:
-    - The production extension build succeeds and emits both `out/extension/main.cjs` and `out/extension/vendor/sql-asm.cjs`.
-    - The main bundle does not contain the sql.js asm implementation and imports the vendor lazily.
-    - The lazy vendor can initialize a database.
+    - The production extension build succeeds and emits `out/extension/main.cjs`.
+    - The main bundle does not embed a sql.js vendor; index open requires the core native engine.
     - Extension startup-gate, webview-claim, and analytical lazy-service tests pass.
     - Activity-bar shell paint is visually checked in a newly restarted F5 development host; activation failures are cached for the lifetime of a failed host session.
     - Requirement analysis resolves the updated startup graph.

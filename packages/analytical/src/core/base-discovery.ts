@@ -5,14 +5,15 @@
  * Walk pruning uses built-in `.rqignore` defaults (and the search root's `.reqlan/.rqignore`
  * when that root is already a base).
  *
+ * rq:["../../../reqlan rq/ontology.rq".base]
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
  * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
  */
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { basename, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { APPLICATION_MEMORY_DIR } from './application-memory.js';
 import { isIgnoredPath, loadRqIgnore, type RqIgnoreFilter } from './rqignore.js';
-import { relativeWindowsDrivePath } from './workspace-paths.js';
+import { relativeWindowsDrivePath } from './path-relative.js';
 
 export interface BaseDescriptor {
     /** Stable id: absolute normalized base root (forward slashes). */
@@ -107,6 +108,52 @@ export function toBaseDescriptor(baseRoot: string, labelRoot?: string): BaseDesc
         label = basename(root) || root;
     }
     return { id, root, memoryPath, label };
+}
+
+/**
+ * Nearest ancestor directory that owns `.reqlan` (O(depth) `existsSync`).
+ * Use this on click / selection / open paths — never `discoverBases`, which walks the tree.
+ * When `stopAt` is set, do not walk above those roots (typically workspace folders).
+ */
+export function nearestBaseRoot(absPath: string, stopAt?: readonly string[]): string | undefined {
+    const target = resolve(absPath);
+    let dir = target;
+    try {
+        if (statSync(dir).isFile()) {
+            dir = dirname(dir);
+        }
+    } catch {
+        dir = dirname(dir);
+    }
+    const stops = (stopAt ?? []).map(root => resolve(root));
+    const insideStop = (path: string): boolean =>
+        stops.length === 0 || stops.some(stop => isPathInsideOrEqual(path, stop));
+
+    while (insideStop(dir)) {
+        const marker = join(dir, APPLICATION_MEMORY_DIR);
+        try {
+            if (existsSync(marker) && statSync(marker).isDirectory()) {
+                return dir;
+            }
+        } catch {
+            // unreadable marker — keep walking
+        }
+        if (stops.some(stop => pathsEqual(dir, stop))) {
+            return undefined;
+        }
+        const parent = dirname(dir);
+        if (parent === dir) {
+            return undefined;
+        }
+        dir = parent;
+    }
+    return undefined;
+}
+
+function pathsEqual(left: string, right: string): boolean {
+    const leftCmp = process.platform === 'win32' ? resolve(left).toLowerCase() : resolve(left);
+    const rightCmp = process.platform === 'win32' ? resolve(right).toLowerCase() : resolve(right);
+    return leftCmp === rightCmp;
 }
 
 /** Longest-matching base root that contains `absPath`, or undefined. */

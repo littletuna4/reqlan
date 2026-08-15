@@ -3,17 +3,21 @@ from "./core.rq" import analysis_scope
 
 export_pipeline {
     `@reqlan/analytical` owns export execution for every format.
-    Shared contract: `ExportRequest` / progress callbacks / snapshot build (`buildExportSnapshot`), then format writers.
-    Hosts (extension webview, CLI) assemble an `ExportRequest` and call `AnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv` — they do not reimplement writers.
+    Shared contract: `ExportRequest` / progress callbacks / snapshot build, then format writers.
+    Hosts (extension webview, CLI) assemble an `ExportRequest` and call `NativeAnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv` — they do not reimplement writers.
     Formats: ["./html_export.rq".html_export], [markdown_export], [json_export], [csv_export], [pdf_export].
     Progress phases (snapshot, then write completed/total) are reported to hosts for loading UI.
     Consumed under [analysis_scope].
     Rust port of snapshot + writers: ["./rust_port.rq".export_rust].
     @status done
     @implementation (
-        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
         ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/json_export.rs:json_export_lists_persisted_ideas"]
     )
 }
 
@@ -47,6 +51,7 @@ json_export {
     )
     @tests (
         ["../../packages/analytical/test/export-json-csv.test.ts"]
+        ["../../crates/reqlan-export/tests/json_export.rs:json_export_lists_persisted_ideas"]
     )
 }
 
@@ -73,8 +78,9 @@ pdf_export {
     Extension UI host: ["../extension/features-export.rq".export_webview] (not a separate QuickPick chain).
     @status partial
     @implementation (
-        ["../../packages/analytical/src/export/export-html.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
-        ["../../packages/analytical/src/export/types.ts"]
+        ["../../crates/reqlan-export/src/html.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )
 }

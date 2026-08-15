@@ -1,12 +1,11 @@
+/**
+ * CLI runtime uses the core analytical engine, not Langium.
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../reqlan rq/cli/cli_package.rq".architecture]
+ */
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import {
-    activateAnalysisRuntime,
-    AnalysisApi,
-    createAnalysisRuntime,
-    deactivateAnalysisRuntime,
-    type AnalysisRuntime
-} from '@reqlan/analytical';
+import { openAnalysisApi, type HeadlessAnalysisApi } from '@reqlan/analytical/core';
 
 export function resolveWorkspaceRoot(cwd?: string): string {
     const fromEnv = process.env.REQLAN_WORKSPACE?.trim();
@@ -28,18 +27,17 @@ export function resolveWorkspaceRoot(cwd?: string): string {
 
 export async function withAnalysisApi<T>(
     cwd: string | undefined,
-    run: (api: AnalysisApi) => Promise<T>
+    run: (api: HeadlessAnalysisApi) => Promise<T>
 ): Promise<T> {
     const workspaceRoot = resolveWorkspaceRoot(cwd);
-    const runtime: AnalysisRuntime = createAnalysisRuntime({
+    const opened = await openAnalysisApi({
         workspaceRoot,
         cwd: cwd ? resolve(cwd) : process.cwd(),
         storagePath: process.env.REQLAN_INDEX_PATH
     });
-    await activateAnalysisRuntime(runtime);
     try {
-        return await run(new AnalysisApi(runtime));
+        return await run(opened.api);
     } finally {
-        await deactivateAnalysisRuntime(runtime);
+        await opened.dispose();
     }
 }

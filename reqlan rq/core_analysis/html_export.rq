@@ -10,7 +10,8 @@ from "./core.rq" import analysis_scope
 html_export {
     `@reqlan/analytical` builds documentation as HTML from the requirement graph (["./export.rq".export_pipeline], [analysis_scope]).
     Html export should render ideas, attributes, references, and navigable structure suitable for sharing.
-    Pipeline: `exportHtml` / `AnalysisApi.exportHtml` → snapshot → multi-file static site (single-file mode remains optional via [html_export_runtime_modes]).
+    Pipeline: `NativeAnalysisApi.exportHtml` / `AnalysisRuntime.export` → `reqlan-export` snapshot (`build_export_snapshot`) → multi-file static site (`write_html_export`). Single-file mode remains optional via [html_export_runtime_modes].
+    Interactive graph/search JS stays bundled static assets ([html_export_graph_layout]), not a second writer (["./rust_port.rq".export_rust]).
     Thin hosts: extension UI (["../extension/features-export.rq".export_webview], ["../extension/features-html-export.rq".html_export_form], ["../extension/export_functions.rq".export_html]) and CLI (`reqlan export` / ["../cli/cli_package.rq".commands]).
     Export is scoped to a selected ["../bases/base.rq".base] (not a merged multi-base workspace graph).
     [html_export_multi_file]
@@ -37,14 +38,19 @@ html_export {
     [html_export_url_base]
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/export-html.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../crates/reqlan-export/src/html.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )
     @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
+        ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
         ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../packages/extension/test/export-html-native.test.ts"]
     )
 }
 
@@ -80,12 +86,12 @@ html_export_list_views {
     [html_export_scrollable_lists]
     [html_export_overview_links]
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -98,13 +104,12 @@ html_export_overview_links {
     Cross-refs [html_export_list_views], [html_export_cluster_pages], [html_export_internal_links].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/analytical/test/export-html.test.ts:overview status and tag rollups link with filters"]
+        ["../../crates/reqlan-export/tests/html_export.rs:overview_status_and_tag_rollups_link_with_filters"]
     )
 }
 
@@ -120,37 +125,31 @@ html_export_file_pages {
     Emission defaults on and is controllable via includeFilePages so page families can be flagged in or out without changing the export pipeline shape.
     Graph nodes and idea source-file links for hosting files should resolve to these pages when enabled.
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
-        ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/config.schema.json"]
-        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
 html_export_code_reference_pages {
-    Html export should generate dedicated pages for outbound file_reference targets that are not idea-hosting reqlan files already covered by [html_export_file_pages].
+    Html export should generate dedicated pages for outbound file_reference targets and inbound comment_link code files that are not idea-hosting reqlan files already covered by [html_export_file_pages].
     Code-file pages should list referencing ideas and reference labels, and participate in search and navigation.
     Emission defaults on and is controllable via includeCodeFilePages so this page family can be flagged in or out later.
     Outbound reference path cells and graph external file nodes should link to these pages when enabled.
+    Comment-linked files: ["../indexer/indexer.rq".index_code_files].
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
-        ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/config.schema.json"]
-        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/language/test/config.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -164,13 +163,13 @@ html_export_attributes_index {
     Html export should provide a searchable attributes index page listing every attribute key used in the export scope.
     Each attribute entry should summarize distinct values and idea counts, and link to the dedicated attribute page when [html_export_attribute_pages] is enabled.
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -180,17 +179,13 @@ html_export_attribute_pages {
     Emission defaults on and is controllable via includeAttributePages so this page family can be flagged in or out without changing the export pipeline shape.
     The attributes index, idea attribute tables, and search results should link to these pages when enabled.
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
-        ["../../packages/language/src/reqlan-path-resolve.ts"]
-        ["../../packages/extension/schemas/config.schema.json"]
-        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/language/test/config.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -221,17 +216,16 @@ html_export_graph_page {
     [html_export_graph_interaction]
     [html_export_graph_metadata]
     @implementation (
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/index-store/webview-graph-queries.ts"]
-        ["../../packages/analytical/src/index-store/file-treatment.ts"]
-        ["../../packages/extension/src/analytical_submodule/export/register-export-commands.ts"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
-        ["../../packages/analytical/test/file-treatment.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
+        ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }
 
@@ -243,34 +237,35 @@ html_export_graph_links {
     Hosting-file linked nodes (["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle] linked mode) prefer `hostFilePageUrl` stamped during graph URL enrichment
     (file / code-file page for the idea's `fileUri`), falling back to a member idea `pageUrl` when file pages are disabled.
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../crates/reqlan-export/tests/html_export.rs:url_base_and_header_link_produce_root_relative_hrefs"]
     )
 }
 
 html_export_graph_layout {
     The interactive export graph should lay out nodes so labels and circles do not heavily overlap.
     Initial placement should settle with the same Obsidian-style force model as [layout_physics] (central gravity, edge springs, inverse-square repulsion).
-    Rendering uses canvas 2d (not SVG DOM) with shared physics from ["../../packages/analytical/src/graph/physics-core.js"].
+    Rendering uses canvas 2d (not SVG DOM) with shared physics from ["../../packages/analytical/src/graph/physics-core.js"], inlined into the export asset ["../../crates/reqlan-export/assets/app.js"].
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
         ["../../packages/analytical/src/graph/physics-core.js"]
         ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
     )
 }
 
 html_export_graph_animation {
-    Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/analytical/src/graph/physics-core.js"] (same module as ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]).
+    Live physics in the HTML export should match Ideas Summary animatePhysics: continuous damped semi-implicit Euler using the defaults from ["../../packages/analytical/src/graph/physics-core.js"] (same module as ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]), inlined in ["../../crates/reqlan-export/assets/app.js"].
     A Live physics toggle pauses and resumes the same simulation state (default off); when off, the graph batch-settles then sleeps.
     Batch settle must remain responsive per [html_export_graph_background_load] — yield between chunks rather than freezing the page for large graphs.
     Simulation should converge and sleep when calm, waking on filter changes or when Live physics is turned back on, aligned with [layout_physics].
     Large graphs use a spatial grid + repulsion cutoff in the shared core; all nodes and full labels remain visible.
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
         ["../../packages/analytical/src/graph/physics-core.js"]
         ["../../packages/extension/webviews/shared/graph/graph-physics.ts"]
     )
@@ -285,12 +280,11 @@ html_export_graph_background_load {
     Cross-refs [html_export_graph_page], [html_export_graph_animation], [html_export_graph_interaction].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
-        ["../../packages/analytical/test/export-html.test.ts:builds workspace snapshot and writes multi-file html export"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -298,8 +292,9 @@ html_export_graph_subject {
     When a graph view has a subject or center idea, that node should be visually distinct from peers and externals.
     Subject styling should use the brand rust accent against cyan peer nodes.
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/assets/styles.css"]
     )
 }
 
@@ -308,10 +303,10 @@ html_export_graph_labels {
     [html_export_graph_label_modes]
     [html_export_graph_label_auto]
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -319,11 +314,11 @@ html_export_graph_label_modes {
     Export-surface wiring for [graph_label_modes]: Labels control on every interactive export graph cycles auto / on / off; Reset restores auto.
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -333,10 +328,10 @@ html_export_graph_label_auto {
     Zoom and Fit from [html_export_graph_interaction] / [manual_reframe] update opacity each paint.
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -351,8 +346,8 @@ html_export_graph_interaction {
     Related: ["../extension/module/ideas_summary/graphical_graph.rq".file_treatment_toggle],
     ["../extension/module/ideas_summary/graphical_graph.rq".webview_export_graph_parity].
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
     )
 }
 
@@ -360,9 +355,9 @@ html_export_graph_metadata {
     Graph nodes in the HTML export should surface tags, status, and attribute keys on or beside the node, not only as filter inputs.
     Attribute values declared on the idea should be reachable from the graph via the idea page and on-node attribute key summary.
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
     )
 }
 
@@ -374,13 +369,13 @@ html_export_printable_pages {
     Idea cards on the printable report follow [html_export_print_idea_cards], [html_export_print_in_page_anchors], [html_export_print_all_attributes], and [html_export_print_button].
     Ordering of cards on the printable report is tracked by [html_export_print_order_by].
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/write-html-export.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+        ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -390,11 +385,11 @@ html_export_print_idea_cards {
     Cross-refs [html_export_printable_pages], [html_export_print_in_page_anchors], [html_export_print_all_attributes].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -406,12 +401,12 @@ html_export_print_in_page_anchors {
     Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -421,12 +416,11 @@ html_export_print_all_attributes {
     Cross-refs [html_export_printable_pages], [html_export_idea_pages].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -436,11 +430,11 @@ html_export_print_button {
     Cross-refs [html_export_printable_pages].
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -464,11 +458,11 @@ html_export_scrollable_lists {
     In document and print runtime modes, those same lists should expand to their full natural height so the export remains readable as a continuous document and suitable for printing.
     Browser print of interactive pages should also expand constrained lists to full height.
     @implementation (
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -480,15 +474,16 @@ html_export_header_link {
     Often paired with [html_export_url_base] when the export is mounted under a parent static site.
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
         ["../../packages/cli/src/commands/export.ts"]
         ["../../site/scripts/export-spec.mts"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:url_base_and_header_link_produce_root_relative_hrefs"]
+        ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }
 
@@ -500,14 +495,15 @@ html_export_url_base {
     Often paired with [html_export_header_link] when the export is mounted under a parent static site.
     @status done
     @implementation (
-        ["../../packages/analytical/src/export/types.ts"]
-        ["../../packages/analytical/src/export/html-export-utils.ts"]
-        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
-        ["../../packages/analytical/src/export/html-export-template.ts"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
         ["../../packages/cli/src/commands/export.ts"]
         ["../../site/scripts/export-spec.mts"]
     )
     @tests (
-        ["../../packages/analytical/test/export-html.test.ts"]
+        ["../../crates/reqlan-export/tests/html_export.rs:url_base_and_header_link_produce_root_relative_hrefs"]
+        ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }

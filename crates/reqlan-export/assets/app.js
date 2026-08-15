@@ -1,647 +1,258 @@
-import { PHYSICS_CORE_CLASSIC_SOURCE } from '../graph/physics-core-source.js';
+/**
+ * Shared Obsidian-style force step for Ideas Summary live physics and HTML export.
+ * Gravity + edge springs + inverse-square repulsion; spatial grid for large n.
+ * Plain ESM so the HTML export can embed it by stripping `export` keywords.
+ */
+
+/** @typedef {{
+ *   gravity: number,
+ *   repulsion: number,
+ *   linkStrength: number,
+ *   linkDistance: number,
+ *   damping: number,
+ *   maxVelocity: number,
+ *   minSeparation: number,
+ *   restSpeed: number,
+ *   restTicks: number,
+ *   repulsionCutoff?: number
+ * }} PhysicsCoreSettings */
+
+/** @typedef {{
+ *   ids: string[],
+ *   xs: Float64Array,
+ *   ys: Float64Array,
+ *   fxs: Float64Array,
+ *   fys: Float64Array,
+ *   velocities: Map<string, { vx: number, vy: number }>,
+ *   pinnedIds: ReadonlySet<string>,
+ *   edges: ReadonlyArray<{ sourceId: string, targetId: string }>
+ * }} PhysicsStepState */
 
 /**
- * physics-core.js with `export` keywords stripped, inlined at build time by
- * scripts/generate-physics-core-source.mjs. Using a pre-generated string
- * constant rather than readFileSync(import.meta.url) keeps this bundler-safe:
- * esbuild with format cjs + target es2017 empties import.meta.url, and the
- * source file does not exist on disk relative to the bundled main.cjs anyway.
+ * Deterministic angle in [0, 2π) derived from a string.
+ * @param {string} seed
  */
-function embedPhysicsCoreSource(): string {
-    return PHYSICS_CORE_CLASSIC_SOURCE;
+function hashAngleImpl(seed) {
+    let hash = 0;
+    for (let index = 0; index < seed.length; index += 1) {
+        hash = (hash * 31 + seed.charCodeAt(index)) | 0;
+    }
+    return ((hash >>> 0) % 6283) / 1000;
 }
 
-export const SHARED_STYLES = `
-:root {
-    color-scheme: dark;
-    --bg: #14100e;
-    --bg-elev: #1f1815;
-    --bg-soft: #1f1815;
-    --bg-raised: #2a211d;
-    --fg: #ebe4de;
-    --muted: #a89488;
-    --faint: #6e5f56;
-    --line: #3d2f28;
-    --accent: #07a0e5;
-    --accent-strong: #0bbefb;
-    --accent-dim: #0371c1;
-    --rust: #b85c38;
-    --rust-muted: #8a4530;
-    --good: #4ade80;
-    --warn: #fbbf24;
-    --bad: #fb7185;
-    font-family: Inter, system-ui, sans-serif;
-}
-* { box-sizing: border-box; }
-html {
-    /* Keep fragment targets below the sticky .topbar (nav + padding ≈ 4.5–5rem). */
-    scroll-padding-top: 5.5rem;
-}
-body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--fg);
-    line-height: 1.55;
-}
-a { color: var(--accent-strong); text-decoration: none; }
-a:hover { color: var(--accent); }
-main.layout {
-    max-width: 1360px; margin: 0 auto; padding: 1.5rem;
-    display: flex; flex-direction: column; gap: 1.5rem;
-}
-.topbar {
-    position: sticky; top: 0; z-index: 10;
-    background: var(--bg-elev); border-bottom: 1px solid var(--line); margin: 0 -1.5rem;
-    padding: 0.9rem 1.5rem;
-}
-.topbar-inner, .hero, .split, .grid, .detail-grid { display: grid; gap: 1.5rem; }
-.topbar-inner { grid-template-columns: 1.3fr auto; align-items: center; }
-.nav { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
-.nav a {
-    padding: 0.45rem 0.75rem; border-radius: 8px;
-    background: var(--bg-raised); color: var(--muted); border: 1px solid var(--line);
-}
-.nav a:hover { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
-.nav a.active {
-    background: color-mix(in srgb, var(--rust) 28%, var(--bg-raised));
-    color: var(--fg); border-color: var(--rust);
-}
-.nav a.brand-link {
-    background: transparent;
-    border-color: transparent;
-    color: var(--fg);
-    font-weight: 650;
-    letter-spacing: 0.02em;
-    padding-left: 0.15rem;
-    padding-right: 0.9rem;
-}
-.nav a.brand-link:hover {
-    color: var(--accent);
-    border-color: transparent;
-    background: transparent;
-}
-.hero { grid-template-columns: 2fr 1fr; }
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
-    gap: 1.5rem;
-    row-gap: 1.5rem;
-    column-gap: 1.5rem;
-}
-.split, .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
-    gap: 1.5rem;
-}
-.panel, .metric, .card, .table-shell, .graph-shell, .print-card, .search-result {
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-}
-.panel, .card, .table-shell, .graph-shell, .print-card, .search-result { padding: 1rem 1.1rem; }
-.metric { padding: 0; overflow: hidden; }
-.metric-link, .metric > span, .metric > strong {
-    display: flex; flex-direction: column; gap: 0.35rem; padding: 1rem; color: inherit;
-}
-.metric-link:hover { background: color-mix(in srgb, var(--accent) 10%, var(--bg-raised)); }
-.metric-label, .subtle, .eyebrow, .breadcrumbs { color: var(--muted); }
-.metric-value { font-size: 1.75rem; color: var(--accent-strong); }
-.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--rust); }
-.page-header { display: grid; gap: 0.55rem; }
-.page-header h1 { margin: 0; }
-.page-header .eyebrow { margin: 0; }
-.page-header .subtle { margin: 0; }
-.toolbar {
-    display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;
-    margin-bottom: 0.9rem;
-}
-.toolbar .actions, .pill-row, .breadcrumbs { display: flex; gap: 0.75rem; row-gap: 0.85rem; flex-wrap: wrap; align-items: center; }
-.chip, .pill {
-    display: inline-flex; align-items: center; gap: 0.35rem;
-    padding: 0.28rem 0.6rem; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
-}
-a.pill:hover { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-.graph-controls-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    align-items: center;
-    margin-bottom: 0.9rem;
-    padding: 0.8rem;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg);
-}
-.graph-shell > .pill-row { margin-bottom: 0.9rem; }
-.graph-filter {
-    flex: 1 1 180px;
-    min-width: 160px;
-}
-.scd {
-    position: relative;
-    flex: 1 1 180px;
-    min-width: 160px;
-}
-.scd-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.55rem;
-    width: 100%;
-    min-height: 2.35rem;
-    padding: 0.4rem 0.75rem;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--bg-soft);
-    color: var(--fg);
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-}
-.scd.is-open .scd-trigger,
-.scd-trigger:hover {
-    border-color: var(--accent-dim);
-}
-.scd.has-selection .scd-trigger {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-}
-.scd.is-searching .scd-trigger {
-    border-color: var(--line);
-}
-.scd.is-loading .scd-trigger {
-    opacity: 0.72;
-}
-.scd-trigger-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.scd-chevron {
-    width: 0;
-    height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid currentColor;
-    opacity: 0.7;
-    flex: 0 0 auto;
-}
-.scd.is-open .scd-chevron { transform: rotate(180deg); }
-.scd-panel {
-    position: absolute;
-    z-index: 50;
-    top: calc(100% + 0.35rem);
-    left: 0;
-    right: auto;
-    width: max(100%, 15rem);
-    max-width: min(20rem, 80vw);
-    max-height: 18rem;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg-elev);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-    overflow: hidden;
-}
-/* Author display:flex overrides the UA [hidden] rule; keep closed panels invisible. */
-.scd-panel[hidden] {
-    display: none;
-}
-.scd-search-row {
-    display: flex;
-    gap: 0.45rem;
-    padding: 0.65rem;
-    border-bottom: 1px solid var(--line);
-    opacity: 0.72;
-}
-.scd-search-row.is-active { opacity: 1; }
-.scd-search {
-    flex: 1;
-    min-width: 0;
-    padding: 0.4rem 0.55rem;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    color: var(--muted);
-    font: inherit;
-}
-.scd.is-searching .scd-search,
-.scd-search:focus {
-    border-color: var(--accent-dim);
-    background: var(--bg);
-    color: var(--fg);
-    outline: none;
-}
-.scd-clear {
-    border: none;
-    background: transparent;
-    color: var(--accent-strong);
-    font: inherit;
-    cursor: pointer;
-}
-.scd-list {
-    overflow: auto;
-    padding: 0.25rem 0 0.55rem;
-}
-.scd-group-label {
-    padding: 0.55rem 0.85rem 0.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-.scd-option {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.45rem 0.85rem;
-    cursor: pointer;
-    color: var(--fg);
-}
-.scd-option:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.scd-option input { margin: 0; }
-.scd-option-label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.scd-option-count {
-    flex: 0 0 auto;
-    font-variant-numeric: tabular-nums;
-    font-size: 0.85em;
-    color: var(--muted);
-    opacity: 0.65;
-}
-.scd-option.is-special .scd-option-label { font-style: italic; }
-.scd-option.is-not-present .scd-option-label { color: var(--faint); }
-.scd-option.is-empty .scd-option-label { color: var(--accent-strong); }
-.scd-option.is-unspecified .scd-option-label { color: var(--rust-muted); }
-.scd-empty {
-    margin: 0;
-    padding: 0.85rem;
-    color: var(--muted);
-    font-size: 0.9rem;
-}
-.rollup-list .rollup-special dt {
-    font-style: italic;
-}
-.rollup-list .rollup-not-present dt {
-    color: var(--faint);
-}
-.rollup-list .rollup-empty dt {
-    color: var(--accent-strong);
-}
-.rollup-list .rollup-unspecified dt {
-    color: var(--rust-muted);
-}
-.graph-action {
-    border: 1px solid var(--line);
-    background: var(--bg-soft);
-    color: var(--fg);
-    border-radius: 8px;
-    padding: 0.7rem 0.9rem;
-    cursor: pointer;
-}
-.graph-action:hover { border-color: var(--accent-dim); color: var(--accent-strong); }
-.graph-action.is-active {
-    background: color-mix(in srgb, var(--rust) 28%, var(--bg-soft));
-    border-color: var(--rust);
-    color: var(--fg);
-}
-.graph-file-treatment {
-    display: inline-flex;
-    align-items: center;
-}
-.graph-file-treatment .graph-select,
-select.graph-action {
-    border-radius: 8px;
-    padding-right: 1.6rem;
-    cursor: pointer;
-}
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-.graph-status {
-    color: var(--muted);
-    font-size: 0.92rem;
-    margin-left: auto;
-}
-.searchbar, select, input[type="search"] {
-    width: min(100%, 440px); background: var(--bg); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.9rem;
-}
-.searchbar:focus, select:focus, input[type="search"]:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
-}
-table { width: 100%; border-collapse: collapse; }
-th, td {
-    padding: 0.75rem 0.65rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top;
-}
-th { color: var(--muted); font-size: 0.94rem; }
-tbody tr:hover { background: var(--bg-raised); }
-.table-shell { overflow-x: auto; }
-.scroll-window {
-    --scroll-window-max: min(28rem, 50vh);
-}
-body[data-runtime-mode="interactive"] .scroll-window {
-    max-height: var(--scroll-window-max);
-    overflow: auto;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--bg);
-}
-body[data-runtime-mode="interactive"] .scroll-window > table {
-    margin: 0;
-}
-body[data-runtime-mode="interactive"] .scroll-window .entity-list,
-body[data-runtime-mode="interactive"] .scroll-window .rollup-list {
-    padding: 0.75rem;
-}
-.sortable-th { padding: 0.45rem 0.4rem; }
-.sort-button {
-    display: inline-flex; align-items: center; gap: 0.35rem;
-    width: 100%; margin: 0; padding: 0.3rem 0.25rem;
-    border: 0; background: transparent; color: inherit;
-    font: inherit; text-align: left; cursor: pointer;
-}
-.sort-button:hover { color: var(--fg); }
-.sort-button.sort-active { color: var(--accent-strong); }
-.sort-indicator { color: var(--faint); font-size: 0.8em; min-width: 1em; }
-.sort-button.sort-active .sort-indicator { color: var(--accent-strong); }
-.table-filter-toggle {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 2.25rem; height: 2.25rem; padding: 0;
-    border: 1px solid var(--line); border-radius: 8px;
-    background: var(--bg-raised); color: var(--muted); cursor: pointer;
-}
-.table-filter-toggle:hover { color: var(--fg); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-.table-filter-toggle.is-active {
-    color: var(--fg);
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 18%, var(--bg-raised));
-}
-.table-filter-toggle.has-filters:not(.is-active) {
-    color: var(--accent-strong);
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-}
-.table-filter-toggle svg { width: 1rem; height: 1rem; display: block; }
-.table-filter-actions {
-    display: flex; justify-content: flex-end; gap: 0.55rem;
-    margin-bottom: 0.65rem;
-}
-.column-filter-row { display: none; }
-.column-filter-row.is-open { display: table-row; }
-.column-filter-row th {
-    padding: 0.35rem 0.4rem 0.75rem; border-bottom: 1px solid var(--line); font-weight: 400;
-}
-.column-filter {
-    width: 100%; min-width: 4.5rem; background: var(--bg); color: var(--fg);
-    border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.55rem; font-size: 0.85rem;
-}
-.column-filter:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
-}
-body[data-runtime-mode="interactive"] .scroll-window thead tr:first-child th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--bg-raised);
-    box-shadow: 0 1px 0 var(--line);
-}
-body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is-open th {
-    position: sticky;
-    top: 2.65rem;
-    z-index: 1;
-    background: var(--bg-raised);
-    box-shadow: 0 1px 0 var(--line);
-}
-.entity-list {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
-}
-.entity-card {
-    border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; background: var(--bg);
-    color: inherit;
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-.entity-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
-.entity-card h3, .entity-card p { margin: 0; }
-.entity-card p + p, .entity-card strong + p, .entity-card h3 + p { margin-top: 0.35rem; }
-.print-card {
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    scroll-margin-top: 5.5rem;
-}
-.print-card > h3 { overflow-wrap: anywhere; }
-.print-attrs {
-    display: grid;
-    gap: 0.45rem;
-    margin: 0.75rem 0 0;
-}
-.print-attrs div {
-    display: grid;
-    grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
-    gap: 0.65rem;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 0.35rem;
-}
-.print-attrs dt {
-    margin: 0;
-    color: var(--muted);
-    font-weight: 600;
-    overflow-wrap: anywhere;
-}
-.print-attrs dd {
-    margin: 0;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-.print-button {
-    appearance: none;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--accent) 18%, var(--bg-raised));
-    color: var(--fg);
-    font: inherit;
-    font-weight: 600;
-    padding: 0.45rem 0.9rem;
-    cursor: pointer;
-}
-.print-button:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-    background: color-mix(in srgb, var(--accent) 28%, var(--bg-raised));
-}
-.panel > h2, .table-shell > h2, .graph-shell > h2, .print-card > h3 { margin-top: 0; margin-bottom: 0.75rem; }
-.toolbar h2 { margin: 0; }
-.rollup-list { display: grid; gap: 0.5rem; }
-.rollup-list div {
-    display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.4rem;
-}
-.rollup-list dd { margin: 0; }
-.rollup-list a.rollup-link {
-    color: inherit;
-    text-decoration: none;
-}
-.rollup-list a.rollup-link:hover {
-    color: var(--accent);
-    text-decoration: underline;
-}
-.distribution-track {
-    height: 0.7rem;
-    min-width: 6rem;
-    border-radius: 999px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    overflow: hidden;
-}
-.distribution-fill {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, var(--accent-dim), var(--accent-strong));
-    min-width: 0;
-}
-.graph-root {
-    position: relative;
-    min-height: 620px;
-}
-.graph-root.is-booting {
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg);
-}
-.graph-boot {
-    display: grid;
-    justify-items: center;
-    gap: 0.75rem;
-    padding: 1.5rem;
-    text-align: center;
-    color: var(--muted);
-}
-.graph-boot p { margin: 0; }
-.graph-boot-spinner {
-    width: 1.35rem;
-    height: 1.35rem;
-    border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
-    border-top-color: var(--accent-strong);
-    border-radius: 50%;
-    animation: graph-boot-spin 0.7s linear infinite;
-}
-@keyframes graph-boot-spin {
-    to { transform: rotate(360deg); }
-}
-.graph-root canvas {
-    display: block;
-    width: 100%;
-    min-height: 620px;
-    background: var(--bg);
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    touch-action: none;
-    cursor: grab;
-}
-.graph-root canvas.is-panning { cursor: grabbing; }
-.graph-root canvas.is-dragging-node { cursor: pointer; }
-.search-results { display: grid; gap: 0.7rem; margin-top: 1rem; }
-.search-result:hover { border-color: var(--accent-dim); }
-.hidden { display: none !important; }
-.breadcrumbs a { color: var(--muted); }
-.breadcrumbs a:hover { color: var(--accent-strong); }
-.section-link { font-size: 0.92rem; }
-.prose p { line-height: 1.55; }
-.idea-summary { white-space: normal; }
-.idea-ref {
-    display: inline;
-    padding: 0.05em 0.35em;
-    margin: 0 0.05em;
-    border-radius: 0.3em;
-    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-    background: color-mix(in srgb, var(--accent) 14%, var(--bg-raised));
-    color: var(--accent-strong);
-    font-weight: 600;
-    text-decoration: none;
-    white-space: normal;
-    overflow-wrap: anywhere;
-}
-a.idea-ref:hover {
-    color: var(--fg);
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 22%, var(--bg-raised));
-}
-.idea-ref--file {
-    border-color: color-mix(in srgb, var(--rust) 40%, var(--line));
-    background: color-mix(in srgb, var(--rust) 16%, var(--bg-raised));
-    color: #e8a07a;
-}
-a.idea-ref--file:hover {
-    color: var(--fg);
-    border-color: var(--rust);
-}
-.idea-ref--unresolved {
-    border-style: dashed;
-    border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
-    background: color-mix(in srgb, var(--warn) 10%, var(--bg-raised));
-    color: var(--warn);
-    font-weight: 500;
-}
-pre.code-like {
-    white-space: pre-wrap; padding: 0.9rem; border-radius: 8px;
-    background: var(--bg); border: 1px solid var(--line);
-}
-@media (max-width: 900px) {
-    .hero, .topbar-inner { grid-template-columns: 1fr; }
-}
-@media (max-width: 520px) {
-    .print-attrs div { grid-template-columns: 1fr; }
-}
-@media print {
-    :root { color-scheme: light; }
-    body { background: white; color: black; }
-    .topbar, .searchbar, .toolbar .actions, .graph-shell .toolbar, .column-filter-row, .table-filter-toggle, .table-filter-actions, .hide-on-print { display: none !important; }
-    .sort-button { cursor: default; }
-    .panel, .metric, .card, .table-shell, .graph-shell, .print-card, .search-result, .entity-card {
-        background: white; color: black; border-color: #cbd5e1; box-shadow: none;
+/**
+ * @param {number} i
+ * @param {number} j
+ * @param {string[]} ids
+ * @param {Float64Array} xs
+ * @param {Float64Array} ys
+ * @param {Float64Array} fxs
+ * @param {Float64Array} fys
+ * @param {number} repulsion
+ * @param {number} minSeparationSq
+ * @param {number} cutoffSq
+ */
+function applyRepulsion(i, j, ids, xs, ys, fxs, fys, repulsion, minSeparationSq, cutoffSq) {
+    let dx = xs[j] - xs[i];
+    let dy = ys[j] - ys[i];
+    let distSq = dx * dx + dy * dy;
+    if (distSq > cutoffSq) {
+        return;
     }
-    .scroll-window {
-        max-height: none !important;
-        overflow: visible !important;
-        border: none !important;
-        background: transparent !important;
+    if (distSq < 1e-6) {
+        const angle = hashAngleImpl(ids[i] + ids[j]);
+        dx = Math.cos(angle);
+        dy = Math.sin(angle);
+        distSq = 1;
     }
-    .scroll-window thead th {
-        position: static !important;
-        box-shadow: none !important;
-    }
-    a { color: black; text-decoration: underline; }
-    .print-break-avoid { break-inside: avoid; }
+    const clampedSq = Math.max(distSq, minSeparationSq);
+    const dist = Math.sqrt(distSq);
+    const force = repulsion / clampedSq;
+    const fx = (dx / dist) * force;
+    const fy = (dy / dist) * force;
+    fxs[i] -= fx;
+    fys[i] -= fy;
+    fxs[j] += fx;
+    fys[j] += fy;
 }
-`;
 
-export const APP_JS = `
-${embedPhysicsCoreSource()}
+/**
+ * Zero fxs/fys then add gravity, repulsion, and edge springs.
+ * Callers may add extra forces (e.g. group constraints) before integrateFromForces.
+ * @param {PhysicsStepState} state
+ * @param {PhysicsCoreSettings} settings
+ */
+function accumulateForcesImpl(state, settings) {
+    const { ids, xs, ys, fxs, fys, edges } = state;
+    const count = ids.length;
+    fxs.fill(0);
+    fys.fill(0);
+    if (count === 0) {
+        return;
+    }
+
+    const {
+        gravity,
+        repulsion,
+        linkStrength,
+        linkDistance,
+        minSeparation,
+        repulsionCutoff = 420
+    } = settings;
+
+    let centroidX = 0;
+    let centroidY = 0;
+    for (let i = 0; i < count; i += 1) {
+        centroidX += xs[i];
+        centroidY += ys[i];
+    }
+    centroidX /= count;
+    centroidY /= count;
+    for (let i = 0; i < count; i += 1) {
+        fxs[i] -= gravity * (xs[i] - centroidX);
+        fys[i] -= gravity * (ys[i] - centroidY);
+    }
+
+    const minSeparationSq = minSeparation * minSeparation;
+    const cutoff = Math.max(minSeparation * 2, repulsionCutoff);
+    const cutoffSq = cutoff * cutoff;
+
+    if (count <= 80) {
+        for (let i = 0; i < count; i += 1) {
+            for (let j = i + 1; j < count; j += 1) {
+                applyRepulsion(i, j, ids, xs, ys, fxs, fys, repulsion, minSeparationSq, cutoffSq);
+            }
+        }
+    } else {
+        const cellSize = cutoff;
+        /** @type {Map<string, number[]>} */
+        const grid = new Map();
+        for (let i = 0; i < count; i += 1) {
+            const key = `${Math.floor(xs[i] / cellSize)},${Math.floor(ys[i] / cellSize)}`;
+            let bucket = grid.get(key);
+            if (!bucket) {
+                bucket = [];
+                grid.set(key, bucket);
+            }
+            bucket.push(i);
+        }
+        for (let i = 0; i < count; i += 1) {
+            const cx = Math.floor(xs[i] / cellSize);
+            const cy = Math.floor(ys[i] / cellSize);
+            for (let ox = -1; ox <= 1; ox += 1) {
+                for (let oy = -1; oy <= 1; oy += 1) {
+                    const bucket = grid.get(`${cx + ox},${cy + oy}`);
+                    if (!bucket) continue;
+                    for (let b = 0; b < bucket.length; b += 1) {
+                        const j = bucket[b];
+                        if (j <= i) continue;
+                        applyRepulsion(i, j, ids, xs, ys, fxs, fys, repulsion, minSeparationSq, cutoffSq);
+                    }
+                }
+            }
+        }
+    }
+
+    const indexById = new Map();
+    for (let i = 0; i < count; i += 1) {
+        indexById.set(ids[i], i);
+    }
+    for (let e = 0; e < edges.length; e += 1) {
+        const edge = edges[e];
+        const sourceIndex = indexById.get(edge.sourceId);
+        const targetIndex = indexById.get(edge.targetId);
+        if (sourceIndex === undefined || targetIndex === undefined || sourceIndex === targetIndex) {
+            continue;
+        }
+        const dx = xs[targetIndex] - xs[sourceIndex];
+        const dy = ys[targetIndex] - ys[sourceIndex];
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 1e-3) {
+            continue;
+        }
+        const force = linkStrength * (dist - linkDistance);
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        fxs[sourceIndex] += fx;
+        fys[sourceIndex] += fy;
+        fxs[targetIndex] -= fx;
+        fys[targetIndex] -= fy;
+    }
+}
+
+/**
+ * Semi-implicit Euler with damping; mutates xs/ys and velocities. Returns average speed.
+ * @param {PhysicsStepState} state
+ * @param {PhysicsCoreSettings} settings
+ * @returns {number}
+ */
+function integrateFromForcesImpl(state, settings) {
+    const { ids, xs, ys, fxs, fys, velocities, pinnedIds } = state;
+    const { damping, maxVelocity } = settings;
+    const count = ids.length;
+    let speedSum = 0;
+    let movingCount = 0;
+    for (let i = 0; i < count; i += 1) {
+        const id = ids[i];
+        if (pinnedIds.has(id)) {
+            continue;
+        }
+        const velocity = velocities.get(id) || { vx: 0, vy: 0 };
+        let vx = (velocity.vx + fxs[i]) * damping;
+        let vy = (velocity.vy + fys[i]) * damping;
+        const speed = Math.sqrt(vx * vx + vy * vy);
+        if (speed > maxVelocity) {
+            const scale = maxVelocity / speed;
+            vx *= scale;
+            vy *= scale;
+        }
+        velocity.vx = vx;
+        velocity.vy = vy;
+        velocities.set(id, velocity);
+        xs[i] += vx;
+        ys[i] += vy;
+        speedSum += Math.min(speed, maxVelocity);
+        movingCount += 1;
+    }
+    return movingCount > 0 ? speedSum / movingCount : 0;
+}
+
+/**
+ * @param {PhysicsStepState} state
+ * @param {PhysicsCoreSettings} settings
+ * @returns {number}
+ */
+function stepPhysicsImpl(state, settings) {
+    accumulateForcesImpl(state, settings);
+    return integrateFromForcesImpl(state, settings);
+}
+
+const ReqlanGraphPhysics = {
+    /** @type {PhysicsCoreSettings} */
+    DEFAULT_PHYSICS_SETTINGS: {
+        gravity: 0.002,
+        repulsion: 20000,
+        linkStrength: 0.015,
+        linkDistance: 120,
+        damping: 0.5,
+        maxVelocity: 10,
+        minSeparation: 24,
+        restSpeed: 0.02,
+        restTicks: 90,
+        repulsionCutoff: 420
+    },
+    hashAngle: hashAngleImpl,
+    accumulateForces: accumulateForcesImpl,
+    integrateFromForces: integrateFromForcesImpl,
+    stepPhysics: stepPhysicsImpl
+};
+
+const DEFAULT_PHYSICS_SETTINGS = ReqlanGraphPhysics.DEFAULT_PHYSICS_SETTINGS;
+const hashAngle = hashAngleImpl;
+const accumulateForces = accumulateForcesImpl;
+const integrateFromForces = integrateFromForcesImpl;
+const stepPhysics = stepPhysicsImpl;
+
 
 const searchIndexByRoot = new WeakMap();
 
@@ -653,7 +264,7 @@ function exportRootPrefix(root) {
 
 function resolveExportUrl(root, url) {
     const cleaned = String(url || '').replace(/^\\.\\//, '');
-    return \`\${exportRootPrefix(root)}\${cleaned}\`;
+    return `${exportRootPrefix(root)}${cleaned}`;
 }
 
 async function loadSearchIndex(root) {
@@ -751,7 +362,7 @@ function mountSearchableCheckboxDropdown(host, onChange) {
         else if (values.length === 1) {
             const match = options.find(option => option.value === values[0]);
             triggerLabel.textContent = match?.label || values[0];
-        } else triggerLabel.textContent = \`\${values.length} selected\`;
+        } else triggerLabel.textContent = `${values.length} selected`;
         if (clearBtn) clearBtn.hidden = values.length === 0;
     }
 
@@ -783,7 +394,7 @@ function mountSearchableCheckboxDropdown(host, onChange) {
         search.type = 'search';
         search.className = 'scd-search';
         search.placeholder = placeholder;
-        search.setAttribute('aria-label', \`Search \${label}\`);
+        search.setAttribute('aria-label', `Search ${label}`);
         clearBtn = document.createElement('button');
         clearBtn.type = 'button';
         clearBtn.className = 'scd-clear';
@@ -837,7 +448,7 @@ function mountSearchableCheckboxDropdown(host, onChange) {
             }
             const row = document.createElement('label');
             row.className = 'scd-option';
-            if (option.kind) row.classList.add(\`is-\${option.kind}\`);
+            if (option.kind) row.classList.add(`is-${option.kind}`);
             if (option.special) row.classList.add('is-special');
             const box = document.createElement('input');
             box.type = 'checkbox';
@@ -972,16 +583,16 @@ async function wireGlobalSearch(root) {
         results.classList.remove('hidden');
         results.innerHTML = matches.length === 0
             ? '<div class="search-result"><strong>No matches</strong><p class="subtle">Try idea names, tags, statuses, file paths, or cluster labels.</p></div>'
-            : matches.map(({ doc }) => \`
-                <a class="search-result" href="\${resolveExportUrl(root, doc.url)}">
+            : matches.map(({ doc }) => `
+                <a class="search-result" href="${resolveExportUrl(root, doc.url)}">
                     <div class="pill-row">
-                        <span class="pill">\${doc.kind}</span>
-                        \${doc.status ? \`<span class="pill">\${doc.status}</span>\` : ''}
+                        <span class="pill">${doc.kind}</span>
+                        ${doc.status ? `<span class="pill">${doc.status}</span>` : ''}
                     </div>
-                    <strong>\${doc.title}</strong>
-                    <p class="subtle">\${doc.summary || ''}</p>
+                    <strong>${doc.title}</strong>
+                    <p class="subtle">${doc.summary || ''}</p>
                 </a>
-            \`).join('');
+            `).join('');
     }
     input.addEventListener('input', render);
 }
@@ -1081,7 +692,7 @@ function wireTables(root) {
                 const sample = [...tbody.rows].find(row => row.hasAttribute('data-filter-row'));
                 const filterId = sample?.getAttribute('data-filter-row');
                 const globalInput = filterId
-                    ? root.querySelector(\`[data-filter-input="\${filterId}"]\`)
+                    ? root.querySelector(`[data-filter-input="${filterId}"]`)
                     : null;
                 const globalQuery = lower(globalInput?.value.trim());
                 const columnQueries = filterInputs.map(input => lower(input.value.trim()));
@@ -1100,7 +711,7 @@ function wireTables(root) {
         };
 
         headers.forEach((th, index) => {
-            const label = String(th.textContent || '').trim() || \`Column \${index + 1}\`;
+            const label = String(th.textContent || '').trim() || `Column ${index + 1}`;
             const filterKey = String(th.getAttribute('data-filter-key') || '').trim();
             th.classList.add('sortable-th');
             th.replaceChildren();
@@ -1111,7 +722,7 @@ function wireTables(root) {
             button.type = 'button';
             button.className = 'sort-button';
             button.dataset.sortCol = String(index);
-            button.setAttribute('aria-label', \`Sort by \${label}\`);
+            button.setAttribute('aria-label', `Sort by ${label}`);
             const labelNode = document.createElement('span');
             labelNode.textContent = label;
             const indicator = document.createElement('span');
@@ -1151,7 +762,7 @@ function wireTables(root) {
         const filterRow = document.createElement('tr');
         filterRow.className = 'column-filter-row';
         headers.forEach((th, index) => {
-            const label = String(th.querySelector('.sort-button span')?.textContent || \`Column \${index + 1}\`);
+            const label = String(th.querySelector('.sort-button span')?.textContent || `Column ${index + 1}`);
             const filterKey = String(th.getAttribute('data-filter-key') || '').trim().toLowerCase();
             const cell = document.createElement('th');
             const input = document.createElement('input');
@@ -1162,7 +773,7 @@ function wireTables(root) {
             if (filterKey) {
                 input.dataset.filterKey = filterKey;
             }
-            input.setAttribute('aria-label', \`Filter \${label}\`);
+            input.setAttribute('aria-label', `Filter ${label}`);
             input.addEventListener('input', () => controller.applyFilters());
             filterInputs.push(input);
             cell.appendChild(input);
@@ -1204,7 +815,7 @@ function wireTables(root) {
         input.addEventListener('input', () => {
             const targetId = input.dataset.filterInput;
             for (const controller of tableControllers) {
-                const ownsRows = controller.tbody.querySelector(\`[data-filter-row="\${targetId}"]\`);
+                const ownsRows = controller.tbody.querySelector(`[data-filter-row="${targetId}"]`);
                 if (ownsRows) {
                     controller.applyFilters();
                 }
@@ -1303,7 +914,7 @@ function wireGraph(root) {
     const graphRoots = root.querySelectorAll('[data-graph-json]');
     for (const element of graphRoots) {
         const scriptId = element.dataset.graphJson;
-        const dataElement = root.querySelector(\`#\${scriptId}\`);
+        const dataElement = root.querySelector(`#${scriptId}`);
         if (!dataElement) continue;
         let graph;
         try {
@@ -1311,7 +922,7 @@ function wireGraph(root) {
         } catch {
             continue;
         }
-        let controls = root.querySelector(\`[data-graph-controls="\${scriptId}"]\`);
+        let controls = root.querySelector(`[data-graph-controls="${scriptId}"]`);
         if (!controls) {
             controls = document.createElement('div');
             controls.className = 'graph-controls-bar';
@@ -1383,7 +994,7 @@ function wireGraph(root) {
         function resolveGraphNodeUrl(pageUrl) {
             let cleaned = String(pageUrl || '').replace(/^\\.\\//, '');
             if (cleaned && !cleaned.includes('/') && cleaned.endsWith('.html')) {
-                cleaned = \`ideas/\${cleaned}\`;
+                cleaned = `ideas/${cleaned}`;
             }
             return resolveExportUrl(root, cleaned);
         }
@@ -1544,7 +1155,7 @@ function wireGraph(root) {
             const lines = [];
             let current = '';
             for (const word of words) {
-                const next = current ? \`\${current} \${word}\` : word;
+                const next = current ? `${current} ${word}` : word;
                 if (ctx.measureText(next).width <= maxWidth) {
                     current = next;
                 } else {
@@ -1670,7 +1281,7 @@ function wireGraph(root) {
                     ctx.lineWidth = (hover ? 1.8 : 1.2) / scale;
                     ctx.stroke();
                     ctx.fillStyle = 'rgba(224, 162, 74, 0.95)';
-                    ctx.font = \`600 \${11 / scale}px "IBM Plex Sans", system-ui, sans-serif\`;
+                    ctx.font = `600 ${11 / scale}px "IBM Plex Sans", system-ui, sans-serif`;
                     ctx.textAlign = 'left';
                     ctx.textBaseline = 'bottom';
                     ctx.fillText(label, x + 6, y - 4 / scale);
@@ -1842,7 +1453,7 @@ function wireGraph(root) {
                 paint();
                 if (statusText && iterations > 0) {
                     const pct = Math.min(99, Math.round((step / iterations) * 100));
-                    statusText.textContent = \`Settling layout… \${pct}%\`;
+                    statusText.textContent = `Settling layout… ${pct}%`;
                 }
                 if (step >= iterations) {
                     finish();
@@ -1905,7 +1516,7 @@ function wireGraph(root) {
             cssHeight = Math.max(620, Math.min(1400, 220 + simNodes.length * 18));
             if (canvas) {
                 canvas.style.width = '100%';
-                canvas.style.height = \`\${cssHeight}px\`;
+                canvas.style.height = `${cssHeight}px`;
             }
         }
 
@@ -1921,7 +1532,7 @@ function wireGraph(root) {
             seedMissingPositions(filteredNodes, width, height, graph.centerId);
             canvas = document.createElement('canvas');
             canvas.setAttribute('role', 'img');
-            canvas.setAttribute('aria-label', \`Requirement graph with \${filteredNodes.length} nodes\`);
+            canvas.setAttribute('aria-label', `Requirement graph with ${filteredNodes.length} nodes`);
             ctx = canvas.getContext('2d');
             element.innerHTML = '';
             element.classList.remove('is-booting');
@@ -1932,7 +1543,7 @@ function wireGraph(root) {
             const finishStatus = () => {
                 settlingLayout = false;
                 if (statusText) {
-                    statusText.textContent = \`\${filteredNodes.length} nodes, \${filteredEdges.length} edges\`;
+                    statusText.textContent = `${filteredNodes.length} nodes, ${filteredEdges.length} edges`;
                 }
                 paint();
             };
@@ -2218,7 +1829,7 @@ function wireGraph(root) {
             if (livePhysics) {
                 cancelSettle();
                 if (statusText) {
-                    statusText.textContent = \`\${simNodes.length} nodes, \${simEdges.length} edges\`;
+                    statusText.textContent = `${simNodes.length} nodes, ${simEdges.length} edges`;
                 }
                 wake();
             } else {
@@ -2289,9 +1900,4 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
 } else {
     boot();
-}
-`;
-
-export function buildSearchIndexScript(documents: unknown): string {
-    return `globalThis.__REQLAN_SEARCH_INDEX__ = ${JSON.stringify(documents).replace(/</g, '\\u003c')};\n`;
 }

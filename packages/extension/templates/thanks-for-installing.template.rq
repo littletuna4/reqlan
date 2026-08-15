@@ -41,7 +41,7 @@ project_resources {
 extension_overview {
     The extension offers lots of language support and search capabilities.
     The reqlan extension provides language support for `.rq` requirement files in VS Code and compatible editors.
-    Use the Reqlan activity bar to inspect neighbourhood context, reference lists, and graph slices for the active requirement.
+    Use the reqlan activity bar to inspect neighbourhood context, reference lists, and graph slices for the active requirement.
     In chat, invoke `@reqlan` with `/rq-search` to explore requirements across the workspace.
 }
 

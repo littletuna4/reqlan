@@ -11,6 +11,7 @@ import {
     type BaseDescriptor
 } from '../core/base-discovery.js';
 import { resolveApplicationMemoryPath } from '../core/application-memory.js';
+import { loadNativeEngine } from '../native/load-native.js';
 import type { IndexStatusSnapshot } from './index-status.js';
 import { WorkspaceIndex } from './workspace-index.js';
 
@@ -58,6 +59,7 @@ export class BaseRegistry {
 
     /** Replace registry contents from discovered descriptors (does not open indexes). */
     replaceDescriptors(bases: BaseDescriptor[]): void {
+        loadNativeEngine();
         const keep = new Set(bases.map(b => b.id));
         for (const id of [...this.entries.keys()]) {
             if (!keep.has(id)) {

@@ -7,5 +7,12 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [
+    "@reqlan/analytical-win32-x64-msvc",
+    "@reqlan/analytical-win32-arm64-msvc",
+    "@reqlan/analytical-linux-x64-gnu",
+    "@reqlan/analytical-linux-arm64-gnu",
+    "@reqlan/analytical-darwin-x64",
+    "@reqlan/analytical-darwin-arm64"
+  ]
 }

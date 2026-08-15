@@ -70,7 +70,9 @@ export class AppState {
     ideaSearchResults = $state<IdeaSearchHitView[]>([]);
     ideaSearchTotal = $state(0);
     ideaSearchTruncated = $state(false);
+    ideaSearchNextOffset = $state(0);
     ideaSearchLoading = $state(false);
+    ideaSearchLoadingMore = $state(false);
     ideaSearchProgress = $state<IdeaSearchProgressPayload | undefined>(undefined);
     /** Seconds since the current search wait began; ticks while loading for liveness. */
     ideaSearchElapsedSec = $state(0);
@@ -344,7 +346,9 @@ export class AppState {
                     this.ideaSearchAppliedQuery = '';
                     this.ideaSearchTotal = 0;
                     this.ideaSearchTruncated = false;
+                    this.ideaSearchNextOffset = 0;
                     this.ideaSearchLoading = false;
+                    this.ideaSearchLoadingMore = false;
                     this.ideaSearchProgress = undefined;
                 }
                 break;
@@ -443,6 +447,7 @@ export class AppState {
                 break;
             case 'search':
                 this.ideaSearchLoading = false;
+                this.ideaSearchLoadingMore = false;
                 this.ideaSearchProgress = undefined;
                 this.clearIdeaSearchElapsedTimer();
                 this.ideaSearchError = message;
@@ -566,7 +571,9 @@ export class AppState {
             this.ideaSearchAppliedQuery = '';
             this.ideaSearchTotal = 0;
             this.ideaSearchTruncated = false;
+            this.ideaSearchNextOffset = 0;
             this.ideaSearchLoading = false;
+            this.ideaSearchLoadingMore = false;
             this.ideaSearchProgress = undefined;
             this.clearIdeaSearchElapsedTimer();
             this.ideaSearchError = undefined;
@@ -579,22 +586,42 @@ export class AppState {
         }, IDEA_SEARCH_DEBOUNCE_MS);
     }
 
-    searchIdeas(query: string): void {
+    searchIdeas(query: string, offset = 0): void {
+        // rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
         const requestId = this.nextRequestId('search');
         this.ideaSearchRequestId = requestId;
-        this.ideaSearchLoading = true;
-        this.ideaSearchProgress = {
-            phase: 'catalog',
-            message: 'Starting search…'
-        };
+        const loadingMore = offset > 0;
+        this.ideaSearchLoading = !loadingMore;
+        this.ideaSearchLoadingMore = loadingMore;
+        if (!loadingMore) {
+            this.ideaSearchProgress = {
+                phase: 'search',
+                message: 'Scoring ideas…'
+            };
+            this.startIdeaSearchElapsedTimer();
+        }
         this.ideaSearchError = undefined;
-        this.startIdeaSearchElapsedTimer();
         postToExtension({
             type: 'searchIdeas',
             query,
             pathFilter: this.ideaSearchPathFilter,
+            offset,
             requestId
         });
+    }
+
+    loadMoreIdeaSearch(): void {
+        // rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        const query = this.ideaSearchAppliedQuery.trim();
+        if (
+            !query
+            || !this.ideaSearchTruncated
+            || this.ideaSearchLoading
+            || this.ideaSearchLoadingMore
+        ) {
+            return;
+        }
+        this.searchIdeas(query, this.ideaSearchNextOffset);
     }
 
     loadTodos(): void {
@@ -631,11 +658,18 @@ export class AppState {
 
     private applyIdeaSearchResults(payload: IdeaSearchResultsPayload): void {
         // Keep the draft query as source of truth — do not clobber mid-typing input.
-        this.ideaSearchResults = payload.results;
+        const offset = payload.offset ?? 0;
+        if (offset > 0 && payload.query === this.ideaSearchAppliedQuery) {
+            this.ideaSearchResults = [...this.ideaSearchResults, ...payload.results];
+        } else {
+            this.ideaSearchResults = payload.results;
+        }
         this.ideaSearchAppliedQuery = payload.query;
         this.ideaSearchTotal = payload.total;
         this.ideaSearchTruncated = payload.truncated;
+        this.ideaSearchNextOffset = payload.nextOffset ?? offset + payload.results.length;
         this.ideaSearchLoading = false;
+        this.ideaSearchLoadingMore = false;
         this.ideaSearchProgress = undefined;
         this.clearIdeaSearchElapsedTimer();
         this.ideaSearchError = undefined;

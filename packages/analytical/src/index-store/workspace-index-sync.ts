@@ -21,7 +21,7 @@ import {
 import { recordCaughtFileIssue } from './index-file-error.js';
 import type { IndexSyncProgress } from './index-status.js';
 import type { SqliteIndexStore } from './sqlite-store.js';
-import { indexOneFile, type IndexOneFileDeps } from './workspace-index-file.js';
+import { type IndexOneFileResult } from './workspace-index-file.js';
 import { diffStaleFiles, isUnchangedByMtime } from './workspace-mtime.js';
 
 export interface IdleCheckResult {
@@ -35,7 +35,7 @@ export interface SoftSyncDeps {
     analytical: AnalyticalStore;
     toIndexedUri: (filePath: string) => string;
     relativePath: (fileUri: string) => string;
-    indexFileDeps: IndexOneFileDeps;
+    indexFile: (filePath: string) => Promise<IndexOneFileResult>;
     collectRqFiles: () => Promise<string[]>;
     setRqFilePaths: (paths: string[]) => void;
     isReady: () => boolean;
@@ -95,7 +95,7 @@ export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Pro
                         pathDepth: pathDepthFromUri(indexedUri)
                     });
                 } else {
-                    const result = await indexOneFile(deps.indexFileDeps, filePath);
+                    const result = await deps.indexFile(filePath);
                     indexedFiles += 1;
                     if (result.outcome === 'error') {
                         errorFiles += 1;

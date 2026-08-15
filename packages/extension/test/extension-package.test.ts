@@ -63,3 +63,27 @@ describe('extension VSIX packaging', () => {
         expect(isIgnoredByVsce(`${EXPORT_FORM_WEBVIEW_MEDIA_REL}/main.js`, patterns)).toBe(false);
     });
 });
+
+describe('search code action host wiring', () => {
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('extension main passes language client getter to import-error commands', () => {
+        const mainSource = readFileSync(
+            join(extensionRoot, 'src/extension/main.ts'),
+            'utf8'
+        );
+        expect(mainSource).toContain(
+            'registerImportErrorCommands(context, submodule.index, () => client)'
+        );
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('language server registers reqlan/referenceSearchSite', () => {
+        const languageMain = readFileSync(
+            join(extensionRoot, 'src/language/main.ts'),
+            'utf8'
+        );
+        expect(languageMain).toContain('REQLAN_REFERENCE_SEARCH_SITE_REQUEST');
+        expect(languageMain).toContain('resolveReferenceSearchSiteFromDocument');
+        expect(languageMain).toContain('getParsedDocument');
+    });
+});

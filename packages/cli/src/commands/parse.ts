@@ -1,15 +1,8 @@
 import { Command, Option } from 'clipanion';
-import { createReqlanServices, type Model } from '@reqlan/language';
-import { NodeFileSystem } from 'langium/node';
-import { parseDocument } from '../util.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { extname, resolve } from 'node:path';
+import { parseReqlanSource } from '@reqlan/analytical/core';
 import { emit } from '../output.js';
-
-function elementSummary(model: Model): Array<{ type: string; name?: string }> {
-    return model.elements.map(element => ({
-        type: element.$type,
-        name: 'name' in element ? element.name : undefined
-    }));
-}
 
 export class ParseCommand extends Command {
     static override paths = [['parse']];
@@ -28,36 +21,44 @@ export class ParseCommand extends Command {
     });
 
     async execute(): Promise<number> {
-        const services = createReqlanServices(NodeFileSystem).Reqlan;
         try {
-            const { document, diagnostics, errorCount } = await parseDocument(this.file, services);
-            const model = document.parseResult?.value as Model | undefined;
+            if (extname(this.file) !== '.rq') {
+                throw new Error('Please choose a file with one of these extensions: .rq.');
+            }
+            if (!existsSync(this.file)) {
+                throw new Error(`File ${this.file} does not exist.`);
+            }
+
+            const source = readFileSync(resolve(this.file), 'utf8');
+            const parsed = parseReqlanSource(source);
             const payload = {
                 file: this.file,
-                ok: errorCount === 0,
-                errorCount,
-                diagnostics,
-                elements: model ? elementSummary(model) : []
+                ok: parsed.ok,
+                errorCount: parsed.errorCount,
+                diagnostics: parsed.diagnostics,
+                elements: parsed.elements
             };
 
             if (this.json) {
                 emit(payload, true);
-            } else if (errorCount > 0) {
+            } else if (parsed.errorCount > 0) {
                 this.context.stderr.write('There are validation errors:\n');
-                for (const d of diagnostics.filter(x => x.severity === 1)) {
-                    this.context.stderr.write(`line ${d.line}: ${d.message} [${d.text}]\n`);
+                for (const diagnostic of parsed.diagnostics.filter(item => item.severity === 1)) {
+                    this.context.stderr.write(
+                        `line ${diagnostic.line}: ${diagnostic.message} [${diagnostic.text}]\n`
+                    );
                 }
             } else {
-                const lines = payload.elements.map(el =>
-                    el.name ? `${el.type} ${el.name}` : el.type
+                const lines = parsed.elements.map(element =>
+                    element.name ? `${element.type} ${element.name}` : element.type
                 );
                 this.context.stdout.write(
                     `Parsed ${this.file}: ${lines.length} top-level element(s)\n` +
-                        (lines.length > 0 ? lines.map(l => `  - ${l}`).join('\n') + '\n' : '')
+                        (lines.length > 0 ? lines.map(line => `  - ${line}`).join('\n') + '\n' : '')
                 );
             }
 
-            return errorCount > 0 ? 1 : 0;
+            return parsed.errorCount > 0 ? 1 : 0;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.context.stderr.write(`${message}\n`);

@@ -48,6 +48,14 @@
         "./fuzzy-search": {
             "types": "./out/analysis/fuzzy-search.d.ts",
             "default": "./out/analysis/fuzzy-search.js"
+        },
+        "./core": {
+            "types": "./out/native/index.d.ts",
+            "default": "./out/native/index.js"
+        },
+        "./native": {
+            "types": "./out/native/index.d.ts",
+            "default": "./out/native/index.js"
         }
     },
     "scripts": {
@@ -63,7 +71,14 @@
         "@reqlan/language": "workspace:*",
         "ignore": "^7.0.6",
         "langium": "~4.3.0",
-        "sql.js": "^1.14.1",
         "zustand": "~5.0.8"
+    },
+    "optionalDependencies": {
+        "@reqlan/analytical-win32-x64-msvc": "workspace:*",
+        "@reqlan/analytical-win32-arm64-msvc": "workspace:*",
+        "@reqlan/analytical-linux-x64-gnu": "workspace:*",
+        "@reqlan/analytical-linux-arm64-gnu": "workspace:*",
+        "@reqlan/analytical-darwin-x64": "workspace:*",
+        "@reqlan/analytical-darwin-arm64": "workspace:*"
     }
 }

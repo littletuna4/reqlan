@@ -1,13 +1,14 @@
 /**
  * Per-base indexing timing diagnostic store (`index-diagnostics.sqlite`).
  * Sibling of ideas-index; survives Clear & rebuild.
+ * Backed by rusqlite via the core native engine (NativeSqlDb).
  *
  * rq:["../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { unlink } from 'node:fs/promises';
+import { NativeSqlConnection } from '../native/native-sql-db.js';
 
 export type IndexTimingTrigger = 'soft_sync' | 'rebuild' | 'enqueue' | 'stale';
 
@@ -110,28 +111,8 @@ const BASE_SQL = [
     `CREATE INDEX IF NOT EXISTS idx_file_timings_duration ON file_timings(duration_ms DESC)`
 ];
 
-interface SqlJsStatement {
-    step(): boolean;
-    getAsObject(): Record<string, unknown>;
-    free(): void;
-}
-
-interface SqlJsDatabaseHandle {
-    run(sql: string, params?: unknown[]): void;
-    exec(sql: string): unknown;
-    prepare(sql: string, params?: unknown[]): SqlJsStatement;
-    export(): Uint8Array;
-    close(): void;
-}
-
-interface SqlJsModule {
-    Database: new(data?: Uint8Array | ArrayLike<number>) => SqlJsDatabaseHandle;
-}
-
 interface SqliteDatabase {
-    db: SqlJsDatabaseHandle;
-    dbPath: string;
-    dirty: boolean;
+    conn: NativeSqlConnection;
 }
 
 /** Path segment count under the base (e.g. `a/b/c.rq` → 3). */
@@ -151,57 +132,78 @@ export class IndexDiagnosticsStore {
     }
 
     static async open(dbPath: string): Promise<IndexDiagnosticsStore> {
-        const db = await openDatabase(dbPath);
-        const store = new IndexDiagnosticsStore(db);
+        const conn = await NativeSqlConnection.open(dbPath);
+        return IndexDiagnosticsStore.fromConnection(conn);
+    }
+
+    /** Wrap an already-open native connection (e.g. NativeWorkspaceIndex diagnostics DB). */
+    static async fromConnection(conn: NativeSqlConnection): Promise<IndexDiagnosticsStore> {
+        const store = new IndexDiagnosticsStore({ conn });
         await store.migrate();
         return store;
     }
 
     async close(): Promise<void> {
-        await persistDatabase(this.db);
-        this.db.db.close();
+        this.db.conn.close();
+    }
+
+    static async deleteDatabaseFile(dbPath: string): Promise<void> {
+        for (const suffix of ['', '-wal', '-shm']) {
+            try {
+                await unlink(`${dbPath}${suffix}`);
+            } catch (error) {
+                if (
+                    typeof error === 'object' &&
+                    error !== null &&
+                    'code' in error &&
+                    error.code === 'ENOENT'
+                ) {
+                    continue;
+                }
+                throw error;
+            }
+        }
     }
 
     async recordSyncRun(run: IndexSyncRunRecord): Promise<number> {
         try {
-            this.db.db.run('BEGIN');
-            this.db.db.run(
+            this.db.conn.run('BEGIN');
+            this.db.conn.run(
                 `INSERT INTO sync_runs (
                     started_at, finished_at, duration_ms, trigger,
                     total_files, skipped_mtime, indexed_files, error_files,
                     cancelled, sum_file_duration_ms, avg_path_depth
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    run.startedAt,
-                    run.finishedAt,
-                    run.durationMs,
-                    run.trigger,
-                    run.totalFiles,
-                    run.skippedMtime,
-                    run.indexedFiles,
-                    run.errorFiles,
-                    run.cancelled ? 1 : 0,
-                    run.sumFileDurationMs,
-                    run.avgPathDepth ?? null
-                ]
+                run.startedAt,
+                run.finishedAt,
+                run.durationMs,
+                run.trigger,
+                run.totalFiles,
+                run.skippedMtime,
+                run.indexedFiles,
+                run.errorFiles,
+                run.cancelled ? 1 : 0,
+                run.sumFileDurationMs,
+                run.avgPathDepth ?? null
             );
-            const idRow = await get<{ id: number }>(this.db, 'SELECT last_insert_rowid() AS id');
-            const runId = idRow?.id ?? 0;
+            const runId = this.db.conn.lastInsertRowid();
             for (const file of run.files) {
-                this.db.db.run(
+                this.db.conn.run(
                     `INSERT INTO file_timings (run_id, file_uri, duration_ms, outcome, path_depth)
                      VALUES (?, ?, ?, ?, ?)`,
-                    [runId, file.fileUri, file.durationMs, file.outcome, file.pathDepth]
+                    runId,
+                    file.fileUri,
+                    file.durationMs,
+                    file.outcome,
+                    file.pathDepth
                 );
             }
-            this.db.db.run('COMMIT');
-            this.db.dirty = true;
+            this.db.conn.run('COMMIT');
             await this.trimOldRuns();
-            await persistDatabase(this.db);
             return runId;
         } catch (error) {
             try {
-                this.db.db.run('ROLLBACK');
+                this.db.conn.run('ROLLBACK');
             } catch {
                 // ignore
             }
@@ -210,8 +212,7 @@ export class IndexDiagnosticsStore {
     }
 
     async listRecentRuns(limit = 20): Promise<IndexSyncRunSummary[]> {
-        const rows = await all<SyncRunSqlRow>(
-            this.db,
+        const rows = this.db.conn.all<SyncRunSqlRow>(
             `SELECT * FROM sync_runs ORDER BY id DESC LIMIT ?`,
             Math.max(1, Math.min(limit, MAX_RETAINED_RUNS))
         );
@@ -219,7 +220,7 @@ export class IndexDiagnosticsStore {
     }
 
     async getRun(runId: number): Promise<IndexSyncRunSummary | undefined> {
-        const row = await get<SyncRunSqlRow>(this.db, `SELECT * FROM sync_runs WHERE id = ?`, runId);
+        const row = this.db.conn.get<SyncRunSqlRow>(`SELECT * FROM sync_runs WHERE id = ?`, runId);
         return row ? mapRunSummary(row) : undefined;
     }
 
@@ -235,8 +236,7 @@ export class IndexDiagnosticsStore {
                     ? 'file_uri ASC'
                     : 'duration_ms DESC, file_uri ASC';
         const limit = Math.max(1, Math.min(options?.limit ?? 500, 2000));
-        const rows = await all<FileTimingSqlRow>(
-            this.db,
+        const rows = this.db.conn.all<FileTimingSqlRow>(
             `SELECT * FROM file_timings WHERE run_id = ? ORDER BY ${orderSql} LIMIT ?`,
             runId,
             limit
@@ -245,13 +245,12 @@ export class IndexDiagnosticsStore {
     }
 
     async getOverview(): Promise<IndexDiagnosticsOverview> {
-        const agg = await get<{
+        const agg = this.db.conn.get<{
             run_count: number;
             total_duration: number | null;
             total_file_duration: number | null;
             avg_depth: number | null;
         }>(
-            this.db,
             `SELECT
                 COUNT(*) AS run_count,
                 COALESCE(SUM(duration_ms), 0) AS total_duration,
@@ -274,33 +273,30 @@ export class IndexDiagnosticsStore {
 
     private async migrate(): Promise<void> {
         for (const sql of BASE_SQL) {
-            this.db.db.run(sql);
+            this.db.conn.exec(sql);
         }
-        this.db.db.run(
+        this.db.conn.run(
             `INSERT INTO meta (key, value) VALUES (?, ?)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-            ['schema_version', String(SCHEMA_VERSION)]
+            'schema_version',
+            String(SCHEMA_VERSION)
         );
-        this.db.dirty = true;
-        await persistDatabase(this.db);
     }
 
     private async trimOldRuns(): Promise<void> {
-        const cutoff = await get<{ id: number }>(
-            this.db,
+        const cutoff = this.db.conn.get<{ id: number }>(
             `SELECT id FROM sync_runs ORDER BY id DESC LIMIT 1 OFFSET ?`,
             MAX_RETAINED_RUNS - 1
         );
         if (!cutoff) {
             return;
         }
-        this.db.db.run(`DELETE FROM file_timings WHERE run_id < ?`, [cutoff.id]);
-        this.db.db.run(`DELETE FROM sync_runs WHERE id < ?`, [cutoff.id]);
-        this.db.dirty = true;
+        this.db.conn.run(`DELETE FROM file_timings WHERE run_id < ?`, cutoff.id);
+        this.db.conn.run(`DELETE FROM sync_runs WHERE id < ?`, cutoff.id);
     }
 }
 
-interface SyncRunSqlRow {
+type SyncRunSqlRow = {
     id: number;
     started_at: string;
     finished_at: string;
@@ -313,16 +309,16 @@ interface SyncRunSqlRow {
     cancelled: number;
     sum_file_duration_ms: number;
     avg_path_depth: number | null;
-}
+};
 
-interface FileTimingSqlRow {
+type FileTimingSqlRow = {
     id: number;
     run_id: number;
     file_uri: string;
     duration_ms: number;
     outcome: string;
     path_depth: number;
-}
+};
 
 function mapRunSummary(row: SyncRunSqlRow): IndexSyncRunSummary {
     return {
@@ -350,56 +346,4 @@ function mapFileTiming(row: FileTimingSqlRow): IndexFileTimingRow {
         outcome: row.outcome as IndexFileOutcome,
         pathDepth: row.path_depth
     };
-}
-
-let sqlJsModulePromise: Promise<SqlJsModule> | undefined;
-
-async function getSqlJsModule(): Promise<SqlJsModule> {
-    sqlJsModulePromise ??= import('sql.js/dist/sql-asm.js').then(
-        ({ default: initSqlJs }) => initSqlJs({}) as Promise<SqlJsModule>
-    );
-    return sqlJsModulePromise;
-}
-
-async function openDatabase(path: string): Promise<SqliteDatabase> {
-    await mkdir(dirname(path), { recursive: true });
-    const SQL = await getSqlJsModule();
-    let bytes: Uint8Array | undefined;
-    try {
-        bytes = new Uint8Array(await readFile(path));
-    } catch {
-        bytes = undefined;
-    }
-    return {
-        db: bytes ? new SQL.Database(bytes) : new SQL.Database(),
-        dbPath: path,
-        dirty: false
-    };
-}
-
-async function persistDatabase(db: SqliteDatabase): Promise<void> {
-    if (!db.dirty) {
-        return;
-    }
-    await mkdir(dirname(db.dbPath), { recursive: true });
-    await writeFile(db.dbPath, Buffer.from(db.db.export()));
-    db.dirty = false;
-}
-
-async function get<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T | undefined> {
-    const rows = await all<T>(db, sql, ...params);
-    return rows[0];
-}
-
-async function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T[]> {
-    const statement = db.db.prepare(sql, params);
-    const rows: T[] = [];
-    try {
-        while (statement.step()) {
-            rows.push(statement.getAsObject() as T);
-        }
-        return rows;
-    } finally {
-        statement.free();
-    }
 }

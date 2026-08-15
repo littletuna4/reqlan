@@ -1,6 +1,8 @@
 /**
  * Embedded reqlan references in comments of arbitrary source files.
  * Syntax: rq:[idea] or rq:["./reqfile.rq".idea_name]
+ * rq:["../../../reqlan rq/ontology.rq".referenced_files]
+ * rq:["../../../reqlan rq/ontology.rq".reference_types]
  */
 grammar ReqlanComment
 

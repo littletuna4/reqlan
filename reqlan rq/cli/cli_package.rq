@@ -6,13 +6,23 @@ from "../bases/base.rq" import create_base_onboarding
 
 cli_package {
     `packages/cli` (`@reqlan/cli`) is the Clipanion CLI published to npm as the `reqlan` (and `rq`) binary.
-    It depends on `@reqlan/analytical` for base analysis and `@reqlan/language` for single-file parse.
+    Headless commands go through the core analytical engine (`@reqlan/analytical/core` / `reqlan-napi`), not Langium.
     Entry: ["../../packages/cli/src/main.ts"] via ["../../packages/cli/bin/cli.js"] ([windows_esm_entry]).
     Analysis commands reuse [application_memory] (`<base>/.reqlan`) and the analytical ["../indexer/indexer.rq".index] so the CLI shares the ideas index with the extension and MCP.
+    @tests (
+        ["../../packages/cli/test/runtime-engine.test.ts:CLI runtime opens AnalysisApi through the core engine"]
+        ["../../packages/cli/test/runtime-engine.test.ts:CLI commands do not statically import Langium or @reqlan/language"]
+        ["../../packages/cli/test/runtime-engine.test.ts:search does not load the Langium language module"]
+        ["../../packages/analytical/test/native-headless-entry.test.ts:native module graph does not value-import Langium or @reqlan/language"]
+    )
 }
 
 architecture {
-    The cli should be a thin wrapper around the analytical and language packages.
+    The cli should be a thin wrapper around `@reqlan/analytical/core` (Rust engine).
+    `search` / `analyse` / `export` / `init` / `parse` must not load `@reqlan/language`.
+    `barrel` may dynamically import the Langium barrel helper because page splits stay JS text edits
+    (["../core_analysis/rust_port.rq".native_bridge]).
+    @status done
 }
 
 windows_esm_entry {
@@ -35,12 +45,12 @@ windows_esm_entry {
 
 commands {
     Minimal commands:
-    - `parse <file>` — parse one `.rq` file via `@reqlan/language`; print diagnostics or an AST summary (`--json` for machine output).
+    - `parse <file>` — parse one `.rq` file via the core engine `parseReqlanSource` (Rust `reqlan-parse`); print diagnostics or an AST summary (`--json` for machine output).
     - `analyse` / `analyze` — file (`--file`), idea (`--idea`), or workspace completion (default) via `AnalysisApi`.
     - `search <query>` — semantic search via `AnalysisApi.searchRequirements`.
       Repeatable `--context <path|path#idea|name>` biases ranking by graph hop distance
       (["../core_analysis/search.rq".contextual_search]).
-    - `export` / `export html` — multi-file HTML site via `AnalysisApi.exportHtml` ([html_export.html_export]).
+    - `export` / `export html` — multi-file HTML site via `NativeAnalysisApi.exportHtml` ([html_export.html_export]).
       `--exclude-secret` omits `*.secret.rq`.
       `--exclude-ignored` omits paths matched by `.reqlan/.rqignore`.
       `--url-base` mounts root-relative hrefs per [html_export.html_export_url_base].

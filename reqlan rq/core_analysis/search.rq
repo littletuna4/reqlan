@@ -2,13 +2,14 @@ from "../modelling/advanced_analysis.rq" import pagerank, search_with_context, i
 from "../extension/module/context-scope-v2.rq" import context_scope_v2
 import "../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
 import "../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
+import "../../packages/analytical/src/analysis/file-search-analyser.ts" as file_search_analyser
 import "../../packages/analytical/src/analysis/semantic-search-analyser.ts" as semantic_search_analyser
 import "../../packages/analytical/src/analysis/contextual-search.ts" as contextual_search_impl
 import "../../packages/cli/src/commands/search.ts" as search_cli
 
 search {
     Search over the requirement graph — find ideas by name, body, tags, and related signals.
-    Surfaces: [fuzzy_search], [contextual_search], [semantic_search].
+    Surfaces: [fuzzy_search], [file_search], [contextual_search], [semantic_search].
     Consumed by CLI `reqlan search`, MCP/chat tools, Ideas Summary, and the activity-bar search pane.
     Rust ranking engine: ["./rust_port.rq".search_rust].
     @todo flesh out shared search UX / ranking contract across surfaces
@@ -19,9 +20,21 @@ fuzzy_search {
     Separator and word-order behaviour: [fuzzy_search_whitespace].
     Also supports prefix, substring, and character-subsequence (fuzzy) ranking.
     Skips ideaset container rows; empty query returns all non-ideaset ideas (callers may require a non-empty query).
-    Implementation: [fuzzy_search_impl] / [fuzzy_search_analyser] (`fuzzy_search` analyser id).
+    Ranking engine: ["./rust_port.rq".search_rust] `reqlan-search` (`fuzzy_search` / `search_ideas`).
+    Also returns [file_search] hits mixed into the same ranked list (kind `file`).
+    Pagination: [fuzzy_search_pages].
+    Activity-bar search calls native `NativeWorkspaceIndex.fuzzySearch` so the host never copies the idea catalog into JS.
+    Client-side highlight helpers stay in [fuzzy_search_impl] (`./fuzzy-search` export).
+    TS analyser [fuzzy_search_analyser] remains a fallback that still lists ideas in JS (and mixes [file_search]).
     @tests (
         ["../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
+        ["../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_exact_and_prefix_matches_ahead_of_subsequence_fuzzy_hits"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:fuzzy_search_reads_sqlite_and_returns_ranked_hits"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_ranks_without_exporting_catalog"]
     )
     @status done
 }
@@ -36,6 +49,52 @@ fuzzy_search_whitespace {
         ["../../packages/analytical/test/fuzzy-search.test.ts"]
         ["../../packages/analytical/test/fuzzy-search.test.ts:matches across separator substitutions"]
         ["../../packages/analytical/test/fuzzy-search.test.ts:matches reordered and partial word queries"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:collapses_underscore_hyphen_dots_ellipsis_and_whitespace"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:matches_across_separator_substitutions"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:matches_reordered_and_partial_word_queries"]
+    )
+    @status done
+}
+
+fuzzy_search_pages {
+    [fuzzy_search] accepts `offset` + `limit` over the already-ranked mixed idea+file list.
+    `truncated` is true when more hits exist after the returned page (callers show `{n}+` rather than a full count).
+    Used by [search_pane.search_pane_load_more].
+    @implementation (
+        ["../../crates/reqlan-search/src/fuzzy.rs"]
+        ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
+        ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
+        ["../../packages/analytical/test/fuzzy-search.test.ts:pages ranked hits with offset and truncated"]
+        ["../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+    )
+    @status done
+}
+
+file_search {
+    Rank indexed `.rq` files and comment-bearing code files by basename, stem, and path using the same
+    separator-insensitive matching as [fuzzy_search] / [fuzzy_search_whitespace].
+    Hits use kind `file`; id is the indexed file URI; name is the basename; line start is 0.
+    Empty query does not dump the file catalog.
+    Mixed into [fuzzy_search] so one list ranks ideas and files together.
+    Code files are those persisted by ["../indexer/indexer.rq".index_code_files].
+    Surfaces: native `fuzzy_search`, TS [file_search_analyser], [search_pane.search_pane_file_hits].
+    @implementation (
+        ["../../crates/reqlan-search/src/fuzzy.rs"]
+        ["../../crates/reqlan-index/src/store.rs"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
+        ["../../packages/analytical/src/analysis/file-search-analyser.ts"]
+        ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../packages/analytical/test/fuzzy-search.test.ts:ranks file name hits with ideas"]
+        ["../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_file_name_hits"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_comment_code_files"]
     )
     @status done
 }
@@ -51,6 +110,8 @@ contextual_search {
     @tests (
         ["../../packages/analytical/test/contextual-search.test.ts"]
         ["../../packages/analytical/test/context-signals.test.ts"]
+        ["../../crates/reqlan-search/tests/contextual.rs:nearer_ideas_rank_above_farther_with_equal_text_scores"]
+        ["../../crates/reqlan-search/tests/contextual.rs:reranks_using_graph_edges_from_context_seeds"]
     )
     @status done
 }

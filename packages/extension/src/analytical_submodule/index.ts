@@ -2,8 +2,10 @@
  * Analytical submodule: idea graph index and analysers for the reqlan extension.
  */
 import * as vscode from 'vscode';
+import * as path from 'node:path';
 import {
     AnalyserRegistry,
+    addNativeEngineSearchDirs,
     createAnalyticalStore,
     completionTrackingAnalyser,
     deprecationImpactAnalyser,
@@ -11,8 +13,11 @@ import {
     gitDatesAnalyser,
     listAllIdeasAnalyser,
     localGraphAnalyser,
+    loadNativeEngine,
+    resetNativeEngineCache,
     semanticSearchAnalyser,
     fuzzySearchAnalyser,
+    fileSearchAnalyser,
     type AnalyticalStore
 } from '@reqlan/analytical';
 import { IndexService } from './index-store/index-service.js';
@@ -63,6 +68,31 @@ export function activateAnalyticalSubmodule(
     context: vscode.ExtensionContext,
     onActivityBarPainted: () => void
 ): AnalyticalSubmodule {
+    // Host-matching core engine `.node` is staged under native/ by the extension build
+    // (F5) and by per-target VSIX packaging.
+    // rq:["../../../reqlan rq/distribution/distribution.rq".extension_host_target]
+    // rq:["../../../reqlan rq/distribution/distribution.rq".vsix_export]
+    // rq:["../../../reqlan rq/development/build.rq".incremental_extension_build]
+    addNativeEngineSearchDirs(path.join(context.extensionPath, 'native'));
+    // Local F5 / monorepo checkout: also probe cargo outputs next to the extension package.
+    addNativeEngineSearchDirs(
+        path.join(context.extensionPath, '../../crates/target/release'),
+        path.join(context.extensionPath, '../../crates/target/debug')
+    );
+    resetNativeEngineCache();
+    try {
+        loadNativeEngine();
+        console.log('[reqlan] Native analytical engine loaded for this extension host');
+    } catch (error) {
+        const message =
+            error instanceof Error ? error.message : 'Native analytical engine is required but was not found';
+        console.error(`[reqlan] ${message}`);
+        void vscode.window.showErrorMessage(
+            'reqlan: the bundled native analytical engine failed to load for this extension host.'
+        );
+        throw error;
+    }
+
     const store = createAnalyticalStore();
     const index = new IndexService(store);
     const analysers = new AnalyserRegistry();
@@ -75,6 +105,7 @@ export function activateAnalyticalSubmodule(
     analysers.register(localGraphAnalyser);
     analysers.register(semanticSearchAnalyser);
     analysers.register(fuzzySearchAnalyser);
+    analysers.register(fileSearchAnalyser);
 
     const submodule = { store, index, analysers };
 

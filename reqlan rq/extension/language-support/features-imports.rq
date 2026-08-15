@@ -18,12 +18,16 @@ import_error {
     Fixes:
         - Add import from a matching idea found in loaded documents or the name catalog pushed from the index
         - Rewrite the reference to an anonymous qualified form `["path".name]`
-        - Search the index for matching ideas, ideasets, or files (QuickPick), then insert an import
+        - Search the index for matching ideas, ideasets, or files (same `reqlan.searchReference` path as [code_actions] / ["../features-commands.rq".search_code_actions]), then insert an import
         - Create the idea in a new .rq file and import it
     [general_errors]
     [code_actions]
     [quick_fixes]
-    
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/extension/register-import-error-commands.ts"]
+    )
     @tests (
         ["../../../packages/language/test/code-actions.test.ts"]
         ["../../../packages/language/test/import-edits.test.ts"]

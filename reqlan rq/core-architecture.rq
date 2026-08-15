@@ -51,29 +51,29 @@ language_package {
     `packages/language` (`@reqlan/language`) is the canonical language definition.
     It owns Langium grammars, generated AST and parser, scoped linking, validators, and LSP service providers.
     Public DI entry is [language_module] via `createReqlanServices`.
-    Consumers: [analytical_package] (indexer / analysis), [extension_package] (LSP), [cli_package].
-    Published to npm as a library dependency of [analytical_package] and [cli_package]; not Marketplace-published. See [distribution.version_management] and [package_versioning].
+    Consumers: [analytical_package] (indexer / analysis remaining in TS), [extension_package] (LSP).
+    Published to npm as a library dependency of [analytical_package]; not Marketplace-published. See [distribution.version_management] and [package_versioning].
 }
 
 analytical_package {
     `packages/analytical` (`@reqlan/analytical`) is the shared requirement graph index and analysis layer.
-    It owns the [indexer]: extracts ideas and edges from Langium ASTs into a sql.js SQLite store ([workspace_index]), holds Zustand analytical state, and exposes analysers and an analysis API.
-    Headless entry is [analysis_runtime] via `createAnalysisRuntime` / `WorkspaceIndex`.
+    It owns the [indexer]: extracts ideas and edges into a rusqlite store via the core native engine ([workspace_index]), holds Zustand analytical state, and exposes analysers and an analysis API.
+    Headless CLI/MCP entry is `@reqlan/analytical/core` via `openAnalysisApi` (native required; no Langium).
     Consumers: [extension_package] (thin editor adapter), [mcp_package], [cli_package].
-    Depends on [language_package]. Published to npm alongside [cli_package]; version graph role: [package_versioning].
+    Depends on [language_package] for the editor LSP only. Published to npm alongside [cli_package]; version graph role: [package_versioning].
     Rust engine port (lexer/parser-for-index, indexer, search, export): [rust_port.analytical_rust_port], shipped per [distribution.rust_binary_distribution].
     @status in-progress
     @plan {
         goal
-            Replace the TypeScript analysis engine (parse-for-index, extract, SQLite index, search, export) with a Rust library behind the existing `createAnalysisRuntime` / `AnalysisApi` facade, shipped as per-architecture binaries.
+            Replace the TypeScript analysis engine (parse-for-index, extract, SQLite index, search, export) with a Rust library behind the existing `createAnalysisRuntime` / `AnalysisApi` facade, shipped as per-architecture binaries and per-target VSIXes.
 
         constraints
-            - Distribution: [distribution.rust_binary_distribution] — npm optional platform packages first, also website downloads; GitHub-release postinstall out of scope.
-            - Shared on-disk [ideas_index] under `<base>/.reqlan` stays schema-compatible across the TS/Rust cutover.
+            - Distribution: [distribution.rust_binary_distribution] + [distribution.vsix_export] — npm optional platform packages and host-targeted VSIX; website downloads and GitHub-release postinstall out of scope.
+            - Shared on-disk [ideas_index] under `<base>/.reqlan` is schema v4 rusqlite (native required; no sql.js fallback).
             - [grammar_and_parser] / [language_server] stay Langium; this is not a tree-sitter or tower-lsp rewrite.
             - Port the context-sensitive lexer ([rust_port.lexer_rust]) rather than a parser-generator that cannot honour [syntax] brace/fence rules.
             - [indexer.nonblocking_index] and [parser_lexer.parse_budget_timeout] still apply; [development_core.rust_mindset] and [constitution.supply_chain] (mature crates).
-            - VSIX uses sql.js specifically to avoid native modules — first cutover is CLI/MCP, not a `.node` addon in the extension host.
+            - Extension host requires the host-matching napi `.node` from the per-target VSIX ([distribution.extension_host_target]).
             - Zustand host state, webviews, and HTML-export client JS stay TypeScript.
 
         steps
@@ -82,13 +82,11 @@ analytical_package {
             3. Extractor + rusqlite + incremental sync ([indexer.indexer_rust]).
             4. Search analysers ([rust_port.search_rust]).
             5. Export snapshot + writers; keep interactive HTML JS ([rust_port.export_rust]).
-            6. napi-rs optional per-arch packages; CLI then MCP ([rust_port.native_bridge], [rust_port.cutover]).
-            7. Publish on `analytical/v*` and list binaries on the site.
+            6. napi-rs per-arch host packages; CLI then MCP then extension via platform VSIX ([rust_port.native_bridge], [rust_port.cutover]).
+            7. Publish on `analytical/v*` and ship per-target VSIXes ([distribution.rust_binary_distribution], [distribution.vsix_export]).
 
         open
-            - Literal `devDependencies` vs `optionalDependencies` for platform packages (runtime consumers need optionalDependencies).
-            - Extension follow-up: WASM from the same crates vs sidecar vs Electron-ABI native.
-            - CLI `parse` stays on Langium until parser parity, or switches with the indexer.
+            - Language-server port remains Langium; CLI `parse` uses the core Rust engine.
     }
 }
 
@@ -114,7 +112,7 @@ mcp_package {
 }
 
 cli_package {
-    `packages/cli` (`@reqlan/cli`) is a Clipanion CLI over [language_package] (parse) and [analytical_package] (`AnalysisApi` for analyse/search).
+    `packages/cli` (`@reqlan/cli`) is a Clipanion CLI over the core analytical engine (`@reqlan/analytical/core`) for parse, analyse, search, and export.
     Entry: [cli_main]. Binary name `reqlan` (alias `rq`). Published to npm with language, analytical, and MCP per [package_versioning] and [distribution.version_management].
 }
 

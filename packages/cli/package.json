@@ -31,9 +31,7 @@
     },
     "dependencies": {
         "clipanion": "3.2.1",
-        "langium": "~4.3.0",
-        "@reqlan/analytical": "workspace:*",
-        "@reqlan/language": "workspace:*"
+        "@reqlan/analytical": "workspace:*"
     },
     "devDependencies": {
         "shx": "~0.4.0",

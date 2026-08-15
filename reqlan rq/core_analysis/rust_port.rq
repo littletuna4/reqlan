@@ -17,21 +17,28 @@ analytical_rust_port {
     Native work lives in a `crates/` Cargo workspace and ships as per-architecture binaries per [distribution.rust_binary_distribution].
     Langium LSP stays in ["../core-architecture.rq".language_package] / ["../core-architecture.rq".language_server] — this port is not a tower-lsp rewrite.
     Component plans: [rust_crate_layout], [lexer_rust], [parser_rust], [indexer.indexer_rust], [search_rust], [export_rust], [native_bridge], [cutover].
-    @status draft
-    @todo apply the @plan; no crates exist yet
+    @status in-progress
+    @todo first `@reqlan/analytical-<platform>-<arch>` publish (Trusted Publisher on npmjs.com + analytical/v* tag)
+    @tests (
+        ["../../crates/reqlan-parse/tests/lexer.rs:prose_braces_stay_other"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_exact_and_prefix_matches_ahead_of_subsequence_fuzzy_hits"]
+    )
     @plan {
         goal
-            Same AnalysisApi behaviour, faster and native, distributed as optional per-arch npm packages (and website downloads) without breaking the shared `<base>/.reqlan` index or the Langium editor.
+            Same AnalysisApi behaviour, faster and native, distributed as per-arch npm packages and per-target VSIXes without breaking the shared `<base>/.reqlan` index or the Langium editor.
 
         constraints
-            - Ship per [distribution.rust_binary_distribution]: npm platform packages first; website listing; GitHub-release postinstall is out of scope.
+            - Ship per [distribution.rust_binary_distribution] and [distribution.vsix_export]: npm platform packages + host-targeted VSIX; website listing and GitHub-release postinstall out of scope.
             - On-disk ideas index schema stays compatible ([indexer.index]) so TS and Rust share application memory during cutover.
             - Grammar truth remains [syntax] / Langium; do not switch the language to tree-sitter (["../core-architecture.rq".grammar_and_parser]).
             - Port the context-sensitive lexer, not a naive parser-generator ([parser_lexer.lexer_bridge_to_syntax], [syntax_edges.nested_curly_braces], [syntax_edges.context_sensitive_lexer_scaling]).
             - Honour [indexer.nonblocking_index], [parser_lexer.parse_budget_timeout], [development_core.rust_mindset], [constitution.supply_chain].
-            - sql.js is asm.js today so the VSIX has no native modules — do not load `.node` in the extension host in the first cutover.
+            - Extension host loads the host-matching napi `.node` from the per-target VSIX ([distribution.extension_host_target]); missing core engine is a hard error (no sql.js fallback).
             - Interactive HTML graph/search JS and graph physics stay JS assets ([html_export.html_export_graph_layout]).
-            - [indexer.index_code_files] (comment-grammar indexing of non-`.rq` files) stays a later phase.
+            - Comment-file indexing is [indexer.index_code_files] (native sync, not a Langium comment-grammar pass).
 
         steps
             1. Scaffold crates + CI + golden harness ([rust_crate_layout]).
@@ -40,12 +47,10 @@ analytical_rust_port {
             4. Search and analysers ([search_rust]).
             5. Export snapshot and writers ([export_rust]).
             6. napi-rs loader in `@reqlan/analytical`; CLI/MCP first ([native_bridge], [cutover]).
-            7. Publish platform packages on `analytical/v*` and list binaries on the site ([distribution.rust_binary_distribution]).
+            7. Publish platform packages on `analytical/v*` and ship per-target VSIXes ([distribution.rust_binary_distribution], [distribution.vsix_export]).
 
         open
-            - "optional dev dependencies" in [distribution.rust_binary_distribution] vs npm `optionalDependencies` (runtime CLI/MCP need the latter).
-            - Extension after CLI: WASM from the same crates vs sidecar binary vs Electron-ABI native.
-            - Whether CLI `parse` stays on Langium until LSP also moves, or switches once index-parser parity lands.
+            - Language-server port remains Langium; CLI `parse` uses the core Rust engine.
     }
 }
 
@@ -56,10 +61,14 @@ rust_crate_layout {
     - `reqlan-search` — fuzzy / contextual / semantic ranking
     - `reqlan-export` — snapshot + html/md/json/csv writers; embed existing HTML JS assets
     - `reqlan-analytical` — facade matching `AnalysisApi` + `WorkspaceIndex` operations
-    - `reqlan-napi` — Node addon wrapping the facade for [native_bridge]
+    - `reqlan-napi` — Node binding for the core engine ([native_bridge])
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
-    Golden tests compare Rust parse/extract against Langium on `packages/language/test` fixtures and the `reqlan rq/` corpus.
-    @status draft
+    Golden tests compare Rust extract against Langium on `reqlan rq/` files Langium parses without lexer/parser errors, plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
+    @status done
+    @tests (
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../packages/analytical/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
+    )
 }
 
 lexer_rust {
@@ -67,8 +76,14 @@ lexer_rust {
     structural vs prose `{` / `}`, fence opacity, quote-aware comments, `@` only at line start, glob `/**/` not a block comment.
     Linear in document size with sparse brace-depth lookup ([syntax_edges.context_sensitive_lexer_scaling]).
     Owned by `reqlan-parse`; consumed by [parser_rust]. Langium token builder remains the LSP lexer until a later language-server port.
-    @status draft
-    @todo
+    @status done
+    @tests (
+        ["../../crates/reqlan-parse/tests/lexer.rs:structural_braces_around_named_block"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:prose_braces_stay_other"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:glob_star_star_is_not_a_block_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:at_only_at_line_start"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:url_slashes_are_not_line_comments"]
+    )
 }
 
 parser_rust {
@@ -76,43 +91,95 @@ parser_rust {
     Recovery: nameless `{...}` and local import mistakes still yield a usable document ([parser_lexer.recovery_vs_budget]).
     Wall-clock [parser_lexer.parse_budget_timeout] via native timeout/cancel — no Node worker process required on the index path.
     Dual-parser window: every grammar change updates Langium *and* `reqlan-parse` until the index path is Rust-only.
-    CLI `parse` may keep Langium until this crate passes the language parsing tests.
-    @status draft
-    @todo
+    CLI `parse` uses the core engine `parseReqlanSource` (`reqlan-parse`); Langium stays the editor LSP parser.
+    @status done
+    @tests (
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
+        ["../../crates/reqlan-parse/tests/parser.rs:recovers_nameless_block"]
+        ["../../crates/reqlan-parse/tests/parser.rs:recovers_invalid_from_import_and_keeps_later_ideas"]
+        ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_at_plan_brace_stays_prose"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:tutorials_rq_keeps_ideas_after_nested_slides_lists"]
+        ["../../packages/language/test/parsing.test.ts:keeps later ideas after nested @slides lists with mid-line @plan braces"]
+        ["../../packages/language/test/parsing.test.ts:parse tutorials.rq nested @slides lists without parser errors"]
+        ["../../packages/cli/test/runtime-engine.test.ts:parse command uses native parseReqlanSource"]
+        ["../../packages/analytical/test/load-native.test.ts:exposes parseReqlanSource on the engine when present"]
+    )
 }
 
 search_rust {
     Port [search_reqs.fuzzy_search] (separator-insensitive ranking), [search_reqs.contextual_search] (hop-distance rerank), and [search_reqs.semantic_search] into `reqlan-search`.
     Same `AnalysisApi.searchRequirements` / `--context` contract ([cli.commands]).
+    Activity-bar idea search uses `WorkspaceIndexRuntime.fuzzy_search` / napi `NativeWorkspaceIndex.fuzzySearch` so ranking stays next to rusqlite and only capped hits cross into JS.
+    Mixed list includes indexed `.rq` file-name hits (`kind` `file`) and pages with `offset` / `limit` (`truncated`).
     Client-side highlight helpers used by webviews may stay in the TS `./fuzzy-search` export until a shared WASM/JS copy is needed.
-    @status draft
-    @todo
+    @status done
+    @tests (
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_exact_and_prefix_matches_ahead_of_subsequence_fuzzy_hits"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:matches_across_separator_substitutions"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:fuzzy_search_reads_sqlite_and_returns_ranked_hits"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_ranks_without_exporting_catalog"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_file_name_hits"]
+        ["../../crates/reqlan-search/tests/contextual.rs:nearer_ideas_rank_above_farther_with_equal_text_scores"]
+        ["../../crates/reqlan-search/tests/contextual.rs:reranks_using_graph_edges_from_context_seeds"]
+        ["../../crates/reqlan-search/tests/semantic.rs:ranks_name_hits_ahead_of_summary_and_tag_hits"]
+        ["../../crates/reqlan-search/tests/semantic.rs:scores_reference_labels_and_query_tokens"]
+    )
 }
 
 export_rust {
     Port [export_reqs.export_pipeline]: `buildExportSnapshot` then HTML / markdown / JSON / CSV writers in `reqlan-export`.
     Interactive HTML JS (graph canvas, list filters, search bars) stays static assets bundled into the export — not rewritten in Rust ([html_export.html_export], [html_export.html_export_graph_animation]).
-    Hosts still call `AnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv`; they do not grow format writers.
+    Hosts still call `NativeAnalysisApi.exportHtml` / `exportMarkdown` / `exportJson` / `exportCsv`; they do not grow format writers.
     PDF remains print-HTML ([export_reqs.pdf_export]); [html_export.html_export_print_order_by] stays a product follow-up, not a port blocker.
-    @status draft
-    @todo
+    @status done
+    @tests (
+        ["../../crates/reqlan-export/tests/json_export.rs:json_export_lists_persisted_ideas"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../crates/reqlan-export/tests/html_export.rs:overview_status_and_tag_rollups_link_with_filters"]
+        ["../../crates/reqlan-export/tests/html_export.rs:url_base_and_header_link_produce_root_relative_hrefs"]
+    )
 }
 
 native_bridge {
-    `@reqlan/analytical` loads a napi-rs addon from optional per-architecture packages (linux/darwin/win32 × x64/arm64 gnu/msvc).
+    The Rust engine is the analytical core (parse, index, search, export) — not an optional addon.
+    `@reqlan/analytical` loads that core through a napi host binding (`.node`) from per-architecture packages (linux/darwin/win32 × x64/arm64 gnu/msvc).
     JS keeps: Zustand store, VS Code adapter, barrel-page text edits, create-base / path helpers that are cheap to leave in TS.
-    Native owns: parse-for-index, persist, query, search, export execution.
-    First consumers: [cli.cli_package] and ["../core-architecture.rq".mcp_package]. Extension host keeps sql.js until [cutover] chooses WASM or a sidecar.
-    @status draft
-    @todo
+    Native owns: parse-for-index, persist, query, search, export execution, and IndexService / WorkspaceIndex sync via `NativeWorkspaceIndex` + `NativeSqlDb`.
+    Consumers: [cli.cli_package] and MCP import `@reqlan/analytical/core` so they never load Langium;
+    the extension host uses the per-target VSIX ([distribution.vsix_export], [distribution.extension_host_target]).
+    The host-matching `.node` is required at runtime; there is no sql.js fallback.
+    @status in-progress
+    @todo publish first `@reqlan/analytical-<platform>-<arch>` release (Trusted Publisher on npmjs.com + analytical/v* tag)
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+        ["../../packages/analytical/test/native-headless-entry.test.ts"]
+        ["../../packages/analytical/test/open-analysis-api.test.ts"]
+        ["../../packages/analytical/test/native-export-request.test.ts"]
+        ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
+    )
 }
 
 cutover {
-    Feature-flag native vs TS inside `@reqlan/analytical` (env or package export).
-    Order: golden parse/extract → headless CLI `analyse`/`search`/`export` → MCP → extension (only after a no-native or WASM path exists).
-    Shared [bases.base] `.reqlan` DB must round-trip between sql.js and rusqlite on schema v4.
-    Remove the Langium dependency from the index path only after CLI/MCP run native in CI.
-    @status draft
+    Native engine is required for CLI, MCP, and the extension IndexService path (no `REQLAN_ANALYTICAL_ENGINE=js` escape hatch).
+    Order: golden parse/extract → headless CLI `analyse`/`search`/`export` → MCP → extension via platform VSIX (host-matching napi `.node` required).
+    Shared [bases.base] `.reqlan` DB is schema v4 rusqlite; fixtures verify reopen compatibility.
+    Langium remains for the editor LSP only; the index path uses Rust parse/extract.
+    @status done
+    @tests (
+        ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
+        ["../../crates/reqlan-index/tests/schema.rs:schema_v4_columns_round_trip_git_count_and_mtime"]
+        ["../../crates/reqlan-index/tests/schema.rs:schema_v4_file_reopens_after_drop"]
+        ["../../crates/reqlan-index/tests/schema.rs:opens_sqljs_written_schema_v4_fixture"]
+        ["../../packages/analytical/test/schema-v4-roundtrip.test.ts"]
+        ["../../packages/analytical/test/open-analysis-api.test.ts"]
+        ["../../packages/cli/test/runtime-engine.test.ts"]
+        ["../../packages/analytical/test/native-headless-entry.test.ts"]
+    )
 }
 
 port_phases (
@@ -126,5 +193,11 @@ port_phases (
 )
 
 ts_interface {
-    the ts interface over the rust functionality must remain fully typed - using specta
+    The TS interface over the Rust functionality stays fully typed via specta (`crates/reqlan-analytical` `export-ts` → `packages/analytical/src/native/generated.ts`).
+    @status done
+    @tests (
+        ["../../packages/analytical/src/native/generated.ts"]
+        ["../../packages/analytical/test/generated-native-types.test.ts"]
+        ["../../crates/reqlan-analytical/tests/export_ts.rs:committed_generated_ts_matches_specta_export"]
+    )
 }

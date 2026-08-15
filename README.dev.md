@@ -13,6 +13,7 @@ Please check the specific projects here:
 Some file are contained in the root directory as well.
 
 - [package.json](./package.json) - The manifest file the main workspace package
-- [tsconfig.json](./tsconfig.json) - The base TypeScript compiler configuration
-- [tsconfig.build.json](./package.json) - Configuration used to build the complete source code.
+- [tsconfig.base.json](./tsconfig.base.json) - Shared compiler options; package tsconfigs extend this
+- [tsconfig.json](./tsconfig.json) - Solution-style project references (`files: []`). Do not run `tsc` against this as a source project — that used to emit `.js` / `.d.ts` / `.js.map` next to sources
+- [tsconfig.build.json](./tsconfig.build.json) - Same references; used by `pnpm run build` (`tsc -b tsconfig.build.json`)
 - [.gitignore](.gitignore) - Files ignored by git

@@ -1,5 +1,9 @@
 /**
  * Shared domain types for the idea graph index and analysers.
+ * rq:["../../../reqlan rq/ontology.rq".idea]
+ * rq:["../../../reqlan rq/ontology.rq".ideaset]
+ * rq:["../../../reqlan rq/ontology.rq".attribute]
+ * rq:["../../../reqlan rq/ontology.rq".reference_types]
  */
 
 export type IdeaKind = 'block' | 'oneliner' | 'ideaset';

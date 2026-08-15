@@ -1,3 +1,7 @@
+/**
+ * VS Code extension host entry.
+ * rq:["../../../../reqlan rq/ontology.rq".extension]
+ */
 import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
 import type * as vscode from 'vscode';
 import * as path from 'node:path';
@@ -51,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
     let submodule: AnalyticalSubmodule | undefined;
     runStep('analytical submodule', () => {
         submodule = activateAnalyticalSubmodule(context, () => activityBarPainted.signal());
-        registerImportErrorCommands(context, submodule.index);
+        registerImportErrorCommands(context, submodule.index, () => client);
         registerWildcardReferenceCommand(
             context,
             () => submodule?.index,

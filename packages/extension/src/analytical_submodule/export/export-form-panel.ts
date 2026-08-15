@@ -5,9 +5,10 @@ import * as vscode from 'vscode';
 import { basename } from 'node:path';
 import {
     exportCsv,
-    exportHtml,
     exportJson,
     exportMarkdown,
+    openAnalysisApi,
+    resolveApplicationMemoryPath,
     type ExportProgress,
     type ExportRequest,
     type ExportResult
@@ -353,7 +354,7 @@ export class ExportFormPanel {
 
 async function runExport(
     format: ExportFormSettings['format'],
-    store: Parameters<typeof exportHtml>[0],
+    store: Parameters<typeof exportMarkdown>[0],
     request: ExportRequest,
     onProgress: (progress: ExportProgress) => void
 ): Promise<ExportResult> {
@@ -364,8 +365,28 @@ async function runExport(
             return exportJson(store, request, onProgress);
         case 'csv':
             return exportCsv(store, request, onProgress);
-        default:
-            return exportHtml(store, request, onProgress);
+        default: {
+            onProgress({
+                phase: 'snapshot',
+                message: 'Building export snapshot…',
+            });
+            const opened = await openAnalysisApi({
+                workspaceRoot: request.workspaceRoot,
+                storagePath: resolveApplicationMemoryPath(request.workspaceRoot)
+            });
+            try {
+                const result = await opened.api.exportHtml(request, onProgress);
+                onProgress({
+                    phase: 'write',
+                    message: 'Wrote HTML export.',
+                    completed: 1,
+                    total: 1,
+                });
+                return result;
+            } finally {
+                await opened.dispose();
+            }
+        }
     }
 }
 

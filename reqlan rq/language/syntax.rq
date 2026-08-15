@@ -10,6 +10,7 @@ file_layout {
     @status incomplete
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse syntax.rq"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parse_syntax_rq"]
     )
 }
 
@@ -22,6 +23,7 @@ idea_name {
 
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse dash and underscore delimited idea names"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parse_dash_and_underscore_delimited_idea_names"]
     )
 }
 
@@ -32,12 +34,19 @@ simple_idea {
 
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse name-only ideas without a body"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
+        ["../../crates/reqlan-parse/tests/parser.rs:one_liner_body_does_not_continue_on_the_next_line"]
     )
 }
 
 block_idea {
     A block idea is written as a name followed by curly braces containing a body and optional attributes.
     The first unstructured text in an idea body is the main description when no other body attribute is marked.
+    @tests (
+        ["../../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parses_block_and_oneliner"]
+    )
 }
 
 main_desription_lists_allowed {
@@ -151,6 +160,8 @@ attribute_forms {
     @tests (
         ["../../packages/language/test/parsing.test.ts:parses valued attributes without a colon"]
         ["../../packages/language/test/parsing.test.ts:still accepts optional colon before attribute values"]
+        ["../../packages/analytical/test/idea-extraction.test.ts:indexes scalar, list, block, and flag attribute values"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
     )
 }
 
@@ -161,6 +172,7 @@ attribute_location {
     @tests (
         ["../../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
         ["../../packages/language/test/parsing.test.ts:backslash before @ at line start keeps it as body text"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:at_only_at_line_start"]
     )
 }
 
@@ -180,6 +192,9 @@ lists {
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse list items as one-liners and anonymous blocks"]
         ["../../packages/language/test/parsing.test.ts:keeps inline parentheses in body prose as text"]
+        ["../../packages/language/test/parsing.test.ts:keeps later ideas after nested @slides lists with mid-line @plan braces"]
+        ["../../packages/language/test/parsing.test.ts:parse tutorials.rq nested @slides lists without parser errors"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:tutorials_rq_keeps_ideas_after_nested_slides_lists"]
     )
 }
 
@@ -217,6 +232,9 @@ comments {
         ["../../packages/language/test/references.test.ts:e2e: findCommentSpansInText skips empty /**/ glob segments"]
         ["../../packages/language/test/ignore-error.test.ts"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:url_slashes_are_not_line_comments"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:glob_star_star_is_not_a_block_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:meta_line_comment_after_content_is_hidden"]
     )
 }
 
@@ -253,7 +271,8 @@ code_snippets {
 
 comment_reference {
     Reqlan references may appear in line comments of arbitrary source files.
-    Comment reference syntax uses rq, a colon, a quoted path, a dot, and an idea name.
+    Comment reference syntax is `rq:[idea]` or `rq:["path".idea]` (quoted path, optional extra qualification).
+    Indexed as `comment_link` by ["../indexer/indexer.rq".index_code_files].
 }
 
 string_literals {
@@ -337,6 +356,8 @@ no_name_idea_safe_warning {
         ["../../packages/language/test/parsing.test.ts:parses top-level nameless braces without aborting later ideas"]
         ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
         ["../../packages/language/test/validating.test.ts:warns on top-level nameless braces without invalidating later ideas"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parses_top_level_nameless_braces_without_aborting_later_ideas"]
+        ["../../crates/reqlan-parse/tests/parser.rs:recovers_nameless_block"]
     )
     @implementation (
         ["../../packages/language/src/reqlan.langium"]

@@ -1,5 +1,8 @@
 /**
  * Locates and parses rq:[target] references embedded in source-file comments.
+ * rq:["../../../reqlan rq/ontology.rq".referenced_files]
+ * rq:["../../../reqlan rq/ontology.rq".reference_types]
+ * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, URI } from 'langium';

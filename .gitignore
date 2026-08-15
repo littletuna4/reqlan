@@ -13,12 +13,38 @@ syntaxes/
 *.tsbuildinfo
 *.vsix
 
+# In-place tsc emit next to TypeScript sources. Package JS output lives in out/.
+# physics-core.js is source (embedded in HTML export); keep it.
+packages/**/src/**/*.js
+!packages/analytical/src/graph/physics-core.js
+packages/**/src/**/*.js.map
+packages/**/src/**/*.d.ts
+!packages/analytical/src/graph/physics-core.d.ts
+!packages/analytical/src/sql-asm.d.ts
+!packages/extension/src/vscode-lm-tools.d.ts
+!packages/language/src/chevrotain.d.ts
+packages/**/test/**/*.js
+packages/**/test/**/*.js.map
+packages/**/test/**/*.d.ts
+packages/extension/webviews/**/*.js
+!packages/extension/webviews/**/svelte.config.js
+packages/extension/webviews/**/*.js.map
+packages/extension/webviews/**/*.d.ts
+!packages/extension/webviews/**/vite-env.d.ts
+!packages/extension/webviews/shared/graph/cytoscape-layouts.d.ts
+!packages/extension/webviews/ideas-summary/lib/cytoscape-layouts.d.ts
+site/src/**/*.js
+site/src/**/*.js.map
+site/src/**/*.d.ts
+
 # Extension media build outputs (see packages/extension scripts build:media / build:webviews)
 # logo.png is tracked — package.json contributes/marketplace icon must resolve in the repo.
 packages/extension/media/webviews/
 packages/extension/media/logo-256.png
 packages/extension/media/logo.webp
 packages/extension/media/logo.svg
+packages/extension/native/
+packages/extension/vsix-out/
 
 */:memory:
 
@@ -29,6 +55,16 @@ packages/extension/media/logo.svg
 
 # Workspace-local reqlan application memory (ideas index, etc.)
 **/.reqlan/*.sqlite
+
+# Rust
+crates/target/
+target/
+*.node
+!packages/analytical-native/**/package.json
+
+# Generated native package binaries (package.json skeletons are tracked)
+packages/analytical-native/**/*.node
+artifacts/
 
 *.secret.rq
 

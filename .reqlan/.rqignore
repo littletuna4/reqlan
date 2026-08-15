@@ -1,4 +1,4 @@
-# Reqlan path ignore (gitignore syntax).
+# reqlan path ignore (gitignore syntax).
 # Applied relative to the base root (parent of .reqlan).
 # Built-in defaults always apply; use !pattern to force-include.
 
@@ -43,7 +43,7 @@ coverage/
 .*
 .*/
 
-# Reqlan application memory (never crawl the marker dir for .rq sources)
+# reqlan application memory (never crawl the marker dir for .rq sources)
 .reqlan/
 
 # Databases / binary stores

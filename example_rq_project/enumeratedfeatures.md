@@ -1,4 +1,4 @@
-# Enumerated Reqlan features
+# Enumerated reqlan features
 
 Features from [spec.md](../spec.md), with examples noted where demonstrated in this project.
 
@@ -111,9 +111,9 @@ Editor and LSP behavior; not part of the language text itself.
 
 ## Example project coverage
 
-| File | Demonstrates |
-|------|----------------|
-| `main.rq` | ideas, quoted names, wikilinks, aliases, `@plan`, `@status`, `@tags`, `@references`, flags, ideaset |
-| `sub idea.rq` | imports, cross-file references, `@references` list |
-| `exampleimport1.rq` | importable idea in another file |
-| `exampleimport2.rq` | empty file (placeholder for namespace import target) |
+| File                | Demonstrates                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `main.rq`           | ideas, quoted names, wikilinks, aliases, `@plan`, `@status`, `@tags`, `@references`, flags, ideaset |
+| `sub idea.rq`       | imports, cross-file references, `@references` list                                                  |
+| `exampleimport1.rq` | importable idea in another file                                                                     |
+| `exampleimport2.rq` | empty file (placeholder for namespace import target)                                                |

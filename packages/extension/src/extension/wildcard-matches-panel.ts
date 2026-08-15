@@ -97,11 +97,16 @@ export class WildcardMatchesPanel {
             return;
         }
         if (message.type === 'openIdea') {
-            await openIndexFile(message.fileUri, message.lineStart);
+            await openIndexFile(
+                message.fileUri,
+                message.lineStart,
+                0,
+                this.index.getActiveBase()?.descriptor.root
+            );
             return;
         }
         if (message.type === 'openFile') {
-            await openIndexFile(message.fileUri, 0);
+            await openIndexFile(message.fileUri, 0, 0, this.index.getActiveBase()?.descriptor.root);
             return;
         }
         if (message.type === 'openSearch') {

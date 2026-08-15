@@ -39,6 +39,7 @@ const IDLE_UNFOCUSED_MS = 10_000;
 export class IndexService {
     private readonly registry = new BaseRegistry();
     private watcher?: vscode.FileSystemWatcher;
+    private codeWatcher?: vscode.FileSystemWatcher;
     private markerWatcher?: vscode.FileSystemWatcher;
     private activeBaseId?: string;
     private readonly catalogListeners = new Set<() => void>();
@@ -145,6 +146,17 @@ export class IndexService {
         return entry.index.indexStore;
     }
 
+    fuzzySearch(
+        query: string,
+        options?: { limit?: number; requireQuery?: boolean; offset?: number }
+    ) {
+        const entry = this.getActiveBase();
+        if (!entry?.index.isReady) {
+            throw new Error('Index is not ready yet.');
+        }
+        return entry.index.fuzzySearch(query, options);
+    }
+
     /** Analytical store for the active base (isolated per base). */
     get store(): AnalyticalStore {
         const entry = this.getActiveBase();
@@ -207,6 +219,14 @@ export class IndexService {
             this.watcher.onDidDelete(uri => this.enqueueDelete(uri));
             context.subscriptions.push(this.watcher);
 
+            this.codeWatcher = vscode.workspace.createFileSystemWatcher(
+                '**/*.{ts,tsx,js,jsx,mjs,cjs,py,rs,go,java,kt,c,h,cpp,cs,rb,php,swift,vue,svelte,md}'
+            );
+            this.codeWatcher.onDidCreate(uri => this.enqueueSync(uri, 'created'));
+            this.codeWatcher.onDidChange(uri => this.enqueueSync(uri, 'changed'));
+            this.codeWatcher.onDidDelete(uri => this.enqueueDelete(uri));
+            context.subscriptions.push(this.codeWatcher);
+
             this.markerWatcher = vscode.workspace.createFileSystemWatcher('**/.reqlan');
             this.markerWatcher.onDidCreate(() => {
                 void this.rediscoverAndSync(true);
@@ -255,6 +275,8 @@ export class IndexService {
         this.rewireRegistryListeners();
         this.watcher?.dispose();
         this.watcher = undefined;
+        this.codeWatcher?.dispose();
+        this.codeWatcher = undefined;
         this.markerWatcher?.dispose();
         this.markerWatcher = undefined;
         this.activeBaseId = undefined;
@@ -299,7 +321,7 @@ export class IndexService {
         this.idleCheckInFlight = true;
         this.idleSyncActive = true;
         try {
-            const files = await this.collectRqFiles();
+            const files = await this.collectIndexFiles();
             await this.registry.checkStaleAll(files);
             this.notifyStatus();
             this.notifyCatalog();
@@ -433,9 +455,36 @@ export class IndexService {
             });
     }
 
+    private async collectIndexFiles(): Promise<string[]> {
+        const rqFiles = await this.collectRqFiles();
+        const extra: string[] = [];
+        for (const base of this.registry.list()) {
+            const entry = this.registry.get(base.id);
+            if (!entry?.index.isReady) {
+                continue;
+            }
+            try {
+                const uris = await entry.index.indexStore.listDocumentUris();
+                for (const uri of uris) {
+                    if (uri.endsWith('.rq') || uri.endsWith('.RQ')) {
+                        continue;
+                    }
+                    extra.push(vscode.Uri.joinPath(vscode.Uri.file(base.root), uri).fsPath);
+                }
+            } catch {
+                // ignore unopened stores
+            }
+        }
+        return [...rqFiles, ...extra];
+    }
+
     private enqueueSync(uri: vscode.Uri, change: 'created' | 'changed'): void {
         const entry = this.registry.baseForFilePath(uri.fsPath);
         if (!entry) {
+            return;
+        }
+        const filter = loadRqIgnore(entry.descriptor.root);
+        if (isIgnoredPath(filter, entry.descriptor.root, uri.fsPath, false)) {
             return;
         }
         entry.index.enqueueIndex(uri.fsPath, change);

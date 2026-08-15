@@ -1,8 +1,13 @@
 <script lang="ts">
     import { getApp } from '../state/context.js';
+    import { formatSearchMatchCount } from '../../../src/activity_bar_module/search-results-meta.js';
     import AddToChatButton from './AddToChatButton.svelte';
     import CollapsiblePane from './CollapsiblePane.svelte';
     import SearchHighlight from './SearchHighlight.svelte';
+
+    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane]
+    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_file_hits]
 
     interface Props {
         expanded: boolean;
@@ -18,8 +23,8 @@
     let query = $derived(app.ideaSearchQuery);
     let highlightQuery = $derived(app.ideaSearchAppliedQuery || query);
     let results = $derived(app.ideaSearchResults);
-    let total = $derived(app.ideaSearchTotal);
     let truncated = $derived(app.ideaSearchTruncated);
+    let loadingMore = $derived(app.ideaSearchLoadingMore);
     let hasQuery = $derived(query.trim().length > 0);
     let loading = $derived(app.ideaSearchLoading);
     let progress = $derived(app.ideaSearchProgress);
@@ -67,14 +72,14 @@
     <input
         class="filter-input search-query"
         type="search"
-        placeholder="Search ideas…"
+        placeholder="Search ideas or files…"
         value={query}
         oninput={onInput}
-        aria-label="Search ideas"
+        aria-label="Search ideas or files"
     />
     <div class="search-results">
         {#if !hasQuery}
-            <p class="muted pane-status">Type to search ideas by name, summary, or tag.</p>
+            <p class="muted pane-status">Type to search ideas or files by name, summary, or tag.</p>
         {:else if error}
             <p class="error-text" role="alert">{error}</p>
         {:else if showInitialLoading}
@@ -91,7 +96,7 @@
                 </div>
             </div>
         {:else if showEmpty}
-            <p class="muted pane-status">No matching ideas.</p>
+            <p class="muted pane-status">No matching ideas or files.</p>
         {:else if showResults}
             {#if loading}
                 <div class="search-progress search-progress-inline" role="status" aria-live="polite">
@@ -103,10 +108,8 @@
                         {/if}
                     </div>
                 </div>
-            {:else if truncated}
-                <p class="muted search-results-meta">Showing {results.length} of {total}</p>
-            {:else if total > 0}
-                <p class="muted search-results-meta">{total} result{total === 1 ? '' : 's'}</p>
+            {:else if results.length > 0}
+                <p class="muted search-results-meta">{formatSearchMatchCount(results.length, truncated)}</p>
             {/if}
             <ul class="list search-results-list">
                 {#each results as hit}
@@ -115,6 +118,9 @@
                             <SearchHighlight text={hit.name} query={highlightQuery} allowSparseFuzzy />
                         </button>
                         <div class="muted">
+                            {#if hit.kind === 'file'}
+                                <span>file · </span>
+                            {/if}
                             <SearchHighlight text={hit.path} query={highlightQuery} />
                         </div>
                         {#if hit.summary}
@@ -122,23 +128,39 @@
                                 <SearchHighlight text={hit.summary} query={highlightQuery} />
                             </div>
                         {/if}
-                        <div class="section-actions">
-                            <button
-                                type="button"
-                                class="action-button"
-                                title="Insert [{hit.name}] at cursor"
-                                onclick={() => app.insertReference(hit)}
-                            >Insert ref</button>
-                            <AddToChatButton {hit} />
-                            <button
-                                type="button"
-                                class="action-button"
-                                onclick={() => app.pinIdea(hit.id)}
-                            >Pin</button>
-                        </div>
+                        {#if hit.kind !== 'file'}
+                            <div class="section-actions">
+                                <button
+                                    type="button"
+                                    class="action-button"
+                                    title="Insert [{hit.name}] at cursor"
+                                    onclick={() => app.insertReference(hit)}
+                                >Insert ref</button>
+                                <AddToChatButton {hit} />
+                                <button
+                                    type="button"
+                                    class="action-button"
+                                    onclick={() => app.pinIdea(hit.id)}
+                                >Pin</button>
+                            </div>
+                        {/if}
                     </li>
                 {/each}
             </ul>
+            {#if truncated && !loading}
+                <button
+                    type="button"
+                    class="action-button search-load-more"
+                    disabled={loadingMore}
+                    onclick={() => app.loadMoreIdeaSearch()}
+                >
+                    {#if loadingMore}
+                        Loading more…
+                    {:else}
+                        Show more
+                    {/if}
+                </button>
+            {/if}
         {/if}
     </div>
 </CollapsiblePane>
@@ -163,6 +185,10 @@
 
     .search-results-list {
         width: 100%;
+    }
+
+    .search-load-more {
+        margin: 8px 0 4px;
     }
 
     .search-progress {

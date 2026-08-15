@@ -1,5 +1,5 @@
 # Triggered by ext/v* tags created by .github/workflows/release.yml
-# per reqlan rq/distribution/distribution.rq extension_distribution.
+# per reqlan rq/distribution/distribution.rq extension_distribution / vsix_export.
 
 trigger:
   tags:
@@ -12,16 +12,12 @@ variables:
 jobs:
   - job: build_test_package
     displayName: Build, test, package extension
-    timeoutInMinutes: 45
+    timeoutInMinutes: 90
     cancelTimeoutInMinutes: 5
     strategy:
       matrix:
         linux:
           imageName: ubuntu-latest
-        # mac: # nah, linux will do.
-        #   imageName: macos-latest
-        # windows:
-        #   imageName: windows-latest
     pool:
       vmImage: $(imageName)
 
@@ -89,40 +85,34 @@ jobs:
         displayName: Verify extension version matches tag
         timeoutInMinutes: 5
 
+      # Pull host-matching napi binaries published on analytical/v* (same version as @reqlan/analytical).
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm --filter ./packages/extension run package
-        displayName: Package extension
-        condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+          node scripts/fetch-native-packages.mjs
+        displayName: Fetch native platform packages from npm
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
         timeoutInMinutes: 15
 
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          node scripts/package-extension-targets.mjs
+        displayName: Package per-target VSIXes
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+        timeoutInMinutes: 20
+
       - task: PublishBuildArtifacts@1
-        displayName: Publish VSIX artifact
+        displayName: Publish VSIX artifacts
         condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
         timeoutInMinutes: 8
         inputs:
-          PathtoPublish: packages/extension
+          PathtoPublish: packages/extension/vsix-out
           ArtifactName: reqlan-vsix
           publishLocation: Container
 
-      # # TEMP: remove stale marketplace listing reqlan.reqlan (not reqlan.reqlan-extension).
-      # # Delete this step once the old extension is unpublished.
-      # - task: AzureCLI@2
-      #   displayName: "TEMP: Unpublish reqlan.reqlan"
-      #   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
-      #   timeoutInMinutes: 10
-      #   inputs:
-      #     azureSubscription: $(AzureMarketplaceServiceConnection)
-      #     scriptType: pscore
-      #     scriptLocation: inlineScript
-      #     inlineScript: |
-      #       $ErrorActionPreference = "Stop"
-      #       pnpm --filter ./packages/extension exec vsce unpublish reqlan.reqlan --azure-credential --force
-
       - task: AzureCLI@2
-        displayName: Publish extension
+        displayName: Publish extension (all targets)
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
-        timeoutInMinutes: 10
+        timeoutInMinutes: 30
         inputs:
           azureSubscription: $(AzureMarketplaceServiceConnection)
           scriptType: pscore
@@ -131,13 +121,19 @@ jobs:
             $ErrorActionPreference = "Stop"
             # AzureCLI@2 logs in via the ARM service connection; vsce obtains the
             # Entra ID access token for the Marketplace resource via --azure-credential.
-            pnpm --filter ./packages/extension exec vsce publish --no-dependencies --azure-credential
+            Get-ChildItem packages/extension/vsix-out/*.vsix | ForEach-Object {
+              Write-Host "Publishing $($_.FullName)"
+              pnpm --filter ./packages/extension exec vsce publish --no-dependencies --packagePath $_.FullName --azure-credential
+            }
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm --filter ./packages/extension run deploy:openvsx
-        displayName: Publish extension to Open VSX
+          Get-ChildItem packages/extension/vsix-out/*.vsix | ForEach-Object {
+            Write-Host "Open VSX $($_.FullName)"
+            pnpm dlx ovsx publish $_.FullName
+          }
+        displayName: Publish extension to Open VSX (all targets)
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
-        timeoutInMinutes: 10
+        timeoutInMinutes: 30
         env:
           OVSX_PAT: $(OpenVSX Token)

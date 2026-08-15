@@ -1,6 +1,5 @@
 import { Command, Option } from 'clipanion';
 import { resolve } from 'node:path';
-import { barrelPage } from '@reqlan/analytical';
 import { emit } from '../output.js';
 
 /**
@@ -36,6 +35,7 @@ export class BarrelCommand extends Command {
 
     async execute(): Promise<number> {
         try {
+            const { barrelPage } = await import('@reqlan/analytical');
             const result = await barrelPage(resolve(this.file), {
                 containerName: this.name,
                 dryRun: this.dryRun

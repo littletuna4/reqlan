@@ -12,9 +12,9 @@ activation_events {
     - `onStartupFinished` — activate after the workbench finishes starting; ensures first-run onboarding can run without opening a `.rq` file first.
     - `onLanguage:reqlan` — activate when a reqlan document is opened.
     - `onLanguage:python`, `onLanguage:javascript`, `onLanguage:typescript`, `onLanguage:typescriptreact` — activate for comment-reference and glue-semantics support in those languages.
-    - `onView:reqlan.activityBar` — activate when the Reqlan activity bar view is opened.
+    - `onView:reqlan.activityBar` — activate when the reqlan activity bar view is opened.
     - `onChatParticipant:reqlan.reqlan-extension` — activate when the @reqlan chat participant is used.
-    - `onCommand:reqlan.*` — activate when listed Reqlan palette commands run before the extension has loaded.
+    - `onCommand:reqlan.*` — activate when listed reqlan palette commands run before the extension has loaded.
     There is no separate `onInstall` hook; install-time behaviour runs on the first activation after install.
 }
 
@@ -41,8 +41,7 @@ first_paint_startup {
     Host `postMessage` starts only after the webview `ready` handshake; disposed/invalid-state errors are swallowed by ["../../packages/extension/src/shared/safe-webview-post.ts"].
     Its Svelte app installs the host message listener before mount, then sends the one-shot `ready` handshake from a task queued after its first animation frame.
     ["../../packages/extension/src/extension/startup-gate.ts"] resolves that handshake once; `IndexService.activate` then discovers bases and syncs. If no view opens, a bounded three-second fallback starts the index without any visible first paint to contend with.
-    Parser services inside each `WorkspaceIndex` are lazy and are created only when a file is actually parsed, not while bases are discovered.
-    The sql.js asm implementation is emitted as a separate lazy vendor bundle, so loading `main.cjs` does not parse the database engine before `activate`.
+    Index open/sync requires the host-matching core engine (rusqlite); missing `.node` fails activate.
     Windows claim/dispose races: ["./startup-performance.rq".webview_claim_race].
     @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/extension/test/safe-webview-post.test.ts", "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
     @status done

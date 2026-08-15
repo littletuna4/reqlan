@@ -10,54 +10,89 @@ version_management {
   - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
+  Platform native packages (`@reqlan/analytical-<platform>-<arch>`) are not a separate tag channel; they ride `analytical/v*` and share `@reqlan/analytical`'s version ([rust_binary_distribution]).
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
 
 npm_distribution {
   npm publishing runs only when a `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language/analytical/cli/mcp once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then cli, then mcp).
+  The deploy workflow builds language/analytical/cli/mcp once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then platform packages for [native_targets], then cli, then mcp).
   Before each package publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that step when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
-  Each of `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
+  Each of `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`, and every `@reqlan/analytical-<platform>-<arch>` platform package must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
-  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
-  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`) as with `reqlan-extension`. CI publishes per-package and does not use `changeset publish`.
+  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then platform packages, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
+  Note: Changesets `ignore` only skips version bumps; packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`) as with `reqlan-extension`. Platform packages are generated/version-synced and ignored by Changesets. CI publishes per-package and does not use `changeset publish`.
   Published packages declare `publishConfig.access: public`.
-  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/collect-napi-binary.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+  @status in-progress
+  @todo Trusted Publisher not yet configured on npmjs.com for each `@reqlan/analytical-<platform>-<arch>` package
+}
+
+native_targets {
+  Canonical VS Code `targetPlatform` / npm `os`+`cpu` tuples for native distribution:
+  - `win32-x64`
+  - `win32-arm64`
+  - `linux-x64`
+  - `linux-arm64`
+  - `darwin-x64`
+  - `darwin-arm64`
+  napi-rs package suffixes map as: `linux-*-gnu`, `darwin-*`, `win32-*-msvc` (gnu-only for linux; musl/alpine out of scope for the first matrix).
+  Used by [rust_binary_distribution], [vsix_export], and [extension_host_target].
+  Implementation: ["../../scripts/native-targets.mjs"].
+  @status done
 }
 
 rust_binary_distribution {
-  The core analytical library should have rust binaries available for download (initially via npm.)
-  They will be available for download via npm and via the website.
-  They will be listed as optional dev dependencies per system architecture in the package.json.
-  Intended shape: `@reqlan/analytical-<platform>-<arch>` napi addons (linux/darwin/win32 × x64/arm64) on `@reqlan/analytical`.
-  Published with the existing `analytical/v*` channel ([npm_distribution]); site lists the same artifacts for direct download (["./landers.rq".landers]).
-  (if they get large, they will be postinstalled from github releases in the future - this is out of scope for now.)
+  One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
+  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical`.
+  `@reqlan/analytical` lists them as `optionalDependencies` so CLI/MCP install the host-matching binary at install time.
+  Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
+  Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
-  @status draft
-  @todo
+  Per-target VSIX packaging consumes the same platform packages ([vsix_export]).
+  Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../.github/workflows/deploy-npm.yml"] build-native job.
+  @status in-progress
+  @todo first analytical/v* release with platform packages not yet published to npm
+  @todo Trusted Publisher registration for platform packages on npmjs.com
   @plan {
     goal
-      Ship per-architecture native addons beside `@reqlan/analytical` so CLI/MCP (and later the site downloads page) can run the Rust engine without a GitHub-releases postinstall.
+      Ship per-architecture core engine binaries beside `@reqlan/analytical` so CLI, MCP, and per-target VSIXes can load the Rust engine for the extension-host platform.
 
     constraints
-      - npm first; website second; GitHub-release postinstall out of scope.
-      - Do not put runtime binaries only in `devDependencies` — CLI and MCP need them at install time (`optionalDependencies`).
+      - optionalDependencies (not devDependencies) for runtime consumers.
       - Trusted publishing and `analytical/v*` tagging stay [npm_distribution] / [release_tagging].
-      - Extension VSIX must not gain a hard native-module requirement in the first cutover.
+      - gnu-only linux; musl and GitHub-release postinstall out of scope.
+      - Website binary listing deferred.
 
     steps
-      1. napi-rs platform packages + optionalDependencies on `@reqlan/analytical`.
-      2. Cross-compile in the npm deploy workflow for the six primary targets.
-      3. Site download listing (same version as the npm analytical tag).
-      4. Defer GitHub-release postinstall until binaries are large enough to justify it.
-
-    open
-      - musl / alpine target in the first matrix, or gnu-only.
-      - Whether the website hosts copies or links to npm tarball URLs.
+      1. Scaffold six platform packages with os/cpu and the napi binary. (done)
+      2. Wire optionalDependencies on `@reqlan/analytical`; sync versions from analytical. (done)
+      3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml)
+      4. Publish platform packages on `analytical/v*` after `@reqlan/analytical`.
+      5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev. (done)
   }
+}
+
+extension_host_target {
+  The core engine `.node` to load is selected from `process.platform` and `process.arch` on the **extension host**, not the VS Code UI client.
+  Remote examples:
+  - Windows client → Linux SSH host: `linux-*`
+  - Windows client → WSL: `linux-*`
+  - Local macOS client: `darwin-*`
+  Marketplace and Open VSX install the VSIX whose `targetPlatform` matches that host ([vsix_export], [extension_distribution]).
+  Runtime requires the matching napi `.node` for the host; missing core engine fails activation (no sql.js fallback).
+  Local F5 / extension production build stages that `.node` into `packages/extension/native/` so developers do not install `reqlan-napi` separately (["../development/build.rq".extension_host_native_stage]).
+  IndexService / WorkspaceIndex use `NativeWorkspaceIndex` + rusqlite via napi ([rust_port.native_bridge]).
+  Loader: ["../../packages/analytical/src/native/load-native.ts"]; extension registers `native/` + cargo target dirs from ["../../packages/extension/src/analytical_submodule/index.ts"].
+  @status in-progress
+  @todo publish first `@reqlan/analytical-<platform>-<arch>` release (Trusted Publisher on npmjs.com + analytical/v* tag)
+  @tests (
+    ["../../packages/analytical/test/load-native.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+  )
 }
 
 extension_package {
@@ -89,6 +124,7 @@ release_tagging {
   Site deployments are triggered by Git tags matching `site/v*` via ["./distribution.rq".site_distribution].
   VS Code extension publishing is triggered by Azure DevOps tags matching `ext/v*` via ["./distribution.rq".extension_distribution] and ["./distribution.rq".openvsx_registry].
   npm publishing is triggered by Git tags matching `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` via ["./distribution.rq".npm_distribution].
+  Platform native packages ride `analytical/v*` (same version as `@reqlan/analytical`); they are not a separate tag prefix.
   The tag suffix after the channel prefix (`site/v`, `ext/v`, `language/v`, `analytical/v`, `cli/v`, `mcp/v`) equals the package.json version at that tag.
 }
 
@@ -113,12 +149,28 @@ root_readme {
 }
 
 vsix_export {
-  @steps (
-    cd packages/extension
-    pnpm run build
-    vsce package --no-dependencies
-  )
+  One VSIX is built per [native_targets] tuple via `vsce package --target <tuple> --no-dependencies`.
+  Each VSIX keeps today's esbuild-bundled JS (TS dependency graph stays bundled); only the matching platform native package is staged into the VSIX so other targets' binaries are excluded.
+  Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target]).
+  Artifact name shape: `reqlan-extension-<version>-<target>.vsix`.
   The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.
+  Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
+  @status in-progress
+  @todo first ext/v* release with six target VSIXes not yet shipped
+  @todo ext/v* packaging depends on platform packages already published for the matching `@reqlan/analytical` version (fetch-native-packages)
+  @plan {
+    goal
+      Ship six host-targeted VSIXes, each containing only the core engine `.node` for that extension-host platform.
+
+    constraints
+      - Keep --no-dependencies for the bundled TS graph; stage only the matching native package.
+      - Prefer consuming native artifacts from npm platform packages published on analytical/v* (["../../scripts/fetch-native-packages.mjs"]).
+
+    steps
+      1. Stage matching `@reqlan/analytical-<platform>-<arch>` into extension `native/` before vsce. (done)
+      2. Package with `vsce package --target <tuple> --no-dependencies` for each [native_targets] entry. (done)
+      3. Publish each target to Marketplace and Open VSX ([extension_distribution], [openvsx_registry]).
+  }
 }
 
 site_distribution {
@@ -133,15 +185,19 @@ extension_distribution {
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
   Because the workspace build includes the site static build, the pipeline installs Playwright Chromium (`pnpm --filter ./site exec playwright install --with-deps chromium`) before `pnpm run build`, matching ["../docs/docs.rq".docs_playwright_capture].
-  VSIX packaging follows ["./distribution.rq".vsix_export].
+  VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
+  @status in-progress
+  @todo first multi-target Marketplace publish not yet run
 }
 
 openvsx_registry {
   The extension should be published to the Open VSX registry at https://open-vsx.org so it is installable in editors that use Open VSX instead of the Visual Studio Marketplace.
   Publishing should use the same tag-driven `ext/v*` releases as ["./distribution.rq".extension_distribution].
-  The packaged VSIX from ["./distribution.rq".vsix_export] is the artifact published to Open VSX.
+  Each per-target VSIX from ["./distribution.rq".vsix_export] is published to Open VSX (Marketplace and Open VSX both select by extension-host `targetPlatform`).
   Azure DevOps is the authoritative publish workflow; Open VSX publish belongs in ["../../azure-pipelines.yml"] alongside marketplace deploy.
+  @status in-progress
+  @todo first multi-target Open VSX publish not yet run
 }
 
 workflow_deduplication {
@@ -154,7 +210,9 @@ workflow_deduplication {
 
 
 grammar_linguist {
- The grammar should be updated to use 
+ The grammar should be updated to use
  https://github.com/github-linguist/linguist
  Acceptance is dependent on maturity and usage.
+ (this is what gh uses for language rendering etc)
+ @status pending
 }

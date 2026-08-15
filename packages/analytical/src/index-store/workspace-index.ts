@@ -17,10 +17,8 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
-import { URI, type LangiumDocument } from 'langium';
-import { NodeFileSystem } from 'langium/node';
-import { createReqlanServices } from '@reqlan/language';
-import { readFile, readdir } from 'node:fs/promises';
+import { URI } from 'langium';
+import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import type { AnalyticalStore } from '../core/analytical-store.js';
 import { IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME } from '../core/application-memory.js';
@@ -28,8 +26,13 @@ import { toFileIndexIssueView, toIndexErrorDetail } from '../core/index-error.js
 import { isIgnoredPath, loadRqIgnore, type RqIgnoreFilter } from '../core/rqignore.js';
 import { resolveWorkspaceFileUri, toWorkspaceRelativePath } from '../core/workspace-paths.js';
 import { isSecretRqPath } from '../export/secret-rq.js';
+import { loadNativeEngine } from '../native/load-native.js';
+import { NativeSqlConnection } from '../native/native-sql-db.js';
+import { NativeWorkspaceIndex } from '../native/native-workspace-index.js';
+import type { FuzzySearchHit } from '../analysis/fuzzy-search.js';
 import {
     IndexDiagnosticsStore,
+    pathDepthFromUri,
     type IndexDiagnosticsOverview,
     type IndexFileTimingRow,
     type IndexSyncRunSummary,
@@ -38,20 +41,26 @@ import {
 import { recordCaughtFileIssue } from './index-file-error.js';
 import type { IndexStatusSnapshot, IndexSyncProgress } from './index-status.js';
 import { SqliteIndexStore } from './sqlite-store.js';
-import { indexOneFile } from './workspace-index-file.js';
 import {
     checkStaleFiles as runStaleCheck,
     runSoftSync,
     type IdleCheckResult
 } from './workspace-index-sync.js';
+import type { IndexOneFileResult } from './workspace-index-file.js';
 
 export type { IndexStatusSnapshot, IndexSyncProgress } from './index-status.js';
 export type { IdleCheckResult } from './workspace-index-sync.js';
 
+export interface FuzzySearchResult {
+    hits: FuzzySearchHit[];
+    total: number;
+    truncated: boolean;
+}
+
 export class WorkspaceIndex {
     private sqlite?: SqliteIndexStore;
     private diagnostics?: IndexDiagnosticsStore;
-    private reqlanServices?: ReturnType<typeof createReqlanServices>;
+    private native?: NativeWorkspaceIndex;
     private syncQueue = Promise.resolve();
     private syncInFlight?: Promise<boolean>;
     private syncProgress?: IndexSyncProgress;
@@ -99,9 +108,38 @@ export class WorkspaceIndex {
         return this.sqlite;
     }
 
-    private get services(): ReturnType<typeof createReqlanServices> {
-        this.reqlanServices ??= createReqlanServices({ ...NodeFileSystem });
-        return this.reqlanServices;
+    /**
+     * Rank ideas and file names in the native search module. Does not copy the catalog into JS.
+     * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+     * rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
+     * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+     */
+    fuzzySearch(
+        query: string,
+        options?: { limit?: number; requireQuery?: boolean; offset?: number }
+    ): FuzzySearchResult {
+        if (!this.native) {
+            throw new Error('Index store is not open');
+        }
+        const result = this.native.fuzzySearch(
+            query,
+            options?.limit,
+            options?.requireQuery ?? false,
+            options?.offset
+        );
+        return {
+            hits: result.hits.map(hit => ({
+                id: hit.id,
+                name: hit.name,
+                kind: hit.kind as FuzzySearchHit['kind'],
+                fileUri: hit.fileUri,
+                summary: hit.summary,
+                lineStart: hit.lineStart,
+                score: hit.score
+            })),
+            total: result.total,
+            truncated: result.truncated
+        };
     }
 
     getStatusSnapshot(relativePath: (uri: string) => string = uri => this.relativePath(uri)): IndexStatusSnapshot {
@@ -141,11 +179,18 @@ export class WorkspaceIndex {
         }
         dispatchIndex('activate');
         try {
+            // Core native engine is required for index open/sync (no sql.js fallback).
+            loadNativeEngine();
+            this.native = NativeWorkspaceIndex.open(this.workspaceRoot, this.storagePath);
             const dbPath = join(this.storagePath, IDEAS_INDEX_FILENAME);
-            this.sqlite = await SqliteIndexStore.open(dbPath);
+            this.sqlite = await SqliteIndexStore.fromConnection(
+                NativeSqlConnection.fromWorkspaceIdeas(this.native, dbPath)
+            );
             try {
                 const diagnosticsPath = join(this.storagePath, INDEX_DIAGNOSTICS_FILENAME);
-                this.diagnostics = await IndexDiagnosticsStore.open(diagnosticsPath);
+                this.diagnostics = await IndexDiagnosticsStore.fromConnection(
+                    NativeSqlConnection.fromWorkspaceDiagnostics(this.native, diagnosticsPath)
+                );
             } catch {
                 this.diagnostics = undefined;
             }
@@ -204,6 +249,8 @@ export class WorkspaceIndex {
         this.sqlite = undefined;
         await this.diagnostics?.close();
         this.diagnostics = undefined;
+        this.native?.close();
+        this.native = undefined;
         if (this.analytical.getState().canDispatchIndex('closed')) {
             this.analytical.getState().dispatchIndex('closed');
         }
@@ -232,6 +279,7 @@ export class WorkspaceIndex {
             return;
         }
         this.syncCancelRequested = true;
+        this.native?.cancelSync();
     }
 
     /**
@@ -257,22 +305,20 @@ export class WorkspaceIndex {
     async clearAndRebuildIndex(filePaths?: string[]): Promise<boolean> {
         if (this.syncInFlight) {
             this.syncCancelRequested = true;
+            this.native?.cancelSync();
             await this.syncInFlight;
         }
-        const dbPath = join(this.storagePath, IDEAS_INDEX_FILENAME);
         const analytical = this.analytical.getState();
-
-        if (this.sqlite) {
-            this.sqlite.closeWithoutPersist();
-            this.sqlite = undefined;
-        }
-        await SqliteIndexStore.deleteDatabaseFile(dbPath);
-
         try {
-            this.sqlite = await SqliteIndexStore.open(dbPath);
+            this.native?.clearIdeas();
+            if (this.sqlite) {
+                await this.sqlite.clearAll();
+            }
         } catch (error) {
             analytical.dispatchIndex('fail');
-            analytical.recordIndexError('Failed to reopen idea index after reset', error, { phase: 'open' });
+            analytical.recordIndexError('Failed to clear idea index for rebuild', error, {
+                phase: 'open'
+            });
             this.notifyStatusUpdated();
             return false;
         }
@@ -291,12 +337,11 @@ export class WorkspaceIndex {
     }
 
     async indexFilePath(filePath: string): Promise<void> {
-        if (!this.sqlite) {
+        if (!this.sqlite || !this.native) {
             return;
         }
         const startedAt = new Date().toISOString();
-        const wallStarted = performance.now();
-        const result = await indexOneFile(this.indexFileDeps(), filePath);
+        const result = await this.indexNativeFile(filePath);
         if (!this.diagnostics) {
             return;
         }
@@ -305,20 +350,15 @@ export class WorkspaceIndex {
                 trigger: 'enqueue',
                 startedAt,
                 finishedAt: new Date().toISOString(),
-                durationMs: performance.now() - wallStarted,
+                durationMs: result.durationMs,
                 totalFiles: 1,
-                skippedMtime: 0,
-                indexedFiles: 1,
+                skippedMtime: result.outcome === 'mtime_skip' ? 1 : 0,
+                indexedFiles: result.outcome === 'error' ? 0 : 1,
                 errorFiles: result.outcome === 'error' ? 1 : 0,
                 cancelled: false,
                 sumFileDurationMs: result.durationMs,
                 avgPathDepth: result.pathDepth,
-                files: [{
-                    fileUri: result.fileUri,
-                    durationMs: result.durationMs,
-                    outcome: result.outcome,
-                    pathDepth: result.pathDepth
-                }]
+                files: [result]
             });
         } catch {
             // ignore diagnostics failures
@@ -460,25 +500,23 @@ export class WorkspaceIndex {
     }
 
     private async runSyncWorkspace(filePaths?: string[]): Promise<boolean> {
-        if (!this.sqlite) {
+        if (!this.sqlite || !this.native) {
             return false;
         }
-        return runSoftSync(
+        const ok = await runSoftSync(
             {
                 sqlite: this.sqlite,
                 analytical: this.analytical,
                 toIndexedUri: path => this.toIndexedUri(path),
                 relativePath: uri => this.relativePath(uri),
-                indexFileDeps: this.indexFileDeps(),
+                indexFile: filePath => this.indexNativeFile(filePath),
                 collectRqFiles: () => this.collectRqFiles(),
                 setRqFilePaths: paths => {
-                    this.rqFilePaths = [...paths];
+                    this.rqFilePaths = paths;
                 },
                 isReady: () => this.isReady,
                 getCancelRequested: () => this.syncCancelRequested,
-                setSyncProgress: progress => {
-                    this.syncProgress = progress;
-                },
+                setSyncProgress: progress => this.setSyncProgress(progress),
                 notifyStatusUpdated: () => this.notifyStatusUpdated(),
                 notifyCatalogUpdated: () => this.notifyCatalogUpdated(),
                 waitForReadyOrError: () => this.waitForReadyOrError(),
@@ -487,20 +525,86 @@ export class WorkspaceIndex {
             },
             filePaths
         );
+        // Full-base sync also indexes comment-bearing code files (mtime-skips .rq already done).
+        if (ok && !filePaths?.length && !this.syncCancelRequested) {
+            try {
+                this.native.syncWorkspace(false);
+                const counts = await this.sqlite.counts();
+                this.analytical.getState().setIndexReady({
+                    ideaCount: counts.ideas,
+                    edgeCount: counts.edges
+                });
+            } catch {
+                // Code-file catch-up must not fail the .rq sync.
+            }
+        }
+        return ok;
     }
 
-    private indexFileDeps() {
-        if (!this.sqlite) {
-            throw new Error('Index store is not open');
+    private async indexNativeFile(filePath: string): Promise<IndexOneFileResult> {
+        const started = performance.now();
+        const indexedUri = this.toIndexedUri(filePath);
+        const pathDepth = pathDepthFromUri(indexedUri);
+        const finish = (outcome: IndexOneFileResult['outcome']): IndexOneFileResult => ({
+            fileUri: indexedUri,
+            durationMs: performance.now() - started,
+            outcome,
+            pathDepth
+        });
+        if (!this.sqlite || !this.native) {
+            return finish('error');
         }
-        return {
-            sqlite: this.sqlite,
-            analytical: this.analytical,
-            workspaceRoot: this.workspaceRoot,
-            toIndexedUri: (filePath: string) => this.toIndexedUri(filePath),
-            parseDocument: (filePath: string) => this.parseDocument(filePath),
-            notifyCatalogUpdated: () => this.notifyCatalogUpdated()
-        };
+        const analytical = this.analytical.getState();
+        const hashBefore = await this.sqlite.getDocumentHash(indexedUri);
+        let diagnostics: string[] = [];
+        try {
+            diagnostics = this.native.indexFile(filePath).diagnostics;
+        } catch (error) {
+            recordCaughtFileIssue(
+                analytical.recordFileIndexIssues,
+                indexedUri,
+                error,
+                `Failed to index ${this.relativePath(indexedUri)}`
+            );
+            return finish('error');
+        }
+        if (diagnostics.length > 0) {
+            analytical.recordFileIndexIssues(
+                indexedUri,
+                diagnostics.map(message => ({
+                    line: 0,
+                    column: 0,
+                    message,
+                    phase: 'parse' as const
+                }))
+            );
+        } else {
+            analytical.clearFileIndexIssuesForFile(indexedUri);
+        }
+        const hashAfter = await this.sqlite.getDocumentHash(indexedUri);
+        const ideas = await this.sqlite.getIdeasInFile(indexedUri);
+        const persisted = ideas.filter(idea => idea.kind !== 'ideaset');
+        if (diagnostics.length > 0 && persisted.length === 0) {
+            return finish('error');
+        }
+        if (hashBefore !== undefined && hashBefore === hashAfter && diagnostics.length === 0) {
+            return finish('hash_skip');
+        }
+        analytical.recordDocumentUpdate(
+            indexedUri,
+            persisted.length,
+            persisted.map(idea => ({
+                id: idea.id,
+                name: idea.name,
+                lineStart: idea.lineStart
+            }))
+        );
+        this.notifyCatalogUpdated();
+        return finish(diagnostics.length > 0 ? 'error' : 'persisted');
+    }
+
+    private setSyncProgress(progress: IndexSyncProgress | undefined): void {
+        this.syncProgress = progress;
     }
 
     private async removeDocuments(indexedUris: string[]): Promise<void> {
@@ -569,14 +673,6 @@ export class WorkspaceIndex {
                 results.push(fullPath);
             }
         }
-    }
-
-    private async parseDocument(filePath: string): Promise<LangiumDocument> {
-        const text = await readFile(filePath, 'utf8');
-        const langiumUri = URI.file(filePath);
-        const document = this.services.shared.workspace.LangiumDocumentFactory.fromString(text, langiumUri);
-        await this.services.shared.workspace.DocumentBuilder.build([document], { validation: false });
-        return document;
     }
 
     private notifyCatalogUpdated(): void {

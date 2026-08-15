@@ -103,7 +103,7 @@ configuration_rqignore {
 }
 
 ai_naming {
-    Command palette entries use category "Reqlan" with unprefixed titles (the palette renders them as "Reqlan: ...").
+    Command palette entries use category "reqlan" with unprefixed titles (the palette renders them as "reqlan: ...").
     The rq- prefix is reserved for chat slash commands and agent skills only, e.g. /rq-search and /rq-build-requirement in Cursor or @reqlan /rq-search in VS Code Copilot.
     Do not put rq- or "RQ:" in command palette titles; that duplicates the visible prefix.
 }

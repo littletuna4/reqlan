@@ -2,6 +2,8 @@
  * Fuzzy / partial idea search with interchangeable separators.
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
  * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
  * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
  */
 import type { IdeaSummary } from '../core/types.js';
@@ -9,11 +11,23 @@ import type { IdeaSummary } from '../core/types.js';
 export interface FuzzySearchHit {
     id: string;
     name: string;
-    kind: IdeaSummary['kind'];
+    kind: IdeaSummary['kind'] | 'file';
     fileUri: string;
     summary: string;
     lineStart: number;
     score: number;
+}
+
+export interface FuzzySearchPage {
+    hits: FuzzySearchHit[];
+    total: number;
+    truncated: boolean;
+}
+
+export interface SearchIndexOptions {
+    limit?: number;
+    offset?: number;
+    requireQuery?: boolean;
 }
 
 /**
@@ -39,6 +53,75 @@ export function splitSearchTokens(value: string): string[] {
 
 export function filterAndScoreIdeas(ideas: IdeaSummary[], query: string): FuzzySearchHit[] {
     return rankScoredIdeas(scoreIdeas(ideas, query));
+}
+
+export function fileBasename(fileUri: string): string {
+    const parts = fileUri.split(/[/\\]/).filter(Boolean);
+    return parts[parts.length - 1] ?? fileUri;
+}
+
+export function filterAndScoreFiles(fileUris: readonly string[], query: string): FuzzySearchHit[] {
+    const rawNeedle = query.trim().toLowerCase();
+    if (!rawNeedle) {
+        return [];
+    }
+    const needle = normalizeSearchSeparators(rawNeedle);
+    const queryTokens = splitSearchTokens(rawNeedle);
+    const scored: FuzzySearchHit[] = [];
+    for (const fileUri of fileUris) {
+        const name = fileBasename(fileUri);
+        const stem = name.replace(/\.rq$/i, '');
+        const score = Math.max(
+            scoreNameLike(name, rawNeedle, needle, queryTokens),
+            scoreNameLike(stem, rawNeedle, needle, queryTokens),
+            scoreNameLike(fileUri, rawNeedle, needle, queryTokens)
+        );
+        if (score <= 0) {
+            continue;
+        }
+        scored.push({
+            id: fileUri,
+            name,
+            kind: 'file',
+            fileUri,
+            summary: '',
+            lineStart: 0,
+            score
+        });
+    }
+    return rankScoredIdeas(scored);
+}
+
+export function searchIndex(
+    ideas: IdeaSummary[],
+    fileUris: readonly string[],
+    query: string,
+    options: SearchIndexOptions = {}
+): FuzzySearchPage {
+    const trimmed = query.trim();
+    if (options.requireQuery && !trimmed) {
+        return { hits: [], total: 0, truncated: false };
+    }
+    const ranked = trimmed
+        ? rankScoredIdeas([...filterAndScoreIdeas(ideas, trimmed), ...filterAndScoreFiles(fileUris, trimmed)])
+        : filterAndScoreIdeas(ideas, trimmed);
+    return paginateHits(ranked, options);
+}
+
+export function paginateHits(
+    ranked: FuzzySearchHit[],
+    options: SearchIndexOptions = {}
+): FuzzySearchPage {
+    const total = ranked.length;
+    const offset = Math.min(Math.max(0, options.offset ?? 0), total);
+    const hits = options.limit === undefined
+        ? ranked.slice(offset)
+        : ranked.slice(offset, offset + Math.max(0, options.limit));
+    return {
+        hits,
+        total,
+        truncated: offset + hits.length < total
+    };
 }
 
 /**
@@ -144,28 +227,9 @@ function scoreIdeaMatch(
     needle: string,
     queryTokens: string[]
 ): number {
-    const nameRaw = idea.name.toLowerCase();
-    const name = normalizeSearchSeparators(idea.name);
     const summaryRaw = idea.summary.toLowerCase();
     const summary = normalizeSearchSeparators(idea.summary);
-    let score = 0;
-
-    if (nameRaw === rawNeedle || name === needle) {
-        score = 100;
-    } else if (nameRaw.startsWith(rawNeedle) || name.startsWith(needle)) {
-        score = 80;
-    } else if (nameRaw.includes(rawNeedle) || name.includes(needle)) {
-        score = 50;
-    } else if (fuzzySubsequence(nameRaw, rawNeedle) || fuzzySubsequence(name, needle)) {
-        score = 30;
-    }
-
-    const nameTokenKind = matchQueryTokens(splitSearchTokens(idea.name), queryTokens);
-    if (nameTokenKind === 'ordered') {
-        score = Math.max(score, 45);
-    } else if (nameTokenKind === 'reordered') {
-        score = Math.max(score, 35);
-    }
+    let score = scoreNameLike(idea.name, rawNeedle, needle, queryTokens);
 
     if (summaryRaw.includes(rawNeedle) || (needle && summary.includes(needle))) {
         score = Math.max(score, 20) + 5;
@@ -185,6 +249,33 @@ function scoreIdeaMatch(
         } else if (matchQueryTokens(splitSearchTokens(tag), queryTokens) !== null) {
             score = Math.max(score, 15) + 2;
         }
+    }
+    return score;
+}
+
+function scoreNameLike(
+    hay: string,
+    rawNeedle: string,
+    needle: string,
+    queryTokens: string[]
+): number {
+    const hayRaw = hay.toLowerCase();
+    const hayNorm = normalizeSearchSeparators(hay);
+    let score = 0;
+    if (hayRaw === rawNeedle || hayNorm === needle) {
+        score = 100;
+    } else if (hayRaw.startsWith(rawNeedle) || hayNorm.startsWith(needle)) {
+        score = 80;
+    } else if (hayRaw.includes(rawNeedle) || hayNorm.includes(needle)) {
+        score = 50;
+    } else if (fuzzySubsequence(hayRaw, rawNeedle) || fuzzySubsequence(hayNorm, needle)) {
+        score = 30;
+    }
+    const tokenKind = matchQueryTokens(splitSearchTokens(hay), queryTokens);
+    if (tokenKind === 'ordered') {
+        score = Math.max(score, 45);
+    } else if (tokenKind === 'reordered') {
+        score = Math.max(score, 35);
     }
     return score;
 }

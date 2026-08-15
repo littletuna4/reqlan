@@ -7,7 +7,6 @@ import type {
     SemanticMatch
 } from './core/types.js';
 import type { AnalysisRuntime } from './create-runtime.js';
-import { exportHtml } from './export/export-html.js';
 import { exportMarkdown } from './export/export-markdown.js';
 import { exportJson } from './export/export-json.js';
 import { exportCsv } from './export/export-csv.js';
@@ -16,6 +15,7 @@ import {
     rerankMatchesWithContext,
     resolveSearchContextRefs
 } from './analysis/contextual-search.js';
+import { openAnalysisApi } from './native/open-analysis-api.js';
 
 export interface RequirementMatch {
     idea: IdeaSummary;
@@ -150,7 +150,7 @@ export class AnalysisApi {
 
     /**
      * Export the indexed requirement graph as a multi-file static HTML site.
-     * Headless entry point shared by CLI and site build.
+     * Delegates to the native `reqlan-export` writer (`NativeAnalysisApi.exportHtml`).
      */
     async exportHtml(
         request: Omit<ExportRequest, 'workspaceRoot'> & {
@@ -158,11 +158,24 @@ export class AnalysisApi {
         },
         onProgress?: ExportProgressCallback
     ): Promise<ExportResult> {
-        await this.ensureReady();
-        return exportHtml(this.runtime.index.indexStore, {
-            ...request,
-            workspaceRoot: request.workspaceRoot ?? this.runtime.workspaceRoot
-        }, onProgress);
+        const workspaceRoot = request.workspaceRoot ?? this.runtime.workspaceRoot;
+        onProgress?.({
+            phase: 'snapshot',
+            message: 'Building export snapshot…'
+        });
+        const opened = await openAnalysisApi({ workspaceRoot });
+        try {
+            const result = await opened.api.exportHtml({ ...request, workspaceRoot });
+            onProgress?.({
+                phase: 'write',
+                message: 'Wrote HTML export.',
+                completed: 1,
+                total: 1
+            });
+            return result;
+        } finally {
+            await opened.dispose();
+        }
     }
 
     /**

@@ -2,12 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import {
-    activateAnalysisRuntime,
-    AnalysisApi,
-    createAnalysisRuntime,
-    deactivateAnalysisRuntime,
-    type IdeaSummary
-} from '@reqlan/analytical';
+    openAnalysisApi,
+    type HeadlessAnalysisApi,
+    type IdeaSummary,
+    type OpenedAnalysisApi
+} from '@reqlan/analytical/core';
 
 function resolveWorkspaceRoot(): string {
     const fromEnv = process.env.REQLAN_WORKSPACE?.trim();
@@ -23,12 +22,11 @@ function textContent(text: string) {
 
 export async function startMcpServer(): Promise<void> {
     const workspaceRoot = resolveWorkspaceRoot();
-    const runtime = createAnalysisRuntime({
+    const opened: OpenedAnalysisApi = await openAnalysisApi({
         workspaceRoot,
         storagePath: process.env.REQLAN_INDEX_PATH
     });
-    await activateAnalysisRuntime(runtime);
-    const api = new AnalysisApi(runtime);
+    const api: HeadlessAnalysisApi = opened.api;
 
     const server = new McpServer({
         name: 'reqlan',
@@ -252,7 +250,7 @@ export async function startMcpServer(): Promise<void> {
     await server.connect(transport);
 
     const shutdown = async () => {
-        await deactivateAnalysisRuntime(runtime);
+        await opened.dispose();
         await server.close();
     };
     process.on('SIGINT', () => {
@@ -263,7 +261,7 @@ export async function startMcpServer(): Promise<void> {
     });
 }
 
-function formatGroup(title: string, ideas: IdeaSummary[], api: AnalysisApi): string {
+function formatGroup(title: string, ideas: IdeaSummary[], api: HeadlessAnalysisApi): string {
     if (ideas.length === 0) {
         return `${title} (0)\nNone`;
     }

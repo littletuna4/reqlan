@@ -50,6 +50,7 @@ rqignore {
         ["../../../packages/analytical/test/rqignore.test.ts"]
         ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
         ["../../../packages/analytical/test/workspace-index.test.ts:skips .rq files under rqignore patterns"]
+        ["../../../crates/reqlan-index/tests/sync.rs:default_rqignore_skips_node_modules"]
     )
     @status done
 }

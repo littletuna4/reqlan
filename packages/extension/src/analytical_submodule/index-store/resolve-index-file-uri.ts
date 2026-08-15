@@ -1,18 +1,18 @@
 import * as vscode from 'vscode';
-import { resolveWorkspaceFileUri, toWorkspaceRelativePath, baseForPath, discoverBases } from '@reqlan/analytical';
+import { nearestBaseRoot, resolveWorkspaceFileUri, toWorkspaceRelativePath } from '@reqlan/analytical';
 
 function joinWorkspaceRelative(workspaceFolder: vscode.Uri, relativePath: string): vscode.Uri {
     const segments = relativePath.replace(/\\/g, '/').split('/').filter(segment => segment.length > 0);
     return vscode.Uri.joinPath(workspaceFolder, ...segments);
 }
 
+/** Ancestor `.reqlan` walk — never `discoverBases` (full-tree scan) on open/click. */
 function resolveBaseRootForPath(filePath: string): string | undefined {
     const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
     if (roots.length === 0) {
-        return undefined;
+        return nearestBaseRoot(filePath);
     }
-    const bases = discoverBases(roots);
-    return baseForPath(bases, filePath)?.root ?? roots[0];
+    return nearestBaseRoot(filePath, roots) ?? roots[0];
 }
 
 export function resolveIndexFileUri(fileUri: string, baseRoot?: string): vscode.Uri {

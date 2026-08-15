@@ -1,6 +1,7 @@
 /**
  * Resolves imported requirement documents from relative and import-root-aliased paths.
  * Interacts with scope linking and go-to-definition for import paths.
+ * rq:["../../../reqlan rq/ontology.rq".import_statement]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';

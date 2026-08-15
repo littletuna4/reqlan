@@ -9,7 +9,7 @@ html_export_form {
     File filters: exclude `*.secret.rq` ideas (`excludeSecretFiles`) and/or exclude paths matched by `.reqlan/.rqignore` (`excludeIgnoredFiles`); both default off so indexed ideas from those files are included unless opted out.
     Form defaults persist to [application_memory] as `export_settings.json` under `<base>/.reqlan/` (shared with other export formats; per selected base).
     Saving settings or running export writes that file; reopening the form reloads the last values for that base.
-    The form builds an `ExportRequest` and calls analytical execution [html_export.html_export] (`exportHtml`).
+    The form builds an `ExportRequest` and calls analytical execution [html_export.html_export] (`NativeAnalysisApi.exportHtml`).
     Host options for embedded mounts surface [html_export.html_export_header_link] and [html_export.html_export_url_base].
     While export runs, the webview shows progress from the analytical pipeline (snapshot phases, then write completed/total) via `exportProgress` messages — see ["./features-export.rq".export_webview].
     @status done
@@ -23,5 +23,6 @@ html_export_form {
     @tests (
         ["../../packages/extension/test/export-settings.test.ts"]
         ["../../packages/extension/test/extension-package.test.ts"]
+        ["../../packages/extension/test/export-html-native.test.ts"]
     )
 }

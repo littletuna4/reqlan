@@ -13,27 +13,37 @@ import "../extension/module/activitybar-panels/workspace.rq" as workspace_pane_d
 import "../extension/module/ideas_summary/webview.rq" as ideas_summary_doc
 import "../../packages/analytical/test/workspace-index.test.ts" as workspace_index_tests
 import "../core_analysis/core.rq" as core_analysis
+from "../language/syntax.rq" import comment_reference
+from "../extension/features-graph-analysers.rq" import index_comment_reference_inclusion
 
 definition {
     The indexer should live in the [core_analysis] module.
 }
 
 index {
-    The ideas graph indexer: parse `.rq` with `@reqlan/language`, extract ideas/edges, persist to sql.js SQLite.
+    The ideas graph indexer: parse `.rq` with the native engine, extract ideas/edges, persist to rusqlite SQLite.
     Wildcard path+idea fan-out: [wildcard_reference_edges]
     (["../language/imports.rq".wildcard_references]).
     Ideas Summary graph can hide those edges via [ideas_summary_doc] /
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     Owned by [ownership]; consumed per [consumption].
+    @tests (
+        ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
+        ["../../crates/reqlan-index/tests/schema.rs:schema_v4_columns_round_trip_git_count_and_mtime"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+    )
 }
 
 wildcard_reference_edges {
-    Extract (`idea-extractor`) expands each AST `WildcardReference` against the idea catalog
-    (`matchWildcardAgainstCatalog` / workspace candidate list).
+    Native extract (`["../../crates/reqlan-index/src/extract.rs"]`) expands each AST wildcard
+    against the idea catalog (`match_wildcard` / workspace candidate list).
     Persist one edge of kind `wildcard_reference` per matching idea (label = target idea name);
     never emit plain `references` for wildcard forms.
     Zero matches → one unresolved edge of the same kind (`isResolved: false`, label = pattern text).
     Edge ids use `edgeId(source, 'wildcard_reference', targetOrUnresolvedKey)`.
+    Sync walks sorted `.rq` files and grows the catalog as it goes, so a wildcard file is
+    expanded against ideas already stored plus files earlier in that walk
+    (["../../crates/reqlan-index/src/sync.rs"]).
     Ancestor / reference-chain walks treat `wildcard_reference` like `references`
     (["../../packages/analytical/src/index-store/sqlite-store.ts"]).
     Ideas Summary references table groups them under sub-idea with other idea-to-idea links;
@@ -41,26 +51,32 @@ wildcard_reference_edges {
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     Soft mtime sync skips unchanged files — after introducing this edge kind, reindex (or touch)
     `.rq` files that contain wildcards so stored rows leave any legacy `references` fan-out.
+    Langium `idea-extractor` keeps the same kind for remaining TS extract paths.
 
-    Related: ["../language/imports.rq".wildcard_references], [index],
+    Related: ["../language/imports.rq".wildcard_references], [index], [indexer_rust],
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
 
     @status done
     @implementation (
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-index/src/types.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
         ["../../packages/analytical/src/index-store/idea-extractor.ts"]
         ["../../packages/analytical/src/core/types.ts"]
         ["../../packages/analytical/src/index-store/sqlite-store.ts"]
-        ["../../packages/analytical/src/index-store/webview-table-queries.ts"]
         ["../../packages/language/src/reqlan-wildcard-resolve.ts"]
     )
     @tests (
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:expands wildcard refs to one edge per matching idea"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:emits unresolved edge when catalog has no matches"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: extractIndexedDocument fans out edges for matching catalog ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:emits_unresolved_edge_when_catalog_has_no_matches"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:extract_indexed_document_fans_out_edges_for_matching_catalog_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_unresolved_wildcard_edge_when_catalog_has_no_matches"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
         ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
     )
 }
 
@@ -90,14 +106,19 @@ nonblocking_index {
     - Soft full sync (`syncWorkspace` / Refresh) skips parse+persist when the file's mtime matches the value stored on the documents row.
     - Hard refresh (`clearAndRebuildIndex` / Clear & rebuild) wipes the store and reindexes every file.
     Implemented by [workspace_index]; editor adapter [editor_index_adapter].
-    @tests ([workspace_index_tests], "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    @tests (
+        [workspace_index_tests]
+        ["../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
+        ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]
+        ["../../crates/reqlan-index/tests/sync.rs:hard_rebuild_reindexes_despite_mtime"]
+    )
     @status done
 }
 
 triggers {
     Index refresh behaviour (capability detail in [graph_analysers]):
     - [graph_analysers.indexing_incrementality] / [nonblocking_index] — incremental where possible
-    - [graph_analysers.indexing_trigger_filesave] / [app_memory_doc.idea_index_triggers] — on `.rq` file change
+    - [graph_analysers.indexing_trigger_filesave] / [app_memory_doc.idea_index_triggers] — on `.rq` or indexed code-file change
     - [graph_analysers.indexing_trigger_manual] — manual reindex commands
     - [graph_analysers.indexing_trigger_open] — one soft sync after the activity-bar first-paint gate
     - [graph_analysers.indexing_trigger_auto] — idle background mtime staleness check (cheap; not a full reindex)
@@ -117,29 +138,60 @@ index_diagnostics_timing {
 
 
 index_code_files {
-    The indexer should be able to index non-rq files as well for comment references.
-    @todo
+    Index non-`.rq` source files that contain [comment_reference] (`rq:[idea]` / `rq:["path".idea]`).
+    After the `.rq` pass, the native sync walks allowlisted text files (respecting `.rqignore` and nested child bases),
+    cheap-filters on `rq:`, and persists matching files as documents plus `comment_link` edges.
+    Edge shape: source = referenced idea, `target_file` = code file URI, kind `comment_link` (no synthetic file ideas).
+    Reindex of a `.rq` file re-applies comment links from already-indexed code documents so FK cascade does not drop them.
+    Watcher + idle stale check cover code documents as well as `.rq` files ([triggers], [nonblocking_index]).
+    Consumers: [graph_analysers.file_related_requirements], ["../core_analysis/search.rq".file_search],
+    ["../core_analysis/html_export.rq".html_export_code_reference_pages], Ideas Summary comment-reference rows,
+    local graph (idea → external file node).
+    See [graph_analysers.index_comment_reference_inclusion], ["../ontology.rq".referenced_files].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/comment.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-index/src/store.rs"]
+        ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:unqualified_comment_ref_matches_catalog_idea_name"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:rq_reindex_restores_comment_links"]
+        ["../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
+        ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_comment_code_files"]
+    )
 }
+
 
 
 indexer_rust {
     The [index] engine (parse-for-index → extract → SQLite persist → incremental sync) should be written in Rust.
     Crate: `reqlan-index` over `reqlan-parse` per ["../core_analysis/rust_port.rq".rust_crate_layout].
     Extractor ports ["../../packages/analytical/src/index-store/idea-extractor.ts"] including [wildcard_reference_edges].
-    Store ports schema v4 (["../../packages/analytical/src/index-store/schema.ts"]) via rusqlite so `<base>/.reqlan` round-trips with today's sql.js.
+    Store ports schema v4 (["../../packages/analytical/src/index-store/schema.ts"]) via rusqlite; diagnostics live in `index-diagnostics.sqlite` on the same engine.
     Sync keeps [nonblocking_index]: per-file upsert, mtime skip, hard rebuild, cancellable progress.
-    Not the Langium LSP. Comment-file indexing remains [index_code_files].
-    @status draft
-    @todo
+    Not the Langium LSP. Comment-file indexing: [index_code_files].
+    @status in-progress
+    @todo surface per-file timing diagnostics from Rust sync into IndexDiagnosticsStore
+    @tests (
+        ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
+        ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+    )
     @plan {
         goal
             Native WorkspaceIndex: same rows and incremental behaviour, no Langium on the index path.
 
         constraints
-            - Schema compatible with sql.js during ["../core_analysis/rust_port.rq".cutover].
+            - Schema v4 rusqlite only (no sql.js fallback) after ["../core_analysis/rust_port.rq".cutover].
             - [nonblocking_index] and [index_diagnostics_timing] still apply.
             - Wildcard fan-out stays [wildcard_reference_edges].
-            - Extension does not load native addons in the first cutover.
+            - Extension requires the host-matching core engine `.node` from the per-target VSIX.
 
         steps
             1. Rust AST → IdeaRecord / EdgeRecord parity tests against the current extractor.
@@ -148,6 +200,6 @@ indexer_rust {
             4. Wire through ["../core_analysis/rust_port.rq".native_bridge] once parse+extract golden tests pass.
 
         open
-            - sql.js writes a binary dump; confirm rusqlite opens that file (or migrate via SQL dump) before mixed-runtime workspaces.
+            - Richer per-file timing rows from Rust sync into the diagnostics store.
     }
 }

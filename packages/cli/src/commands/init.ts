@@ -1,6 +1,6 @@
 import { Command, Option } from 'clipanion';
 import { resolve } from 'node:path';
-import { createBase } from '@reqlan/analytical';
+import { createBase } from '@reqlan/analytical/core';
 import { emit } from '../output.js';
 
 export class InitCommand extends Command {

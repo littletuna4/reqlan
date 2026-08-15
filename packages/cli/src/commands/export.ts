@@ -5,7 +5,7 @@ import {
     type ExportClusterStrategy,
     type ExportRuntimeMode,
     type ExportScope
-} from '@reqlan/analytical';
+} from '@reqlan/analytical/core';
 import { withAnalysisApi, resolveWorkspaceRoot } from '../runtime.js';
 import { emit } from '../output.js';
 

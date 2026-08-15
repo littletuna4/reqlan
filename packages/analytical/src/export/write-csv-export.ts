@@ -7,7 +7,7 @@ import type {
     ExportResult,
     ExportSnapshot
 } from './types.js';
-import { formatAttributeValue } from './html-export-utils.js';
+import { formatAttributeValue } from './export-utils.js';
 
 /** Write CSV export(s): ideas.csv with flattened tags/attributes, plus references.csv. */
 export async function writeCsvExport(

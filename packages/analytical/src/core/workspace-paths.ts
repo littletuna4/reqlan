@@ -2,57 +2,11 @@
  * Normalize file paths and idea ids relative to the workspace root.
  */
 import { fileUriFromFsPath, isWindowsAbsolutePath } from '@reqlan/language';
-import { URI } from 'langium';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { edgeId, ideaId, type IndexedDocument } from './types.js';
+import { toWorkspaceRelativePath } from './path-relative.js';
 
-function normalizeSlashes(filePath: string): string {
-    return filePath.replace(/\\/g, '/');
-}
-
-export function relativeWindowsDrivePath(filePath: string, workspaceRoot: string): string | undefined {
-    const normalizedFile = normalizeSlashes(filePath);
-    const normalizedRoot = normalizeSlashes(workspaceRoot).replace(/\/+$/, '');
-
-    const fileMatch = normalizedFile.match(/^([A-Za-z]:)(\/.*)?$/);
-    const rootMatch = normalizedRoot.match(/^([A-Za-z]:)(\/.*)?$/);
-    if (!fileMatch || !rootMatch || fileMatch[1].toLowerCase() !== rootMatch[1].toLowerCase()) {
-        return undefined;
-    }
-
-    const fileRest = (fileMatch[2] ?? '').replace(/^\/+/, '');
-    const rootRest = (rootMatch[2] ?? '').replace(/^\/+/, '');
-    if (fileRest.toLowerCase() === rootRest.toLowerCase()) {
-        return '';
-    }
-    const rootPrefix = rootRest ? `${rootRest}/` : '';
-    if (!rootRest || fileRest.toLowerCase().startsWith(rootPrefix.toLowerCase())) {
-        return rootRest ? fileRest.slice(rootPrefix.length) : fileRest;
-    }
-    return undefined;
-}
-
-export function toWorkspaceRelativePath(fileUri: string, workspaceRoot: string): string {
-    if (!workspaceRoot) {
-        return normalizeSlashes(fileUri);
-    }
-
-    const filePath = fileUri.startsWith('file://') ? URI.parse(fileUri).fsPath : fileUri;
-    const driveRelative = relativeWindowsDrivePath(filePath, workspaceRoot);
-    if (driveRelative !== undefined) {
-        return driveRelative;
-    }
-
-    if (!isAbsolute(filePath)) {
-        return normalizeSlashes(filePath);
-    }
-
-    const rel = relative(workspaceRoot, filePath);
-    if (rel.startsWith('..')) {
-        return normalizeSlashes(fileUri);
-    }
-    return normalizeSlashes(rel);
-}
+export { relativeWindowsDrivePath, toWorkspaceRelativePath } from './path-relative.js';
 
 export function resolveWorkspaceFileUri(relativeOrAbsolute: string, workspaceRoot?: string): string {
     if (relativeOrAbsolute.startsWith('file://')) {

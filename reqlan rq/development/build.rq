@@ -1,4 +1,5 @@
 import "./core.rq" as development_core
+import "../distribution/distribution.rq" as distribution
 import "../../packages/extension/scripts/build.mjs" as extension_build_script
 import "../../packages/extension/scripts/generate-readme.ts" as extension_readme_script
 import "../../packages/extension/esbuild.mjs" as extension_esbuild
@@ -22,17 +23,30 @@ incremental_extension_build {
     - logo media
     - generated marketplace README
     - each of the five Vite webviews separately
-    - extension-host / language-server / lazy sql.js esbuild outputs
+    - extension-host / language-server esbuild outputs
+    Host napi staging ([extension_host_native_stage]) always runs: cargo is incremental, and CI/Azure skip the compile.
     A step is skipped only when its command/input fingerprint and current output-content fingerprint both match the cache under `packages/extension/out/`.
     Missing, changed, or manually edited output invalidates that step.
-    Webview output fingerprints cover each complete emitted directory, including future lazy chunks. Host-bundle inputs include bundled phonebook data and the sql.js vendor source as well as workspace package output.
+    Webview output fingerprints cover each complete emitted directory, including future lazy chunks. Host-bundle inputs include bundled phonebook data as well as workspace package output.
     TypeScript retains its native `tsc -b` project-reference incrementality.
     TextMate syntax copies are cached by content; Cursor-skill sync still runs because it targets workspace-external state.
     `pnpm run build:force` / `node scripts/build.mjs --force` bypasses all cache entries; `vscode:prepublish` uses this forced mode for release correctness.
     `clean` removes `out/`, including the cache, so clean builds remain cold.
     Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium/physics artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
-    @tests ("../../packages/extension/test/incremental-build.test.ts")
+    @tests (
+        ["../../packages/extension/test/incremental-build.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
     @status done
+}
+
+extension_host_native_stage {
+    Local F5 and `pnpm run build` / `build:ext` stage the host-matching core engine `.node` into `packages/extension/native/` so activation loads the same layout as a per-target VSIX ([distribution.vsix_export], [distribution.extension_host_target]).
+    The orchestrator builds `cargo build -p reqlan-napi --release` when needed, then copies `reqlan_napi.node` beside the extension; it is not a separate manual install.
+    CI / Azure skip the cargo compile (`CI` or `TF_BUILD`) and fetch published platform packages later ([distribution.extension_distribution]).
+    Implementation: ["../../scripts/stage-host-native.mjs"], ["../../packages/extension/scripts/build.mjs"].
+    @status done
+    @tests (["../../packages/analytical/test/native-packaging.test.ts"])
 }
 
 extension_media_build {
@@ -69,6 +83,13 @@ webview_build {
     Watch mode during development: `bash scripts/watch.sh` vite `--watch` alongside tsc and esbuild.
 }
 
+typescript_emit {
+    Package TypeScript emit goes to each package `out/` via `tsc -b` project references (["../../tsconfig.build.json"]).
+    Shared compiler options live in ["../../tsconfig.base.json"]. ["../../tsconfig.json"] is a solution file (`files: []`) so a plain `tsc` / VS Code "tsc: build" does not write `.js`, `.d.ts`, or `.js.map` next to sources.
+    Webview tsconfigs are `noEmit` — Vite bundles to `packages/extension/media/webviews/`.
+    @status done
+}
+
 extension_typecheck {
     Extension TypeScript sources are checked with `tsc -b tsconfig.json` before bundling.
     `noEmit: true` — compilation output comes from esbuild, not tsc.
@@ -76,7 +97,7 @@ extension_typecheck {
 
 extension_bundle {
     The extension host (`src/extension/main.ts`) and language server (`src/language/main.ts`) are bundled with esbuild per [extension_esbuild].
-    sql.js asm is emitted as `out/extension/vendor/sql-asm.cjs` and remains behind a dynamic import so the extension host entry does not parse the database engine before first paint.
+    The host-matching core engine `.node` is staged under `native/` by [extension_host_native_stage] for F5 and for per-target VSIX packaging; it is not inlined into `main.cjs`.
     @steps (
         node esbuild.mjs
     )

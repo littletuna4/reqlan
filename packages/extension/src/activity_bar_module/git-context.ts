@@ -136,10 +136,10 @@ export async function collectGitContext(
     const workspaceRoot = options.workspaceRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const stagedUris = new Set(
-        (repo?.state.indexChanges ?? []).map(change => toIndexFileUri(change.uri))
+        (repo?.state.indexChanges ?? []).map(change => toIndexFileUri(change.uri, workspaceRoot))
     );
     const unstagedUris = new Set(
-        (repo?.state.workingTreeChanges ?? []).map(change => toIndexFileUri(change.uri))
+        (repo?.state.workingTreeChanges ?? []).map(change => toIndexFileUri(change.uri, workspaceRoot))
     );
     const allUris = new Set([...stagedUris, ...unstagedUris]);
     const changedFiles: ContextFileEntry[] = [];

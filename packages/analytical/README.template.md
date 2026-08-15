@@ -8,7 +8,7 @@
 
 ## Features
 
-- Headless requirement graph index (sql.js) over parsed `.rq` workspaces
+- Headless requirement graph index (rusqlite via napi) over parsed `.rq` workspaces
 - Shared application memory under `<workspace>/.reqlan` (ideas-index.sqlite) for extension, CLI, and MCP
 - Analysers for semantic search, file context, local graphs, and completion status
 - `AnalysisApi` façade shared by the CLI and MCP server

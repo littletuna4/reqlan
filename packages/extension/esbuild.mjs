@@ -25,16 +25,6 @@ const plugins = [{
             }
         });
     },
-}, {
-    name: 'lazy-sql-js',
-    setup(build) {
-        build.onResolve({ filter: /^sql\.js\/dist\/sql-asm\.js$/ }, args => {
-            if (args.kind === 'dynamic-import') {
-                return { path: './vendor/sql-asm.cjs', external: true };
-            }
-            return undefined;
-        });
-    },
 }];
 
 const objectGroupByPolyfill = `if(typeof Object.groupBy!=="function"){Object.groupBy=(items,keySelector)=>{const result=Object.create(null);let index=0;for(const item of items){const key=keySelector(item,index++);const group=result[key];if(group){group.push(item);}else{result[key]=[item];}}return result;};}`;
@@ -48,7 +38,6 @@ const ctx = await esbuild.context({
         'language/reqlan-parse-worker': '../language/src/reqlan-parse-worker.ts',
         // Fuzzy search scoring runs off the extension-host event loop.
         'extension/fuzzy-search-worker': '../analytical/src/analysis/fuzzy-search-worker.ts',
-        'extension/vendor/sql-asm': '../analytical/node_modules/sql.js/dist/sql-asm.js'
     },
     banner: {
         js: objectGroupByPolyfill

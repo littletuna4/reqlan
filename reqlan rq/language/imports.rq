@@ -152,8 +152,9 @@ wildcard_references {
     Navigation does not emit N LocationLinks — document links and go-to open
     `reqlan.openWildcardReference` with `{ pathPattern, ideaPattern, fromUri }` (see [wildcard_references_webview]).
     Indexing fans out per ["../indexer/indexer.rq".wildcard_reference_edges]
-    (owned under ["../indexer/indexer.rq".index]): one `wildcard_reference` edge per catalog match;
-    empty catalog / zero matches → one unresolved edge of that kind labeled with the pattern text.
+    (owned under ["../indexer/indexer.rq".index]): native extract writes one `wildcard_reference`
+    edge per catalog match; empty catalog / zero matches → one unresolved edge of that kind
+    labeled with the pattern text.
     Ideas Summary graph toggles those edges via
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
@@ -176,6 +177,8 @@ wildcard_references {
         ["../../packages/language/src/reqlan-file-link-resolver.ts"]
         ["../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
         ["../../packages/analytical/src/index-store/idea-extractor.ts"]
         ["../../packages/analytical/src/index-store/workspace-index-file.ts"]
         ["../../packages/extension/src/language/main.ts"]
@@ -185,13 +188,15 @@ wildcard_references {
         ["../../packages/language/test/wildcard-references.test.ts:e2e: tokenize → parse → resolve → document link → definition → command args"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: imports.rq captures wildcard ideas with status and implementation"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:expands wildcard refs to one edge per matching idea"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: extractIndexedDocument fans out edges for matching catalog ideas"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: imports.rq extract includes webview and path_filter ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:extract_indexed_document_fans_out_edges_for_matching_catalog_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:nested_path_glob_matches_catalog_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:imports_rq_extract_includes_webview_and_path_filter_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
         ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
     )
 }
 

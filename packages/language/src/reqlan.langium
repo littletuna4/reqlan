@@ -1,5 +1,11 @@
 /**
  * Implementation of the rules described in reqlan rq/language/syntax.rq.
+ * rq:["../../../reqlan rq/ontology.rq".grammar_rule]
+ * rq:["../../../reqlan rq/ontology.rq".idea]
+ * rq:["../../../reqlan rq/ontology.rq".ideaset]
+ * rq:["../../../reqlan rq/ontology.rq".keyword]
+ * rq:["../../../reqlan rq/ontology.rq".import_statement]
+ * rq:["../../../reqlan rq/ontology.rq".reference]
  *
  * Design:
  * - Imports and top-level declarations are line-oriented; import/from/as are keywords only there.

@@ -1,5 +1,5 @@
 import { Command, Option } from 'clipanion';
-import type { CompletionSummary, FileRelatedRequirements, GraphSlice, IdeaSummary } from '@reqlan/analytical';
+import type { CompletionSummary, FileRelatedRequirements, GraphSlice, IdeaSummary } from '@reqlan/analytical/core';
 import { withAnalysisApi } from '../runtime.js';
 import { emit } from '../output.js';
 

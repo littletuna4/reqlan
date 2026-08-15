@@ -1,0 +1,23 @@
+[package]
+name = "reqlan-analytical"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Headless AnalysisApi facade over native parse, index, search, and export"
+
+[[bin]]
+name = "export-ts"
+path = "src/bin/export_ts.rs"
+
+[dependencies]
+reqlan-export = { path = "../reqlan-export" }
+reqlan-index = { path = "../reqlan-index" }
+reqlan-parse = { path = "../reqlan-parse" }
+reqlan-search = { path = "../reqlan-search" }
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+specta-typescript = "0.0.9"
+thiserror.workspace = true

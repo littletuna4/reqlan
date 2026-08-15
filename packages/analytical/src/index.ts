@@ -57,6 +57,7 @@ export {
     discoverBasesUnder,
     filesOwnedByBase,
     isPathInsideOrEqual,
+    nearestBaseRoot,
     selectDefaultBase,
     stableBaseId,
     toBaseDescriptor
@@ -85,9 +86,15 @@ export {
 export type { SearchContextIndex, SearchContextStore } from './analysis/contextual-search.js';
 export { fuzzySearchAnalyser } from './analysis/fuzzy-search-analyser.js';
 export type { FuzzySearchParams } from './analysis/fuzzy-search-analyser.js';
+export { fileSearchAnalyser } from './analysis/file-search-analyser.js';
+export type { FileSearchParams } from './analysis/file-search-analyser.js';
 export {
+    fileBasename,
+    filterAndScoreFiles,
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
+    paginateHits,
+    searchIndex,
     findSearchHighlightRanges,
     fuzzySubsequence,
     matchQueryTokens,
@@ -97,9 +104,11 @@ export {
 } from './analysis/fuzzy-search.js';
 export type {
     FuzzySearchHit,
+    FuzzySearchPage,
     SearchHighlightOptions,
     SearchHighlightPart,
-    SearchHighlightRange
+    SearchHighlightRange,
+    SearchIndexOptions
 } from './analysis/fuzzy-search.js';
 export {
     FuzzySearchWorkerClient,
@@ -283,7 +292,7 @@ export {
 } from './core/filter-specials.js';
 export type { AttributePresence } from './core/filter-specials.js';
 export { WorkspaceIndex, WorkspaceIndex as HeadlessIndexService } from './index-store/workspace-index.js';
-export type { IdleCheckResult } from './index-store/workspace-index.js';
+export type { FuzzySearchResult, IdleCheckResult } from './index-store/workspace-index.js';
 export type { IndexStatusSnapshot, IndexSyncProgress } from './index-store/index-status.js';
 export {
     IndexDiagnosticsStore,
@@ -320,13 +329,29 @@ export {
 export type { AnalysisRuntime, AnalysisRuntimeOptions } from './create-runtime.js';
 export { AnalysisApi } from './analysis-api.js';
 export type { InteractionDescriptor, RequirementMatch, SearchRequirementsOptions } from './analysis-api.js';
+export { NativeAnalysisApi } from './native/native-analysis-api.js';
+export {
+    openAnalysisApi,
+    type HeadlessAnalysisApi,
+    type OpenedAnalysisApi
+} from './native/open-analysis-api.js';
+export {
+    nativeEngineRequested,
+    loadNativeEngine,
+    tryLoadNativeEngine,
+    nativeEngineAvailable,
+    addNativeEngineSearchDirs,
+    resetNativeEngineCache
+} from './native/load-native.js';
+export { NativeWorkspaceIndex } from './native/native-workspace-index.js';
+export type { NativeSyncResult } from './native/native-workspace-index.js';
+export { NativeIndexStore } from './native/native-index-store.js';
+export { NativeSqlConnection } from './native/native-sql-db.js';
 export { buildExportSnapshot } from './export/build-export-snapshot.js';
-export { exportHtml } from './export/export-html.js';
 export { exportMarkdown } from './export/export-markdown.js';
 export { exportJson } from './export/export-json.js';
 export { exportCsv } from './export/export-csv.js';
 export { csvEscape } from './export/write-csv-export.js';
-export { writeHtmlExport } from './export/write-html-export.js';
 export { isSecretRqPath } from './export/secret-rq.js';
 export type {
     ExportCounts,

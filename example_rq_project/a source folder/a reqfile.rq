@@ -7,5 +7,6 @@ python_line_reference {
 }
 
 python_symbol_reference {
+    //rq-ignore-error
     A reqlan comment should be able to reference a python file symbol ["./apythonfile.py".APythonClass.say_hello]
 }

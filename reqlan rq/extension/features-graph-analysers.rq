@@ -14,7 +14,7 @@ index_ideas {
 }
 
 index_technology {
-    The [index_ideas] graph database is sql.js SQLite, aligned with [graph_design].
+    The [index_ideas] graph database is rusqlite via the core native engine, aligned with [graph_design].
     On-disk location is [application_memory] (`<base>/.reqlan/ideas-index.sqlite`), not `context.globalStorageUri`.
     Implementation: [application_memory_impl], [workspace_index], headless [analysis_runtime] for CLI/MCP, and [editor_index_adapter] for the VS Code host.
 }
@@ -24,7 +24,7 @@ indexing_incrementality {
     Hard rebuilds reparse everything. Detail and UX (progress, cancel, non-blocking UI): ["../indexer/indexer.rq".nonblocking_index].
 }
 
-indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers.
+indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers, and by allowlisted source files that may contain comment references.
 indexing_trigger_manual indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
 
 indexing_trigger_open {
@@ -49,13 +49,20 @@ list_all_ideas {
 }
 
 index_comment_reference_inclusion {
-    The [comment_grammar] comments should be included as a node type in the index
-    @todo
+    Comment `rq:[…]` sites are indexed as `comment_link` edges plus first-class code-file documents, not a separate idea kind.
+    Graph surfaces them as idea → external file nodes (same file-node id as outbound [file_reference]).
+    Live editor links still use [comment_grammar] / the comment resolver; the index path is native ["../indexer/indexer.rq".index_code_files].
+    @status done
 }
 
 file_related_requirements {
     The extension should provide a view or command to get requirements relating to the currently open file.
     File-related lookup should follow both explicit file references and comment rq: links in that file.
+    Comment links are read from indexed `comment_link` edges (["../indexer/indexer.rq".index_code_files]), not only the open buffer.
+    @tests (
+        ["../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+    )
 }
 
 deprecation_impact_analysis {

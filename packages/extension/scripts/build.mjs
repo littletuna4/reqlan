@@ -120,6 +120,10 @@ const steps = [
         command: 'node ../../node_modules/typescript/bin/tsc -b tsconfig.json',
     },
     {
+        name: 'stage host native analytical engine',
+        command: 'node ../../scripts/stage-host-native.mjs',
+    },
+    {
         name: 'bundle Ideas Summary webview',
         command: 'npx vite build --config webviews/ideas-summary/vite.config.ts',
         cacheKey: 'webview-ideas-summary',
@@ -186,15 +190,12 @@ const steps = [
             fromExtension('esbuild.mjs'),
             fromExtension('src'),
             fromRepo('packages', 'analytical', 'out'),
-            fromRepo('packages', 'analytical', 'node_modules', 'sql.js', 'dist', 'sql-asm.js'),
             fromRepo('packages', 'language', 'out'),
             fromRepo('reqlan rq', 'phonebook.json'),
         ],
         outputs: [
             fromExtension('out', 'extension', 'main.cjs'),
             fromExtension('out', 'extension', 'main.cjs.map'),
-            fromExtension('out', 'extension', 'vendor', 'sql-asm.cjs'),
-            fromExtension('out', 'extension', 'vendor', 'sql-asm.cjs.map'),
             fromExtension('out', 'language', 'main.cjs'),
             fromExtension('out', 'language', 'main.cjs.map'),
             fromExtension('out', 'language', 'reqlan-parse-worker.cjs'),

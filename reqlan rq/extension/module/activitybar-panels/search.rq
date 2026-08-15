@@ -3,6 +3,8 @@ import "../../../core_analysis/search.rq" as core_search
 import "../ideas_summary/webview.rq" as ideas_summary_doc
 import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
 import "../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
+import "../../../../packages/analytical/src/analysis/file-search-analyser.ts" as file_search_analyser
+import "../../../../packages/extension/src/activity_bar_module/search-results-meta.ts" as search_results_meta
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
 import "../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte" as SearchHighlight
 import "../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte" as AddToChatButton
@@ -22,6 +24,8 @@ search_pane {
     [search_pane_query]
     [search_pane_layout]
     [search_pane_results]
+    [search_pane_load_more]
+    [search_pane_file_hits]
     [search_pane_insert_reference]
     [search_add_to_chat]
     [search_pane_advanced]
@@ -40,11 +44,15 @@ search_pane {
 
 search_pane_query {
     [search_pane] search input posts a debounced host query.
-    Ranking uses [core_search.fuzzy_search] via [fuzzy_search_analyser] / [fuzzy_search_impl]
-    (separator-insensitive `_`/`-`/`...`/whitespace).
+    Ranking uses [core_search.fuzzy_search] in the native search module (`NativeWorkspaceIndex.fuzzySearch`);
+    separator-insensitive `_`/`-`/`...`/whitespace. File-name hits: [search_pane_file_hits] / [core_search.file_search].
+    Pages: [search_pane_load_more] / [core_search.fuzzy_search_pages].
+    Highlighting stays in the TS `./fuzzy-search` export.
     @tests (
         ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_ranks_without_exporting_catalog"]
     )
     @status done
 }
@@ -59,10 +67,54 @@ search_pane_layout {
 }
 
 search_pane_results {
-    [search_pane] results list is capped (default ~40) with name, path, and one-line summary;
-    click opens the idea.
+    [search_pane] results list is paged (default page size 40) with name, path, and one-line summary;
+    click opens the idea or file. Exceeded counts and further pages: [search_pane_load_more].
+    File hits: [search_pane_file_hits].
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/src/activity_bar_module/search-results-meta.ts"]
+    )
+    @status done
+}
+
+search_pane_load_more {
+    When ranked hits exceed the visible page, [search_pane] shows an exceeded-count label
+    (`40+ matches`, or `{n}+ matches` after further pages) instead of a full total,
+    and a **Show more** control at the bottom of the list that fetches the next page and appends.
+    A new query resets to the first page. Uses [core_search.fuzzy_search_pages] (`offset` + `truncated`).
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/search-results-meta.ts"]
+        ["../../../../crates/reqlan-search/src/fuzzy.rs"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/search-results-meta.test.ts"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+    )
+    @status done
+}
+
+search_pane_file_hits {
+    [search_pane] mixes [core_search.file_search] hits (kind `file`) into the ranked list with ideas.
+    Click opens the file at line 0. File hits do not offer Insert ref or Pin (those are idea actions).
+    Empty-state and placeholder copy mention files.
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../crates/reqlan-search/src/fuzzy.rs"]
+        ["../../../../packages/analytical/src/analysis/file-search-analyser.ts"]
+        ["../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../../../packages/analytical/test/fuzzy-search.test.ts:ranks file name hits with ideas"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+        ["../../../../packages/extension/test/search-results-meta.test.ts"]
     )
     @status done
 }
@@ -90,7 +142,7 @@ search_pane_advanced {
 }
 
 search_pane_empty_query {
-    Empty query in [search_pane]: prompt to type (do not dump the full idea catalog into the pane).
+    Empty query in [search_pane]: prompt to type ideas or files (do not dump the full catalog into the pane).
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
@@ -165,18 +217,18 @@ search_add_to_chat {
 }
 
 search_progress {
-    First-query (and base-switch) search can spend noticeable time loading the idea catalog into the worker before scoring — even when the index itself is already ready.
+    Activity-bar search ranks in the native [search_reqs.fuzzy_search] module (rusqlite read + score in-process).
+    The host must not hydrate a JS idea catalog or worker before scoring — return only the capped hit list.
     A static "Searching…" / "Loading…" label must not be the only signal: the pane should show **live progress** so a slow wait reads as working, not hung.
-    - Host posts phased progress for the in-flight search request: at least **preparing catalog** (read ideas + hand off to worker) and **scoring** (worker search).
-    - Progress messages carry a human-readable phase label; include counts when known (e.g. ideas loaded into the catalog).
+    - Host posts progress for the in-flight search request while native scoring runs (`Scoring ideas…`).
     - [SearchPane] displays the phase label with a continuous activity affordance (spinner / indeterminate bar) and elapsed time while loading, for both the empty initial wait and the "Updating…" refresh path.
     - Stale progress from superseded queries must not overwrite a newer request; clear progress when results or a scoped error arrive.
-    - Do not treat catalog load as a silent "quick index check" — surface it as its own phase.
     @status done
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
     )
 }

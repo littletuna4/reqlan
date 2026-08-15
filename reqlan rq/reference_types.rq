@@ -1,0 +1,135 @@
+import "../packages/language/src/reqlan.langium" as reqlan_grammar
+import "../packages/analytical/src/core/types.ts" as analytical_types
+import "../packages/analytical/src/index-store/idea-extractor.ts" as idea_extractor
+import "../crates/reqlan-index/src/types.rs" as rust_index_types
+import "../crates/reqlan-index/src/extract.rs" as rust_extract
+import "../packages/language/src/reqlan-comment-resolver.ts" as comment_resolver
+import "../packages/analytical/src/core/file-reference-resolve.ts" as file_reference_resolve
+
+idea_reference {
+    Idea-to-idea ["./ontology.rq".reference]: bracket `[name]` / `[ideaset.name]` targets a local, imported, or same-file idea.
+    Syntax: ["./language/syntax.rq".reference_brackets], ["./language/syntax.rq".same_file_reference],
+    ["./language/syntax.rq".reference_qualified], ["./language/syntax.rq".reference_embedding].
+    Index edge kind `references` on [analytical_types] / [rust_index_types]. Extract: [idea_extractor], [rust_extract].
+    Wikilink surface for the same edge kind: [link_reference]. Fan-out across files: [wildcard_reference].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_extract]
+    )
+    @tests (
+        ["../packages/language/test/linking.test.ts:resolve same-file bracket reference to local idea"]
+        ["../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
+        ["../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+        ["../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+    )
+}
+
+ideaset_reference {
+    References to an ["./ontology.rq".ideaset] or a namespace that behaves as one.
+    Syntax: ["./language/syntax.rq".ideaset]; namespace import alias: ["./language/imports.rq".import_namespace]
+    (`[alias]` opens the imported file and links only the alias name).
+    Membership edges are `ideaset_member`; a bare namespace-alias bracket is stored as `file_reference`
+    ([idea_extractor]), not `references`.
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_index_types]
+    )
+    @tests (
+        ["../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+        ["../packages/language/test/linking.test.ts:resolve namespace import references to files"]
+        ["../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
+    )
+}
+
+comment_reference {
+    Inbound ["./ontology.rq".reference] from comments in non-`.rq` source: `rq:[idea]` / `rq:["path".idea]`.
+    Spec: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    Syntax note: ["./language/syntax.rq".comment_reference]. Resolve: [comment_resolver].
+    Index edge kind `comment_link`. Related capture of those files: ["./ontology.rq".referenced_files].
+    Indexer: ["./indexer/indexer.rq".index_code_files].
+    @status done
+    @implementation (
+        [comment_resolver]
+        [analytical_types]
+        ["../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../crates/reqlan-index/src/comment.rs"]
+    )
+    @tests (
+        ["../packages/language/test/references.test.ts:finds rq: bracket comment references in line comments"]
+        ["../packages/language/test/references.test.ts:finds rq: comment references in block comments"]
+        ["../packages/language/test/linking.test.ts:comment references in source files resolve to rq ideas"]
+        ["../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+    )
+}
+
+file_reference {
+    Outbound ["./ontology.rq".reference] to a file, folder, or symbol — not only `.rq`.
+    Syntax: ["./language/syntax.rq".reference_file] (bracketed quoted path, optional `L#` / symbol path).
+    Index edge kind `file_reference`. Resolve: [file_reference_resolve]; extract: [idea_extractor].
+    Editor links: ["./extension/syntax/features-syntax.rq".file_references].
+    Non-`.rq` targets and inbound comment traffic: ["./ontology.rq".referenced_files].
+    Markdown `[label](target)` also stores this edge kind — see [link_reference].
+    @status done
+    @implementation (
+        [file_reference_resolve]
+        [idea_extractor]
+        [analytical_types]
+        [reqlan_grammar]
+        ["../packages/language/src/reqlan-file-link-resolver.ts"]
+    )
+    @tests (
+        ["../packages/analytical/test/file-reference-resolve.test.ts"]
+        ["../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
+        ["../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
+        ["../packages/language/test/references.test.ts:finds embedded file references in @tests lists"]
+    )
+}
+
+link_reference {
+    Link-shaped ["./ontology.rq".reference] surfaces that are not a bare `[idea]` bracket.
+    Wikilink `[[target]]` (optional alias pipe): ["./language/syntax.rq".reference_wikilink] —
+    indexes as idea-to-idea `references`, same as [idea_reference].
+    Markdown `[label](target)`: ["./language/syntax.rq".markdown_links] — label is not an idea ref;
+    the target indexes as `file_reference` ([file_reference]).
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [idea_extractor]
+    )
+    @tests (
+        ["../packages/language/test/linking.test.ts:resolve wikilink to idea declaration in main.rq"]
+        ["../packages/language/test/parsing.test.ts:keeps pipe characters in body prose as text"]
+        ["../packages/language/test/references.test.ts:parses markdown link label and target from raw link text"]
+        ["../packages/language/test/references.test.ts:embedded file reference scan ignores markdown link labels"]
+    )
+}
+
+wildcard_reference {
+    One ["./ontology.rq".reference] that matches many ideas: quoted path glob + idea pattern (`*` / `?`).
+    Syntax and navigation: ["./language/imports.rq".wildcard_references],
+    ["./language/imports.rq".wildcard_references_webview].
+    Index: one `wildcard_reference` edge per catalog match
+    (["./indexer/indexer.rq".wildcard_reference_edges]); never stored as plain `references`.
+    Native extract: ["../crates/reqlan-index/src/extract.rs"].
+    @status done
+    @implementation (
+        [rust_extract]
+        [rust_index_types]
+        [idea_extractor]
+        [analytical_types]
+        [reqlan_grammar]
+        ["../packages/language/src/reqlan-wildcard-resolve.ts"]
+    )
+    @tests (
+        ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
+        ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:emits_unresolved_edge_when_catalog_has_no_matches"]
+        ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+    )
+}

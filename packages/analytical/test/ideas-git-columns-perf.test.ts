@@ -121,7 +121,7 @@ describe('Ideas list git columns performance', () => {
         const total = await store.countIdeas(baseQuery);
         expect(total).toBe(IDEA_COUNT);
 
-        // Warm sql.js / query plans.
+        // Warm query plans.
         await store.listIdeasPage({ ...baseQuery, sortBy: 'path' });
         await store.listIdeasPage({ ...baseQuery, sortBy: 'gitModifiedAt', sortDir: 'desc' });
 
@@ -146,7 +146,7 @@ describe('Ideas list git columns performance', () => {
 
         const pathMs = median(pathSamples);
         const gitMs = median(gitSamples);
-        // Absolute budget: sql.js + fanout chips on CI hosts.
+        // Absolute budget: rusqlite + fanout chips on CI hosts.
         expect(gitMs).toBeLessThan(2_500);
         // Git-column sort must stay in the same band as path sort (indexed, not analyser).
         expect(gitMs).toBeLessThan(pathMs * 3 + 100);

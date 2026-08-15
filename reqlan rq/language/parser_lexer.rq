@@ -30,6 +30,7 @@ parse_budget_timeout {
         ["../../packages/language/test/parse-budget.test.ts:parses small files on the calling thread without a worker"]
         ["../../packages/language/test/parse-budget.test.ts:escalates large files to the worker path"]
         ["../../packages/language/test/parse-budget.test.ts:forceWorker escalates a small file"]
+        ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
     )
     @implementation (
         ["../../packages/language/src/reqlan-parse-budget.ts"]

@@ -2,17 +2,21 @@
  * Fuzzy idea search with interchangeable separators.
  * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search]
  * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
+ * rq:["../../reqlan rq/core_analysis/search.rq".file_search]
+ * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
  */
 import { describe, expect, test } from 'vitest';
 import { FILTER_NOT_PRESENT } from '../src/core/filter-specials.js';
 import type { IdeaSummary } from '../src/core/types.js';
 import {
+    filterAndScoreFiles,
     filterAndScoreIdeas,
     filterAndScoreIdeasAsync,
     findSearchHighlightRanges,
     fuzzySubsequence,
     matchQueryTokens,
     normalizeSearchSeparators,
+    searchIndex,
     splitSearchHighlight,
     splitSearchTokens
 } from '../src/analysis/fuzzy-search.js';
@@ -131,6 +135,57 @@ describe('filterAndScoreIdeas', () => {
         ];
         const hits = filterAndScoreIdeas(ideas, '');
         expect(hits.map(hit => hit.name).sort()).toEqual(['alpha', 'beta']);
+    });
+});
+
+describe('filterAndScoreFiles', () => {
+    // rq:["../../reqlan rq/core_analysis/search.rq".file_search]
+    test('ranks file name hits with ideas', () => {
+        const ideas = [
+            idea({ name: 'cli_package', summary: 'CLI package' }),
+            idea({ name: 'unrelated', summary: '' })
+        ];
+        const files = [
+            'reqlan rq/core_analysis/search.rq',
+            'packages/cli/cli_package.rq'
+        ];
+        const byBasename = filterAndScoreFiles(files, 'search');
+        expect(byBasename[0]?.name).toBe('search.rq');
+        expect(byBasename[0]?.kind).toBe('file');
+        expect(byBasename[0]?.lineStart).toBe(0);
+
+        const mixed = searchIndex(ideas, files, 'search', { limit: 8, requireQuery: true });
+        expect(mixed.hits.some(hit => hit.kind === 'file' && hit.name === 'search.rq')).toBe(true);
+        expect(mixed.hits.some(hit => hit.name === 'cli_package')).toBe(false);
+    });
+
+    test('empty query does not dump files', () => {
+        const files = ['reqlan rq/core_analysis/search.rq'];
+        expect(filterAndScoreFiles(files, '')).toEqual([]);
+        expect(searchIndex([], files, '', { requireQuery: true }).hits).toEqual([]);
+        expect(searchIndex([], files, '   ').hits).toEqual([]);
+    });
+});
+
+describe('searchIndex pages', () => {
+    // rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+    test('pages ranked hits with offset and truncated', () => {
+        const ideas = Array.from({ length: 5 }, (_, index) =>
+            idea({ name: `alpha_${index}`, summary: 'shared' })
+        );
+        const first = searchIndex(ideas, [], 'alpha', { limit: 2, offset: 0, requireQuery: true });
+        expect(first.hits).toHaveLength(2);
+        expect(first.total).toBe(5);
+        expect(first.truncated).toBe(true);
+
+        const second = searchIndex(ideas, [], 'alpha', { limit: 2, offset: 2, requireQuery: true });
+        expect(second.hits).toHaveLength(2);
+        expect(second.truncated).toBe(true);
+        expect(first.hits[0]?.name).not.toBe(second.hits[0]?.name);
+
+        const last = searchIndex(ideas, [], 'alpha', { limit: 2, offset: 4, requireQuery: true });
+        expect(last.hits).toHaveLength(1);
+        expect(last.truncated).toBe(false);
     });
 });
 

@@ -16,8 +16,11 @@ import {
     REQLAN_BARREL_PAGE_COMMAND,
     REQLAN_BARREL_PAGE_KIND,
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
+    REQLAN_REFACTOR_DELETE_IDEA_COMMAND,
+    REQLAN_REFACTOR_MOVE_IDEA_COMMAND,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     ReqlanCodeActionProvider,
+    resolveReferenceSearchSiteFromDocument,
     sharedNameCatalog,
     type NameCatalog
 } from '@reqlan/language';
@@ -242,6 +245,52 @@ describe('Import error code actions', () => {
         expect(site?.kind).toBe('wikilink');
     });
 
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('resolveReferenceSearchSiteFromDocument returns replace inside a bracket reference', async () => {
+        const document = await parse(s`
+            alpha {
+                target idea
+            }
+            consumer {
+                See [alpha] for details.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const text = document.textDocument.getText();
+        const refOffset = text.indexOf('[alpha]') + 2;
+        const position = document.textDocument.positionAt(refOffset);
+        const resolved = resolveReferenceSearchSiteFromDocument(
+            document.textDocument.uri,
+            document,
+            { start: position, end: position }
+        );
+        expect(resolved?.mode).toBe('replace');
+        expect(resolved?.refText).toBe('alpha');
+        expect(resolved?.documentUri).toBe(document.textDocument.uri);
+        expect(resolved?.context?.target).toContain('alpha');
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    test('resolveReferenceSearchSiteFromDocument returns wrap on a prose word', async () => {
+        const document = await parse(s`
+            consumer {
+                Mention showcase in prose.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('showcase') + 3;
+        const position = document.textDocument.positionAt(offset);
+        const resolved = resolveReferenceSearchSiteFromDocument(
+            document.textDocument.uri,
+            document,
+            { start: position, end: position }
+        );
+        expect(resolved?.mode).toBe('wrap');
+        expect(resolved?.refText).toBe('showcase');
+        expect(resolved?.context?.ideaName).toBe('consumer');
+    });
+
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
     test('appends to an existing from-import for the same path', async () => {
         const library = await parseUri(s`
@@ -266,6 +315,47 @@ describe('Import error code actions', () => {
         const actions = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
         const addImport = actions.find(action => action.title.includes('Add import from'));
         expect(addImport?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(', beta');
+    });
+});
+
+describe('Idea refactor code actions', () => {
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/vsc-primitives.rq".code_actions]
+    test('offers move and delete actions at an idea declaration', async () => {
+        const document = await parse(s`
+            alpha {
+                body
+            }
+            beta {
+                see [alpha]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const text = document.textDocument.getText();
+        const nameOffset = text.indexOf('alpha');
+        const position = document.textDocument.positionAt(nameOffset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const deleteAction = actions.find(action => action.title.includes('Delete idea'));
+        expect(deleteAction?.command?.command).toBe(REQLAN_REFACTOR_DELETE_IDEA_COMMAND);
+        expect(deleteAction?.command?.arguments?.[0]).toMatchObject({
+            documentUri: document.textDocument.uri,
+            ideaName: 'alpha'
+        });
+
+        const moveAction = actions.find(action => action.title.includes('Move idea'));
+        expect(moveAction?.command?.command).toBe(REQLAN_REFACTOR_MOVE_IDEA_COMMAND);
+        expect(moveAction?.command?.arguments?.[0]).toMatchObject({
+            documentUri: document.textDocument.uri,
+            ideaName: 'alpha'
+        });
     });
 });
 

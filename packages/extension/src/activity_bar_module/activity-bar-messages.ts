@@ -36,11 +36,15 @@ export interface IdeaSearchResultsPayload {
     query: string;
     total: number;
     truncated: boolean;
+    /** Ranked-list offset used for this page (0 for a new query). */
+    offset?: number;
+    /** Next `offset` to request for Show more (`offset + consumed native hits`). */
+    nextOffset?: number;
     results: IdeaSearchHitView[];
 }
 
-/** Phased status while idea search catalog load / scoring is in flight. */
-export type IdeaSearchProgressPhase = 'catalog' | 'search';
+/** Phased status while idea search scoring is in flight. */
+export type IdeaSearchProgressPhase = 'search';
 
 export interface IdeaSearchProgressPayload {
     phase: IdeaSearchProgressPhase;
@@ -79,7 +83,7 @@ export type ActivityBarToExtensionMessage =
     | { type: 'loadReferences'; ideaId: string; search?: string; brokenOnly?: boolean; requestId?: number }
     | { type: 'loadGraph'; query: GraphViewQuery; requestId?: number }
     | { type: 'loadAncestors'; ideaId: string; maxDepth?: number; requestId?: number }
-    | { type: 'searchIdeas'; query: string; pathFilter?: string; requestId?: number }
+    | { type: 'searchIdeas'; query: string; pathFilter?: string; offset?: number; requestId?: number }
     | { type: 'loadTodos'; requestId?: number }
     | { type: 'insertReference'; fileUri: string; name: string; kind: string }
     | {

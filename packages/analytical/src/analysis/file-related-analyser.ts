@@ -37,13 +37,16 @@ export const fileRelatedAnalyser: Analyser<{ fileUri: string }, FileRelatedRequi
             idea => !referencingIds.has(idea.id)
         );
 
-        const commentLinkedIdeas = (
-            await Promise.all(
-                (await store.getEdgesReferencingFile(fileName))
-                    .filter(edge => edge.kind === 'comment_link')
-                    .map(edge => (edge.targetId ? store.getIdea(edge.targetId) : Promise.resolve(undefined)))
-            )
-        ).filter((idea): idea is NonNullable<typeof idea> => idea !== undefined);
+        const commentIds = new Set<string>();
+        for (const edge of [
+            ...(await store.getEdgesReferencingFile(indexedFileUri)),
+            ...(await store.getEdgesReferencingFile(fileName))
+        ]) {
+            if (edge.kind === 'comment_link') {
+                commentIds.add(edge.sourceId);
+            }
+        }
+        const commentLinkedIdeas = await loadIdeas(commentIds);
 
         return {
             fileUri: indexedFileUri,

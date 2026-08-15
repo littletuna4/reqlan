@@ -8,12 +8,15 @@
  *     crash (changesets#2099). Edits are never committed.
  *   --filter <name>  Check one package; write should_publish=true|false to
  *     GITHUB_OUTPUT (when set). Does not mutate package.json.
+ *     Accepts core packages or `@reqlan/analytical-<platform>` under
+ *     packages/analytical-native/<suffix>/package.json.
  *
  * See https://github.com/changesets/changesets/issues/2099
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { NATIVE_TARGETS } from './native-targets.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -22,6 +25,7 @@ const packagePaths = [
     'packages/analytical/package.json',
     'packages/cli/package.json',
     'packages/mcp/package.json',
+    ...NATIVE_TARGETS.map((t) => `packages/analytical-native/${t.napiSuffix}/package.json`),
 ];
 
 function parseFilter(argv) {
@@ -63,7 +67,11 @@ const filter = parseFilter(process.argv.slice(2));
 
 if (filter) {
     const relativePath = packagePaths.find((p) => {
-        const pkg = JSON.parse(fs.readFileSync(path.join(root, p), 'utf8'));
+        const absolute = path.join(root, p);
+        if (!fs.existsSync(absolute)) {
+            return false;
+        }
+        const pkg = JSON.parse(fs.readFileSync(absolute, 'utf8'));
         return pkg.name === filter;
     });
     if (!relativePath) {
@@ -92,10 +100,18 @@ let skipped = 0;
 
 for (const relativePath of packagePaths) {
     const absolutePath = path.join(root, relativePath);
+    if (!fs.existsSync(absolutePath)) {
+        continue;
+    }
     const pkg = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
 
     if (pkg.private === true) {
         console.log(`skip ${pkg.name}: already private`);
+        continue;
+    }
+
+    // Platform packages are published via npm publish from their directory, not changeset publish.
+    if (relativePath.includes('analytical-native/')) {
         continue;
     }
 

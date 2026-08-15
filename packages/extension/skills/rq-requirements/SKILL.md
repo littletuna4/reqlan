@@ -6,19 +6,19 @@ description: >-
   discussing requirements, tracing dependencies, or asking about project intent.
 ---
 
-# Reqlan Requirements
+# reqlan Requirements
 
 Use the requirement graph — not source guesses alone.
 
 ## Ontology (this repo as example)
 
-| Concept | Meaning | Example |
-| --- | --- | --- |
-| **idea** | Named unit of intent | `cli_package`, `skills` |
-| **file / ideaset** | Container (file ⇒ implicit ideaset) | `reqlan rq/cli/cli_package.rq` |
-| **base** | `.reqlan` boundary + ideas index | workspace root with `.reqlan/` |
-| **reference** | Link to idea or file | `[cli_package]`, `["./path".idea]` |
-| **attribute** | `@name` metadata; first unmarked text = body | `@status done` |
+| Concept            | Meaning                                      | Example                            |
+| ------------------ | -------------------------------------------- | ---------------------------------- |
+| **idea**           | Named unit of intent                         | `cli_package`, `skills`            |
+| **file / ideaset** | Container (file ⇒ implicit ideaset)          | `reqlan rq/cli/cli_package.rq`     |
+| **base**           | `.reqlan` boundary + ideas index             | workspace root with `.reqlan/`     |
+| **reference**      | Link to idea or file                         | `[cli_package]`, `["./path".idea]` |
+| **attribute**      | `@name` metadata; first unmarked text = body | `@status done`                     |
 
 ## Special attributes (required when writing)
 

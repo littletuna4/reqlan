@@ -1,3 +1,13 @@
+/**
+ * Tab order per ontology_aligned_tabs — Index last (index health).
+ * rq:["../../../../../reqlan rq/ontology.rq".idea]
+ * rq:["../../../../../reqlan rq/ontology.rq".ideaset]
+ * rq:["../../../../../reqlan rq/ontology.rq".attribute]
+ * rq:["../../../../../reqlan rq/ontology.rq".reference]
+ * rq:["../../../../../reqlan rq/ontology.rq".base]
+ * rq:["../../../../../reqlan rq/ontology.rq".cartographic_map]
+ * rq:["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ontology_aligned_tabs]
+ */
 export type Tab =
     | 'overview'
     | 'bases'

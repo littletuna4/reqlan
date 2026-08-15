@@ -1,6 +1,6 @@
 import { type Module, inject, type PartialLangiumSharedCoreServices } from 'langium';
 import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
-import { ReqlanGeneratedModule, ReqlanGeneratedSharedModule } from './generated/module.js';
+import { ReqlanGeneratedModule, reqlanGeneratedSharedModule } from './generated/module.js';
 import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
 import { ReqlanDocumentHighlightProvider } from './reqlan-document-highlight-provider.js';
 import { ReqlanDocumentLinkProvider } from './reqlan-document-link-provider.js';
@@ -98,7 +98,7 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
 } {
     const shared = inject(
         createDefaultSharedModule(context),
-        ReqlanGeneratedSharedModule,
+        reqlanGeneratedSharedModule,
         ReqlanSharedModule
     );
     const Reqlan = inject(

@@ -1,6 +1,6 @@
 /**
  * Export the workspace requirement graph (excluding *.secret.rq) under site/out/spec
- * via the `reqlan export` CLI (AnalysisApi.exportHtml).
+ * via the `reqlan export` CLI (`NativeAnalysisApi.exportHtml`).
  *
  * Passes --url-base so asset/page links resolve with or without a trailing slash,
  * and a header link back to the marketing site home.

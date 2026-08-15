@@ -1,5 +1,9 @@
 /**
  * Extracts ideas, attributes, and graph edges from parsed reqlan documents.
+ * rq:["../../../reqlan rq/ontology.rq".idea]
+ * rq:["../../../reqlan rq/ontology.rq".reference]
+ * rq:["../../../reqlan rq/ontology.rq".attribute]
+ * rq:["../../../reqlan rq/ontology.rq".attribute_body]
  */
 import { AstUtils, type LangiumDocument } from 'langium';
 import {

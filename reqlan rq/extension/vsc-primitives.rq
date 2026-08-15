@@ -10,7 +10,27 @@ inlay_hints {
 }
 
 code_actions {
-    Language-server code actions for `.rq` files: quick fixes (import errors), refactor actions (move/delete idea, search/wrap references), and file-level source actions such as ["./features-commands.rq".barrel_page].
+    Language-server code actions for `.rq` files:
+    - Quick fixes for unresolved references (add import, rewrite qualified ref, search, create file) — ["./language-support/features-imports.rq".import_error]
+    - Refactor: search/replace or wrap as idea reference — ["./features-commands.rq".search_code_actions]
+    - Refactor: move or delete an idea declaration — ["./refactor_support.rq".refactor_symbol_move] ["./refactor_support.rq".refactor_symbol_delete]
+    - File-level source action: barrel page — ["./features-commands.rq".barrel_page]
+    Command-backed search/replace and barrel actions omit LSP command arguments so VS Code does not cache disposable delegating ids; the extension resolves the active editor (or document) when the command runs.
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/extension/register-import-error-commands.ts"]
+        ["../../packages/extension/src/extension/main.ts"]
+        ["../../packages/extension/src/language/main.ts"]
+        ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"]
+        ["../../packages/extension/src/refactor_module/register-barrel-page-command.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/code-actions.test.ts"]
+        ["../../packages/extension/test/extension-package.test.ts"]
+        ["../../packages/extension/test/barrel-page-apply.test.ts"]
+        ["../../packages/language/test/idea-refactor.test.ts"]
+    )
 }
 
 quick_fixes {}

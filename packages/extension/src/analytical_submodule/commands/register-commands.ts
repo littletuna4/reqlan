@@ -29,6 +29,9 @@ export function registerAnalyticalCommands(
 
     registerExportCommands(context, submodule);
 
+    const openIdeaHit = (fileUri: string, line: number) =>
+        openIndexFile(fileUri, line, 0, index.getActiveBase()?.descriptor.root);
+
     context.subscriptions.push(
         vscode.commands.registerCommand('reqlan.createBase', async () => {
             const created = await index.createBase();
@@ -52,7 +55,7 @@ export function registerAnalyticalCommands(
                 matchOnDetail: true
             });
             if (picked) {
-                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
+                await openIdeaHit(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -79,7 +82,7 @@ export function registerAnalyticalCommands(
                 placeHolder: 'Requirements related to current file'
             });
             if (picked) {
-                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
+                await openIdeaHit(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -105,7 +108,7 @@ export function registerAnalyticalCommands(
                 placeHolder: 'Downstream impact of deprecated ideas'
             });
             if (picked) {
-                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
+                await openIdeaHit(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 
@@ -179,7 +182,7 @@ export function registerAnalyticalCommands(
                 placeHolder: `Semantic matches for "${query}"`
             });
             if (picked) {
-                await openIndexFile(picked.idea.fileUri, picked.idea.lineStart);
+                await openIdeaHit(picked.idea.fileUri, picked.idea.lineStart);
             }
         }),
 

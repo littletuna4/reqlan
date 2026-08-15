@@ -321,16 +321,18 @@ demo {
         expect(document.parseResult.value.imports).toHaveLength(5);
     });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
-    test('parse ontology.rq one-liner ideas', async () => {
+    // rq:["../../../reqlan rq/ontology.rq".idea]
+    // rq:["../../../reqlan rq/language/syntax.rq".block_idea]
+    test('parse ontology.rq ideas', async () => {
         const document = await parse(readFileSync(join(repoDir, 'reqlan rq/ontology.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
-        const oneLiners = document.parseResult.value.elements.filter(isOneLinerIdea);
-        expect(oneLiners.map(idea => idea.name)).toEqual([
+        const names = document.parseResult.value.elements.filter(isIdea).map(idea => idea.name);
+        expect(names).toEqual([
             'idea',
             'ideaset',
             'file',
             'keyword',
+            'base',
             'configuration',
             'import_statement',
             'reference',
@@ -340,7 +342,9 @@ demo {
             'grammar_rule',
             'attribute',
             'attribute_body',
-            'idea_name'
+            'idea_name',
+            'atlas',
+            'reference_types'
         ]);
     });
 
@@ -629,6 +633,47 @@ later_idea {
             )
         }`);
         expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".lists]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
+    test('keeps later ideas after nested @slides lists with mid-line @plan braces', async () => {
+        const document = await parse(`episode {
+            @slides (
+                {
+                    id plan
+                    code_lang rq
+                    code @plan { goal: ship login; open: rate-limit TBD }
+                }
+                {
+                    id end
+                    notes Next idea must still parse.
+                }
+            )
+        }
+        later_idea {
+            still reachable
+        }`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements.filter(isIdea).map(idea => idea.name);
+        expect(names).toEqual(['episode', 'later_idea']);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".lists]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
+    test('parse tutorials.rq nested @slides lists without parser errors', async () => {
+        const document = await parse(
+            readFileSync(join(repoDir, 'reqlan rq/marketing_and_media/tutorials.rq'), 'utf8')
+        );
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements
+            .filter(element => isIdea(element) || isOneLinerIdea(element))
+            .map(element => element.name);
+        expect(names).toContain('adv_02_attributes_status_plans');
+        expect(names).toContain('tutorial_success_metrics');
+        expect(document.parseResult.value.elements.some(
+            element => isIdea(element) && element.name === 'adv_02_attributes_status_plans'
+        )).toBe(true);
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]

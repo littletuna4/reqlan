@@ -1,7 +1,7 @@
 name: Publish npm packages
 
 # Triggered by language/v*, analytical/v*, cli/v*, and mcp/v* tags (manual or release.yml)
-# per reqlan rq/distribution/distribution.rq npm_distribution.
+# per reqlan rq/distribution/distribution.rq npm_distribution / rust_binary_distribution.
 # release.yml also invokes this workflow directly because pushes made
 # with GITHUB_TOKEN do not trigger other workflows.
 
@@ -28,8 +28,80 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build-native:
+    name: Build napi ${{ matrix.napi_suffix }}
+    # Only needed when publishing analytical (or when workflow_call may publish all).
+    # Always run on analytical/v* and workflow_call; skip on language/cli/mcp-only tags.
+    if: >-
+      startsWith(github.ref, 'refs/tags/analytical/v') ||
+      github.event_name == 'workflow_call' ||
+      startsWith(inputs.npm_ref, 'analytical/v')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - napi_suffix: linux-x64-gnu
+            rust_target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - napi_suffix: linux-arm64-gnu
+            rust_target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - napi_suffix: darwin-x64
+            rust_target: x86_64-apple-darwin
+            os: macos-latest
+          - napi_suffix: darwin-arm64
+            rust_target: aarch64-apple-darwin
+            os: macos-latest
+          - napi_suffix: win32-x64-msvc
+            rust_target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - napi_suffix: win32-arm64-msvc
+            rust_target: aarch64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.npm_ref != '' && inputs.npm_ref || github.ref }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+          key: napi-${{ matrix.napi_suffix }}
+
+      - name: Install linux cross linker (arm64)
+        if: matrix.napi_suffix == 'linux-arm64-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build reqlan-napi
+        working-directory: crates
+        run: cargo build -p reqlan-napi --release --target ${{ matrix.rust_target }}
+
+      - name: Collect binary
+        run: node scripts/collect-napi-binary.mjs --target ${{ matrix.napi_suffix }}
+
+      - name: Upload napi artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: napi-${{ matrix.napi_suffix }}
+          path: artifacts/napi/${{ matrix.napi_suffix }}/
+          if-no-files-found: error
+
   publish:
     runs-on: ubuntu-latest
+    needs: [build-native]
+    # build-native may be skipped on non-analytical tags; allow publish to proceed.
+    if: always() && (needs.build-native.result == 'success' || needs.build-native.result == 'skipped')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,9 +135,29 @@ jobs:
           pnpm --filter @reqlan/mcp run build
           pnpm run build:readme
 
+      - name: Download napi artifacts
+        if: needs.build-native.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/napi-download
+          pattern: napi-*
+          merge-multiple: false
+
+      - name: Prepare native packages
+        if: needs.build-native.result == 'success'
+        run: |
+          mkdir -p artifacts/napi
+          for dir in artifacts/napi-download/napi-*; do
+            suffix="${dir##*/napi-}"
+            mkdir -p "artifacts/napi/${suffix}"
+            cp -a "${dir}/." "artifacts/napi/${suffix}/"
+          done
+          node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi --publish-versions
+
       # npm trusted publishing (OIDC): no NPM_TOKEN. Configure Trusted Publisher on
-      # npmjs.com for @reqlan/language, @reqlan/analytical, @reqlan/cli, and @reqlan/mcp →
-      # GitHub Actions / littletuna4 / reqlan / deploy-npm.yml / npm publish.
+      # npmjs.com for @reqlan/language, @reqlan/analytical, platform packages,
+      # @reqlan/cli, and @reqlan/mcp → GitHub Actions / littletuna4 / reqlan /
+      # deploy-npm.yml / npm publish.
       # Each package is a separate step so already-published versions can skip.
 
       - name: Check @reqlan/language
@@ -83,6 +175,28 @@ jobs:
       - name: Publish @reqlan/analytical
         if: steps.check_analytical.outputs.should_publish == 'true'
         run: pnpm --filter "@reqlan/analytical" publish --access public --no-git-checks
+
+      - name: Publish platform packages
+        if: needs.build-native.result == 'success'
+        run: |
+          set -euo pipefail
+          for pkg_dir in packages/analytical-native/*/; do
+            name="$(node -p "require('./${pkg_dir}package.json').name")"
+            out="$(mktemp)"
+            GITHUB_OUTPUT="$out" node scripts/skip-already-published.mjs --filter "$name"
+            should="$(grep '^should_publish=' "$out" | cut -d= -f2)"
+            rm -f "$out"
+            if [ "$should" = "true" ]; then
+              bin="$(node -p "require('./${pkg_dir}package.json').main")"
+              if [ ! -s "${pkg_dir}${bin}" ]; then
+                echo "Refusing to publish $name: missing binary ${pkg_dir}${bin}"
+                exit 1
+              fi
+              (cd "$pkg_dir" && npm publish --access public)
+            else
+              echo "skip $name"
+            fi
+          done
 
       - name: Check @reqlan/cli
         id: check_cli

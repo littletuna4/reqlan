@@ -1,6 +1,6 @@
 import type { AstNode, ValidationAcceptor, ValidationChecks } from 'langium';
 import { AstUtils } from 'langium';
-import type { ReqlanAstType } from './generated/ast.js';
+import type { reqlanAstType } from './generated/ast.js';
 import {
     isFromImport,
     isIdea,
@@ -40,7 +40,7 @@ import {
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
     const validator = services.validation.ReqlanValidator;
-    const checks: ValidationChecks<ReqlanAstType> = {
+    const checks: ValidationChecks<reqlanAstType> = {
         Model: validator.checkModelDuplicates,
         AnonymousBlock: validator.checkNamelessIdeaBlock
     };

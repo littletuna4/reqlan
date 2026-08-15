@@ -9,7 +9,7 @@ import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from '@reqlan/language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
 import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
-import { classifyReferenceUri } from '../src/reqlan-file-link-resolver.js';
+import { classifyReferenceUri, collectFileLinks } from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
 import {
     createSourceTextDocument,
@@ -975,6 +975,44 @@ later_member {
         expect(definitions).toHaveLength(1);
         expect(definitions?.[0].targetUri).toContain('context-model.ts');
         expect(definitions?.[0].targetSelectionRange?.start).toEqual({ line: 0, character: 0 });
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
+    test('collectFileLinks skips anonymous path links when CST range is missing', async () => {
+        const ontologyDir = join(repoDir, 'reqlan rq');
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const consumer = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            `demo {
+                see ["./ontology.rq".attribute]
+            }`,
+            URI.parse(pathToFileURL(join(ontologyDir, 'consumer.rq')).href)
+        ) as LangiumDocument<Model>;
+        const ontology = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(join(ontologyDir, 'ontology.rq'), 'utf8'),
+            URI.parse(pathToFileURL(join(ontologyDir, 'ontology.rq')).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(ontology);
+        fileServices.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await fileServices.shared.workspace.DocumentBuilder.build([ontology, consumer], { validation: true });
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target) && ref.target.path?.$refNode);
+        expect(bracketRef).toBeDefined();
+        if (!bracketRef || !isQualifiedReference(bracketRef.target) || !bracketRef.target.path?.$refNode) {
+            return;
+        }
+
+        Object.defineProperty(bracketRef.target.path.$refNode, 'range', {
+            configurable: true,
+            get: () => undefined
+        });
+
+        expect(() => collectFileLinks(
+            consumer,
+            fileServices.shared.workspace.LangiumDocuments,
+            fileServices.shared.workspace.FileSystemProvider
+        )).not.toThrow();
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]

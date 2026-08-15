@@ -20,8 +20,7 @@ function moduleDirectory(): string {
     if (typeof __dirname === 'string') {
         return __dirname;
     }
-    const metaUrl = (0, eval)('import.meta.url') as string;
-    return dirname(fileURLToPath(metaUrl));
+    return dirname(fileURLToPath(import.meta.url));
 }
 
 /** Resolve the bundled worker script next to the extension host output. */

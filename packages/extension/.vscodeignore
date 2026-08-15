@@ -11,6 +11,9 @@ tsconfig.json
 tsconfig.tsbuildinfo
 langium-quickstart.md
 grammars/**
+vsix-out/**
 !.skills/**
 !.prompts/**
 !.agents/**
+!native/**
+!native/**/*

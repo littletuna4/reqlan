@@ -72,20 +72,22 @@ wildcard_refs_toggle {
         ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
         ["../../../packages/extension/webviews/ideas-summary/lib/default-queries.ts"]
         ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../crates/reqlan-index/src/extract.rs"]
         ["../../../packages/analytical/src/index-store/idea-extractor.ts"]
         ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
         ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"]
         ["../../../packages/extension/webviews/ideas-summary/styles/global.css"]
-        ["../../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:stores wildcard fan-out as wildcard_reference kind"]
-        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
         ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts"]
         ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../../packages/analytical/test/export-html.test.ts"]
-        ["../../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
     )
 }
 
@@ -121,13 +123,13 @@ file_treatment_toggle {
         ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
         ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
-        ["../../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
         ["../../../packages/analytical/test/file-treatment.test.ts"]
         ["../../../packages/extension/test/graph-ui-state.test.ts"]
-        ["../../../packages/analytical/test/export-html.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -153,15 +155,16 @@ webview_export_graph_parity {
     @implementation (
         ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
-        ["../../../packages/analytical/src/export/html-export-template.ts"]
-        ["../../../packages/analytical/src/export/html-export-assets.ts"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../../packages/analytical/test/export-html.test.ts"]
-        ["../../../packages/analytical/test/export-html.test.ts:workspace graph includes every idea even when maxGraphNodes is below idea count"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
         ["../../../packages/analytical/test/file-treatment.test.ts"]
         ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../../packages/analytical/test/wildcard-reference-edges.test.ts:e2e: indexer and graphical_graph.rq capture wildcard edge and toggle ideas"]
+        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
     )
 }
 

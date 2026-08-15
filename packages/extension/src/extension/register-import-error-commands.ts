@@ -5,15 +5,17 @@
  */
 import * as path from 'node:path';
 import {
+    createReqlanServices,
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
     REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     relativeRqImportPath,
+    resolveReferenceSearchSiteFromDocument,
     type ImportErrorCommandArgs,
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
-import { URI } from 'langium';
+import { EmptyFileSystem, URI } from 'langium';
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { State } from 'vscode-languageclient/node';
@@ -69,7 +71,8 @@ export function registerImportErrorCommands(
 /**
  * Code actions intentionally omit command arguments so VS Code does not cache
  * them under a disposable delegating id (see "Actual command not found … /N").
- * Resolve the search site from the active editor via the language server.
+ * Resolve the search site from the active editor via the language server, or a
+ * local parse when the client is not yet running.
  */
 async function resolveSearchArgsFromEditor(
     getClient: () => LanguageClient | undefined
@@ -80,13 +83,8 @@ async function resolveSearchArgsFromEditor(
         return undefined;
     }
 
-    const client = getClient();
-    if (!client || client.state !== State.Running) {
-        void vscode.window.showErrorMessage('Reqlan language server is not ready yet. Try again in a moment.');
-        return undefined;
-    }
-
     const documentUri = editor.document.uri.toString();
+    const text = editor.document.getText();
     const range = {
         start: {
             line: editor.selection.start.line,
@@ -98,27 +96,39 @@ async function resolveSearchArgsFromEditor(
         }
     };
 
-    try {
-        const site = await client.sendRequest<SearchReferenceCommandArgs | null>(
-            REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
-            {
-                uri: documentUri,
-                text: editor.document.getText(),
-                range
+    const client = getClient();
+    if (client && client.state === State.Running) {
+        try {
+            const site = await client.sendRequest<SearchReferenceCommandArgs | null>(
+                REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
+                {
+                    uri: documentUri,
+                    text,
+                    range
+                }
+            );
+            if (site) {
+                return site;
             }
-        );
-        if (site) {
-            return site;
+        } catch (error) {
+            console.error('[reqlan] reference search site request failed:', error);
         }
-    } catch (error) {
-        console.error('[reqlan] reference search site request failed:', error);
     }
 
-    // Fallback: open search against the selection/word text without AST context.
+    const localSite = resolveSearchSiteLocally(documentUri, text, range);
+    if (localSite) {
+        return localSite;
+    }
+
+    // Last resort: open search against the selection/word text without AST context.
     const selected = editor.document.getText(editor.selection).trim();
     const refText = selected || wordAtPosition(editor.document, editor.selection.active);
     if (!refText) {
-        void vscode.window.showInformationMessage('Place the cursor inside a [reference] or idea-body word to search.');
+        if (!client || client.state !== State.Running) {
+            void vscode.window.showErrorMessage('Reqlan language server is not ready yet. Try again in a moment.');
+        } else {
+            void vscode.window.showInformationMessage('Place the cursor inside a [reference] or idea-body word to search.');
+        }
         return undefined;
     }
     return {
@@ -129,6 +139,25 @@ async function resolveSearchArgsFromEditor(
             : wordRangeAtPosition(editor.document, editor.selection.active) ?? range,
         mode: selected.startsWith('[') ? 'replace' : 'wrap'
     };
+}
+
+/** Parse the active editor text locally when the language client is unavailable. */
+function resolveSearchSiteLocally(
+    documentUri: string,
+    text: string,
+    range: { start: { line: number; character: number }; end: { line: number; character: number } }
+): SearchReferenceCommandArgs | undefined {
+    try {
+        const services = createReqlanServices(EmptyFileSystem);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            text,
+            URI.parse(documentUri)
+        );
+        return resolveReferenceSearchSiteFromDocument(documentUri, document, range);
+    } catch (error) {
+        console.error('[reqlan] local reference search site resolve failed:', error);
+        return undefined;
+    }
 }
 
 function wordAtPosition(document: vscode.TextDocument, position: vscode.Position): string {

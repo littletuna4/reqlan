@@ -1,4 +1,6 @@
 <script lang="ts">
+    // rq:["../../../../../reqlan rq/ontology.rq".cartographic_map]
+    // rq:["../../../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
     import { onDestroy, onMount } from 'svelte';
     import type { GraphNodeView, GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
     import type { GraphUiFileTreatment } from '../../../src/webview_module/shared/graph-ui-state.js';

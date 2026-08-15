@@ -1,0 +1,23 @@
+{
+    "name": "@reqlan/analytical-linux-arm64-gnu",
+    "version": "0.9.1",
+    "description": "Native reqlan analytical engine for linux-arm64-gnu",
+    "license": "AGPL-3.0-only",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/littletuna4/reqlan.git"
+    },
+    "os": [
+        "linux"
+    ],
+    "cpu": [
+        "arm64"
+    ],
+    "main": "reqlan_napi.linux-arm64-gnu.node",
+    "files": [
+        "reqlan_napi.linux-arm64-gnu.node"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

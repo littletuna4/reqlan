@@ -164,7 +164,11 @@ function isStructuralOpenBraceAtDepth(text: string, offset: number, depth: numbe
     if (depth === 0 && (blockOpenerLine.test(before) || (isLineStartAt(text, offset) && before.trim().length === 0))) {
         return true;
     }
-    if (/@[A-Za-z_][\w-]*(?::)?\s*$/.test(before)) {
+    // `@name {` opens an attribute block only when `@` is the first non-whitespace
+    // on the line — same contract as the `@` token and Rust `is_attribute_opener`.
+    // Mid-line prose such as `code @plan { goal: … }` must stay a prose brace so
+    // nested `@slides` lists (tutorials.rq) do not abort the rest of the file.
+    if (/^[ \t]*@[A-Za-z_][\w-]*(?::)?\s*$/.test(before)) {
         return true;
     }
     if (depth >= 1 && isLineStartAt(text, offset)) {
