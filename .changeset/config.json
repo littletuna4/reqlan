@@ -2,17 +2,15 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@reqlan/analytical",
+      "@reqlan/analytical-*"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@reqlan/analytical-win32-x64-msvc",
-    "@reqlan/analytical-win32-arm64-msvc",
-    "@reqlan/analytical-linux-x64-gnu",
-    "@reqlan/analytical-linux-arm64-gnu",
-    "@reqlan/analytical-darwin-x64",
-    "@reqlan/analytical-darwin-arm64"
-  ]
+  "ignore": []
 }
