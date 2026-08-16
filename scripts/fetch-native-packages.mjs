@@ -5,7 +5,7 @@
  *
  * Usage:
  *   node scripts/fetch-native-packages.mjs
- *   node scripts/fetch-native-packages.mjs --host-only
+ *   node scripts/fetch-native-packages.mjs --allow-missing
  *   node scripts/fetch-native-packages.mjs --version 0.9.1
  *
  * rq:["../reqlan rq/distribution/distribution.rq".vsix_export]
@@ -33,6 +33,7 @@ function parseArg(argv, name) {
 
 const argv = process.argv.slice(2);
 const hostOnly = argv.includes('--host-only');
+const allowMissing = argv.includes('--allow-missing');
 const analytical = JSON.parse(
     fs.readFileSync(path.join(root, 'packages/analytical/package.json'), 'utf8')
 );
@@ -106,6 +107,11 @@ for (const target of targets) {
 fs.rmSync(tmp, { recursive: true, force: true });
 
 if (failed > 0) {
-    console.error(`Failed to fetch ${failed} platform package(s) at version ${version}.`);
+    const message = `Failed to fetch ${failed} platform package(s) at version ${version}.`;
+    if (allowMissing) {
+        console.warn(`${message} Continuing (--allow-missing).`);
+        process.exit(0);
+    }
+    console.error(message);
     process.exit(1);
 }

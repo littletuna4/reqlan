@@ -151,17 +151,16 @@ vsix_export {
   Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target], ["./native_host_binary.rq".native_host_binary_distributed]).
   Artifact name shape: `reqlan-extension-<version>-<target>.vsix`.
   The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.
-  Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
+  Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
   @status in-progress
   @todo first ext/v* release with six target VSIXes not yet shipped
-  @todo ext/v* packaging depends on platform packages already published for the matching `@reqlan/analytical` version (fetch-native-packages)
   @plan {
     goal
       Ship six host-targeted VSIXes, each containing only the core engine `.node` for that extension-host platform.
 
     constraints
       - Keep --no-dependencies for the bundled TS graph; stage only the matching native package.
-      - Prefer consuming native artifacts from npm platform packages published on analytical/v* (["../../scripts/fetch-native-packages.mjs"]).
+      - Prefer npm platform packages when they exist (["../../scripts/fetch-native-packages.mjs"]). Azure VSIX packaging builds each [native_targets] tuple on its own agent and stages those artifacts; it must not fail when that `@reqlan/analytical` version is not on npm yet.
       - `vscode:prepublish` must not restage the host native addon (`--skip-native`); each VSIX `native/target.json` must equal that VSIX `--target`.
 
     steps

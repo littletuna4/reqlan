@@ -70,7 +70,9 @@ describe('native platform packaging', () => {
         expect(ignore).toMatch(/!native\/\*\*/);
         const azure = readFileSync(join(root, 'azure-pipelines.yml'), 'utf8');
         expect(azure).toContain('package-extension-targets.mjs');
-        expect(azure).toContain('fetch-native-packages.mjs');
+        expect(azure).toContain('build_native');
+        expect(azure).toContain('collect-napi-binary.mjs');
+        expect(azure).toContain('prepare-native-packages.mjs');
         expect(azure).toContain('ensure-host-native.mjs');
         const packScript = readFileSync(join(root, 'scripts/package-extension-targets.mjs'), 'utf8');
         expect(packScript).toContain('assertPackedNativeTarget');
@@ -86,6 +88,7 @@ describe('native platform packaging', () => {
         expect(deployNpm).toContain('build-native');
         const fetchScript = readFileSync(join(root, 'scripts/fetch-native-packages.mjs'), 'utf8');
         expect(fetchScript).toContain('--host-only');
+        expect(fetchScript).toContain('--allow-missing');
         expect(existsSync(join(root, 'scripts/ensure-host-native.mjs'))).toBe(true);
         const site = readFileSync(join(root, '.github/workflows/deploy-site.yml'), 'utf8');
         expect(site).toContain('stage-host-native.mjs');

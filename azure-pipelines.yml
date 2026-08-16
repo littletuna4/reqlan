@@ -10,16 +10,104 @@ variables:
   - group: "reqlan pipeline variables"
 
 jobs:
-  - job: build_test_package
-    displayName: Build, test, package extension
-    timeoutInMinutes: 90
-    cancelTimeoutInMinutes: 5
+  # One agent per native_targets tuple (same matrix as .github/workflows/deploy-npm.yml).
+  # Platform npm packages may not exist yet; VSIX packaging must not depend on npm pack.
+  - job: build_native
+    displayName: Build napi
+    timeoutInMinutes: 60
     strategy:
       matrix:
-        linux:
+        linux_x64:
+          napiSuffix: linux-x64-gnu
+          rustTarget: x86_64-unknown-linux-gnu
           imageName: ubuntu-latest
+        linux_arm64:
+          napiSuffix: linux-arm64-gnu
+          rustTarget: aarch64-unknown-linux-gnu
+          imageName: ubuntu-latest
+        darwin_x64:
+          napiSuffix: darwin-x64
+          rustTarget: x86_64-apple-darwin
+          imageName: macOS-latest
+        darwin_arm64:
+          napiSuffix: darwin-arm64
+          rustTarget: aarch64-apple-darwin
+          imageName: macOS-latest
+        win32_x64:
+          napiSuffix: win32-x64-msvc
+          rustTarget: x86_64-pc-windows-msvc
+          imageName: windows-latest
+        win32_arm64:
+          napiSuffix: win32-arm64-msvc
+          rustTarget: aarch64-pc-windows-msvc
+          imageName: windows-latest
     pool:
       vmImage: $(imageName)
+
+    steps:
+      - checkout: self
+        clean: true
+        timeoutInMinutes: 5
+
+      - task: UseNode@1
+        inputs:
+          version: "24.x"
+        displayName: Setup Node.js
+        timeoutInMinutes: 10
+
+      - bash: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "##vso[task.prependpath]$HOME/.cargo/bin"
+        displayName: Install Rust
+        condition: ne(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 10
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          Invoke-WebRequest -Uri "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe" -OutFile rustup-init.exe
+          & .\rustup-init.exe -y --default-toolchain stable
+          Write-Host "##vso[task.prependpath]$env:USERPROFILE\.cargo\bin"
+        displayName: Install Rust
+        condition: eq(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 10
+
+      - script: rustup target add $(rustTarget)
+        displayName: Add Rust target
+        timeoutInMinutes: 5
+
+      - bash: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        displayName: Linux arm64 cross linker
+        condition: eq(variables['napiSuffix'], 'linux-arm64-gnu')
+        timeoutInMinutes: 10
+
+      - script: cargo build -p reqlan-napi --release --target $(rustTarget)
+        displayName: Build reqlan-napi
+        workingDirectory: crates
+        timeoutInMinutes: 30
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - script: node scripts/collect-napi-binary.mjs --target $(napiSuffix)
+        displayName: Collect napi binary
+        timeoutInMinutes: 5
+
+      - task: PublishPipelineArtifact@1
+        displayName: Publish napi artifact
+        inputs:
+          targetPath: artifacts/napi/$(napiSuffix)
+          artifact: napi-$(napiSuffix)
+
+  - job: build_test_package
+    displayName: Build, test, package extension
+    dependsOn: build_native
+    timeoutInMinutes: 90
+    cancelTimeoutInMinutes: 5
+    pool:
+      vmImage: ubuntu-latest
 
     steps:
       - checkout: self
@@ -47,23 +135,29 @@ jobs:
         displayName: Install dependencies
         timeoutInMinutes: 15
 
-      # Host optionalDependency layout (same as a production npm install of
-      # @reqlan/analytical). Fetch the published platform package; cargo is the
-      # fallback when that version is not on npm yet.
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi artifacts
+        inputs:
+          buildType: current
+          targetPath: $(Build.SourcesDirectory)/artifacts/napi-download
+
       - bash: |
           set -euo pipefail
-          if ! command -v cargo >/dev/null 2>&1; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          fi
-          echo "##vso[task.prependpath]$HOME/.cargo/bin"
-        displayName: Setup Rust (host native fallback)
-        timeoutInMinutes: 10
+          mkdir -p artifacts/napi
+          for dir in artifacts/napi-download/napi-*; do
+            suffix="${dir##*/napi-}"
+            mkdir -p "artifacts/napi/${suffix}"
+            cp -a "${dir}/." "artifacts/napi/${suffix}/"
+          done
+          node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi
+        displayName: Stage platform packages from napi artifacts
+        timeoutInMinutes: 5
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
           node scripts/ensure-host-native.mjs
         displayName: Ensure host native optionalDependency
-        timeoutInMinutes: 25
+        timeoutInMinutes: 10
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
@@ -99,24 +193,16 @@ jobs:
         displayName: Verify extension version matches tag
         timeoutInMinutes: 5
 
-      # Pull host-matching napi binaries published on analytical/v* (same version as @reqlan/analytical).
-      - pwsh: |
-          $ErrorActionPreference = "Stop"
-          node scripts/fetch-native-packages.mjs
-        displayName: Fetch native platform packages from npm
-        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
-        timeoutInMinutes: 15
-
       - pwsh: |
           $ErrorActionPreference = "Stop"
           node scripts/package-extension-targets.mjs
         displayName: Package per-target VSIXes
-        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 20
 
       - task: PublishBuildArtifacts@1
         displayName: Publish VSIX artifacts
-        condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+        condition: succeeded()
         timeoutInMinutes: 8
         inputs:
           PathtoPublish: packages/extension/vsix-out
@@ -125,7 +211,7 @@ jobs:
 
       - task: AzureCLI@2
         displayName: Publish extension (all targets)
-        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 30
         inputs:
           azureSubscription: $(AzureMarketplaceServiceConnection)
@@ -147,7 +233,7 @@ jobs:
             pnpm dlx ovsx publish $_.FullName
           }
         displayName: Publish extension to Open VSX (all targets)
-        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'), eq(variables['Agent.OS'], 'Linux'))
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 30
         env:
           OVSX_PAT: $(OpenVSX Token)

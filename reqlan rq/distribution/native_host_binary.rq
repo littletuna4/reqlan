@@ -67,7 +67,7 @@ native_host_binary_distributed {
     At run time, read `process.platform` and `process.arch` on the extension host.
     If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
     Do not put binaries for other platforms in that VSIX.
-    The pipeline gets each platform package from npm. It does not compile all Rust targets on one agent.
+    The pipeline gets each platform binary from the Azure `build_native` matrix (or from npm when those packages exist). It does not compile all Rust targets on one agent.
     Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution].
 
     CLI and MCP:
