@@ -69,6 +69,12 @@ describe('load-native', () => {
         expect(compiled).toContain('typeof __dirname');
     });
 
+    it('probes crates/Cargo.toml from the repo root rather than packages/crates', () => {
+        const source = readFileSync(join(here, '../src/native/load-native.ts'), 'utf8');
+        expect(source).toContain("join(dir, 'crates', 'Cargo.toml')");
+        expect(source).not.toMatch(/\.\.\/\.\.\/\.\.\/crates\/target/);
+    });
+
     it('loads under plain Node ESM without vitest transforming import.meta', () => {
         const specifier = pathToFileURL(join(here, '../out/native/load-native.js')).href;
         const result = spawnSync(

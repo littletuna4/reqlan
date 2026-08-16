@@ -27,11 +27,14 @@ spec_html_export {
     Embedded `/spec` graph pages inherit [html_export.html_export_graph_background_load] so large workspace graphs do not freeze the page while settling.
     Pipeline: ["../../site/scripts/build-static.mts"] → ["../../site/scripts/export-spec.mts"] → ["../../site/scripts/verify-static-export.mts"].
     Host options come from [html_export.html_export] / CLI [cli_package.commands], including native CLI export via ["../core_analysis/rust_port.rq".native_bridge].
+    CI must build/stage host `reqlan-napi` before this pipeline ([distribution_reqs.site_distribution]); the loader probes repo-root `crates/target`, not `packages/crates`.
     @status done
     @implementation (
         ["../../site/scripts/export-spec.mts"]
         ["../../site/scripts/verify-static-export.mts"]
         ["../../site/scripts/build-static.mts"]
+        ["../../.github/workflows/deploy-site.yml"]
+        ["../../packages/analytical/src/native/load-native.ts"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../crates/reqlan-analytical/src/types.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
@@ -39,6 +42,8 @@ spec_html_export {
     @tests (
         ["../../site/scripts/verify-static-export.mts"]
         ["../../packages/analytical/test/native-export-request.test.ts"]
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
         ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }

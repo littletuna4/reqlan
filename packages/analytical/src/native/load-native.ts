@@ -132,10 +132,55 @@ function hostPackageName(platform = process.platform, arch = process.arch): stri
     return HOST_PACKAGE_BY_PLATFORM[`${platform}-${arch}`];
 }
 
+const CRATE_BINARY_NAMES = [
+    'reqlan_napi.node',
+    'libreqlan_napi.so',
+    'libreqlan_napi.dylib',
+    'reqlan_napi.dll'
+];
+
+/**
+ * Walk toward the repo root looking for `crates/Cargo.toml`.
+ * Compiled output lives in `packages/analytical/out/native/` (four levels below
+ * the repo root); a naive `../../../crates` incorrectly resolves to `packages/crates`.
+ */
+function findRepoRoot(start: string): string | undefined {
+    let dir = start;
+    for (let i = 0; i < 10; i++) {
+        if (existsSync(join(dir, 'crates', 'Cargo.toml'))) {
+            return dir;
+        }
+        const parent = dirname(dir);
+        if (parent === dir) {
+            break;
+        }
+        dir = parent;
+    }
+    return undefined;
+}
+
+function crateBuildCandidates(repoRoot: string): string[] {
+    const target = join(repoRoot, 'crates', 'target');
+    const configs = ['release', 'debug'];
+    return configs.flatMap(config =>
+        CRATE_BINARY_NAMES.map(name => join(target, config, name))
+    );
+}
+
+function hostNativePackageFile(repoRoot: string): string | undefined {
+    const hostBinary = HOST_BINARY_BY_PLATFORM[`${process.platform}-${process.arch}`];
+    if (!hostBinary) {
+        return undefined;
+    }
+    const suffix = hostBinary.replace(/^reqlan_napi\./, '').replace(/\.node$/, '');
+    return join(repoRoot, 'packages', 'analytical-native', suffix, hostBinary);
+}
+
 function candidatePaths(): string[] {
     const here = moduleDirectory();
     const hostPkg = hostPackageName();
     const hostBinary = HOST_BINARY_BY_PLATFORM[`${process.platform}-${process.arch}`];
+    const repoRoot = findRepoRoot(here);
     const staged = extraSearchDirs.flatMap(dir => [
         join(dir, 'reqlan_napi.node'),
         ...(hostBinary ? [join(dir, hostBinary)] : []),
@@ -143,20 +188,15 @@ function candidatePaths(): string[] {
         join(dir, 'libreqlan_napi.dylib'),
         join(dir, 'reqlan_napi.dll')
     ]);
+    const stagedHostPkg = repoRoot ? hostNativePackageFile(repoRoot) : undefined;
 
     return [
         ...staged,
+        ...(stagedHostPkg ? [stagedHostPkg] : []),
         // Prefer the host-matching optionalDependency package first.
         ...(hostPkg ? [hostPkg] : []),
-        // Local crate builds (dev).
-        join(here, '../../../crates/target/release/reqlan_napi.node'),
-        join(here, '../../../crates/target/debug/reqlan_napi.node'),
-        join(here, '../../../crates/target/release/libreqlan_napi.so'),
-        join(here, '../../../crates/target/debug/libreqlan_napi.so'),
-        join(here, '../../../crates/target/release/libreqlan_napi.dylib'),
-        join(here, '../../../crates/target/debug/libreqlan_napi.dylib'),
-        join(here, '../../../crates/target/release/reqlan_napi.dll'),
-        join(here, '../../../crates/target/debug/reqlan_napi.dll'),
+        // Local crate builds (dev / CI cargo output).
+        ...(repoRoot ? crateBuildCandidates(repoRoot) : []),
         // Remaining platform packages (wrong-host installs still listed for clear errors).
         '@reqlan/analytical-linux-x64-gnu',
         '@reqlan/analytical-linux-arm64-gnu',

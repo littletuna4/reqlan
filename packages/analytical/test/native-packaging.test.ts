@@ -75,5 +75,8 @@ describe('native platform packaging', () => {
         expect(deploy).toContain('id-token: write');
         expect(deploy).toContain('Publish platform packages');
         expect(deploy).toContain('build-native');
+        const site = readFileSync(join(root, '.github/workflows/deploy-site.yml'), 'utf8');
+        expect(site).toContain('stage-host-native.mjs');
+        expect(site).toContain('REQLAN_FORCE_NATIVE_BUILD');
     });
 });

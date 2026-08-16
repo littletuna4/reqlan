@@ -72,7 +72,7 @@ rust_binary_distribution {
       2. Wire optionalDependencies on `@reqlan/analytical`; version-lock via Changesets `fixed` group. (done)
       3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml)
       4. Publish platform packages on `analytical/v*` after `@reqlan/analytical`.
-      5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev. (done)
+      5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)
   }
 }
 
@@ -176,7 +176,12 @@ vsix_export {
 site_distribution {
   GitHub Pages deployment runs only when an `site/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the site workflow does not deploy on ordinary commits.
+  The static build embeds `/spec` via [site.spec_html_export], which needs the host `reqlan-napi` binary.
+  The site workflow therefore builds and stages the host native engine (`scripts/stage-host-native.mjs` with `REQLAN_FORCE_NATIVE_BUILD=1`) before `pnpm run build`.
   The implementation lives in ["../../.github/workflows/deploy-site.yml"].
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+  )
 }
 
 extension_distribution {

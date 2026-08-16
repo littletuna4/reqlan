@@ -59,6 +59,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Spec HTML export (`site/scripts/export-spec.mts`) loads the native
+      # analytical engine. Workspace optionalDependency packages are stubs
+      # until reqlan-napi is built and staged.
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+
+      - name: Build and stage host native engine
+        env:
+          REQLAN_FORCE_NATIVE_BUILD: "1"
+        run: node scripts/stage-host-native.mjs
+
       - name: Install Playwright Chromium
         working-directory: site
         run: pnpm exec playwright install --with-deps chromium

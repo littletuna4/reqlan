@@ -31,10 +31,11 @@
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.12.1",
-        "zod": "^3.24.2",
-        "@reqlan/analytical": "workspace:*"
+        "@reqlan/analytical": "workspace:*",
+        "zod": "^3.24.2"
     },
     "devDependencies": {
+        "@types/node": "^26.2.0",
         "shx": "~0.4.0"
     }
 }
