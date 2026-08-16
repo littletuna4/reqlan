@@ -29,7 +29,8 @@ incremental_extension_build {
     Webview output fingerprints cover each complete emitted directory, including future lazy chunks. Host-bundle inputs include bundled phonebook data as well as workspace package output.
     TypeScript retains its native `tsc -b` project-reference incrementality.
     TextMate syntax copies are cached by content; Cursor-skill sync still runs because it targets workspace-external state.
-    `pnpm run build:force` / `node scripts/build.mjs --force` bypasses all cache entries; `vscode:prepublish` uses this forced mode for release correctness.
+    `pnpm run build:force` / `node scripts/build.mjs --force` bypasses all cache entries.
+    `vscode:prepublish` uses forced mode with `--skip-native` so `vsce package --target` cannot replace a staged per-target `native/` with the packaging agent's host binary ([distribution.vsix_export]).
     `clean` removes `out/`, including the cache, so clean builds remain cold.
     Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
     @tests (

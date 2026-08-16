@@ -72,6 +72,12 @@ describe('native platform packaging', () => {
         expect(azure).toContain('package-extension-targets.mjs');
         expect(azure).toContain('fetch-native-packages.mjs');
         expect(azure).toContain('ensure-host-native.mjs');
+        const packScript = readFileSync(join(root, 'scripts/package-extension-targets.mjs'), 'utf8');
+        expect(packScript).toContain('assertPackedNativeTarget');
+        const extPkg = JSON.parse(
+            readFileSync(join(root, 'packages/extension/package.json'), 'utf8')
+        ) as { scripts: Record<string, string> };
+        expect(extPkg.scripts['vscode:prepublish']).toContain('--skip-native');
         const deployNpm = readFileSync(join(root, '.github/workflows/deploy-npm.yml'), 'utf8');
         expect(deployNpm).toContain('--publish-versions');
         expect(deployNpm).toMatch(/prepare-native-packages\.mjs --publish-versions/);

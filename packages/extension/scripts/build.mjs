@@ -13,6 +13,8 @@ const repoRoot = resolve(extensionRoot, '../..');
 const cachePath = join(extensionRoot, 'out', '.extension-build-cache.json');
 const cacheVersion = 1;
 const force = process.argv.includes('--force') || process.env.REQLAN_BUILD_FORCE === '1';
+const skipNative =
+    process.argv.includes('--skip-native') || process.env.REQLAN_SKIP_NATIVE_STAGE === '1';
 
 const fromExtension = (...parts) => join(extensionRoot, ...parts);
 const fromRepo = (...parts) => join(repoRoot, ...parts);
@@ -106,10 +108,14 @@ const steps = [
         name: 'type-check extension TypeScript sources',
         command: 'node ../../node_modules/typescript/bin/tsc -b tsconfig.json',
     },
-    {
-        name: 'stage host native analytical engine',
-        command: 'node ../../scripts/stage-host-native.mjs',
-    },
+    ...(skipNative
+        ? []
+        : [
+              {
+                  name: 'stage host native analytical engine',
+                  command: 'node ../../scripts/stage-host-native.mjs',
+              },
+          ]),
     {
         name: 'bundle Ideas Summary webview',
         command: 'npx vite build --config webviews/ideas-summary/vite.config.ts',

@@ -1,6 +1,8 @@
 /**
  * Stage one host-matching native package into the extension tree for VSIX packaging,
  * then run `vsce package --target <tuple> --no-dependencies` for each (or one) target.
+ * `vscode:prepublish` rebuilds JS with `--skip-native` so it cannot overwrite the
+ * staged per-target `native/` with the packaging agent's host binary.
  *
  * Usage:
  *   node scripts/package-extension-targets.mjs
@@ -82,6 +84,36 @@ function stageNative(target) {
     console.log(`staged ${srcBinary} → ${destBinary} (${target.vsCodeTarget})`);
 }
 
+function readZipEntry(zipPath, entryPath) {
+    const python = process.platform === 'win32' ? 'python' : 'python3';
+    const script =
+        'import zipfile,sys; sys.stdout.buffer.write(zipfile.ZipFile(sys.argv[1]).read(sys.argv[2]))';
+    const result = spawnSync(python, ['-c', script, zipPath, entryPath]);
+    if (result.status === 0 && result.stdout && result.stdout.length > 0) {
+        return Buffer.from(result.stdout).toString('utf8');
+    }
+    const unzip = spawnSync('unzip', ['-p', zipPath, entryPath], { encoding: 'utf8' });
+    if (unzip.status === 0 && unzip.stdout) {
+        return unzip.stdout;
+    }
+    throw new Error(
+        `Could not read ${entryPath} from ${zipPath}: ${result.stderr?.toString() || unzip.stderr || 'no unzip/python'}`
+    );
+}
+
+function assertPackedNativeTarget(vsixPath, vsCodeTarget) {
+    const raw = readZipEntry(vsixPath, 'extension/native/target.json');
+    const meta = JSON.parse(raw);
+    if (meta.vsCodeTarget !== vsCodeTarget) {
+        throw new Error(
+            `VSIX ${vsixPath} has native/target.json vsCodeTarget=${meta.vsCodeTarget}, ` +
+                `expected ${vsCodeTarget}. vscode:prepublish must not restage the host native addon ` +
+                `during per-target packaging.`
+        );
+    }
+    console.log(`verified ${vsixPath} native target ${vsCodeTarget}`);
+}
+
 function runVsce(args) {
     const result = spawnSync('pnpm', ['exec', 'vsce', ...args], {
         cwd: extensionDir,
@@ -120,6 +152,7 @@ for (const target of targets) {
         '--out',
         outPath,
     ]);
+    assertPackedNativeTarget(outPath, target.vsCodeTarget);
     console.log(`packaged ${outPath}`);
 
     if (doPublish) {

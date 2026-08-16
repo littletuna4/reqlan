@@ -162,10 +162,11 @@ vsix_export {
     constraints
       - Keep --no-dependencies for the bundled TS graph; stage only the matching native package.
       - Prefer consuming native artifacts from npm platform packages published on analytical/v* (["../../scripts/fetch-native-packages.mjs"]).
+      - `vscode:prepublish` must not restage the host native addon (`--skip-native`); each VSIX `native/target.json` must equal that VSIX `--target`.
 
     steps
       1. Stage matching `@reqlan/analytical-<platform>-<arch>` into extension `native/` before vsce. (done)
-      2. Package with `vsce package --target <tuple> --no-dependencies` for each [native_targets] entry. (done)
+      2. Package with `vsce package --target <tuple> --no-dependencies` for each [native_targets] entry; skip native restage in vscode:prepublish; verify packed `native/target.json`. (done)
       3. Publish each target to Marketplace and Open VSX ([extension_distribution], [openvsx_registry]).
   }
 }
