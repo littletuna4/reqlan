@@ -1,24 +1,16 @@
 /**
  * Barrel a large `.rq` page into a container that imports one file per top-level idea.
- * Shared by CLI `barrel`, extension code action / command, and other headless tools.
+ * The plan is computed by the native engine (`reqlan-parse`); this module only performs
+ * the filesystem writes. Shared by CLI `barrel`, the extension code action, and headless tools.
  *
  * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
  * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
-import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
-import {
-    createReqlanServices,
-    fileBasenameAlias,
-    ideaDeclarationText,
-    isIdeaSet,
-    isModel,
-    isRefactorIdeaDeclaration,
-    type Model,
-    type RefactorIdeaDeclaration
-} from '@reqlan/language';
+import { loadNativeEngine } from '../native/load-native.js';
 
 export interface BarrelPagePlanOptions {
     /** Container idea name; defaults to sanitized source file basename. */
@@ -62,92 +54,26 @@ export async function planBarrelPage(
     sourceText: string,
     options: BarrelPagePlanOptions = {}
 ): Promise<BarrelPagePlan> {
-    const services = createReqlanServices(EmptyFileSystem);
-    const sourceFileName = options.sourceFileName ?? 'page.rq';
-    const document = services.shared.workspace.LangiumDocumentFactory.fromString(
-        sourceText,
-        URI.parse(`file:///barrel-plan/${encodeURIComponent(sourceFileName)}`)
-    ) as LangiumDocument<Model>;
-    services.shared.workspace.LangiumDocuments.addDocument(document);
-    await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
-
-    const model = document.parseResult.value;
-    if (!isModel(model)) {
-        throw new Error('Failed to parse reqlan document for barrel page.');
-    }
-
-    const ideas: RefactorIdeaDeclaration[] = [];
-    const ideasetTexts: string[] = [];
-    for (const element of model.elements) {
-        if (isRefactorIdeaDeclaration(element)) {
-            ideas.push(element);
-        } else if (isIdeaSet(element)) {
-            const text = element.$cstNode
-                ? document.textDocument.getText(element.$cstNode.range)
-                : undefined;
-            if (text) {
-                ideasetTexts.push(text.trimEnd());
-            }
-        }
-    }
-
-    if (ideas.length === 0) {
-        throw new Error('Barrel page requires at least one top-level idea.');
-    }
-
-    const containerName =
-        options.containerName?.trim()
-        || fileBasenameAlias(sourceFileName);
-    if (!containerName) {
-        throw new Error('Container idea name must not be empty.');
-    }
-    if (ideas.some(idea => idea.name === containerName)) {
+    const engine = loadNativeEngine();
+    if (typeof engine.barrelPagePlan !== 'function') {
         throw new Error(
-            `Container name "${containerName}" conflicts with an idea being barreled; choose a different --name.`
+            'Native barrelPagePlan is missing; rebuild crates/reqlan-napi (cargo build -p reqlan-napi).'
         );
     }
-
-    const siblingNames = new Set(ideas.map(idea => idea.name));
-    const importPreamble = extractImportPreamble(document, model);
-
-    const children: BarrelPageChildPlan[] = ideas.map(idea => {
-        const declaration = ideaDeclarationText(document, idea);
-        if (!declaration) {
-            throw new Error(`Could not read declaration text for idea "${idea.name}".`);
-        }
-        const { text: rewritten, neededSiblings } = rewriteSiblingRefs(
-            declaration.trimEnd(),
-            idea.name,
-            siblingNames
-        );
-        const siblingImports = neededSiblings
-            .map(name => `import "./${name}.rq" as ${name}`)
-            .join('\n');
-        const parts = [importPreamble.trimEnd(), siblingImports, rewritten]
-            .filter(part => part && part.length > 0);
-        return {
-            ideaName: idea.name,
-            fileName: `${idea.name}.rq`,
-            content: `${parts.join('\n\n')}\n`
-        };
-    });
-
-    const importLines = children
-        .map(child => `import "./${child.fileName}" as ${child.ideaName}`)
-        .join('\n');
-    const memberRefs = children
-        .map(child => `    [${child.ideaName}.${child.ideaName}]`)
-        .join('\n');
-    const preservedBlock =
-        ideasetTexts.length > 0 ? `\n\n${ideasetTexts.join('\n\n')}` : '';
-    const containerContent =
-        `${importLines}\n\n${containerName} {\n${memberRefs}\n}${preservedBlock}\n`;
-
+    const plan = engine.barrelPagePlan(
+        sourceText,
+        options.containerName,
+        options.sourceFileName ?? 'page.rq'
+    ) as BarrelPagePlan;
     return {
-        containerName,
-        containerContent,
-        children,
-        preservedIdeasets: ideasetTexts
+        containerName: plan.containerName,
+        containerContent: plan.containerContent,
+        children: plan.children.map(child => ({
+            ideaName: child.ideaName,
+            fileName: child.fileName,
+            content: child.content
+        })),
+        preservedIdeasets: plan.preservedIdeasets
     };
 }
 
@@ -202,24 +128,10 @@ export async function barrelPage(
     };
 }
 
-function extractImportPreamble(document: LangiumDocument, model: Model): string {
-    if (model.imports.length === 0) {
-        return '';
-    }
-    const first = model.imports[0]?.$cstNode?.range.start;
-    const last = model.imports[model.imports.length - 1]?.$cstNode?.range.end;
-    if (!first || !last) {
-        return '';
-    }
-    return document.textDocument.getText({
-        start: { line: first.line, character: 0 },
-        end: last
-    });
-}
-
 /**
  * Rewrite same-file sibling idea refs `[other]` to `[other.other]` and record needed imports.
- * Leaves wiki links `[[...]]` and already-qualified refs untouched.
+ * Leaves wiki links `[[...]]` and already-qualified refs untouched. Pure text helper mirrored
+ * in the native barrel engine; kept in TS for webview edits and re-use without a native round-trip.
  */
 export function rewriteSiblingRefs(
     text: string,

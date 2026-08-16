@@ -1,18 +1,14 @@
-export { createAnalyticalStore } from './core/analytical-store.js';
 export type {
-    AnalyticalState,
-    AnalyticalStore,
-    AnalyticalStoreState,
-    AnalysisRun,
     DocumentUpdate,
     DocumentUpdateIdea,
     IndexError,
+    IndexEvent,
     FileIndexIssue,
     IndexState,
     WorkspaceChange,
     WorkspaceFileChange
-} from './core/analytical-store.js';
-export type { IndexErrorPhase } from './core/analytical-store.js';
+} from './core/index-state-types.js';
+export type { IndexErrorPhase } from './core/index-state-types.js';
 export { toIndexErrorDetail, toFileIndexIssueView, errorCauseMessage } from './core/index-error.js';
 export type { IndexErrorDetail, FileIndexIssueView } from './core/index-error.js';
 export {
@@ -20,6 +16,11 @@ export {
     resolveWorkspaceFileUri,
     toWorkspaceRelativePath
 } from './core/workspace-paths.js';
+export {
+    fileUriFromFsPath,
+    fsPathFromFileUri,
+    isWindowsAbsolutePath
+} from './core/path-relative.js';
 export {
     APPLICATION_MEMORY_DIR,
     CONFIG_FILENAME,
@@ -66,62 +67,6 @@ export type { BaseDescriptor } from './core/base-discovery.js';
 export { BaseRegistry } from './index-store/base-registry.js';
 export type { BaseStatusEntry, RegisteredBase } from './index-store/base-registry.js';
 export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
-export type { Analyser, AnalyserContext } from './analysis/analyser-registry.js';
-export { AnalyserRegistry } from './analysis/analyser-registry.js';
-export { listAllIdeasAnalyser } from './analysis/list-ideas-analyser.js';
-export { fileRelatedAnalyser } from './analysis/file-related-analyser.js';
-export { deprecationImpactAnalyser } from './analysis/deprecation-impact-analyser.js';
-export { gitDatesAnalyser } from './analysis/git-dates-analyser.js';
-export type { GitDateInfo } from './analysis/git-dates-analyser.js';
-export { completionTrackingAnalyser } from './analysis/completion-tracking-analyser.js';
-export { localGraphAnalyser } from './analysis/local-graph-analyser.js';
-export { semanticSearchAnalyser } from './analysis/semantic-search-analyser.js';
-export {
-    applyContextDistanceScoring,
-    CONTEXT_UNREACHABLE_HOP,
-    normalizeContextRef,
-    rerankMatchesWithContext,
-    resolveSearchContextRefs
-} from './analysis/contextual-search.js';
-export type { SearchContextIndex, SearchContextStore } from './analysis/contextual-search.js';
-export { fuzzySearchAnalyser } from './analysis/fuzzy-search-analyser.js';
-export type { FuzzySearchParams } from './analysis/fuzzy-search-analyser.js';
-export { fileSearchAnalyser } from './analysis/file-search-analyser.js';
-export type { FileSearchParams } from './analysis/file-search-analyser.js';
-export {
-    fileBasename,
-    filterAndScoreFiles,
-    filterAndScoreIdeas,
-    filterAndScoreIdeasAsync,
-    paginateHits,
-    searchIndex,
-    findSearchHighlightRanges,
-    fuzzySubsequence,
-    matchQueryTokens,
-    normalizeSearchSeparators,
-    splitSearchHighlight,
-    splitSearchTokens
-} from './analysis/fuzzy-search.js';
-export type {
-    FuzzySearchHit,
-    FuzzySearchPage,
-    SearchHighlightOptions,
-    SearchHighlightPart,
-    SearchHighlightRange,
-    SearchIndexOptions
-} from './analysis/fuzzy-search.js';
-export {
-    FuzzySearchWorkerClient,
-    SearchCancelledError,
-    resolveFuzzySearchWorkerPath
-} from './analysis/fuzzy-search-worker-client.js';
-export type {
-    FuzzySearchWorkerIdea,
-    FuzzySearchWorkerInbound,
-    FuzzySearchWorkerOutbound
-} from './analysis/fuzzy-search-worker.js';
-export type { FuzzySearchWorkerSearchResult } from './analysis/fuzzy-search-worker-client.js';
-export { extractIndexedDocument } from './index-store/idea-extractor.js';
 export { SqliteIndexStore } from './index-store/sqlite-store.js';
 export type {
     IdeasTableQuery,
@@ -155,31 +100,7 @@ export type {
     GraphEdgeView,
     GraphTruncationBasis
 } from './index-store/webview-graph-queries.js';
-export {
-    applyFileTreatment,
-    cycleFileTreatment,
-    DEFAULT_FILE_TREATMENT,
-    FILE_TREATMENT_MODES,
-    FILE_TREATMENT_OPTIONS,
-    fileCompoundNodeId,
-    fileIdeasetDisplayName,
-    fileIdeasetNodeId,
-    fileTreatmentLabel,
-    fileTreatmentOption,
-    fileUriFromFileCompoundId,
-    fileUriFromFileIdeasetId,
-    isFileIdeasetNode,
-    isFileIdeasetNodeId,
-    normalizeFileTreatment
-} from './index-store/file-treatment.js';
-export type { FileTreatment, FileTreatmentOption } from './index-store/file-treatment.js';
-export {
-    computeOverviewCoverageScores
-} from './index-store/overview-coverage.js';
-export type {
-    OverviewCoverageScores,
-    ComputeOverviewCoverageOptions
-} from './index-store/overview-coverage.js';
+export type { OverviewCoverageScores } from './native/native-workspace-index.js';
 export {
     GRAPH_MAX_NODES,
     GRAPH_NODES_HARD_CAP,
@@ -198,77 +119,6 @@ export {
     ACTIVITY_BAR_MAX_NODES,
     BLOCKING_STATUSES
 } from './core/types.js';
-export type {
-    ActivityBarScope,
-    AncestorChainResult,
-    CurrentFileSlice,
-    IdeaWithRange,
-    OutlineNode,
-    ReferenceListRow,
-    ReqlanContextModel,
-    ContextAnomaly,
-    ContextDimensionContribution,
-    ContextDimensionId,
-    ContextFileEntry,
-    ContextFocus,
-    ContextFootprint,
-    GitAuthorRollup,
-    GitContextSlice,
-    GitFocusStats,
-    GitFocusCommit,
-    GitPeerChangeRate,
-    WorkspaceBaseGlance,
-    WorkspaceContextSlice
-} from './core/types.js';
-export type {
-    ContextFileLensDetail,
-    ContextReferencesSlice,
-    ContextSelection
-} from './core/context-model.js';
-export {
-    CONTEXT_DIMENSION_LABELS,
-    CONTEXT_DIMENSION_WEIGHTS,
-    CONTEXT_GRAPH_SEARCH_DIMENSIONS,
-    DEFAULT_ENABLED_DIMENSIONS
-} from './core/context-model.js';
-export {
-    buildAiReadiness,
-    buildContextFingerprint,
-    buildFocusSignals,
-    CONTEXT_FINGERPRINT_AXIS_HELP,
-    CONTEXT_FINGERPRINT_HELP,
-    emptyContextSignals,
-    emptyContextSynthesis,
-    fingerprintAxisTooltip,
-    formatAiReadinessMarkdown,
-    formatFingerprintMarkdown,
-    formatSynthesisMarkdown,
-    hopDistancesFromCenter,
-    hopDistancesFromCenters,
-    hotspotBandFromRisk,
-    hotspotBorderColor,
-    hotspotBorderWidth,
-    impactOpacityForHopDistance,
-    requirementCardCue,
-    synthesizeFocusContext,
-    thinChurnIntensity,
-    timelineMilestones
-} from './core/context-signals.js';
-export type {
-    AiReadiness,
-    ContextCoverageLevel,
-    ContextFingerprintAxes,
-    ContextHotspotBand,
-    ContextRiskLevel,
-    ContextSignals,
-    ContextSynthesis,
-    DevelopmentHistorySignals,
-    FocusSignalInput,
-    LifecycleSignals,
-    QualitySignals,
-    RelationshipSignals,
-    RiskSignals
-} from './core/context-signals.js';
 export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
 export type { IdeaReferenceStore } from './core/idea-references.js';
 export * from './core/types.js';
@@ -293,6 +143,7 @@ export {
 export type { AttributePresence } from './core/filter-specials.js';
 export { WorkspaceIndex, WorkspaceIndex as HeadlessIndexService } from './index-store/workspace-index.js';
 export type { FuzzySearchResult, IdleCheckResult } from './index-store/workspace-index.js';
+export type { FuzzySearchHit } from './index-store/fuzzy-search-hit.js';
 export type { IndexStatusSnapshot, IndexSyncProgress } from './index-store/index-status.js';
 export {
     IndexDiagnosticsStore,
@@ -308,7 +159,6 @@ export type {
     IndexTimingTrigger
 } from './index-store/index-diagnostics-store.js';
 export {
-    collectParseIssues,
     fileIssue,
     fileIssueFromError,
     unnamedIdeaIssues,
@@ -321,15 +171,13 @@ export {
     recordCaughtIndexError,
     toFileIndexIssueDraft
 } from './index-store/index-file-error.js';
-export {
-    activateAnalysisRuntime,
-    createAnalysisRuntime,
-    deactivateAnalysisRuntime
-} from './create-runtime.js';
-export type { AnalysisRuntime, AnalysisRuntimeOptions } from './create-runtime.js';
-export { AnalysisApi } from './analysis-api.js';
-export type { InteractionDescriptor, RequirementMatch, SearchRequirementsOptions } from './analysis-api.js';
 export { NativeAnalysisApi } from './native/native-analysis-api.js';
+export type {
+    AnalysisRuntimeOptions,
+    InteractionDescriptor,
+    RequirementMatch,
+    SearchRequirementsOptions
+} from './native/native-analysis-api.js';
 export {
     openAnalysisApi,
     type HeadlessAnalysisApi,
@@ -367,16 +215,3 @@ export type {
     ExportScope,
     ExportSnapshot
 } from './export/types.js';
-export {
-    DEFAULT_PHYSICS_SETTINGS,
-    ReqlanGraphPhysics,
-    accumulateForces,
-    hashAngle,
-    integrateFromForces,
-    stepPhysics
-} from './graph/physics-core.js';
-export type {
-    PhysicsCoreSettings,
-    PhysicsEdge,
-    PhysicsStepState
-} from './graph/physics-core.js';

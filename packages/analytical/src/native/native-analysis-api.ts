@@ -3,7 +3,6 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
  */
-import type { AnalysisRuntimeOptions } from '../create-runtime.js';
 import type {
     CompletionSummary,
     DeprecationImpact,
@@ -12,7 +11,6 @@ import type {
     IdeaSummary
 } from '../core/types.js';
 import type { ExportProgressCallback, ExportRequest, ExportResult } from '../export/types.js';
-import type { InteractionDescriptor, RequirementMatch, SearchRequirementsOptions } from '../analysis-api.js';
 import { loadNativeEngine, type NativeAnalysisRuntimeHandle } from './load-native.js';
 import type {
     CompletionSummary as NativeCompletionSummary,
@@ -24,6 +22,28 @@ import type {
     IdeaSummary as NativeIdeaSummary,
     RequirementMatch as NativeRequirementMatch
 } from './generated.js';
+
+export interface AnalysisRuntimeOptions {
+    workspaceRoot: string;
+    storagePath?: string;
+}
+
+export interface RequirementMatch {
+    idea: IdeaSummary;
+    score?: number;
+    reasons?: string[];
+}
+
+export interface SearchRequirementsOptions {
+    /** Relative `.rq` paths, `path#idea` refs, or bare idea names that bias ranking by hop distance. */
+    context?: string[];
+}
+
+export interface InteractionDescriptor {
+    name: string;
+    description: string;
+    parameters: Record<string, string>;
+}
 
 export class NativeAnalysisApi {
     private readonly native: NativeAnalysisRuntimeHandle;

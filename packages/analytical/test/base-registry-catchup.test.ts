@@ -46,9 +46,9 @@ describe('BaseRegistry catch-up', () => {
         expect(await registry.ensureBaseReady(descriptor.id, files)).toBe(true);
 
         const entry = registry.get(descriptor.id)!;
-        const updates = entry.store.getState().documentUpdates.length;
+        const updates = entry.index.getStatusSnapshot().recentDocumentUpdates.length;
         expect(await registry.ensureBaseReady(descriptor.id, files)).toBe(true);
-        expect(entry.store.getState().documentUpdates.length).toBe(updates);
+        expect(entry.index.getStatusSnapshot().recentDocumentUpdates.length).toBe(updates);
 
         await registry.deactivateAll();
     });

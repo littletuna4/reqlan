@@ -1,4 +1,4 @@
-import type { DocumentUpdate, IndexState, WorkspaceFileChange } from '../core/analytical-store.js';
+import type { DocumentUpdate, IndexState, WorkspaceFileChange } from '../core/index-state-types.js';
 import type { FileIndexIssueView, IndexErrorDetail } from '../core/index-error.js';
 
 export interface IndexSyncProgress {

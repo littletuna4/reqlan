@@ -5,11 +5,12 @@
 import * as vscode from 'vscode';
 import {
     BaseRegistry,
+    NativeAnalysisApi,
     baseForPath,
     createBase as createBaseMarker,
     isIgnoredPath,
     loadRqIgnore,
-    type AnalyticalStore,
+    resolveApplicationMemoryPath,
     type BaseDescriptor,
     type BaseStatusEntry,
     type IndexStatusSnapshot,
@@ -38,6 +39,7 @@ const IDLE_UNFOCUSED_MS = 10_000;
 
 export class IndexService {
     private readonly registry = new BaseRegistry();
+    private readonly analysisApis = new Map<string, NativeAnalysisApi>();
     private watcher?: vscode.FileSystemWatcher;
     private codeWatcher?: vscode.FileSystemWatcher;
     private markerWatcher?: vscode.FileSystemWatcher;
@@ -52,12 +54,6 @@ export class IndexService {
     private idleSyncActive = false;
     /** Coalesced open+soft-sync nudges keyed by base id (pin / path activate). */
     private readonly catchUpInFlight = new Map<string, Promise<void>>();
-
-    constructor(
-        /** @deprecated Prefer per-base stores via the registry; kept for AnalyticalSubmodule typing. */
-        readonly sharedStore: AnalyticalStore,
-        _legacyStoragePath?: string
-    ) {}
 
     get discoveryEmpty(): boolean {
         return this.registry.size === 0;
@@ -157,13 +153,46 @@ export class IndexService {
         return entry.index.fuzzySearch(query, options);
     }
 
-    /** Analytical store for the active base (isolated per base). */
-    get store(): AnalyticalStore {
+    /**
+     * Native git-dates fill for the active base (all missing when `ideaIds` omitted).
+     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     */
+    fillGitDates(ideaIds?: string[]): number {
         const entry = this.getActiveBase();
-        if (!entry) {
-            return this.sharedStore;
+        if (!entry?.index.isReady) {
+            return 0;
         }
-        return entry.store;
+        return entry.index.fillGitDates(ideaIds);
+    }
+
+    /**
+     * Native Ideas Summary overview coverage for the active base.
+     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     */
+    computeOverviewCoverage() {
+        const entry = this.getActiveBase();
+        if (!entry?.index.isReady) {
+            throw new Error('Index is not ready yet.');
+        }
+        return entry.index.computeOverviewCoverage();
+    }
+
+    /** Native graph-analysis facade for the selected base. */
+    async getAnalysisApi(baseId?: string): Promise<NativeAnalysisApi> {
+        const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
+        if (!entry) {
+            throw new Error('No reqlan base is active. Create a .reqlan folder to initialize a base.');
+        }
+        let api = this.analysisApis.get(entry.descriptor.id);
+        if (!api) {
+            api = new NativeAnalysisApi({
+                workspaceRoot: entry.descriptor.root,
+                storagePath: resolveApplicationMemoryPath(entry.descriptor.root)
+            });
+            this.analysisApis.set(entry.descriptor.id, api);
+        }
+        await api.ensureReady();
+        return api;
     }
 
     getStatusSnapshot(baseId?: string): IndexStatusSnapshot {
@@ -272,6 +301,7 @@ export class IndexService {
     deactivate(): void {
         this.clearIdleTimer();
         void this.registry.deactivateAll();
+        this.analysisApis.clear();
         this.rewireRegistryListeners();
         this.watcher?.dispose();
         this.watcher = undefined;

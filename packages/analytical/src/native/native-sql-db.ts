@@ -8,7 +8,83 @@ import { dirname } from 'node:path';
 import { loadNativeEngine } from './load-native.js';
 import type { NativeWorkspaceIndex } from './native-workspace-index.js';
 
-export interface NativeSqlDbHandle {
+/**
+ * Typed webview table/graph query surface implemented natively (reqlan-index queries.rs).
+ * Returns raw SQL rows; TS presentation mappers shape them into view rows.
+ */
+/** Outbound + inbound raw reference rows for a single idea (both joined to ideas). */
+export interface NativeReferenceBundle {
+    outbound: Record<string, unknown>[];
+    inbound: Record<string, unknown>[];
+}
+
+export interface NativeQuerySurface {
+    countIdeas(query: unknown): number;
+    listIdeasPageRows(query: unknown): Record<string, unknown>[];
+    listReferenceChipRows(ideaIds: string[]): Record<string, unknown>[];
+    countIdeasets(query: unknown): number;
+    listIdeasetsPageRows(query: unknown): Record<string, unknown>[];
+    listIdeasetMemberRows(
+        ideasetId: string,
+        kind: string,
+        fileUri: string
+    ): Record<string, unknown>[];
+    countReferences(query: unknown): number;
+    listReferencesPageRows(query: unknown): Record<string, unknown>[];
+    listTodoIdeaRows(): Record<string, unknown>[];
+    listIdeasForGraphQuery(
+        query: unknown,
+        limit: number
+    ): { rows: Record<string, unknown>[]; totalMatching: number };
+    listRecentGitIdeaRows(limit: number): Record<string, unknown>[];
+    listIdeaIdsMissingGitDates(limit: number, fileUri?: string, preferFileUri?: string): string[];
+    listAttributeIdeaRows(): Record<string, unknown>[];
+
+    // ---- typed domain read/write surface (reqlan-index queries.rs) --------------
+    migrateIdeasSchema(): void;
+    getDocumentHash(fileUri: string): string | null;
+    getDocumentMtimeMs(fileUri: string): number | null;
+    listDocumentMtimeRows(): Record<string, unknown>[];
+    listDocumentUris(): string[];
+    listAllIdeaRows(): Record<string, unknown>[];
+    getIdeaRow(id: string): Record<string, unknown> | null;
+    getIdeasInFileRows(fileUri: string): Record<string, unknown>[];
+    getIdeaAtLineRow(fileUri: string, line: number): Record<string, unknown> | null;
+    getIdeasetAtLineRow(fileUri: string, line: number): Record<string, unknown> | null;
+    listIdeasInFileWithRangeRows(fileUri: string): Record<string, unknown>[];
+    listIdeasetsInFileWithRangeRows(fileUri: string): Record<string, unknown>[];
+    getIdeasByIdsRows(ids: string[]): Record<string, unknown>[];
+    searchIdeaRows(search: string): Record<string, unknown>[];
+    listReferencesForIdea(ideaId: string): NativeReferenceBundle;
+    countUnresolvedForIdea(ideaId: string): number;
+    countEdgesFromFile(fileUri: string): number;
+    getEdgesFromRows(sourceId: string): Record<string, unknown>[];
+    getEdgesToRows(targetId: string): Record<string, unknown>[];
+    getEdgesForNodesRows(nodeIds: string[]): Record<string, unknown>[];
+    getEdgesReferencingFileRows(filePath: string): Record<string, unknown>[];
+    getAllEdgeRows(): Record<string, unknown>[];
+    listFileReferenceTargetRows(): Record<string, unknown>[];
+    allIdeaRawRows(): Record<string, unknown>[];
+    counts(): { ideas: number; edges: number };
+    updateDocumentMtime(fileUri: string, mtimeMs: number): void;
+    updateGitDates(
+        id: string,
+        createdAt?: string,
+        modifiedAt?: string,
+        changeCount?: number
+    ): void;
+    clearAll(): void;
+    removeDocuments(fileUris: string[]): void;
+    upsertDocument(
+        fileUri: string,
+        contentHash: string,
+        ideas: unknown,
+        edges: unknown,
+        mtimeMs?: number
+    ): void;
+}
+
+export interface NativeSqlDbHandle extends NativeQuerySurface {
     query(sql: string, params?: unknown[]): Record<string, unknown>[];
     execute(sql: string, params?: unknown[]): number;
     executeBatch(sql: string): void;
@@ -79,6 +155,200 @@ export class NativeSqlConnection {
 
     lastInsertRowid(): number {
         return this.handle.lastInsertRowid();
+    }
+
+    // ---- typed webview table/graph query surface (native SQL builders) ----------
+
+    countIdeas(query: unknown): number {
+        return this.handle.countIdeas(query);
+    }
+
+    listIdeasPageRows(query: unknown): Record<string, unknown>[] {
+        return this.handle.listIdeasPageRows(query);
+    }
+
+    listReferenceChipRows(ideaIds: string[]): Record<string, unknown>[] {
+        return this.handle.listReferenceChipRows(ideaIds);
+    }
+
+    countIdeasets(query: unknown): number {
+        return this.handle.countIdeasets(query);
+    }
+
+    listIdeasetsPageRows(query: unknown): Record<string, unknown>[] {
+        return this.handle.listIdeasetsPageRows(query);
+    }
+
+    listIdeasetMemberRows(
+        ideasetId: string,
+        kind: string,
+        fileUri: string
+    ): Record<string, unknown>[] {
+        return this.handle.listIdeasetMemberRows(ideasetId, kind, fileUri);
+    }
+
+    countReferences(query: unknown): number {
+        return this.handle.countReferences(query);
+    }
+
+    listReferencesPageRows(query: unknown): Record<string, unknown>[] {
+        return this.handle.listReferencesPageRows(query);
+    }
+
+    listTodoIdeaRows(): Record<string, unknown>[] {
+        return this.handle.listTodoIdeaRows();
+    }
+
+    listIdeasForGraphQuery(
+        query: unknown,
+        limit: number
+    ): { rows: Record<string, unknown>[]; totalMatching: number } {
+        return this.handle.listIdeasForGraphQuery(query, limit);
+    }
+
+    listRecentGitIdeaRows(limit: number): Record<string, unknown>[] {
+        return this.handle.listRecentGitIdeaRows(limit);
+    }
+
+    listIdeaIdsMissingGitDates(limit: number, fileUri?: string, preferFileUri?: string): string[] {
+        return this.handle.listIdeaIdsMissingGitDates(limit, fileUri, preferFileUri);
+    }
+
+    listAttributeIdeaRows(): Record<string, unknown>[] {
+        return this.handle.listAttributeIdeaRows();
+    }
+
+    // ---- typed domain read/write surface (native SQL) ---------------------------
+
+    migrateIdeasSchema(): void {
+        this.handle.migrateIdeasSchema();
+    }
+
+    getDocumentHash(fileUri: string): string | null {
+        return this.handle.getDocumentHash(fileUri);
+    }
+
+    getDocumentMtimeMs(fileUri: string): number | null {
+        return this.handle.getDocumentMtimeMs(fileUri);
+    }
+
+    listDocumentMtimeRows(): Record<string, unknown>[] {
+        return this.handle.listDocumentMtimeRows();
+    }
+
+    listDocumentUris(): string[] {
+        return this.handle.listDocumentUris();
+    }
+
+    listAllIdeaRows(): Record<string, unknown>[] {
+        return this.handle.listAllIdeaRows();
+    }
+
+    getIdeaRow(id: string): Record<string, unknown> | null {
+        return this.handle.getIdeaRow(id);
+    }
+
+    getIdeasInFileRows(fileUri: string): Record<string, unknown>[] {
+        return this.handle.getIdeasInFileRows(fileUri);
+    }
+
+    getIdeaAtLineRow(fileUri: string, line: number): Record<string, unknown> | null {
+        return this.handle.getIdeaAtLineRow(fileUri, line);
+    }
+
+    getIdeasetAtLineRow(fileUri: string, line: number): Record<string, unknown> | null {
+        return this.handle.getIdeasetAtLineRow(fileUri, line);
+    }
+
+    listIdeasInFileWithRangeRows(fileUri: string): Record<string, unknown>[] {
+        return this.handle.listIdeasInFileWithRangeRows(fileUri);
+    }
+
+    listIdeasetsInFileWithRangeRows(fileUri: string): Record<string, unknown>[] {
+        return this.handle.listIdeasetsInFileWithRangeRows(fileUri);
+    }
+
+    getIdeasByIdsRows(ids: string[]): Record<string, unknown>[] {
+        return this.handle.getIdeasByIdsRows(ids);
+    }
+
+    searchIdeaRows(search: string): Record<string, unknown>[] {
+        return this.handle.searchIdeaRows(search);
+    }
+
+    listReferencesForIdea(ideaId: string): NativeReferenceBundle {
+        return this.handle.listReferencesForIdea(ideaId);
+    }
+
+    countUnresolvedForIdea(ideaId: string): number {
+        return this.handle.countUnresolvedForIdea(ideaId);
+    }
+
+    countEdgesFromFile(fileUri: string): number {
+        return this.handle.countEdgesFromFile(fileUri);
+    }
+
+    getEdgesFromRows(sourceId: string): Record<string, unknown>[] {
+        return this.handle.getEdgesFromRows(sourceId);
+    }
+
+    getEdgesToRows(targetId: string): Record<string, unknown>[] {
+        return this.handle.getEdgesToRows(targetId);
+    }
+
+    getEdgesForNodesRows(nodeIds: string[]): Record<string, unknown>[] {
+        return this.handle.getEdgesForNodesRows(nodeIds);
+    }
+
+    getEdgesReferencingFileRows(filePath: string): Record<string, unknown>[] {
+        return this.handle.getEdgesReferencingFileRows(filePath);
+    }
+
+    getAllEdgeRows(): Record<string, unknown>[] {
+        return this.handle.getAllEdgeRows();
+    }
+
+    listFileReferenceTargetRows(): Record<string, unknown>[] {
+        return this.handle.listFileReferenceTargetRows();
+    }
+
+    allIdeaRawRows(): Record<string, unknown>[] {
+        return this.handle.allIdeaRawRows();
+    }
+
+    counts(): { ideas: number; edges: number } {
+        return this.handle.counts();
+    }
+
+    updateDocumentMtime(fileUri: string, mtimeMs: number): void {
+        this.handle.updateDocumentMtime(fileUri, mtimeMs);
+    }
+
+    updateGitDates(
+        id: string,
+        createdAt?: string,
+        modifiedAt?: string,
+        changeCount?: number
+    ): void {
+        this.handle.updateGitDates(id, createdAt, modifiedAt, changeCount);
+    }
+
+    clearAll(): void {
+        this.handle.clearAll();
+    }
+
+    removeDocuments(fileUris: string[]): void {
+        this.handle.removeDocuments(fileUris);
+    }
+
+    upsertDocument(
+        fileUri: string,
+        contentHash: string,
+        ideas: unknown,
+        edges: unknown,
+        mtimeMs?: number
+    ): void {
+        this.handle.upsertDocument(fileUri, contentHash, ideas, edges, mtimeMs);
     }
 
     assertHealthy(): void {

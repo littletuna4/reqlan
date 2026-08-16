@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/analytical",
-    "description": "Shared requirement graph index and analysers for reqlan",
+    "description": "Native requirement graph index and analysis API for reqlan",
     "version": "0.9.1",
     "type": "module",
     "license": "AGPL-3.0-only",
@@ -25,30 +25,6 @@
             "types": "./out/index.d.ts",
             "default": "./out/index.js"
         },
-        "./context-model": {
-            "types": "./out/core/context-model.d.ts",
-            "default": "./out/core/context-model.js"
-        },
-        "./context-signals": {
-            "types": "./out/core/context-signals.d.ts",
-            "default": "./out/core/context-signals.js"
-        },
-        "./graph-physics": {
-            "types": "./out/graph/physics-core.d.ts",
-            "default": "./out/graph/physics-core.js"
-        },
-        "./filter-specials": {
-            "types": "./out/core/filter-specials.d.ts",
-            "default": "./out/core/filter-specials.js"
-        },
-        "./file-treatment": {
-            "types": "./out/index-store/file-treatment.d.ts",
-            "default": "./out/index-store/file-treatment.js"
-        },
-        "./fuzzy-search": {
-            "types": "./out/analysis/fuzzy-search.d.ts",
-            "default": "./out/analysis/fuzzy-search.js"
-        },
         "./core": {
             "types": "./out/native/index.d.ts",
             "default": "./out/native/index.js"
@@ -60,7 +36,7 @@
     },
     "scripts": {
         "clean": "shx rm -fr *.tsbuildinfo out",
-        "build": "node scripts/generate-physics-core-source.mjs && tsc -b tsconfig.json",
+        "build": "tsc -b tsconfig.json",
         "build:clean": "pnpm run clean && pnpm run build",
         "test": "vitest run"
     },
@@ -68,10 +44,7 @@
         "vitest": "~3.1.3"
     },
     "dependencies": {
-        "@reqlan/language": "workspace:*",
-        "ignore": "^7.0.6",
-        "langium": "~4.3.0",
-        "zustand": "~5.0.8"
+        "ignore": "^7.0.6"
     },
     "optionalDependencies": {
         "@reqlan/analytical-win32-x64-msvc": "workspace:*",

@@ -4,12 +4,14 @@
  */
 import {
     clampGraphHopDepth,
-    CONTEXT_GRAPH_SEARCH_DIMENSIONS,
     CONTEXT_MAX_HOP_DEPTH,
     CONTEXT_MIN_HOP_DEPTH,
-    type ContextDimensionId,
     type IdeaSummary
 } from '@reqlan/analytical';
+import {
+    CONTEXT_GRAPH_SEARCH_DIMENSIONS,
+    type ContextDimensionId
+} from './lib/context-model.js';
 
 const MAX_HISTORY = 12;
 

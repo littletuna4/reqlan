@@ -1,10 +1,8 @@
 from "../modelling/advanced_analysis.rq" import pagerank, search_with_context, idea_graph_distance
 from "../extension/module/context-scope-v2.rq" import context_scope_v2
 import "../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
-import "../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
-import "../../packages/analytical/src/analysis/file-search-analyser.ts" as file_search_analyser
-import "../../packages/analytical/src/analysis/semantic-search-analyser.ts" as semantic_search_analyser
-import "../../packages/analytical/src/analysis/contextual-search.ts" as contextual_search_impl
+import "../../packages/analytical/src/native/native-analysis-api.ts" as native_analysis_api
+import "../../packages/analytical/src/native/native-workspace-index.ts" as native_workspace_index
 import "../../packages/cli/src/commands/search.ts" as search_cli
 
 search {
@@ -23,9 +21,8 @@ fuzzy_search {
     Ranking engine: ["./rust_port.rq".search_rust] `reqlan-search` (`fuzzy_search` / `search_ideas`).
     Also returns [file_search] hits mixed into the same ranked list (kind `file`).
     Pagination: [fuzzy_search_pages].
-    Activity-bar search calls native `NativeWorkspaceIndex.fuzzySearch` so the host never copies the idea catalog into JS.
+    Activity-bar search calls [native_workspace_index] `NativeWorkspaceIndex.fuzzySearch` so the host never copies the idea catalog into JS.
     Client-side highlight helpers stay in [fuzzy_search_impl] (`./fuzzy-search` export).
-    TS analyser [fuzzy_search_analyser] remains a fallback that still lists ideas in JS (and mixes [file_search]).
     @tests (
         ["../../packages/analytical/test/fuzzy-search.test.ts"]
         ["../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
@@ -63,7 +60,7 @@ fuzzy_search_pages {
     @implementation (
         ["../../crates/reqlan-search/src/fuzzy.rs"]
         ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
-        ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+        ["../../packages/analytical/src/native/native-workspace-index.ts"]
     )
     @tests (
         ["../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
@@ -80,14 +77,13 @@ file_search {
     Empty query does not dump the file catalog.
     Mixed into [fuzzy_search] so one list ranks ideas and files together.
     Code files are those persisted by ["../indexer/indexer.rq".index_code_files].
-    Surfaces: native `fuzzy_search`, TS [file_search_analyser], [search_pane.search_pane_file_hits].
+    Surfaces: native `fuzzy_search` via [native_workspace_index], [search_pane.search_pane_file_hits].
     @implementation (
         ["../../crates/reqlan-search/src/fuzzy.rs"]
         ["../../crates/reqlan-index/src/store.rs"]
         ["../../packages/analytical/src/index-store/sqlite-store.ts"]
         ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
-        ["../../packages/analytical/src/analysis/file-search-analyser.ts"]
-        ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+        ["../../packages/analytical/src/native/native-workspace-index.ts"]
     )
     @tests (
         ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
@@ -103,12 +99,10 @@ contextual_search {
     Search string plus an optional context list of relative `.rq` paths, `path#idea` refs, or bare idea names.
     Runs [semantic_search], then re-ranks with min undirected hop distance from any resolved context idea
     and exponential decay ([idea_graph_distance]): `finalScore = textScore * 2^(-minHop)` (unreachable floor = 8 hops).
-    Surfaces: `AnalysisApi.searchRequirements(..., { context })`, CLI `reqlan search --context` ([search_cli]),
-    and the shared helper [contextual_search_impl].
+    Surfaces: [native_analysis_api] `searchRequirements(..., { context })` and CLI `reqlan search --context` ([search_cli]).
     Implements [search_with_context]. PageRank ([pagerank]) and full [context_scope_v2] ingestion remain future work.
     Complements [fuzzy_search] when neighbourhood / context should bias ranking.
     @tests (
-        ["../../packages/analytical/test/contextual-search.test.ts"]
         ["../../packages/analytical/test/context-signals.test.ts"]
         ["../../crates/reqlan-search/tests/contextual.rs:nearer_ideas_rank_above_farther_with_equal_text_scores"]
         ["../../crates/reqlan-search/tests/contextual.rs:reranks_using_graph_edges_from_context_seeds"]
@@ -117,7 +111,7 @@ contextual_search {
 }
 
 semantic_search {
-    Broader token / edge-label search over candidates ([semantic_search_analyser]).
+    Broader token / edge-label search over candidates through [native_analysis_api].
     Prefer [fuzzy_search] for fast name-oriented lookup with separator-insensitive matching.
     @todo
 }

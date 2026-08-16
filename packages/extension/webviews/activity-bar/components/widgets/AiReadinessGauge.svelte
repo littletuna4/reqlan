@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { AiReadiness } from '@reqlan/analytical';
+    import type { AiReadiness } from '../../../../src/activity_bar_module/lib/context-signals.js';
 
     interface Props {
         readiness: AiReadiness;

@@ -2,17 +2,15 @@ import * as vscode from 'vscode';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { URI } from 'langium';
-import { NodeFileSystem } from 'langium/node';
+import { fsPathFromFileUri } from '@reqlan/analytical';
+import { extractIdeaNames } from '@reqlan/analytical/core';
 import type {
     ContextFileEntry,
     GitAuthorRollup,
     GitContextSlice,
     GitFocusCommit,
     GitFocusStats
-} from '@reqlan/analytical';
-import { extractIndexedDocument } from '@reqlan/analytical';
-import { createReqlanServices } from '@reqlan/language';
+} from './lib/context-model.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 import {
     buildGitSummary,
@@ -35,22 +33,6 @@ const execFileAsync = promisify(execFile);
 
 const FOCUS_COMMIT_LIMIT = 8;
 const GIT_LOG_TIMEOUT_MS = 4_000;
-
-/**
- * Lazily-created Langium services. Building these generates the parser from the
- * grammar (chevrotain) and wires the full LSP service graph — heavy synchronous
- * work that must never run at module-load time. Doing so here previously blocked
- * `require()` of the extension bundle (this module is on the import chain from
- * `main.ts` via the activity bar), so the extension host stalled before
- * `activate()` ran: the activity bar view never resolved and commands never
- * became available. Create the services on first actual use instead.
- */
-let reqlanServicesInstance: ReturnType<typeof createReqlanServices> | undefined;
-
-function getReqlanServices(): ReturnType<typeof createReqlanServices> {
-    reqlanServicesInstance ??= createReqlanServices({ ...NodeFileSystem });
-    return reqlanServicesInstance;
-}
 
 interface GitApiRepository {
     state: {
@@ -477,14 +459,7 @@ async function loadIdeaNamesAtRevision(
         return empty;
     }
     try {
-        const services = getReqlanServices();
-        const doc = services.shared.workspace.LangiumDocumentFactory.fromString(
-            text,
-            URI.file(absoluteRepoPath(repoRoot, repoPath))
-        );
-        await services.shared.workspace.DocumentBuilder.build([doc], { validation: false });
-        const extracted = extractIndexedDocument(doc);
-        const names = new Set((extracted?.ideas ?? []).map(idea => idea.name));
+        const names = new Set(extractIdeaNames(text));
         ideaPresenceCache.set(cacheKey, names);
         return names;
     } catch {
@@ -542,7 +517,7 @@ async function runGitLog(args: string[], cwd: string): Promise<GitFocusCommit[]>
 
 function fileUriToFsPath(fileUri: string, workspaceRoot: string): string {
     if (fileUri.startsWith('file://')) {
-        return URI.parse(fileUri).fsPath;
+        return fsPathFromFileUri(fileUri);
     }
     return path.isAbsolute(fileUri)
         ? fileUri

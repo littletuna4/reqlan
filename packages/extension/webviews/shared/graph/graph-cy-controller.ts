@@ -15,7 +15,7 @@ import {
     applyFileTreatment,
     DEFAULT_FILE_TREATMENT,
     type FileTreatment
-} from '@reqlan/analytical/file-treatment';
+} from './file-treatment.js';
 import {
     buildCytoscapeStylesheet,
     DEFAULT_LAYOUT_ID,

@@ -19,7 +19,6 @@ extension_build {
 incremental_extension_build {
     Extension builds fingerprint inputs and outputs per independently cacheable artifact:
     - Langium generated sources / TextMate grammar
-    - generated shared graph-physics source
     - logo media
     - generated marketplace README
     - each of the five Vite webviews separately
@@ -32,7 +31,7 @@ incremental_extension_build {
     TextMate syntax copies are cached by content; Cursor-skill sync still runs because it targets workspace-external state.
     `pnpm run build:force` / `node scripts/build.mjs --force` bypasses all cache entries; `vscode:prepublish` uses this forced mode for release correctness.
     `clean` removes `out/`, including the cache, so clean builds remain cold.
-    Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium/physics artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
+    Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
     @tests (
         ["../../packages/extension/test/incremental-build.test.ts"]
         ["../../packages/analytical/test/native-packaging.test.ts"]

@@ -55,19 +55,6 @@ const steps = [
         ],
     },
     {
-        name: 'generate shared graph physics source',
-        command: 'node ../analytical/scripts/generate-physics-core-source.mjs',
-        cacheKey: 'physics-source',
-        inputs: [
-            ...sharedInputs,
-            fromRepo('packages', 'analytical', 'scripts', 'generate-physics-core-source.mjs'),
-            fromRepo('packages', 'analytical', 'src', 'graph', 'physics-core.js'),
-        ],
-        outputs: [
-            fromRepo('packages', 'analytical', 'src', 'graph', 'physics-core-source.ts'),
-        ],
-    },
-    {
         name: 'generate logo media for VSIX packaging',
         command: 'pnpm run build:media',
         cacheKey: 'media',

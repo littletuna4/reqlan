@@ -1,31 +1,13 @@
 import * as vscode from 'vscode';
-import type {
-    CompletionSummary,
-    DeprecationImpact,
-    FileRelatedRequirements,
-    GraphSlice,
-    IdeaSummary,
-    SemanticMatch
-} from '@reqlan/analytical';
 import type { AnalyticalSubmodule } from '../index.js';
 import { openIndexFile } from '../index-store/open-index-file.js';
-import { toIndexFileUri } from '../index-store/resolve-index-file-uri.js';
 import { registerExportCommands } from '../export/register-export-commands.js';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
-    const { index, analysers } = submodule;
-
-    const makeContext = () => {
-        const active = index.getActiveBase();
-        return {
-            store: index.indexStore,
-            analytical: index.store,
-            workspaceRoot: active?.descriptor.root
-        };
-    };
+    const { index } = submodule;
 
     registerExportCommands(context, submodule);
 
@@ -42,7 +24,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.listAllIdeas', async () => {
             await waitForIndex(index);
-            const ideas = await analysers.run<void, IdeaSummary[]>(makeContext(), 'list_all_ideas', undefined);
+            const ideas = await (await index.getAnalysisApi()).listRequirements(0xffff_ffff);
             const items = ideas.map(idea => ({
                 label: idea.name,
                 description: vscode.workspace.asRelativePath(idea.fileUri),
@@ -67,12 +49,7 @@ export function registerAnalyticalCommands(
                 return;
             }
             index.activateBaseForPath(editor.document.uri.fsPath);
-            const active = index.getActiveBase();
-            const result = await analysers.run<{ fileUri: string }, FileRelatedRequirements>(
-                makeContext(),
-                'file_related_requirements',
-                { fileUri: toIndexFileUri(editor.document.uri, active?.descriptor.root) }
-            );
+            const result = await (await index.getAnalysisApi()).getFileContext(editor.document.uri.fsPath);
             const items = [
                 ...result.ideasInFile.map(idea => ({ label: `[in file] ${idea.name}`, idea })),
                 ...result.referencingIdeas.map(idea => ({ label: `[references] ${idea.name}`, idea })),
@@ -88,11 +65,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.deprecationImpact', async () => {
             await waitForIndex(index);
-            const impacts = await analysers.run<void, DeprecationImpact[]>(
-                makeContext(),
-                'deprecation_impact_analysis',
-                undefined
-            );
+            const impacts = await (await index.getAnalysisApi()).getDeprecationImpact();
             if (impacts.length === 0) {
                 void vscode.window.showInformationMessage('No deprecated ideas found.');
                 return;
@@ -114,11 +87,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.completionStatus', async () => {
             await waitForIndex(index);
-            const summary = await analysers.run<void, CompletionSummary>(
-                makeContext(),
-                'completion_tracking',
-                undefined
-            );
+            const summary = await (await index.getAnalysisApi()).getCompletionStatus();
             const message = [
                 `Total ideas: ${summary.total}`,
                 `Outstanding: ${summary.outstanding.length}`,
@@ -136,23 +105,15 @@ export function registerAnalyticalCommands(
                 return;
             }
             index.activateBaseForPath(editor.document.uri.fsPath);
-            const active = index.getActiveBase();
-            const ideas = await index.indexStore.getIdeasInFile(
-                toIndexFileUri(editor.document.uri, active?.descriptor.root)
-            );
-            if (ideas.length === 0) {
+            const graph = await (await index.getAnalysisApi()).getLocalGraph(editor.document.uri.fsPath, 1);
+            if (!graph) {
                 void vscode.window.showInformationMessage('No ideas found in the current file.');
                 return;
             }
-            const center = ideas[0]!;
-            const graph = await analysers.run<{ centerId: string; depth?: number }, GraphSlice>(
-                makeContext(),
-                'local_graph_analysis',
-                { centerId: center.id, depth: 1 }
-            );
+            const center = graph.nodes.find(idea => idea.id === graph.centerId) ?? graph.nodes[0];
             const panel = vscode.window.createWebviewPanel(
                 'reqlanLocalGraph',
-                `Local graph: ${center.name}`,
+                `Local graph: ${center?.name ?? 'current file'}`,
                 vscode.ViewColumn.Beside,
                 { enableScripts: false }
             );
@@ -167,15 +128,11 @@ export function registerAnalyticalCommands(
             if (!query) {
                 return;
             }
-            const matches = await analysers.run<{ query: string }, SemanticMatch[]>(
-                makeContext(),
-                'semantic_analysis',
-                { query }
-            );
+            const matches = await (await index.getAnalysisApi()).searchRequirements(query, 8);
             const items = matches.map(match => ({
                 label: match.idea.name,
-                description: `score ${match.score}`,
-                detail: `${match.reasons.join(', ')} — ${match.idea.summary}`,
+                description: `score ${match.score ?? 0}`,
+                detail: `${(match.reasons ?? []).join(', ')} — ${match.idea.summary}`,
                 idea: match.idea
             }));
             const picked = await vscode.window.showQuickPick(items, {

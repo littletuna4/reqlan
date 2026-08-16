@@ -5,19 +5,10 @@ import { resolve } from 'node:path';
 
 const webviewRoot = fileURLToPath(new URL('.', import.meta.url));
 const extensionRoot = resolve(webviewRoot, '../..');
-const analyticalRoot = resolve(extensionRoot, '../analytical');
 
 export default defineConfig({
     root: webviewRoot,
     plugins: [svelte()],
-    resolve: {
-        alias: {
-            '@reqlan/analytical/fuzzy-search': resolve(
-                analyticalRoot,
-                'src/analysis/fuzzy-search.ts'
-            )
-        }
-    },
     build: {
         outDir: resolve(extensionRoot, 'media/webviews/activity-bar'),
         emptyOutDir: true,

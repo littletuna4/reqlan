@@ -1,6 +1,6 @@
-import type { IndexError } from './analytical-store.js';
+import type { IndexError } from './index-state-types.js';
 
-export type { IndexErrorPhase } from './analytical-store.js';
+export type { IndexErrorPhase } from './index-state-types.js';
 
 export interface IndexErrorDetail {
     summary: string;
@@ -33,7 +33,7 @@ export interface FileIndexIssueView {
 }
 
 export function toFileIndexIssueView(
-    issue: import('./analytical-store.js').FileIndexIssue,
+    issue: import('./index-state-types.js').FileIndexIssue,
     relativePath: (fileUri: string) => string = uri => uri
 ): FileIndexIssueView {
     const file = relativePath(issue.fileUri);

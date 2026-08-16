@@ -263,7 +263,7 @@ function exportRootPrefix(root) {
 }
 
 function resolveExportUrl(root, url) {
-    const cleaned = String(url || '').replace(/^\\.\\//, '');
+    const cleaned = String(url || '').replace(/^\.\//, '');
     return `${exportRootPrefix(root)}${cleaned}`;
 }
 
@@ -992,7 +992,7 @@ function wireGraph(root) {
         let compoundRegions = [];
 
         function resolveGraphNodeUrl(pageUrl) {
-            let cleaned = String(pageUrl || '').replace(/^\\.\\//, '');
+            let cleaned = String(pageUrl || '').replace(/^\.\//, '');
             if (cleaned && !cleaned.includes('/') && cleaned.endsWith('.html')) {
                 cleaned = `ideas/${cleaned}`;
             }

@@ -7,7 +7,6 @@
  * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
  * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
  */
-import type { GitDateInfo } from '@reqlan/analytical';
 import * as vscode from 'vscode';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
@@ -96,19 +95,8 @@ async function pumpMissingGitDates(submodule: AnalyticalSubmodule): Promise<void
             shouldStop: () => priorityEpoch !== waveEpoch,
             attempted: attemptedIdeaIds,
             runAnalyser: async ideaIds => {
-                const store = submodule.index.indexStore;
-                const workspaceRoot =
-                    submodule.index.getActiveBase()?.descriptor.root ??
-                    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-                await submodule.analysers.run<{ ideaIds?: string[] }, GitDateInfo[]>(
-                    {
-                        store,
-                        analytical: submodule.index.store,
-                        workspaceRoot
-                    },
-                    'git_dates',
-                    { ideaIds }
-                );
+                // Git log + persist runs natively; the extension only schedules waves.
+                submodule.index.fillGitDates(ideaIds);
             }
         });
     } finally {

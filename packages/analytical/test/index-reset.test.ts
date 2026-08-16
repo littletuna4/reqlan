@@ -9,7 +9,7 @@ import { ideaId } from '../src/core/types.js';
 const exampleIdea = (fileUri: string) => ({
     id: ideaId(fileUri, 'example'),
     name: 'example',
-    kind: 'requirement' as const,
+    kind: 'block' as const,
     fileUri,
     lineStart: 1,
     lineEnd: 2,

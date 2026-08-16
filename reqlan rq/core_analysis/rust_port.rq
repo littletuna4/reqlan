@@ -146,10 +146,16 @@ export_rust {
 }
 
 native_bridge {
-    The Rust engine is the analytical core (parse, index, search, export) — not an optional addon.
-    `@reqlan/analytical` loads that core through a napi host binding (`.node`) from per-architecture packages (linux/darwin/win32 × x64/arm64 gnu/msvc).
-    JS keeps: Zustand store, VS Code adapter, barrel-page text edits, create-base / path helpers that are cheap to leave in TS.
-    Native owns: parse-for-index, persist, query, search, export execution, and IndexService / WorkspaceIndex sync via `NativeWorkspaceIndex` + `NativeSqlDb`.
+    The Rust engine is the analytical core (parse, index, search, export, typed queries, git-dates, overview coverage, barrel plan) — not an optional addon.
+    `@reqlan/analytical` is a typed napi facade (specta `generated.ts`) plus thin Node helpers (`createBase`, path utils, `SqliteIndexStore` wrappers over typed napi).
+    It does not depend on Langium, `@reqlan/language`, or Zustand.
+    Webview-only helpers (search highlight, filter labels, file-treatment, context signals/model, graph physics) live in the extension package.
+    Interactive HTML JS stays in `crates/reqlan-export/assets`.
+    Native owns: parse-for-index, persist, query, search, export execution, IndexService / WorkspaceIndex sync,
+    and the index lifecycle FSM + status snapshot via `NativeWorkspaceIndex` + `NativeSqlDb`. The FSM
+    (`opening`/`syncing`/`ready`/`error`), counts, in-memory sync progress/cancel, last error, file-index
+    issues (cap 500), and the document-update / workspace-change rings (cap 50) live in `WorkspaceIndexRuntime`;
+    TS reads them through `statusSnapshot()`. Durable diagnostics persist in `index-diagnostics.sqlite`.
     Consumers: [cli.cli_package] and MCP import `@reqlan/analytical/core` so they never load Langium;
     the extension host uses the per-target VSIX ([distribution.vsix_export], [distribution.extension_host_target]).
     The host-matching `.node` is required at runtime; there is no sql.js fallback.

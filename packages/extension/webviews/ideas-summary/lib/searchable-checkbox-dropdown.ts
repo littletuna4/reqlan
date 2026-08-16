@@ -5,7 +5,7 @@ import {
     isFilterEmpty,
     isFilterNotPresent,
     isFilterUnspecified
-} from '@reqlan/analytical/filter-specials';
+} from '../../shared/filter/filter-specials.js';
 
 export interface CheckboxFilterOption {
     value: string;

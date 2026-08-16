@@ -5,7 +5,6 @@
 import { unlink } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { NativeSqlConnection } from '../native/native-sql-db.js';
-import { BASE_MIGRATIONS, SCHEMA_VERSION, VERSION_MIGRATIONS } from './schema.js';
 import type {
     EdgeKind,
     EdgeRecord,
@@ -45,26 +44,15 @@ import type {
     ReferencesTableQuery
 } from './webview-table-queries.js';
 import type { GitIdeaTimelineEvent } from './webview-table-queries.js';
-import {
-    buildGraphTruncationOrderClause,
-    type GraphViewQuery
-} from './webview-graph-queries.js';
+import type { GraphViewQuery } from './webview-graph-queries.js';
 import {
     aggregateAttributesFromRows,
     attributeValuesForKeys,
-    buildIdeasetsOrderClause,
-    buildIdeasetsWhereClause,
-    buildIdeasOrderClause,
-    buildIdeasWhereClause,
-    buildReferencesOrderClause,
-    buildReferencesWhereClause,
     filterAndPageAttributes
 } from './webview-table-queries.js';
-import { buildGraphFilterWhereClause } from './webview-graph-queries.js';
 
 interface SqliteDatabase {
     conn: NativeSqlConnection;
-    inTransaction: boolean;
 }
 
 export class SqliteIndexStore {
@@ -81,8 +69,7 @@ export class SqliteIndexStore {
 
     /** Wrap an already-open native connection (e.g. NativeWorkspaceIndex ideas DB). */
     static async fromConnection(conn: NativeSqlConnection): Promise<SqliteIndexStore> {
-        conn.run('PRAGMA foreign_keys = ON');
-        const store = new SqliteIndexStore({ conn, inTransaction: false });
+        const store = new SqliteIndexStore({ conn });
         await store.migrate();
         return store;
     }
@@ -109,37 +96,23 @@ export class SqliteIndexStore {
     }
 
     async getDocumentHash(fileUri: string): Promise<string | undefined> {
-        const row = await get<{ content_hash: string }>(
-            this.db,
-            'SELECT content_hash FROM documents WHERE file_uri = ?',
-            fileUri
-        );
-        return row?.content_hash;
+        return this.db.conn.getDocumentHash(fileUri) ?? undefined;
     }
 
     async getDocumentMtimeMs(fileUri: string): Promise<number | undefined> {
-        const row = await get<{ mtime_ms: number | null }>(
-            this.db,
-            'SELECT mtime_ms FROM documents WHERE file_uri = ?',
-            fileUri
-        );
-        return row?.mtime_ms == null ? undefined : row.mtime_ms;
+        const value = this.db.conn.getDocumentMtimeMs(fileUri);
+        return value == null ? undefined : value;
     }
 
     async updateDocumentMtime(fileUri: string, mtimeMs: number): Promise<void> {
-        await run(
-            this.db,
-            `UPDATE documents SET mtime_ms = ?, indexed_at = datetime('now') WHERE file_uri = ?`,
-            mtimeMs,
-            fileUri
-        );
+        this.db.conn.updateDocumentMtime(fileUri, mtimeMs);
     }
 
     async listDocumentMtimes(): Promise<Map<string, number | undefined>> {
-        const rows = await all<{ file_uri: string; mtime_ms: number | null }>(
-            this.db,
-            'SELECT file_uri, mtime_ms FROM documents'
-        );
+        const rows = this.db.conn.listDocumentMtimeRows() as Array<{
+            file_uri: string;
+            mtime_ms: number | null;
+        }>;
         const result = new Map<string, number | undefined>();
         for (const row of rows) {
             result.set(row.file_uri, row.mtime_ms == null ? undefined : row.mtime_ms);
@@ -149,11 +122,7 @@ export class SqliteIndexStore {
 
     async listDocumentUris(): Promise<string[]> {
         // rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
-        const rows = await all<{ file_uri: string }>(
-            this.db,
-            'SELECT file_uri FROM documents ORDER BY file_uri'
-        );
-        return rows.map(row => row.file_uri);
+        return this.db.conn.listDocumentUris();
     }
 
     async upsertDocument(
@@ -163,91 +132,8 @@ export class SqliteIndexStore {
         edges: EdgeRecord[],
         mtimeMs?: number
     ): Promise<void> {
-        await run(this.db, 'BEGIN');
-        try {
-            // Preserve analyser-populated git dates/counts across delete+reinsert reindex.
-            const existingGit = await all<{
-                id: string;
-                git_created_at: string | null;
-                git_modified_at: string | null;
-                git_change_count: number | null;
-            }>(this.db, `
-                SELECT id, git_created_at, git_modified_at, git_change_count
-                FROM ideas
-                WHERE file_uri = ?
-            `, fileUri);
-            const gitById = new Map(
-                existingGit.map(row => [row.id, row] as const)
-            );
-
-            await run(
-                this.db,
-                'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
-                fileUri
-            );
-            await run(this.db, 'DELETE FROM ideas WHERE file_uri = ?', fileUri);
-
-            const insertIdeaSql = `
-                INSERT INTO ideas (
-                    id, name, kind, file_uri, line_start, line_end, summary,
-                    attributes_json, content_hash, git_created_at, git_modified_at, git_change_count
-                ) VALUES (
-                    ?, ?, ?, ?, ?, ?, ?,
-                    ?, ?, ?, ?, ?
-                )
-            `;
-            for (const idea of ideas) {
-                const previous = gitById.get(idea.id);
-                await run(this.db, insertIdeaSql,
-                    idea.id,
-                    idea.name,
-                    idea.kind,
-                    idea.fileUri,
-                    idea.lineStart,
-                    idea.lineEnd,
-                    idea.summary,
-                    idea.attributesJson,
-                    idea.contentHash,
-                    idea.gitCreatedAt ?? previous?.git_created_at ?? null,
-                    idea.gitModifiedAt ?? previous?.git_modified_at ?? null,
-                    idea.gitChangeCount ?? previous?.git_change_count ?? null
-                );
-            }
-
-            const insertEdgeSql = `
-                INSERT OR IGNORE INTO edges (
-                    id, source_id, target_id, target_file, kind, label,
-                    source_line, snippet, is_resolved
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            for (const edge of edges) {
-                await run(this.db, insertEdgeSql,
-                    edge.id,
-                    edge.sourceId,
-                    edge.targetId ?? null,
-                    edge.targetFile ?? null,
-                    edge.kind,
-                    edge.label ?? null,
-                    edge.sourceLine ?? null,
-                    edge.snippet ?? null,
-                    edge.isResolved === false ? 0 : 1
-                );
-            }
-
-            await run(this.db, `
-                INSERT INTO documents (file_uri, content_hash, indexed_at, mtime_ms)
-                VALUES (?, ?, datetime('now'), ?)
-                ON CONFLICT(file_uri) DO UPDATE SET
-                    content_hash = excluded.content_hash,
-                    indexed_at = excluded.indexed_at,
-                    mtime_ms = excluded.mtime_ms
-            `, fileUri, contentHash, mtimeMs ?? null);
-            await run(this.db, 'COMMIT');
-        } catch (error) {
-            await run(this.db, 'ROLLBACK');
-            throw error;
-        }
+        // Native transaction preserves analyser-populated git dates across the reindex.
+        this.db.conn.upsertDocument(fileUri, contentHash, ideas, edges, mtimeMs);
     }
 
     async removeDocument(fileUri: string): Promise<void> {
@@ -259,48 +145,15 @@ export class SqliteIndexStore {
         if (fileUris.length === 0) {
             return;
         }
-        await run(this.db, 'BEGIN');
-        try {
-            for (const fileUri of fileUris) {
-                await run(
-                    this.db,
-                    "DELETE FROM edges WHERE kind = 'comment_link' AND target_file = ?",
-                    fileUri
-                );
-                await run(
-                    this.db,
-                    'DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)',
-                    fileUri
-                );
-                await run(this.db, 'DELETE FROM ideas WHERE file_uri = ?', fileUri);
-                await run(this.db, 'DELETE FROM documents WHERE file_uri = ?', fileUri);
-            }
-            await run(this.db, 'COMMIT');
-        } catch (error) {
-            await run(this.db, 'ROLLBACK');
-            throw error;
-        }
+        this.db.conn.removeDocuments(fileUris);
     }
 
     async clearAll(): Promise<void> {
-        await run(this.db, 'BEGIN');
-        try {
-            await run(this.db, 'DELETE FROM edges');
-            await run(this.db, 'DELETE FROM ideas');
-            await run(this.db, 'DELETE FROM documents');
-            await run(this.db, 'COMMIT');
-        } catch (error) {
-            await run(this.db, 'ROLLBACK');
-            throw error;
-        }
+        this.db.conn.clearAll();
     }
 
     async listAllIdeas(): Promise<IdeaSummary[]> {
-        const rows = await allYielding<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-            FROM ideas
-            ORDER BY file_uri, line_start
-        `);
+        const rows = this.db.conn.listAllIdeaRows() as unknown as SummaryRow[];
         const ideas: IdeaSummary[] = [];
         for (let index = 0; index < rows.length; index += 1) {
             if (index > 0 && index % 250 === 0) {
@@ -312,56 +165,30 @@ export class SqliteIndexStore {
     }
 
     async getIdea(id: string): Promise<IdeaSummary | undefined> {
-        const row = await get<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas WHERE id = ?
-        `, id);
+        const row = this.db.conn.getIdeaRow(id) as unknown as SummaryRow | null;
         return row ? this.toSummary(row) : undefined;
     }
 
     async getIdeasInFile(fileUri: string): Promise<IdeaSummary[]> {
-        const rows = await all<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-            FROM ideas WHERE file_uri = ?
-            ORDER BY line_start
-        `, fileUri);
+        const rows = this.db.conn.getIdeasInFileRows(fileUri) as unknown as SummaryRow[];
         return rows.map(row => this.toSummary(row));
     }
 
     async getIdeaAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
-        const row = await get<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas
-            WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind != 'ideaset'
-            ORDER BY line_start DESC
-            LIMIT 1
-        `, fileUri, line, line);
+        const row = this.db.conn.getIdeaAtLineRow(fileUri, line) as unknown as SummaryRow | null;
         return row ? this.toSummary(row) : undefined;
     }
 
     /** Innermost ideaset whose line range contains `line` (0-based). */
     async getIdeasetAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
-        const row = await get<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas
-            WHERE file_uri = ? AND line_start <= ? AND ? <= line_end AND kind = 'ideaset'
-            ORDER BY line_start DESC
-            LIMIT 1
-        `, fileUri, line, line);
+        const row = this.db.conn.getIdeasetAtLineRow(fileUri, line) as unknown as SummaryRow | null;
         return row ? this.toSummary(row) : undefined;
     }
 
     async listIdeasInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
-        const rows = await all<SummaryRowWithEnd>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas
-            WHERE file_uri = ? AND kind != 'ideaset'
-            ORDER BY line_start ASC
-        `, fileUri);
+        const rows = this.db.conn.listIdeasInFileWithRangeRows(
+            fileUri
+        ) as unknown as SummaryRowWithEnd[];
         return rows.map(row => ({
             ...this.toSummary(row),
             lineEnd: row.line_end
@@ -369,13 +196,9 @@ export class SqliteIndexStore {
     }
 
     async listIdeasetsInFileWithRanges(fileUri: string): Promise<IdeaWithRange[]> {
-        const rows = await all<SummaryRowWithEnd>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas
-            WHERE file_uri = ? AND kind = 'ideaset'
-            ORDER BY line_start ASC
-        `, fileUri);
+        const rows = this.db.conn.listIdeasetsInFileWithRangeRows(
+            fileUri
+        ) as unknown as SummaryRowWithEnd[];
         return rows.map(row => ({
             ...this.toSummary(row),
             lineEnd: row.line_end
@@ -383,46 +206,10 @@ export class SqliteIndexStore {
     }
 
     async listReferencesForIdea(ideaId: string): Promise<ReferenceListRow[]> {
-        const outbound = await all<ReferenceListSqlRow>(this.db, `
-            SELECT
-                e.id AS edge_id,
-                e.kind,
-                e.source_id,
-                e.target_id,
-                e.target_file,
-                e.label,
-                e.source_line,
-                e.snippet,
-                e.is_resolved,
-                ti.name AS target_name,
-                ti.file_uri AS target_uri,
-                ti.line_start AS target_line
-            FROM edges e
-            LEFT JOIN ideas ti ON ti.id = e.target_id
-            WHERE e.source_id = ?
-            ORDER BY e.kind, e.id
-        `, ideaId);
-
-        const inbound = await all<ReferenceListSqlRow>(this.db, `
-            SELECT
-                e.id AS edge_id,
-                e.kind,
-                e.source_id,
-                e.target_id,
-                e.target_file,
-                e.label,
-                e.source_line,
-                e.snippet,
-                e.is_resolved,
-                si.name AS source_name,
-                si.file_uri AS source_uri,
-                si.line_start AS source_line_idea
-            FROM edges e
-            JOIN ideas si ON si.id = e.source_id
-            WHERE e.target_id = ?
-            ORDER BY e.kind, e.id
-        `, ideaId);
-
+        const { outbound, inbound } = this.db.conn.listReferencesForIdea(ideaId) as unknown as {
+            outbound: ReferenceListSqlRow[];
+            inbound: ReferenceListSqlRow[];
+        };
         const rows: ReferenceListRow[] = [];
         for (const row of outbound) {
             rows.push(toOutboundReferenceListRow(row));
@@ -466,18 +253,11 @@ export class SqliteIndexStore {
     }
 
     async countUnresolvedForIdea(ideaId: string): Promise<number> {
-        return (await get<{ count: number }>(this.db, `
-            SELECT COUNT(*) AS count FROM edges
-            WHERE source_id = ? AND is_resolved = 0
-        `, ideaId))!.count;
+        return this.db.conn.countUnresolvedForIdea(ideaId);
     }
 
     async countEdgesFromFile(fileUri: string): Promise<number> {
-        return (await get<{ count: number }>(this.db, `
-            SELECT COUNT(*) AS count
-            FROM edges
-            WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?)
-        `, fileUri))!.count;
+        return this.db.conn.countEdgesFromFile(fileUri);
     }
 
     async listAncestorChain(ideaId: string, maxDepth = 8): Promise<IdeaSummary[]> {
@@ -524,12 +304,12 @@ export class SqliteIndexStore {
     }
 
     async getEdgesFrom(sourceId: string): Promise<EdgeRecord[]> {
-        const rows = await all<SqliteEdgeRow>(this.db, 'SELECT * FROM edges WHERE source_id = ?', sourceId);
+        const rows = this.db.conn.getEdgesFromRows(sourceId) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
     async getEdgesTo(targetId: string): Promise<EdgeRecord[]> {
-        const rows = await all<SqliteEdgeRow>(this.db, 'SELECT * FROM edges WHERE target_id = ?', targetId);
+        const rows = this.db.conn.getEdgesToRows(targetId) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
@@ -538,13 +318,7 @@ export class SqliteIndexStore {
         if (nodeIds.length === 0) {
             return [];
         }
-        const placeholders = nodeIds.map(() => '?').join(',');
-        const rows = await all<SqliteEdgeRow>(
-            this.db,
-            `SELECT * FROM edges WHERE source_id IN (${placeholders}) OR target_id IN (${placeholders})`,
-            ...nodeIds,
-            ...nodeIds
-        );
+        const rows = this.db.conn.getEdgesForNodesRows([...nodeIds]) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
@@ -553,38 +327,28 @@ export class SqliteIndexStore {
         if (ids.length === 0) {
             return [];
         }
-        const placeholders = ids.map(() => '?').join(',');
-        const rows = await all<SummaryRow>(
-            this.db,
-            `SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-             FROM ideas WHERE id IN (${placeholders})`,
-            ...ids
-        );
+        const rows = this.db.conn.getIdeasByIdsRows([...ids]) as unknown as SummaryRow[];
         return rows.map(row => this.toSummary(row));
     }
 
     async getEdgesReferencingFile(filePath: string): Promise<EdgeRecord[]> {
-        const rows = await all<SqliteEdgeRow>(this.db, `
-            SELECT * FROM edges
-            WHERE target_file LIKE ? OR target_file LIKE ?
-        `, `%${filePath}%`, filePath);
+        const rows = this.db.conn.getEdgesReferencingFileRows(
+            filePath
+        ) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
     async getAllEdges(): Promise<EdgeRecord[]> {
-        const rows = await all<SqliteEdgeRow>(this.db, 'SELECT * FROM edges');
+        const rows = this.db.conn.getAllEdgeRows() as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
     /** Outbound file_reference targets for coverage metrics (source id + authored path). */
     async listFileReferenceTargets(): Promise<Array<{ sourceId: string; targetFile: string }>> {
-        const rows = await all<{ source_id: string; target_file: string }>(
-            this.db,
-            `SELECT source_id, target_file
-             FROM edges
-             WHERE target_file IS NOT NULL AND target_file != ''
-               AND (kind = 'file_reference' OR target_id IS NULL)`
-        );
+        const rows = this.db.conn.listFileReferenceTargetRows() as Array<{
+            source_id: string;
+            target_file: string;
+        }>;
         return rows.map(row => ({
             sourceId: row.source_id,
             targetFile: row.target_file
@@ -592,7 +356,7 @@ export class SqliteIndexStore {
     }
 
     async getAllIdeasRaw(): Promise<IdeaRecord[]> {
-        const rows = await all<SqliteIdeaRow>(this.db, 'SELECT * FROM ideas');
+        const rows = this.db.conn.allIdeaRawRows() as unknown as SqliteIdeaRow[];
         return rows.map(mapIdeaRow);
     }
 
@@ -602,23 +366,11 @@ export class SqliteIndexStore {
         modifiedAt?: string,
         changeCount?: number
     ): Promise<void> {
-        if (changeCount !== undefined) {
-            await run(this.db, `
-                UPDATE ideas SET git_created_at = ?, git_modified_at = ?, git_change_count = ?
-                WHERE id = ?
-            `, createdAt ?? null, modifiedAt ?? null, changeCount, id);
-            return;
-        }
-        await run(this.db, `
-            UPDATE ideas SET git_created_at = ?, git_modified_at = ?
-            WHERE id = ?
-        `, createdAt ?? null, modifiedAt ?? null, id);
+        this.db.conn.updateGitDates(id, createdAt, modifiedAt, changeCount);
     }
 
     async counts(): Promise<{ ideas: number; edges: number }> {
-        const ideas = (await get<{ count: number }>(this.db, 'SELECT COUNT(*) as count FROM ideas'))!.count;
-        const edges = (await get<{ count: number }>(this.db, 'SELECT COUNT(*) as count FROM edges'))!.count;
-        return { ideas, edges };
+        return this.db.conn.counts();
     }
 
     async getAttributeCatalog(): Promise<{ keys: string[]; valuesByKey: Record<string, string[]> }> {
@@ -653,13 +405,7 @@ export class SqliteIndexStore {
     }
 
     async searchByNameOrSummary(query: string): Promise<IdeaSummary[]> {
-        const pattern = `%${query}%`;
-        const rows = await all<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-            FROM ideas
-            WHERE name LIKE ? OR summary LIKE ?
-            ORDER BY name
-        `, pattern, pattern);
+        const rows = this.db.conn.searchIdeaRows(query) as unknown as SummaryRow[];
         return rows.map(row => this.toSummary(row));
     }
 
@@ -670,13 +416,7 @@ export class SqliteIndexStore {
     async listTodoIdeas(limit: number = ACTIVITY_BAR_TODO_LIMIT): Promise<TodoIdeaListResult> {
         const cappedLimit = Math.max(0, Math.min(Math.floor(limit), 500));
         // Coarse prefilter: `"todo":` matches the attribute key, not `@status todo`.
-        const rows = await all<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-            FROM ideas
-            WHERE kind != 'ideaset'
-              AND attributes_json LIKE '%"todo":%'
-            ORDER BY name ASC, file_uri ASC, line_start ASC
-        `);
+        const rows = this.db.conn.listTodoIdeaRows() as unknown as SummaryRow[];
         const ideas: TodoIdeaRow[] = [];
         for (const row of rows) {
             const attributes = parseAttributes(row.attributes_json);
@@ -704,70 +444,19 @@ export class SqliteIndexStore {
         query: GraphViewQuery,
         limit: number
     ): Promise<{ candidates: IdeaSummary[]; totalMatching: number }> {
-        const { sql, params } = buildGraphFilterWhereClause(query);
-        const orderSql = buildGraphTruncationOrderClause(query.truncationBasis);
-        const totalMatching = (await get<{ count: number }>(
-            this.db,
-            `SELECT COUNT(*) as count FROM ideas i WHERE ${sql}`,
-            ...params
-        ))!.count;
-        const rows = await all<SummaryRow>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json
-            FROM ideas i
-            WHERE ${sql}
-            ORDER BY ${orderSql}
-            LIMIT ?
-        `, ...params, limit);
+        const { rows, totalMatching } = this.db.conn.listIdeasForGraphQuery(query, limit);
         return {
-            candidates: rows.map(row => this.toSummary(row)),
+            candidates: (rows as unknown as SummaryRow[]).map(row => this.toSummary(row)),
             totalMatching
         };
     }
 
     async countIdeas(query: IdeasTableQuery = { page: 0, pageSize: 50, attributeColumns: [], referenceFilters: [] }): Promise<number> {
-        const { sql, params } = buildIdeasWhereClause(query);
-        return (await get<{ count: number }>(
-            this.db,
-            `SELECT COUNT(*) as count FROM ideas i WHERE ${sql}`,
-            ...params
-        ))!.count;
+        return this.db.conn.countIdeas(query);
     }
 
     async listIdeasPage(query: IdeasTableQuery): Promise<IdeaTableRow[]> {
-        const { sql: whereSql, params: whereParams } = buildIdeasWhereClause(query);
-        const orderSql = buildIdeasOrderClause(query);
-        const rows = await all<IdeaPageRow>(this.db, `
-            SELECT
-                i.id,
-                i.name,
-                i.kind,
-                i.file_uri,
-                i.line_start,
-                i.summary,
-                i.attributes_json,
-                i.git_created_at,
-                i.git_modified_at,
-                i.git_change_count,
-                (
-                    SELECT COUNT(*)
-                    FROM edges e
-                    WHERE e.source_id = i.id
-                ) AS outbound_count,
-                (
-                    SELECT COUNT(*)
-                    FROM edges e
-                    WHERE e.target_id = i.id
-                ) AS inbound_count,
-                (
-                    SELECT COUNT(*)
-                    FROM edges e
-                    WHERE e.source_id = i.id OR e.target_id = i.id
-                ) AS reference_count
-            FROM ideas i
-            WHERE ${whereSql}
-            ORDER BY ${orderSql}
-            LIMIT ? OFFSET ?
-        `, ...whereParams, query.pageSize, query.page * query.pageSize);
+        const rows = this.db.conn.listIdeasPageRows(query) as unknown as IdeaPageRow[];
         const ideaIds = rows.map(row => row.id);
         const referencesByIdea = await this.listReferenceChipsForIdeas(ideaIds);
         return rows.map(row => {
@@ -783,27 +472,7 @@ export class SqliteIndexStore {
         if (ideaIds.length === 0) {
             return result;
         }
-        const placeholders = ideaIds.map(() => '?').join(', ');
-        const rows = await all<ReferenceChipRow>(this.db, `
-            SELECT
-                e.id,
-                e.kind,
-                e.source_id,
-                e.target_id,
-                e.target_file,
-                e.label,
-                si.name AS source_name,
-                si.file_uri AS source_uri,
-                si.line_start AS source_line,
-                ti.name AS target_name,
-                ti.file_uri AS target_uri,
-                ti.line_start AS target_line
-            FROM edges e
-            JOIN ideas si ON si.id = e.source_id
-            LEFT JOIN ideas ti ON ti.id = e.target_id
-            WHERE e.source_id IN (${placeholders}) OR e.target_id IN (${placeholders})
-            ORDER BY e.id
-        `, ...ideaIds, ...ideaIds);
+        const rows = this.db.conn.listReferenceChipRows(ideaIds) as unknown as ReferenceChipRow[];
         for (const ideaId of ideaIds) {
             result.set(ideaId, { outbound: [], inbound: [] });
         }
@@ -819,79 +488,11 @@ export class SqliteIndexStore {
     }
 
     async countIdeasets(query: IdeasetsTableQuery = { page: 0, pageSize: 50 }): Promise<number> {
-        const { sql, params } = buildIdeasetsWhereClause(query);
-        const row = await get<{ count: number }>(this.db, `
-            SELECT COUNT(*) AS count
-            FROM (
-                SELECT
-                    d.file_uri AS id,
-                    'file' AS kind,
-                    d.file_uri AS file_uri,
-                    0 AS line_start,
-                    NULL AS name,
-                    (
-                        SELECT COUNT(*)
-                        FROM ideas i
-                        WHERE i.file_uri = d.file_uri
-                    ) AS member_count
-                FROM documents d
-                UNION ALL
-                SELECT
-                    i.id,
-                    'explicit' AS kind,
-                    i.file_uri,
-                    i.line_start,
-                    i.name,
-                    (
-                        SELECT COUNT(*)
-                        FROM edges e
-                        WHERE e.source_id = i.id AND e.kind = 'ideaset_member'
-                    ) AS member_count
-                FROM ideas i
-                WHERE i.kind = 'ideaset'
-            ) ideasets
-            WHERE ${sql}
-        `, ...params);
-        return row?.count ?? 0;
+        return this.db.conn.countIdeasets(query);
     }
 
     async listIdeasetsPage(query: IdeasetsTableQuery): Promise<IdeasetTableRow[]> {
-        const { sql: whereSql, params: whereParams } = buildIdeasetsWhereClause(query);
-        const orderSql = buildIdeasetsOrderClause(query);
-        const rows = await all<IdeasetPageRow>(this.db, `
-            SELECT *
-            FROM (
-                SELECT
-                    d.file_uri AS id,
-                    'file' AS kind,
-                    d.file_uri AS file_uri,
-                    0 AS line_start,
-                    NULL AS name,
-                    (
-                        SELECT COUNT(*)
-                        FROM ideas i
-                        WHERE i.file_uri = d.file_uri
-                    ) AS member_count
-                FROM documents d
-                UNION ALL
-                SELECT
-                    i.id,
-                    'explicit' AS kind,
-                    i.file_uri,
-                    i.line_start,
-                    i.name,
-                    (
-                        SELECT COUNT(*)
-                        FROM edges e
-                        WHERE e.source_id = i.id AND e.kind = 'ideaset_member'
-                    ) AS member_count
-                FROM ideas i
-                WHERE i.kind = 'ideaset'
-            ) ideasets
-            WHERE ${whereSql}
-            ORDER BY ${orderSql}
-            LIMIT ? OFFSET ?
-        `, ...whereParams, query.pageSize, query.page * query.pageSize);
+        const rows = this.db.conn.listIdeasetsPageRows(query) as unknown as IdeasetPageRow[];
         const ideasets = rows.map(row => toIdeasetTableRow(row));
         return Promise.all(ideasets.map(async ideaset => ({
             ...ideaset,
@@ -904,20 +505,11 @@ export class SqliteIndexStore {
         kind: IdeasetKind,
         fileUri: string
     ): Promise<IdeasetMemberRow[]> {
-        const rows = kind === 'file'
-            ? await all<IdeasetMemberPageRow>(this.db, `
-                SELECT name, file_uri, line_start
-                FROM ideas
-                WHERE file_uri = ? AND kind != 'ideaset'
-                ORDER BY line_start
-            `, fileUri)
-            : await all<IdeasetMemberPageRow>(this.db, `
-                SELECT i.name, i.file_uri, i.line_start
-                FROM edges e
-                JOIN ideas i ON i.id = e.target_id
-                WHERE e.source_id = ? AND e.kind = 'ideaset_member'
-                ORDER BY i.line_start
-            `, ideasetId);
+        const rows = this.db.conn.listIdeasetMemberRows(
+            ideasetId,
+            kind,
+            fileUri
+        ) as unknown as IdeasetMemberPageRow[];
         return rows.map(row => ({
             name: row.name,
             fileUri: row.file_uri,
@@ -926,42 +518,11 @@ export class SqliteIndexStore {
     }
 
     async countReferences(query: ReferencesTableQuery = { page: 0, pageSize: 50 }): Promise<number> {
-        const { sql, params } = buildReferencesWhereClause(query);
-        return (await get<{ count: number }>(
-            this.db,
-            `
-            SELECT COUNT(*) as count
-            FROM edges e
-            JOIN ideas si ON si.id = e.source_id
-            LEFT JOIN ideas ti ON ti.id = e.target_id
-            WHERE ${sql}
-        `,
-            ...params
-        ))!.count;
+        return this.db.conn.countReferences(query);
     }
 
     async listReferencesPage(query: ReferencesTableQuery): Promise<ReferenceTableRow[]> {
-        const { sql: whereSql, params: whereParams } = buildReferencesWhereClause(query);
-        const orderSql = buildReferencesOrderClause(query);
-        const rows = await all<ReferencePageRow>(this.db, `
-            SELECT
-                e.kind,
-                e.source_id,
-                e.target_id,
-                e.target_file,
-                e.label,
-                si.name AS source_name,
-                si.file_uri AS source_uri,
-                si.line_start AS source_line,
-                ti.name AS target_name,
-                ti.file_uri AS target_uri
-            FROM edges e
-            JOIN ideas si ON si.id = e.source_id
-            LEFT JOIN ideas ti ON ti.id = e.target_id
-            WHERE ${whereSql}
-            ORDER BY ${orderSql}
-            LIMIT ? OFFSET ?
-        `, ...whereParams, query.pageSize, query.page * query.pageSize);
+        const rows = this.db.conn.listReferencesPageRows(query) as unknown as ReferencePageRow[];
         return rows.map(row => toReferenceTableRow(row));
     }
 
@@ -982,11 +543,7 @@ export class SqliteIndexStore {
     private async queryAttributesPage(
         query: AttributesTableQuery
     ): Promise<{ total: number; rows: AttributeTableRow[] }> {
-        const rows = await all<{ id: string; attributes_json: string }>(this.db, `
-            SELECT id, attributes_json
-            FROM ideas
-            WHERE kind != 'ideaset'
-        `);
+        const rows = this.db.conn.listAttributeIdeaRows() as Array<{ id: string; attributes_json: string }>;
         return filterAndPageAttributes(aggregateAttributesFromRows(rows), query);
     }
 
@@ -1005,46 +562,11 @@ export class SqliteIndexStore {
         limit = 40,
         options?: { fileUri?: string; preferFileUri?: string }
     ): Promise<string[]> {
-        const capped = Math.max(1, Math.min(limit, 200));
-        const missingSql = `(
-            (git_created_at IS NULL AND git_modified_at IS NULL)
-            OR git_change_count IS NULL
-        )`;
-        const fileUri = options?.fileUri?.trim();
-        if (fileUri) {
-            const rows = await all<{ id: string }>(this.db, `
-                SELECT id
-                FROM ideas
-                WHERE kind != 'ideaset'
-                  AND ${missingSql}
-                  AND file_uri = ?
-                ORDER BY line_start ASC
-                LIMIT ?
-            `, fileUri, capped);
-            return rows.map(row => row.id);
-        }
-        const preferFileUri = options?.preferFileUri?.trim();
-        if (preferFileUri) {
-            const rows = await all<{ id: string }>(this.db, `
-                SELECT id
-                FROM ideas
-                WHERE kind != 'ideaset'
-                  AND ${missingSql}
-                ORDER BY CASE WHEN file_uri = ? THEN 0 ELSE 1 END,
-                         file_uri ASC, line_start ASC
-                LIMIT ?
-            `, preferFileUri, capped);
-            return rows.map(row => row.id);
-        }
-        const rows = await all<{ id: string }>(this.db, `
-            SELECT id
-            FROM ideas
-            WHERE kind != 'ideaset'
-              AND ${missingSql}
-            ORDER BY file_uri ASC, line_start ASC
-            LIMIT ?
-        `, capped);
-        return rows.map(row => row.id);
+        return this.db.conn.listIdeaIdsMissingGitDates(
+            limit,
+            options?.fileUri?.trim() || undefined,
+            options?.preferFileUri?.trim() || undefined
+        );
     }
 
     /**
@@ -1053,7 +575,7 @@ export class SqliteIndexStore {
      * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
      */
     async listRecentGitIdeaEvents(limit = 50): Promise<GitIdeaTimelineEvent[]> {
-        const rows = await all<{
+        const rows = this.db.conn.listRecentGitIdeaRows(limit) as Array<{
             id: string;
             name: string;
             kind: string;
@@ -1063,15 +585,7 @@ export class SqliteIndexStore {
             attributes_json: string;
             git_created_at: string | null;
             git_modified_at: string | null;
-        }>(this.db, `
-            SELECT id, name, kind, file_uri, line_start, summary, attributes_json,
-                   git_created_at, git_modified_at, git_change_count
-            FROM ideas
-            WHERE kind != 'ideaset'
-              AND (git_modified_at IS NOT NULL OR git_created_at IS NOT NULL)
-            ORDER BY COALESCE(git_modified_at, git_created_at) DESC
-            LIMIT ?
-        `, Math.max(1, Math.min(limit * 2, 400)));
+        }>;
 
         const events: GitIdeaTimelineEvent[] = [];
         for (const row of rows) {
@@ -1128,86 +642,8 @@ export class SqliteIndexStore {
     }
 
     private async migrate(): Promise<void> {
-        for (const statement of BASE_MIGRATIONS) {
-            await exec(this.db, statement);
-        }
-
-        const currentVersion = Number(
-            (await get<{ value: string }>(this.db, `SELECT value FROM meta WHERE key = 'schema_version'`))?.value ?? '1'
-        );
-
-        for (let version = currentVersion + 1; version <= SCHEMA_VERSION; version++) {
-            const steps = VERSION_MIGRATIONS[version] ?? [];
-            for (const statement of steps) {
-                try {
-                    await exec(this.db, statement);
-                } catch (error) {
-                    const message = error instanceof Error ? error.message : String(error);
-                    if (!message.includes('duplicate column')) {
-                        throw error;
-                    }
-                }
-            }
-        }
-
-        await run(this.db, `
-            INSERT INTO meta (key, value) VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        `, 'schema_version', String(SCHEMA_VERSION));
+        this.db.conn.migrateIdeasSchema();
     }
-}
-
-async function run(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<void> {
-    db.conn.run(sql, ...params);
-    const statementKind = classifyStatement(sql);
-    if (statementKind === 'begin') {
-        db.inTransaction = true;
-        return;
-    }
-    if (statementKind === 'commit' || statementKind === 'rollback') {
-        db.inTransaction = false;
-    }
-}
-
-async function get<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T | undefined> {
-    const rows = await all<T>(db, sql, ...params);
-    return rows[0];
-}
-
-async function all<T>(db: SqliteDatabase, sql: string, ...params: unknown[]): Promise<T[]> {
-    return db.conn.all<T & Record<string, unknown>>(sql, ...params) as T[];
-}
-
-/** Like `all`, but yields to the event loop so interactive work can run. */
-async function allYielding<T>(
-    db: SqliteDatabase,
-    sql: string,
-    ...params: unknown[]
-): Promise<T[]> {
-    const rows = await all<T>(db, sql, ...params);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    return rows;
-}
-
-async function exec(db: SqliteDatabase, sql: string): Promise<void> {
-    db.conn.exec(sql);
-}
-
-function classifyStatement(sql: string): 'begin' | 'commit' | 'rollback' | 'write' | 'read' {
-    const keyword = sql.trimStart().match(/^[A-Za-z]+/)?.[0]?.toUpperCase();
-    if (keyword === 'BEGIN') {
-        return 'begin';
-    }
-    if (keyword === 'COMMIT') {
-        return 'commit';
-    }
-    if (keyword === 'ROLLBACK') {
-        return 'rollback';
-    }
-    if (keyword && ['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'CREATE', 'DROP', 'ALTER', 'PRAGMA'].includes(keyword)) {
-        return 'write';
-    }
-    return 'read';
 }
 
 function isMissingFileError(error: unknown): boolean {

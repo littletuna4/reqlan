@@ -2,8 +2,7 @@ import "../../features-commands.rq" as commands
 import "../../../core_analysis/search.rq" as core_search
 import "../ideas_summary/webview.rq" as ideas_summary_doc
 import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
-import "../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts" as fuzzy_search_analyser
-import "../../../../packages/analytical/src/analysis/file-search-analyser.ts" as file_search_analyser
+import "../../../../packages/analytical/src/native/native-workspace-index.ts" as native_workspace_index
 import "../../../../packages/extension/src/activity_bar_module/search-results-meta.ts" as search_results_meta
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
 import "../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte" as SearchHighlight
@@ -107,8 +106,7 @@ search_pane_file_hits {
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
         ["../../../../crates/reqlan-search/src/fuzzy.rs"]
-        ["../../../../packages/analytical/src/analysis/file-search-analyser.ts"]
-        ["../../../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+        [native_workspace_index]
     )
     @tests (
         ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]

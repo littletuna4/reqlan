@@ -36,8 +36,6 @@ const ctx = await esbuild.context({
         'language/main': 'src/language/main.ts',
         // Separate file so WorkerThreadAsyncParser can terminate a stuck lex/parse.
         'language/reqlan-parse-worker': '../language/src/reqlan-parse-worker.ts',
-        // Fuzzy search scoring runs off the extension-host event loop.
-        'extension/fuzzy-search-worker': '../analytical/src/analysis/fuzzy-search-worker.ts',
     },
     banner: {
         js: objectGroupByPolyfill

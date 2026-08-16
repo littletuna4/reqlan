@@ -65,6 +65,12 @@ export interface NativeModule {
     };
     /** Single-file parse; present on core engine builds with CLI parse. */
     parseReqlanSource?(source: string): unknown;
+    /** Top-level idea names in a document (git-context historical extract). */
+    extractIdeaNames?(source: string): string[];
+    /** Barrel-page plan from source text (no filesystem writes). */
+    barrelPagePlan?(source: string, containerName: string | undefined, sourceFileName: string): unknown;
+    /** Seed a reqlan base marker (`.reqlan/` + `config.json` + `.rqignore`). */
+    createBase?(baseRoot: string): unknown;
 }
 
 /** null = not probed yet; undefined = probed, missing; NativeModule = loaded */

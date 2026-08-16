@@ -35,7 +35,7 @@ export class BarrelCommand extends Command {
 
     async execute(): Promise<number> {
         try {
-            const { barrelPage } = await import('@reqlan/analytical');
+            const { barrelPage } = await import('@reqlan/analytical/core');
             const result = await barrelPage(resolve(this.file), {
                 containerName: this.name,
                 dryRun: this.dryRun

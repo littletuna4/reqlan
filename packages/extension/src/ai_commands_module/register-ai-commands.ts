@@ -4,7 +4,7 @@
  */
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { IdeaSummary, SemanticMatch } from "@reqlan/analytical";
+import type { IdeaSummary } from "@reqlan/analytical";
 import type { AnalyticalSubmodule } from "../analytical_submodule/index.js";
 import { toIndexFileUri } from "../analytical_submodule/index-store/resolve-index-file-uri.js";
 import {
@@ -356,7 +356,7 @@ async function pickIdea(
   submodule: AnalyticalSubmodule,
   placeHolder: string,
 ): Promise<IdeaSummary | undefined> {
-  const { index, analysers } = submodule;
+  const { index } = submodule;
   await ensureIndex(submodule);
 
   const editor = vscode.window.activeTextEditor;
@@ -369,22 +369,16 @@ async function pickIdea(
     const activeRoot =
       submodule.index.getActiveBase()?.descriptor.root ?? workspaceRoot;
     const fileUri = toIndexFileUri(editor.document.uri, activeRoot);
-    if (isRqEditor(editor)) {
+    if (
+      editor.document.languageId === "reqlan" ||
+      editor.document.uri.fsPath.replace(/\\/g, "/").endsWith(".rq")
+    ) {
       ideas = (await index.indexStore.getIdeasInFile(fileUri)).filter(
         (idea) => idea.kind !== "ideaset",
       );
     } else {
-      const related = await analysers.run<
-        { fileUri: string },
-        import("@reqlan/analytical").FileRelatedRequirements
-      >(
-        {
-          store: index.indexStore,
-          analytical: submodule.index.store,
-          workspaceRoot: activeRoot,
-        },
-        "file_related_requirements",
-        { fileUri },
+      const related = await (await index.getAnalysisApi()).getFileContext(
+        editor.document.uri.fsPath,
       );
       ideas = [
         ...related.referencingIdeas,
@@ -397,17 +391,9 @@ async function pickIdea(
     }
   }
   if (ideas.length === 0) {
-    ideas = (
-      await analysers.run<void, IdeaSummary[]>(
-        {
-          store: index.indexStore,
-          analytical: submodule.index.store,
-          workspaceRoot,
-        },
-        "list_all_ideas",
-        undefined,
-      )
-    ).filter((idea) => idea.kind !== "ideaset");
+    ideas = (await (await index.getAnalysisApi()).listRequirements(0xffff_ffff)).filter(
+      (idea) => idea.kind !== "ideaset",
+    );
   }
 
   // Cursor/file already narrowed the set; skip workspace-wide filter unless empty context.
@@ -421,17 +407,9 @@ async function pickIdea(
   });
   let filtered = ideas;
   if (query?.trim()) {
-    const matches = await analysers.run<
-      { query: string; limit?: number },
-      SemanticMatch[]
-    >(
-      {
-        store: index.indexStore,
-        analytical: submodule.index.store,
-        workspaceRoot,
-      },
-      "semantic_analysis",
-      { query: query.trim(), limit: 20 },
+    const matches = await (await index.getAnalysisApi()).searchRequirements(
+      query.trim(),
+      20,
     );
     filtered = matches
       .map((match) => match.idea)

@@ -5,6 +5,14 @@
  */
 export { createBase } from '../core/create-base.js';
 export type { CreateBaseResult } from '../core/create-base.js';
+export { barrelPage, planBarrelPage, rewriteSiblingRefs } from '../core/barrel-page.js';
+export type {
+    BarrelPageChildPlan,
+    BarrelPageOptions,
+    BarrelPagePlan,
+    BarrelPagePlanOptions,
+    BarrelPageResult
+} from '../core/barrel-page.js';
 export { toWorkspaceRelativePath } from '../core/path-relative.js';
 export type {
     CompletionSummary,
@@ -18,12 +26,18 @@ export type {
     ExportScope
 } from '../export/types.js';
 export { NativeAnalysisApi } from './native-analysis-api.js';
+export type {
+    AnalysisRuntimeOptions,
+    InteractionDescriptor,
+    RequirementMatch,
+    SearchRequirementsOptions
+} from './native-analysis-api.js';
 export {
     openAnalysisApi,
     type HeadlessAnalysisApi,
     type OpenedAnalysisApi
 } from './open-analysis-api.js';
-export { parseReqlanSource } from './parse-source.js';
+export { extractIdeaNames, parseReqlanSource } from './parse-source.js';
 export type {
     NativeParseDiagnostic,
     NativeParseElement,

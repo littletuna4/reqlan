@@ -166,11 +166,13 @@ postmessage_clone_safety {
 
 zustand_boundary {
     [extension_architecture.state_machine_mindset] still applies: design UI and host flows as state machines.
-    Zustand (`zustand/vanilla`) is the standard for **non-Svelte** JS lifecycle stores — today the analytical
-    index store in [core_architecture.analytical_package], not webview UI.
-    Do not introduce zustand (or Redux-like globals) inside `packages/extension/webviews/**`.
-    Extension-host TypeScript may keep plain mutable session modules when the surface is small and
-    message-pushed; reach for a dedicated store only when multiple host consumers share the machine.
+    Zustand is no longer used anywhere: the index lifecycle FSM (`opening`/`syncing`/`ready`/`error`),
+    counts, file issues, and the document-update ring now live in Rust `WorkspaceIndexRuntime` and are read
+    over napi via `statusSnapshot()` (["../core_analysis/rust_port.rq".native_bridge]); durable diagnostics persist
+    in `index-diagnostics.sqlite`. TypeScript keeps no parallel copy of that state.
+    Do not reintroduce zustand (or Redux-like globals) in `packages/extension/webviews/**` or the analytical
+    package. Extension-host TypeScript may keep plain mutable session modules when the surface is small and
+    message-pushed; owned lifecycle/state machines belong in the Rust runtime.
 
     @status done
     @apply_to (
@@ -178,7 +180,8 @@ zustand_boundary {
         ["../extension/module/activitybar-panels/*.rq".*_pane]
     )
     @implementation (
-        ["../../packages/analytical/src/core/analytical-store.ts"]
+        ["../../crates/reqlan-analytical/src/workspace_index.rs"]
+        ["../../packages/analytical/src/native/native-workspace-index.ts"]
         ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../packages/extension/src/activity_bar_module/context-session.ts"]
     )

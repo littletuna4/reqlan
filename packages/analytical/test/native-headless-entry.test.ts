@@ -109,9 +109,9 @@ describe('core engine entry', () => {
             []
         );
         expect(files.some(file => file.endsWith('create-runtime.ts'))).toBe(false);
-        expect(files.some(file => file.endsWith('barrel-page.ts'))).toBe(false);
         expect(files.some(file => file.endsWith('workspace-index.ts'))).toBe(false);
-        expect(files.some(file => file.endsWith('idea-extractor.ts'))).toBe(false);
+        // barrel-page.ts is now native (no Langium) and is intentionally part of the /core graph.
+        expect(files.some(file => file.endsWith('barrel-page.ts'))).toBe(true);
         for (const file of files) {
             const source = readFileSync(file, 'utf8');
             const values = valueSpecifiers(source);

@@ -1,4 +1,5 @@
-import type { CurrentFileSlice, IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from '@reqlan/analytical';
+import type { CurrentFileSlice } from './lib/context-model.js';
+import type { IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from '@reqlan/analytical';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 
 export function buildOutlineFromIdeas(ideas: IdeaWithRange[]): OutlineNode[] {

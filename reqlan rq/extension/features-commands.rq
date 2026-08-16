@@ -116,7 +116,7 @@ search_code_actions {
         ["../../packages/extension/src/extension/reference-search-panel.ts"]
         ["../../packages/extension/src/extension/reference-search-import-path.ts"]
         ["../../packages/analytical/src/analysis/fuzzy-search.ts"]
-        ["../../packages/analytical/src/analysis/fuzzy-search-analyser.ts"]
+        ["../../packages/analytical/src/native/native-workspace-index.ts"]
         ["../../packages/extension/src/extension/register-import-error-commands.ts"]
         ["../../packages/extension/src/extension/main.ts"]
         ["../../packages/extension/src/language/main.ts"]

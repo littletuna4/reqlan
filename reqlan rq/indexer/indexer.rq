@@ -3,7 +3,7 @@ import "../../packages/analytical/src/index-store/workspace-index.ts" as workspa
 import "../../packages/analytical/src/index-store/workspace-index-sync.ts" as workspace_index_sync
 import "../../packages/analytical/src/index-store/workspace-index-file.ts" as workspace_index_file
 import "../../packages/analytical/src/index-store/workspace-mtime.ts" as workspace_mtime
-import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../extension/module/index.rq" as app_memory_doc
@@ -85,7 +85,7 @@ ownership {
     Canonical single-base engine: [workspace_index] (`WorkspaceIndex` facade).
     Sync/idle impl: [workspace_index_sync]; one-file parse+persist: [workspace_index_file]; mtime stale diff: [workspace_mtime].
     Multi-base registry: one `WorkspaceIndex` per discovered ["../bases/base.rq".base] under [app_memory_doc.application_memory] (`<base>/.reqlan/`).
-    Headless entry: [analysis_runtime] via `createAnalysisRuntime` (CLI / MCP) — discovers bases under the resolved root and defaults to the nearest base containing cwd.
+    Headless entry: [analysis_runtime] via native-only `openAnalysisApi` (CLI / MCP).
     On-disk store path: [application_memory_impl] under `<base>/.reqlan/` — see [app_memory_doc.application_memory].
 }
 

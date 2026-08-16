@@ -47,15 +47,16 @@ import { toIndexFileUri } from "../analytical_submodule/index-store/resolve-inde
 import { getPhonebookLink } from "../shared/phonebook.js";
 import { safeWebviewPost } from "../shared/safe-webview-post.js";
 import {
-  buildFocusSignals,
   buildGraphViewSlice,
-  computeOverviewCoverageScores,
   GRAPH_MAX_NODES,
   GRAPH_NODES_HARD_CAP,
-  hotspotBandFromRisk,
-  synthesizeFocusContext,
   type GraphViewSlice as AnalyticalGraphViewSlice,
 } from "@reqlan/analytical";
+import {
+  buildFocusSignals,
+  hotspotBandFromRisk,
+  synthesizeFocusContext,
+} from "../activity_bar_module/lib/context-signals.js";
 
 const VIEW_TYPE = "reqlan.ideasSummary";
 
@@ -833,11 +834,8 @@ export class IdeasSummaryPanel {
     }
 
     try {
-      const scores = await computeOverviewCoverageScores({
-        baseRoot,
-        store: this.submodule.index.indexStore,
-        shouldCancel: () => generation !== this.coverageGeneration,
-      });
+      // Coverage walk + LOC counting runs natively over the active base.
+      const scores = this.submodule.index.computeOverviewCoverage();
 
       if (generation !== this.coverageGeneration) {
         return;

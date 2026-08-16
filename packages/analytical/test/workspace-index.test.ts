@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { describe, expect, test } from 'vitest';
-import { createAnalyticalStore } from '../src/core/analytical-store.js';
 import { WorkspaceIndex } from '../src/index-store/workspace-index.js';
 
 async function writeWorkspace(files: Record<string, string>): Promise<string> {
@@ -17,21 +16,25 @@ async function writeWorkspace(files: Record<string, string>): Promise<string> {
     return root;
 }
 
+/** Newest-first document updates recorded in the diagnostics DB (via native). */
+function documentUpdates(index: WorkspaceIndex) {
+    return index.getStatusSnapshot().recentDocumentUpdates;
+}
+
 describe('WorkspaceIndex', () => {
     test('indexes ideas and skips re-index when hash matches and edges are present', async () => {
         const root = await writeWorkspace({
             'demo.rq': 'alpha this is alpha\nbeta this is beta\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         expect(index.isReady).toBe(true);
         expect((await index.indexStore.counts()).ideas).toBe(2);
 
-        const before = store.getState().documentUpdates.length;
+        const before = documentUpdates(index).length;
         await index.indexFilePath(join(root, 'demo.rq'));
-        expect(store.getState().documentUpdates.length).toBe(before);
+        expect(documentUpdates(index).length).toBe(before);
         await index.deactivate();
     });
 
@@ -40,14 +43,13 @@ describe('WorkspaceIndex', () => {
             'a.rq': 'alpha this is alpha\n',
             'b.rq': 'beta this is beta\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
-        const updatesAfterActivate = store.getState().documentUpdates.length;
+        const updatesAfterActivate = documentUpdates(index).length;
         const ok = await index.syncWorkspace([join(root, 'a.rq'), join(root, 'b.rq')]);
         expect(ok).toBe(true);
-        expect(store.getState().documentUpdates.length).toBe(updatesAfterActivate);
+        expect(documentUpdates(index).length).toBe(updatesAfterActivate);
         expect((await index.indexStore.counts()).ideas).toBe(2);
         await index.deactivate();
     });
@@ -56,8 +58,7 @@ describe('WorkspaceIndex', () => {
         const root = await writeWorkspace({
             'demo.rq': 'alpha this is alpha\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         const filePath = join(root, 'demo.rq');
@@ -65,9 +66,9 @@ describe('WorkspaceIndex', () => {
         const later = new Date(Date.now() + 5_000);
         await utimes(filePath, later, later);
 
-        const before = store.getState().documentUpdates.length;
+        const before = documentUpdates(index).length;
         await index.syncWorkspace([filePath]);
-        expect(store.getState().documentUpdates.length).toBeGreaterThan(before);
+        expect(documentUpdates(index).length).toBeGreaterThan(before);
         expect((await index.indexStore.counts()).ideas).toBe(2);
         await index.deactivate();
     });
@@ -77,17 +78,15 @@ describe('WorkspaceIndex', () => {
             'a.rq': 'alpha this is alpha\n',
             'b.rq': 'beta this is beta\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         await writeFile(join(root, 'a.rq'), 'alpha this is alpha\nalpha_two this is two\n', 'utf8');
-        const before = store.getState().documentUpdates.length;
         index.enqueueIndex(join(root, 'a.rq'), 'changed');
         // Drain the sync queue by awaiting a follow-up soft sync (mtime skip for b).
         await index.syncWorkspace([join(root, 'a.rq'), join(root, 'b.rq')]);
 
-        const updates = store.getState().documentUpdates.slice(before);
+        const updates = documentUpdates(index);
         expect(updates.some(update => update.fileUri === 'a.rq' || update.fileUri.endsWith('a.rq'))).toBe(true);
         expect((await index.indexStore.counts()).ideas).toBe(3);
         await index.deactivate();
@@ -99,8 +98,7 @@ describe('WorkspaceIndex', () => {
             files[`f${i}.rq`] = `idea${i} summary ${i}\n`;
         }
         const root = await writeWorkspace(files);
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.open();
 
         const paths = Object.keys(files).map(name => join(root, name));
@@ -127,8 +125,7 @@ describe('WorkspaceIndex', () => {
             'one.rq': 'one this is one\n',
             'two.rq': 'two this is two\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.open();
 
         const seenFiles = new Set<string>();
@@ -149,13 +146,13 @@ describe('WorkspaceIndex', () => {
         const root = await writeWorkspace({
             'bad.rq': '@@@ not valid reqlan at all {\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.open();
         await index.indexFilePath(join(root, 'bad.rq'));
 
-        expect(store.getState().fileIndexIssues.length).toBeGreaterThan(0);
-        expect(store.getState().fileIndexIssues.some(issue => issue.phase === 'parse' || issue.phase === 'extract')).toBe(true);
+        const issues = index.getStatusSnapshot().fileIssues;
+        expect(issues.length).toBeGreaterThan(0);
+        expect(issues.some(issue => issue.phase === 'parse' || issue.phase === 'extract')).toBe(true);
         await index.deactivate();
     });
 
@@ -164,8 +161,7 @@ describe('WorkspaceIndex', () => {
             'old.rq': 'legacy this was legacy\n',
             'new.rq': 'fresh this is fresh\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         const oldUri = index.toIndexedUri(join(root, 'old.rq'));
@@ -184,8 +180,7 @@ describe('WorkspaceIndex', () => {
         const root = await writeWorkspace({
             'demo.rq': 'alpha this is alpha\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
         expect((await index.indexStore.counts()).ideas).toBe(1);
 
@@ -200,11 +195,10 @@ describe('WorkspaceIndex', () => {
             'a.rq': 'alpha this is alpha\n',
             'b.rq': 'beta this is beta\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
-        const updatesBefore = store.getState().documentUpdates.length;
+        const updatesBefore = documentUpdates(index).length;
         const states: string[] = [];
         const unsub = index.subscribeStatusUpdates(() => {
             states.push(index.state);
@@ -213,7 +207,7 @@ describe('WorkspaceIndex', () => {
         unsub();
 
         expect(result).toEqual({ checked: 2, indexed: 0, removed: 0 });
-        expect(store.getState().documentUpdates.length).toBe(updatesBefore);
+        expect(documentUpdates(index).length).toBe(updatesBefore);
         expect(states.includes('syncing')).toBe(false);
         await index.deactivate();
     });
@@ -223,8 +217,7 @@ describe('WorkspaceIndex', () => {
             'keep.rq': 'keep this stays\n',
             'gone.rq': 'gone this will vanish\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
         expect((await index.indexStore.counts()).ideas).toBe(2);
 
@@ -256,8 +249,7 @@ describe('WorkspaceIndex', () => {
         await mkdir(join(root, 'custom_drop'), { recursive: true });
         await writeFile(join(root, 'custom_drop', 'x.rq'), 'dropped idea\n', 'utf8');
 
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         expect((await index.indexStore.counts()).ideas).toBe(1);
@@ -271,8 +263,7 @@ describe('WorkspaceIndex', () => {
         const root = await writeWorkspace({
             'demo.rq': 'cli_package CLI package\nsearch_code_actions code action search\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         const empty = index.fuzzySearch('   ', { limit: 8, requireQuery: true });
@@ -292,8 +283,7 @@ describe('WorkspaceIndex', () => {
             'core_analysis/search.rq': 'alpha {\n    body\n}\n',
             'other.rq': 'beta {\n    body\n}\n'
         });
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         const uris = await index.indexStore.listDocumentUris();

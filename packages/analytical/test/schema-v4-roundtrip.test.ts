@@ -10,7 +10,6 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { createAnalyticalStore } from '../src/core/analytical-store.js';
 import { WorkspaceIndex } from '../src/index-store/workspace-index.js';
 import { SqliteIndexStore } from '../src/index-store/sqlite-store.js';
 import { SCHEMA_VERSION } from '../src/index-store/schema.js';
@@ -43,8 +42,7 @@ describe('schema v4 round-trip', () => {
         const root = join(tmpdir(), `reqlan-schema-v4-${randomUUID()}`);
         await mkdir(join(root, '.reqlan'), { recursive: true });
         await writeFile(join(root, 'demo.rq'), 'demo {\n    body\n    @status pending\n}\n', 'utf8');
-        const store = createAnalyticalStore();
-        const index = new WorkspaceIndex(store, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
         expect((await index.indexStore.counts()).ideas).toBeGreaterThan(0);
         await index.deactivate();

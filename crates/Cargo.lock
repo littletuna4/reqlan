@@ -389,6 +389,7 @@ dependencies = [
  "reqlan-index",
  "reqlan-parse",
  "reqlan-search",
+ "rusqlite",
  "serde",
  "serde_json",
  "specta",
@@ -430,6 +431,7 @@ dependencies = [
  "reqlan-analytical",
  "reqlan-index",
  "reqlan-parse",
+ "serde",
  "serde_json",
 ]
 

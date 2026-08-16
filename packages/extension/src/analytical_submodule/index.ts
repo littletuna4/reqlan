@@ -4,21 +4,9 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import {
-    AnalyserRegistry,
     addNativeEngineSearchDirs,
-    createAnalyticalStore,
-    completionTrackingAnalyser,
-    deprecationImpactAnalyser,
-    fileRelatedAnalyser,
-    gitDatesAnalyser,
-    listAllIdeasAnalyser,
-    localGraphAnalyser,
     loadNativeEngine,
-    resetNativeEngineCache,
-    semanticSearchAnalyser,
-    fuzzySearchAnalyser,
-    fileSearchAnalyser,
-    type AnalyticalStore
+    resetNativeEngineCache
 } from '@reqlan/analytical';
 import { IndexService } from './index-store/index-service.js';
 import { registerAnalyticalCommands } from './commands/register-commands.js';
@@ -31,24 +19,16 @@ import { registerIndexDiagnosticsModule } from '../diagnostics_module/index.js';
 import { registerGitDatesBackgroundIndexing } from '../extension/register-git-dates-background.js';
 
 export type {
-    AnalyticalState,
-    AnalyticalStore,
-    AnalyticalStoreState,
-    AnalysisRun,
     DocumentUpdate,
     IndexError,
     IndexState,
     WorkspaceChange,
     WorkspaceFileChange
 } from '@reqlan/analytical';
-export type { Analyser, AnalyserContext } from '@reqlan/analytical';
 export * from '@reqlan/analytical';
 
 export interface AnalyticalSubmodule {
-    /** Fallback / legacy shared store; prefer `index.store` for the active base. */
-    store: AnalyticalStore;
     index: IndexService;
-    analysers: AnalyserRegistry;
 }
 
 /**
@@ -93,21 +73,8 @@ export function activateAnalyticalSubmodule(
         throw error;
     }
 
-    const store = createAnalyticalStore();
-    const index = new IndexService(store);
-    const analysers = new AnalyserRegistry();
-
-    analysers.register(listAllIdeasAnalyser);
-    analysers.register(fileRelatedAnalyser);
-    analysers.register(deprecationImpactAnalyser);
-    analysers.register(gitDatesAnalyser);
-    analysers.register(completionTrackingAnalyser);
-    analysers.register(localGraphAnalyser);
-    analysers.register(semanticSearchAnalyser);
-    analysers.register(fuzzySearchAnalyser);
-    analysers.register(fileSearchAnalyser);
-
-    const submodule = { store, index, analysers };
+    const index = new IndexService();
+    const submodule = { index };
 
     // Register all VS Code contributions synchronously. This makes the activity
     // bar webview view provider available immediately so VS Code can resolve
@@ -130,7 +97,6 @@ export function activateAnalyticalSubmodule(
 
     context.subscriptions.push({
         dispose: () => {
-            store.getState().reset();
             index.deactivate();
         }
     });

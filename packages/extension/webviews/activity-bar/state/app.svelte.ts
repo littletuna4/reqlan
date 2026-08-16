@@ -4,11 +4,13 @@ import type {
 } from '../../../src/activity_bar_module/activity-bar-messages.js';
 import type {
     ActivityBarScope,
-    AncestorChainResult,
     ContextDimensionId,
     ContextFileLensDetail,
-    IdeaSummary,
     ReqlanContextModel
+} from '../../../src/activity_bar_module/lib/context-model.js';
+import type {
+    AncestorChainResult,
+    IdeaSummary
 } from '@reqlan/analytical';
 import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
 import type { PhonebookLinkView, ReferenceListsPayload, IdeaSearchHitView, IdeaSearchProgressPayload, IdeaSearchResultsPayload, TodoIdeaHitView, TodoListPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';

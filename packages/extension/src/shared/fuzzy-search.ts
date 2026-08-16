@@ -1,17 +1,23 @@
 /**
- * Fuzzy / partial idea search with interchangeable separators.
- * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
- * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_whitespace]
- * rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
- * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
- * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
+ * Client-side fuzzy helpers for webview highlight + reference-search panel.
+ * Ranking for activity-bar search is native (`NativeWorkspaceIndex.fuzzySearch`).
+ * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
+ * rq:["../../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
  */
-import type { IdeaSummary } from '../core/types.js';
+export interface IdeaSummaryLike {
+    id: string;
+    name: string;
+    kind: string;
+    fileUri: string;
+    summary: string;
+    lineStart: number;
+    tags?: string[];
+}
 
 export interface FuzzySearchHit {
     id: string;
     name: string;
-    kind: IdeaSummary['kind'] | 'file';
+    kind: string;
     fileUri: string;
     summary: string;
     lineStart: number;
@@ -51,7 +57,7 @@ export function splitSearchTokens(value: string): string[] {
         .filter(Boolean);
 }
 
-export function filterAndScoreIdeas(ideas: IdeaSummary[], query: string): FuzzySearchHit[] {
+export function filterAndScoreIdeas(ideas: IdeaSummaryLike[], query: string): FuzzySearchHit[] {
     return rankScoredIdeas(scoreIdeas(ideas, query));
 }
 
@@ -93,7 +99,7 @@ export function filterAndScoreFiles(fileUris: readonly string[], query: string):
 }
 
 export function searchIndex(
-    ideas: IdeaSummary[],
+    ideas: IdeaSummaryLike[],
     fileUris: readonly string[],
     query: string,
     options: SearchIndexOptions = {}
@@ -130,7 +136,7 @@ export function paginateHits(
  * Returns `undefined` when `isCancelled` becomes true mid-run.
  */
 export async function filterAndScoreIdeasAsync(
-    ideas: IdeaSummary[],
+    ideas: IdeaSummaryLike[],
     query: string,
     options?: {
         isCancelled?: () => boolean;
@@ -180,7 +186,7 @@ export async function filterAndScoreIdeasAsync(
     return rankScoredIdeas(scored);
 }
 
-function scoreIdeas(ideas: IdeaSummary[], query: string): FuzzySearchHit[] {
+function scoreIdeas(ideas: IdeaSummaryLike[], query: string): FuzzySearchHit[] {
     const rawNeedle = query.trim().toLowerCase();
     const needle = normalizeSearchSeparators(rawNeedle);
     const queryTokens = splitSearchTokens(rawNeedle);
@@ -222,7 +228,7 @@ function yieldEventLoop(): Promise<void> {
 }
 
 function scoreIdeaMatch(
-    idea: IdeaSummary,
+    idea: IdeaSummaryLike,
     rawNeedle: string,
     needle: string,
     queryTokens: string[]
@@ -241,7 +247,7 @@ function scoreIdeaMatch(
             score = Math.max(score, 18);
         }
     }
-    for (const tag of idea.tags) {
+    for (const tag of idea.tags ?? []) {
         const tagRaw = tag.toLowerCase();
         const tagNorm = normalizeSearchSeparators(tag);
         if (tagRaw.includes(rawNeedle) || (needle && tagNorm.includes(needle))) {

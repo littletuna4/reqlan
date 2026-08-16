@@ -5,7 +5,7 @@
         FILE_TREATMENT_OPTIONS,
         fileTreatmentLabel,
         type FileTreatment
-    } from '@reqlan/analytical/file-treatment';
+    } from '../../shared/graph/file-treatment.js';
     import {
         announceScdOpened,
         subscribeScdOpened

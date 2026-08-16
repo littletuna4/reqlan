@@ -7,7 +7,7 @@ import "../../packages/analytical/src/index-store/base-registry.ts" as base_regi
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
 import "../../packages/analytical/src/core/create-base.ts" as create_base_impl
 import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
-import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../packages/extension/src/analytical_submodule/commands/register-commands.ts" as register_commands
 import "../../packages/language/src/reqlan-path-resolve.ts" as path_resolve

@@ -4,7 +4,7 @@
  * rq:["../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../reqlan rq/ontology.rq".reference_types]
  */
-import { isWindowsAbsolutePath } from '@reqlan/language';
+import { isWindowsAbsolutePath } from './path-relative.js';
 import { posix } from 'node:path';
 
 function definingFilePath(sourceId: string): string {

@@ -4,41 +4,45 @@
  */
 import {
     ACTIVITY_BAR_MAX_NODES,
-    buildAiReadiness,
-    buildContextFingerprint,
-    buildFocusSignals,
     buildGraphViewSlice,
-    CONTEXT_DIMENSION_LABELS,
-    CONTEXT_DIMENSION_WEIGHTS,
     CONTEXT_MAX_HOP_DEPTH,
     CONTEXT_MIN_HOP_DEPTH,
-    formatAiReadinessMarkdown,
-    formatFingerprintMarkdown,
-    formatSynthesisMarkdown,
-    hotspotBandFromRisk,
     resolveBidirectionalIdeaReferences,
-    synthesizeFocusContext,
     type AncestorChainResult,
-    type ContextAnomaly,
-    type ContextDimensionContribution,
-    type ContextDimensionId,
-    type ContextFileEntry,
-    type ContextFocus,
-    type ContextFootprint,
-    type CurrentFileSlice,
-    type GitContextSlice,
     type IdeaSummary,
     type IdeaWithRange,
     type OutlineNode,
     type ReferenceListRow,
-    type ReqlanContextModel,
     type SqliteIndexStore,
-    type FileRelatedRequirements,
-    type ContextSelection,
-    type ContextFileLensDetail,
-    type ContextReferencesSlice,
-    type WorkspaceContextSlice
+    type FileRelatedRequirements
 } from '@reqlan/analytical';
+import {
+    buildAiReadiness,
+    buildContextFingerprint,
+    buildFocusSignals,
+    formatAiReadinessMarkdown,
+    formatFingerprintMarkdown,
+    formatSynthesisMarkdown,
+    hotspotBandFromRisk,
+    synthesizeFocusContext
+} from './lib/context-signals.js';
+import {
+    CONTEXT_DIMENSION_LABELS,
+    CONTEXT_DIMENSION_WEIGHTS,
+    type ContextAnomaly,
+    type ContextDimensionContribution,
+    type ContextDimensionId,
+    type ContextFileEntry,
+    type ContextFileLensDetail,
+    type ContextFocus,
+    type ContextFootprint,
+    type ContextReferencesSlice,
+    type ContextSelection,
+    type CurrentFileSlice,
+    type GitContextSlice,
+    type ReqlanContextModel,
+    type WorkspaceContextSlice
+} from './lib/context-model.js';
 import type { GraphViewQuery, GraphViewSlice } from '../webview_module/shared/messages.js';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 import type { ContextSessionState } from './context-session.js';

@@ -2,7 +2,7 @@
     /**
      * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
      */
-    import { splitSearchHighlight } from '@reqlan/analytical/fuzzy-search';
+    import { splitSearchHighlight } from '../../shared/search/fuzzy-search.js';
 
     interface Props {
         text: string;

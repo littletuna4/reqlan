@@ -1,20 +1,15 @@
 /**
  * Create a reqlan base by writing the `.reqlan` application-memory marker.
- * Shared by CLI `init` and other headless tools; the extension uses the same marker.
+ * The native engine seeds `config.json` + `.rqignore` (single source of truth for
+ * the default ignore patterns); this wrapper returns the base descriptor.
  *
  * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
-import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import {
-    CONFIG_FILENAME,
-    RQIGNORE_FILENAME,
-    resolveApplicationMemoryPath
-} from './application-memory.js';
+import { resolve } from 'node:path';
+import { loadNativeEngine } from '../native/load-native.js';
 import { toBaseDescriptor, type BaseDescriptor } from './base-discovery.js';
-import { defaultRqIgnoreFileContents } from './rqignore.js';
 
 export interface CreateBaseResult {
     base: BaseDescriptor;
@@ -22,7 +17,10 @@ export interface CreateBaseResult {
     created: boolean;
 }
 
-const DEFAULT_CONFIG_JSON = `${JSON.stringify({}, null, 2)}\n`;
+interface NativeCreateBaseResult {
+    created: boolean;
+    memoryPath: string;
+}
 
 /**
  * Ensure `<baseRoot>/.reqlan/` exists and seed `config.json` + `.rqignore` when creating a new base.
@@ -30,15 +28,15 @@ const DEFAULT_CONFIG_JSON = `${JSON.stringify({}, null, 2)}\n`;
  */
 export async function createBase(baseRoot: string): Promise<CreateBaseResult> {
     const root = resolve(baseRoot);
-    const memoryPath = resolveApplicationMemoryPath(root);
-    const created = !existsSync(memoryPath);
-    await mkdir(memoryPath, { recursive: true });
-    if (created) {
-        await writeFile(join(memoryPath, CONFIG_FILENAME), DEFAULT_CONFIG_JSON, 'utf8');
-        await writeFile(join(memoryPath, RQIGNORE_FILENAME), defaultRqIgnoreFileContents(), 'utf8');
+    const engine = loadNativeEngine();
+    if (typeof engine.createBase !== 'function') {
+        throw new Error(
+            'Native createBase is missing; rebuild crates/reqlan-napi (cargo build -p reqlan-napi).'
+        );
     }
+    const result = engine.createBase(root) as NativeCreateBaseResult;
     return {
         base: toBaseDescriptor(root),
-        created
+        created: result.created
     };
 }

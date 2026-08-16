@@ -55,9 +55,9 @@ describe('CLI/MCP native cutover wiring', () => {
         expect(source).toContain('@reqlan/analytical/core');
     });
 
-    test('barrel command lazy-loads the analytical Langium barrel helper', () => {
+    test('barrel command lazy-loads the native /core barrel helper', () => {
         const source = readSrc('commands/barrel.ts');
-        expect(source).toMatch(/await import\(['"]@reqlan\/analytical['"]\)/);
+        expect(source).toMatch(/await import\(['"]@reqlan\/analytical\/core['"]\)/);
         expect(source).not.toMatch(/from '@reqlan\/analytical['"]/);
     });
 

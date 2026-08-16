@@ -8,7 +8,7 @@
         applyFileTreatment,
         fileUriFromFileCompoundId,
         fileUriFromFileIdeasetId
-    } from '@reqlan/analytical/file-treatment';
+    } from '../../shared/graph/file-treatment.js';
     import { getApp } from '../state/context.js';
     import TableToolbar from './TableToolbar.svelte';
     import GraphControls from './GraphControls.svelte';
@@ -30,7 +30,7 @@
     import {
         FILTER_NOT_PRESENT,
         statusFilterKey
-    } from '@reqlan/analytical/filter-specials';
+    } from '../../shared/filter/filter-specials.js';
     import {
         bumpCount,
         GRAPH_FILTER_SPECIALS

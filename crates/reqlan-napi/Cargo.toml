@@ -16,6 +16,7 @@ napi-derive = "2.16"
 reqlan-analytical = { path = "../reqlan-analytical" }
 reqlan-index = { path = "../reqlan-index" }
 reqlan-parse = { path = "../reqlan-parse" }
+serde.workspace = true
 serde_json.workspace = true
 
 [build-dependencies]

@@ -7,7 +7,6 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { describe, expect, test } from 'vitest';
-import { createAnalyticalStore } from '../src/core/analytical-store.js';
 import {
     IndexDiagnosticsStore,
     pathDepthFromUri
@@ -62,8 +61,7 @@ describe('index diagnostics', () => {
         await mkdir(join(root, 'nested'), { recursive: true });
         await writeFile(join(root, 'nested', 'c.rq'), 'gamma this is gamma\n', 'utf8');
 
-        const analytical = createAnalyticalStore();
-        const index = new WorkspaceIndex(analytical, join(root, '.reqlan'), root);
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
         await index.activate();
 
         const overview = await index.getIndexDiagnosticsOverview();

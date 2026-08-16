@@ -1,8 +1,7 @@
 /**
- * Multi-base index registry: one WorkspaceIndex + AnalyticalStore per base.
+ * Multi-base index registry: one WorkspaceIndex per base. The index lifecycle
+ * state now lives in the native runtime, not a per-base Zustand store.
  */
-import type { AnalyticalStore } from '../core/analytical-store.js';
-import { createAnalyticalStore } from '../core/analytical-store.js';
 import {
     baseForPath,
     discoverBases,
@@ -17,7 +16,6 @@ import { WorkspaceIndex } from './workspace-index.js';
 
 export interface RegisteredBase {
     descriptor: BaseDescriptor;
-    store: AnalyticalStore;
     index: WorkspaceIndex;
 }
 
@@ -72,10 +70,9 @@ export class BaseRegistry {
             if (this.entries.has(descriptor.id)) {
                 continue;
             }
-            const store = createAnalyticalStore();
             const storagePath = resolveApplicationMemoryPath(descriptor.root);
-            const index = new WorkspaceIndex(store, storagePath, descriptor.root);
-            this.entries.set(descriptor.id, { descriptor, store, index });
+            const index = new WorkspaceIndex(storagePath, descriptor.root);
+            this.entries.set(descriptor.id, { descriptor, index });
         }
     }
 

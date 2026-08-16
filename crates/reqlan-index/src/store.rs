@@ -2,6 +2,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 
+use crate::queries;
 use crate::schema::{version_migrations, BASE_MIGRATIONS, SCHEMA_VERSION};
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{
@@ -48,32 +49,7 @@ impl IndexStore {
     }
 
     fn migrate(&self) -> Result<(), StoreError> {
-        for statement in BASE_MIGRATIONS {
-            self.conn.execute_batch(statement)?;
-        }
-        let current: i64 = self
-            .conn
-            .query_row("SELECT value FROM meta WHERE key = 'schema_version'", [], |row| {
-                let value: String = row.get(0)?;
-                Ok(value.parse().unwrap_or(1))
-            })
-            .optional()?
-            .unwrap_or(1);
-        for version in (current + 1)..=SCHEMA_VERSION {
-            for statement in version_migrations(version) {
-                if let Err(error) = self.conn.execute_batch(statement) {
-                    let message = error.to_string();
-                    if !message.contains("duplicate column") {
-                        return Err(error.into());
-                    }
-                }
-            }
-        }
-        self.conn.execute(
-            "INSERT INTO meta(key, value) VALUES ('schema_version', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![SCHEMA_VERSION.to_string()],
-        )?;
-        Ok(())
+        migrate(&self.conn)
     }
 
     pub fn schema_version(&self) -> Result<i64, StoreError> {
@@ -126,10 +102,7 @@ impl IndexStore {
     }
 
     pub fn update_document_mtime(&self, file_uri: &str, mtime_ms: f64) -> Result<(), StoreError> {
-        self.conn.execute(
-            "UPDATE documents SET mtime_ms = ?1, indexed_at = datetime('now') WHERE file_uri = ?2",
-            params![mtime_ms, file_uri],
-        )?;
+        queries::update_document_mtime(&self.conn, file_uri, mtime_ms)?;
         Ok(())
     }
 
@@ -141,83 +114,7 @@ impl IndexStore {
         edges: &[EdgeRecord],
         mtime_ms: Option<f64>,
     ) -> Result<(), StoreError> {
-        let tx = self.conn.transaction()?;
-        let existing: HashMap<String, (Option<String>, Option<String>, Option<i64>)> = {
-            let mut stmt = tx.prepare(
-                "SELECT id, git_created_at, git_modified_at, git_change_count FROM ideas WHERE file_uri = ?1",
-            )?;
-            let rows = stmt.query_map([file_uri], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<i64>>(3)?,
-                ))
-            })?;
-            let mut map = HashMap::new();
-            for row in rows {
-                let (id, created, modified, count) = row?;
-                map.insert(id, (created, modified, count));
-            }
-            map
-        };
-        tx.execute(
-            "DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
-            [file_uri],
-        )?;
-        tx.execute("DELETE FROM ideas WHERE file_uri = ?1", [file_uri])?;
-        {
-            let mut insert_idea = tx.prepare(
-                "INSERT INTO ideas (
-                    id, name, kind, file_uri, line_start, line_end, summary,
-                    attributes_json, content_hash, git_created_at, git_modified_at, git_change_count
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-            )?;
-            for idea in ideas {
-                let previous = existing.get(&idea.id);
-                insert_idea.execute(params![
-                    idea.id,
-                    idea.name,
-                    idea.kind.as_str(),
-                    idea.file_uri,
-                    idea.line_start,
-                    idea.line_end,
-                    idea.summary,
-                    idea.attributes_json,
-                    idea.content_hash,
-                    idea.git_created_at.as_deref().or(previous.and_then(|p| p.0.as_deref())),
-                    idea.git_modified_at.as_deref().or(previous.and_then(|p| p.1.as_deref())),
-                    idea.git_change_count.or(previous.and_then(|p| p.2)),
-                ])?;
-            }
-        }
-        {
-            let mut insert_edge = tx.prepare(
-                "INSERT OR IGNORE INTO edges (
-                    id, source_id, target_id, target_file, kind, label, source_line, snippet, is_resolved
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            )?;
-            for edge in edges {
-                insert_edge.execute(params![
-                    edge.id,
-                    edge.source_id,
-                    edge.target_id,
-                    edge.target_file,
-                    edge.kind.as_str(),
-                    edge.label,
-                    edge.source_line,
-                    edge.snippet,
-                    if edge.is_resolved == Some(false) { 0 } else { 1 },
-                ])?;
-            }
-        }
-        tx.execute(
-            "INSERT INTO documents(file_uri, content_hash, indexed_at, mtime_ms)
-             VALUES (?1, ?2, datetime('now'), ?3)
-             ON CONFLICT(file_uri) DO UPDATE SET content_hash = excluded.content_hash, indexed_at = excluded.indexed_at, mtime_ms = excluded.mtime_ms",
-            params![file_uri, content_hash, mtime_ms],
-        )?;
-        tx.commit()?;
+        queries::upsert_document(&self.conn, file_uri, content_hash, ideas, edges, mtime_ms)?;
         Ok(())
     }
 
@@ -275,32 +172,17 @@ impl IndexStore {
     }
 
     pub fn delete_document(&self, file_uri: &str) -> Result<(), StoreError> {
-        self.conn.execute(
-            "DELETE FROM edges WHERE kind = 'comment_link' AND target_file = ?1",
-            [file_uri],
-        )?;
-        self.conn.execute(
-            "DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
-            [file_uri],
-        )?;
-        self.conn.execute("DELETE FROM ideas WHERE file_uri = ?1", [file_uri])?;
-        self.conn.execute("DELETE FROM documents WHERE file_uri = ?1", [file_uri])?;
+        queries::remove_documents(&self.conn, std::slice::from_ref(&file_uri.to_string()))?;
         Ok(())
     }
 
     pub fn clear(&self) -> Result<(), StoreError> {
-        self.conn.execute_batch("DELETE FROM edges; DELETE FROM ideas; DELETE FROM documents;")?;
+        queries::clear_all(&self.conn)?;
         Ok(())
     }
 
     pub fn count_edges_from_file(&self, file_uri: &str) -> Result<i64, StoreError> {
-        self.conn
-            .query_row(
-                "SELECT COUNT(*) FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
-                [file_uri],
-                |row| row.get(0),
-            )
-            .map_err(Into::into)
+        Ok(queries::count_edges_from_file(&self.conn, file_uri)?)
     }
 
     pub fn list_all_ideas(&self) -> Result<Vec<IdeaSummary>, StoreError> {
@@ -420,6 +302,132 @@ impl IndexStore {
     pub fn last_insert_rowid(&self) -> i64 {
         self.conn.last_insert_rowid()
     }
+
+    pub fn connection(&self) -> &Connection {
+        &self.conn
+    }
+
+    // ---- webview table/graph query surface (see queries.rs) --------------------
+
+    pub fn count_ideas(&self, q: &queries::IdeasTableQuery) -> Result<i64, StoreError> {
+        Ok(queries::count_ideas(&self.conn, q)?)
+    }
+
+    pub fn list_ideas_page_rows(
+        &self,
+        q: &queries::IdeasTableQuery,
+    ) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_ideas_page_rows(&self.conn, q)?)
+    }
+
+    pub fn list_reference_chip_rows(
+        &self,
+        idea_ids: &[String],
+    ) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_reference_chip_rows(&self.conn, idea_ids)?)
+    }
+
+    pub fn count_ideasets(&self, q: &queries::IdeasetsTableQuery) -> Result<i64, StoreError> {
+        Ok(queries::count_ideasets(&self.conn, q)?)
+    }
+
+    pub fn list_ideasets_page_rows(
+        &self,
+        q: &queries::IdeasetsTableQuery,
+    ) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_ideasets_page_rows(&self.conn, q)?)
+    }
+
+    pub fn list_ideaset_member_rows(
+        &self,
+        ideaset_id: &str,
+        kind: &str,
+        file_uri: &str,
+    ) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_ideaset_member_rows(&self.conn, ideaset_id, kind, file_uri)?)
+    }
+
+    pub fn count_references(&self, q: &queries::ReferencesTableQuery) -> Result<i64, StoreError> {
+        Ok(queries::count_references(&self.conn, q)?)
+    }
+
+    pub fn list_references_page_rows(
+        &self,
+        q: &queries::ReferencesTableQuery,
+    ) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_references_page_rows(&self.conn, q)?)
+    }
+
+    pub fn list_todo_idea_rows(&self) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_todo_idea_rows(&self.conn)?)
+    }
+
+    pub fn list_ideas_for_graph_query_rows(
+        &self,
+        q: &queries::GraphViewQuery,
+        limit: i64,
+    ) -> Result<(Vec<JsonValue>, i64), StoreError> {
+        Ok(queries::list_ideas_for_graph_query_rows(&self.conn, q, limit)?)
+    }
+
+    pub fn list_recent_git_idea_rows(&self, limit: i64) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_recent_git_idea_rows(&self.conn, limit)?)
+    }
+
+    pub fn list_idea_ids_missing_git_dates(
+        &self,
+        limit: i64,
+        file_uri: Option<&str>,
+        prefer_file_uri: Option<&str>,
+    ) -> Result<Vec<String>, StoreError> {
+        Ok(queries::list_idea_ids_missing_git_dates(&self.conn, limit, file_uri, prefer_file_uri)?)
+    }
+
+    pub fn list_attribute_idea_rows(&self) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::list_attribute_idea_rows(&self.conn)?)
+    }
+
+    pub fn update_git_dates(
+        &self,
+        id: &str,
+        created_at: Option<&str>,
+        modified_at: Option<&str>,
+        change_count: Option<i64>,
+    ) -> Result<(), StoreError> {
+        queries::update_git_dates(&self.conn, id, created_at, modified_at, change_count)?;
+        Ok(())
+    }
+}
+
+/// Apply the schema-v4 ideas migrations to a connection (idempotent).
+/// Exposed so the TS SqliteIndexStore facade can bootstrap standalone ideas DBs
+/// without re-encoding the migration SQL in TypeScript.
+pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
+    for statement in BASE_MIGRATIONS {
+        conn.execute_batch(statement)?;
+    }
+    let current: i64 = conn
+        .query_row("SELECT value FROM meta WHERE key = 'schema_version'", [], |row| {
+            let value: String = row.get(0)?;
+            Ok(value.parse().unwrap_or(1))
+        })
+        .optional()?
+        .unwrap_or(1);
+    for version in (current + 1)..=SCHEMA_VERSION {
+        for statement in version_migrations(version) {
+            if let Err(error) = conn.execute_batch(statement) {
+                let message = error.to_string();
+                if !message.contains("duplicate column") {
+                    return Err(error.into());
+                }
+            }
+        }
+    }
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES ('schema_version', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![SCHEMA_VERSION.to_string()],
+    )?;
+    Ok(())
 }
 
 fn map_idea(row: &rusqlite::Row<'_>) -> rusqlite::Result<IdeaRecord> {

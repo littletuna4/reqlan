@@ -112,32 +112,6 @@ export interface OutlineNode {
     children: OutlineNode[];
 }
 
-export type { ActivityBarScope, CurrentFileSlice, ReqlanContextModel } from './context-model.js';
-export {
-    CONTEXT_DIMENSION_LABELS,
-    CONTEXT_DIMENSION_WEIGHTS,
-    DEFAULT_ENABLED_DIMENSIONS
-} from './context-model.js';
-export type {
-    ContextAnomaly,
-    ContextDimensionContribution,
-    ContextDimensionId,
-    ContextFileEntry,
-    ContextFocus,
-    ContextFocusKind,
-    ContextFootprint,
-    ContextIdeaEntry,
-    ContextProvenance,
-    ContextReferencesSlice,
-    GitAuthorRollup,
-    GitContextSlice,
-    GitFocusCommit,
-    GitFocusStats,
-    GitPeerChangeRate,
-    WorkspaceBaseGlance,
-    WorkspaceContextSlice
-} from './context-model.js';
-
 export const ACTIVITY_BAR_MAX_NODES = 40;
 export const ACTIVITY_BAR_TODO_LIMIT = 40;
 

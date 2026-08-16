@@ -9,8 +9,10 @@ mod workspace_index;
 
 pub use api::{AnalysisError, AnalysisRuntime};
 pub use types::*;
+pub use reqlan_index::FileIssueDraft;
 pub use workspace_index::{
-    FileIssueDto, SyncResultDto, WorkspaceIndexError, WorkspaceIndexRuntime,
+    FileIssueDto, IndexState, SyncProgressState, SyncResultDto, WorkspaceIndexError,
+    WorkspaceIndexRuntime,
 };
 
 use specta::TypeCollection;

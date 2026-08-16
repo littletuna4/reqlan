@@ -1,7 +1,7 @@
 /**
  * Continuous force-directed physics for the Ideas Summary graph ("Animate" toggle).
  *
- * Obsidian-style simulation: shared core in @reqlan/analytical/graph-physics plus
+ * Obsidian-style simulation: shared physics-core plus
  * group container constraints from graph-groups.ts.
  * per ["../../../../../reqlan rq/extension/library/graph.rq"] layout_physics
  */
@@ -12,7 +12,7 @@ import {
     integrateFromForces,
     type PhysicsCoreSettings,
     type PhysicsStepState
-} from '@reqlan/analytical/graph-physics';
+} from './physics-core.js';
 import {
     applyGroupForces,
     DEFAULT_GROUP_SETTINGS,

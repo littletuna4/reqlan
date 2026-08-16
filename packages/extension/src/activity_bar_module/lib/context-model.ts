@@ -1,8 +1,13 @@
 /**
  * Composed reqlan context model — dimensions, focus, and merged footprint.
- * per ["../../../../reqlan rq/extension/module/context-scope.rq"]
+ * per ["../../../../../reqlan rq/extension/module/context-scope.rq"]
  */
-import type { IdeaSummary, IdeaWithRange, OutlineNode, ReferenceListRow } from './types.js';
+import type {
+    IdeaSummary,
+    IdeaWithRange,
+    OutlineNode,
+    ReferenceListRow
+} from '@reqlan/analytical';
 import type {
     AiReadiness,
     ContextFingerprintAxes,

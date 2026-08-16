@@ -5,9 +5,32 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { isAbsolute, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const WINDOWS_DRIVE_ABS = /^[A-Za-z]:[\\/]/;
 
 function normalizeSlashes(filePath: string): string {
     return filePath.replace(/\\/g, '/');
+}
+
+/** Drive-letter or UNC filesystem path (not a URI). Pure port of the former Langium helper. */
+export function isWindowsAbsolutePath(value: string): boolean {
+    return WINDOWS_DRIVE_ABS.test(value) || value.startsWith('\\\\');
+}
+
+/**
+ * Build a `file:` URI string from a filesystem path — pure Node port of the
+ * former Langium `fileUriFromFsPath(...).toString()`.
+ * Windows drive paths must not go through URL parsing (scheme would be `c:`).
+ */
+export function fileUriFromFsPath(fsPath: string): string {
+    if (WINDOWS_DRIVE_ABS.test(fsPath)) {
+        return `file:///${fsPath.replace(/\\/g, '/')}`;
+    }
+    if (fsPath.startsWith('\\\\')) {
+        return `file:${fsPath.replace(/\\/g, '/')}`;
+    }
+    return pathToFileURL(fsPath).toString();
 }
 
 /**

@@ -2,7 +2,7 @@ from "./features-graph.rq" import graph_design
 from "./module/index.rq" import application_memory
 import "../../packages/language/src/reqlan-comment.langium" as comment_grammar
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
-import "../../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../../packages/analytical/src/native/native-analysis-api.ts" as analysis_runtime
 import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 

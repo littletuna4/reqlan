@@ -1,8 +1,9 @@
 /**
  * Client-side reshape of graph slices for hosting-.rq / implicit-ideaset treatment.
- * Shared by Ideas Summary cytoscape and HTML export canvas.
+ * Shared by Ideas Summary cytoscape (HTML export inlines its own copy in app.js).
+ * rq:["../../../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
  */
-import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from './webview-graph-queries.js';
+import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
 
 export type FileTreatment = 'invisible' | 'compound' | 'linked';
 

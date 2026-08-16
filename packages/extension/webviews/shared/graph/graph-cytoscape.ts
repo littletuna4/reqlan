@@ -12,7 +12,7 @@ import {
     fileIdeasetDisplayName,
     isFileIdeasetNode,
     type FileTreatment
-} from '@reqlan/analytical/file-treatment';
+} from './file-treatment.js';
 import {
     GROUP_HOVER_KEY,
     MEMBER_HOVER_KEY,

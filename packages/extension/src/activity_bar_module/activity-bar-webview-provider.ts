@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
 import {
     CONTEXT_MAX_HOP_DEPTH,
-    CONTEXT_MIN_HOP_DEPTH,
-    type FileRelatedRequirements
+    CONTEXT_MIN_HOP_DEPTH
 } from '@reqlan/analytical';
 import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
@@ -386,15 +385,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 : { startLine: selection.start.line, endLine: selection.end.line },
             activeGitChange: gitChangeForFile(fileUri, git),
             resolveFileRelated: async (targetUri: string) =>
-                this.submodule.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
-                    {
-                        store: this.submodule.index.indexStore,
-                        analytical: this.submodule.index.store,
-                        workspaceRoot
-                    },
-                    'file_related_requirements',
-                    { fileUri: targetUri }
-                )
+                (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
         };
     }
 
@@ -711,15 +702,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         fileText: document.getText(),
                         workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
                         resolveFileRelated: async (targetUri: string) =>
-                            this.submodule.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
-                                {
-                                    store: this.submodule.index.indexStore,
-                                    analytical: this.submodule.index.store,
-                                    workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-                                },
-                                'file_related_requirements',
-                                { fileUri: targetUri }
-                            )
+                            (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
                     });
                     this.post({ type: 'fileLensDetail', detail, requestId });
                     break;
@@ -810,7 +793,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
     private async loadContext(
         editor: vscode.TextEditor,
         requestId?: number
-    ): Promise<import('@reqlan/analytical').ReqlanContextModel | undefined> {
+    ): Promise<import('./lib/context-model.js').ReqlanContextModel | undefined> {
         const data = await this.ensureData();
         if (!data) {
             // Cold start: index sync in progress — wait via indexHealth, not a hard error.

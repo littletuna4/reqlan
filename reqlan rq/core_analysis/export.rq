@@ -31,7 +31,7 @@ markdown_export {
     @implementation (
         ["../../packages/analytical/src/export/export-markdown.ts"]
         ["../../packages/analytical/src/export/write-markdown-export.ts"]
-        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-markdown.test.ts"]
@@ -47,7 +47,7 @@ json_export {
     @implementation (
         ["../../packages/analytical/src/export/export-json.ts"]
         ["../../packages/analytical/src/export/write-json-export.ts"]
-        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-json-csv.test.ts"]
@@ -64,7 +64,7 @@ csv_export {
     @implementation (
         ["../../packages/analytical/src/export/export-csv.ts"]
         ["../../packages/analytical/src/export/write-csv-export.ts"]
-        ["../../packages/analytical/src/analysis-api.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )
     @tests (
         ["../../packages/analytical/test/export-json-csv.test.ts"]

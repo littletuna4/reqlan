@@ -11,7 +11,8 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
-import type { AnalyticalStore } from '../core/analytical-store.js';
+import { errorCauseMessage } from '../core/index-error.js';
+import type { NativeWorkspaceIndex } from '../native/native-workspace-index.js';
 import {
     pathDepthFromUri,
     type IndexDiagnosticsStore,
@@ -32,7 +33,7 @@ export interface IdleCheckResult {
 
 export interface SoftSyncDeps {
     sqlite: SqliteIndexStore;
-    analytical: AnalyticalStore;
+    native: NativeWorkspaceIndex;
     toIndexedUri: (filePath: string) => string;
     relativePath: (fileUri: string) => string;
     indexFile: (filePath: string) => Promise<IndexOneFileResult>;
@@ -49,11 +50,11 @@ export interface SoftSyncDeps {
 }
 
 export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Promise<boolean> {
-    const analytical = deps.analytical.getState();
-    if (!analytical.dispatchIndex('sync')) {
+    const native = deps.native;
+    if (!native.dispatchIndex('sync')) {
         return deps.waitForReadyOrError();
     }
-    analytical.clearLastError();
+    native.clearLastError();
     deps.notifyStatusUpdated();
     const runStartedAt = new Date().toISOString();
     const wallStarted = performance.now();
@@ -110,7 +111,7 @@ export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Pro
             } catch (error) {
                 errorFiles += 1;
                 recordCaughtFileIssue(
-                    analytical.recordFileIndexIssues,
+                    (fileUri, issues) => native.recordFileIssues(fileUri, issues),
                     indexedUri,
                     error,
                     `Failed to index ${deps.relativePath(indexedUri)}`
@@ -127,15 +128,13 @@ export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Pro
             deps.notifyStatusUpdated();
         }
 
-        if (!analytical.dispatchIndex('synced')) {
-            analytical.recordIndexError(
-                'Index sync finished but state transition to ready failed',
-                undefined,
-                { phase: 'transition' }
-            );
+        if (!native.dispatchIndex('synced')) {
+            native.recordIndexError('Index sync finished but state transition to ready failed', {
+                phase: 'transition'
+            });
         }
         const counts = await deps.sqlite.counts();
-        analytical.setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
+        native.setIndexReady(counts.ideas, counts.edges);
         deps.setSyncProgress(undefined);
         deps.notifyCatalogUpdated();
         deps.notifyStatusUpdated();
@@ -157,8 +156,11 @@ export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Pro
 
         return deps.isReady();
     } catch (error) {
-        analytical.dispatchIndex('fail');
-        analytical.recordIndexError('Workspace sync failed', error, { phase: 'sync' });
+        native.dispatchIndex('fail');
+        native.recordIndexError('Workspace sync failed', {
+            phase: 'sync',
+            cause: errorCauseMessage(error)
+        });
         deps.setSyncProgress(undefined);
         deps.notifyStatusUpdated();
         await recordDiagnostics(deps, {

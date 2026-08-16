@@ -4,9 +4,6 @@
 import * as vscode from 'vscode';
 import { basename } from 'node:path';
 import {
-    exportCsv,
-    exportJson,
-    exportMarkdown,
     openAnalysisApi,
     resolveApplicationMemoryPath,
     type ExportProgress,
@@ -326,7 +323,7 @@ export class ExportFormPanel {
                     total: progress.total,
                 });
             };
-            const result = await runExport(settings.format, base.index.indexStore, request, onProgress);
+            const result = await runExport(settings.format, request, onProgress);
             if (settings.format === 'json' || settings.format === 'csv') {
                 const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(result.indexFilePath));
                 await vscode.window.showTextDocument(doc, { preview: false });
@@ -354,39 +351,42 @@ export class ExportFormPanel {
 
 async function runExport(
     format: ExportFormSettings['format'],
-    store: Parameters<typeof exportMarkdown>[0],
     request: ExportRequest,
     onProgress: (progress: ExportProgress) => void
 ): Promise<ExportResult> {
-    switch (format) {
-        case 'markdown':
-            return exportMarkdown(store, request, onProgress);
-        case 'json':
-            return exportJson(store, request, onProgress);
-        case 'csv':
-            return exportCsv(store, request, onProgress);
-        default: {
-            onProgress({
-                phase: 'snapshot',
-                message: 'Building export snapshot…',
-            });
-            const opened = await openAnalysisApi({
-                workspaceRoot: request.workspaceRoot,
-                storagePath: resolveApplicationMemoryPath(request.workspaceRoot)
-            });
-            try {
-                const result = await opened.api.exportHtml(request, onProgress);
-                onProgress({
-                    phase: 'write',
-                    message: 'Wrote HTML export.',
-                    completed: 1,
-                    total: 1,
-                });
-                return result;
-            } finally {
-                await opened.dispose();
-            }
+    onProgress({
+        phase: 'snapshot',
+        message: 'Building export snapshot…',
+    });
+    const opened = await openAnalysisApi({
+        workspaceRoot: request.workspaceRoot,
+        storagePath: resolveApplicationMemoryPath(request.workspaceRoot)
+    });
+    try {
+        let result: ExportResult;
+        switch (format) {
+            case 'markdown':
+                result = await opened.api.exportMarkdown(request, onProgress);
+                break;
+            case 'json':
+                result = await opened.api.exportJson(request, onProgress);
+                break;
+            case 'csv':
+                result = await opened.api.exportCsv(request, onProgress);
+                break;
+            default:
+                result = await opened.api.exportHtml(request, onProgress);
+                break;
         }
+        onProgress({
+            phase: 'write',
+            message: `Wrote ${formatLabel(format)}.`,
+            completed: 1,
+            total: 1,
+        });
+        return result;
+    } finally {
+        await opened.dispose();
     }
 }
 

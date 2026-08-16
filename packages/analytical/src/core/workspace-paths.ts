@@ -1,10 +1,13 @@
 /**
  * Normalize file paths and idea ids relative to the workspace root.
  */
-import { fileUriFromFsPath, isWindowsAbsolutePath } from '@reqlan/language';
+import {
+    fileUriFromFsPath,
+    isWindowsAbsolutePath,
+    toWorkspaceRelativePath
+} from './path-relative.js';
 import { resolve } from 'node:path';
 import { edgeId, ideaId, type IndexedDocument } from './types.js';
-import { toWorkspaceRelativePath } from './path-relative.js';
 
 export { relativeWindowsDrivePath, toWorkspaceRelativePath } from './path-relative.js';
 
@@ -13,14 +16,14 @@ export function resolveWorkspaceFileUri(relativeOrAbsolute: string, workspaceRoo
         return relativeOrAbsolute;
     }
     if (isWindowsAbsolutePath(relativeOrAbsolute)) {
-        return fileUriFromFsPath(relativeOrAbsolute).toString();
+        return fileUriFromFsPath(relativeOrAbsolute);
     }
     if (workspaceRoot) {
         const absolute = resolve(workspaceRoot, relativeOrAbsolute);
-        return fileUriFromFsPath(absolute).toString();
+        return fileUriFromFsPath(absolute);
     }
     if (relativeOrAbsolute.startsWith('/')) {
-        return fileUriFromFsPath(relativeOrAbsolute).toString();
+        return fileUriFromFsPath(relativeOrAbsolute);
     }
     return relativeOrAbsolute;
 }

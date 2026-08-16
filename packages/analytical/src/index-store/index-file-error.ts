@@ -1,4 +1,4 @@
-import type { IndexErrorPhase } from '../core/analytical-store.js';
+import type { IndexErrorPhase } from '../core/index-state-types.js';
 import type { FileIndexIssueDraft } from './index-parse-issues.js';
 import { fileIssueFromError } from './index-parse-issues.js';
 

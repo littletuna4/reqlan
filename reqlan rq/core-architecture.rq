@@ -23,7 +23,7 @@ import "../packages/extension/src/extension/main.ts" as extension_main
 import "../packages/extension/src/language/main.ts" as language_server_main
 import "../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
-import "../packages/analytical/src/create-runtime.ts" as analysis_runtime
+import "../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../packages/mcp/src/main.ts" as mcp_main
 import "../packages/cli/src/main.ts" as cli_main
 import "../.changeset/config.json" as changeset_config
@@ -51,7 +51,7 @@ language_package {
     `packages/language` (`@reqlan/language`) is the canonical language definition.
     It owns Langium grammars, generated AST and parser, scoped linking, validators, and LSP service providers.
     Public DI entry is [language_module] via `createReqlanServices`.
-    Consumers: [analytical_package] (indexer / analysis remaining in TS), [extension_package] (LSP).
+    Consumers: [analytical_package] (native index / analysis via napi), [extension_package] (LSP).
     Published to npm as a library dependency of [analytical_package]; not Marketplace-published. See [distribution.version_management] and [package_versioning].
 }
 

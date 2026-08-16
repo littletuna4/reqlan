@@ -4,15 +4,15 @@
         ContextDimensionId,
         ContextFileEntry,
         ContextFingerprintAxes,
-        IdeaSummary,
         ReqlanContextModel
-    } from '@reqlan/analytical';
-    import { CONTEXT_DIMENSION_LABELS } from '@reqlan/analytical/context-model';
+    } from '../../../../src/activity_bar_module/lib/context-model.js';
+    import type { IdeaSummary } from '@reqlan/analytical';
+    import { CONTEXT_DIMENSION_LABELS } from '../../../../src/activity_bar_module/lib/context-model.js';
     import {
         CONTEXT_FINGERPRINT_AXIS_HELP,
         CONTEXT_FINGERPRINT_HELP,
         fingerprintAxisTooltip
-    } from '@reqlan/analytical/context-signals';
+    } from '../../../../src/activity_bar_module/lib/context-signals.js';
 
     interface Props {
         axes: ContextFingerprintAxes;

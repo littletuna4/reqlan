@@ -6,13 +6,13 @@ import {
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
 import type { IdeaSummary } from '@reqlan/analytical';
-import { filterAndScoreIdeas } from '@reqlan/analytical';
+import { filterAndScoreIdeas } from '../shared/fuzzy-search.js';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { applyIdeaReferenceEdit } from './insert-idea-reference.js';
 import { safeWebviewPost } from '../shared/safe-webview-post.js';
 
-export { filterAndScoreIdeas } from '@reqlan/analytical';
+export { filterAndScoreIdeas } from '../shared/fuzzy-search.js';
 
 const VIEW_TYPE = 'reqlan.referenceSearch';
 const PAGE_SIZE = 8;

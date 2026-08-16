@@ -16,6 +16,7 @@ reqlan-export = { path = "../reqlan-export" }
 reqlan-index = { path = "../reqlan-index" }
 reqlan-parse = { path = "../reqlan-parse" }
 reqlan-search = { path = "../reqlan-search" }
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 specta.workspace = true

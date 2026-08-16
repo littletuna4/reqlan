@@ -57,7 +57,7 @@ webview_threading {
 layout_physics {
     defaults to force-directed layout (fcose) with animation on, but callers can select other options offered by cytoscape.js.
     a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately.
-    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"] (force core: ["../../../packages/analytical/src/graph/physics-core.js"]), regardless of which force-directed batch layout produced the initial settle.
+    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"] (force core: ["../../../packages/extension/webviews/shared/graph/physics-core.js"]), regardless of which force-directed batch layout produced the initial settle.
     forces are central gravity toward the centroid, linear edge springs, and inverse-square node repulsion; every childless node participates, including disconnected orphans.
     group container constraints live in ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node.
     the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it.

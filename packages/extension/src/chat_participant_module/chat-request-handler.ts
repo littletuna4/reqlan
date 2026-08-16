@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
-import type { AnalyserContext, AnalyserRegistry, FileRelatedRequirements, GraphSlice, IdeaSummary, SemanticMatch } from '@reqlan/analytical';
+import type { IdeaSummary } from '@reqlan/analytical';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
-import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 
 export interface ChatHandlerDeps {
     index: IndexService;
-    analysers: AnalyserRegistry;
-    makeContext: () => AnalyserContext;
 }
 
 export function createChatRequestHandler(deps: ChatHandlerDeps): vscode.ChatRequestHandler {
@@ -50,11 +48,7 @@ async function handleSearch(
     }
 
     stream.progress('Searching requirements…');
-    const matches = await deps.analysers.run<{ query: string; limit?: number }, SemanticMatch[]>(
-        deps.makeContext(),
-        'semantic_analysis',
-        { query, limit: 8 }
-    );
+    const matches = await (await deps.index.getAnalysisApi()).searchRequirements(query, 8);
 
     if (matches.length === 0) {
         stream.markdown(`No requirements matched **${query}**.`);
@@ -63,7 +57,7 @@ async function handleSearch(
 
     stream.markdown(`Found **${matches.length}** requirement(s) for **${query}**:\n\n`);
     for (const match of matches) {
-        appendIdeaMarkdown(stream, match.idea, match.reasons.join(', '));
+        appendIdeaMarkdown(stream, match.idea, (match.reasons ?? []).join(', '));
     }
     return { metadata: { command: 'rq-search', query, count: matches.length } };
 }
@@ -79,12 +73,9 @@ async function handleContext(
     }
 
     stream.progress('Gathering file context…');
-    const fileUri = toIndexFileUri(editor.document.uri);
-    const related = await deps.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
-        deps.makeContext(),
-        'file_related_requirements',
-        { fileUri }
-    );
+    deps.index.activateBaseForPath(editor.document.uri.fsPath);
+    const related = await (await deps.index.getAnalysisApi()).getFileContext(editor.document.uri.fsPath);
+    const fileUri = related.fileUri;
 
     stream.markdown(`**${vscode.workspace.asRelativePath(fileUri)}**\n\n`);
     renderIdeaGroup(stream, 'Requirements in file', related.ideasInFile);
@@ -105,18 +96,14 @@ async function handleGraph(
     }
 
     stream.progress('Building local graph…');
-    const ideas = await deps.index.indexStore.getIdeasInFile(toIndexFileUri(editor.document.uri));
-    if (ideas.length === 0) {
+    deps.index.activateBaseForPath(editor.document.uri.fsPath);
+    const graph = await (await deps.index.getAnalysisApi()).getLocalGraph(editor.document.uri.fsPath, 1);
+    if (!graph) {
         stream.markdown('No requirements found in the current file.');
         return { metadata: { command: 'rq-graph' } };
     }
 
-    const center = ideas[0]!;
-    const graph = await deps.analysers.run<{ centerId: string; depth?: number }, GraphSlice>(
-        deps.makeContext(),
-        'local_graph_analysis',
-        { centerId: center.id, depth: 1 }
-    );
+    const center = graph.nodes.find(idea => idea.id === graph.centerId) ?? graph.nodes[0]!;
 
     stream.markdown(`Local graph around **${center.name}** (${graph.nodes.length} nodes, ${graph.edges.length} edges):\n\n`);
     for (const node of graph.nodes) {
@@ -153,11 +140,7 @@ async function handleDefault(
     }
 
     stream.progress('Finding relevant requirements…');
-    const matches = await deps.analysers.run<{ query: string; limit?: number }, SemanticMatch[]>(
-        deps.makeContext(),
-        'semantic_analysis',
-        { query, limit: 5 }
-    );
+    const matches = await (await deps.index.getAnalysisApi()).searchRequirements(query, 5);
 
     if (matches.length === 0) {
         stream.markdown(`I could not find requirements related to **${query}**. Try \`/rq-search ${query}\`.`);
@@ -166,7 +149,7 @@ async function handleDefault(
 
     stream.markdown(`Here is focused context for **${query}**:\n\n`);
     for (const match of matches) {
-        appendIdeaMarkdown(stream, match.idea, match.reasons.join(', '));
+        appendIdeaMarkdown(stream, match.idea, (match.reasons ?? []).join(', '));
     }
     stream.markdown(
         '\nUse `/rq-context` for the active file, `/rq-graph` for neighbourhood structure, or `/rq-search-requirements` / MCP tools to attach more context.'
@@ -201,12 +184,10 @@ async function describeFileReference(
     deps: ChatHandlerDeps,
     line?: number
 ): Promise<string> {
-    const fileUri = toIndexFileUri(uri);
-    const related = await deps.analysers.run<{ fileUri: string }, FileRelatedRequirements>(
-        deps.makeContext(),
-        'file_related_requirements',
-        { fileUri }
-    ).catch(() => undefined);
+    deps.index.activateBaseForPath(uri.fsPath);
+    const related = await (await deps.index.getAnalysisApi())
+        .getFileContext(uri.fsPath)
+        .catch(() => undefined);
 
     const header = line !== undefined
         ? `**${vscode.workspace.asRelativePath(uri)}:${line + 1}**`

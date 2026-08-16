@@ -93,6 +93,45 @@ impl RqIgnoreFilter {
     }
 }
 
+pub const CONFIG_FILENAME: &str = "config.json";
+
+/// Text seeded into a new base's `.reqlan/.rqignore` (built-in defaults + header).
+/// rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+pub fn default_rqignore_file_contents() -> String {
+    let mut lines = vec![
+        "# reqlan path ignore (gitignore syntax).".to_string(),
+        "# Applied relative to the base root (parent of .reqlan).".to_string(),
+        "# Built-in defaults always apply; use !pattern to force-include.".to_string(),
+        String::new(),
+    ];
+    lines.extend(DEFAULT_RQIGNORE_PATTERNS.iter().map(|pattern| pattern.to_string()));
+    lines.push(String::new());
+    lines.join("\n")
+}
+
+/// Outcome of seeding a reqlan base marker.
+#[derive(Debug, Clone)]
+pub struct CreateBaseResult {
+    /// True when `.reqlan` did not already exist before this call.
+    pub created: bool,
+    /// Absolute path of the `.reqlan` application-memory directory.
+    pub memory_path: PathBuf,
+}
+
+/// Ensure `<base_root>/.reqlan/` exists and seed `config.json` + `.rqignore` when new.
+/// Idempotent: existing markers are left untouched and reported as `created: false`.
+/// rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
+pub fn create_base(base_root: &Path) -> std::io::Result<CreateBaseResult> {
+    let memory_path = base_root.join(APPLICATION_MEMORY_DIR);
+    let created = !memory_path.exists();
+    std::fs::create_dir_all(&memory_path)?;
+    if created {
+        std::fs::write(memory_path.join(CONFIG_FILENAME), "{}\n")?;
+        std::fs::write(memory_path.join(RQIGNORE_FILENAME), default_rqignore_file_contents())?;
+    }
+    Ok(CreateBaseResult { created, memory_path })
+}
+
 pub fn ideas_index_path(storage_path: &Path) -> PathBuf {
     storage_path.join(IDEAS_INDEX_FILENAME)
 }

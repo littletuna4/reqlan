@@ -3,8 +3,10 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
-import type { AnalysisRuntimeOptions } from '../create-runtime.js';
-import { NativeAnalysisApi } from './native-analysis-api.js';
+import {
+    NativeAnalysisApi,
+    type AnalysisRuntimeOptions
+} from './native-analysis-api.js';
 import { loadNativeEngine } from './load-native.js';
 
 export type HeadlessAnalysisApi = NativeAnalysisApi;

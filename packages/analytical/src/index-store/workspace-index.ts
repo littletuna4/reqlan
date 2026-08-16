@@ -17,19 +17,20 @@
  * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
-import { URI } from 'langium';
+import { fsPathFromFileUri } from '../core/path-relative.js';
 import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import type { AnalyticalStore } from '../core/analytical-store.js';
 import { IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME } from '../core/application-memory.js';
-import { toFileIndexIssueView, toIndexErrorDetail } from '../core/index-error.js';
+import { errorCauseMessage, toFileIndexIssueView, toIndexErrorDetail } from '../core/index-error.js';
 import { isIgnoredPath, loadRqIgnore, type RqIgnoreFilter } from '../core/rqignore.js';
 import { resolveWorkspaceFileUri, toWorkspaceRelativePath } from '../core/workspace-paths.js';
 import { isSecretRqPath } from '../export/secret-rq.js';
+import type { IndexState } from '../core/index-state-types.js';
 import { loadNativeEngine } from '../native/load-native.js';
 import { NativeSqlConnection } from '../native/native-sql-db.js';
 import { NativeWorkspaceIndex } from '../native/native-workspace-index.js';
-import type { FuzzySearchHit } from '../analysis/fuzzy-search.js';
+import type { OverviewCoverageScores } from '../native/native-workspace-index.js';
+import type { FuzzySearchHit } from './fuzzy-search-hit.js';
 import {
     IndexDiagnosticsStore,
     pathDepthFromUri,
@@ -57,13 +58,23 @@ export interface FuzzySearchResult {
     truncated: boolean;
 }
 
+const EMPTY_STATUS_SNAPSHOT: IndexStatusSnapshot = {
+    state: 'uninitialized',
+    ready: false,
+    ideaCount: 0,
+    edgeCount: 0,
+    fileIssueCount: 0,
+    fileIssues: [],
+    recentDocumentUpdates: [],
+    recentWorkspaceChanges: []
+};
+
 export class WorkspaceIndex {
     private sqlite?: SqliteIndexStore;
     private diagnostics?: IndexDiagnosticsStore;
     private native?: NativeWorkspaceIndex;
     private syncQueue = Promise.resolve();
     private syncInFlight?: Promise<boolean>;
-    private syncProgress?: IndexSyncProgress;
     private syncCancelRequested = false;
     private nextTimingTrigger: IndexTimingTrigger = 'soft_sync';
     private readonly catalogListeners = new Set<() => void>();
@@ -72,7 +83,6 @@ export class WorkspaceIndex {
     private rqIgnore: RqIgnoreFilter;
 
     constructor(
-        private readonly analytical: AnalyticalStore,
         private readonly storagePath: string,
         private readonly workspaceRoot: string
     ) {
@@ -93,12 +103,12 @@ export class WorkspaceIndex {
         };
     }
 
-    get state() {
-        return this.analytical.getState().indexState;
+    get state(): IndexState {
+        return this.native ? this.native.indexState() : 'uninitialized';
     }
 
     get isReady(): boolean {
-        return this.analytical.getState().indexState === 'ready';
+        return this.state === 'ready';
     }
 
     get indexStore(): SqliteIndexStore {
@@ -142,63 +152,97 @@ export class WorkspaceIndex {
         };
     }
 
+    /**
+     * Fill git creation / modified dates and change counts for ideas via native
+     * git history (all missing ideas when `ideaIds` is omitted). The extension
+     * only schedules background waves; the git log + persist work stays native.
+     * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     */
+    fillGitDates(ideaIds?: string[]): number {
+        if (!this.native) {
+            return 0;
+        }
+        return this.native.fillGitDates(ideaIds);
+    }
+
+    /**
+     * Compute Ideas Summary overview coverage over the workspace base natively.
+     * rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     */
+    computeOverviewCoverage(): OverviewCoverageScores {
+        if (!this.native) {
+            throw new Error('Index store is not open');
+        }
+        return this.native.computeOverviewCoverage();
+    }
+
     getStatusSnapshot(relativePath: (uri: string) => string = uri => this.relativePath(uri)): IndexStatusSnapshot {
-        const storeState = this.analytical.getState();
+        if (!this.native) {
+            return { ...EMPTY_STATUS_SNAPSHOT };
+        }
+        const snapshot = this.native.statusSnapshot();
         return {
-            state: storeState.indexState,
-            ready: storeState.indexState === 'ready',
-            ideaCount: storeState.ideaCount,
-            edgeCount: storeState.edgeCount,
-            fileIssueCount: storeState.fileIndexIssues.length,
-            lastError: storeState.lastError
-                ? toIndexErrorDetail(storeState.lastError, relativePath)
+            state: snapshot.state,
+            ready: snapshot.ready,
+            ideaCount: snapshot.ideaCount,
+            edgeCount: snapshot.edgeCount,
+            fileIssueCount: snapshot.fileIssueCount,
+            lastError: snapshot.lastError
+                ? toIndexErrorDetail(snapshot.lastError, relativePath)
                 : undefined,
-            fileIssues: storeState.fileIndexIssues.map(issue => toFileIndexIssueView(issue, relativePath)),
-            syncProgress: this.syncProgress,
-            recentDocumentUpdates: [...storeState.documentUpdates].reverse().slice(0, 10),
-            recentWorkspaceChanges: [...storeState.workspaceChanges].reverse().slice(0, 10)
+            fileIssues: snapshot.fileIssues.map(issue => toFileIndexIssueView(issue, relativePath)),
+            syncProgress: snapshot.syncProgress ?? undefined,
+            recentDocumentUpdates: snapshot.recentDocumentUpdates,
+            recentWorkspaceChanges: snapshot.recentWorkspaceChanges
         };
     }
 
     /** Open the SQLite store (does not sync). Idempotent when already open. */
     async open(): Promise<void> {
-        if (this.sqlite) {
+        if (this.sqlite && this.native) {
             const state = this.state;
             if (state === 'idle' || state === 'ready' || state === 'syncing' || state === 'opening') {
                 return;
             }
         }
-        const { canDispatchIndex, dispatchIndex, recordIndexError } = this.analytical.getState();
-        if (!canDispatchIndex('activate')) {
+        // Core native engine is required for index open/sync (no sql.js fallback).
+        loadNativeEngine();
+        // A fresh runtime starts 'uninitialized'; reuse an existing one so error
+        // recovery (error → activate) keeps the persisted diagnostics connection.
+        if (!this.native) {
+            this.native = NativeWorkspaceIndex.open(this.workspaceRoot, this.storagePath);
+        }
+        const native = this.native;
+        if (!native.canDispatchIndex('activate')) {
             if (this.sqlite && (this.state === 'idle' || this.state === 'ready' || this.state === 'syncing')) {
                 return;
             }
-            recordIndexError(`Cannot open idea index from state ${this.state}`, undefined, { phase: 'open' });
+            native.recordIndexError(`Cannot open idea index from state ${this.state}`, { phase: 'open' });
             this.notifyStatusUpdated();
             throw new Error(`Cannot open idea index from state ${this.state}`);
         }
-        dispatchIndex('activate');
+        native.dispatchIndex('activate');
         try {
-            // Core native engine is required for index open/sync (no sql.js fallback).
-            loadNativeEngine();
-            this.native = NativeWorkspaceIndex.open(this.workspaceRoot, this.storagePath);
             const dbPath = join(this.storagePath, IDEAS_INDEX_FILENAME);
             this.sqlite = await SqliteIndexStore.fromConnection(
-                NativeSqlConnection.fromWorkspaceIdeas(this.native, dbPath)
+                NativeSqlConnection.fromWorkspaceIdeas(native, dbPath)
             );
             try {
                 const diagnosticsPath = join(this.storagePath, INDEX_DIAGNOSTICS_FILENAME);
                 this.diagnostics = await IndexDiagnosticsStore.fromConnection(
-                    NativeSqlConnection.fromWorkspaceDiagnostics(this.native, diagnosticsPath)
+                    NativeSqlConnection.fromWorkspaceDiagnostics(native, diagnosticsPath)
                 );
             } catch {
                 this.diagnostics = undefined;
             }
-            dispatchIndex('opened');
+            native.dispatchIndex('opened');
             this.notifyStatusUpdated();
         } catch (error) {
-            dispatchIndex('fail');
-            recordIndexError('Failed to open idea index', error, { phase: 'open' });
+            native.dispatchIndex('fail');
+            native.recordIndexError('Failed to open idea index', {
+                phase: 'open',
+                cause: errorCauseMessage(error)
+            });
             this.notifyStatusUpdated();
             throw error;
         }
@@ -233,27 +277,26 @@ export class WorkspaceIndex {
         await this.open();
         const ok = await this.syncWorkspace();
         if (!ok) {
-            const lastError = this.analytical.getState().lastError;
-            throw lastError?.cause instanceof Error
-                ? lastError.cause
-                : new Error(lastError?.message ?? 'Workspace sync failed');
+            const lastError = this.getStatusSnapshot().lastError;
+            throw new Error(lastError?.cause ?? lastError?.summary ?? 'Workspace sync failed');
         }
     }
 
     async deactivate(): Promise<void> {
-        const analytical = this.analytical.getState();
-        if (analytical.canDispatchIndex('deactivate')) {
-            analytical.dispatchIndex('deactivate');
+        const native = this.native;
+        if (native?.canDispatchIndex('deactivate')) {
+            native.dispatchIndex('deactivate');
         }
         await this.sqlite?.close();
         this.sqlite = undefined;
         await this.diagnostics?.close();
         this.diagnostics = undefined;
-        this.native?.close();
-        this.native = undefined;
-        if (this.analytical.getState().canDispatchIndex('closed')) {
-            this.analytical.getState().dispatchIndex('closed');
+        // Return the FSM to `uninitialized` before dropping the runtime handle.
+        if (native?.canDispatchIndex('closed')) {
+            native.dispatchIndex('closed');
         }
+        native?.close();
+        this.native = undefined;
         this.notifyStatusUpdated();
     }
 
@@ -308,28 +351,26 @@ export class WorkspaceIndex {
             this.native?.cancelSync();
             await this.syncInFlight;
         }
-        const analytical = this.analytical.getState();
+        const native = this.native;
         try {
-            this.native?.clearIdeas();
+            native?.clearIdeas();
             if (this.sqlite) {
                 await this.sqlite.clearAll();
             }
         } catch (error) {
-            analytical.dispatchIndex('fail');
-            analytical.recordIndexError('Failed to clear idea index for rebuild', error, {
-                phase: 'open'
+            native?.dispatchIndex('fail');
+            native?.recordIndexError('Failed to clear idea index for rebuild', {
+                phase: 'open',
+                cause: errorCauseMessage(error)
             });
             this.notifyStatusUpdated();
             return false;
         }
 
-        analytical.clearFileIndexIssues();
-        analytical.clearLastError();
-        analytical.setIndexReady({ ideaCount: 0, edgeCount: 0 });
-        this.analytical.setState({
-            documentUpdates: [],
-            workspaceChanges: []
-        });
+        native?.clearFileIssues();
+        native?.clearLastError();
+        native?.setIndexReady(0, 0);
+        native?.clearActivity();
         this.notifyCatalogUpdated();
         this.notifyStatusUpdated();
         this.nextTimingTrigger = 'rebuild';
@@ -398,21 +439,21 @@ export class WorkspaceIndex {
      * Explicit old→new index migrate so renamed .rq files do not leave duplicate idea rows.
      */
     async migrateRenamedFile(oldIndexedUri: string, newFilePath: string | undefined): Promise<void> {
-        this.analytical.getState().recordWorkspaceChange(oldIndexedUri, 'deleted');
+        this.native?.recordWorkspaceChange(oldIndexedUri, 'deleted');
         if (newFilePath) {
-            this.analytical.getState().recordWorkspaceChange(this.toIndexedUri(newFilePath), 'created');
+            this.native?.recordWorkspaceChange(this.toIndexedUri(newFilePath), 'created');
         }
         this.syncQueue = this.syncQueue.then(async () => {
             if (!this.sqlite) {
                 return;
             }
             await this.sqlite.removeDocument(oldIndexedUri);
-            this.analytical.getState().clearFileIndexIssuesForFile(oldIndexedUri);
+            this.native?.clearFileIssuesForFile(oldIndexedUri);
             if (newFilePath?.endsWith('.rq')) {
                 await this.indexFilePath(newFilePath);
             }
             const counts = await this.sqlite.counts();
-            this.analytical.getState().setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
+            this.native?.setIndexReady(counts.ideas, counts.edges);
             this.notifyCatalogUpdated();
             this.notifyStatusUpdated();
         });
@@ -421,32 +462,32 @@ export class WorkspaceIndex {
 
     enqueueIndex(filePath: string, change: 'created' | 'changed'): void {
         const indexedUri = this.toIndexedUri(filePath);
-        this.analytical.getState().recordWorkspaceChange(indexedUri, change);
+        this.native?.recordWorkspaceChange(indexedUri, change);
         this.syncQueue = this.syncQueue.then(async () => {
             if (this.syncInFlight) {
                 await this.syncInFlight;
             }
-            const analytical = this.analytical.getState();
-            if (!analytical.canDispatchIndex('sync')) {
+            const native = this.native;
+            if (!native || !native.canDispatchIndex('sync')) {
                 return;
             }
-            analytical.dispatchIndex('sync');
+            native.dispatchIndex('sync');
             this.notifyStatusUpdated();
             try {
                 await this.indexFilePath(filePath);
                 if (this.sqlite) {
                     const counts = await this.sqlite.counts();
-                    analytical.setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
+                    native.setIndexReady(counts.ideas, counts.edges);
                 }
-                analytical.dispatchIndex('synced');
+                native.dispatchIndex('synced');
             } catch (error) {
                 recordCaughtFileIssue(
-                    analytical.recordFileIndexIssues,
+                    (fileUri, issues) => native.recordFileIssues(fileUri, issues),
                     indexedUri,
                     error,
                     `Failed to index ${this.relativePath(indexedUri)}`
                 );
-                analytical.dispatchIndex('synced');
+                native.dispatchIndex('synced');
             } finally {
                 this.notifyStatusUpdated();
             }
@@ -455,7 +496,7 @@ export class WorkspaceIndex {
 
     enqueueDelete(filePathOrIndexedUri: string): void {
         const indexedUri = this.toIndexedUri(filePathOrIndexedUri);
-        this.analytical.getState().recordWorkspaceChange(indexedUri, 'deleted');
+        this.native?.recordWorkspaceChange(indexedUri, 'deleted');
         this.syncQueue = this.syncQueue.then(async () => {
             await this.removeDocument(indexedUri);
         });
@@ -469,7 +510,7 @@ export class WorkspaceIndex {
             return fileUri;
         }
         try {
-            const filePath = fileUri.startsWith('file://') ? URI.parse(fileUri).fsPath : fileUri;
+            const filePath = fileUri.startsWith('file://') ? fsPathFromFileUri(fileUri) : fileUri;
             return relative(this.workspaceRoot, filePath).replace(/\\/g, '/');
         } catch {
             return fileUri;
@@ -490,23 +531,24 @@ export class WorkspaceIndex {
     toIndexedUri(filePathOrUri: string): string {
         if (!this.workspaceRoot) {
             return filePathOrUri.startsWith('file://')
-                ? URI.parse(filePathOrUri).fsPath
+                ? fsPathFromFileUri(filePathOrUri)
                 : filePathOrUri;
         }
         const filePath = filePathOrUri.startsWith('file://')
-            ? URI.parse(filePathOrUri).fsPath
+            ? fsPathFromFileUri(filePathOrUri)
             : filePathOrUri;
         return toWorkspaceRelativePath(filePath, this.workspaceRoot);
     }
 
     private async runSyncWorkspace(filePaths?: string[]): Promise<boolean> {
-        if (!this.sqlite || !this.native) {
+        const native = this.native;
+        if (!this.sqlite || !native) {
             return false;
         }
         const ok = await runSoftSync(
             {
                 sqlite: this.sqlite,
-                analytical: this.analytical,
+                native,
                 toIndexedUri: path => this.toIndexedUri(path),
                 relativePath: uri => this.relativePath(uri),
                 indexFile: filePath => this.indexNativeFile(filePath),
@@ -528,12 +570,9 @@ export class WorkspaceIndex {
         // Full-base sync also indexes comment-bearing code files (mtime-skips .rq already done).
         if (ok && !filePaths?.length && !this.syncCancelRequested) {
             try {
-                this.native.syncWorkspace(false);
+                native.syncWorkspace(false);
                 const counts = await this.sqlite.counts();
-                this.analytical.getState().setIndexReady({
-                    ideaCount: counts.ideas,
-                    edgeCount: counts.edges
-                });
+                native.setIndexReady(counts.ideas, counts.edges);
             } catch {
                 // Code-file catch-up must not fail the .rq sync.
             }
@@ -551,17 +590,17 @@ export class WorkspaceIndex {
             outcome,
             pathDepth
         });
-        if (!this.sqlite || !this.native) {
+        const native = this.native;
+        if (!this.sqlite || !native) {
             return finish('error');
         }
-        const analytical = this.analytical.getState();
         const hashBefore = await this.sqlite.getDocumentHash(indexedUri);
         let diagnostics: string[] = [];
         try {
-            diagnostics = this.native.indexFile(filePath).diagnostics;
+            diagnostics = native.indexFile(filePath).diagnostics;
         } catch (error) {
             recordCaughtFileIssue(
-                analytical.recordFileIndexIssues,
+                (fileUri, issues) => native.recordFileIssues(fileUri, issues),
                 indexedUri,
                 error,
                 `Failed to index ${this.relativePath(indexedUri)}`
@@ -569,7 +608,7 @@ export class WorkspaceIndex {
             return finish('error');
         }
         if (diagnostics.length > 0) {
-            analytical.recordFileIndexIssues(
+            native.recordFileIssues(
                 indexedUri,
                 diagnostics.map(message => ({
                     line: 0,
@@ -579,7 +618,7 @@ export class WorkspaceIndex {
                 }))
             );
         } else {
-            analytical.clearFileIndexIssuesForFile(indexedUri);
+            native.clearFileIssuesForFile(indexedUri);
         }
         const hashAfter = await this.sqlite.getDocumentHash(indexedUri);
         const ideas = await this.sqlite.getIdeasInFile(indexedUri);
@@ -590,7 +629,7 @@ export class WorkspaceIndex {
         if (hashBefore !== undefined && hashBefore === hashAfter && diagnostics.length === 0) {
             return finish('hash_skip');
         }
-        analytical.recordDocumentUpdate(
+        native.recordDocumentUpdate(
             indexedUri,
             persisted.length,
             persisted.map(idea => ({
@@ -604,20 +643,19 @@ export class WorkspaceIndex {
     }
 
     private setSyncProgress(progress: IndexSyncProgress | undefined): void {
-        this.syncProgress = progress;
+        this.native?.setSyncProgress(progress);
     }
 
     private async removeDocuments(indexedUris: string[]): Promise<void> {
         if (!this.sqlite || indexedUris.length === 0) {
             return;
         }
-        const analytical = this.analytical.getState();
         await this.sqlite.removeDocuments(indexedUris);
         for (const indexedUri of indexedUris) {
-            analytical.clearFileIndexIssuesForFile(indexedUri);
+            this.native?.clearFileIssuesForFile(indexedUri);
         }
         const counts = await this.sqlite.counts();
-        analytical.setIndexReady({ ideaCount: counts.ideas, edgeCount: counts.edges });
+        this.native?.setIndexReady(counts.ideas, counts.edges);
         this.notifyCatalogUpdated();
         this.notifyStatusUpdated();
     }
@@ -625,7 +663,7 @@ export class WorkspaceIndex {
     private async waitForReadyOrError(timeoutMs = 120_000): Promise<boolean> {
         const started = Date.now();
         while (Date.now() - started < timeoutMs) {
-            const state = this.analytical.getState().indexState;
+            const state = this.state;
             if (state === 'ready') {
                 return true;
             }

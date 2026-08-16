@@ -9,27 +9,16 @@ export function registerChatParticipantModule(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule
 ): void {
-    const makeContext = () => {
-        const active = submodule.index.getActiveBase();
-        return {
-            store: submodule.index.indexStore,
-            analytical: submodule.index.store,
-            workspaceRoot: active?.descriptor.root
-        };
-    };
-
     // The chat API is not present on every host (or may be a proposed API).
     // Guard so a missing API degrades gracefully instead of throwing during
     // activation.
     if (typeof vscode.chat?.createChatParticipant !== 'function') {
-        registerReferenceTools(context, submodule, makeContext);
+        registerReferenceTools(context, submodule);
         return;
     }
 
     const handler = createChatRequestHandler({
-        index: submodule.index,
-        analysers: submodule.analysers,
-        makeContext
+        index: submodule.index
     });
 
     const participant = vscode.chat.createChatParticipant(PARTICIPANT_ID, handler);
@@ -60,17 +49,12 @@ export function registerChatParticipantModule(
     };
 
     context.subscriptions.push(participant);
-    registerReferenceTools(context, submodule, makeContext);
+    registerReferenceTools(context, submodule);
 }
 
 function registerReferenceTools(
     context: vscode.ExtensionContext,
-    submodule: AnalyticalSubmodule,
-    makeContext: () => {
-        store: AnalyticalSubmodule['index']['indexStore'];
-        analytical: AnalyticalSubmodule['store'];
-        workspaceRoot?: string;
-    }
+    submodule: AnalyticalSubmodule
 ): void {
     // `vscode.lm` itself may be undefined on hosts without the language-model
     // tools API; use optional access so this never throws during activation.
@@ -81,11 +65,11 @@ function registerReferenceTools(
     context.subscriptions.push(
         vscode.lm.registerTool(
             'reqlan_requirement_reference',
-            new RequirementReferenceTool(submodule.index, submodule.analysers, makeContext)
+            new RequirementReferenceTool(submodule.index)
         ),
         vscode.lm.registerTool(
             'reqlan_file_reference',
-            new FileReferenceTool(submodule.index, submodule.analysers, makeContext)
+            new FileReferenceTool(submodule.index)
         )
     );
 }
