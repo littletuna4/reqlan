@@ -1,5 +1,20 @@
 # @reqlan/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- e9b7e8a: rust
+
+### Patch Changes
+
+- 72246b6: up pnpm
+- 70ccc6f: up pnpm version
+- Updated dependencies [72246b6]
+- Updated dependencies [e9b7e8a]
+- Updated dependencies [70ccc6f]
+  - @reqlan/analytical@0.10.0
+
 ## 0.6.1
 
 ### Patch Changes

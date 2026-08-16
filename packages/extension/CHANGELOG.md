@@ -1,5 +1,21 @@
 # reqlan-extension
 
+## 1.10.0
+
+### Minor Changes
+
+- e9b7e8a: rust
+
+### Patch Changes
+
+- 72246b6: up pnpm
+- 70ccc6f: up pnpm version
+- Updated dependencies [72246b6]
+- Updated dependencies [e9b7e8a]
+- Updated dependencies [70ccc6f]
+  - @reqlan/analytical@0.10.0
+  - @reqlan/language@1.9.0
+
 ## 1.9.2
 
 ### Patch Changes
