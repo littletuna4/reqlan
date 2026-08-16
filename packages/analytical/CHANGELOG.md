@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.10.3
+
+### Patch Changes
+
+- 2860f9f: deployment binary availability fix attempt
+
 ## 0.10.2
 
 ### Patch Changes

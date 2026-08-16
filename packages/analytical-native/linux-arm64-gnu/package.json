@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/analytical-linux-arm64-gnu",
-    "version": "0.10.2",
+    "version": "0.10.3",
     "description": "Native reqlan analytical engine for linux-arm64-gnu",
     "license": "AGPL-3.0-only",
     "repository": {

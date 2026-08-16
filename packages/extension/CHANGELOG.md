@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.10.4
+
+### Patch Changes
+
+- 2860f9f: deployment binary availability fix attempt
+- Updated dependencies [2860f9f]
+  - @reqlan/analytical@0.10.3
+
 ## 1.10.3
 
 ### Patch Changes
