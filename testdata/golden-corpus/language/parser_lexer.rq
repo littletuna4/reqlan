@@ -1,0 +1,43 @@
+from "./syntax.rq" import no_name_idea_safe_warning, code_snippets, block_idea
+from "./syntax-edge-cases.rq" import context_sensitive_lexer_scaling, nested_curly_braces
+from "./imports.rq" import import_error_recovery
+
+lexer_bridge_to_syntax {
+    The context-sensitive token builder is what makes [block_idea] and prose braces coexist:
+    structural `{` / `}` are only those that open or close ideas, while [nested_curly_braces] stay body text.
+    [context_sensitive_lexer_scaling] is the performance contract for that bridge; [code_snippets] is the opacity contract so fence interiors never feed the brace timeline.
+    Index-path Rust port: ["../core_analysis/rust_port.rq".lexer_rust] / ["../core_analysis/rust_port.rq".parser_rust].
+}
+
+recovery_vs_budget {
+    [no_name_idea_safe_warning] and [import_error_recovery] keep a *finished* parse usable after local mistakes.
+    They do not help when lex/parse never returns — that failure mode is [parse_budget_timeout].
+    Workspace load still isolates per-document throws so one bad file cannot abort LSP init; the budget turns non-termination into the same “leave this file unloaded” outcome, with diagnostics.
+}
+
+parse_budget_timeout {
+    Lexing, parsing, or a parse subprocess for a single `.rq` file must finish within a wall-clock budget.
+    If it cannot, do not hang the language server or block the rest of the workspace.
+    Surface both a warning (budget exceeded; semantic features may be incomplete) and an error (file left unloaded) on that document, then continue with other files.
+    Happy path stays in-process (sync) for typical file sizes so edits and workspace load stay fast.
+    Killable worker enforcement is used when the input is large, a file previously hit the budget (sticky escalate), or a caller forces the worker path; sync throws still become the same incomplete result shape.
+
+    @status done
+    @tests (
+        ["../../packages/language/test/parse-budget.test.ts:times out a hung parse worker with warning and error"]
+        ["../../packages/language/test/parse-budget.test.ts:returns incomplete result when worker parse fails"]
+        ["../../packages/language/test/parse-budget.test.ts:parses a normal file within budget"]
+        ["../../packages/language/test/parse-budget.test.ts:parses small files on the calling thread without a worker"]
+        ["../../packages/language/test/parse-budget.test.ts:escalates large files to the worker path"]
+        ["../../packages/language/test/parse-budget.test.ts:forceWorker escalates a small file"]
+        ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan-parse-budget.ts"]
+        ["../../packages/language/src/reqlan-async-parser.ts"]
+        ["../../packages/language/src/reqlan-parse-worker.ts"]
+        ["../../packages/language/src/reqlan-document-factory.ts"]
+        ["../../packages/language/src/reqlan-module.ts"]
+        ["../../packages/language/src/reqlan-workspace-manager.ts"]
+    )
+}

@@ -1,0 +1,44 @@
+nested_curly_braces {
+    if there is a prose block containing curly braces, {such as this one} they should be treated as part of the prose.
+    Matching braces that end a line — including adjacent pairs like {{SITE_URL}} — stay in the body; they must not close the enclosing idea.
+    A lone `}` on its own line still closes the structural block so an unbalanced prose `{` cannot swallow the idea closer.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:keeps inline prose brace pairs as text"]
+        ["../../packages/language/test/parsing.test.ts:keeps end-of-line matching prose braces as text"]
+        ["../../packages/language/test/parsing.test.ts:parse thanks-for-installing template"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_end_of_line_matching_prose_braces"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:prose_braces_stay_other"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+    )
+}
+
+context_sensitive_lexer_scaling {
+    Context-sensitive token classification for structural/prose braces and top-level import keywords must remain linear in document size.
+    The lexer records brace-depth changes sparsely (not per-character tables) and looks them up in log time while tokenising, so workspace language-server initialization and editor re-lexes stay bounded.
+    Code fences are skipped during the brace scan so example braces cannot inflate work or desync depth.
+    Bounded work still assumes the lexer/parser *returns*; unbounded hangs are cut by ["./parser_lexer.rq".parse_budget_timeout].
+
+    @status done
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses a large import prelude without repeated full-document brace scans"]
+        ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+    )
+}
+
+one_liner_curly_brace_context this should {be acceptable} as well
+
+closing_nested_curly_braces {
+    if, for some reason, there is a prose block containing only closing curly braces, they should be escaped and allowed \} like this.
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:allows escaped closing brace in body prose"]
+        ["../../crates/reqlan-parse/tests/parser.rs:allows_escaped_closing_brace_in_body_prose"]
+    )
+}

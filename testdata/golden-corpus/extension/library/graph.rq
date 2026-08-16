@@ -1,0 +1,209 @@
+
+graph_library {
+    Reusable cytoscape-based graph visualization library for force-directed and compound graphs.
+    Provides a mount → sync slice → layout → optional live physics → destroy lifecycle with a simplified API.
+    Implementation lives in ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"], ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"], ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"], ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"], and ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"].
+    Ideas Summary re-exports the shared modules from ["../../../packages/extension/webviews/ideas-summary/lib/"] for backward-compatible import paths.
+    Consumers pass a node/edge slice and sync options; the library owns the cytoscape instance, diffing, layout runs, and optional continuous physics.
+}
+
+technology {
+    uses cytoscape.js for the graph layout and canvas.
+    cytoscape-fcose provides the batch force-directed settle; cytoscape-cola is available as a batch layout option.
+    continuous ("live") physics is a custom simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"].
+    the controller initialises cytoscape with Canvas 2D only (pixelRatio 1, no WebGL) so webviews do not break on unresolved CSS variables.
+    Body prose with inline parentheses must parse per ["../../../reqlan rq/language/syntax.rq".lists] and ["../../../reqlan rq/language/syntax.rq".round_brackets].
+}
+
+graph_cytoscape {
+    builds cytoscape elements and stylesheet from a generic node/edge slice.
+    registers batch layout options (fcose, cola, breadthfirst, circle, concentric, grid, random) and seeds positions for new nodes.
+    exposes CompoundBasis (single-membership folder tree) and GroupBasis (flat multi-membership) as grouping inputs.
+    per ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"] and ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"].
+    getLayoutConfig sets fit:false for initial (mode === 'initial') batch layouts so [auto_reframe] owns the first viewport fit; relayout modes may still fit via the layout algorithm.
+}
+
+graph_cy_controller {
+    the cytoscape object should use event driven patterns; lifecycle is documented here.
+
+    GraphCyController in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"] owns the cytoscape instance with inline lifecycle state (idle, syncing, layouting, physics).
+    syncGeneration cancels stale layout callbacks when the slice changes mid-layout.
+    Selection and drag-pinned positions are tracked in userPositionedNodes on the controller.
+    syncSlice diffs elements (add/remove/update the delta) via ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"] so surviving nodes keep positions; requestLayout restarts the active algorithm and clears user pins.
+    Pointer/selection wiring lives in ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]; compound hover/selection/title-hit in ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"].
+    Compound grab/drag/free pins and unpins all childless descendants so live physics does not snap members back while the container moves; released child positions are stored in userPositionedNodes.
+    File compounds (`isFileCompound`): title-band tap or double-tap opens the hosting `.rq` via onOpen(compoundId); GraphView resolves `compound:rq-file:…` to a file URI.
+    Live physics is the custom simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"]; one instance persists with the cytoscape instance and is paused/resumed, never rebuilt. Grabbing a node pins it in the running sim (its live position keeps exerting forces); release unpins with no restart and no snap.
+    ResizeObserver debounces cy.resize() and re-triggers a pending sync when the container gains size.
+    Mount only while the graph container is visible and non-zero — do not keep cytoscape alive under display:none; WebGL init on a zero-size hidden container can break the host webview before messaging is attached.
+    Viewport fitting per [reframe_view]; tracks lastSyncedNodeSetKey vs fittedNodeSetKey to drive [auto_reframe].
+    Label visibility per [graph_label_modes] / [graph_label_auto]: setLabelMode updates text-opacity from zoom (and hover/drag force-opaque in auto).
+}
+
+graph_cy_elements {
+    syncGraphElements diffs the live cytoscape graph against the desired slice rather than remove-all/add-all on every sync.
+    Surviving nodes keep positions; only added/removed/updated elements move.
+    Mutable data fields (label, color, flags) can update without a structural relayout.
+    per ["../../../packages/extension/webviews/shared/graph/graph-cy-elements.ts"].
+}
+
+webview_threading {
+    VS Code webviews run JavaScript on a single main thread, like a browser tab.
+    Heavy synchronous work — cytoscape layout iterations, large element builds, unbounded loops — blocks UI updates until it finishes.
+    Layout iteration count scales with node count (capped) rather than running unbounded defaults.
+    Do not restart layout synchronously on layoutstop; hand off to the graph-physics simulation, which integrates one step per requestAnimationFrame instead of blocking.
+}
+
+layout_physics {
+    defaults to force-directed layout (fcose) with animation on, but callers can select other options offered by cytoscape.js.
+    a toggle leaves layout animation and live physics on for force-directed layouts instead of settling immediately.
+    live physics is the custom obsidian-style simulation in ["../../../packages/extension/webviews/shared/graph/graph-physics.ts"] (force core: ["../../../packages/extension/webviews/shared/graph/physics-core.js"]), regardless of which force-directed batch layout produced the initial settle.
+    forces are central gravity toward the centroid, linear edge springs, and inverse-square node repulsion; every childless node participates, including disconnected orphans.
+    group container constraints live in ["../../../packages/extension/webviews/shared/graph/graph-groups.ts"]: each leaf carries data('groupIds'); disjoint groups are pushed apart after batch cola/fcose and during Animate; groups that share a member (multi-membership, e.g. tags) may overlap around the shared node.
+    the simulation is deterministic (no randomness) and converges slowly over tens of seconds, then sleeps; interactions wake it instead of restarting it.
+    dragging pins the held node while the sim keeps running around it; release rejoins the node at rest with no snap; clicks never disturb the sim.
+    Dragging a compound container pins every childless descendant for the same reason (see [graph_cy_controller]).
+    cycling the Animate toggle pauses and resumes the same simulation state, so it converges to the same attractor as leaving it on.
+}
+
+view_controls {
+    pan, zoom, and drag repositioning are supported on the canvas.
+    Leaf nodes and compound containers are both draggable; compound drag moves members with the parent.
+    zoom range is wide rather than tightly capped so users can inspect fine detail or see the whole neighbourhood.
+    [reframe_view] fits and centres the camera on the graph bounding box without changing node positions or restarting layout/physics.
+    Zoom and Fit must continuously drive [graph_label_auto] opacity when Labels is in auto mode.
+}
+
+graph_labels {
+    Graph node labels must show the full idea name without character truncation.
+    Wrapping is allowed; ellipsis truncation of display names is not.
+    Shared contract for Ideas Summary (cytoscape) and HTML export (canvas); surface-specific wiring lives under consumers.
+    [graph_label_modes]
+    [graph_label_auto]
+    @status done
+}
+
+graph_label_modes {
+    Every interactive graph should provide a Labels control that cycles auto (default), on, and off without changing graph membership.
+    On forces full opacity; off hides all labels; auto follows [graph_label_auto].
+    Reset / default restore auto.
+    Ideas Summary: control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"], mode persisted via ["../module/ideas_summary/graphical_graph.rq".graph_ui_persistence].
+    HTML export: control in ["../../../crates/reqlan-export/src/html_template.rs"] / ["../../../crates/reqlan-export/assets/app.js"].
+    Driven by the same viewport zoom as [view_controls].
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+    )
+    @tests (
+        ["../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+    )
+}
+
+graph_label_auto {
+    In Labels auto mode, visibility follows viewport zoom continuously rather than a hard cut. (fade)
+    Below a low zoom threshold labels are fully hidden; above a slightly higher threshold they are fully opaque; between those thresholds opacity ramps briefly through a muted / semi-transparent phase (GRAPH_LABEL_FADE_START → GRAPH_LABEL_FADE_END).
+    Labels start fully invisible during graph initialisation and layout settling so text paint does not lag those phases; zoom fade only applies once settle/reframe has finished.
+    Hovered or dragged nodes remain fully opaque even when ambient auto opacity is low or zero.
+    Zoom and Fit from [view_controls] / [reframe_view] must update this opacity on each paint or zoom event.
+    Applies to Ideas Summary GraphCyController and HTML export canvas graph alike.
+    @status done
+    @implementation (
+        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
+        ["../../../crates/reqlan-export/assets/app.js"]
+    )
+    @tests (
+        ["../../../packages/extension/test/graph-label-opacity.test.ts"]
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+    )
+}
+
+graph_status_tag_filters {
+    Status and tag graph filters are searchable checkbox dropdowns (still a dropdown trigger; multi-select via checkboxes; OR within each field).
+    They must distinguish attribute absence from an empty declaration and from a literal unspecified value:
+      - Not present — attribute key absent (no `@status` / no `@tags`)
+      - Empty — attribute declared with no value (`@status`, `@tags`, `@status ""`, bare flag)
+      - unspecified — literal authored value "unspecified"
+    Do not invent unspecified for missing attributes in rollups, clusters, or filter options.
+    Special options render differently from concrete values (italic muted Not present; info-tint Empty; warning-tint unspecified).
+    Shared helpers live in ["../../../packages/analytical/src/core/filter-specials.ts"].
+    Surfaces: Ideas Summary SearchableCheckboxDropdown; HTML export SCD in ["../../../crates/reqlan-export/assets/app.js"].
+    @status done
+    @implementation (
+        ["../../../packages/analytical/src/core/filter-specials.ts"]
+        ["../../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../packages/extension/webviews/ideas-summary/components/SearchableCheckboxDropdown.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../packages/extension/src/webview_module/shared/messages.ts"]
+    )
+    @tests (
+        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../packages/analytical/test/filter-specials.test.ts"]
+    )
+}
+
+reframe_view {
+    Shared viewport behaviour for every surface that mounts GraphCyController (Ideas Summary graph tab, activity bar mini graph, and future consumers).
+    Implementation: reframeGraphToViewport and GraphCyController.reframeToViewport in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]. 
+    [manual_reframe]
+    [auto_reframe]
+    [reframe_animation]
+    Constants: GRAPH_VIEWPORT_PADDING (36px padding around the element bounding box), GRAPH_REFRAME_ANIMATION_MS (400ms animated transition).
+    Reframes resize the cytoscape container first, then fit all elements and centre the camera.
+    Does not clear selection, centreId, user-pinned drag positions, or live physics state — viewport only.
+}
+
+manual_reframe {
+    Users can explicitly reframe the viewport when pan/zoom has moved the graph off-screen or they want to see the whole neighbourhood again.
+    - "Fit to view" control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] dispatches to GraphView → GraphCyController.reframeToViewport().
+    - "Fit to view" control in ["../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte"] calls the same API on the mini-graph controller.
+    Every graph surface that mounts GraphCyController should expose this control.
+}
+
+auto_reframe {
+    The graph should automatically fit to the viewport when the loaded node set changes — without requiring the user to click "Fit to view".
+    After each successful syncSlice, GraphCyController compares the sorted node-id set of the incoming slice with fittedNodeSetKey (the set the viewport was last fitted to).
+    When they differ, finishRender triggers an automatic reframe via reframeToViewport.
+    Triggers when any node is added or removed from the slice (new neighbourhood, focus change, filter change that changes membership).
+    Does not trigger for metadata-only updates on the same node ids (label, colour, isCenter flag, etc.) — those keep the user's current pan/zoom.
+    Does not trigger on requestLayout relayout when the node-id set is unchanged.
+}
+
+reframe_animation {
+    The first reframe on a controller mount is instant (synchronous cy.fit + cy.center) so the graph appears immediately on first paint.
+    Every subsequent reframe — automatic ([auto_reframe]) or manual ([manual_reframe]) — animates pan and zoom smoothly over GRAPH_REFRAME_ANIMATION_MS using cytoscape.animate({ fit, easing: 'ease-out-cubic' }).
+    Callers may pass `reframeToViewport({ animate: false })` to force an instant reframe.
+    Initial batch layouts use fit:false (see [graph_cytoscape]) so the controller owns the first fit and later animated handoffs are not double-applied.
+}
+
+layout_options {
+    - user can select from a dropdown of layout options offered by cytoscape.js
+    - user can select whether to use compound layouts (where compound basis is based on the folder structure)
+        - compound basis should be flexible and expected as an input
+}
+
+compound_graph {
+    folder hierarchy is to be supported with compound layouts.
+    Hosting `.rq` files can also act as compound parents via
+    ["../module/ideas_summary/graphical_graph.rq".file_treatment_toggle] (mode `compound`).
+    File compounds are styled distinctly (ideaset accent, underlined title), remain draggable with members, and open the hosting file on title click / double-click (see [graph_cy_controller]).
+}
+
+physics_options {
+    - user can select from a dropdown of physics options offered by cytoscape.js
+        - the options for the physics should be exposed to the user in a menu too.
+    - user can select whether to use live physics/animation
+    - live physics uses the custom graph-physics simulation; cola remains selectable as a batch layout in the layout dropdown
+    - Ideas Summary exposes layout, live-physics, and force sliders in ["../../../packages/extension/webviews/ideas-summary/components/GraphControlPanel.svelte"]
+}

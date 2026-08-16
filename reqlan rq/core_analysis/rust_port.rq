@@ -24,6 +24,7 @@ analytical_rust_port {
         ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../packages/language/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
         ["../../crates/reqlan-search/tests/fuzzy.rs:ranks_exact_and_prefix_matches_ahead_of_subsequence_fuzzy_hits"]
     )
     @plan {
@@ -63,12 +64,24 @@ rust_crate_layout {
     - `reqlan-analytical` — facade matching `AnalysisApi` + `WorkspaceIndex` operations
     - `reqlan-napi` — Node binding for the core engine ([native_bridge])
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
-    Golden tests compare Rust extract against Langium on `reqlan rq/` files Langium parses without lexer/parser errors, plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
+    Golden tests compare Rust extract against Langium on the frozen [golden_corpus], plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
     Format: ["../development/commit.rq".rust_fmt].
     @status done
     @tests (
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
-        ["../../packages/analytical/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
+        ["../../packages/language/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
+    )
+}
+
+golden_corpus {
+    Parser/extractor alignment uses a frozen `.rq` tree under `testdata/golden-corpus/`, not live product requirements in `reqlan rq/`.
+    Production idea lists may change without regenerating the dump. Copy a representative file into the corpus and refresh `crates/reqlan-index/tests/golden/langium-corpus-names.json` only when grammar or extract behaviour needs a new sample.
+    Langium and Rust both extract name+kind from that tree and must match the committed dump.
+    @status done
+    @tests (
+        ["../../packages/language/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
     )
 }
 

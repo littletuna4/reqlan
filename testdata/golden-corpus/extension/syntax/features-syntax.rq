@@ -1,0 +1,128 @@
+
+syntax_features {
+    The extension should provide language support for .rq files via the lsp.
+    Syntax features should cover ideas, ideasets, imports, references, attributes, comments, and lists.
+    Broken imports and references should be validated and reported in the editor.
+    Go-to-definition and find-references should work for ideas, imports, and cross-file links.
+    Autoformatting should be supported for .rq files.
+}
+
+syntax_highlighting {
+    .rq files should receive full syntax highlighting coverage for all reqlan constructs.
+    Semantic token highlighting should distinguish ideas, attributes, references, imports, and keywords.
+    Path + wildcard idea refs (`["…/*.rq".idea_*]`) must highlight as links/strings — not comment-grey —
+    see ["features-syntax-highlighting.rq".wildcard_reference_highlighting].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+    )
+}
+
+syntax_hovering {
+    Hovering on an idea, ideaset, import, or reference should show a text summary of its content and resolved target.
+    Hovering on a reference should show where it resolves and any declared reference kind.
+}
+
+comment_support {
+    The extension should recognise reqlan references embedded in comments of arbitrary source files.
+    Comment reference syntax should follow the form `rq:"../reqfile.rq".idea_name` in line comments.
+    Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
+    Arbitrary file references should be supported from both .rq files and comment references.
+}
+
+code_completion {
+    The extension should support sensible code completion.
+        - support for references
+        - support for imports, including import-root alias paths such as `@/` from ["../../language/imports.rq".configuration_import_root_alias] and ["../configuration.rq".configuration_import_roots]
+        - support for semantic search
+        - support for graph-proximity based ranking
+
+    @implementation (
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+    )
+}
+
+refactor_support {
+    syntactic symbols should be available for renaming, moving, and deleting. the extension should watch for the change.
+    Detailed behaviour lives in ["../refactor_support.rq"].
+    Implemented by ["../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../packages/language/src/reqlan-idea-refactor.ts"], and ["../../../packages/extension/src/refactor_module/index.ts"].
+}
+
+file_references {
+    A file reference should act as a link in the editor.
+    If the target file is empty or has a parse error, the link should remain available and clickable, but should show a warning underline.
+    Same-file and imported idea bracket references should use the same document-link underline as file targets — no visual distinction between local and external refs.
+
+    Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../packages/language/src/reqlan-document-link-provider.ts"], ["../../../packages/language/src/reqlan-definition-provider.ts"], and ["../../../packages/language/src/reqlan-validator.ts"].
+    @tests (
+        ["../../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
+        ["../../../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
+        ["../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/linking.test.ts:missing file references do not produce document links"]
+        ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+    )
+}
+
+
+sensible_alias_support {
+    if an imported idea shares a name with an idea in the current file:
+    When the import uses an alias, the base name may be reused locally — see ["../../language/imports.rq".import_tokenisation].
+    
+    @subreqs (
+        duplicate_error {
+            should be raised if a local idea shares a name with an import binding (unaliased idea name, or the alias when present).
+            @tests (
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares import alias"]
+            )
+            }
+        sensible_graph_resolution {
+            the imported namespace should not be assosciated with the new idea: e.g.
+            ```rq
+            from "../subreqs.rq" import myidea as myideaalias
+            myidea this a new idea. maybe it references [myideaalias]
+            ```
+            `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
+            @tests (
+                ["../../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"]
+                ["../../../packages/language/test/validating.test.ts:allows local idea when import uses an alias"]
+            )
+            }
+    )
+}
+
+at_sign_in_idea_text_block{
+    the @ symbol should only indicate an attribute if at the start of a line. 
+    it should be escapeable with a backslash (although any character would work as the @ would no longer be at the start of the line)
+    so @this_is_not_an_attribute
+    @this_is_an_attribute
+    @tests (
+        ["../../../packages/language/test/parsing.test.ts"]
+        ["../../../packages/language/test/parsing.test.ts"]
+    )
+}
+
+code_completion_import_file_paths {
+    import files should code complete nicely based on the current file's path; and the resolved import config.
+    it should support normal "../string/paths"; and if "@/the-paths/are-@-aliased"
+    ["../configuration.rq"]
+    ["../../language/imports.rq"]
+    ["../code_completion.rq"]
+}
+
+
+syntax_welcome_demonstration {
+    the ["@/packages/extension/templates/thanks-for-installing.template.rq"] should feature some of the core syntax features as reference.
+}

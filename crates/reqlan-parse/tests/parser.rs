@@ -157,7 +157,7 @@ fn parse_dash_and_underscore_delimited_idea_names() {
 // rq:["../../../reqlan rq/language/syntax.rq".file_layout]
 #[test]
 fn parse_syntax_rq() {
-    let path = repo_root().join("reqlan rq/language/syntax.rq");
+    let path = repo_root().join("testdata/golden-corpus/language/syntax.rq");
     let source = std::fs::read_to_string(&path).unwrap();
     let result = parse_document(&source);
     assert!(result.incomplete.is_none(), "syntax.rq must parse: {:?}", result.diagnostics);

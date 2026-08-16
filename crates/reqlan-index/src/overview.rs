@@ -55,7 +55,8 @@ pub fn compute_overview_coverage(
     let file_coverage_pct = if eligible_non_rq_file_count == 0 {
         None
     } else {
-        let pct = (referenced_eligible_file_count as f64 / eligible_non_rq_file_count as f64) * 1000.0;
+        let pct =
+            (referenced_eligible_file_count as f64 / eligible_non_rq_file_count as f64) * 1000.0;
         Some((pct.round()) / 10.0)
     };
 
@@ -128,17 +129,15 @@ fn list_resolved_file_references(conn: &Connection) -> Result<HashSet<String>, S
     let rows = queries::list_file_reference_target_rows(conn)?;
     let mut resolved = HashSet::new();
     for row in rows {
-        let target = row.get("target_file").and_then(serde_json::Value::as_str).unwrap_or("").trim();
+        let target =
+            row.get("target_file").and_then(serde_json::Value::as_str).unwrap_or("").trim();
         if target.is_empty() {
             continue;
         }
         let source_id = row.get("source_id").and_then(serde_json::Value::as_str).unwrap_or("");
         let joined = resolve_referenced_file_path(target, source_id);
         let normalized = normalize_rel_path(&joined);
-        if normalized.is_empty()
-            || normalized.contains("://")
-            || normalized.starts_with("../")
-        {
+        if normalized.is_empty() || normalized.contains("://") || normalized.starts_with("../") {
             continue;
         }
         resolved.insert(normalized);
@@ -325,10 +324,7 @@ mod tests {
             resolve_referenced_file_path("../foo.ts", "reqlan rq/sub/page.rq#idea"),
             "reqlan rq/foo.ts"
         );
-        assert_eq!(
-            resolve_referenced_file_path("./bar.ts", "a/b.rq#i"),
-            "a/bar.ts"
-        );
+        assert_eq!(resolve_referenced_file_path("./bar.ts", "a/b.rq#i"), "a/bar.ts");
     }
 
     #[test]

@@ -91,17 +91,13 @@ fn lookup_git_dates(
         &["log", "--follow", "--diff-filter=A", "--format=%aI", "-1", "--", &file_path],
     )
     .and_then(|out| parse_git_author_dates(&out).into_iter().next());
-    let modified_at = run_git(
-        workspace_root,
-        &["log", "--follow", "--format=%aI", "-1", "--", &file_path],
-    )
-    .and_then(|out| parse_git_author_dates(&out).into_iter().next());
-    let change_count = run_git(
-        workspace_root,
-        &["log", "--follow", "--format=%H", "--", &file_path],
-    )
-    .map(|out| out.lines().map(str::trim).filter(|line| !line.is_empty()).count() as i64)
-    .unwrap_or(0);
+    let modified_at =
+        run_git(workspace_root, &["log", "--follow", "--format=%aI", "-1", "--", &file_path])
+            .and_then(|out| parse_git_author_dates(&out).into_iter().next());
+    let change_count =
+        run_git(workspace_root, &["log", "--follow", "--format=%H", "--", &file_path])
+            .map(|out| out.lines().map(str::trim).filter(|line| !line.is_empty()).count() as i64)
+            .unwrap_or(0);
 
     if created_at.is_none() && modified_at.is_none() && change_count == 0 {
         return GitDates::default();
@@ -167,10 +163,10 @@ mod tests {
     fn parses_iso_author_dates_and_ignores_patch_noise() {
         let stdout = "2026-01-02T03:04:05+10:00\n+ some patch line\n2025-12-31T23:59:59Z\n";
         let dates = parse_git_author_dates(stdout);
-        assert_eq!(dates, vec![
-            "2026-01-02T03:04:05+10:00".to_string(),
-            "2025-12-31T23:59:59Z".to_string(),
-        ]);
+        assert_eq!(
+            dates,
+            vec!["2026-01-02T03:04:05+10:00".to_string(), "2025-12-31T23:59:59Z".to_string(),]
+        );
     }
 
     #[test]

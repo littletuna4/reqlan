@@ -1,4 +1,6 @@
-//! Golden parse/extract: Rust idea names and kinds must match Langium dumps.
+//! Golden parse/extract: Rust idea names and kinds must match Langium dumps
+//! of the frozen corpus in `testdata/golden-corpus/`, not live `reqlan rq/`.
+//! rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".rust_crate_layout]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
@@ -17,6 +19,10 @@ struct GoldenIdea {
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+fn corpus_root() -> PathBuf {
+    repo_root().join("testdata/golden-corpus")
 }
 
 fn rq_files(dir: &Path) -> Vec<PathBuf> {
@@ -51,7 +57,7 @@ fn golden_path() -> PathBuf {
 
 fn dump_corpus_ideas() -> BTreeMap<String, Vec<GoldenIdea>> {
     let mut dump = BTreeMap::new();
-    for path in rq_files(&repo_root().join("reqlan rq")) {
+    for path in rq_files(&corpus_root()) {
         let source = std::fs::read_to_string(&path).unwrap();
         let rel = path.strip_prefix(repo_root()).unwrap_or(&path);
         let rel = rel.to_string_lossy().replace('\\', "/");
@@ -67,12 +73,11 @@ fn load_committed_golden() -> BTreeMap<String, Vec<GoldenIdea>> {
     serde_json::from_str(&text).expect("langium-corpus-names.json")
 }
 
-// rq:["../../../reqlan rq/core_analysis/rust_port.rq".rust_crate_layout]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
 #[test]
 fn corpus_parses_and_extracts_named_ideas() {
-    let root = repo_root().join("reqlan rq");
-    let files = rq_files(&root);
-    assert!(files.len() > 10, "expected the requirement corpus, found {}", files.len());
+    let files = rq_files(&corpus_root());
+    assert!(files.len() > 10, "expected the frozen golden corpus, found {}", files.len());
     let mut with_ideas = 0usize;
     for path in &files {
         let source = std::fs::read_to_string(path).unwrap();
@@ -85,6 +90,7 @@ fn corpus_parses_and_extracts_named_ideas() {
     assert!(with_ideas > 10, "corpus should yield ideas, got {with_ideas}");
 }
 
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".rust_crate_layout]
 #[test]
 fn corpus_idea_names_match_langium_extract() {
@@ -99,6 +105,12 @@ fn corpus_idea_names_match_langium_extract() {
                 .push(format!("{rel}\n  rust:    {rust_ideas:?}\n  langium: {langium_ideas:?}"));
         }
     }
+    for rel in rust.keys() {
+        if !langium.contains_key(rel) {
+            mismatches
+                .push(format!("{rel} present in Rust corpus dump but missing from Langium golden"));
+        }
+    }
     assert!(
         mismatches.is_empty(),
         "Rust extract diverged from Langium on {} files:\n{}",
@@ -111,7 +123,7 @@ fn corpus_idea_names_match_langium_extract() {
 // rq:["../../../reqlan rq/language/syntax.rq".lists]
 #[test]
 fn tutorials_rq_keeps_ideas_after_nested_slides_lists() {
-    let rel = "reqlan rq/marketing_and_media/tutorials.rq";
+    let rel = "testdata/golden-corpus/marketing_and_media/tutorials.rq";
     let source = std::fs::read_to_string(repo_root().join(rel)).unwrap();
     let ideas = rust_ideas(rel, &source);
     let adv_02 = ideas.iter().find(|idea| idea.name == "adv_02_attributes_status_plans");

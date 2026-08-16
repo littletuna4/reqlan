@@ -12,6 +12,7 @@ import { isMarkdownLinkLabelPosition } from '../src/reqlan-markdown-links.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const exampleDir = join(repoDir, 'example_rq_project');
+const goldenCorpusDir = join(repoDir, 'testdata/golden-corpus');
 
 let services: ReturnType<typeof createReqlanServices>;
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -43,7 +44,7 @@ describe('Parsing tests', () => {
 
     // rq:["../../../reqlan rq/language/syntax.rq".file_layout]
     test('parse syntax.rq', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'language/syntax.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
@@ -158,7 +159,7 @@ next_idea still here`);
 
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
     test('parse syntax-edge-cases.rq', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax-edge-cases.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'language/syntax-edge-cases.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
@@ -183,7 +184,7 @@ next_idea still here`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".round_brackets]
     test('parse extension graph.rq library', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/library/graph.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/library/graph.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.some(
             element => isIdea(element) && element.name === 'graph_library'
@@ -209,7 +210,7 @@ next_idea still here`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
     test('parse extension context-scope.rq module', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/module/context-scope.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/module/context-scope.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.some(
             element => isIdea(element) && element.name === 'context_scope'
@@ -323,8 +324,9 @@ demo {
 
     // rq:["../../../reqlan rq/ontology.rq".idea]
     // rq:["../../../reqlan rq/language/syntax.rq".block_idea]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
     test('parse ontology.rq ideas', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/ontology.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'ontology.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         const names = document.parseResult.value.elements.filter(isIdea).map(idea => idea.name);
         expect(names).toEqual([
@@ -663,7 +665,7 @@ later_idea {
     // rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
     test('parse tutorials.rq nested @slides lists without parser errors', async () => {
         const document = await parse(
-            readFileSync(join(repoDir, 'reqlan rq/marketing_and_media/tutorials.rq'), 'utf8')
+            readFileSync(join(goldenCorpusDir, 'marketing_and_media/tutorials.rq'), 'utf8')
         );
         expect(checkDocumentValid(document)).toBeUndefined();
         const names = document.parseResult.value.elements
@@ -829,7 +831,7 @@ my_multi_line_idea_with_appostrophe {
 
     // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
     test('parse features-syntax.rq', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/syntax/features-syntax.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.map(element =>
             'name' in element ? element.name : element.$type
@@ -858,7 +860,7 @@ myidea {
 
     // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
     test('parse docs.rq markdown folder link', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/docs/docs.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'docs/docs.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         const bodyLine = bodyLineContaining(document, 'reqlan rq folder');
         const markdownLink = bodyLine?.parts.find(part => part.$type === 'MarkdownLink');
@@ -969,7 +971,7 @@ label { body }`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".attribute_values]
     test('parse syntax_whitespace.rq body lines and insignificant attribute whitespace', async () => {
-        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax_whitespace.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'language/syntax_whitespace.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         const idea = document.parseResult.value.elements.find(isIdea);
         expect(idea?.name).toBe('syntax_whitespace');

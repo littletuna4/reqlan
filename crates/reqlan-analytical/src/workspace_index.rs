@@ -3,11 +3,13 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 
 use reqlan_index::ignore::{application_memory_path, ideas_index_path, index_diagnostics_path};
+use reqlan_index::queries::{
+    GraphViewQuery, IdeasTableQuery, IdeasetsTableQuery, ReferencesTableQuery,
+};
 use reqlan_index::sync::{
     index_one_file, sync_workspace, FileIssue, IndexOneFileResult, SyncOptions, SyncProgress,
     SyncResult,
 };
-use reqlan_index::queries::{GraphViewQuery, IdeasTableQuery, IdeasetsTableQuery, ReferencesTableQuery};
 use reqlan_index::{now_ms, FileIssueDraft, IndexDiagnosticsStore, IndexStore, StoreError};
 use reqlan_search::{fuzzy_search, FuzzySearchResult, SearchIdeasOptions};
 use serde::Serialize;
@@ -441,7 +443,8 @@ impl WorkspaceIndexRuntime {
     fn parse_query<T: serde::de::DeserializeOwned>(
         value: JsonValue,
     ) -> Result<T, WorkspaceIndexError> {
-        serde_json::from_value(value).map_err(|error| WorkspaceIndexError::Message(error.to_string()))
+        serde_json::from_value(value)
+            .map_err(|error| WorkspaceIndexError::Message(error.to_string()))
     }
 
     pub fn count_ideas(&self, query: JsonValue) -> Result<i64, WorkspaceIndexError> {
@@ -560,6 +563,7 @@ impl WorkspaceIndexRuntime {
         let scores =
             reqlan_index::compute_overview_coverage(self.store.connection(), &self.workspace_root)
                 .map_err(|error| WorkspaceIndexError::Message(error.to_string()))?;
-        serde_json::to_value(scores).map_err(|error| WorkspaceIndexError::Message(error.to_string()))
+        serde_json::to_value(scores)
+            .map_err(|error| WorkspaceIndexError::Message(error.to_string()))
     }
 }

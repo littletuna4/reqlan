@@ -186,7 +186,10 @@ impl NativeSqlDb {
     }
 
     #[napi]
-    pub fn list_reference_chip_rows(&self, idea_ids: Vec<String>) -> Result<Vec<serde_json::Value>> {
+    pub fn list_reference_chip_rows(
+        &self,
+        idea_ids: Vec<String>,
+    ) -> Result<Vec<serde_json::Value>> {
         self.with_bridge(|bridge| {
             queries::list_reference_chip_rows(bridge.connection(), &idea_ids)
                 .map_err(map_sql_bridge_err)
@@ -261,12 +264,9 @@ impl NativeSqlDb {
     ) -> Result<serde_json::Value> {
         let query: GraphViewQuery = parse_query(query)?;
         self.with_bridge(|bridge| {
-            let (rows, total) = queries::list_ideas_for_graph_query_rows(
-                bridge.connection(),
-                &query,
-                limit,
-            )
-            .map_err(map_sql_bridge_err)?;
+            let (rows, total) =
+                queries::list_ideas_for_graph_query_rows(bridge.connection(), &query, limit)
+                    .map_err(map_sql_bridge_err)?;
             Ok(serde_json::json!({ "rows": rows, "totalMatching": total }))
         })
     }
@@ -334,12 +334,16 @@ impl NativeSqlDb {
 
     #[napi]
     pub fn list_document_uris(&self) -> Result<Vec<String>> {
-        self.with_bridge(|b| queries::list_document_uris(b.connection()).map_err(map_sql_bridge_err))
+        self.with_bridge(|b| {
+            queries::list_document_uris(b.connection()).map_err(map_sql_bridge_err)
+        })
     }
 
     #[napi]
     pub fn list_all_idea_rows(&self) -> Result<Vec<serde_json::Value>> {
-        self.with_bridge(|b| queries::list_all_idea_rows(b.connection()).map_err(map_sql_bridge_err))
+        self.with_bridge(|b| {
+            queries::list_all_idea_rows(b.connection()).map_err(map_sql_bridge_err)
+        })
     }
 
     #[napi]
@@ -361,7 +365,8 @@ impl NativeSqlDb {
         line: i64,
     ) -> Result<Option<serde_json::Value>> {
         self.with_bridge(|b| {
-            queries::get_idea_at_line_row(b.connection(), &file_uri, line).map_err(map_sql_bridge_err)
+            queries::get_idea_at_line_row(b.connection(), &file_uri, line)
+                .map_err(map_sql_bridge_err)
         })
     }
 
@@ -449,7 +454,10 @@ impl NativeSqlDb {
     }
 
     #[napi]
-    pub fn get_edges_for_nodes_rows(&self, node_ids: Vec<String>) -> Result<Vec<serde_json::Value>> {
+    pub fn get_edges_for_nodes_rows(
+        &self,
+        node_ids: Vec<String>,
+    ) -> Result<Vec<serde_json::Value>> {
         self.with_bridge(|b| {
             queries::get_edges_for_nodes_rows(b.connection(), &node_ids).map_err(map_sql_bridge_err)
         })
@@ -540,8 +548,15 @@ impl NativeSqlDb {
         let ideas: Vec<IdeaRecord> = parse_query(ideas)?;
         let edges: Vec<EdgeRecord> = parse_query(edges)?;
         self.with_bridge(|b| {
-            queries::upsert_document(b.connection(), &file_uri, &content_hash, &ideas, &edges, mtime_ms)
-                .map_err(map_sql_bridge_err)
+            queries::upsert_document(
+                b.connection(),
+                &file_uri,
+                &content_hash,
+                &ideas,
+                &edges,
+                mtime_ms,
+            )
+            .map_err(map_sql_bridge_err)
         })
     }
 
@@ -717,7 +732,9 @@ impl NativeWorkspaceIndex {
 
     #[napi]
     pub fn clear_file_issues_for_file(&self, file_uri: String) -> Result<()> {
-        self.with_mut(|inner| inner.clear_file_issues_for_file(&file_uri).map_err(map_workspace_err))
+        self.with_mut(|inner| {
+            inner.clear_file_issues_for_file(&file_uri).map_err(map_workspace_err)
+        })
     }
 
     #[napi]
@@ -839,10 +856,7 @@ impl NativeWorkspaceIndex {
     }
 
     #[napi]
-    pub fn list_ideas_page_rows(
-        &self,
-        query: serde_json::Value,
-    ) -> Result<Vec<serde_json::Value>> {
+    pub fn list_ideas_page_rows(&self, query: serde_json::Value) -> Result<Vec<serde_json::Value>> {
         self.with_mut(|inner| inner.list_ideas_page_rows(query).map_err(map_workspace_err))
     }
 
@@ -875,9 +889,7 @@ impl NativeWorkspaceIndex {
         file_uri: String,
     ) -> Result<Vec<serde_json::Value>> {
         self.with_mut(|inner| {
-            inner
-                .list_ideaset_member_rows(&ideaset_id, &kind, &file_uri)
-                .map_err(map_workspace_err)
+            inner.list_ideaset_member_rows(&ideaset_id, &kind, &file_uri).map_err(map_workspace_err)
         })
     }
 
@@ -905,7 +917,9 @@ impl NativeWorkspaceIndex {
         query: serde_json::Value,
         limit: i64,
     ) -> Result<serde_json::Value> {
-        self.with_mut(|inner| inner.list_ideas_for_graph_query(query, limit).map_err(map_workspace_err))
+        self.with_mut(|inner| {
+            inner.list_ideas_for_graph_query(query, limit).map_err(map_workspace_err)
+        })
     }
 
     #[napi]
@@ -922,7 +936,11 @@ impl NativeWorkspaceIndex {
     ) -> Result<Vec<String>> {
         self.with_mut(|inner| {
             inner
-                .list_idea_ids_missing_git_dates(limit, file_uri.as_deref(), prefer_file_uri.as_deref())
+                .list_idea_ids_missing_git_dates(
+                    limit,
+                    file_uri.as_deref(),
+                    prefer_file_uri.as_deref(),
+                )
                 .map_err(map_workspace_err)
         })
     }
@@ -1083,8 +1101,7 @@ impl NativeWorkspaceIndex {
     #[napi]
     pub fn search_idea_rows(&self, search: String) -> Result<Vec<serde_json::Value>> {
         self.with_mut(|inner| {
-            queries::search_idea_rows(inner.ideas_connection(), &search)
-                .map_err(map_sql_bridge_err)
+            queries::search_idea_rows(inner.ideas_connection(), &search).map_err(map_sql_bridge_err)
         })
     }
 
@@ -1129,7 +1146,10 @@ impl NativeWorkspaceIndex {
     }
 
     #[napi]
-    pub fn get_edges_for_nodes_rows(&self, node_ids: Vec<String>) -> Result<Vec<serde_json::Value>> {
+    pub fn get_edges_for_nodes_rows(
+        &self,
+        node_ids: Vec<String>,
+    ) -> Result<Vec<serde_json::Value>> {
         self.with_mut(|inner| {
             queries::get_edges_for_nodes_rows(inner.ideas_connection(), &node_ids)
                 .map_err(map_sql_bridge_err)
@@ -1171,9 +1191,7 @@ impl NativeWorkspaceIndex {
 
     #[napi]
     pub fn counts(&self) -> Result<serde_json::Value> {
-        self.with_mut(|inner| {
-            queries::counts(inner.ideas_connection()).map_err(map_sql_bridge_err)
-        })
+        self.with_mut(|inner| queries::counts(inner.ideas_connection()).map_err(map_sql_bridge_err))
     }
 
     #[napi]
@@ -1274,12 +1292,9 @@ pub fn barrel_page_plan(
     container_name: Option<String>,
     source_file_name: String,
 ) -> Result<serde_json::Value> {
-    let plan = reqlan_parse::plan_barrel_page(
-        &source,
-        container_name.as_deref(),
-        &source_file_name,
-    )
-    .map_err(Error::from_reason)?;
+    let plan =
+        reqlan_parse::plan_barrel_page(&source, container_name.as_deref(), &source_file_name)
+            .map_err(Error::from_reason)?;
     Ok(serde_json::json!({
         "containerName": plan.container_name,
         "containerContent": plan.container_content,

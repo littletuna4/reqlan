@@ -175,7 +175,9 @@ impl IndexDiagnosticsStore {
         )?;
         for issue in issues {
             let idea_names = match &issue.idea_names {
-                Some(names) if !names.is_empty() => JsonValue::String(serde_json::to_string(names)?),
+                Some(names) if !names.is_empty() => {
+                    JsonValue::String(serde_json::to_string(names)?)
+                }
                 _ => JsonValue::Null,
             };
             let cause = match &issue.cause {
@@ -325,10 +327,7 @@ impl IndexDiagnosticsStore {
 
 /// Current unix time in milliseconds (matches JS `Date.now()`).
 pub fn now_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 fn file_issue_row_to_json(row: JsonValue) -> JsonValue {

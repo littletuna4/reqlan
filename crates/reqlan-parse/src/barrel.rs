@@ -89,10 +89,11 @@ pub fn plan_barrel_page(
             .map(|sibling| format!("import \"./{sibling}.rq\" as {sibling}"))
             .collect::<Vec<_>>()
             .join("\n");
-        let parts: Vec<&str> = [import_preamble.trim_end(), sibling_imports.as_str(), rewritten.as_str()]
-            .into_iter()
-            .filter(|part| !part.is_empty())
-            .collect();
+        let parts: Vec<&str> =
+            [import_preamble.trim_end(), sibling_imports.as_str(), rewritten.as_str()]
+                .into_iter()
+                .filter(|part| !part.is_empty())
+                .collect();
         children.push(BarrelChildPlan {
             idea_name: name.clone(),
             file_name: format!("{name}.rq"),
@@ -158,11 +159,8 @@ fn span_text(source: &str, start: usize, end: usize) -> String {
 /// Sanitize a file name into a valid idea identifier (matches `fileBasenameAlias`).
 pub fn file_basename_alias(file_name: &str) -> String {
     let base = file_name.rsplit('/').next().unwrap_or(file_name);
-    let without_ext = if base.to_ascii_lowercase().ends_with(".rq") {
-        &base[..base.len() - 3]
-    } else {
-        base
-    };
+    let without_ext =
+        if base.to_ascii_lowercase().ends_with(".rq") { &base[..base.len() - 3] } else { base };
 
     let mut cleaned = String::new();
     let mut in_gap = false;

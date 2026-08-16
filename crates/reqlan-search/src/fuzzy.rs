@@ -205,11 +205,7 @@ fn rank_hits(scored: &mut [FuzzySearchHit]) {
 }
 
 pub fn file_basename(file_uri: &str) -> &str {
-    file_uri
-        .rsplit(['/', '\\'])
-        .next()
-        .filter(|part| !part.is_empty())
-        .unwrap_or(file_uri)
+    file_uri.rsplit(['/', '\\']).next().filter(|part| !part.is_empty()).unwrap_or(file_uri)
 }
 
 fn file_stem(name: &str) -> &str {

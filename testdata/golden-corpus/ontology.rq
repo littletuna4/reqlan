@@ -1,0 +1,307 @@
+import "../packages/language/src/reqlan.langium" as reqlan_grammar
+import "../packages/language/src/reqlan-comment.langium" as comment_grammar
+import "../packages/language/src/reqlan-comment-resolver.ts" as comment_resolver
+import "../packages/language/src/reqlan-imports.ts" as import_resolver
+import "../packages/language/src/reqlan-path-resolve.ts" as path_resolve
+import "../packages/analytical/src/core/types.ts" as analytical_types
+import "../packages/analytical/src/index-store/idea-extractor.ts" as idea_extractor
+import "../packages/analytical/src/core/file-reference-resolve.ts" as file_reference_resolve
+import "../packages/analytical/src/core/base-discovery.ts" as base_discovery
+import "../crates/reqlan-parse/src/ast.rs" as rust_ast
+import "../crates/reqlan-index/src/types.rs" as rust_index_types
+import "../crates/reqlan-index/src/extract.rs" as rust_extract
+import "../packages/extension/src/extension/main.ts" as extension_main
+import "../packages/extension/webviews/ideas-summary/lib/tabs.ts" as ideas_summary_tabs
+import "../packages/extension/webviews/ideas-summary/components/GraphView.svelte" as graph_view
+from "./reference_types.rq" import idea_reference, ideaset_reference, comment_reference, file_reference, link_reference, wildcard_reference
+
+
+idea {
+    A reqlan core unit is an idea.
+    Syntax: ["./language/syntax.rq".simple_idea], ["./language/syntax.rq".block_idea].
+    Grammar: [reqlan_grammar] `Idea` / `OneLinerIdea`; index records: [analytical_types] `IdeaRecord`.
+    Extract: [idea_extractor], [rust_extract]; AST: [rust_ast].
+    Product surface: [ideas_summary_tabs] Ideas tab per ["./extension/module/ideas_summary/webview.rq".ontology_aligned_tabs].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_ast]
+        [rust_extract]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
+        ["../packages/language/test/parsing.test.ts:parse one-liner ideas"]
+        ["../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
+    )
+}
+
+ideaset {
+    Ideasets are namespace containers for ideas.
+    Syntax: ["./language/syntax.rq".ideaset]. Grammar: [reqlan_grammar] `IdeaSet`.
+    Index kind `ideaset` plus `ideaset_member` edges: [analytical_types], [idea_extractor], [rust_index_types].
+    A [file] is an implicit ideaset (["./language/syntax.rq".file_layout]).
+    Product surface: [ideas_summary_tabs] Ideasets tab.
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_index_types]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
+        ["../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+    )
+}
+
+file {
+    Files store ideas and form ideasets.
+    Documents use the `.rq` suffix (["./language/syntax.rq".file_suffix]) and ["./language/syntax.rq".file_layout].
+    Indexed as ideaset kind `file` in [analytical_types].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse syntax.rq"]
+        ["../crates/reqlan-parse/tests/parser.rs:parse_syntax_rq"]
+    )
+}
+
+keyword {
+    As a language, reqlan has keywords that are reserved in some contexts.
+    Import statement keywords: ["./language/imports.rq".import_keywords] (`import`, `from`, `as`).
+    Grammar: [reqlan_grammar] — those tokens are keywords only at statement start.
+    Idea names should not use reserved keywords ([idea_name]).
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [import_resolver]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse example sub idea.rq"]
+        ["../packages/language/test/parsing.test.ts:malformed from-as import keeps later ideas parseable"]
+    )
+}
+
+base {
+    A base is a container for ideas, ideasets, and files — the boundary of one ideas graph.
+    Discovery: a directory is a base only when it owns a `.reqlan` application-memory folder.
+    There is no implicit base from a bare workspace folder; the product prompts the user to
+    create `.reqlan` at the workspace-folder root when none exist.
+    Bases may be nested: a child directory with its own `.reqlan` is a separate base;
+    the parent base's index stops at that child boundary.
+    Each base holds its own ideas index under its `.reqlan`. Details: ["./bases/base.rq".base].
+    @status done
+    @implementation (
+        [base_discovery]
+        ["../packages/analytical/src/index-store/base-registry.ts"]
+        ["../packages/analytical/src/core/application-memory.ts"]
+    )
+    @tests (
+        ["../packages/analytical/test/base-discovery.test.ts:returns empty when no .reqlan exists"]
+        ["../packages/analytical/test/base-discovery.test.ts:discovers base at workspace root"]
+        ["../packages/analytical/test/application-memory.test.ts:defaults to <workspace>/.reqlan"]
+    )
+}
+
+configuration {
+    There are multiple scopes for configuration: at the [base] level and at the [extension] level.
+    Base config: ["./extension/configuration.rq".configuration_location] (`<base>/.reqlan/config.json`).
+    Base vs extension split: ["./bases/base.rq".base_configuration].
+    @status done
+    @implementation (
+        [path_resolve]
+        ["../packages/extension/schemas/config.schema.json"]
+    )
+    @tests (
+        ["../packages/language/test/config.test.ts:returns undefined when no config exists"]
+        ["../packages/language/test/config.test.ts:loads config from the owning base .reqlan"]
+        ["../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest base config"]
+    )
+}
+
+import_statement {
+    Imports describe references. Some [keyword]s are reserved for imports.
+    Forms: ["./language/imports.rq".import_from], ["./language/imports.rq".import_namespace],
+    ["./language/imports.rq".import_qualified]. Grammar: [reqlan_grammar] `Import`; resolve: [import_resolver].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [import_resolver]
+        [path_resolve]
+        [rust_ast]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parses from-import example line inside an attribute block value"]
+        ["../packages/language/test/linking.test.ts:resolve namespace import references to files"]
+        ["../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
+    )
+}
+
+reference {
+    References link ideas to other ideas, files, and symbols.
+    Syntax: ["./language/syntax.rq".reference_brackets], ["./language/syntax.rq".reference_wikilink],
+    ["./language/syntax.rq".reference_qualified], ["./language/syntax.rq".reference_file],
+    ["./language/syntax.rq".reference_embedding]. Kinds: [reference_types].
+    Grammar: [reqlan_grammar] `ReferenceTarget`; index edges: [idea_extractor], [rust_extract].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [idea_extractor]
+        [rust_extract]
+        ["../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../packages/language/src/reqlan-definition-provider.ts"]
+    )
+    @tests (
+        ["../packages/language/test/linking.test.ts:resolve same-file bracket reference to local idea"]
+        ["../packages/language/test/linking.test.ts:resolve wikilink to idea declaration in main.rq"]
+        ["../packages/language/test/linking.test.ts:resolve namespace import references to files"]
+    )
+}
+
+referenced_files {
+    Non-`.rq` files that ideas reference, or that reference ideas. These may be shared.
+    They should be captured in the ["./indexer/indexer.rq".index].
+    Outbound file refs: ["./language/syntax.rq".reference_file], [file_reference_resolve],
+    edge kind `file_reference` in [analytical_types].
+    Inbound comment refs: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    via [comment_resolver] / [comment_grammar].
+    Full non-`.rq` file indexing of comment-bearing sources: ["./indexer/indexer.rq".index_code_files].
+    @status done
+    @implementation (
+        [file_reference_resolve]
+        [comment_resolver]
+        [comment_grammar]
+        [idea_extractor]
+        ["../crates/reqlan-index/src/comment.rs"]
+        ["../packages/extension/src/extension/register-comment-reference-links.ts"]
+    )
+    @tests (
+        ["../packages/analytical/test/file-reference-resolve.test.ts"]
+        ["../packages/language/test/references.test.ts:finds rq: bracket comment references in line comments"]
+        ["../packages/language/test/references.test.ts:finds rq: comment references in block comments"]
+        ["../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+    )
+}
+
+cartographic_map {
+    A cartographic map is a visual representation of a graph, optimised/curated by the user for context.
+    Product: ["./extension/module/ideas_summary/graphical_graph.rq".graphical_graph] ([graph_view]).
+    Distinct from a full-graph dump; [atlas] is a further curated overlay, not yet implemented.
+    @status done
+    @implementation (
+        [graph_view]
+        ["../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+    )
+}
+
+extension {
+    The extension contains the editor product features.
+    Host: [extension_main]; scope: ["./extension/scope.rq".vscode_extension], ["./extension/scope.rq".lsp_support].
+    Architecture: ["./extension/architecture.rq".event_driven]; packages: ["./core-architecture.rq".extension_package].
+    @status done
+    @implementation (
+        [extension_main]
+        ["../packages/extension/src/language/main.ts"]
+        ["../packages/extension/package.json"]
+    )
+}
+
+grammar_rule {
+    Grammar rules describe the syntax features.
+    Requirements: ["./language/syntax.rq"]; lexer bridge: ["./language/parser_lexer.rq".lexer_bridge_to_syntax].
+    Langium: [reqlan_grammar]; comment grammar: [comment_grammar]; index-path AST: [rust_ast].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [comment_grammar]
+        [rust_ast]
+        ["../packages/language/src/reqlan-token-builder.ts"]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse syntax.rq"]
+        ["../crates/reqlan-parse/tests/parser.rs:parse_syntax_rq"]
+        ["../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+    )
+}
+
+attribute {
+    Attributes are classification, functional, or nonfunctional metadata.
+    Syntax: ["./language/syntax.rq".attribute_marker], ["./language/syntax.rq".attribute_forms],
+    ["./language/syntax.rq".attribute_values], ["./language/syntax.rq".attribute_location].
+    Policy: ["./language/attributes.rq".attribute_configuration].
+    Indexed on [analytical_types] `IdeaAttributeMap`; extract: [idea_extractor], [rust_extract].
+    Product surface: [ideas_summary_tabs] Attributes tab.
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_extract]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parses valued attributes without a colon"]
+        ["../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
+        ["../packages/analytical/test/idea-extraction.test.ts:indexes scalar, list, block, and flag attribute values"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
+    )
+}
+
+attribute_body {
+    The first attribute in an idea, if not marked otherwise, is the main body attribute. It is unstructured text.
+    Syntax: ["./language/syntax.rq".block_idea]; extract summary from that body: [idea_extractor], [rust_extract].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [idea_extractor]
+        [rust_extract]
+    )
+    @tests (
+        ["../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
+    )
+}
+
+idea_name {
+    The idea name is a string/handle/variable that uniquely identifies the idea (within the ideaset/file).
+    It should not be a reserved [keyword].
+    Syntax: ["./language/syntax.rq".idea_name]; grammar: [reqlan_grammar] `IdeaName`.
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [rust_ast]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parse dash and underscore delimited idea names"]
+        ["../crates/reqlan-parse/tests/parser.rs:parse_dash_and_underscore_delimited_idea_names"]
+    )
+}
+
+atlas {
+    A challenge with navigating complex graphs is that they can be overwhelming.
+    One extension to the product is to have atlases — named, reusable cartographic cuts beyond the live [cartographic_map].
+    @idea
+    @status draft
+    @todo specify atlas persistence and UI relative to ["./extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+}
+
+reference_types {
+    [reference]
+    Kinds of [reference]. Details in ["./reference_types.rq"].
+    Index edge kinds live on [analytical_types] / [rust_index_types].
+    [idea_reference]
+    [ideaset_reference]
+    [comment_reference]
+    [file_reference]
+    [link_reference]
+    [wildcard_reference]
+}

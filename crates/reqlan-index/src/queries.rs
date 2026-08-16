@@ -147,7 +147,12 @@ fn find_column_filter<'a>(filters: &'a [ColumnFilter], column: &str) -> Option<&
     filters.iter().find(|filter| filter.column == column)
 }
 
-fn push_text_like(clauses: &mut Vec<String>, params: &mut Vec<JsonValue>, expression: &str, text: Option<&str>) {
+fn push_text_like(
+    clauses: &mut Vec<String>,
+    params: &mut Vec<JsonValue>,
+    expression: &str,
+    text: Option<&str>,
+) {
     if let Some(text) = text {
         let text = text.trim();
         if !text.is_empty() {
@@ -157,7 +162,12 @@ fn push_text_like(clauses: &mut Vec<String>, params: &mut Vec<JsonValue>, expres
     }
 }
 
-fn push_selected_in(clauses: &mut Vec<String>, params: &mut Vec<JsonValue>, expression: &str, selected: Option<&[String]>) {
+fn push_selected_in(
+    clauses: &mut Vec<String>,
+    params: &mut Vec<JsonValue>,
+    expression: &str,
+    selected: Option<&[String]>,
+) {
     if let Some(selected) = selected {
         if !selected.is_empty() {
             let placeholders = vec!["?"; selected.len()].join(", ");
@@ -297,14 +307,21 @@ pub fn build_ideasets_where(q: &IdeasetsTableQuery) -> (String, Vec<JsonValue>) 
     let mut params: Vec<JsonValue> = Vec::new();
 
     if let Some(search) = trimmed(&q.search) {
-        clauses.push("(COALESCE(name, file_uri) LIKE ? OR file_uri LIKE ? OR kind LIKE ?)".to_string());
+        clauses.push(
+            "(COALESCE(name, file_uri) LIKE ? OR file_uri LIKE ? OR kind LIKE ?)".to_string(),
+        );
         params.push(like(search));
         params.push(like(search));
         params.push(like(search));
     }
 
     if let Some(filter) = find_column_filter(&q.column_filters, "name") {
-        push_text_like(&mut clauses, &mut params, "COALESCE(name, file_uri)", filter.text.as_deref());
+        push_text_like(
+            &mut clauses,
+            &mut params,
+            "COALESCE(name, file_uri)",
+            filter.text.as_deref(),
+        );
     }
     if let Some(filter) = find_column_filter(&q.column_filters, "path") {
         push_text_like(&mut clauses, &mut params, "file_uri", filter.text.as_deref());
@@ -379,8 +396,12 @@ pub fn build_references_where(q: &ReferencesTableQuery) -> (String, Vec<JsonValu
 pub fn build_references_order(q: &ReferencesTableQuery) -> String {
     let direction = if q.sort_dir.as_deref() == Some("desc") { "DESC" } else { "ASC" };
     let primary = match q.sort_by.as_deref() {
-        Some("target") => format!("COALESCE(ti.name, e.target_file, e.label, '') {direction}, si.file_uri ASC"),
-        Some("inRq") => format!("(CASE WHEN e.target_id IS NULL THEN 0 ELSE 1 END) {direction}, si.file_uri ASC"),
+        Some("target") => {
+            format!("COALESCE(ti.name, e.target_file, e.label, '') {direction}, si.file_uri ASC")
+        }
+        Some("inRq") => format!(
+            "(CASE WHEN e.target_id IS NULL THEN 0 ELSE 1 END) {direction}, si.file_uri ASC"
+        ),
         Some("type") => format!("e.kind {direction}, si.file_uri ASC"),
         _ => format!("si.file_uri {direction}, si.line_start ASC, e.id ASC"),
     };
@@ -393,7 +414,11 @@ pub fn build_references_order(q: &ReferencesTableQuery) -> String {
 
 fn normalize_filter_list(value: &Option<Vec<String>>) -> Vec<String> {
     match value {
-        Some(list) => list.iter().map(|entry| entry.trim().to_string()).filter(|entry| !entry.is_empty()).collect(),
+        Some(list) => list
+            .iter()
+            .map(|entry| entry.trim().to_string())
+            .filter(|entry| !entry.is_empty())
+            .collect(),
         None => Vec::new(),
     }
 }
@@ -425,8 +450,10 @@ pub fn build_graph_filter_where(q: &GraphViewQuery) -> (String, Vec<JsonValue>) 
         let mut parts: Vec<String> = Vec::new();
         let include_missing = status_filters.iter().any(|value| value == FILTER_NOT_PRESENT);
         let include_empty = status_filters.iter().any(|value| value == FILTER_EMPTY);
-        let concrete: Vec<&String> =
-            status_filters.iter().filter(|value| *value != FILTER_NOT_PRESENT && *value != FILTER_EMPTY).collect();
+        let concrete: Vec<&String> = status_filters
+            .iter()
+            .filter(|value| *value != FILTER_NOT_PRESENT && *value != FILTER_EMPTY)
+            .collect();
         if include_missing {
             parts.push("json_extract(i.attributes_json, ?) IS NULL".to_string());
             params.push(json!(path));
@@ -454,8 +481,10 @@ pub fn build_graph_filter_where(q: &GraphViewQuery) -> (String, Vec<JsonValue>) 
         let mut parts: Vec<String> = Vec::new();
         let include_missing = tag_filters.iter().any(|value| value == FILTER_NOT_PRESENT);
         let include_empty = tag_filters.iter().any(|value| value == FILTER_EMPTY);
-        let concrete: Vec<&String> =
-            tag_filters.iter().filter(|value| *value != FILTER_NOT_PRESENT && *value != FILTER_EMPTY).collect();
+        let concrete: Vec<&String> = tag_filters
+            .iter()
+            .filter(|value| *value != FILTER_NOT_PRESENT && *value != FILTER_EMPTY)
+            .collect();
         if include_missing {
             parts.push("json_extract(i.attributes_json, ?) IS NULL".to_string());
             params.push(json!(path));
@@ -509,10 +538,7 @@ const IDEA_PAGE_COLUMNS: &str = "i.id,\n                i.name,\n               
 const IDEASETS_SUBQUERY: &str = "SELECT\n                    d.file_uri AS id,\n                    'file' AS kind,\n                    d.file_uri AS file_uri,\n                    0 AS line_start,\n                    NULL AS name,\n                    (\n                        SELECT COUNT(*)\n                        FROM ideas i\n                        WHERE i.file_uri = d.file_uri\n                    ) AS member_count\n                FROM documents d\n                UNION ALL\n                SELECT\n                    i.id,\n                    'explicit' AS kind,\n                    i.file_uri,\n                    i.line_start,\n                    i.name,\n                    (\n                        SELECT COUNT(*)\n                        FROM edges e\n                        WHERE e.source_id = i.id AND e.kind = 'ideaset_member'\n                    ) AS member_count\n                FROM ideas i\n                WHERE i.kind = 'ideaset'";
 
 fn count_from(rows: Vec<JsonValue>) -> i64 {
-    rows.first()
-        .and_then(|row| row.get("count"))
-        .and_then(JsonValue::as_i64)
-        .unwrap_or(0)
+    rows.first().and_then(|row| row.get("count")).and_then(JsonValue::as_i64).unwrap_or(0)
 }
 
 pub fn count_ideas(conn: &Connection, q: &IdeasTableQuery) -> Result<i64, SqlBridgeError> {
@@ -521,7 +547,10 @@ pub fn count_ideas(conn: &Connection, q: &IdeasTableQuery) -> Result<i64, SqlBri
     Ok(count_from(query(conn, &sql, &params)?))
 }
 
-pub fn list_ideas_page_rows(conn: &Connection, q: &IdeasTableQuery) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_ideas_page_rows(
+    conn: &Connection,
+    q: &IdeasTableQuery,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     let (where_sql, mut params) = build_ideas_where(q);
     let order_sql = build_ideas_order(q);
     let sql = format!(
@@ -534,7 +563,10 @@ pub fn list_ideas_page_rows(conn: &Connection, q: &IdeasTableQuery) -> Result<Ve
 
 /// Raw reference-chip rows for a set of idea ids (both directions). Presentation
 /// (path resolution + chip shaping) stays in TS.
-pub fn list_reference_chip_rows(conn: &Connection, idea_ids: &[String]) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_reference_chip_rows(
+    conn: &Connection,
+    idea_ids: &[String],
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     if idea_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -558,7 +590,10 @@ pub fn count_ideasets(conn: &Connection, q: &IdeasetsTableQuery) -> Result<i64, 
     Ok(count_from(query(conn, &sql, &params)?))
 }
 
-pub fn list_ideasets_page_rows(conn: &Connection, q: &IdeasetsTableQuery) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_ideasets_page_rows(
+    conn: &Connection,
+    q: &IdeasetsTableQuery,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     let (where_sql, mut params) = build_ideasets_where(q);
     let order_sql = build_ideasets_order(q);
     let sql = format!(
@@ -590,7 +625,10 @@ pub fn list_ideaset_member_rows(
     }
 }
 
-pub fn count_references(conn: &Connection, q: &ReferencesTableQuery) -> Result<i64, SqlBridgeError> {
+pub fn count_references(
+    conn: &Connection,
+    q: &ReferencesTableQuery,
+) -> Result<i64, SqlBridgeError> {
     let (where_sql, params) = build_references_where(q);
     let sql = format!(
         "SELECT COUNT(*) as count\n            FROM edges e\n            JOIN ideas si ON si.id = e.source_id\n            LEFT JOIN ideas ti ON ti.id = e.target_id\n            WHERE {where_sql}"
@@ -598,7 +636,10 @@ pub fn count_references(conn: &Connection, q: &ReferencesTableQuery) -> Result<i
     Ok(count_from(query(conn, &sql, &params)?))
 }
 
-pub fn list_references_page_rows(conn: &Connection, q: &ReferencesTableQuery) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_references_page_rows(
+    conn: &Connection,
+    q: &ReferencesTableQuery,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     let (where_sql, mut params) = build_references_where(q);
     let order_sql = build_references_order(q);
     let sql = format!(
@@ -638,7 +679,10 @@ pub fn list_ideas_for_graph_query_rows(
 }
 
 /// Recent git idea rows for the Timeline tab (TS expands into created/modified events).
-pub fn list_recent_git_idea_rows(conn: &Connection, limit: i64) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_recent_git_idea_rows(
+    conn: &Connection,
+    limit: i64,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     let fetch = (limit * 2).clamp(1, 400);
     query(
         conn,
@@ -656,7 +700,9 @@ pub fn list_idea_ids_missing_git_dates(
 ) -> Result<Vec<String>, SqlBridgeError> {
     let capped = limit.clamp(1, 200);
     const MISSING: &str = "(\n            (git_created_at IS NULL AND git_modified_at IS NULL)\n            OR git_change_count IS NULL\n        )";
-    let (sql, params): (String, Vec<JsonValue>) = if let Some(file_uri) = file_uri.map(str::trim).filter(|s| !s.is_empty()) {
+    let (sql, params): (String, Vec<JsonValue>) = if let Some(file_uri) =
+        file_uri.map(str::trim).filter(|s| !s.is_empty())
+    {
         (
             format!(
                 "SELECT id\n                FROM ideas\n                WHERE kind != 'ideaset'\n                  AND {MISSING}\n                  AND file_uri = ?\n                ORDER BY line_start ASC\n                LIMIT ?"
@@ -705,8 +751,12 @@ const SUMMARY_COLS_GIT: &str = "id, name, kind, file_uri, line_start, summary, a
 /// Summary columns including line_end (for cursor-range lookups) and git columns.
 const SUMMARY_COLS_RANGE_GIT: &str = "id, name, kind, file_uri, line_start, line_end, summary, attributes_json, git_created_at, git_modified_at, git_change_count";
 
-pub fn get_document_hash(conn: &Connection, file_uri: &str) -> Result<Option<String>, SqlBridgeError> {
-    let rows = query(conn, "SELECT content_hash FROM documents WHERE file_uri = ?", &[json!(file_uri)])?;
+pub fn get_document_hash(
+    conn: &Connection,
+    file_uri: &str,
+) -> Result<Option<String>, SqlBridgeError> {
+    let rows =
+        query(conn, "SELECT content_hash FROM documents WHERE file_uri = ?", &[json!(file_uri)])?;
     Ok(rows
         .first()
         .and_then(|row| row.get("content_hash"))
@@ -714,8 +764,12 @@ pub fn get_document_hash(conn: &Connection, file_uri: &str) -> Result<Option<Str
         .map(str::to_string))
 }
 
-pub fn get_document_mtime_ms(conn: &Connection, file_uri: &str) -> Result<Option<f64>, SqlBridgeError> {
-    let rows = query(conn, "SELECT mtime_ms FROM documents WHERE file_uri = ?", &[json!(file_uri)])?;
+pub fn get_document_mtime_ms(
+    conn: &Connection,
+    file_uri: &str,
+) -> Result<Option<f64>, SqlBridgeError> {
+    let rows =
+        query(conn, "SELECT mtime_ms FROM documents WHERE file_uri = ?", &[json!(file_uri)])?;
     Ok(rows.first().and_then(|row| row.get("mtime_ms")).and_then(JsonValue::as_f64))
 }
 
@@ -736,11 +790,15 @@ pub fn list_all_idea_rows(conn: &Connection) -> Result<Vec<JsonValue>, SqlBridge
 }
 
 pub fn get_idea_row(conn: &Connection, id: &str) -> Result<Option<JsonValue>, SqlBridgeError> {
-    let rows = query(conn, &format!("SELECT {SUMMARY_COLS_GIT} FROM ideas WHERE id = ?"), &[json!(id)])?;
+    let rows =
+        query(conn, &format!("SELECT {SUMMARY_COLS_GIT} FROM ideas WHERE id = ?"), &[json!(id)])?;
     Ok(rows.into_iter().next())
 }
 
-pub fn get_ideas_in_file_rows(conn: &Connection, file_uri: &str) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn get_ideas_in_file_rows(
+    conn: &Connection,
+    file_uri: &str,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     query(
         conn,
         &format!("SELECT {SUMMARY_COLS} FROM ideas WHERE file_uri = ? ORDER BY line_start"),
@@ -804,7 +862,10 @@ pub fn list_ideasets_in_file_with_range_rows(
     )
 }
 
-pub fn get_ideas_by_ids_rows(conn: &Connection, ids: &[String]) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn get_ideas_by_ids_rows(
+    conn: &Connection,
+    ids: &[String],
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     if ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -826,7 +887,10 @@ pub fn search_idea_rows(conn: &Connection, search: &str) -> Result<Vec<JsonValue
 
 /// Outbound + inbound reference rows for an idea (both directions joined to ideas).
 /// Returns `{ outbound, inbound }`; TS maps each side into `ReferenceListRow`.
-pub fn list_references_for_idea(conn: &Connection, idea_id: &str) -> Result<JsonValue, SqlBridgeError> {
+pub fn list_references_for_idea(
+    conn: &Connection,
+    idea_id: &str,
+) -> Result<JsonValue, SqlBridgeError> {
     let outbound = query(
         conn,
         "SELECT\n                e.id AS edge_id,\n                e.kind,\n                e.source_id,\n                e.target_id,\n                e.target_file,\n                e.label,\n                e.source_line,\n                e.snippet,\n                e.is_resolved,\n                ti.name AS target_name,\n                ti.file_uri AS target_uri,\n                ti.line_start AS target_line\n            FROM edges e\n            LEFT JOIN ideas ti ON ti.id = e.target_id\n            WHERE e.source_id = ?\n            ORDER BY e.kind, e.id",
@@ -856,11 +920,17 @@ pub fn count_edges_from_file(conn: &Connection, file_uri: &str) -> Result<i64, S
     )?))
 }
 
-pub fn get_edges_from_rows(conn: &Connection, source_id: &str) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn get_edges_from_rows(
+    conn: &Connection,
+    source_id: &str,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     query(conn, "SELECT * FROM edges WHERE source_id = ?", &[json!(source_id)])
 }
 
-pub fn get_edges_to_rows(conn: &Connection, target_id: &str) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn get_edges_to_rows(
+    conn: &Connection,
+    target_id: &str,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     query(conn, "SELECT * FROM edges WHERE target_id = ?", &[json!(target_id)])
 }
 
@@ -900,7 +970,9 @@ pub fn get_all_edge_rows(conn: &Connection) -> Result<Vec<JsonValue>, SqlBridgeE
     query(conn, "SELECT * FROM edges", &[])
 }
 
-pub fn list_file_reference_target_rows(conn: &Connection) -> Result<Vec<JsonValue>, SqlBridgeError> {
+pub fn list_file_reference_target_rows(
+    conn: &Connection,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
     query(
         conn,
         "SELECT source_id, target_file\n            FROM edges\n            WHERE target_file IS NOT NULL AND target_file != ''\n              AND (kind = 'file_reference' OR target_id IS NULL)",
@@ -965,7 +1037,10 @@ pub fn remove_documents(conn: &Connection, file_uris: &[String]) -> Result<(), S
     }
     let tx = conn.unchecked_transaction()?;
     for file_uri in file_uris {
-        tx.execute("DELETE FROM edges WHERE kind = 'comment_link' AND target_file = ?1", [file_uri])?;
+        tx.execute(
+            "DELETE FROM edges WHERE kind = 'comment_link' AND target_file = ?1",
+            [file_uri],
+        )?;
         tx.execute(
             "DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
             [file_uri],
@@ -1143,7 +1218,8 @@ mod tests {
             status_filter: Some(vec![FILTER_NOT_PRESENT.to_string()]),
             ..Default::default()
         };
-        let (rows, total) = list_ideas_for_graph_query_rows(store.connection(), &not_present, 100).unwrap();
+        let (rows, total) =
+            list_ideas_for_graph_query_rows(store.connection(), &not_present, 100).unwrap();
         assert_eq!(total, 2);
         let names: Vec<&str> = rows.iter().map(|r| r["name"].as_str().unwrap()).collect();
         assert!(names.contains(&"gamma"));
@@ -1172,7 +1248,8 @@ mod tests {
     #[test]
     fn graph_filter_concrete_status() {
         let store = seeded();
-        let q = GraphViewQuery { status_filter: Some(vec!["done".to_string()]), ..Default::default() };
+        let q =
+            GraphViewQuery { status_filter: Some(vec!["done".to_string()]), ..Default::default() };
         let (rows, total) = list_ideas_for_graph_query_rows(store.connection(), &q, 100).unwrap();
         assert_eq!(total, 1);
         assert_eq!(rows[0]["name"], json!("alpha"));
@@ -1189,8 +1266,11 @@ mod tests {
     #[test]
     fn reference_chips_cover_both_directions() {
         let store = seeded();
-        let rows =
-            list_reference_chip_rows(store.connection(), &["f.rq#alpha".to_string(), "g.rq#gamma".to_string()]).unwrap();
+        let rows = list_reference_chip_rows(
+            store.connection(),
+            &["f.rq#alpha".to_string(), "g.rq#gamma".to_string()],
+        )
+        .unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["source_id"], json!("f.rq#alpha"));
         assert_eq!(rows[0]["target_id"], json!("g.rq#gamma"));
@@ -1247,11 +1327,9 @@ mod tests {
         let at_line = get_idea_at_line_row(conn, "f.rq", 2).unwrap().unwrap();
         assert_eq!(at_line["name"], json!("beta"));
         assert!(get_ideaset_at_line_row(conn, "f.rq", 2).unwrap().is_none());
-        let by_ids = get_ideas_by_ids_rows(
-            conn,
-            &["f.rq#alpha".to_string(), "g.rq#delta".to_string()],
-        )
-        .unwrap();
+        let by_ids =
+            get_ideas_by_ids_rows(conn, &["f.rq#alpha".to_string(), "g.rq#delta".to_string()])
+                .unwrap();
         assert_eq!(by_ids.len(), 2);
         assert!(get_ideas_by_ids_rows(conn, &[]).unwrap().is_empty());
     }

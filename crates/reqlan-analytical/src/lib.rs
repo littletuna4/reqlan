@@ -8,8 +8,8 @@ mod types;
 mod workspace_index;
 
 pub use api::{AnalysisError, AnalysisRuntime};
-pub use types::*;
 pub use reqlan_index::FileIssueDraft;
+pub use types::*;
 pub use workspace_index::{
     FileIssueDto, IndexState, SyncProgressState, SyncResultDto, WorkspaceIndexError,
     WorkspaceIndexRuntime,

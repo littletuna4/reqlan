@@ -1,0 +1,259 @@
+import "../extension/configuration.rq" as configuration
+
+import_keywords {
+    The keywords import, from, and as are reserved for import statements.
+    Import keywords may also appear as ordinary words in idea body text when not at statement start.
+}
+
+import_from {
+    From-import syntax uses from, a quoted path, import, and an idea name.
+    From-import may include an alias using as.
+
+    @example {
+        from "example.rq" import idea
+    }
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses from-import example line inside an attribute block value"]
+    )
+}
+
+import_error_recovery {
+    A malformed import must not invalidate the rest of the file.
+    Recoverable invalid `from` shapes parse as local import nodes with a line-level diagnostic:
+    - `from "path" as alias` (mistaken namespace form) — suggest `import "path" as alias` or `from "path" import <idea>`
+    - bare `from "path"` — require the `import <idea>` clause
+    - `from` without a quoted path — consume the remainder of the line as an invalid import
+    Later imports and top-level ideas continue to parse and link normally.
+    Same recovery posture for nameless top-level braces: ["./syntax.rq".no_name_idea_safe_warning].
+    If lex/parse never completes, see ["./parser_lexer.rq".parse_budget_timeout].
+
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:malformed from-as import keeps later ideas parseable"]
+        ["../../packages/language/test/validating.test.ts:reports local diagnostic for from-as mistaken import"]
+        ["../../packages/language/test/validating.test.ts:reports local diagnostic for unquoted from-import"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+    )
+}
+
+import_namespace {
+    Namespace import syntax uses import and a quoted path.
+    Namespace import may include an alias using as.
+    A bracket reference to the alias alone — for example [context_model] — opens the imported file and links only the alias name, like an ideaset namespace.
+    Qualified references through the alias — for example [context_model.builder] — resolve ideas from the imported module.
+
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve namespace import references to files"]
+        ["../../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
+    )
+}
+
+import_qualified {
+    Qualified import syntax uses import, a quoted path, a dot, an ideaset name, a dot, and an idea name.
+    Qualified import may include an alias using as.
+}
+
+import_paths {
+    Import path strings may use relative paths such as ./exampleimport.rq.
+    Import path strings may use paths containing folders.
+    Import path strings may use remote urls such as https://company.com/reqs/style.rq.
+    Import path strings may use an import-root alias shorthand such as `@/path/relative/to/import/root`; see [configuration_import_root_alias].
+    Path forms apply to from-import, namespace import, and qualified import; see [import_from], [import_namespace], and [import_qualified].
+    Editor completion for path strings is covered by ["../extension/syntax/features-syntax.rq".code_completion].
+}
+
+configuration_import_root_alias {
+    An import path may start with an alias string, then `/`, then a relative path under that alias's import-root directory.
+    Default alias string: `@`, written as `@/` plus a path relative to the import root.
+    Default import-root directory: the workspace folder that contains the `.rq` file (not the document directory).
+    The path after `/` is joined to that alias's import-root directory; the alias itself must be followed by `/` (e.g. `@reqs` is not aliased).
+    Alias strings and import-root directories are configured as [configuration.configuration_import_roots] in the applying `.reqlan/config.json` from [configuration.configuration_location].
+    A configured relative `root` resolves against the base root (parent of `.reqlan`); an omitted `root` keeps the workspace-folder default.
+    When several configured aliases could match a path, the longest alias wins.
+    Related path forms: [import_paths]. Completion: ["../extension/syntax/features-syntax.rq".code_completion].
+
+    @example {
+        from "@/path/relative/to/import/root.rq" import idea
+    }
+
+    @implementation (
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../packages/language/src/file-path-rewrite.ts"]
+        ["../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/path-resolve.test.ts:resolves import-root alias against the workspace folder"]
+        ["../../packages/language/test/path-resolve.test.ts:leaves non-aliased relative paths document-relative"]
+        ["../../packages/language/test/path-resolve.test.ts:matchImportRootAlias requires alias then slash"]
+        ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest base config"]
+        ["../../packages/language/test/path-resolve.test.ts:resolves using config importRoots mapping"]
+        ["../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
+        ["../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+        ["../../packages/language/test/config.test.ts:multiple importRoots map aliases to different roots"]
+        ["../../packages/language/test/config.test.ts:longest alias wins when mappings overlap"]
+        ["../../packages/language/test/config.test.ts:aliased path uses relative root from applying config"]
+        ["../../packages/language/test/config.test.ts:aliased path uses workspace folder when root is omitted"]
+    )
+}
+
+anonymous_imports_allowed {
+    imports can be inlined with this syntax: `["./ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
+}
+
+import_tokenisation {
+    if an import is given an alias, then the base name is still available as a variable name and should not cause a conflict.
+    Only the alias binds in the importing file; the imported idea's base name may be reused for a local idea.
+    e.g.
+    ```.rq
+    from "example.rq" import myidea as examplealiasedidea
+
+    myidea {
+        this should not cause a conflict.
+    }
+    ```
+    The same rule applies to qualified imports with `as`.
+    Unaliased imports still bind the idea name and conflict with a local idea of that name.
+    Related: ["../extension/syntax/features-syntax.rq".sensible_alias_support].
+
+    @tests (
+        ["../../packages/language/test/validating.test.ts:allows local idea when import uses an alias"]
+        ["../../packages/language/test/validating.test.ts:allows local idea when qualified import uses an alias"]
+        ["../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
+        ["../../packages/language/test/linking.test.ts:import idea reference resolves to imported file when local idea shares name"]
+    )
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-import-bindings.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+        ["../../packages/language/src/reqlan-scope.ts"]
+    )
+}
+
+wildcard_references {
+    Qualified path + idea-pattern references match multiple ideas across files.
+    Surface forms: bracket `[…]` and wikilink `[[…]]` (same `WildcardReference` target).
+    Path is a quoted string that may include shell-style globs (`*`, `**`, `?`) and `@/` import-root aliases
+    ([configuration_import_root_alias]). Relative globs resolve against the defining document directory;
+    `.` / `..` segments are collapsed before matching.
+    Idea pattern is an unquoted `WILDCARD_NAME` that must contain at least one `*` or `?`
+    (e.g. `import_*`, `*_pane`, `widget_*_v2`). Exact `["./file.rq".idea]` stays ["./syntax.rq".reference_qualified].
+    Matching uses anchored globs (not full JS regex): path `*` is one segment, `**` crosses segments;
+    idea `*` / `?` match within the idea name. Zero matches produce a warning diagnostic.
+    Path segment `/**/` must not be lexed as an empty block comment — see ["./syntax.rq".comments].
+    Lexer note: `ID` is a prefix of many wildcard names (`import_` vs `import_*`); the token builder
+    sets `ID.LONGER_ALT = WILDCARD_NAME` so `import_*` is one token. Body prose `*` tokens are accepted
+    via `WILDCARD_NAME` in PlainText so ordinary `*` characters still parse.
+    Without that longer-alt, a live wildcard inside a block body can fail Idea recovery and leave later
+    top-level ideas unindexed (soft mtime sync will not rebuild until the `.rq` file changes).
+    Navigation does not emit N LocationLinks — document links and go-to open
+    `reqlan.openWildcardReference` with `{ pathPattern, ideaPattern, fromUri }` (see [wildcard_references_webview]).
+    Indexing fans out per ["../indexer/indexer.rq".wildcard_reference_edges]
+    (owned under ["../indexer/indexer.rq".index]): native extract writes one `wildcard_reference`
+    edge per catalog match; empty catalog / zero matches → one unresolved edge of that kind
+    labeled with the pattern text.
+    Ideas Summary graph toggles those edges via
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
+    Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink],
+    ["../indexer/indexer.rq".wildcard_reference_edges].
+
+    Illustrative forms (fenced so this file does not embed live wildcards):
+    ```
+    ["../extension/**/*.rq".*_pane]
+    ["./modules/*.rq".import_*]
+    [["./mods/*.rq".widget_*|widgets]]
+    ```
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-wildcard-resolve.ts"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+        ["../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../packages/analytical/src/index-store/workspace-index-file.ts"]
+        ["../../packages/extension/src/language/main.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/wildcard-references.test.ts"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: tokenize → parse → resolve → document link → definition → command args"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: imports.rq captures wildcard ideas with status and implementation"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:extract_indexed_document_fans_out_edges_for_matching_catalog_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:nested_path_glob_matches_catalog_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:imports_rq_extract_includes_webview_and_path_filter_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+        ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+    )
+}
+
+wildcard_references_webview {
+    On traversal of a [wildcard_references] target (document-link click or go-to-definition middleware),
+    the extension runs `reqlan.openWildcardReference` and opens a dedicated **wildcard matches** webview
+    (beside the editor) that lists:
+    - Stats: matching idea count, distinct file count, and @status breakdown
+    - Requirements: each matching idea with name, status, path, and summary (click opens the idea)
+    - Files: each matching file with idea count (click opens the file)
+    Secondary action **Open in Search** seeds the activity-bar
+    ["../extension/module/activitybar-panels/search.rq".search_pane_seed] via `focusIdeaSearch` with:
+    - `query`: idea pattern with glob meta softened for fuzzy search (`import_*` → `import`)
+    - `pathFilter`: the path glob as a hard AND filter ([idea_path_filter])
+    Payload builder: `buildWildcardMatchesPayload` filters the index catalog by idea glob + path filter.
+    Protocol for the matches panel is inline host↔webview (`init` / `openIdea` / `openFile` / `openSearch`).
+    Middleware short-circuits definition when `reqlan/wildcardReferenceAt` returns a pattern;
+    document-link clicks use the same command URI shape as the language document-link provider.
+    Highlighting of the source reference must stay link-styled — see
+    ["../extension/syntax/features-syntax.rq".syntax_highlighting] and
+    ["../extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting].
+
+    @status done
+    @implementation (
+        ["../../packages/extension/src/extension/register-wildcard-reference-handling.ts"]
+        ["../../packages/extension/src/extension/wildcard-matches-panel.ts"]
+        ["../../packages/extension/src/extension/main.ts"]
+        ["../../packages/extension/src/activity_bar_module/wildcard-matches-payload.ts"]
+        ["../../packages/extension/src/activity_bar_module/idea-path-filter.ts"]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: buildWildcardMatchesPayload lists stats, ideas, and files"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: wildcardSearchSeed maps command args to focusIdeaSearch payload"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: command args → seed → pathFilter gates search hits"]
+        ["../../packages/language/test/wildcard-references.test.ts:e2e: tokenize → parse → resolve → document link → definition → command args"]
+        ["../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+    )
+}
+
+idea_path_filter {
+    Shared path-filter helper for [wildcard_references_webview] search seeding.
+    Glob or substring match against workspace-relative path and file URI; leading `./` / `../`
+    segments are stripped for relative filters; `**/` is implied when the filter has glob meta
+    but is not already rooted with `**/`.
+    Used only as a hard AND after fuzzy ranking — it never replaces the idea-name query.
+
+    @status done
+    @implementation (
+        ["../../packages/extension/src/activity_bar_module/idea-path-filter.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../packages/extension/test/wildcard-reference-open-search.test.ts:e2e: command args → seed → pathFilter gates search hits"]
+    )
+}
