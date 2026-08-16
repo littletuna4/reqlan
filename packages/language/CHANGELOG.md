@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.4
+
+### Patch Changes
+
+- fccc1ea: build matrix in extension build
+
 ## 1.9.3
 
 ### Patch Changes

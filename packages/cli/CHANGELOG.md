@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.6
+
+### Patch Changes
+
+- fccc1ea: build matrix in extension build
+- Updated dependencies [fccc1ea]
+  - @reqlan/analytical@0.10.6
+
 ## 0.7.5
 
 ### Patch Changes
