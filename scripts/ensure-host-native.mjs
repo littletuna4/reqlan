@@ -53,7 +53,11 @@ if (binaryExists(packageBinaryPath())) {
 }
 
 console.log(`fetch host native package ${target.packageName} from npm`);
-run(process.execPath, [path.join(root, 'scripts/fetch-native-packages.mjs'), '--host-only']);
+run(process.execPath, [
+    path.join(root, 'scripts/fetch-native-packages.mjs'),
+    '--host-only',
+    '--latest',
+]);
 if (binaryExists(packageBinaryPath())) {
     console.log(`fetched ${packageBinaryPath()}`);
     process.exit(0);

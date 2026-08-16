@@ -44,7 +44,7 @@ extension_host_native_stage {
     Local F5 and `pnpm run build` / `build:ext` stage the host-matching core engine `.node` into `packages/extension/native/` so activation loads the same layout as a per-target VSIX ([distribution.vsix_export], ["../distribution/native_host_binary.rq".native_host_binary_development]).
     The same build copies the `.node` into `packages/analytical-native/<napiSuffix>/` so the workspace optionalDependency matches a production npm install ([distribution.rust_binary_distribution]).
     The orchestrator builds `cargo build -p reqlan-napi --release` when needed, then copies `reqlan_napi.node` beside the extension; it is not a separate manual install.
-    Azure runs `scripts/ensure-host-native.mjs` before the workspace build and tests: fetch the published host platform package, or compile the host crate when that version is not on npm. Per-target VSIX packaging still fetches every platform package later ([distribution.extension_distribution]).
+    Azure fetches the latest published host platform package from npm (`scripts/fetch-native-packages.mjs --latest`) before tests; it does not compile Rust. Per-target VSIX packaging fetches every platform package the same way ([distribution.extension_distribution]).
     Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/scripts/build.mjs"], ["../../azure-pipelines.yml"].
     @status done
     @tests (["../../packages/analytical/test/native-packaging.test.ts"])

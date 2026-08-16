@@ -45,8 +45,8 @@ native_host_binary_development {
     Windows cargo emits `reqlan_napi.dll`; the loader uses `process.dlopen` for `.dll` and `.node` (Node `require` only loads `.node`).
     Windows UI with a WSL extension host uses the linux tuple ([native_host_binary]).
     Windows UI with a Windows extension host cannot load a `.node` staged from WSL; restage on Windows or open the folder in a WSL remote window.
-    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` fetches the published host package, then falls back to cargo.
-    Azure does not cross-compile every Rust target. It may compile the host engine when that version is not on npm yet.
+    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` fetches the latest published host package from npm, then falls back to cargo locally.
+    Azure does not compile Rust; it waits for GitHub Actions to publish platform packages and fetches `--latest`.
     Detail: [development_build.extension_host_native_stage].
     Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
     @status done
@@ -67,7 +67,7 @@ native_host_binary_distributed {
     At run time, read `process.platform` and `process.arch` on the extension host.
     If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
     Do not put binaries for other platforms in that VSIX.
-    The pipeline gets each platform binary from the Azure `build_native` matrix (or from npm when those packages exist). It does not compile all Rust targets on one agent.
+    The pipeline gets each platform binary from the latest published npm packages (`fetch-native-packages.mjs --latest`), after GitHub Actions has built them on `analytical/v*`. It does not compile Rust.
     Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution].
 
     CLI and MCP:

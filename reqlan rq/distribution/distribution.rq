@@ -162,7 +162,7 @@ vsix_export {
 
     constraints
       - Keep --no-dependencies for the bundled TS graph; stage only the matching native package.
-      - Prefer npm platform packages when they exist (["../../scripts/fetch-native-packages.mjs"]). Azure VSIX packaging builds each [native_targets] tuple on its own agent and stages those artifacts; it must not fail when that `@reqlan/analytical` version is not on npm yet.
+      - Prefer npm platform packages published by GitHub Actions on `analytical/v*` (changeset → [npm_distribution]). Azure does not compile Rust; it waits for and packs the latest `@reqlan/analytical-<platform>` from npm (["../../scripts/fetch-native-packages.mjs"] `--latest`).
       - `vscode:prepublish` must not restage the host native addon (`--skip-native`); each VSIX `native/target.json` must equal that VSIX `--target`.
 
     steps
@@ -189,7 +189,8 @@ extension_distribution {
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
   The pipeline builds language, packages, and the extension only; it does not run the site static build or install Playwright ([site_distribution] owns site CI).
-  Before tests it populates the host workspace optionalDependency (`scripts/ensure-host-native.mjs`) so `pnpm run test` loads the native engine the same way a production `@reqlan/analytical` install does.
+  Native core-engine binaries are built and published by GitHub Actions when a changeset creates an `analytical/v*` tag ([npm_distribution] / [rust_binary_distribution]). Azure waits for the latest `@reqlan/analytical-<platform>` on npm, then stages those into per-target VSIXes.
+  Before tests it ensures the host workspace optionalDependency is present from that fetch (`scripts/ensure-host-native.mjs --no-build`).
   VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
   @status in-progress
