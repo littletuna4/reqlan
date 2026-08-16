@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.10.8
+
+### Patch Changes
+
+- a315963: Keep the VS Code extension on the same semver as `@reqlan/analytical` and its platform native packages. Marketplace already published 1.10.x, so the shared number stays on that line rather than 0.10.x.
+- Updated dependencies [a315963]
+  - @reqlan/analytical@1.10.8
+
 ## 1.10.7
 
 ### Patch Changes
