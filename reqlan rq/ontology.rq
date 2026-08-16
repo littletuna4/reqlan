@@ -305,3 +305,11 @@ reference_types {
     [link_reference]
     [wildcard_reference]
 }
+
+click {
+    A cli/mcp function that dumps local context for a given idea.
+    
+    @todo 
+    @idea
+
+}
