@@ -1,5 +1,7 @@
 # @reqlan/analytical-darwin-arm64
 
+## 1.10.9
+
 ## 1.10.8
 
 ## 0.10.6

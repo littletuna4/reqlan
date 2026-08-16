@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.10.9
+
+### Patch Changes
+
+- 07e7c2f: change deployment sequencing
+
 ## 1.10.8
 
 ### Patch Changes
