@@ -1,5 +1,11 @@
 # reqlan-extension
 
+## 1.10.2
+
+### Patch Changes
+
+- 597f6bf: No longer build the site in cicd - no need.
+
 ## 1.10.1
 
 ### Patch Changes
