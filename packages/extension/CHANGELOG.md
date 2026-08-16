@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.10.6
+
+### Patch Changes
+
+- 712ae40: avoid linux in production.
+- Updated dependencies [712ae40]
+  - @reqlan/analytical@0.10.5
+  - @reqlan/language@1.9.3
+
 ## 1.10.5
 
 ### Patch Changes

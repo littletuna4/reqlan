@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.10.5
+
+### Patch Changes
+
+- 712ae40: avoid linux in production.
+
 ## 0.10.4
 
 ### Patch Changes

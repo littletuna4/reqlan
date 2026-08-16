@@ -1,5 +1,13 @@
 # @reqlan/mcp
 
+## 0.2.6
+
+### Patch Changes
+
+- 712ae40: avoid linux in production.
+- Updated dependencies [712ae40]
+  - @reqlan/analytical@0.10.5
+
 ## 0.2.5
 
 ### Patch Changes
