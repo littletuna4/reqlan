@@ -17,6 +17,8 @@ import {
     listNativeEngineCandidates,
     nativeEngineRequested,
     resetNativeEngineCache,
+    resetNativeEngineSearchDirs,
+    stagedNativeHostMismatch,
     tryLoadNativeEngine
 } from '../src/native/load-native.js';
 import { NATIVE_TARGETS, hostNativeTarget } from '../../../scripts/native-targets.mjs';
@@ -27,6 +29,7 @@ describe('load-native', () => {
     afterEach(() => {
         delete process.env.REQLAN_ANALYTICAL_ENGINE;
         delete process.env.REQLAN_NATIVE;
+        resetNativeEngineSearchDirs();
         resetNativeEngineCache();
     });
 
@@ -133,6 +136,32 @@ describe('load-native', () => {
         }
     });
 
+    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
+    it('explains a Linux-staged native/ folder to a Windows extension host', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'reqlan-native-win-host-'));
+        try {
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(
+                join(dir, 'target.json'),
+                `${JSON.stringify({ vsCodeTarget: 'linux-x64', binaryName: 'reqlan_napi.node' }, null, 4)}\n`
+            );
+            addNativeEngineSearchDirs(dir);
+            const detail = stagedNativeHostMismatch('win32', 'x64');
+            expect(detail).toMatch(/linux-x64/);
+            expect(detail).toMatch(/win32-x64/);
+            expect(detail).toMatch(/WSL/i);
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+
+    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_development]
+    it('lists the Windows cargo dll among win32-x64 candidates', () => {
+        const candidates = listNativeEngineCandidates('win32', 'x64');
+        expect(candidates).toContain('@reqlan/analytical-win32-x64-msvc');
+        expect(candidates.some(path => path.endsWith('reqlan_napi.dll'))).toBe(true);
+    });
+
     it('does not resolve import.meta via script eval', () => {
         const compiled = readFileSync(join(here, '../out/native/load-native.js'), 'utf8');
         expect(compiled).not.toMatch(/\beval\s*\(/);
@@ -146,6 +175,7 @@ describe('load-native', () => {
         expect(source).not.toMatch(/\.\.\/\.\.\/\.\.\/crates\/target/);
         expect(source).toContain("pkg.name === '@reqlan/analytical'");
         expect(source).toContain('createRequire(analyticalPkg)');
+        expect(source).toContain('process.dlopen');
     });
 
     it('loads under plain Node ESM without vitest transforming import.meta', () => {

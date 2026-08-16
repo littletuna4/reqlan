@@ -79,9 +79,9 @@ export function activateAnalyticalSubmodule(
         const message =
             error instanceof Error ? error.message : 'Native analytical engine is required but was not found';
         console.error(`[reqlan] ${message}`);
-        void vscode.window.showErrorMessage(
-            'reqlan: the bundled native analytical engine failed to load for this extension host.'
-        );
+        const toast =
+            message.length > 400 ? `${message.slice(0, 397).trimEnd()}…` : message;
+        void vscode.window.showErrorMessage(`reqlan: ${toast}`);
         throw error;
     }
 

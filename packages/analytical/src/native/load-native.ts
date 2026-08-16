@@ -6,7 +6,7 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { createRequire } from 'node:module';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { NativeSqlDbHandle } from './native-sql-db.js';
@@ -71,6 +71,9 @@ function nativeRequire(): ReturnType<typeof createRequire> {
 
 /** Extra directories to search for a staged `reqlan_napi.node` (e.g. extension VSIX `native/`). */
 const extraSearchDirs: string[] = [];
+
+/** Last addon load failures (existing files that `dlopen` / `require` rejected). */
+let loadFailures: string[] = [];
 
 export interface NativeAnalysisRuntimeHandle {
     ensureReady(): void;
@@ -315,24 +318,93 @@ function candidatePaths(): string[] {
     return listNativeEngineCandidates();
 }
 
-function tryRequire(candidate: string): NativeModule | undefined {
-    // Skip known-missing filesystem paths without attempting require.
-    if (!candidate.startsWith('@') && !existsSync(candidate)) {
-        return undefined;
-    }
+function recordLoadFailure(candidate: string, error: unknown): void {
+    const detail = error instanceof Error ? error.message : String(error);
+    loadFailures.push(`${candidate}: ${detail}`);
+}
+
+function isNativeLibraryPath(candidate: string): boolean {
+    return /\.(node|dll|so|dylib)$/i.test(candidate);
+}
+
+/**
+ * Load a filesystem addon. Node `require()` only treats `.node` as an addon;
+ * Windows cargo emits `reqlan_napi.dll`, which must go through `process.dlopen`.
+ */
+function tryDlopen(filePath: string): NativeModule | undefined {
+    const loaded = { exports: {} as NativeModule };
     try {
-        return nativeRequire()(candidate) as NativeModule;
-    } catch {
+        process.dlopen(loaded as NodeModule, filePath);
+        return loaded.exports;
+    } catch (error) {
+        recordLoadFailure(filePath, error);
         return undefined;
     }
 }
 
+function tryRequire(candidate: string): NativeModule | undefined {
+    if (!candidate.startsWith('@')) {
+        if (!existsSync(candidate)) {
+            return undefined;
+        }
+        try {
+            if (!statSync(candidate).isFile()) {
+                return undefined;
+            }
+        } catch {
+            return undefined;
+        }
+        if (isNativeLibraryPath(candidate)) {
+            return tryDlopen(candidate);
+        }
+    }
+    try {
+        return nativeRequire()(candidate) as NativeModule;
+    } catch (error) {
+        recordLoadFailure(candidate, error);
+        return undefined;
+    }
+}
+
+/** Explain a `native/target.json` staged for a different extension host. */
+export function stagedNativeHostMismatch(
+    platform = process.platform,
+    arch = process.arch
+): string | undefined {
+    const spec = hostNativeBindingSpec(platform, arch);
+    if (!spec) {
+        return undefined;
+    }
+    for (const dir of extraSearchDirs) {
+        const staged = readStagedTarget(dir);
+        if (staged && staged !== spec.vsCodeTarget) {
+            return (
+                `Staged ${join(dir, 'target.json')} is ${staged}, but this extension host is ` +
+                `${spec.vsCodeTarget}. Stage the host addon on this machine ` +
+                `(${spec.packageName}, or cargo build -p reqlan-napi). ` +
+                `A WSL/Linux .node will not load in a Windows extension host; use the WSL ` +
+                `remote window, or restage on Windows.`
+            );
+        }
+    }
+    return undefined;
+}
+
 /** Load the host-matching core engine `.node`, or `undefined` when unavailable. */
 function tryLoadNativeEngineUncached(): NativeModule | undefined {
+    loadFailures = [];
     for (const candidate of candidatePaths()) {
         const loaded = tryRequire(candidate);
         if (loaded?.NativeAnalysisRuntime && loaded?.NativeSqlDb && loaded?.NativeWorkspaceIndex) {
             return loaded;
+        }
+        if (loaded && !loadFailures.some(line => line.startsWith(`${candidate}:`))) {
+            recordLoadFailure(
+                candidate,
+                new Error(
+                    'addon loaded but NativeAnalysisRuntime / NativeSqlDb / NativeWorkspaceIndex are missing'
+                )
+            );
         }
     }
     return undefined;
@@ -357,11 +429,19 @@ export function loadNativeEngine(): NativeModule {
         );
     }
     const tried = candidatePaths().join('\n');
+    const mismatch = stagedNativeHostMismatch();
+    const failures = loadFailures.length > 0 ? `Load errors:\n${loadFailures.join('\n')}` : undefined;
     throw new Error(
-        `Native analytical engine is required but the host .node was not found ` +
-            `(${spec.vsCodeTarget} / ${spec.packageName}). ` +
-            `Build crates/reqlan-napi (cargo build -p reqlan-napi) or install the host ` +
-            `optionalDependency package. Tried:\n${tried}`
+        [
+            `Native analytical engine is required but the host addon did not load ` +
+                `(${spec.vsCodeTarget} / ${spec.packageName}).`,
+            mismatch,
+            failures,
+            `Build crates/reqlan-napi on this extension host (Windows cargo emits reqlan_napi.dll) ` +
+                `or install ${spec.packageName}. Tried:\n${tried}`
+        ]
+            .filter(Boolean)
+            .join('\n')
     );
 }
 
@@ -372,4 +452,12 @@ export function nativeEngineAvailable(): boolean {
 /** Clear the load cache (tests / after registering new search dirs). */
 export function resetNativeEngineCache(): void {
     cachedEngine = null;
+    loadFailures = [];
+}
+
+/** Drop extra search dirs (tests). Extension activation must not call this. */
+export function resetNativeEngineSearchDirs(): void {
+    extraSearchDirs.length = 0;
+    cachedEngine = null;
+    loadFailures = [];
 }

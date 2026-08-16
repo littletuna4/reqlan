@@ -190,6 +190,7 @@ export {
     nativeEngineAvailable,
     addNativeEngineSearchDirs,
     hostNativeBindingSpec,
+    stagedNativeHostMismatch,
     resetNativeEngineCache
 } from './native/load-native.js';
 export type { HostNativeBindingSpec } from './native/load-native.js';

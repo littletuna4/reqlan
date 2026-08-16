@@ -42,6 +42,9 @@ native_host_binary_development {
     6. The debug folders with the same names.
     Do not search packages for other platforms.
     If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
+    Windows cargo emits `reqlan_napi.dll`; the loader uses `process.dlopen` for `.dll` and `.node` (Node `require` only loads `.node`).
+    Windows UI with a WSL extension host uses the linux tuple ([native_host_binary]).
+    Windows UI with a Windows extension host cannot load a `.node` staged from WSL; restage on Windows or open the folder in a WSL remote window.
     Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` fetches the published host package, then falls back to cargo.
     Azure does not cross-compile every Rust target. It may compile the host engine when that version is not on npm yet.
     Detail: [development_build.extension_host_native_stage].
