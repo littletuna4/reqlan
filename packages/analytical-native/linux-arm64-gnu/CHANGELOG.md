@@ -1,5 +1,11 @@
 # @reqlan/analytical-linux-arm64-gnu
 
+## 0.10.2
+
+### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+
 ## 0.10.1
 
 ### Patch Changes

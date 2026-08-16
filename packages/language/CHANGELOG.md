@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.2
+
+### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+
 ## 1.9.1
 
 ### Patch Changes
