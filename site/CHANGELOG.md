@@ -1,5 +1,11 @@
 # site
 
+## 0.15.1
+
+### Patch Changes
+
+- 06e9150: fix build and deps.
+
 ## 0.15.0
 
 ### Minor Changes

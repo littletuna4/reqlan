@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.1
+
+### Patch Changes
+
+- 06e9150: fix build and deps.
+
 ## 1.9.0
 
 ### Minor Changes

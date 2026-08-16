@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.1
+
+### Patch Changes
+
+- 06e9150: fix build and deps.
+- Updated dependencies [06e9150]
+  - @reqlan/analytical@0.10.1
+
 ## 0.7.0
 
 ### Minor Changes

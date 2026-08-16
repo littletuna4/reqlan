@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.10.1
+
+### Patch Changes
+
+- 06e9150: fix build and deps.
+- Updated dependencies [06e9150]
+  - @reqlan/analytical@0.10.1
+  - @reqlan/language@1.9.1
+
 ## 1.10.0
 
 ### Minor Changes
