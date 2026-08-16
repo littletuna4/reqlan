@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.4
+
+### Patch Changes
+
+- 5348d34: update target binary
+- Updated dependencies [5348d34]
+  - @reqlan/analytical@0.10.4
+
 ## 0.7.3
 
 ### Patch Changes

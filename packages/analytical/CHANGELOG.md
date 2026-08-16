@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 0.10.4
+
+### Patch Changes
+
+- 5348d34: update target binary
+
 ## 0.10.3
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.10.5
+
+### Patch Changes
+
+- 5348d34: update target binary
+- Updated dependencies [5348d34]
+  - @reqlan/analytical@0.10.4
+
 ## 1.10.4
 
 ### Patch Changes
