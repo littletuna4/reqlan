@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
 import { describe, expect, test } from 'vitest';
 
 const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,5 +86,25 @@ describe('search code action host wiring', () => {
         expect(languageMain).toContain('REQLAN_REFERENCE_SEARCH_SITE_REQUEST');
         expect(languageMain).toContain('resolveReferenceSearchSiteFromDocument');
         expect(languageMain).toContain('getParsedDocument');
+    });
+});
+
+describe('extension host esbuild CJS import.meta', () => {
+    // rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+    test('rewrites import.meta.url instead of emptying it for ES2017 CJS', async () => {
+        const esbuildScript = readFileSync(join(extensionRoot, 'esbuild.mjs'), 'utf8');
+        expect(esbuildScript).toContain("'import.meta.url': 'import_meta_url'");
+        expect(esbuildScript).toContain('pathToFileURL(__filename)');
+
+        const result = await esbuild.transform('export const moduleUrl = import.meta.url;', {
+            format: 'cjs',
+            platform: 'node',
+            target: 'es2017',
+            define: { 'import.meta.url': 'import_meta_url' }
+        });
+        expect(result.warnings.map(warning => warning.text)).toEqual([]);
+        expect(result.code).toContain('import_meta_url');
+        expect(result.code).not.toMatch(/import\.meta/);
+        expect(result.code).not.toContain('const import_meta = {}');
     });
 });

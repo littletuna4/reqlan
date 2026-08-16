@@ -49,6 +49,7 @@ rust_binary_distribution {
   One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
   Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical` via the Changesets `fixed` group in ["../../.changeset/config.json"].
   `@reqlan/analytical` lists them as `optionalDependencies` so CLI/MCP install the host-matching binary at install time.
+  Published tarballs pin those optionalDependencies to the same version (not `workspace:*`).
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
@@ -186,6 +187,7 @@ extension_distribution {
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
   The pipeline builds language, packages, and the extension only; it does not run the site static build or install Playwright ([site_distribution] owns site CI).
+  Before tests it populates the host workspace optionalDependency (`scripts/ensure-host-native.mjs`) so `pnpm run test` loads the native engine the same way a production `@reqlan/analytical` install does.
   VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
   @status in-progress

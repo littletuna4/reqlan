@@ -23,6 +23,37 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.10.2
+
+#### Patch Changes
+
+- 597f6bf: No longer build the site in cicd - no need.
+
+### 1.10.1
+
+#### Patch Changes
+
+- 06e9150: fix build and deps.
+- Updated dependencies [06e9150]
+  - @reqlan/analytical@0.10.1
+  - @reqlan/language@1.9.1
+
+### 1.10.0
+
+#### Minor Changes
+
+- e9b7e8a: rust
+
+#### Patch Changes
+
+- 72246b6: up pnpm
+- 70ccc6f: up pnpm version
+- Updated dependencies [72246b6]
+- Updated dependencies [e9b7e8a]
+- Updated dependencies [70ccc6f]
+  - @reqlan/analytical@0.10.0
+  - @reqlan/language@1.9.0
+
 ### 1.9.2
 
 #### Patch Changes

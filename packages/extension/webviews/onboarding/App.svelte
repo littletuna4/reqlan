@@ -160,7 +160,6 @@
     }
 
     .resource-list,
-    .tips,
     ul {
         margin: 0;
         padding-left: 0;
@@ -168,15 +167,6 @@
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
-    }
-
-    .tips {
-        padding-left: 1.15rem;
-        list-style: disc;
-    }
-
-    .tips li {
-        padding-left: 0.15rem;
     }
 
     .resource-link {
@@ -235,14 +225,5 @@
 
     .secondary-button:hover {
         background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
-    }
-
-    code {
-        font-family: var(--vscode-editor-font-family, var(--vscode-font-family));
-        font-size: 0.95em;
-    }
-
-    strong {
-        font-weight: 600;
     }
 </style>

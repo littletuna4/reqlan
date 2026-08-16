@@ -35,17 +35,22 @@ native_host_binary_development {
     If the binary is not present, build it with `cargo build -p reqlan-napi --release`.
     At run time, search in this order:
     1. The `native/` folder of the extension, if `target.json` records the host tuple.
-    2. The host file in `packages/analytical-native/<napiSuffix>/`.
-    3. The host npm package name.
-    4. `crates/target/<rustTarget>/release` and `crates/target/release`.
-    5. The debug folders with the same names.
+    2. The resolved `main` of the host npm package (`createRequire` from `@reqlan/analytical/package.json`).
+    3. The host file in `packages/analytical-native/<napiSuffix>/` (workspace optionalDependency, same layout as a published package).
+    4. The host npm package name.
+    5. `crates/target/<rustTarget>/release` and `crates/target/release`.
+    6. The debug folders with the same names.
     Do not search packages for other platforms.
     If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
-    CI on Azure does not compile Rust for this procedure. The pipeline gets binaries later ([native_host_binary_distributed]).
+    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` fetches the published host package, then falls back to cargo.
+    Azure does not cross-compile every Rust target. It may compile the host engine when that version is not on npm yet.
     Detail: [development_build.extension_host_native_stage].
-    Implementation: ["../../scripts/stage-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
+    Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
     @status done
-    @tests (["../../packages/analytical/test/load-native.test.ts"])
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
 }
 
 native_host_binary_distributed {
@@ -64,11 +69,15 @@ native_host_binary_distributed {
 
     CLI and MCP:
     npm installs the host package from `optionalDependencies` on `@reqlan/analytical`.
-    The `os` and `cpu` fields of the package select the host binary at install time.
+    Those entries are concrete versions on the published tarball (not `workspace:*`).
+    The loader resolves that package from `@reqlan/analytical/package.json` (`createRequire`), which is where the optional dependency is attached after `npm install`.
     Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
 
-    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"].
+    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"].
     @status in-progress
     @todo first multi-target VSIX and platform packages not yet published
-    @tests (["../../packages/analytical/test/native-packaging.test.ts"])
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
 }

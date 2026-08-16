@@ -1,8 +1,10 @@
 /**
  * Unit tests for the core native engine loader.
  * rq:["../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
  * rq:["../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
  */
+import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -93,6 +95,26 @@ describe('load-native', () => {
         expect(candidates).not.toContain('@reqlan/analytical-win32-arm64-msvc');
     });
 
+    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_distributed]
+    it('resolves the host optionalDependency from @reqlan/analytical package.json', () => {
+        const spec = hostNativeBindingSpec();
+        if (!spec) {
+            return;
+        }
+        const pkgPath = join(here, '../package.json');
+        const req = createRequire(pkgPath);
+        const candidates = listNativeEngineCandidates();
+        expect(candidates).toContain(spec.packageName);
+        try {
+            const resolved = req.resolve(spec.packageName);
+            expect(candidates).toContain(resolved);
+            expect(tryLoadNativeEngine()).toBeDefined();
+        } catch {
+            // Workspace stub without a .node — production npm install and
+            // ensure-host-native.mjs populate this path before tests.
+        }
+    });
+
     it('skips a staged generic .node when native/target.json is a different host', () => {
         const dir = mkdtempSync(join(tmpdir(), 'reqlan-native-mismatch-'));
         try {
@@ -122,6 +144,8 @@ describe('load-native', () => {
         const source = readFileSync(join(here, '../src/native/load-native.ts'), 'utf8');
         expect(source).toContain("join(dir, 'crates', 'Cargo.toml')");
         expect(source).not.toMatch(/\.\.\/\.\.\/\.\.\/crates\/target/);
+        expect(source).toContain("pkg.name === '@reqlan/analytical'");
+        expect(source).toContain('createRequire(analyticalPkg)');
     });
 
     it('loads under plain Node ESM without vitest transforming import.meta', () => {

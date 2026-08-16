@@ -5,6 +5,7 @@
  *
  * Usage:
  *   node scripts/fetch-native-packages.mjs
+ *   node scripts/fetch-native-packages.mjs --host-only
  *   node scripts/fetch-native-packages.mjs --version 0.9.1
  *
  * rq:["../reqlan rq/distribution/distribution.rq".vsix_export]
@@ -14,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { NATIVE_TARGETS } from './native-targets.mjs';
+import { NATIVE_TARGETS, hostNativeTarget } from './native-targets.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -31,10 +32,20 @@ function parseArg(argv, name) {
 }
 
 const argv = process.argv.slice(2);
+const hostOnly = argv.includes('--host-only');
 const analytical = JSON.parse(
     fs.readFileSync(path.join(root, 'packages/analytical/package.json'), 'utf8')
 );
 const version = parseArg(argv, '--version') ?? analytical.version;
+const targets = hostOnly
+    ? (() => {
+          const host = hostNativeTarget();
+          if (!host) {
+              throw new Error(`No native target for ${process.platform}-${process.arch}`);
+          }
+          return [host];
+      })()
+    : NATIVE_TARGETS;
 
 // Ensure package.json skeletons exist and optionalDeps are synced.
 spawnSync(process.execPath, [path.join(root, 'scripts/prepare-native-packages.mjs')], {
@@ -45,7 +56,7 @@ spawnSync(process.execPath, [path.join(root, 'scripts/prepare-native-packages.mj
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'reqlan-napi-'));
 let failed = 0;
 
-for (const target of NATIVE_TARGETS) {
+for (const target of targets) {
     const spec = `${target.packageName}@${version}`;
     console.log(`npm pack ${spec}`);
     const pack = spawnSync('npm', ['pack', spec, '--pack-destination', tmp], {

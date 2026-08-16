@@ -28,6 +28,9 @@ const plugins = [{
 }];
 
 const objectGroupByPolyfill = `if(typeof Object.groupBy!=="function"){Object.groupBy=(items,keySelector)=>{const result=Object.create(null);let index=0;for(const item of items){const key=keySelector(item,index++);const group=result[key];if(group){group.push(item);}else{result[key]=[item];}}return result;};}`;
+// CJS has no import.meta; define it from this file's __filename so esbuild does not empty it.
+// rq:["../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+const importMetaUrlShim = 'var import_meta_url=require("node:url").pathToFileURL(__filename).href;';
 
 const ctx = await esbuild.context({
     // Entry points for the vscode extension and the language server
@@ -38,7 +41,10 @@ const ctx = await esbuild.context({
         'language/reqlan-parse-worker': '../language/src/reqlan-parse-worker.ts',
     },
     banner: {
-        js: objectGroupByPolyfill
+        js: objectGroupByPolyfill + importMetaUrlShim
+    },
+    define: {
+        'import.meta.url': 'import_meta_url',
     },
     outdir: 'out',
     bundle: true,

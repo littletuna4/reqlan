@@ -30,11 +30,14 @@ invalid_url_activation_failure {
     Runtime `readFileSync(new URL(..., import.meta.url))` is unsafe when esbuild emits CommonJS for an ES2017 target: `import.meta.url` is unavailable/empty and source-relative assets do not exist beside the bundled entry.
     The HTML export used to embed physics via `html-export-assets.ts` `embedPhysicsCoreSource`. That writer is gone; export now inlines assets from ["../../crates/reqlan-export/assets/app.js"].
     Code that still needs a module directory or `createRequire` (core engine loader and parse worker) must not mention `import.meta` statically in a way that esbuild CJS empties: prefer CJS `__dirname`/`__filename` when those exist (extension host bundle), and `import.meta.url` on the Node ESM path (CLI / MCP).
+    The host esbuild step defines `import.meta.url` as `import_meta_url` from this file's `__filename` so the CJS bundle stays valid and does not warn `empty-import-meta`. CLI/MCP keep the TypeScript `import.meta.url` emit.
     Do not eval `import.meta.url` — Node 24 treats that as a script eval and throws `Cannot use 'import.meta' outside a module`.
     ["../../packages/analytical/src/native/load-native.ts"]
     ["../../packages/language/src/reqlan-async-parser.ts"]
+    ["../../packages/extension/esbuild.mjs"]
     @tests (
         "../../packages/analytical/test/load-native.test.ts"
+        "../../packages/extension/test/extension-package.test.ts"
     )
     @status done
 }

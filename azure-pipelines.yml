@@ -47,6 +47,24 @@ jobs:
         displayName: Install dependencies
         timeoutInMinutes: 15
 
+      # Host optionalDependency layout (same as a production npm install of
+      # @reqlan/analytical). Fetch the published platform package; cargo is the
+      # fallback when that version is not on npm yet.
+      - bash: |
+          set -euo pipefail
+          if ! command -v cargo >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          fi
+          echo "##vso[task.prependpath]$HOME/.cargo/bin"
+        displayName: Setup Rust (host native fallback)
+        timeoutInMinutes: 10
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          node scripts/ensure-host-native.mjs
+        displayName: Ensure host native optionalDependency
+        timeoutInMinutes: 25
+
       - pwsh: |
           $ErrorActionPreference = "Stop"
           pnpm run langium:generate

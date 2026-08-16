@@ -29,7 +29,40 @@ function moduleDirectory(): string {
     return dirname(fileURLToPath(import.meta.url));
 }
 
+/**
+ * `@reqlan/analytical/package.json` — the same place npm/pnpm attach
+ * `optionalDependencies` for a published install. Walking from this compiled
+ * file (or a CJS bundle) can miss that graph; the extension VSIX has no
+ * analytical package.json and falls back to `__filename` / `import.meta.url`.
+ */
+function analyticalPackageJsonPath(): string | undefined {
+    let dir = moduleDirectory();
+    for (let i = 0; i < 12; i++) {
+        const pkgPath = join(dir, 'package.json');
+        if (existsSync(pkgPath)) {
+            try {
+                const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
+                if (pkg.name === '@reqlan/analytical') {
+                    return pkgPath;
+                }
+            } catch {
+                // ignore unreadable package.json
+            }
+        }
+        const parent = dirname(dir);
+        if (parent === dir) {
+            break;
+        }
+        dir = parent;
+    }
+    return undefined;
+}
+
 function nativeRequire(): ReturnType<typeof createRequire> {
+    const analyticalPkg = analyticalPackageJsonPath();
+    if (analyticalPkg) {
+        return createRequire(analyticalPkg);
+    }
     if (typeof __filename === 'string') {
         return createRequire(__filename);
     }
@@ -217,6 +250,15 @@ function hostNativePackageFile(repoRoot: string, spec: HostNativeBindingSpec): s
     return join(repoRoot, 'packages', 'analytical-native', spec.napiSuffix, spec.binaryName);
 }
 
+/** Absolute `main` of the host optionalDependency, when Node can resolve it. */
+function resolvedHostPackageMain(spec: HostNativeBindingSpec): string | undefined {
+    try {
+        return nativeRequire().resolve(spec.packageName);
+    } catch {
+        return undefined;
+    }
+}
+
 function readStagedTarget(dir: string): string | undefined {
     const metaPath = join(dir, 'target.json');
     if (!existsSync(metaPath)) {
@@ -258,9 +300,11 @@ export function listNativeEngineCandidates(
     const repoRoot = findRepoRoot(here);
     const staged = extraSearchDirs.flatMap(dir => stagedDirCandidates(dir, spec));
     const stagedHostPkg = repoRoot ? hostNativePackageFile(repoRoot, spec) : undefined;
+    const resolvedPkg = resolvedHostPackageMain(spec);
 
     return [
         ...staged,
+        ...(resolvedPkg ? [resolvedPkg] : []),
         ...(stagedHostPkg ? [stagedHostPkg] : []),
         spec.packageName,
         ...(repoRoot ? crateBuildCandidates(repoRoot, spec.rustTarget) : [])
