@@ -1,5 +1,11 @@
 # @reqlan/mcp
 
+## 0.2.2
+
+### Patch Changes
+
+- 6f49b58: try again , with mcp permissions
+
 ## 0.2.1
 
 ### Patch Changes
