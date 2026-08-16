@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.3
+
+### Patch Changes
+
+- 712ae40: avoid linux in production.
+
 ## 1.9.2
 
 ### Patch Changes
