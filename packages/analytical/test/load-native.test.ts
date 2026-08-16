@@ -4,16 +4,20 @@
  * rq:["../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
     addNativeEngineSearchDirs,
+    hostNativeBindingSpec,
+    listNativeEngineCandidates,
     nativeEngineRequested,
     resetNativeEngineCache,
     tryLoadNativeEngine
 } from '../src/native/load-native.js';
+import { NATIVE_TARGETS, hostNativeTarget } from '../../../scripts/native-targets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -60,6 +64,51 @@ describe('load-native', () => {
     it('accepts extra search dirs without throwing', () => {
         addNativeEngineSearchDirs('/tmp/reqlan-missing-native-dir');
         expect(() => tryLoadNativeEngine()).not.toThrow();
+    });
+
+    it('maps Node platform/arch to the same napi tuples as packaging', () => {
+        for (const target of NATIVE_TARGETS) {
+            const [platform, arch] = target.vsCodeTarget.split('-');
+            const spec = hostNativeBindingSpec(platform, arch);
+            expect(spec).toEqual({
+                vsCodeTarget: target.vsCodeTarget,
+                napiSuffix: target.napiSuffix,
+                packageName: target.packageName,
+                binaryName: target.binaryName,
+                rustTarget: target.rustTarget
+            });
+            expect(hostNativeTarget(platform, arch)?.napiSuffix).toBe(target.napiSuffix);
+        }
+        expect(hostNativeBindingSpec('linux', 'ia32')).toBeUndefined();
+        expect(listNativeEngineCandidates('linux', 'ia32')).toEqual([]);
+    });
+
+    it('probes only the host platform package, not every optionalDependency', () => {
+        const candidates = listNativeEngineCandidates('linux', 'x64');
+        expect(candidates).toContain('@reqlan/analytical-linux-x64-gnu');
+        expect(candidates).not.toContain('@reqlan/analytical-linux-arm64-gnu');
+        expect(candidates).not.toContain('@reqlan/analytical-darwin-arm64');
+        expect(candidates).not.toContain('@reqlan/analytical-darwin-x64');
+        expect(candidates).not.toContain('@reqlan/analytical-win32-x64-msvc');
+        expect(candidates).not.toContain('@reqlan/analytical-win32-arm64-msvc');
+    });
+
+    it('skips a staged generic .node when native/target.json is a different host', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'reqlan-native-mismatch-'));
+        try {
+            mkdirSync(dir, { recursive: true });
+            writeFileSync(
+                join(dir, 'target.json'),
+                `${JSON.stringify({ vsCodeTarget: 'win32-x64', binaryName: 'reqlan_napi.node' }, null, 4)}\n`
+            );
+            writeFileSync(join(dir, 'reqlan_napi.node'), 'not-a-real-binary');
+            addNativeEngineSearchDirs(dir);
+            const candidates = listNativeEngineCandidates('linux', 'x64');
+            expect(candidates).not.toContain(join(dir, 'reqlan_napi.node'));
+            expect(candidates).toContain(join(dir, 'reqlan_napi.linux-x64-gnu.node'));
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
     });
 
     it('does not resolve import.meta via script eval', () => {

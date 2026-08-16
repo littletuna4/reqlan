@@ -6,7 +6,7 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { NativeSqlDbHandle } from './native-sql-db.js';
@@ -110,26 +110,69 @@ export function nativeEngineRequested(): boolean {
     return true;
 }
 
-const HOST_PACKAGE_BY_PLATFORM: Record<string, string> = {
-    'linux-x64': '@reqlan/analytical-linux-x64-gnu',
-    'linux-arm64': '@reqlan/analytical-linux-arm64-gnu',
-    'darwin-arm64': '@reqlan/analytical-darwin-arm64',
-    'darwin-x64': '@reqlan/analytical-darwin-x64',
-    'win32-x64': '@reqlan/analytical-win32-x64-msvc',
-    'win32-arm64': '@reqlan/analytical-win32-arm64-msvc'
+/**
+ * Host napi tuples keyed by Node `process.platform`-`process.arch` (extension host,
+ * not the VS Code UI client). Keep in sync with `scripts/native-targets.mjs`.
+ */
+export interface HostNativeBindingSpec {
+    vsCodeTarget: string;
+    napiSuffix: string;
+    packageName: string;
+    binaryName: string;
+    rustTarget: string;
+}
+
+const HOST_NATIVE_BY_PLATFORM: Record<string, HostNativeBindingSpec> = {
+    'linux-x64': {
+        vsCodeTarget: 'linux-x64',
+        napiSuffix: 'linux-x64-gnu',
+        packageName: '@reqlan/analytical-linux-x64-gnu',
+        binaryName: 'reqlan_napi.linux-x64-gnu.node',
+        rustTarget: 'x86_64-unknown-linux-gnu'
+    },
+    'linux-arm64': {
+        vsCodeTarget: 'linux-arm64',
+        napiSuffix: 'linux-arm64-gnu',
+        packageName: '@reqlan/analytical-linux-arm64-gnu',
+        binaryName: 'reqlan_napi.linux-arm64-gnu.node',
+        rustTarget: 'aarch64-unknown-linux-gnu'
+    },
+    'darwin-x64': {
+        vsCodeTarget: 'darwin-x64',
+        napiSuffix: 'darwin-x64',
+        packageName: '@reqlan/analytical-darwin-x64',
+        binaryName: 'reqlan_napi.darwin-x64.node',
+        rustTarget: 'x86_64-apple-darwin'
+    },
+    'darwin-arm64': {
+        vsCodeTarget: 'darwin-arm64',
+        napiSuffix: 'darwin-arm64',
+        packageName: '@reqlan/analytical-darwin-arm64',
+        binaryName: 'reqlan_napi.darwin-arm64.node',
+        rustTarget: 'aarch64-apple-darwin'
+    },
+    'win32-x64': {
+        vsCodeTarget: 'win32-x64',
+        napiSuffix: 'win32-x64-msvc',
+        packageName: '@reqlan/analytical-win32-x64-msvc',
+        binaryName: 'reqlan_napi.win32-x64-msvc.node',
+        rustTarget: 'x86_64-pc-windows-msvc'
+    },
+    'win32-arm64': {
+        vsCodeTarget: 'win32-arm64',
+        napiSuffix: 'win32-arm64-msvc',
+        packageName: '@reqlan/analytical-win32-arm64-msvc',
+        binaryName: 'reqlan_napi.win32-arm64-msvc.node',
+        rustTarget: 'aarch64-pc-windows-msvc'
+    }
 };
 
-const HOST_BINARY_BY_PLATFORM: Record<string, string> = {
-    'linux-x64': 'reqlan_napi.linux-x64-gnu.node',
-    'linux-arm64': 'reqlan_napi.linux-arm64-gnu.node',
-    'darwin-arm64': 'reqlan_napi.darwin-arm64.node',
-    'darwin-x64': 'reqlan_napi.darwin-x64.node',
-    'win32-x64': 'reqlan_napi.win32-x64-msvc.node',
-    'win32-arm64': 'reqlan_napi.win32-arm64-msvc.node'
-};
-
-function hostPackageName(platform = process.platform, arch = process.arch): string | undefined {
-    return HOST_PACKAGE_BY_PLATFORM[`${platform}-${arch}`];
+/** Resolve the napi package for this Node / extension-host process. */
+export function hostNativeBindingSpec(
+    platform = process.platform,
+    arch = process.arch
+): HostNativeBindingSpec | undefined {
+    return HOST_NATIVE_BY_PLATFORM[`${platform}-${arch}`];
 }
 
 const CRATE_BINARY_NAMES = [
@@ -159,52 +202,73 @@ function findRepoRoot(start: string): string | undefined {
     return undefined;
 }
 
-function crateBuildCandidates(repoRoot: string): string[] {
-    const target = join(repoRoot, 'crates', 'target');
-    const configs = ['release', 'debug'];
-    return configs.flatMap(config =>
-        CRATE_BINARY_NAMES.map(name => join(target, config, name))
-    );
+function crateBuildCandidates(repoRoot: string, rustTarget: string): string[] {
+    const targetRoot = join(repoRoot, 'crates', 'target');
+    const dirs = [
+        join(targetRoot, rustTarget, 'release'),
+        join(targetRoot, 'release'),
+        join(targetRoot, rustTarget, 'debug'),
+        join(targetRoot, 'debug')
+    ];
+    return dirs.flatMap(dir => CRATE_BINARY_NAMES.map(name => join(dir, name)));
 }
 
-function hostNativePackageFile(repoRoot: string): string | undefined {
-    const hostBinary = HOST_BINARY_BY_PLATFORM[`${process.platform}-${process.arch}`];
-    if (!hostBinary) {
+function hostNativePackageFile(repoRoot: string, spec: HostNativeBindingSpec): string {
+    return join(repoRoot, 'packages', 'analytical-native', spec.napiSuffix, spec.binaryName);
+}
+
+function readStagedTarget(dir: string): string | undefined {
+    const metaPath = join(dir, 'target.json');
+    if (!existsSync(metaPath)) {
         return undefined;
     }
-    const suffix = hostBinary.replace(/^reqlan_napi\./, '').replace(/\.node$/, '');
-    return join(repoRoot, 'packages', 'analytical-native', suffix, hostBinary);
+    try {
+        const meta = JSON.parse(readFileSync(metaPath, 'utf8')) as { vsCodeTarget?: string };
+        return typeof meta.vsCodeTarget === 'string' ? meta.vsCodeTarget : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
-function candidatePaths(): string[] {
-    const here = moduleDirectory();
-    const hostPkg = hostPackageName();
-    const hostBinary = HOST_BINARY_BY_PLATFORM[`${process.platform}-${process.arch}`];
-    const repoRoot = findRepoRoot(here);
-    const staged = extraSearchDirs.flatMap(dir => [
-        join(dir, 'reqlan_napi.node'),
-        ...(hostBinary ? [join(dir, hostBinary)] : []),
+function stagedDirCandidates(dir: string, spec: HostNativeBindingSpec): string[] {
+    const stagedTarget = readStagedTarget(dir);
+    const hostNamed = join(dir, spec.binaryName);
+    const generic = join(dir, 'reqlan_napi.node');
+    const crateNames = [
         join(dir, 'libreqlan_napi.so'),
         join(dir, 'libreqlan_napi.dylib'),
         join(dir, 'reqlan_napi.dll')
-    ]);
-    const stagedHostPkg = repoRoot ? hostNativePackageFile(repoRoot) : undefined;
+    ];
+    if (stagedTarget && stagedTarget !== spec.vsCodeTarget) {
+        return [hostNamed];
+    }
+    return [hostNamed, generic, ...crateNames];
+}
+
+/** Filesystem paths and the host npm package name probed for this process. */
+export function listNativeEngineCandidates(
+    platform = process.platform,
+    arch = process.arch
+): string[] {
+    const spec = hostNativeBindingSpec(platform, arch);
+    if (!spec) {
+        return [];
+    }
+    const here = moduleDirectory();
+    const repoRoot = findRepoRoot(here);
+    const staged = extraSearchDirs.flatMap(dir => stagedDirCandidates(dir, spec));
+    const stagedHostPkg = repoRoot ? hostNativePackageFile(repoRoot, spec) : undefined;
 
     return [
         ...staged,
         ...(stagedHostPkg ? [stagedHostPkg] : []),
-        // Prefer the host-matching optionalDependency package first.
-        ...(hostPkg ? [hostPkg] : []),
-        // Local crate builds (dev / CI cargo output).
-        ...(repoRoot ? crateBuildCandidates(repoRoot) : []),
-        // Remaining platform packages (wrong-host installs still listed for clear errors).
-        '@reqlan/analytical-linux-x64-gnu',
-        '@reqlan/analytical-linux-arm64-gnu',
-        '@reqlan/analytical-darwin-arm64',
-        '@reqlan/analytical-darwin-x64',
-        '@reqlan/analytical-win32-x64-msvc',
-        '@reqlan/analytical-win32-arm64-msvc'
+        spec.packageName,
+        ...(repoRoot ? crateBuildCandidates(repoRoot, spec.rustTarget) : [])
     ].filter((c, i, arr) => arr.indexOf(c) === i);
+}
+
+function candidatePaths(): string[] {
+    return listNativeEngineCandidates();
 }
 
 function tryRequire(candidate: string): NativeModule | undefined {
@@ -240,9 +304,18 @@ export function loadNativeEngine(): NativeModule {
     if (loaded) {
         return loaded;
     }
+    const spec = hostNativeBindingSpec();
+    if (!spec) {
+        const supported = Object.keys(HOST_NATIVE_BY_PLATFORM).join(', ');
+        throw new Error(
+            `Native analytical engine is required but ${process.platform}-${process.arch} ` +
+                `is not a supported extension-host target. Supported: ${supported}.`
+        );
+    }
     const tried = candidatePaths().join('\n');
     throw new Error(
-        `Native analytical engine is required but the host .node was not found. ` +
+        `Native analytical engine is required but the host .node was not found ` +
+            `(${spec.vsCodeTarget} / ${spec.packageName}). ` +
             `Build crates/reqlan-napi (cargo build -p reqlan-napi) or install the host ` +
             `optionalDependency package. Tried:\n${tried}`
     );

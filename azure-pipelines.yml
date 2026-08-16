@@ -47,17 +47,13 @@ jobs:
         displayName: Install dependencies
         timeoutInMinutes: 15
 
-      # Site static build captures docs PNGs via Playwright (docs_playwright_capture).
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm --filter ./site exec playwright install --with-deps chromium
-        displayName: Install Playwright Chromium
-        timeoutInMinutes: 10
-
-      - pwsh: |
-          $ErrorActionPreference = "Stop"
-          pnpm run build
-        displayName: Build workspace
+          pnpm run langium:generate
+          pnpm exec tsc -b tsconfig.build.json
+          pnpm --filter '!./site' -r run build
+          pnpm run sync:cursor
+        displayName: Build packages (skip site)
         timeoutInMinutes: 20
 
       - pwsh: |

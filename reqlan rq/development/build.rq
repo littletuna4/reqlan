@@ -40,7 +40,7 @@ incremental_extension_build {
 }
 
 extension_host_native_stage {
-    Local F5 and `pnpm run build` / `build:ext` stage the host-matching core engine `.node` into `packages/extension/native/` so activation loads the same layout as a per-target VSIX ([distribution.vsix_export], [distribution.extension_host_target]).
+    Local F5 and `pnpm run build` / `build:ext` stage the host-matching core engine `.node` into `packages/extension/native/` so activation loads the same layout as a per-target VSIX ([distribution.vsix_export], ["../distribution/native_host_binary.rq".native_host_binary_development]).
     The orchestrator builds `cargo build -p reqlan-napi --release` when needed, then copies `reqlan_napi.node` beside the extension; it is not a separate manual install.
     CI / Azure skip the cargo compile (`CI` or `TF_BUILD`) and fetch published platform packages later ([distribution.extension_distribution]).
     Implementation: ["../../scripts/stage-host-native.mjs"], ["../../packages/extension/scripts/build.mjs"].

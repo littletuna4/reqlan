@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import * as path from 'node:path';
 import {
     addNativeEngineSearchDirs,
+    hostNativeBindingSpec,
     loadNativeEngine,
     resetNativeEngineCache
 } from '@reqlan/analytical';
@@ -54,15 +55,26 @@ export function activateAnalyticalSubmodule(
     // rq:["../../../reqlan rq/distribution/distribution.rq".vsix_export]
     // rq:["../../../reqlan rq/development/build.rq".incremental_extension_build]
     addNativeEngineSearchDirs(path.join(context.extensionPath, 'native'));
+    const host = hostNativeBindingSpec();
     // Local F5 / monorepo checkout: also probe cargo outputs next to the extension package.
-    addNativeEngineSearchDirs(
-        path.join(context.extensionPath, '../../crates/target/release'),
-        path.join(context.extensionPath, '../../crates/target/debug')
-    );
+    if (host) {
+        addNativeEngineSearchDirs(
+            path.join(context.extensionPath, '../../crates/target', host.rustTarget, 'release'),
+            path.join(context.extensionPath, '../../crates/target/release'),
+            path.join(context.extensionPath, '../../crates/target', host.rustTarget, 'debug'),
+            path.join(context.extensionPath, '../../crates/target/debug')
+        );
+    } else {
+        addNativeEngineSearchDirs(
+            path.join(context.extensionPath, '../../crates/target/release'),
+            path.join(context.extensionPath, '../../crates/target/debug')
+        );
+    }
     resetNativeEngineCache();
     try {
         loadNativeEngine();
-        console.log('[reqlan] Native analytical engine loaded for this extension host');
+        const hostLabel = host?.vsCodeTarget ?? `${process.platform}-${process.arch}`;
+        console.log(`[reqlan] Native analytical engine loaded for extension host ${hostLabel}`);
     } catch (error) {
         const message =
             error instanceof Error ? error.message : 'Native analytical engine is required but was not found';

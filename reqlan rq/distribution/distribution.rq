@@ -40,7 +40,7 @@ native_targets {
   - `darwin-x64`
   - `darwin-arm64`
   napi-rs package suffixes map as: `linux-*-gnu`, `darwin-*`, `win32-*-msvc` (gnu-only for linux; musl/alpine out of scope for the first matrix).
-  Used by [rust_binary_distribution], [vsix_export], and [extension_host_target].
+  Used by [rust_binary_distribution], [vsix_export], [extension_host_target], and ["./native_host_binary.rq".native_host_binary].
   Implementation: ["../../scripts/native-targets.mjs"].
   @status done
 }
@@ -77,18 +77,14 @@ rust_binary_distribution {
 }
 
 extension_host_target {
-  The core engine `.node` to load is selected from `process.platform` and `process.arch` on the **extension host**, not the VS Code UI client.
-  Remote examples:
-  - Windows client → Linux SSH host: `linux-*`
-  - Windows client → WSL: `linux-*`
-  - Local macOS client: `darwin-*`
-  Marketplace and Open VSX install the VSIX whose `targetPlatform` matches that host ([vsix_export], [extension_distribution]).
-  Runtime requires the matching napi `.node` for the host; missing core engine fails activation (no sql.js fallback).
-  Local F5 / extension production build stages that `.node` into `packages/extension/native/` so developers do not install `reqlan-napi` separately (["../development/build.rq".extension_host_native_stage]).
-  IndexService / WorkspaceIndex use `NativeWorkspaceIndex` + rusqlite via napi ([rust_port.native_bridge]).
-  Loader: ["../../packages/analytical/src/native/load-native.ts"]; extension registers `native/` + cargo target dirs from ["../../packages/extension/src/analytical_submodule/index.ts"].
+  The extension host must load the native core engine for its machine.
+  The selection strategy is ["./native_host_binary.rq".native_host_binary].
+  IndexService and WorkspaceIndex use `NativeWorkspaceIndex` (["../core_analysis/rust_port.rq".native_bridge]).
+  If the engine is missing, activation fails.
+  Loader: ["../../packages/analytical/src/native/load-native.ts"].
+  The extension registers search folders from ["../../packages/extension/src/analytical_submodule/index.ts"].
   @status in-progress
-  @todo publish first `@reqlan/analytical-<platform>-<arch>` release (Trusted Publisher on npmjs.com + analytical/v* tag)
+  @todo first `@reqlan/analytical-<platform>-<arch>` release not yet published
   @tests (
     ["../../packages/analytical/test/load-native.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts"]
@@ -151,7 +147,7 @@ root_readme {
 vsix_export {
   One VSIX is built per [native_targets] tuple via `vsce package --target <tuple> --no-dependencies`.
   Each VSIX keeps today's esbuild-bundled JS (TS dependency graph stays bundled); only the matching platform native package is staged into the VSIX so other targets' binaries are excluded.
-  Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target]).
+  Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target], ["./native_host_binary.rq".native_host_binary_distributed]).
   Artifact name shape: `reqlan-extension-<version>-<target>.vsix`.
   The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.
   Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
@@ -189,7 +185,7 @@ extension_distribution {
   Tags are created by ["./distribution.rq".deployment_flow].
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
-  Because the workspace build includes the site static build, the pipeline installs Playwright Chromium (`pnpm --filter ./site exec playwright install --with-deps chromium`) before `pnpm run build`, matching ["../docs/docs.rq".docs_playwright_capture].
+  The pipeline builds language, packages, and the extension only; it does not run the site static build or install Playwright ([site_distribution] owns site CI).
   VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
   @status in-progress

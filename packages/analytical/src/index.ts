@@ -189,8 +189,10 @@ export {
     tryLoadNativeEngine,
     nativeEngineAvailable,
     addNativeEngineSearchDirs,
+    hostNativeBindingSpec,
     resetNativeEngineCache
 } from './native/load-native.js';
+export type { HostNativeBindingSpec } from './native/load-native.js';
 export { NativeWorkspaceIndex } from './native/native-workspace-index.js';
 export type { NativeSyncResult } from './native/native-workspace-index.js';
 export { NativeIndexStore } from './native/native-index-store.js';

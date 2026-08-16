@@ -1,0 +1,74 @@
+import "../development/build.rq" as development_build
+import "../core_analysis/rust_port.rq" as rust_port
+
+native_host_binary {
+    Select the native core-engine binary from the extension host.
+    The host is the Node process that runs the extension.
+    Read `process.platform` and `process.arch` from that process.
+    Do not use the platform of the VS Code UI client.
+    Examples:
+    - UI on Windows and host on Linux SSH: use a linux tuple.
+    - UI on Windows and host on WSL: use a linux tuple.
+    - UI and host on macOS: use a darwin tuple.
+    Map the platform and the arch to one tuple in ["./distribution.rq".native_targets].
+    Load only the binary that matches that tuple.
+    Do not load a binary for a different tuple.
+    If the platform and the arch are not in ["./distribution.rq".native_targets], fail.
+    If the binary is missing, fail. Do not use sql.js.
+    Keep the loader map the same as ["../../scripts/native-targets.mjs"].
+    Local development: [native_host_binary_development].
+    Production distribution: [native_host_binary_distributed].
+    Implementation: ["../../packages/analytical/src/native/load-native.ts"].
+    @status done
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
+}
+
+native_host_binary_development {
+    Use this procedure on a developer machine (F5 and `pnpm run build`).
+    Identify the host from `process.platform` and `process.arch` of the build process.
+    The build process and the extension host must be the same machine.
+    Copy the matching `.node` file to `packages/extension/native/reqlan_napi.node`.
+    Write `packages/extension/native/target.json` with the host tuple.
+    If the binary is not present, build it with `cargo build -p reqlan-napi --release`.
+    At run time, search in this order:
+    1. The `native/` folder of the extension, if `target.json` records the host tuple.
+    2. The host file in `packages/analytical-native/<napiSuffix>/`.
+    3. The host npm package name.
+    4. `crates/target/<rustTarget>/release` and `crates/target/release`.
+    5. The debug folders with the same names.
+    Do not search packages for other platforms.
+    If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
+    CI on Azure does not compile Rust for this procedure. The pipeline gets binaries later ([native_host_binary_distributed]).
+    Detail: [development_build.extension_host_native_stage].
+    Implementation: ["../../scripts/stage-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
+    @status done
+    @tests (["../../packages/analytical/test/load-native.test.ts"])
+}
+
+native_host_binary_distributed {
+    Use this procedure for a published VSIX and for published npm packages.
+
+    VS Code extension:
+    The registry installs the VSIX that has `targetPlatform` equal to the extension host.
+    Each VSIX contains one `.node` file for one ["./distribution.rq".native_targets] tuple.
+    The file name is `native/reqlan_napi.node`.
+    The VSIX also contains `native/target.json`.
+    At run time, read `process.platform` and `process.arch` on the extension host.
+    If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
+    Do not put binaries for other platforms in that VSIX.
+    The pipeline gets each platform package from npm. It does not compile all Rust targets on one agent.
+    Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution].
+
+    CLI and MCP:
+    npm installs the host package from `optionalDependencies` on `@reqlan/analytical`.
+    The `os` and `cpu` fields of the package select the host binary at install time.
+    Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
+
+    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"].
+    @status in-progress
+    @todo first multi-target VSIX and platform packages not yet published
+    @tests (["../../packages/analytical/test/native-packaging.test.ts"])
+}
