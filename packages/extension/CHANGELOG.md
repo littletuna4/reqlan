@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.10.3
+
+### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+- Updated dependencies [75902d5]
+  - @reqlan/analytical@0.10.2
+  - @reqlan/language@1.9.2
+
 ## 1.10.2
 
 ### Patch Changes

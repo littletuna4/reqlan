@@ -1,5 +1,13 @@
 # @reqlan/mcp
 
+## 0.2.3
+
+### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+- Updated dependencies [75902d5]
+  - @reqlan/analytical@0.10.2
+
 ## 0.2.2
 
 ### Patch Changes
