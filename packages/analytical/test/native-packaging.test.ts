@@ -37,6 +37,18 @@ describe('native platform packaging', () => {
             version: string;
             optionalDependencies: Record<string, string>;
         };
+        const extension = JSON.parse(
+            readFileSync(join(root, 'packages/extension/package.json'), 'utf8')
+        ) as { version: string };
+        expect(extension.version).toBe(analytical.version);
+        const changeset = JSON.parse(
+            readFileSync(join(root, '.changeset/config.json'), 'utf8')
+        ) as { fixed: string[][] };
+        expect(
+            changeset.fixed.some(
+                group => group.includes('reqlan-extension') && group.includes('@reqlan/analytical')
+            )
+        ).toBe(true);
         for (const target of NATIVE_TARGETS) {
             const spec = analytical.optionalDependencies[target.packageName];
             expect(spec === 'workspace:*' || spec === analytical.version, spec).toBe(true);
@@ -57,6 +69,9 @@ describe('native platform packaging', () => {
                 publishConfig: { access: string };
             };
             expect(pkg.name).toBe(target.packageName);
+            expect(pkg.version).toBe(
+                JSON.parse(readFileSync(join(root, 'packages/analytical/package.json'), 'utf8')).version
+            );
             expect(pkg.os).toEqual(target.os);
             expect(pkg.cpu).toEqual(target.cpu);
             expect(pkg.main).toBe(target.binaryName);

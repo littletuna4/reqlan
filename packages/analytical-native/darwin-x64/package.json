@@ -1,23 +1,23 @@
 {
-    "name": "@reqlan/analytical-darwin-x64",
-    "version": "0.10.6",
-    "description": "Native reqlan analytical engine for darwin-x64",
-    "license": "AGPL-3.0-only",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/littletuna4/reqlan.git"
-    },
-    "os": [
-        "darwin"
-    ],
-    "cpu": [
-        "x64"
-    ],
-    "main": "reqlan_napi.darwin-x64.node",
-    "files": [
-        "reqlan_napi.darwin-x64.node"
-    ],
-    "publishConfig": {
-        "access": "public"
-    }
+  "name": "@reqlan/analytical-darwin-x64",
+  "version": "1.10.6",
+  "description": "Native reqlan analytical engine for darwin-x64",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/littletuna4/reqlan.git"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "reqlan_napi.darwin-x64.node",
+  "files": [
+    "reqlan_napi.darwin-x64.node"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

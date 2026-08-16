@@ -10,7 +10,9 @@ version_management {
   - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
-  Platform native packages (`@reqlan/analytical-<platform>-<arch>`) are not a separate tag channel; they ride `analytical/v*` and share `@reqlan/analytical`'s version ([rust_binary_distribution]).
+  The extension does not carry an independent semver. `reqlan-extension`, `@reqlan/analytical`, and every `@reqlan/analytical-<platform>-<arch>` package are one Changesets `fixed` group: they always share one version. Marketplace already shipped `1.10.x`, so that line is the shared number (npm `@reqlan/analytical` moves onto it; it cannot drop back to `0.10.x`).
+  Platform native packages are not a separate tag channel; they ride `analytical/v*` ([rust_binary_distribution]).
+  `@reqlan/language`, `@reqlan/cli`, `@reqlan/mcp`, and the site keep their own versions.
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
 
@@ -47,7 +49,7 @@ native_targets {
 
 rust_binary_distribution {
   One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
-  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical` via the Changesets `fixed` group in ["../../.changeset/config.json"].
+  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical` and `reqlan-extension` via the Changesets `fixed` group in ["../../.changeset/config.json"].
   `@reqlan/analytical` lists them as `optionalDependencies` so CLI/MCP install the host-matching binary at install time.
   Published tarballs pin those optionalDependencies to the same version (not `workspace:*`).
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
@@ -94,7 +96,7 @@ extension_host_target {
 
 extension_package {
   The VS Code extension lives in packages/extension with npm package name `reqlan-extension` (Marketplace / Open VSX id `reqlan.reqlan-extension`).
-  Its package.json version is the authoritative Marketplace and Open VSX release version.
+  Its package.json version is the Marketplace and Open VSX release version and is the same semver as `@reqlan/analytical` ([version_management]).
 }
 
 site_package {
