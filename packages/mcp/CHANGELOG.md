@@ -1,5 +1,15 @@
 # @reqlan/mcp
 
+## 0.3.0
+
+### Minor Changes
+
+- 6036b1a: up
+
+### Patch Changes
+
+- @reqlan/analytical@1.11.0
+
 ## 0.2.9
 
 ### Patch Changes

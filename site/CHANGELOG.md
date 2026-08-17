@@ -1,5 +1,11 @@
 # site
 
+## 0.16.0
+
+### Minor Changes
+
+- 6036b1a: up
+
 ## 0.15.1
 
 ### Patch Changes

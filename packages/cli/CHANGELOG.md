@@ -1,5 +1,11 @@
 # @reqlan/cli
 
+## 0.7.9
+
+### Patch Changes
+
+- @reqlan/analytical@1.11.0
+
 ## 0.7.8
 
 ### Patch Changes
