@@ -7,12 +7,15 @@ import {
   InstallFallback,
   useInstallActionHandler,
 } from "@/components/InstallFallback";
+import { PhonebookIcon } from "@/components/PhonebookIcon";
 import {
   quickstartContent,
   type QuickstartIde,
   type QuickstartIdeId,
+  type QuickstartPackage,
 } from "@/content/quickstart";
 import { getPreferredIde } from "@/lib/deeplink";
+import { getPhonebookPackage } from "@/lib/phonebook";
 import { sitePath } from "@/lib/paths";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
 import { cn } from "@/lib/utils";
@@ -70,8 +73,77 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function PackageSection({ pkg }: { pkg: QuickstartPackage }) {
+  const npm = getPhonebookPackage(pkg.packageId);
+
+  return (
+    <section
+      id={pkg.id}
+      className={styles.package}
+      aria-labelledby={`quickstart-${pkg.id}-title`}
+    >
+      <div className={styles.packageHead}>
+        <h2 id={`quickstart-${pkg.id}-title`} className={styles.nextTitle}>
+          {pkg.title}
+        </h2>
+        <a
+          href={npm.href}
+          className={styles.npmLink}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <PhonebookIcon icon={npm.icon} />
+          {npm.label}
+        </a>
+      </div>
+      <p className={styles.tagline}>{pkg.intro}</p>
+      <div className={styles.cli}>
+        <span className={styles.cliLabel}>Install</span>
+        <code className={styles.cliCode}>{pkg.install}</code>
+        <CopyButton value={pkg.install} />
+      </div>
+      <ol className={styles.steps}>
+        {pkg.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      {pkg.commands?.length ? (
+        <ul className={styles.commandList}>
+          {pkg.commands.map((command) => (
+            <li key={command}>
+              <div className={styles.cli}>
+                <span className={styles.cliLabel}>Run</span>
+                <code className={styles.cliCode}>{command}</code>
+                <CopyButton value={command} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {pkg.snippet ? (
+        <div className={styles.snippet}>
+          <div className={styles.snippetBar}>
+            <span className={styles.cliLabel}>{pkg.snippet.label}</span>
+            <CopyButton value={pkg.snippet.value} />
+          </div>
+          <pre className={styles.snippetPre}>
+            <code>{pkg.snippet.value}</code>
+          </pre>
+        </div>
+      ) : null}
+      {pkg.tips?.length ? (
+        <ul className={styles.tips}>
+          {pkg.tips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
 export function QuickstartClient({ initialIde }: QuickstartClientProps) {
-  const { ides, defaultIde, nextSteps, related } = quickstartContent;
+  const { ides, defaultIde, nextSteps, related, packages } = quickstartContent;
   const [activeId, setActiveId] = useState<QuickstartIdeId>(
     initialIde ?? defaultIde,
   );
@@ -118,94 +190,107 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
         <p className={styles.intro}>{quickstartContent.intro}</p>
       </header>
 
-      <div className={styles.panel}>
-        <div role="tablist" aria-label="Choose your editor" className={styles.ideList}>
-          {ides.map((ide) => {
-            const isActive = ide.id === activeId;
+      <section
+        id="extension"
+        className={styles.package}
+        aria-labelledby="quickstart-extension-title"
+      >
+        <h2 id="quickstart-extension-title" className={styles.nextTitle}>
+          Extension
+        </h2>
+        <div className={styles.panel}>
+          <div role="tablist" aria-label="Choose your editor" className={styles.ideList}>
+            {ides.map((ide) => {
+              const isActive = ide.id === activeId;
 
-            return (
-              <button
-                key={ide.id}
-                type="button"
-                role="tab"
-                id={`quickstart-tab-${ide.id}`}
-                aria-selected={isActive}
-                aria-controls={`quickstart-panel-${ide.id}`}
-                className={cn(styles.ideTab, isActive && styles.ideTabActive)}
-                onClick={() => {
-                  setActiveId(ide.id);
-                  dismissFallback();
-                  const url = new URL(window.location.href);
-                  url.searchParams.set("ide", ide.id);
-                  window.history.replaceState(null, "", url);
-                }}
-              >
-                <IdeIcon icon={ide.icon} />
-                <span className={styles.ideLabel}>{ide.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          role="tabpanel"
-          id={`quickstart-panel-${activeIde.id}`}
-          aria-labelledby={`quickstart-tab-${activeIde.id}`}
-          className={styles.detail}
-        >
-          <p className={styles.tagline}>{activeIde.tagline}</p>
-
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.primary}
-              onClick={handlePrimary}
-            >
-              {activeIde.primaryAction.label}
-            </button>
-
-            {activeIde.deepLink ? (
-              <button
-                type="button"
-                className={styles.secondary}
-                onClick={handleDeepLink}
-              >
-                Try editor deep link
-              </button>
-            ) : null}
+              return (
+                <button
+                  key={ide.id}
+                  type="button"
+                  role="tab"
+                  id={`quickstart-tab-${ide.id}`}
+                  aria-selected={isActive}
+                  aria-controls={`quickstart-panel-${ide.id}`}
+                  className={cn(styles.ideTab, isActive && styles.ideTabActive)}
+                  onClick={() => {
+                    setActiveId(ide.id);
+                    dismissFallback();
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("ide", ide.id);
+                    window.history.replaceState(null, "", url);
+                  }}
+                >
+                  <IdeIcon icon={ide.icon} />
+                  <span className={styles.ideLabel}>{ide.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {status ? <p className={styles.installStatus}>{status}</p> : null}
+          <div
+            role="tabpanel"
+            id={`quickstart-panel-${activeIde.id}`}
+            aria-labelledby={`quickstart-tab-${activeIde.id}`}
+            className={styles.detail}
+          >
+            <p className={styles.tagline}>{activeIde.tagline}</p>
 
-          {fallback?.ideId === activeIde.id ? (
-            <div className={styles.fallbackWrap}>
-              <InstallFallback ideId={fallback.ideId} onDismiss={dismissFallback} />
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.primary}
+                onClick={handlePrimary}
+              >
+                {activeIde.primaryAction.label}
+              </button>
+
+              {activeIde.deepLink ? (
+                <button
+                  type="button"
+                  className={styles.secondary}
+                  onClick={handleDeepLink}
+                >
+                  Try editor deep link
+                </button>
+              ) : null}
             </div>
-          ) : null}
 
-          <ol className={styles.steps}>
-            {activeIde.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+            {status ? <p className={styles.installStatus}>{status}</p> : null}
 
-          {activeIde.cli ? (
-            <div className={styles.cli}>
-              <span className={styles.cliLabel}>Terminal</span>
-              <code className={styles.cliCode}>{activeIde.cli}</code>
-              <CopyButton value={activeIde.cli} />
-            </div>
-          ) : null}
+            {fallback?.ideId === activeIde.id ? (
+              <div className={styles.fallbackWrap}>
+                <InstallFallback ideId={fallback.ideId} onDismiss={dismissFallback} />
+              </div>
+            ) : null}
 
-          {activeIde.tips?.length ? (
-            <ul className={styles.tips}>
-              {activeIde.tips.map((tip) => (
-                <li key={tip}>{tip}</li>
+            <ol className={styles.steps}>
+              {activeIde.steps.map((step) => (
+                <li key={step}>{step}</li>
               ))}
-            </ul>
-          ) : null}
+            </ol>
+
+            {activeIde.cli ? (
+              <div className={styles.cli}>
+                <span className={styles.cliLabel}>Terminal</span>
+                <code className={styles.cliCode}>{activeIde.cli}</code>
+                <CopyButton value={activeIde.cli} />
+              </div>
+            ) : null}
+
+            {activeIde.tips?.length ? (
+              <ul className={styles.tips}>
+                {activeIde.tips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {packages.map((pkg) => (
+        <PackageSection key={pkg.id} pkg={pkg} />
+      ))}
 
       <section className={styles.next} aria-labelledby="quickstart-next-title">
         <h2 id="quickstart-next-title" className={styles.nextTitle}>

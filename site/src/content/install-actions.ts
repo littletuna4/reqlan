@@ -53,10 +53,10 @@ export const installActions: InstallAction[] = [
       "Open the Extensions view (Ctrl+Shift+X / Cmd+Shift+X).",
       'Search for "reqlan" and install reqlan support.',
       "Reload the window if prompted.",
-      'Run Reqlan: Install Cursor Skills from the command palette to sync rq-* skills and MCP config.',
+      "Run Reqlan: Install Cursor Skills from the command palette to sync rq-* skills and MCP config.",
     ],
     tips: [
-      "Cursor installs from the same extension catalog as VS Code — if the deep link does not open, use the marketplace install below.",
+      "Cursor installs from the same extension catalog as VS Code - if the deep link does not open, use the marketplace install below.",
       "After installing skills, reload Cursor so chat picks up the new rq-* commands.",
     ],
   },
@@ -81,7 +81,8 @@ export const installActions: InstallAction[] = [
     id: "openvsx",
     label: "Open VSX",
     shortLabel: "Open VSX",
-    tagline: "VSCodium, Gitpod, Eclipse Theia, and other Open VSX–based editors.",
+    tagline:
+      "VSCodium, Gitpod, Eclipse Theia, and other Open VSX–based editors.",
     icon: { set: "simple-icons", name: "vscodium" },
     kind: "external",
     href: openvsx.href,

@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 
-import { siteContent, type NavGraphNode } from "@/content/site";
+import { navGraph } from "@/content/nav";
+import type { NavGraphNode } from "@/content/types";
 import { prefersReducedMotion } from "@/lib/deeplink";
 import { sitePath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
@@ -24,7 +25,7 @@ function nodeRadius(kind: NavGraphNode["kind"]): number {
 }
 
 export function NavGraph() {
-  const { navGraph } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".nav_graph]
   const reactId = useId().replace(/:/g, "");
   const hubGradId = `nav-graph-hub-${reactId}`;
   const activeGradId = `nav-graph-active-${reactId}`;

@@ -1,11 +1,11 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { HeroActions } from "@/components/HeroActions";
-import { siteContent } from "@/content/site";
+import { hero } from "@/content/hero";
 import { sitePath } from "@/lib/paths";
 import styles from "./Hero.module.css";
 
 export function Hero() {
-  const { hero } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".hero_section]
 
   return (
     <section id="hero" className={styles.hero} aria-label="Introduction">

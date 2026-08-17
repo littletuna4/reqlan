@@ -1,13 +1,12 @@
 import { PhonebookIcon } from "@/components/PhonebookIcon";
 import { SiteShell } from "@/components/SiteShell";
 import shared from "@/components/shared.module.css";
-import { siteContent } from "@/content/site";
+import { faq } from "@/content/faq";
 import { getPhonebookLink } from "@/lib/phonebook";
 import styles from "@/views/faq.module.css";
 
 export function FaqPage() {
   // rq:["../../../reqlan rq/site/site.rq".faq_page]
-  const { faq } = siteContent;
 
   return (
     <SiteShell>

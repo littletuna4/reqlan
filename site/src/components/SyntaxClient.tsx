@@ -1,7 +1,7 @@
 "use client";
 
 import { Children, useState } from "react";
-import type { SyntaxExample } from "@/content/site";
+import type { SyntaxExample } from "@/content/types";
 import shared from "./shared.module.css";
 import styles from "./Syntax.module.css";
 

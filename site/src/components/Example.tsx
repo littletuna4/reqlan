@@ -1,9 +1,9 @@
 import { CodeBlock } from "@/components/CodeBlock";
-import { siteContent } from "@/content/site";
+import { example } from "@/content/example";
 import shared from "./shared.module.css";
 
 export function Example() {
-  const { example } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".example_section]
 
   return (
     <section id="example" className={shared.contentSection} aria-labelledby="example-title">

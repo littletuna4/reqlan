@@ -1,8 +1,10 @@
 import { highlights, type HighlightKey } from "@/generated/highlights";
 import { RqCode } from "@/components/RqCode";
-import type { CodeLanguage } from "@/content/site";
+import type { CodeLanguage } from "@/content/types";
 import { cn } from "@/lib/utils";
 import styles from "./CodeBlock.module.css";
+
+// rq:["../../../reqlan rq/site/site.rq".code_block_styling]
 
 type CodeBlockProps = {
   language: CodeLanguage;

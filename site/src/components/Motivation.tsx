@@ -1,8 +1,8 @@
 import { MotivationClient } from "@/components/MotivationClient";
-import { siteContent } from "@/content/site";
+import { motivation } from "@/content/motivation";
 
 export function Motivation() {
-  const { motivation } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".motivation_section]
 
   return (
     <MotivationClient

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { siteContent } from "@/content/site";
+import { cta } from "@/content/hero";
 import { prefersReducedMotion } from "@/lib/deeplink";
 import { sitePath } from "@/lib/paths";
 import { InstallSplitButton } from "@/components/InstallSplitButton";
@@ -11,7 +11,8 @@ import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import styles from "./HeroActions.module.css";
 
 export function HeroActions() {
-  const { cta } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".cta_icon]
+  // rq:["../../../reqlan rq/site/site.rq".hero_section]
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {

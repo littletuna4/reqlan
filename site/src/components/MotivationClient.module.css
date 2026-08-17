@@ -12,7 +12,7 @@
 
 .segments {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem;
   padding: 0.25rem;
   border: 1px solid var(--color-border);
@@ -41,7 +41,11 @@
 }
 
 .segmentActive {
-  background: color-mix(in srgb, var(--color-aqua) 16%, var(--color-surface-raised));
+  background: color-mix(
+    in srgb,
+    var(--color-aqua) 16%,
+    var(--color-surface-raised)
+  );
   color: var(--color-aqua-bright);
 }
 
@@ -161,7 +165,11 @@
 
 .featureTabActive {
   border-color: var(--color-rust-muted);
-  background: color-mix(in srgb, var(--color-rust) 12%, var(--color-surface-raised));
+  background: color-mix(
+    in srgb,
+    var(--color-rust) 12%,
+    var(--color-surface-raised)
+  );
   color: var(--color-text);
 }
 

@@ -10,7 +10,8 @@ import {
 } from "react";
 import { useReducedMotion } from "motion/react";
 
-import { siteContent, type RoadmapItem } from "@/content/site";
+import { roadmap } from "@/content/roadmap";
+import type { RoadmapItem } from "@/content/types";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
 import styles from "./Roadmap.module.css";
@@ -37,7 +38,7 @@ function styleForDistance(distance: number, reduceMotion: boolean): ItemStyle {
 }
 
 export function Roadmap() {
-  const { roadmap } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".roadmap_section]
   const items = roadmap.items;
   const reduceMotion = useReducedMotion() ?? false;
   const listId = useId();

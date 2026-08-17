@@ -9,7 +9,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { MotivationFeature, MotivationSlide } from "@/content/site";
+import type { MotivationFeature, MotivationSlide } from "@/content/types";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
 import styles from "./MotivationClient.module.css";

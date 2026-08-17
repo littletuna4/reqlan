@@ -23,6 +23,64 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.10.9
+
+#### Patch Changes
+
+- Updated dependencies [07e7c2f]
+  - @reqlan/analytical@1.10.9
+
+### 1.10.8
+
+#### Patch Changes
+
+- a315963: Keep the VS Code extension on the same semver as `@reqlan/analytical` and its platform native packages. Marketplace already published 1.10.x, so the shared number stays on that line rather than 0.10.x.
+- Updated dependencies [a315963]
+  - @reqlan/analytical@1.10.8
+
+### 1.10.7
+
+#### Patch Changes
+
+- fccc1ea: build matrix in extension build
+- Updated dependencies [fccc1ea]
+  - @reqlan/analytical@0.10.6
+  - @reqlan/language@1.9.4
+
+### 1.10.6
+
+#### Patch Changes
+
+- 712ae40: avoid linux in production.
+- Updated dependencies [712ae40]
+  - @reqlan/analytical@0.10.5
+  - @reqlan/language@1.9.3
+
+### 1.10.5
+
+#### Patch Changes
+
+- 5348d34: update target binary
+- Updated dependencies [5348d34]
+  - @reqlan/analytical@0.10.4
+
+### 1.10.4
+
+#### Patch Changes
+
+- 2860f9f: deployment binary availability fix attempt
+- Updated dependencies [2860f9f]
+  - @reqlan/analytical@0.10.3
+
+### 1.10.3
+
+#### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+- Updated dependencies [75902d5]
+  - @reqlan/analytical@0.10.2
+  - @reqlan/language@1.9.2
+
 ### 1.10.2
 
 #### Patch Changes

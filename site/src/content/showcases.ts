@@ -1,4 +1,4 @@
-import type { CodeLanguage } from "@/content/site";
+import type { CodeLanguage } from "@/content/types";
 
 export type ShowcaseTier = "flagship" | "depth";
 
@@ -163,7 +163,7 @@ token cost: ~18k  ·  signal: low`,
     blocks: [
       {
         kind: "callout",
-        text: "One name — EmergencyStop — from requirement to PLC to proof.",
+        text: "One name - EmergencyStop - from requirement to PLC to proof.",
       },
       {
         language: "rq",
@@ -240,7 +240,7 @@ END_FUNCTION_BLOCK`,
       },
       {
         language: "rq",
-        label: "before — auth.rq",
+        label: "before - auth.rq",
         code: `login {
     oauth handshake for the web client
     implemented in ["./src/handlers/auth.ts".login]
@@ -271,7 +271,7 @@ session {
       },
       {
         language: "rq",
-        label: "after — refs rewritten",
+        label: "after - refs rewritten",
         code: `login {
     oauth handshake for the web client
     implemented in ["./src/handlers/oauth.ts".login]
@@ -289,7 +289,7 @@ session {
     id: "firmware-cloud",
     title: "Firmware meets the cloud",
     summary:
-      "10 Hz on the device, 50 ms on the ingest path — one invariant neither codebase can hold alone.",
+      "10 Hz on the device, 50 ms on the ingest path - one invariant neither codebase can hold alone.",
     tags: ["integration", "cross-stack", "embedded"],
     mechanism: "cross-stack file refs",
     domain: "Embedded ↔ backend",
@@ -371,7 +371,7 @@ export async function ingestBatch(events: Event[]) {
     blocks: [
       {
         kind: "callout",
-        text: "Standards are ideas with evidence — and a report you can hand over.",
+        text: "Standards are ideas with evidence - and a report you can hand over.",
       },
       {
         language: "rq",
@@ -423,7 +423,7 @@ coverage: 50% of soc2-tagged ideas`,
         items: [
           "Reqlan: Export HTML → multi-page static site",
           "Ideas, files, clusters, searchable graph",
-          "Hand the folder to the auditor — no wiki drift",
+          "Hand the folder to the auditor - no wiki drift",
         ],
       },
     ],
@@ -440,7 +440,7 @@ coverage: 50% of soc2-tagged ideas`,
     blocks: [
       {
         kind: "callout",
-        text: "An ideaset is the module's published surface — not its internals.",
+        text: "An ideaset is the module's published surface - not its internals.",
       },
       {
         language: "rq",
@@ -456,7 +456,7 @@ refund_policy {
     @status done
 }
 
-// internals — not in the published surface
+// internals - not in the published surface
 ledger_posting {
     double-entry write after capture
     @status done
@@ -554,7 +554,7 @@ test("rejects expired access token", async () => {
       },
       {
         language: "py",
-        label: "legacy/billing.py — before",
+        label: "legacy/billing.py - before",
         code: `def calc_total(lines, tax_region):
     """nobody knows why tax_region is a string."""
     ...`,
@@ -581,7 +581,7 @@ legacy_tax_helper {
       },
       {
         language: "py",
-        label: "legacy/billing.py — after",
+        label: "legacy/billing.py - after",
         code: `# rq:["../migrate/billing.rq".calc_total]
 def calc_total(lines, tax_region):
     """order total includes regional tax (ISO-3166-2)."""
@@ -603,7 +603,7 @@ impact: 2 references still live`,
     id: "graph-view",
     title: "See the whole graph",
     summary:
-      "Cytoscape in Ideas Summary — filter by status or tag, toggle indirect depth.",
+      "Cytoscape in Ideas Summary - filter by status or tag, toggle indirect depth.",
     tags: ["extension", "graph"],
     mechanism: "Cytoscape · filters · depth",
     domain: "Extension UI",
@@ -611,7 +611,7 @@ impact: 2 references still live`,
     blocks: [
       {
         kind: "callout",
-        text: "The graph is a view of the index — not ASCII arrows in a .rq file.",
+        text: "The graph is a view of the index - not ASCII arrows in a .rq file.",
       },
       {
         language: "rq",
@@ -650,8 +650,8 @@ auth_logout {
         items: [
           "Filter by file, tag, or status",
           "Indirect-reference depth toggle (1 vs 2 hop)",
-          "Reqlan: Get Local Graph — scoped HTML panel",
-          "Reqlan: Open Ideas Summary — full Cytoscape view",
+          "Reqlan: Get Local Graph - scoped HTML panel",
+          "Reqlan: Open Ideas Summary - full Cytoscape view",
         ],
       },
     ],
@@ -660,7 +660,7 @@ auth_logout {
     id: "attribute-dialect",
     title: "Attributes as a domain dialect",
     summary:
-      "Flags, negated flags, block values, nested lists — arbitrary @keys without changing the grammar.",
+      "Flags, negated flags, block values, nested lists - arbitrary @keys without changing the grammar.",
     tags: ["attributes", "extensibility"],
     mechanism: "full attribute grammar",
     domain: "Hardware / manufacturing",
@@ -706,11 +706,11 @@ auth_logout {
         kind: "features",
         label: "forms in play",
         items: [
-          "@required — bare flag",
-          "@dfm! — negated flag (design-for-manufacture waived)",
-          "@plan { ... } — block value",
-          "@bom ( name { ... } ) — named nested lists",
-          "@sil 2 — scalar domain metadata",
+          "@required - bare flag",
+          "@dfm! - negated flag (design-for-manufacture waived)",
+          "@plan { ... } - block value",
+          "@bom ( name { ... } ) - named nested lists",
+          "@sil 2 - scalar domain metadata",
         ],
       },
     ],
@@ -731,7 +731,7 @@ auth_logout {
       },
       {
         language: "rq",
-        label: "1 — data in the idea (don't)",
+        label: "1 - data in the idea (don't)",
         code: `support_contacts {
     alice: alice@example.com
     bob: bob@example.com
@@ -740,7 +740,7 @@ auth_logout {
       },
       {
         language: "rq",
-        label: "1 — prefer",
+        label: "1 - prefer",
         code: `support_contacts {
     canonical list lives in ["./data/contacts.json"]
     validated by ["./src/contacts.test.ts"]
@@ -748,7 +748,7 @@ auth_logout {
       },
       {
         language: "rq",
-        label: "2 — restating the code (don't)",
+        label: "2 - restating the code (don't)",
         code: `apply_theme {
     sets documentElement.dataset.theme to mode
     then calls localStorage.setItem with key theme
@@ -756,7 +756,7 @@ auth_logout {
       },
       {
         language: "rq",
-        label: "2 — prefer",
+        label: "2 - prefer",
         code: `apply_theme {
     theme preference persists across reloads
     implemented in ["./src/theme.ts".applyTheme]
@@ -765,13 +765,13 @@ auth_logout {
       },
       {
         language: "rq",
-        label: "3 — one monolithic file (don't)",
-        code: `// everything.rq — 2_000 lines, every team, every domain
+        label: "3 - one monolithic file (don't)",
+        code: `// everything.rq - 2_000 lines, every team, every domain
 // nobody owns it; search returns noise; reviews stall`,
       },
       {
         language: "rq",
-        label: "3 — prefer",
+        label: "3 - prefer",
         code: `import "../billing/interface.rq" as billing
 import "../auth/interface.rq" as auth
 
@@ -789,8 +789,6 @@ export function getShowcase(slug: string): Showcase | undefined {
   return showcases.find((showcase) => showcase.id === slug);
 }
 
-export function isCodeBlock(
-  block: ShowcaseBlock,
-): block is ShowcaseCodeBlock {
+export function isCodeBlock(block: ShowcaseBlock): block is ShowcaseCodeBlock {
   return "language" in block && "code" in block;
 }

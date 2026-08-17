@@ -1,6 +1,6 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { SyntaxClient } from "@/components/SyntaxClient";
-import { siteContent } from "@/content/site";
+import { syntax } from "@/content/syntax";
 import type { HighlightKey } from "@/generated/highlights";
 import shared from "./shared.module.css";
 
@@ -16,7 +16,7 @@ function snippetHighlightKey(
 }
 
 export function Syntax() {
-  const { syntax } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".syntax_section]
 
   return (
     <section id="syntax" className={shared.contentSection} aria-labelledby="syntax-title">

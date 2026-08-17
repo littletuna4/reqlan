@@ -7,6 +7,7 @@ import {
   type QuickstartIconRef,
   type QuickstartIdeId,
 } from "@/content/install-actions";
+import type { PhonebookPackageId } from "@/lib/phonebook";
 
 export type { InstallAction, QuickstartIconRef, QuickstartIdeId };
 
@@ -45,6 +46,23 @@ export type QuickstartRelatedLink = {
   detail: string;
 };
 
+export type QuickstartSnippet = {
+  label: string;
+  value: string;
+};
+
+export type QuickstartPackage = {
+  id: string;
+  title: string;
+  packageId: PhonebookPackageId;
+  intro: string;
+  install: string;
+  steps: string[];
+  commands?: string[];
+  snippet?: QuickstartSnippet;
+  tips?: string[];
+};
+
 export const quickstartContent = {
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".tutorials]
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
@@ -53,11 +71,70 @@ export const quickstartContent = {
   title: "Get started",
   //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_01_why_reqlan]
   intro:
-    "Install the reqlan extension, open a workspace with `.rq` files, and start tracing requirements in your editor.",
+    "Install the editor extension. You can also install the CLI and the MCP server. All three use the same `.rq` files and the same `.reqlan` index.",
   defaultIde: defaultInstallIde,
   extension: extensionMeta,
   vsixDownloadUrl,
   ides: installActions.map(toQuickstartIde),
+  //rq:["../../../reqlan rq/cli/cli_package.rq".cli_package]
+  //rq:["../../../reqlan rq/core-architecture.rq".mcp_package]
+  //rq:["../../../reqlan rq/phonebook.rq".phonebook]
+  packages: [
+    {
+      id: "cli",
+      title: "CLI",
+      packageId: "cli",
+      intro:
+        "`@reqlan/cli` (`reqlan` / `rq`) searches, analyses, and exports the graph. It uses the same `.reqlan` index as the editor.",
+      install: "npm install -g @reqlan/cli",
+      steps: [
+        "Install `@reqlan/cli` (or run `npx @reqlan/cli`).",
+        "In a workspace, run `reqlan init` to create `.reqlan`.",
+        "Search or analyse the graph. Pass `--cwd` or set `REQLAN_WORKSPACE` if you are not in the workspace root.",
+      ],
+      commands: [
+        "reqlan init",
+        "reqlan search <query>",
+        "reqlan analyse [--file <path> | --idea <name>]",
+        "reqlan export html",
+      ],
+      tips: [
+        "Alias `rq` is the same binary.",
+        "Override index storage with `REQLAN_INDEX_PATH` when needed.",
+      ],
+    },
+    {
+      id: "mcp",
+      title: "MCP",
+      packageId: "mcp",
+      intro:
+        "`@reqlan/mcp` is a stdio MCP server on that same index. No VS Code host is required.",
+      install: "npx -y @reqlan/mcp",
+      steps: [
+        "Add the server to your MCP client, or in Cursor run Reqlan: Install Cursor Skills after you install the extension.",
+        "Set `REQLAN_WORKSPACE` to the workspace root (or start the process from that directory).",
+        "Ask the agent to search, load file context, or summarise a neighbourhood.",
+      ],
+      snippet: {
+        label: ".cursor/mcp.json",
+        value: `{
+  "mcpServers": {
+    "reqlan": {
+      "command": "npx",
+      "args": ["-y", "@reqlan/mcp"],
+      "env": {
+        "REQLAN_WORKSPACE": "\${workspaceFolder}"
+      }
+    }
+  }
+}`,
+      },
+      tips: [
+        "Tools include `search_requirements`, `file_context`, `local_graph`, and `summarize_subtree`.",
+        "Override index storage with `REQLAN_INDEX_PATH` when needed.",
+      ],
+    },
+  ] satisfies QuickstartPackage[],
   nextSteps: [
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_02_first_idea]
     "Create or open a `.rq` file in your workspace.",

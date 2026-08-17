@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { siteContent } from "@/content/site";
+import { StickyCtaNode } from "@/components/StickyCtaNode";
+import { meta } from "@/content/meta";
 import { sitePath } from "@/lib/paths";
 import "@/styles/globals.css";
 
+// rq:["../../../reqlan rq/site/site.rq".copy]
+// rq:["../../../reqlan rq/site/site.rq".brand]
+// rq:["../../../reqlan rq/site/site.rq".sticky_cta_node]
+
 export const metadata: Metadata = {
-  title: siteContent.meta.title,
-  description: siteContent.meta.description,
+  title: meta.title,
+  description: meta.description,
   manifest: sitePath("/site.webmanifest"),
   icons: {
     icon: [
@@ -41,6 +46,7 @@ export default function RootLayout({
           {posthogSnippet}
         </Script>
         <NuqsAdapter>{children}</NuqsAdapter>
+        <StickyCtaNode />
       </body>
     </html>
   );

@@ -3,7 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isCodeBlock, showcases } from "../src/content/showcases.ts";
-import { siteContent, type CodeLanguage } from "../src/content/site.ts";
+import { syntax } from "../src/content/syntax.ts";
+import type { CodeLanguage } from "../src/content/types.ts";
 import { highlightCode, initHighlighter } from "../src/lib/highlight.ts";
 
 type HighlightRequest = {
@@ -18,7 +19,7 @@ const outputPath = resolve(rootDir, "src/generated/highlights.ts");
 function collectRequests(): HighlightRequest[] {
   const requests: HighlightRequest[] = [];
 
-  for (const example of siteContent.syntax.examples) {
+  for (const example of syntax.examples) {
     for (const [kind, snippet] of [
       ["rule", example.rule],
       ["practical", example.practical],

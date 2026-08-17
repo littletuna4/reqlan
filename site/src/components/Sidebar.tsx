@@ -3,7 +3,9 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import clsx from "clsx";
 
-import { siteContent, type NavItem } from "@/content/site";
+import { brand } from "@/content/meta";
+import { nav } from "@/content/nav";
+import type { NavItem } from "@/content/types";
 import { siteBasePath, sitePath } from "@/lib/paths";
 import styles from "./Sidebar.module.css";
 
@@ -46,7 +48,7 @@ function itemHref(item: NavItem, parent?: NavItem): string {
 }
 
 export function Sidebar() {
-  const { brand, nav } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".sidebar_nav]
   const [open, setOpen] = useState(false);
   // null until mount — avoid flashing Home children on every route
   const [pathname, setPathname] = useState<string | null>(null);

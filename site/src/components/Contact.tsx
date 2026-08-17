@@ -1,5 +1,5 @@
 import { PhonebookIcon } from "@/components/PhonebookIcon";
-import { siteContent } from "@/content/site";
+import { contact } from "@/content/contact";
 import shared from "./shared.module.css";
 
 function LinkList({
@@ -33,7 +33,7 @@ function LinkList({
 }
 
 export function Contact() {
-  const { contact } = siteContent;
+  // rq:["../../../reqlan rq/site/site.rq".links]
 
   return (
     <section id="contact" className={shared.contentSection} aria-labelledby="contact-title">

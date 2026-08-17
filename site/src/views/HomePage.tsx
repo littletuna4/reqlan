@@ -9,8 +9,14 @@ import { Syntax } from "@/components/Syntax";
 import styles from "./HomePage.module.css";
 
 export function HomePage() {
-  //rq:["../../../reqlan rq/distribution/landers.rq".landers]
-  //rq:["../../../reqlan rq/site/site.rq".roadmap_section]
+  // rq:["../../../reqlan rq/distribution/landers.rq".landers]
+  // rq:["../../../reqlan rq/site/site.rq".copy]
+  // rq:["../../../reqlan rq/site/site.rq".hero_section]
+  // rq:["../../../reqlan rq/site/site.rq".motivation_section]
+  // rq:["../../../reqlan rq/site/site.rq".syntax_section]
+  // rq:["../../../reqlan rq/site/site.rq".example_section]
+  // rq:["../../../reqlan rq/site/site.rq".roadmap_section]
+  // rq:["../../../reqlan rq/site/site.rq".nav_graph]
   return (
     <SiteShell>
       <main className={styles.home}>

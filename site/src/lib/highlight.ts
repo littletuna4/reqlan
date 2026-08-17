@@ -3,7 +3,9 @@ import {
   createHighlighter,
   type Highlighter,
 } from "shiki";
-import type { CodeLanguage } from "@/content/site";
+import type { CodeLanguage } from "@/content/types";
+
+// rq:["../../../reqlan rq/site/site.rq".code_block_styling]
 
 const reqlanTheme = createCssVariablesTheme({
   name: "reqlan",
