@@ -352,6 +352,9 @@ example_ideaset (
 
 references_to_subidea {
     It should be acceptable to reference [example_ideaset.subidea1]
+    The indexer should mark such a reference againts the namespace leaf. I.e. in this case to subidea1, not to example_ideaset
+@tests
+@todo
 }
 
 no_name_idea_safe_warning {
