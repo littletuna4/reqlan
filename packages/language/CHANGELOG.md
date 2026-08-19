@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.5
+
+### Patch Changes
+
+- c6d524e: Useability bug fixes.
+
 ## 1.9.4
 
 ### Patch Changes

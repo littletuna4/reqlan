@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.11.1
+
+### Patch Changes
+
+- c6d524e: Useability bug fixes.
+
 ## 1.11.0
 
 ## 1.10.9

@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.10
+
+### Patch Changes
+
+- c6d524e: Useability bug fixes.
+- Updated dependencies [c6d524e]
+  - @reqlan/analytical@1.11.1
+
 ## 0.7.9
 
 ### Patch Changes
