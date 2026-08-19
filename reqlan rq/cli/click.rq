@@ -1,0 +1,6 @@
+click {
+a click function should return a slice of the model.
+it should accept a session if that is passed back on each cli request as a cursor to prevent re supplying the same data.
+
+@todo
+}
