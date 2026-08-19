@@ -23,6 +23,15 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.11.1
+
+#### Patch Changes
+
+- c6d524e: Useability bug fixes.
+- Updated dependencies [c6d524e]
+  - @reqlan/analytical@1.11.1
+  - @reqlan/language@1.9.5
+
 ### 1.11.0
 
 #### Minor Changes

@@ -93,6 +93,22 @@ impl NativeAnalysisRuntime {
     }
 
     #[napi]
+    pub fn list_broken_references(
+        &self,
+        path_glob: Option<String>,
+        include_comment_references: Option<bool>,
+    ) -> Result<serde_json::Value> {
+        let rows = self
+            .lock()?
+            .list_broken_references(
+                path_glob.as_deref(),
+                include_comment_references.unwrap_or(false),
+            )
+            .map_err(map_err)?;
+        serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    #[napi]
     pub fn export_graph(&self, request: serde_json::Value) -> Result<serde_json::Value> {
         let dto: ExportRequestDto = serde_json::from_value(request)
             .map_err(|error| Error::from_reason(error.to_string()))?;

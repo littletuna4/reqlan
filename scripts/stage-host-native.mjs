@@ -7,8 +7,9 @@
  *   node scripts/stage-host-native.mjs
  *   node scripts/stage-host-native.mjs --no-build   # stage an existing binary only
  *
- * CI / Azure (CI or TF_BUILD) skip cargo and exit 0 when no binary is present;
- * those pipelines fetch platform packages later via fetch-native-packages.mjs.
+ * CI / Azure (CI or TF_BUILD) skip cargo when no binary is present unless
+ * REQLAN_FORCE_NATIVE_BUILD=1. Azure stages matrix artifacts first via
+ * prepare-native-packages.mjs --binary-dir.
  *
  * rq:["../reqlan rq/distribution/distribution.rq".extension_host_target]
  * rq:["../reqlan rq/development/build.rq".incremental_extension_build]
@@ -98,7 +99,7 @@ if (noBuild) {
 }
 if (ciSkip) {
     console.log(
-        `skip host native build (${target.napiSuffix}): CI/Azure fetches platform packages later`
+        `skip host native build (${target.napiSuffix}): CI/Azure must stage matrix artifacts first`
     );
     process.exit(0);
 }

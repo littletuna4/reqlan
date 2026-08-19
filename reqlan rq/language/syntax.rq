@@ -275,6 +275,8 @@ comment_reference {
     Comment reference syntax is `rq:[idea]` or `rq:["path".idea]` (quoted path, optional extra qualification).
     Indexed as `comment_link` by ["../indexer/indexer.rq".index_code_files].
     Unresolved targets: [comment_reference_resolution_error].
+    Indexer listing: ["../core_analysis/core.rq".test_references].
+    Refactors: ["../extension/refactor_support.rq".comment_reference_refactor_support].
 }
 
 comment_reference_resolution_error {
@@ -298,6 +300,8 @@ comment_reference_resolution_error {
         ["../../packages/language/test/comment-reference-resolution.test.ts:accepts a resolved comment reference in a loaded document"]
     )
 }
+
+
 
 string_literals {
     String literals in import paths and quoted idea names may use double or single quotes.

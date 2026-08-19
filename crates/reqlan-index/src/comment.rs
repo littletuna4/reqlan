@@ -92,26 +92,11 @@ pub fn comment_link_edges(
     source: &str,
     catalog: &[IdeaSummary],
 ) -> Vec<EdgeRecord> {
-    let by_file_name: HashMap<(String, String), &IdeaSummary> = catalog
-        .iter()
-        .filter(|idea| idea.kind != IdeaKind::Ideaset)
-        .map(|idea| ((idea.file_uri.clone(), idea.name.clone()), idea))
-        .collect();
-    let mut by_name: HashMap<String, Vec<&IdeaSummary>> = HashMap::new();
-    for idea in catalog.iter().filter(|idea| idea.kind != IdeaKind::Ideaset) {
-        by_name.entry(idea.name.clone()).or_default().push(idea);
-    }
-
+    let (by_file_name, by_name) = comment_catalog_maps(catalog);
     let mut edges = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for reference in find_comment_references_in_text(source) {
-        let targets: Vec<&IdeaSummary> = if let Some(path) = &reference.path {
-            let resolved = resolve_comment_path(code_file_uri, path);
-            by_file_name.get(&(resolved, reference.idea.clone())).copied().into_iter().collect()
-        } else {
-            by_name.get(&reference.idea).cloned().unwrap_or_default()
-        };
-        for idea in targets {
+        for idea in comment_targets(&reference, code_file_uri, &by_file_name, &by_name) {
             let key = idea.id.clone();
             if !seen.insert(key.clone()) {
                 continue;
@@ -130,6 +115,62 @@ pub fn comment_link_edges(
         }
     }
     edges
+}
+
+/// Comment `rq:[…]` sites in `source` that do not resolve against the idea catalog.
+pub fn unresolved_comment_references(
+    code_file_uri: &str,
+    source: &str,
+    catalog: &[IdeaSummary],
+) -> Vec<CommentReference> {
+    let (by_file_name, by_name) = comment_catalog_maps(catalog);
+    find_comment_references_in_text(source)
+        .into_iter()
+        .filter(|reference| {
+            comment_targets(reference, code_file_uri, &by_file_name, &by_name).is_empty()
+        })
+        .collect()
+}
+
+fn comment_catalog_maps(
+    catalog: &[IdeaSummary],
+) -> (HashMap<(String, String), &IdeaSummary>, HashMap<String, Vec<&IdeaSummary>>) {
+    let by_file_name: HashMap<(String, String), &IdeaSummary> = catalog
+        .iter()
+        .filter(|idea| idea.kind != IdeaKind::Ideaset)
+        .map(|idea| ((idea.file_uri.clone(), idea.name.clone()), idea))
+        .collect();
+    let mut by_name: HashMap<String, Vec<&IdeaSummary>> = HashMap::new();
+    for idea in catalog.iter().filter(|idea| idea.kind != IdeaKind::Ideaset) {
+        by_name.entry(idea.name.clone()).or_default().push(idea);
+    }
+    (by_file_name, by_name)
+}
+
+fn comment_targets<'a>(
+    reference: &CommentReference,
+    code_file_uri: &str,
+    by_file_name: &HashMap<(String, String), &'a IdeaSummary>,
+    by_name: &HashMap<String, Vec<&'a IdeaSummary>>,
+) -> Vec<&'a IdeaSummary> {
+    if let Some(path) = &reference.path {
+        let resolved = resolve_comment_path(code_file_uri, path);
+        return by_file_name
+            .get(&(resolved, reference.idea.clone()))
+            .copied()
+            .into_iter()
+            .collect();
+    }
+    by_name.get(&reference.idea).cloned().unwrap_or_default()
+}
+
+impl CommentReference {
+    pub fn display_label(&self) -> String {
+        match &self.path {
+            Some(path) => format!("{path}.{}", self.idea),
+            None => self.idea.clone(),
+        }
+    }
 }
 
 pub fn code_file_content_hash(source: &str) -> String {
@@ -398,5 +439,28 @@ mod tests {
             parse_comment_reference_target("'./main.rq'.myidea"),
             Some((Some("./main.rq".into()), "myidea".into()))
         );
+    }
+
+    #[test]
+    fn lists_unresolved_comment_refs_and_skips_resolved() {
+        let catalog = vec![IdeaSummary {
+            id: "demo.rq#alpha".into(),
+            name: "alpha".into(),
+            kind: IdeaKind::Block,
+            file_uri: "demo.rq".into(),
+            line_start: 0,
+            summary: String::new(),
+            status: None,
+            status_key: String::new(),
+            tags: Vec::new(),
+            tags_keys: Vec::new(),
+            git_created_at: None,
+            git_modified_at: None,
+            git_change_count: None,
+        }];
+        let source = "// rq:[alpha]\n// rq:[missing_idea]\n";
+        let unresolved = unresolved_comment_references("src/app.ts", source, &catalog);
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].idea, "missing_idea");
     }
 }

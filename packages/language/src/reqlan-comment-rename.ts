@@ -1,6 +1,7 @@
 /**
  * Build text edits that rename idea tokens inside `rq:[...]` comment references.
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  */
 import type { Range } from 'vscode-languageserver';
 import { findCommentReferencesInText, type EmbeddedCommentReference } from './reqlan-comment-resolver.js';

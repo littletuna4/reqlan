@@ -12,6 +12,7 @@
  *   cpu: string[],
  *   rustTarget: string,
  *   binaryName: string,
+ *   ciImage: string,
  * }} NativeTarget */
 
 /** @type {NativeTarget[]} */
@@ -24,6 +25,7 @@ export const NATIVE_TARGETS = [
         cpu: ['x64'],
         rustTarget: 'x86_64-pc-windows-msvc',
         binaryName: 'reqlan_napi.win32-x64-msvc.node',
+        ciImage: 'windows-latest',
     },
     {
         vsCodeTarget: 'win32-arm64',
@@ -33,6 +35,7 @@ export const NATIVE_TARGETS = [
         cpu: ['arm64'],
         rustTarget: 'aarch64-pc-windows-msvc',
         binaryName: 'reqlan_napi.win32-arm64-msvc.node',
+        ciImage: 'windows-latest',
     },
     {
         vsCodeTarget: 'linux-x64',
@@ -42,6 +45,7 @@ export const NATIVE_TARGETS = [
         cpu: ['x64'],
         rustTarget: 'x86_64-unknown-linux-gnu',
         binaryName: 'reqlan_napi.linux-x64-gnu.node',
+        ciImage: 'ubuntu-latest',
     },
     {
         vsCodeTarget: 'linux-arm64',
@@ -51,6 +55,7 @@ export const NATIVE_TARGETS = [
         cpu: ['arm64'],
         rustTarget: 'aarch64-unknown-linux-gnu',
         binaryName: 'reqlan_napi.linux-arm64-gnu.node',
+        ciImage: 'ubuntu-latest',
     },
     {
         vsCodeTarget: 'darwin-x64',
@@ -60,6 +65,7 @@ export const NATIVE_TARGETS = [
         cpu: ['x64'],
         rustTarget: 'x86_64-apple-darwin',
         binaryName: 'reqlan_napi.darwin-x64.node',
+        ciImage: 'macOS-latest',
     },
     {
         vsCodeTarget: 'darwin-arm64',
@@ -69,6 +75,7 @@ export const NATIVE_TARGETS = [
         cpu: ['arm64'],
         rustTarget: 'aarch64-apple-darwin',
         binaryName: 'reqlan_napi.darwin-arm64.node',
+        ciImage: 'macOS-latest',
     },
 ];
 

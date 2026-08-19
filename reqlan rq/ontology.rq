@@ -308,8 +308,5 @@ reference_types {
 
 click {
     A cli/mcp function that dumps local context for a given idea.
-    
-    @todo 
-    @idea
-
+    see ["./cli/click.rq".click]
 }

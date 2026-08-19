@@ -32,5 +32,6 @@ pub fn type_collection() -> TypeCollection {
     types.register::<ExportResultDto>();
     types.register::<InteractionDescriptor>();
     types.register::<FileReferenceMatch>();
+    types.register::<BrokenReferenceDto>();
     types
 }

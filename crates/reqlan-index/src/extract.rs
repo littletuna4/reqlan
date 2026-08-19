@@ -635,6 +635,23 @@ fn join_posix(base: &str, relative: &str) -> String {
     normalize_glob_path(&format!("{left}/{right}"))
 }
 
+/// Match a POSIX-style path glob against a workspace-relative file URI.
+/// A glob with no `/` (for example `*.rq`) also matches nested paths.
+pub fn path_glob_matches(glob: &str, path: &str) -> bool {
+    let glob = glob.replace('\\', "/");
+    let glob = glob.trim();
+    if glob.is_empty() {
+        return true;
+    }
+    let path = path.replace('\\', "/");
+    let normalized = if glob.contains('/') || glob.starts_with("**") {
+        glob.to_string()
+    } else {
+        format!("**/{glob}")
+    };
+    glob_to_regex(&normalized, true).is_match(&path)
+}
+
 fn normalize_posix(path: &str) -> String {
     path.replace('\\', "/")
 }

@@ -5,6 +5,7 @@
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  */
 import { URI, UriUtils } from 'langium';
 import type { Range } from 'vscode-languageserver';
@@ -18,6 +19,8 @@ import {
 export interface PathReference {
     path: string;
     range: Range;
+    /** Idea name when this path came from `rq:["path".idea]`. */
+    idea?: string;
 }
 
 export interface PathRewriteEdit {

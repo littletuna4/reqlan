@@ -215,6 +215,22 @@ pub struct FileReferenceMatch {
     pub ideas: Vec<IdeaSummary>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BrokenReferenceDto {
+    pub file_uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_name: Option<String>,
+    pub kind: String,
+    pub label: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_line: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snippet: Option<String>,
+}
+
 pub fn from_index_summary(idea: reqlan_index::IdeaSummary) -> IdeaSummary {
     IdeaSummary {
         id: idea.id,

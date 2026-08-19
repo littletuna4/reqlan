@@ -1,6 +1,7 @@
 /**
  * Collects relative file path strings in .rq imports and embedded references, and rq: paths in comments.
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  */
 import type { Range } from 'vscode-languageserver';
@@ -84,6 +85,7 @@ export function findCommentPathReferencesInText(text: string, lineOffset = 0): P
         const startPos = offsetToPosition(text, absoluteStart);
         references.push({
             path: commentRef.path,
+            idea: commentRef.idea,
             range: {
                 start: startPos,
                 end: { line: startPos.line, character: startPos.character + quoted.length }
@@ -94,9 +96,14 @@ export function findCommentPathReferencesInText(text: string, lineOffset = 0): P
 }
 
 export function findPathReferencesInMovedFile(text: string, isRqFile: boolean): PathReference[] {
+    const commentPaths = findCommentPathReferencesInText(text);
     const references = isRqFile
-        ? [...findImportPathReferencesInText(text), ...findEmbeddedPathReferencesInText(text)]
-        : findCommentPathReferencesInText(text);
+        ? [
+            ...findImportPathReferencesInText(text),
+            ...findEmbeddedPathReferencesInText(text),
+            ...commentPaths
+        ]
+        : commentPaths;
     return dedupePathReferences(references);
 }
 

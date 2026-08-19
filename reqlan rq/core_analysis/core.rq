@@ -1,4 +1,5 @@
 from "../ontology.rq" import extension
+from "../cli/cli_package.rq" import commands
 import "./search.rq" as search_doc
 import "./export.rq" as export_doc
 import "./html_export.rq" as html_export
@@ -7,6 +8,7 @@ import "../indexer/indexer.rq" as indexer
 import "../language/parser_lexer.rq" as parser_lexer
 import "../extension/features-graph-analysers.rq" as graph_analysers
 import "../core-architecture.rq" as core_arch
+from "../language/syntax.rq" import comment_reference
 
 analysis_scope {
     `@reqlan/analytical` — shared index + analysis API.
@@ -36,13 +38,34 @@ export {
 }
 
 analysers {
-    Queries over [index]: list, file-related, local graph, completion, deprecation, git dates.
+    Queries over [index]: list, file-related, local graph, completion, deprecation, git dates, [test_references].
     [graph_analysers]
 }
 
 runtime {
     Headless facade: `createAnalysisRuntime` / `AnalysisApi`.
     [core_arch.analysis_runtime]
+}
+
+test_references {
+    The indexer lists broken references in a [index] base.
+    A broken reference is an unresolved idea or wildcard reference.
+    You can give an optional path glob so that the list covers only a subset of the base.
+    You can optionally include unresolved [comment_reference] sites.
+    The function is in the core analysis module. The CLI exposes it on [commands] (`analyse --broken-refs`).
+    Related: [analysers] [runtime] [indexer.index_code_files] ["../language/syntax.rq".comment_reference_resolution_error]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/cli/src/commands/analyse.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:lists_broken_idea_references_and_filters_by_glob"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:optionally_includes_broken_comment_references"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_lists_broken_refs_with_glob_and_comments"]
+        ["../../packages/cli/test/broken-references.test.ts:lists broken idea refs and optional comment refs with a path glob"]
+    )
 }
 
 consumption_silence {

@@ -3,6 +3,11 @@ import type { CompletionSummary, FileRelatedRequirements, GraphSlice, IdeaSummar
 import { withAnalysisApi } from '../runtime.js';
 import { emit } from '../output.js';
 
+/**
+ * rq:["../../../../reqlan rq/core_analysis/core.rq".test_references]
+ * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
+ */
+
 function formatIdeaList(apiFormat: (idea: IdeaSummary) => string, ideas: IdeaSummary[], heading: string): string {
     if (ideas.length === 0) {
         return `${heading}\n(none)`;
@@ -43,6 +48,26 @@ function formatCompletion(formatIdea: (idea: IdeaSummary) => string, summary: Co
     ].join('\n\n');
 }
 
+function formatBrokenRefs(
+    rows: Array<{
+        fileUri: string;
+        sourceName?: string | null;
+        kind: string;
+        label: string;
+        sourceLine?: number | null;
+    }>
+): string {
+    if (rows.length === 0) {
+        return '## Broken references\n(none)';
+    }
+    const lines = rows.map(row => {
+        const line = (row.sourceLine ?? 0) + 1;
+        const source = row.sourceName ? ` ${row.sourceName}` : '';
+        return `- ${row.fileUri}:${line}${source} [${row.kind}] ${row.label}`;
+    });
+    return `## Broken references (${rows.length})\n${lines.join('\n')}`;
+}
+
 export class AnalyseCommand extends Command {
     static override paths = [['analyse'], ['analyze']];
 
@@ -50,12 +75,15 @@ export class AnalyseCommand extends Command {
         description: 'Analyse a file, idea, or the whole workspace requirement graph.',
         details: `
             Without flags, reports workspace completion status.
-            Use --file for file-related requirements, or --idea for a named requirement subtree.
+            Use --file for file-related requirements, --idea for a named requirement subtree,
+            or --broken-refs to list unresolved references (optional --glob and --include-comments).
         `,
         examples: [
             ['Workspace completion', '$0 analyse'],
             ['File context', '$0 analyse --file ./reqlan\\ rq/cli/cli_package.rq'],
-            ['Idea subtree', '$0 analyze --idea cli_package']
+            ['Idea subtree', '$0 analyze --idea cli_package'],
+            ['Broken references', '$0 analyse --broken-refs'],
+            ['Broken refs in a glob, including comments', '$0 analyse --broken-refs --glob "src/**" --include-comments']
         ]
     });
 
@@ -64,6 +92,15 @@ export class AnalyseCommand extends Command {
     });
     idea = Option.String('-i,--idea', {
         description: 'Analyse the local graph around a named requirement'
+    });
+    brokenRefs = Option.Boolean('--broken-refs', false, {
+        description: 'List unresolved (broken) references in the base'
+    });
+    glob = Option.String('--glob', {
+        description: 'Optional path glob that limits --broken-refs to a subset of the base'
+    });
+    includeComments = Option.Boolean('--include-comments', false, {
+        description: 'With --broken-refs, also list unresolved rq:[…] comment references'
     });
     depth = Option.String('--depth', '2', {
         description: 'Hop depth for --idea graph (default 2)'
@@ -76,13 +113,25 @@ export class AnalyseCommand extends Command {
     });
 
     async execute(): Promise<number> {
-        if (this.file && this.idea) {
-            this.context.stderr.write('Specify only one of --file or --idea.\n');
+        if ([this.file, this.idea, this.brokenRefs ? 'broken' : undefined].filter(Boolean).length > 1) {
+            this.context.stderr.write('Specify only one of --file, --idea, or --broken-refs.\n');
             return 1;
         }
 
         try {
             await withAnalysisApi(this.cwd, async api => {
+                if (this.brokenRefs) {
+                    const rows = await api.listBrokenReferences({
+                        pathGlob: this.glob,
+                        includeCommentReferences: this.includeComments
+                    });
+                    if (this.json) {
+                        emit(rows, true);
+                    } else {
+                        emit(formatBrokenRefs(rows), false);
+                    }
+                    return;
+                }
                 if (this.file) {
                     const related = await api.getFileContext(this.file);
                     if (this.json) {

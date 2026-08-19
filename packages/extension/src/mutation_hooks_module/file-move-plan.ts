@@ -18,6 +18,7 @@ export interface FileMoveChange {
 /**
  * Plan outbound path rewrites inside moved files and inbound rewrites in referencers.
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  * rq:["../../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
  * rq:["../../../../reqlan rq/extension/features-mutation-hooks.rq".rename_file]
  */

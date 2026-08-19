@@ -20,6 +20,7 @@ export type {
     GraphSlice,
     IdeaSummary
 } from '../core/types.js';
+export type { BrokenReferenceDto } from './generated.js';
 export type {
     ExportClusterStrategy,
     ExportRuntimeMode,

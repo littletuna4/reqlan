@@ -4,3 +4,14 @@ it should accept a session if that is passed back on each cli request as a curso
 
 @todo
 }
+
+agent_advisory {
+    Agents are advised in the mcp to pass the [click_session] ID to the next click action to avoid regurgitation of the same context.
+    @todo
+}
+
+click_session {
+    Click sessions are stored in a sqlite and cached up to n entries. per base. (default to 100, configurable at base level.)
+    Sessions are keyed against ideas, and considers their content - such that if it changes, it is considered in the next click.
+    @todo
+}

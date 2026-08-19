@@ -16,11 +16,13 @@ import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { promptAndApplyFileMoveChanges } from '../mutation_hooks_module/show-mutation-approval.js';
 import type { FileMoveChange } from '../mutation_hooks_module/file-move-plan.js';
+import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
 
 /**
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_changes]
+ * rq:["../../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  */
 export function registerIdeaRefactorCommands(
     context: vscode.ExtensionContext,
@@ -61,7 +63,7 @@ async function deleteIdea(args: IdeaRefactorCommandArgs, index: IndexService): P
     const references = services.Reqlan.references.References
         .findReferences(idea, { includeDeclaration: true })
         .toArray();
-    const documentsText = await collectWorkspaceTextsForRefs(references, sourceDoc);
+    const documentsText = await collectWorkspaceTextsForRefs(references, sourceDoc, undefined, index, args.ideaName);
     const planned = planIdeaDeleteEdits(idea, references, documentsText);
     const changes = toFileMoveChanges(planned);
     if (changes.length === 0) {
@@ -101,18 +103,20 @@ async function moveIdea(args: IdeaRefactorCommandArgs, index: IndexService): Pro
     const references = services.Reqlan.references.References
         .findReferences(idea, { includeDeclaration: true })
         .toArray();
+    const documentsText = await collectWorkspaceTextsForRefs(references, sourceDoc, destDoc, index, args.ideaName);
     const planned = planIdeaMoveEdits({
         idea,
         sourceDocument: sourceDoc,
         destinationDocument: destDoc,
-        references
+        references,
+        documentsText
     });
     const changes = toFileMoveChanges(planned);
     if (changes.length === 0) {
         return;
     }
     await promptAndApplyFileMoveChanges(changes);
-    await reindexUris(index, [sourceUri, destUri]);
+    await reindexUris(index, [sourceUri, destUri, ...planned.map(entry => URI.parse(entry.uri))]);
 }
 
 async function loadRqDocument(
@@ -141,10 +145,16 @@ function findIdeaByName(document: LangiumDocument<Model>, name: string) {
 
 async function collectWorkspaceTextsForRefs(
     references: { sourceUri: URI }[],
-    sourceDoc: LangiumDocument
+    sourceDoc: LangiumDocument,
+    destDoc?: LangiumDocument,
+    index?: IndexService,
+    ideaName?: string
 ): Promise<Map<string, string>> {
     const texts = new Map<string, string>();
     texts.set(sourceDoc.uri.toString(), sourceDoc.textDocument.getText());
+    if (destDoc) {
+        texts.set(destDoc.uri.toString(), destDoc.textDocument.getText());
+    }
     for (const reference of references) {
         const uri = reference.sourceUri.toString();
         if (texts.has(uri)) {
@@ -157,7 +167,6 @@ async function collectWorkspaceTextsForRefs(
             // ignore missing docs
         }
     }
-    // Also scan open code files for comment refs.
     for (const doc of vscode.workspace.textDocuments) {
         if (doc.uri.scheme !== 'file' || texts.has(doc.uri.toString())) {
             continue;
@@ -166,7 +175,45 @@ async function collectWorkspaceTextsForRefs(
             texts.set(doc.uri.toString(), doc.getText());
         }
     }
+    if (index && ideaName) {
+        await addCommentLinkedFileTexts(texts, index, sourceDoc.uri, ideaName);
+    }
     return texts;
+}
+
+async function addCommentLinkedFileTexts(
+    texts: Map<string, string>,
+    index: IndexService,
+    sourceUri: URI,
+    ideaName: string
+): Promise<void> {
+    try {
+        const store = index.indexStore;
+        const indexed = toIndexFileUri(vscode.Uri.parse(sourceUri.toString()));
+        for (const idea of await store.getIdeasInFile(indexed)) {
+            if (idea.name !== ideaName) {
+                continue;
+            }
+            for (const edge of await store.getEdgesFrom(idea.id)) {
+                if (edge.kind !== 'comment_link' || !edge.targetFile) {
+                    continue;
+                }
+                const vsUri = resolveIndexFileUri(edge.targetFile);
+                const key = vsUri.toString();
+                if (texts.has(key)) {
+                    continue;
+                }
+                try {
+                    const doc = await vscode.workspace.openTextDocument(vsUri);
+                    texts.set(key, doc.getText());
+                } catch {
+                    // ignore missing docs
+                }
+            }
+        }
+    } catch {
+        // no active base / index
+    }
 }
 
 function toFileMoveChanges(
@@ -183,7 +230,7 @@ async function reindexUris(index: IndexService, uris: URI[]): Promise<void> {
     const seen = new Set<string>();
     for (const uri of uris) {
         const key = uri.toString();
-        if (seen.has(key) || !uri.path.endsWith('.rq')) {
+        if (seen.has(key)) {
             continue;
         }
         seen.add(key);

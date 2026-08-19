@@ -13,6 +13,7 @@ import type {
     ExportRequestDto,
     ExportResultDto,
     FileReferenceMatch,
+    BrokenReferenceDto,
     FileRelatedRequirements,
     GraphSlice,
     IdeaSummary,
@@ -42,6 +43,7 @@ describe('specta generated native types', () => {
         expect(source).toContain('export type ExportResultDto');
         expect(source).toContain('export type InteractionDescriptor');
         expect(source).toContain('export type FileReferenceMatch');
+        expect(source).toContain('export type BrokenReferenceDto');
         expect(source).toContain('fileUri');
         expect(source).toContain('lineStart');
     });
@@ -52,6 +54,7 @@ describe('specta generated native types', () => {
             RequirementMatch,
             SearchRequirementsOptions,
             FileReferenceMatch,
+            BrokenReferenceDto,
             FileRelatedRequirements,
             GraphSlice,
             CompletionSummary,

@@ -78,6 +78,7 @@ def add_text_to_circle(
             "transform": f"rotate({rotation} {cx} {cy})",
             "fill": color,
             "font-size": str(fontsize),
+            "font-family": "Arial, sans-serif",
         },
     )
 
@@ -129,4 +130,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    import os
+    add_text_to_circle(
+        input_svg=os.path.join(os.path.dirname(__file__), "edtest.svg"),
+        output_svg=os.path.join(os.path.dirname(__file__), "edtest-output.svg"),
+        diameter=200,
+        text="reqlan",
+        rotation=-290,
+        direction=1,
+        color="#000000",
+        fontsize=24,
+    )

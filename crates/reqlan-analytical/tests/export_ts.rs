@@ -17,6 +17,7 @@ const REQUIRED_TYPES: &[&str] = &[
     "SearchRequirementsOptions",
     "FileRelatedRequirements",
     "FileReferenceMatch",
+    "BrokenReferenceDto",
     "GraphSlice",
     "CompletionSummary",
     "DeprecationImpact",

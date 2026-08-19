@@ -1,20 +1,130 @@
 # Triggered by ext/v* tags created by .github/workflows/release.yml
 # per reqlan rq/distribution/distribution.rq extension_distribution / vsix_export.
-# Native .node files are built and published by GitHub Actions (deploy-npm.yml)
-# when a changeset creates an analytical/v* tag. This pipeline waits for and
-# consumes the latest published @reqlan/analytical-<platform> packages.
+# Git at this tag is canonical: package.json versions and the native matrix
+# are built here. Azure compiles reqlan-napi for every native_targets tuple
+# and packs VSIXes from those artifacts. It does not fetch binaries from npm.
 
 trigger:
   tags:
     include:
-      - refs/tags/ext/v*
+    - refs/tags/ext/v*
 
 variables:
   - group: "reqlan pipeline variables"
 
 jobs:
+  - job: build_native
+    displayName: Build napi $(napiSuffix)
+    timeoutInMinutes: 60
+    cancelTimeoutInMinutes: 5
+    strategy:
+      matrix:
+        win32_x64:
+          napiSuffix: win32-x64-msvc
+          rustTarget: x86_64-pc-windows-msvc
+          vmImage: windows-latest
+          installAarch64Gcc: "false"
+        win32_arm64:
+          napiSuffix: win32-arm64-msvc
+          rustTarget: aarch64-pc-windows-msvc
+          vmImage: windows-latest
+          installAarch64Gcc: "false"
+        linux_x64:
+          napiSuffix: linux-x64-gnu
+          rustTarget: x86_64-unknown-linux-gnu
+          vmImage: ubuntu-latest
+          installAarch64Gcc: "false"
+        linux_arm64:
+          napiSuffix: linux-arm64-gnu
+          rustTarget: aarch64-unknown-linux-gnu
+          vmImage: ubuntu-latest
+          installAarch64Gcc: "true"
+        darwin_x64:
+          napiSuffix: darwin-x64
+          rustTarget: x86_64-apple-darwin
+          vmImage: macOS-latest
+          installAarch64Gcc: "false"
+        darwin_arm64:
+          napiSuffix: darwin-arm64
+          rustTarget: aarch64-apple-darwin
+          vmImage: macOS-latest
+          installAarch64Gcc: "false"
+    pool:
+      vmImage: $(vmImage)
+
+    steps:
+      - checkout: self
+        clean: true
+        timeoutInMinutes: 5
+
+      - task: UseNode@1
+        inputs:
+          version: "24.x"
+        displayName: Setup Node.js
+        timeoutInMinutes: 10
+
+      - bash: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+          echo "##vso[task.prependpath]$HOME/.cargo/bin"
+        displayName: Install Rust (Unix)
+        condition: ne(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 10
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe
+          ./rustup-init.exe -y --default-toolchain stable --profile minimal
+          Write-Host "##vso[task.prependpath]$env:USERPROFILE\.cargo\bin"
+        displayName: Install Rust (Windows)
+        condition: eq(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 10
+
+      - bash: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        displayName: Install linux arm64 cross linker
+        condition: eq(variables['installAarch64Gcc'], 'true')
+        timeoutInMinutes: 10
+
+      - bash: |
+          set -euo pipefail
+          rustup target add "$(rustTarget)"
+          if [ "$(installAarch64Gcc)" = "true" ]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          fi
+          cargo build -p reqlan-napi --release --target "$(rustTarget)"
+        displayName: Build reqlan-napi (Unix)
+        workingDirectory: crates
+        condition: ne(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 40
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          rustup target add "$(rustTarget)"
+          cargo build -p reqlan-napi --release --target "$(rustTarget)"
+        displayName: Build reqlan-napi (Windows)
+        workingDirectory: crates
+        condition: eq(variables['Agent.OS'], 'Windows_NT')
+        timeoutInMinutes: 40
+
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          node scripts/collect-napi-binary.mjs --target "$(napiSuffix)"
+        displayName: Collect napi binary
+        timeoutInMinutes: 5
+
+      - task: PublishPipelineArtifact@1
+        displayName: Publish napi-$(napiSuffix)
+        timeoutInMinutes: 8
+        inputs:
+          targetPath: artifacts/napi/$(napiSuffix)
+          artifact: napi-$(napiSuffix)
+
   - job: build_test_package
     displayName: Build, test, package extension
+    dependsOn: build_native
     timeoutInMinutes: 90
     cancelTimeoutInMinutes: 5
     pool:
@@ -46,11 +156,47 @@ jobs:
         displayName: Install dependencies
         timeoutInMinutes: 15
 
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-win32-x64-msvc
+        inputs:
+          artifact: napi-win32-x64-msvc
+          path: $(Build.SourcesDirectory)/artifacts/napi/win32-x64-msvc
+
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-win32-arm64-msvc
+        inputs:
+          artifact: napi-win32-arm64-msvc
+          path: $(Build.SourcesDirectory)/artifacts/napi/win32-arm64-msvc
+
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-linux-x64-gnu
+        inputs:
+          artifact: napi-linux-x64-gnu
+          path: $(Build.SourcesDirectory)/artifacts/napi/linux-x64-gnu
+
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-linux-arm64-gnu
+        inputs:
+          artifact: napi-linux-arm64-gnu
+          path: $(Build.SourcesDirectory)/artifacts/napi/linux-arm64-gnu
+
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-darwin-x64
+        inputs:
+          artifact: napi-darwin-x64
+          path: $(Build.SourcesDirectory)/artifacts/napi/darwin-x64
+
+      - task: DownloadPipelineArtifact@2
+        displayName: Download napi-darwin-arm64
+        inputs:
+          artifact: napi-darwin-arm64
+          path: $(Build.SourcesDirectory)/artifacts/napi/darwin-arm64
+
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          node scripts/fetch-native-packages.mjs --latest --retries 60 --retry-delay-ms 20000
-        displayName: Fetch latest native platform packages from npm
-        timeoutInMinutes: 30
+          node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi
+        displayName: Stage git-versioned native packages from matrix artifacts
+        timeoutInMinutes: 5
 
       - pwsh: |
           $ErrorActionPreference = "Stop"

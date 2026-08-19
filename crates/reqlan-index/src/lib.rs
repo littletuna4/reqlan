@@ -2,6 +2,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".rust_crate_layout]
 
+pub mod broken;
 pub mod comment;
 pub mod diagnostics;
 pub mod extract;
@@ -16,12 +17,15 @@ pub mod store;
 pub mod sync;
 pub mod types;
 
+pub use broken::{list_broken_references, BrokenReference, ListBrokenReferencesOptions};
 pub use comment::{
     comment_link_edges, find_comment_references_in_text, is_comment_index_path,
-    parse_comment_reference_target, CommentReference,
+    parse_comment_reference_target, unresolved_comment_references, CommentReference,
 };
 pub use diagnostics::{now_ms, DiagnosticsError, FileIssueDraft, IndexDiagnosticsStore};
-pub use extract::{extract_indexed_document, ExtractOptions, WildcardIdeaCandidate};
+pub use extract::{
+    extract_indexed_document, path_glob_matches, ExtractOptions, WildcardIdeaCandidate,
+};
 pub use git_dates::{fill_git_dates, parse_git_author_dates, CREATE_NO_WINDOW};
 pub use ids::{edge_id, idea_id};
 pub use ignore::{

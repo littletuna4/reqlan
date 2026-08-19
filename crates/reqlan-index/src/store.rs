@@ -259,6 +259,19 @@ impl IndexStore {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
+    pub fn list_unresolved_idea_edges(&self) -> Result<Vec<(EdgeRecord, IdeaSummary)>, StoreError> {
+        let mut out = Vec::new();
+        for edge in self.get_all_edges()? {
+            if edge.is_resolved != Some(false) {
+                continue;
+            }
+            if let Some(idea) = self.get_idea(&edge.source_id)? {
+                out.push((edge, idea));
+            }
+        }
+        Ok(out)
+    }
+
     fn query_edges<P: rusqlite::Params>(
         &self,
         sql: &str,

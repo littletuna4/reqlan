@@ -1,5 +1,6 @@
 from "./syntax/features-syntax.rq" import refactor_support
 from "./features-mutation-hooks.rq" import move_file, rename_file
+from "../language/syntax.rq" import comment_reference
 
 refactor_changes {
     On rename, move, or delete of files or symbols, the extension should update the
@@ -7,22 +8,25 @@ refactor_changes {
     other idea references that are affected.
     The index should be resilient to duplication, particularly when ideas move between files:
     the old hosting file URI must be cleared before or when the destination is reindexed.
-    [refactor_file_moves] [refactor_symbol_rename] [refactor_symbol_move] [refactor_symbol_delete]
+    [refactor_file_moves] [refactor_symbol_rename] [refactor_symbol_move] [refactor_symbol_delete] [comment_reference_refactor_support]
     Implemented by ["../../packages/analytical/src/index-store/workspace-index.ts"], ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"], ["../../packages/language/src/reqlan-idea-refactor.ts"], and ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"].
 }
 
 refactor_file_moves {
     The extension should watch for file moves and renames, migrate the index for moved
     .rq files, and update imports and path references both inside the moved file (outbound)
-    and in other files that pointed at it (inbound), including comment paths in code files.
+    and in other files that pointed at it (inbound), including comment paths in code files
+    ([comment_reference_refactor_support]).
     There should be a single prompt per batch asking whether to apply path updates,
     aligned with [move_file] and [rename_file].
-    Implemented by ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"], ["../../packages/extension/src/mutation_hooks_module/file-move-plan.ts"], ["../../packages/extension/src/mutation_hooks_module/file-mutation-gate.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-path-references.ts"].
+    Implemented by ["../../packages/extension/src/mutation_hooks_module/register-file-mutation-hooks.ts"], ["../../packages/extension/src/mutation_hooks_module/file-move-plan.ts"], ["../../packages/extension/src/mutation_hooks_module/file-mutation-gate.ts"], ["../../packages/extension/src/mutation_hooks_module/collect-inbound-referencers-core.ts"], ["../../packages/language/src/file-path-rewrite.ts"], and ["../../packages/language/src/reqlan-path-references.ts"].
     @tests (
         ["../../packages/language/test/file-path-rewrite.test.ts:updates inbound import path when the target file moves"]
         ["../../packages/language/test/file-path-rewrite.test.ts:preserves extensionless inbound paths"]
         ["../../packages/language/test/file-path-rewrite.test.ts:buildInboundPathRewriteEdits quotes replacement paths"]
         ["../../packages/language/test/file-path-rewrite.test.ts:updates paths when a file moves to a sibling directory"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:finds comment paths in moved rq files together with imports"]
+        ["../../packages/extension/test/collect-inbound-referencers.test.ts:includes comment_link target files when an rq file moves"]
     )
 }
 
@@ -30,7 +34,7 @@ refactor_symbol_rename {
     Syntactic symbols (ideas, ideasets, import aliases, and import paths) should be
     renamable via the editor rename action (F2 / LSP rename).
     Rename should update AST references across .rq files and matching `rq:["path".idea]`
-    comment idea tokens in source files.
+    comment idea tokens in source files ([comment_reference_refactor_support]).
     [refactor_support]
     Implemented by ["../../packages/language/src/reqlan-rename-provider.ts"], ["../../packages/language/src/reqlan-comment-rename.ts"], ["../../packages/language/src/reqlan-name-provider.ts"], and ["../../packages/extension/src/refactor_module/register-comment-rename-provider.ts"].
     @tests (
@@ -44,22 +48,52 @@ refactor_symbol_rename {
 refactor_symbol_move {
     An idea declaration should offer a code action to move it to another .rq file.
     Moving should cut the declaration from the source, insert it into the destination,
-    rewrite imports and references (including comment references), and reindex without
+    rewrite imports and references (including comment references per [comment_reference_refactor_support]), and reindex without
     leaving duplicate idea rows for the old hosting file.
     [refactor_support] [refactor_changes]
     Implemented by ["../../packages/language/src/reqlan-idea-refactor.ts"], ["../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"].
     @tests (
         ["../../packages/language/test/idea-refactor.test.ts:move plan cuts from source and inserts into destination"]
+        ["../../packages/language/test/idea-refactor.test.ts:move plan rewrites qualified comment paths for the moved idea"]
     )
 }
 
 refactor_symbol_delete {
     An idea declaration should offer a code action to delete it and update references.
     Deleting should remove the declaration, clear or rewrite AST and comment references
-    that targeted it, and reindex affected files.
+    that targeted it ([comment_reference_refactor_support]), and reindex affected files.
     [refactor_support] [refactor_changes]
     Implemented by ["../../packages/language/src/reqlan-idea-refactor.ts"], ["../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"].
     @tests (
         ["../../packages/language/test/idea-refactor.test.ts:delete plan removes declaration and bracket references"]
+        ["../../packages/language/test/idea-refactor.test.ts:delete plan removes matching comment references"]
+    )
+}
+
+comment_reference_refactor_support {
+    File and symbol refactors must update [comment_reference] tokens in code files and in `.rq` comments.
+    When a file moves or is renamed, rewrite `rq:["path".idea]` paths relative to the referencing file: outbound paths inside the moved file, and inbound paths in other files that pointed at it.
+    When an idea is renamed, update matching comment idea tokens.
+    When an idea moves to another `.rq` file, rewrite qualified comment paths that targeted the old file for that idea. Pathless `rq:[idea]` tokens stay as name-only links.
+    When an idea is deleted, remove comment references that targeted it.
+    Relates to [refactor_file_moves], [refactor_symbol_rename], [refactor_symbol_move], [refactor_symbol_delete], [refactor_changes], ["../features-mutation-hooks.rq".move_file], ["../features-mutation-hooks.rq".rename_file], ["../features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-path-references.ts"]
+        ["../../packages/language/src/file-path-rewrite.ts"]
+        ["../../packages/language/src/reqlan-idea-refactor.ts"]
+        ["../../packages/language/src/reqlan-comment-rename.ts"]
+        ["../../packages/extension/src/mutation_hooks_module/file-move-plan.ts"]
+        ["../../packages/extension/src/mutation_hooks_module/collect-inbound-referencers.ts"]
+        ["../../packages/extension/src/mutation_hooks_module/collect-inbound-referencers-core.ts"]
+        ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/file-path-rewrite.test.ts:rewrites inbound comment paths when the target rq file moves"]
+        ["../../packages/language/test/file-path-rewrite.test.ts:finds comment paths in moved rq files together with imports"]
+        ["../../packages/language/test/idea-refactor.test.ts:move plan rewrites qualified comment paths for the moved idea"]
+        ["../../packages/language/test/idea-refactor.test.ts:delete plan removes matching comment references"]
+        ["../../packages/extension/test/collect-inbound-referencers.test.ts:includes comment_link target files when an rq file moves"]
+        ["../../packages/language/test/comment-rename.test.ts:builds rename edits for matching comment idea tokens"]
     )
 }

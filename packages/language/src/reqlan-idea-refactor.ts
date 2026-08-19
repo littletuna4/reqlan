@@ -3,9 +3,9 @@
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
  * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_changes]
+ * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
  */
-import type { AstNode, LangiumDocument, ReferenceDescription } from 'langium';
-import { AstUtils } from 'langium';
+import { AstUtils, URI, type AstNode, type LangiumDocument, type ReferenceDescription } from 'langium';
 import type { Range, TextEdit } from 'vscode-languageserver';
 import {
     isIdea,
@@ -15,11 +15,13 @@ import {
     type Model,
     type OneLinerIdea
 } from './generated/ast.js';
+import { buildInboundPathRewriteEdits } from './file-path-rewrite.js';
 import {
     buildFromImportEdit,
     findImportInsertPosition,
     relativeRqImportPath
 } from './reqlan-import-edits.js';
+import { findCommentPathReferencesInText } from './reqlan-path-references.js';
 
 export type RefactorIdeaDeclaration = Idea | OneLinerIdea;
 
@@ -81,6 +83,8 @@ export function planIdeaMoveEdits(input: {
     sourceDocument: LangiumDocument;
     destinationDocument: LangiumDocument;
     references: readonly ReferenceDescription[];
+    /** Extra file texts (code or `.rq`) that may hold `rq:["path".idea]` links. */
+    documentsText?: Map<string, string>;
 }): DocumentTextEdits[] {
     const ideaText = ideaDeclarationText(input.sourceDocument, input.idea);
     if (!ideaText) {
@@ -112,7 +116,38 @@ export function planIdeaMoveEdits(input: {
         }
     }
 
+    if (input.documentsText) {
+        for (const [uri, text] of input.documentsText) {
+            for (const edit of planCommentPathRewritesForMovedIdea(
+                text,
+                uri,
+                input.sourceDocument.uri,
+                input.destinationDocument.uri,
+                input.idea.name
+            )) {
+                pushEdit(byUri, uri, edit);
+            }
+        }
+    }
+
     return toDocumentEdits(byUri);
+}
+
+function planCommentPathRewritesForMovedIdea(
+    text: string,
+    referencingUri: string,
+    oldTargetUri: URI,
+    newTargetUri: URI,
+    ideaName: string
+): TextEdit[] {
+    const refs = findCommentPathReferencesInText(text).filter(reference => reference.idea === ideaName);
+    return buildInboundPathRewriteEdits(
+        refs,
+        URI.parse(referencingUri),
+        oldTargetUri,
+        newTargetUri,
+        (_path, newPath) => JSON.stringify(newPath)
+    );
 }
 
 function sourceKeepsReferences(

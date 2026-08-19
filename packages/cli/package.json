@@ -27,6 +27,7 @@
         "clean": "shx rm -fr *.tsbuildinfo out",
         "build": "tsc -b tsconfig.json",
         "build:clean": "pnpm run clean && pnpm run build",
+        "pretest": "tsc -b tsconfig.json",
         "test": "vitest run"
     },
     "dependencies": {

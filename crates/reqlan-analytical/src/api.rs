@@ -1,7 +1,7 @@
 use crate::types::{
-    from_index_summary, CompletionSummary, DeprecationImpact, EdgeDto, ExportRequestDto,
-    ExportResultDto, FileReferenceMatch, FileRelatedRequirements, GraphSlice, IdeaSummary,
-    InteractionDescriptor, RequirementMatch, SearchRequirementsOptions,
+    from_index_summary, BrokenReferenceDto, CompletionSummary, DeprecationImpact, EdgeDto,
+    ExportRequestDto, ExportResultDto, FileReferenceMatch, FileRelatedRequirements, GraphSlice,
+    IdeaSummary, InteractionDescriptor, RequirementMatch, SearchRequirementsOptions,
 };
 use reqlan_export::{
     build_export_snapshot, write_csv_export, write_html_export, write_json_export,
@@ -9,7 +9,10 @@ use reqlan_export::{
 };
 use reqlan_index::ignore::{application_memory_path, ideas_index_path};
 use reqlan_index::sync::{sync_workspace, to_indexed_uri, SyncOptions};
-use reqlan_index::{is_deprecated, parse_attributes, IndexStore, StoreError};
+use reqlan_index::{
+    is_deprecated, list_broken_references, parse_attributes, IndexStore,
+    ListBrokenReferencesOptions, StoreError,
+};
 use reqlan_search::{rerank_matches_with_context, resolve_search_context_refs, semantic_search};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -282,6 +285,31 @@ impl AnalysisRuntime {
         })
     }
 
+    pub fn list_broken_references(
+        &mut self,
+        path_glob: Option<&str>,
+        include_comment_references: bool,
+    ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
+        self.ensure_ready()?;
+        let rows = list_broken_references(
+            &self.store,
+            &self.workspace_root,
+            ListBrokenReferencesOptions { path_glob, include_comment_references },
+        )?;
+        Ok(rows
+            .into_iter()
+            .map(|row| BrokenReferenceDto {
+                file_uri: row.file_uri,
+                source_id: row.source_id,
+                source_name: row.source_name,
+                kind: row.kind,
+                label: row.label,
+                source_line: row.source_line,
+                snippet: row.snippet,
+            })
+            .collect())
+    }
+
     pub fn get_deprecation_impact(&mut self) -> Result<Vec<DeprecationImpact>, AnalysisError> {
         self.ensure_ready()?;
         let ideas = self.store.list_all_ideas()?;
@@ -415,6 +443,10 @@ impl AnalysisRuntime {
             desc(
                 "local_graph",
                 "Get the local requirement graph around the first requirement in a file.",
+            ),
+            desc(
+                "list_broken_references",
+                "List unresolved idea references, optionally scoped by path glob and comment references.",
             ),
             desc("export_html", "Export the requirement graph as a multi-file static HTML site."),
         ]

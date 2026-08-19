@@ -12,6 +12,7 @@ version_management {
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
   The extension does not carry an independent semver. `reqlan-extension`, `@reqlan/analytical`, and every `@reqlan/analytical-<platform>-<arch>` package are one Changesets `fixed` group: they always share one version. Marketplace already shipped `1.10.x`, so that line is the shared number (npm `@reqlan/analytical` moves onto it; it cannot drop back to `0.10.x`).
   Platform native packages are not a separate tag channel; they ride `analytical/v*` ([rust_binary_distribution]).
+  VSIX packaging uses the package.json versions in that git commit ([vsix_native_not_from_npm]).
   `@reqlan/language`, `@reqlan/cli`, `@reqlan/mcp`, and the site keep their own versions.
   Contributors record release intent by adding a changeset file when a publishable package changes.
 }
@@ -42,6 +43,7 @@ native_targets {
   - `darwin-x64`
   - `darwin-arm64`
   napi-rs package suffixes map as: `linux-*-gnu`, `darwin-*`, `win32-*-msvc` (gnu-only for linux; musl/alpine out of scope for the first matrix).
+  Azure `build_native` uses the same tuples and `ciImage` from ["../../scripts/native-targets.mjs"].
   Used by [rust_binary_distribution], [vsix_export], [extension_host_target], and ["./native_host_binary.rq".native_host_binary].
   Implementation: ["../../scripts/native-targets.mjs"].
   @status done
@@ -55,8 +57,8 @@ rust_binary_distribution {
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
-  Per-target VSIX packaging consumes the same platform packages ([vsix_export]).
-  Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../.changeset/config.json"], ["../../.github/workflows/deploy-npm.yml"] build-native job.
+  Per-target VSIX packaging uses the same package layout under ["../../packages/analytical-native/"], filled by Azure from this git commit ([vsix_export], [vsix_native_not_from_npm]). npm tarballs of those packages are for CLI/MCP only.
+  Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../.changeset/config.json"], ["../../.github/workflows/deploy-npm.yml"] build-native job, ["../../azure-pipelines.yml"] build_native job.
   @status in-progress
   @todo first analytical/v* release with platform packages not yet published to npm
   @todo Trusted Publisher registration for platform packages on npmjs.com
@@ -66,14 +68,15 @@ rust_binary_distribution {
 
     constraints
       - optionalDependencies (not devDependencies) for runtime consumers.
-      - Trusted publishing and `analytical/v*` tagging stay [npm_distribution] / [release_tagging].
+      - VSIX binaries come from Azure `build_native` on the `ext/v*` git tag, not from npm.
+      - Trusted publishing and `analytical/v*` tagging stay [npm_distribution] / [release_tagging] for CLI/MCP.
       - gnu-only linux; musl and GitHub-release postinstall out of scope.
       - Website binary listing deferred.
 
     steps
       1. Scaffold six platform packages with os/cpu and the napi binary. (done)
       2. Wire optionalDependencies on `@reqlan/analytical`; version-lock via Changesets `fixed` group. (done)
-      3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml)
+      3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml and azure-pipelines.yml)
       4. Publish platform packages on `analytical/v*` after `@reqlan/analytical`.
       5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)
   }
@@ -147,13 +150,45 @@ root_readme {
   Generated from ["../../README.template.md"] by ["../../scripts/generate-root-readme.ts"].
 }
 
+vsix_native_not_from_npm {
+  Azure must not use the npm deploy path as an input when it packs VSIXes.
+  Git at the `ext/v*` tag is canonical. Azure compiles the [native_targets] matrix from that commit ([vsix_export], [extension_distribution]).
+  npm stays the install path for CLI and MCP only ([npm_distribution], [rust_binary_distribution]).
+  @status done
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+  )
+  @justification {
+    One git commit is one version set: `reqlan-extension`, `@reqlan/analytical`, and each `@reqlan/analytical-<platform>-<arch>` package.json ([version_management]).
+    Azure can compile the six host binaries from that commit (`build_native` in ["../../azure-pipelines.yml"]).
+    The VSIX then contains the engine that matches the tag, not a different npm tarball.
+  }
+  @negative {
+    Do not feed [npm_distribution] into Marketplace or Open VSX packaging.
+    Do not wait for an `analytical/v*` tag, and do not poll `npm view` or `npm pack` (`scripts/fetch-native-packages.mjs --latest`).
+    That path couples two tag channels and two clocks.
+    Changesets can bump `@reqlan/analytical` and `reqlan-extension` while platform package.json files stay on the previous patch.
+    `--latest` then packs a different semver than the `ext/v*` tag, or the pipeline waits on packages that are not on the registry yet.
+    Tests that require git versions to match then fail for a structural lag, not for a product defect.
+  }
+  @history {
+    First native VSIX design: GitHub Actions compiled napi on `analytical/v*`, published platform packages, and Azure fetched `--latest` from npm.
+    Azure did not compile Rust.
+    That design treated npm as a hand-off between the two pipelines.
+    After a changeset release, platform packages stayed on the previous patch (received `1.11.0`) while analytical and the extension moved (expected `1.11.1`).
+    ["../../packages/analytical/test/native-packaging.test.ts"] failed on that mismatch.
+    The lag is structural: `changeset version`, a glob in the Changesets `fixed` group, and a registry wait are not one atomic git snapshot.
+    Decision: keep npm for CLI and MCP; compile the matrix in Azure from git for VSIX.
+  }
+}
+
 vsix_export {
   One VSIX is built per [native_targets] tuple via `vsce package --target <tuple> --no-dependencies`.
   Each VSIX keeps today's esbuild-bundled JS (TS dependency graph stays bundled); only the matching platform native package is staged into the VSIX so other targets' binaries are excluded.
   Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target], ["./native_host_binary.rq".native_host_binary_distributed]).
   Artifact name shape: `reqlan-extension-<version>-<target>.vsix`.
   The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.
-  Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
+  Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/collect-napi-binary.mjs"], ["../../packages/extension/.vscodeignore"] (`native/`), ["../../azure-pipelines.yml"].
   @status in-progress
   @todo first ext/v* release with six target VSIXes not yet shipped
   @plan {
@@ -162,13 +197,15 @@ vsix_export {
 
     constraints
       - Keep --no-dependencies for the bundled TS graph; stage only the matching native package.
-      - Prefer npm platform packages published by GitHub Actions on `analytical/v*` (changeset → [npm_distribution]). Azure does not compile Rust; it waits for and packs the latest `@reqlan/analytical-<platform>` from npm (["../../scripts/fetch-native-packages.mjs"] `--latest`).
+      - Git at the `ext/v*` tag is canonical ([vsix_native_not_from_npm]). Azure compiles the [native_targets] matrix from that commit and packs those binaries.
+      - npm platform packages remain a CLI/MCP install path on `analytical/v*` ([npm_distribution] / [rust_binary_distribution]). They are not an input to Azure.
       - `vscode:prepublish` must not restage the host native addon (`--skip-native`); each VSIX `native/target.json` must equal that VSIX `--target`.
 
     steps
       1. Stage matching `@reqlan/analytical-<platform>-<arch>` into extension `native/` before vsce. (done)
       2. Package with `vsce package --target <tuple> --no-dependencies` for each [native_targets] entry; skip native restage in vscode:prepublish; verify packed `native/target.json`. (done)
-      3. Publish each target to Marketplace and Open VSX ([extension_distribution], [openvsx_registry]).
+      3. Compile the [native_targets] matrix in Azure and prepare packages from git versions + those artifacts. (done)
+      4. Publish each target to Marketplace and Open VSX ([extension_distribution], [openvsx_registry]).
   }
 }
 
@@ -189,8 +226,8 @@ extension_distribution {
   The extension version comes from packages/extension/package.json at the tag; the pipeline must not overwrite it from the tag suffix.
   The implementation lives in ["../../azure-pipelines.yml"].
   The pipeline builds language, packages, and the extension only; it does not run the site static build or install Playwright ([site_distribution] owns site CI).
-  Native core-engine binaries are built and published by GitHub Actions when a changeset creates an `analytical/v*` tag ([npm_distribution] / [rust_binary_distribution]). Azure waits for the latest `@reqlan/analytical-<platform>` on npm, then stages those into per-target VSIXes.
-  Before tests it ensures the host workspace optionalDependency is present from that fetch (`scripts/ensure-host-native.mjs --no-build`).
+  Native core-engine binaries for VSIX come from the Azure `build_native` matrix on this git tag ([vsix_native_not_from_npm], [rust_binary_distribution], [vsix_export]). GitHub Actions still builds and publishes platform packages on `analytical/v*` for CLI/MCP ([npm_distribution]).
+  Before tests Azure stages matrix artifacts into workspace packages (`prepare-native-packages.mjs --binary-dir`) and checks the host optionalDependency (`scripts/ensure-host-native.mjs --no-build`).
   VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
   @status in-progress

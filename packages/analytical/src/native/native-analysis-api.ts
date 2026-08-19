@@ -20,6 +20,7 @@ import type {
     FileRelatedRequirements as NativeFileRelated,
     GraphSlice as NativeGraphSlice,
     IdeaSummary as NativeIdeaSummary,
+    BrokenReferenceDto as NativeBrokenReference,
     RequirementMatch as NativeRequirementMatch
 } from './generated.js';
 
@@ -114,6 +115,16 @@ export class NativeAnalysisApi {
         }));
     }
 
+    async listBrokenReferences(options?: {
+        pathGlob?: string;
+        includeCommentReferences?: boolean;
+    }): Promise<NativeBrokenReference[]> {
+        return this.native.listBrokenReferences(
+            options?.pathGlob,
+            options?.includeCommentReferences ?? false
+        ) as NativeBrokenReference[];
+    }
+
     async exportHtml(
         request: Omit<ExportRequest, 'workspaceRoot'> & { workspaceRoot?: string },
         _onProgress?: ExportProgressCallback
@@ -191,6 +202,15 @@ export class NativeAnalysisApi {
                 name: 'completion_status',
                 description: 'Summarise completion and deprecation status across the workspace graph.',
                 parameters: {}
+            },
+            {
+                name: 'list_broken_references',
+                description:
+                    'List unresolved idea references. Optional path glob scopes the base; comment references are included only when requested.',
+                parameters: {
+                    pathGlob: 'Optional path glob over a subset of the base',
+                    includeCommentReferences: 'Optional: include unresolved rq:[…] comment references'
+                }
             },
             {
                 name: 'export_html',

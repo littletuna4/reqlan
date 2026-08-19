@@ -45,8 +45,8 @@ native_host_binary_development {
     Windows cargo emits `reqlan_napi.dll`; the loader uses `process.dlopen` for `.dll` and `.node` (Node `require` only loads `.node`).
     Windows UI with a WSL extension host uses the linux tuple ([native_host_binary]).
     Windows UI with a Windows extension host cannot load a `.node` staged from WSL; restage on Windows or open the folder in a WSL remote window.
-    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` fetches the latest published host package from npm, then falls back to cargo locally.
-    Azure does not compile Rust; it waits for GitHub Actions to publish platform packages and fetches `--latest`.
+    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` uses an existing matrix binary, or cargo locally.
+    Azure compiles the ["./distribution.rq".native_targets] matrix from git and stages those artifacts; it does not fetch binaries from npm.
     Detail: [development_build.extension_host_native_stage].
     Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
     @status done
@@ -67,8 +67,8 @@ native_host_binary_distributed {
     At run time, read `process.platform` and `process.arch` on the extension host.
     If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
     Do not put binaries for other platforms in that VSIX.
-    The pipeline gets each platform binary from the latest published npm packages (`fetch-native-packages.mjs --latest`), after GitHub Actions has built them on `analytical/v*`. It does not compile Rust.
-    Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution].
+    The Azure pipeline compiles each platform binary from this git commit (`build_native` + `collect-napi-binary.mjs` + `prepare-native-packages.mjs --binary-dir`). Package versions in git are canonical. The pipeline does not wait for npm.
+    Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution], ["./distribution.rq".vsix_native_not_from_npm].
 
     CLI and MCP:
     npm installs the host package from `optionalDependencies` on `@reqlan/analytical`.
@@ -76,7 +76,7 @@ native_host_binary_distributed {
     The loader resolves that package from `@reqlan/analytical/package.json` (`createRequire`), which is where the optional dependency is attached after `npm install`.
     Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
 
-    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/fetch-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"].
+    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"], ["../../azure-pipelines.yml"].
     @status in-progress
     @todo first multi-target VSIX and platform packages not yet published
     @tests (

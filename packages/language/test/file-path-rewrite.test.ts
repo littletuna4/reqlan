@@ -75,6 +75,22 @@ describe('rewritePathToMovedTarget', () => {
         expect(edits).toHaveLength(1);
         expect(edits[0]?.newText).toBe('"../b/foo.rq"');
     });
+
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
+    test('rewrites inbound comment paths when the target rq file moves', () => {
+        const referencing = URI.parse('file:///workspace/src/app.ts');
+        const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');
+        const newTarget = URI.parse('file:///workspace/ext/b/foo.rq');
+        const edits = buildInboundPathRewriteEdits(
+            findCommentPathReferencesInText('// rq:["../ext/a/foo.rq".alpha]'),
+            referencing,
+            oldTarget,
+            newTarget,
+            (_path, newPath) => JSON.stringify(newPath)
+        );
+        expect(edits).toHaveLength(1);
+        expect(edits[0]?.newText).toBe('"../ext/b/foo.rq"');
+    });
 });
 
 describe('findPathReferencesInMovedFile', () => {
@@ -99,11 +115,23 @@ describe('findPathReferencesInMovedFile', () => {
     });
 
     // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
     test('finds rq comment paths in code files', () => {
         const text = '// built for rq:["./main.rq".myidea]';
         const refs = findPathReferencesInMovedFile(text, false);
         expect(refs).toHaveLength(1);
         expect(refs[0]?.path).toBe('./main.rq');
+        expect(refs[0]?.idea).toBe('myidea');
+    });
+
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
+    test('finds comment paths in moved rq files together with imports', () => {
+        const text = [
+            'from "./imports.rq" import myidea',
+            '// rq:["../shared/base.rq".seed]'
+        ].join('\n');
+        const refs = findPathReferencesInMovedFile(text, true);
+        expect(refs.map(ref => ref.path)).toEqual(['./imports.rq', '../shared/base.rq']);
     });
 
     // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
