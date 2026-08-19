@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.6
+
+### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+
 ## 1.9.5
 
 ### Patch Changes
