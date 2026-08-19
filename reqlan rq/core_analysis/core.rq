@@ -45,6 +45,12 @@ runtime {
     [core_arch.analysis_runtime]
 }
 
+consumption_silence {
+consumption of the core binaries should be silent. it presently surfaces a cli window repeatedly momentarily on change to rq file.
+@todo
+@bug
+}
+
 modules (
     parse,
     index,
