@@ -33,6 +33,8 @@ def add_text_to_circle(
     direction: int = 1,
     color: str = "#000000",
     fontsize: float = 24,
+    border_color: str = "#2a211d",
+    border_width: float = 12,
 ):
     tree = ET.parse(input_svg)
     root = tree.getroot()
@@ -78,7 +80,16 @@ def add_text_to_circle(
             "transform": f"rotate({rotation} {cx} {cy})",
             "fill": color,
             "font-size": str(fontsize),
-            "font-family": "Arial, sans-serif",
+            "font-family": "inter, sans-serif",
+            # character horizontal spacing
+            "letter-spacing": "0.06em",
+            # font weight
+            "font-weight": "700",
+            "stroke": border_color,
+            "stroke-width": str(border_width),
+            "stroke-linejoin": "round",
+            "stroke-linecap": "round",
+            "paint-order": "stroke fill",
         },
     )
 
@@ -114,6 +125,8 @@ def main():
 
     parser.add_argument("--color", default="#000000")
     parser.add_argument("--fontsize", type=float, default=24)
+    parser.add_argument("--border-color", default="#2a211d")
+    parser.add_argument("--border-width", type=float, default=12)
 
     args = parser.parse_args()
 
@@ -126,6 +139,8 @@ def main():
         direction=args.direction,
         color=args.color,
         fontsize=args.fontsize,
+        border_color=args.border_color,
+        border_width=args.border_width,
     )
 
 
@@ -133,12 +148,17 @@ if __name__ == "__main__":
     # main()
     import os
     add_text_to_circle(
-        input_svg=os.path.join(os.path.dirname(__file__), "edtest.svg"),
+        input_svg=os.path.join(os.path.dirname(__file__), "ed-core with-bg.svg"),
         output_svg=os.path.join(os.path.dirname(__file__), "edtest-output.svg"),
-        diameter=200,
+        diameter=395,
         text="reqlan",
-        rotation=-290,
-        direction=1,
-        color="#000000",
-        fontsize=24,
+        rotation=-12,
+        direction=-1,
+        # color="rgb(246, 124, 109)",
+        # color="rgb(246, 84, 39)",
+        # color="rgb(207, 175, 142)",
+        color="rgb(247, 215, 182)",
+        fontsize=65,
+        border_color="#2a211d",
+        border_width=14,
     )

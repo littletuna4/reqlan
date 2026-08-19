@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:ns1="http://ns.adobe.com/box/2005" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 500" style="width: 100%; height: 100%;">
-<defs><path id="text-circle" d="M 250.0,10.0 A 240.0,240.0 0 1 0 250.0,490.0 A 240.0,240.0 0 1 0 250.0,10.0" fill="none" /></defs><style>
+<defs><path id="text-circle" d="M 250 10 C 65.248 10 -44.435 222.557 75.688 362.927 C 170.145 473.304 203.991 478.092 277.912 483.918 C 498.744 501.322 550.222 290 457.846 130 C 414.974 55.744 335.744 10 250 10" fill="none" /></defs><style>
     .blue {
         fill: rgb(56, 187, 189);
     }
