@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.11.2
+
+### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+
 ## 1.11.1
 
 ### Patch Changes

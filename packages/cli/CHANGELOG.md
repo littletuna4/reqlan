@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.11
+
+### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+- Updated dependencies [ae5fbc3]
+  - @reqlan/analytical@1.11.2
+
 ## 0.7.10
 
 ### Patch Changes

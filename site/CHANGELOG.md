@@ -1,5 +1,11 @@
 # site
 
+## 0.16.1
+
+### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+
 ## 0.16.0
 
 ### Minor Changes
