@@ -9,7 +9,7 @@ git_idea_timeline_analysis {
     Calculation is owned by [git_dates_background_indexing] / [graph_analysers.git_dates] — not by
     on-the-fly editor, Activity Bar focus, Timeline open, or Ideas table load.
     Active-editor queue priority for fill-in is specified on [git_dates_background_indexing].
-    Implemented by ["../../packages/analytical/src/analysis/git-dates-analyser.ts"] and
+    Implemented by ["../../crates/reqlan-index/src/git_dates.rs"] and
     ["../../packages/analytical/src/index-store/sqlite-store.ts"].
     @status done
     @tests (
@@ -22,6 +22,7 @@ git_idea_timeline_analysis {
         ["../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
     )
     [git_dates_background_indexing]
+    [git_dates_rate_cap]
     [graph_analysers.git_dates]
     [ideas_summary_webview.ideas_list]
 }
@@ -37,11 +38,16 @@ git_dates_background_indexing {
     - session-scoped attempted set so failed lookups are not hammered repeatedly
     - queue priority: ideas in the active `.rq` editor file are attempted before the global backlog;
       switching the active editor re-prioritises (in-flight wave may stop and reschedule)
+    - catalog/save scheduling follows [git_dates_rate_cap]
+    - git / node helper processes stay hidden per ["../core_analysis/core.rq".consumption_silence]
     Consumers only read indexed columns; they must not invoke `git_dates` on the UI path.
-    Implemented by ["../../packages/extension/src/extension/git-dates-background.ts"],
-    ["../../packages/extension/src/extension/register-git-dates-background.ts"], and
-    ["../../packages/analytical/src/index-store/sqlite-store.ts"].
     @status done
+    @implementation (
+        ["../../packages/extension/src/extension/git-dates-background.ts"]
+        ["../../packages/extension/src/extension/register-git-dates-background.ts"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../crates/reqlan-index/src/git_dates.rs"]
+    )
     @tests (
         ["../../packages/extension/test/git-dates-background.test.ts"]
         ["../../packages/extension/test/git-dates-background.test.ts:processes missing ids in small batches and yields between them"]
@@ -49,12 +55,36 @@ git_dates_background_indexing {
         ["../../packages/extension/test/git-dates-background.test.ts:marks ids attempted even when the analyser fails"]
         ["../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
         ["../../packages/extension/test/git-dates-background.test.ts:stops early when shouldStop flips so a new file can be prioritised"]
+        ["../../packages/extension/test/git-dates-background.test.ts:catalog events debounce and do not follow the short editor delay"]
         ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates returns ideas without dates"]
         ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
     )
     [git_idea_timeline_analysis]
     [graph_analysers.git_dates]
+    [git_dates_rate_cap]
     [ideas_summary_webview.timeline_page]
+}
+
+git_dates_rate_cap {
+    Git history analysis is expensive (`git log -L` and follow logs per idea).
+    Do not start a git_dates wave on every `.rq` save or catalog notify.
+    Catalog and index-status events must debounce (quiet period after the last notify)
+    and must wait a minimum gap after a wave that actually filled dates.
+    Editor-switch priority and draining a capped wave may use the short idle delay.
+    Distinct from ["features-graph-analysers.rq".indexing_trigger_filesave]: the ideas
+    index still updates on save; only git analysis is rate-capped.
+    Related: [git_dates_background_indexing], [graph_analysers.git_dates],
+    ["module/index.rq".idea_index_triggers], ["module/index.rq".git_information_capture],
+    ["../core_analysis/core.rq".consumption_silence].
+    @status done
+    @implementation (
+        ["../../packages/extension/src/extension/git-dates-background.ts"]
+        ["../../packages/extension/src/extension/register-git-dates-background.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/git-dates-background.test.ts:catalog events debounce and do not follow the short editor delay"]
+        ["../../packages/extension/test/git-dates-background.test.ts:catalog waves wait for the min gap after a fill"]
+    )
 }
 
 

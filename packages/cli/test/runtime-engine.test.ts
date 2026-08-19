@@ -20,22 +20,22 @@ function readSrc(relative: string): string {
 describe('CLI/MCP native cutover wiring', () => {
     test('CLI runtime opens AnalysisApi through the core engine', () => {
         const source = readSrc('runtime.ts');
-        expect(source).toContain("from '@reqlan/analytical/core'");
+        expect(source).toMatch(/from ['"]@reqlan\/analytical\/core['"]/);
         expect(source).toContain('openAnalysisApi');
         expect(source).toContain('opened.dispose');
         expect(source).not.toContain('nativeEngineRequested');
         expect(source).not.toContain('createAnalysisRuntime');
-        expect(source).not.toMatch(/from '@reqlan\/analytical['"]/);
+        expect(source).not.toMatch(/from ['"]@reqlan\/analytical['"]/);
     });
 
     test('MCP server opens AnalysisApi through the core engine', () => {
         const source = readFileSync(join(here, '../../mcp/src/server.ts'), 'utf8');
-        expect(source).toContain("from '@reqlan/analytical/core'");
+        expect(source).toMatch(/from ['"]@reqlan\/analytical\/core['"]/);
         expect(source).toContain('openAnalysisApi');
         expect(source).toContain('opened.dispose');
         expect(source).not.toContain('createAnalysisRuntime');
         expect(source).not.toContain('NativeAnalysisApi');
-        expect(source).not.toMatch(/from '@reqlan\/analytical['"]/);
+        expect(source).not.toMatch(/from ['"]@reqlan\/analytical['"]/);
     });
 
     test('CLI commands do not statically import Langium or @reqlan/language', () => {

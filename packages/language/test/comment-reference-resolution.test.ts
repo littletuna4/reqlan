@@ -1,0 +1,190 @@
+import { dirname, join, posix } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { afterEach, describe, expect, test } from 'vitest';
+import { URI, type LangiumDocument } from 'langium';
+import { NodeFileSystem } from 'langium/node';
+import { expandToString as s } from 'langium/generate';
+import { clearDocuments } from 'langium/test';
+import type { Model } from '@reqlan/language';
+import { createReqlanServices } from '@reqlan/language';
+import {
+    COMMENT_REFERENCE_MISSING_FILE,
+    COMMENT_REFERENCE_MISSING_IDEA,
+    collectCommentReferenceIssues,
+    presentCommentReferences
+} from '../src/reqlan-comment-diagnostics.js';
+
+const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+
+describe('comment reference resolution', () => {
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('reports an error when a comment reference file does not exist', () => {
+        const text = '// rq:["./missing.rq".demo]\n';
+        const presented = presentCommentReferences(
+            text,
+            '/src',
+            { exists: () => false },
+            posix.resolve
+        );
+        expect(presented.links).toHaveLength(0);
+        expect(presented.diagnostics).toHaveLength(1);
+        expect(presented.diagnostics[0]?.code).toBe(COMMENT_REFERENCE_MISSING_FILE);
+        expect(presented.diagnostics[0]?.message).toBe(
+            "Could not resolve comment reference file './missing.rq'."
+        );
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('does not create a document link for a missing comment reference file', () => {
+        const presented = presentCommentReferences(
+            '// see rq:["../nope.rq".idea] here\n',
+            '/workspace/pkg',
+            { exists: () => false },
+            posix.resolve
+        );
+        expect(presented.links).toEqual([]);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('creates a document link when the comment reference file and idea exist', () => {
+        const text = '// rq:["./main.rq".demo]\n';
+        const presented = presentCommentReferences(
+            text,
+            '/src',
+            {
+                exists: absolutePath => absolutePath === posix.resolve('/src', './main.rq'),
+                declaresIdea: (_absolutePath, idea) => idea === 'demo'
+            },
+            posix.resolve
+        );
+        expect(presented.diagnostics).toHaveLength(0);
+        expect(presented.links).toHaveLength(1);
+        expect(presented.links[0]?.targetPath).toBe(posix.resolve('/src', './main.rq'));
+        expect(presented.links[0]?.idea).toBe('demo');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('reports an error when the comment reference idea is missing from the file', () => {
+        const presented = presentCommentReferences(
+            '// rq:["./main.rq".absent]\n',
+            '/src',
+            {
+                exists: () => true,
+                declaresIdea: () => false
+            },
+            posix.resolve
+        );
+        expect(presented.links).toHaveLength(0);
+        expect(presented.diagnostics[0]?.code).toBe(COMMENT_REFERENCE_MISSING_IDEA);
+        expect(presented.diagnostics[0]?.message).toBe(
+            "Could not resolve comment reference to idea 'absent'."
+        );
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    test('suppresses comment reference errors on the line after //rq-ignore-error', () => {
+        const text = s`
+            //rq-ignore-error
+            // rq:["./missing.rq".demo]
+        `;
+        const presented = presentCommentReferences(
+            text,
+            '/src',
+            { exists: () => false },
+            posix.resolve
+        );
+        expect(presented.diagnostics).toHaveLength(0);
+        expect(presented.links).toHaveLength(0);
+    });
+});
+
+describe('comment reference resolution in .rq documents', () => {
+    const services = createReqlanServices(NodeFileSystem);
+
+    afterEach(async () => {
+        const documents = services.shared.workspace.LangiumDocuments.all.toArray();
+        if (documents.length > 0) {
+            await clearDocuments(services.shared, documents);
+        }
+    });
+
+    async function parseAt(path: string, text: string): Promise<LangiumDocument<Model>> {
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            text,
+            URI.parse(pathToFileURL(path).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        return document;
+    }
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('reports a missing comment reference file in a loaded document', async () => {
+        const sourcePath = join(repoDir, 'reqlan rq/language/syntax.rq');
+        const document = await parseAt(sourcePath, s`
+            demo {
+                body
+            }
+            // rq:["./does-not-exist.rq".missing]
+        `);
+        const issues = collectCommentReferenceIssues(
+            document,
+            services.shared.workspace.LangiumDocuments,
+            services.shared.workspace.FileSystemProvider
+        );
+        expect(issues).toHaveLength(1);
+        expect(issues[0]?.code).toBe(COMMENT_REFERENCE_MISSING_FILE);
+        expect(issues[0]?.message).toBe("Could not resolve comment reference file './does-not-exist.rq'.");
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('reports a missing comment reference idea in a loaded file', async () => {
+        const targetPath = join(repoDir, 'reqlan rq/language/syntax.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/language/imports.rq');
+        const target = await parseAt(targetPath, s`
+            present_idea {
+                body
+            }
+        `);
+        const source = await parseAt(sourcePath, s`
+            host {
+                body
+            }
+            // rq:["./syntax.rq".absent_idea]
+        `);
+        await services.shared.workspace.DocumentBuilder.build([target, source], { validation: false });
+        const issues = collectCommentReferenceIssues(
+            source,
+            services.shared.workspace.LangiumDocuments,
+            services.shared.workspace.FileSystemProvider
+        );
+        expect(issues).toHaveLength(1);
+        expect(issues[0]?.code).toBe(COMMENT_REFERENCE_MISSING_IDEA);
+        expect(issues[0]?.message).toBe("Could not resolve comment reference to idea 'absent_idea'.");
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+    test('accepts a resolved comment reference in a loaded document', async () => {
+        const targetPath = join(repoDir, 'reqlan rq/language/syntax.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/language/imports.rq');
+        const target = await parseAt(targetPath, s`
+            present_idea {
+                body
+            }
+        `);
+        const source = await parseAt(sourcePath, s`
+            host {
+                body
+            }
+            // rq:["./syntax.rq".present_idea]
+        `);
+        await services.shared.workspace.DocumentBuilder.build([target, source], { validation: false });
+        const issues = collectCommentReferenceIssues(
+            source,
+            services.shared.workspace.LangiumDocuments,
+            services.shared.workspace.FileSystemProvider
+        );
+        expect(issues).toHaveLength(0);
+    });
+});

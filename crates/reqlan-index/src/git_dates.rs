@@ -4,12 +4,28 @@
 //! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
 //! rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
 //! rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+//! rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
 
 use crate::store::{IndexStore, StoreError};
 use crate::types::IdeaKind;
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
+
+/// Win32 `CREATE_NO_WINDOW`. GUI hosts must pass this when they spawn `git.exe`.
+/// rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
+pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+#[allow(unused_variables)]
+fn apply_hidden_console(cmd: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = CREATE_NO_WINDOW;
+}
 
 /// A single git-date result for an idea (mirrors the former `GitDateInfo`).
 #[derive(Debug, Clone, Default)]
@@ -110,7 +126,9 @@ fn lookup_git_dates(
 }
 
 fn run_git(cwd: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git").args(args).current_dir(cwd).output().ok()?;
+    let mut cmd = Command::new("git");
+    apply_hidden_console(&mut cmd);
+    let output = cmd.args(args).current_dir(cwd).output().ok()?;
     if !output.status.success() {
         return None;
     }
@@ -174,5 +192,11 @@ mod tests {
         assert!(!is_iso_author_date("not a date"));
         assert!(!is_iso_author_date("2026-01-02"));
         assert!(is_iso_author_date("2026-01-02T03:04:05"));
+    }
+
+    // rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
+    #[test]
+    fn create_no_window_matches_win32_flag() {
+        assert_eq!(CREATE_NO_WINDOW, 0x0800_0000);
     }
 }

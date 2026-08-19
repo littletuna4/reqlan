@@ -24,6 +24,7 @@ export {
 export {
     APPLICATION_MEMORY_DIR,
     CONFIG_FILENAME,
+    GITIGNORE_FILENAME,
     IDEAS_INDEX_FILENAME,
     INDEX_DIAGNOSTICS_FILENAME,
     RQIGNORE_FILENAME,
@@ -32,6 +33,7 @@ export {
     resolveIndexDiagnosticsDbPath
 } from './core/application-memory.js';
 export {
+    BINARY_RQIGNORE_PATTERNS,
     DEFAULT_RQIGNORE_PATTERNS,
     createRqIgnoreFilter,
     defaultRqIgnoreFileContents,

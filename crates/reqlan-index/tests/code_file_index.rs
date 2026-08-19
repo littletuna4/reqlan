@@ -1,6 +1,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
 //! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".index_comment_reference_inclusion]
 //! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".file_related_requirements]
+//! rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
 
 use reqlan_index::sync::{index_one_file, sync_workspace, SyncOptions};
 use reqlan_index::{EdgeKind, IndexStore};
@@ -119,5 +120,26 @@ fn skips_nested_child_base_code_and_rq_files() {
     assert!(names.contains(&"parent_idea".to_string()));
     assert!(!names.contains(&"child_idea".to_string()));
     assert!(store.list_code_document_uris().unwrap().is_empty());
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn skips_binary_comment_files_unless_rqignore_negation() {
+    let root = scratch("binary-skip");
+    std::fs::create_dir_all(root.join("assets")).unwrap();
+    std::fs::write(root.join("demo.rq"), "alpha {\n    first\n}\n").unwrap();
+    std::fs::write(root.join("assets").join("payload.bin"), "// rq:[\"./demo.rq\".alpha]\n")
+        .unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let cancel = AtomicBool::new(false);
+    let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    sync_workspace(&mut store, &options, &cancel).unwrap();
+    assert!(store.list_code_document_uris().unwrap().is_empty());
+
+    std::fs::create_dir_all(root.join(".reqlan")).unwrap();
+    std::fs::write(root.join(".reqlan").join(".rqignore"), "!*.bin\n").unwrap();
+    sync_workspace(&mut store, &options, &cancel).unwrap();
+    let uris = store.list_code_document_uris().unwrap();
+    assert_eq!(uris, vec!["assets/payload.bin".to_string()]);
     std::fs::remove_dir_all(&root).ok();
 }

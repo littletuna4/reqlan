@@ -2,12 +2,14 @@
  * Tests for silent background git_dates indexing (batched, yielded, not on-the-fly).
  * rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
  * rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
- * rq:["../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+ * rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+ * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { describe, expect, test } from 'vitest';
 import {
     GIT_DATES_BG_BATCH_SIZE,
     GIT_DATES_BG_MAX_PER_WAVE,
+    gitDatesScheduleDelayMs,
     runGitDatesBackgroundWave,
     takePreferredIdeaIds
 } from '../src/extension/git-dates-background.js';
@@ -164,5 +166,63 @@ describe('git dates background indexing', () => {
 
         expect(result.processed).toBe(3);
         expect(seen).toEqual(['id-0', 'id-1', 'id-2']);
+    });
+});
+
+describe('git dates schedule delay', () => {
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+    test('catalog events debounce and do not follow the short editor delay', () => {
+        expect(
+            gitDatesScheduleDelayMs({
+                reason: 'catalog',
+                nowMs: 100_000,
+                catalogDebounceMs: 10_000,
+                editorDebounceMs: 1_500,
+                minWaveGapMs: 45_000
+            })
+        ).toBe(10_000);
+        expect(
+            gitDatesScheduleDelayMs({
+                reason: 'editor',
+                nowMs: 100_000,
+                catalogDebounceMs: 10_000,
+                editorDebounceMs: 1_500,
+                minWaveGapMs: 45_000
+            })
+        ).toBe(1_500);
+        expect(
+            gitDatesScheduleDelayMs({
+                reason: 'continue',
+                nowMs: 100_000,
+                lastFilledWaveAtMs: 99_000,
+                catalogDebounceMs: 10_000,
+                editorDebounceMs: 1_500,
+                minWaveGapMs: 45_000
+            })
+        ).toBe(1_500);
+    });
+
+    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+    test('catalog waves wait for the min gap after a fill', () => {
+        expect(
+            gitDatesScheduleDelayMs({
+                reason: 'catalog',
+                nowMs: 20_000,
+                lastFilledWaveAtMs: 10_000,
+                catalogDebounceMs: 10_000,
+                editorDebounceMs: 1_500,
+                minWaveGapMs: 45_000
+            })
+        ).toBe(35_000);
+        expect(
+            gitDatesScheduleDelayMs({
+                reason: 'catalog',
+                nowMs: 60_000,
+                lastFilledWaveAtMs: 10_000,
+                catalogDebounceMs: 10_000,
+                editorDebounceMs: 1_500,
+                minWaveGapMs: 45_000
+            })
+        ).toBe(10_000);
     });
 });

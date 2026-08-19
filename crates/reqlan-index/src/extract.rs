@@ -8,6 +8,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".block_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".attribute_forms]
 //! rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
+//! rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
 
 use crate::ids::{edge_id, idea_id};
 use crate::types::{
@@ -63,16 +64,6 @@ pub fn extract_from_parse(
                     &summarize_block(source, &idea.elements),
                     collect_attributes(source, &idea.elements),
                 ));
-                collect_parts_edges(
-                    file_uri,
-                    &idea.name,
-                    source,
-                    &walk_idea_parts(&idea.elements),
-                    &model.imports,
-                    &ideas,
-                    &options.idea_candidates,
-                    &mut edges,
-                );
             }
             TopLevelElement::OneLiner(idea) => {
                 ideas.push(to_idea_record(
@@ -84,16 +75,6 @@ pub fn extract_from_parse(
                     &summarize_parts(source, &idea.body),
                     IdeaAttributeMap::new(),
                 ));
-                collect_parts_edges(
-                    file_uri,
-                    &idea.name,
-                    source,
-                    &idea.body,
-                    &model.imports,
-                    &ideas,
-                    &options.idea_candidates,
-                    &mut edges,
-                );
             }
             TopLevelElement::IdeaSet(set) => {
                 ideas.push(to_idea_record(
@@ -122,6 +103,36 @@ pub fn extract_from_parse(
                 }
             }
             TopLevelElement::Anonymous(_) => {}
+        }
+    }
+
+    for element in &model.elements {
+        match element {
+            TopLevelElement::Idea(idea) => {
+                collect_parts_edges(
+                    file_uri,
+                    &idea.name,
+                    source,
+                    &walk_idea_parts(&idea.elements),
+                    &model.imports,
+                    &ideas,
+                    &options.idea_candidates,
+                    &mut edges,
+                );
+            }
+            TopLevelElement::OneLiner(idea) => {
+                collect_parts_edges(
+                    file_uri,
+                    &idea.name,
+                    source,
+                    &idea.body,
+                    &model.imports,
+                    &ideas,
+                    &options.idea_candidates,
+                    &mut edges,
+                );
+            }
+            TopLevelElement::IdeaSet(_) | TopLevelElement::Anonymous(_) => {}
         }
     }
 
@@ -307,6 +318,7 @@ fn collect_parts_edges(
         .filter(|idea| idea.kind != IdeaKind::Ideaset)
         .map(|idea| idea.name.as_str())
         .collect();
+    let local_leaf_names: Vec<&str> = ideas.iter().map(|idea| idea.name.as_str()).collect();
     for part in parts {
         match part {
             RichPart::MarkdownLink { raw, span } => {
@@ -327,6 +339,7 @@ fn collect_parts_edges(
                     target,
                     imports,
                     &local_names,
+                    &local_leaf_names,
                     candidates,
                     span.line_start + 1,
                     &snippet,
@@ -370,6 +383,7 @@ fn reference_to_edges(
     target: &ReferenceTarget,
     imports: &[Import],
     local_names: &[&str],
+    local_leaf_names: &[&str],
     candidates: &[WildcardIdeaCandidate],
     source_line: u32,
     snippet: &str,
@@ -417,11 +431,49 @@ fn reference_to_edges(
             }
         }
         ReferenceTarget::Qualified { path, qualifier, ideaset: _, idea, .. } => {
-            let head = path.clone().or_else(|| qualifier.clone());
-            if let Some(head) = head {
-                let file = unquote_if_needed(&head);
+            // Namespace leaf is the last segment (`idea`), not the ideaset/alias head.
+            if let Some(path) = path {
+                let file = unquote_if_needed(path);
                 let target_id = idea_id(&file, idea);
                 vec![ref_edge(source_id, Some(target_id), idea, true, source_line, meta_snippet)]
+            } else if let Some(qualifier) = qualifier {
+                if let Some(import) = namespace_import(imports, qualifier) {
+                    if let Some(path) = import.path() {
+                        let target_id = idea_id(&unquote_if_needed(path), idea);
+                        vec![ref_edge(
+                            source_id,
+                            Some(target_id),
+                            idea,
+                            true,
+                            source_line,
+                            meta_snippet,
+                        )]
+                    } else {
+                        Vec::new()
+                    }
+                } else if local_leaf_names.iter().any(|name| *name == idea.as_str()) {
+                    let target_id = idea_id(file_uri, idea);
+                    vec![ref_edge(
+                        source_id,
+                        Some(target_id),
+                        idea,
+                        true,
+                        source_line,
+                        meta_snippet,
+                    )]
+                } else if let Some((path, imported)) = from_import_binding(imports, idea) {
+                    let target_id = idea_id(&path, &imported);
+                    vec![ref_edge(
+                        source_id,
+                        Some(target_id),
+                        &imported,
+                        true,
+                        source_line,
+                        meta_snippet,
+                    )]
+                } else {
+                    vec![ref_edge(source_id, None, idea, false, source_line, meta_snippet)]
+                }
             } else {
                 vec![ref_edge(source_id, None, idea, false, source_line, meta_snippet)]
             }

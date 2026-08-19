@@ -11,7 +11,7 @@ use crate::comment::{
 use crate::extract::{
     extract_from_parse, extract_indexed_document, ExtractOptions, WildcardIdeaCandidate,
 };
-use crate::ignore::RqIgnoreFilter;
+use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
 use crate::store::{IndexStore, StoreError};
 use crate::types::IdeaSummary;
 use reqlan_parse::{parse_document, Severity};
@@ -56,7 +56,9 @@ pub fn collect_rq_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<P
 }
 
 pub fn collect_code_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<PathBuf> {
-    collect_files(workspace_root, filter, is_comment_index_path)
+    collect_files(workspace_root, filter, |path| {
+        is_comment_index_path(path) || is_binary_rqignore_path(path)
+    })
 }
 
 fn collect_files(
@@ -270,6 +272,7 @@ fn index_code_file_path(
     }
     let source = match std::fs::read_to_string(path) {
         Ok(text) => text,
+        Err(_) if is_binary_rqignore_path(path) => return Ok(CodeIndexOutcome::Empty),
         Err(error) => return Ok(CodeIndexOutcome::Error(error.to_string())),
     };
     persist_code_source(store, file_uri, &source, catalog, mtime_ms)
@@ -345,9 +348,22 @@ pub fn index_one_file(
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
-    if is_comment_index_path(&path) {
+    if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
+        if is_binary_rqignore_path(&path) {
+            let filter = RqIgnoreFilter::load(workspace_root);
+            if filter.ignores(&file_uri, false) {
+                store.delete_document(&file_uri)?;
+                return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
+            }
+        }
         let catalog = store.list_all_ideas()?;
-        let source = std::fs::read_to_string(&path)?;
+        let source = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(_) if is_binary_rqignore_path(&path) => {
+                return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
+            }
+            Err(error) => return Err(error.into()),
+        };
         let mtime_ms = file_mtime_ms(&path);
         persist_code_source(store, &file_uri, &source, &catalog, mtime_ms)?;
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });

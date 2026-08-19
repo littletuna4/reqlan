@@ -22,11 +22,11 @@ pub use comment::{
 };
 pub use diagnostics::{now_ms, DiagnosticsError, FileIssueDraft, IndexDiagnosticsStore};
 pub use extract::{extract_indexed_document, ExtractOptions, WildcardIdeaCandidate};
-pub use git_dates::{fill_git_dates, parse_git_author_dates};
+pub use git_dates::{fill_git_dates, parse_git_author_dates, CREATE_NO_WINDOW};
 pub use ids::{edge_id, idea_id};
 pub use ignore::{
-    create_base, default_rqignore_file_contents, CreateBaseResult, IDEAS_INDEX_FILENAME,
-    INDEX_DIAGNOSTICS_FILENAME,
+    create_base, default_gitignore_file_contents, default_rqignore_file_contents, CreateBaseResult,
+    GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME,
 };
 pub use overview::{compute_overview_coverage, OverviewCoverageScores};
 pub use sql_bridge::{SqlBridge, SqlBridgeError};

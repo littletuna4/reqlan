@@ -47,9 +47,9 @@
         "ignore": "^7.0.6"
     },
     "optionalDependencies": {
+        "@reqlan/analytical-linux-x64-gnu": "workspace:*",
         "@reqlan/analytical-win32-x64-msvc": "workspace:*",
         "@reqlan/analytical-win32-arm64-msvc": "workspace:*",
-        "@reqlan/analytical-linux-x64-gnu": "workspace:*",
         "@reqlan/analytical-linux-arm64-gnu": "workspace:*",
         "@reqlan/analytical-darwin-x64": "workspace:*",
         "@reqlan/analytical-darwin-arm64": "workspace:*"

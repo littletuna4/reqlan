@@ -19,6 +19,12 @@ export const CONFIG_FILENAME = 'config.json';
  */
 export const RQIGNORE_FILENAME = '.rqignore';
 
+/**
+ * Git ignore file under `<base>/.reqlan/` so SQLite artifacts stay out of VCS.
+ * rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
+ */
+export const GITIGNORE_FILENAME = '.gitignore';
+
 /** Default SQLite filename for the ideas graph index inside application memory. */
 export const IDEAS_INDEX_FILENAME = 'ideas-index.sqlite';
 

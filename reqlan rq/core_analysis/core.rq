@@ -46,9 +46,33 @@ runtime {
 }
 
 consumption_silence {
-consumption of the core binaries should be silent. it presently surfaces a cli window repeatedly momentarily on change to rq file.
-@todo
-@bug
+    Hosts that consume the native core (and helper CLI tools such as `git` / `node`)
+    must not open a visible console window.
+    On Windows, a GUI editor host that spawns a console-subsystem process without
+    `CREATE_NO_WINDOW` / `windowsHide` flashes a CLI window.
+    Git-dates fill in the core engine and Activity Bar git history were the
+    repeating flashes after `.rq` change; the language-server Node probe can flash once
+    at start on old hosts.
+    Index parse itself stays in-process (napi `.node` / `.dll`) and does not spawn a console.
+    Related: ["../extension/features-graph-analysers.rq".git_dates],
+    ["../extension/git-codelens.rq".git_dates_background_indexing],
+    ["../extension/git-codelens.rq".git_dates_rate_cap],
+    ["../extension/module/context-scope.rq".git_context],
+    ["../extension/module/index.rq".git_information_capture].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../packages/extension/src/shared/hidden-exec-file.ts"]
+        ["../../packages/extension/src/activity_bar_module/git-context.ts"]
+        ["../../packages/extension/src/extension/language-server-runtime.ts"]
+        ["../../packages/extension/src/extension/register-git-dates-background.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/src/git_dates.rs:create_no_window_matches_win32_flag"]
+        ["../../packages/extension/test/hidden-exec-file.test.ts"]
+        ["../../packages/extension/test/git-context.test.ts:git CLI spawns hide the Windows console"]
+        ["../../packages/extension/test/language-server-runtime.test.ts"]
+    )
 }
 
 modules (

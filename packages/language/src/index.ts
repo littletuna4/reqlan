@@ -4,6 +4,7 @@ export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser
 export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
+export * from './reqlan-comment-diagnostics.js';
 export * from './reqlan-ignore-error.js';
 export * from './reqlan-file-references.js';
 export * from './reqlan-embedded-file-references.js';

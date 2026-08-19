@@ -69,7 +69,8 @@ base_installation {
     1. Create `<base>/.reqlan/` marker directory (presence = base).
     2. Seed [base_config_seed] (`.reqlan/config.json`).
     3. Seed [base_rqignore_seed] (`.reqlan/.rqignore`).
-    4. Editor rediscovers bases and activates indexing for that base; SQLite `ideas-index.sqlite` appears when the index opens (not necessarily written at marker creation).
+    4. Seed [bases.base_initialisation_ignore] (`.reqlan/.gitignore` for SQLite artifacts).
+    5. Editor rediscovers bases and activates indexing for that base; SQLite `ideas-index.sqlite` appears when the index opens (not necessarily written at marker creation).
     Child / nested bases follow [bases.base_nesting]; each base owns its own `.reqlan` seeds and index.
 }
 
@@ -81,8 +82,9 @@ base_config_seed {
 }
 
 base_rqignore_seed {
-    New bases write `.reqlan/.rqignore` with gitignore-syntax defaults (dependencies, venvs, build output, DBs such as `*.db3`, secrets, hidden entries, `.reqlan/` itself).
-    Built-in defaults always apply even if the file is missing; the seeded file is the editable surface ([configuration.configuration_rqignore] / [app_memory.rqignore]).
+    New bases write `.reqlan/.rqignore` with gitignore-syntax defaults (dependencies, venvs, build output, DBs such as `*.db3`, binary globs, secrets, hidden entries, `.reqlan/` itself).
+    Comment text in the seed: [app_memory.rqignore_initialisation].
+    Built-in defaults always apply even if the file is missing; the seeded file is the editable surface ([configuration.configuration_rqignore] / [app_memory.rqignore] / [app_memory.binary_ignore]).
     Used by analytical discovery and indexing walks (CLI and extension share `@reqlan/analytical`).
 }
 
@@ -90,7 +92,7 @@ base_vs_extension_boundary {
     Clear ownership so install steps do not write to the wrong store:
     - Extension package / activate / welcome webview → [extension_installation] (extension host + `globalState` onboarding key).
     - Activity bar, LSP, chat participant, Ideas Summary → extension runtime after [activation.activation_sequence].
-    - `.reqlan/` marker, `config.json`, `.rqignore`, ideas index, index diagnostics sqlite → [base_installation] under `<base>/.reqlan/`.
+    - `.reqlan/` marker, `config.json`, `.rqignore`, `.gitignore` (SQLite artifacts), ideas index, index diagnostics sqlite → [base_installation] under `<base>/.reqlan/`.
     - Cursor `rq-*` skills + MCP json → [workspace_agent_files] under `<workspace>/.cursor/`.
     Do not store agent skills or MCP config inside `.reqlan`. Do not treat welcome-webview globalState as base-local memory.
 }

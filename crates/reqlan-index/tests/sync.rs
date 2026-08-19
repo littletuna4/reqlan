@@ -59,5 +59,6 @@ fn default_rqignore_skips_node_modules() {
     assert!(filter.ignores("node_modules/pkg/foo.rq", false));
     assert!(filter.ignores("data/local.db3", false));
     assert!(!filter.ignores("src/foo.rq", false));
+    assert!(filter.ignores("assets/payload.bin", false));
     std::fs::remove_dir_all(&root).ok();
 }

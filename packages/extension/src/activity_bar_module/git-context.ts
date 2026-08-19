@@ -1,9 +1,17 @@
+/**
+ * VS Code git extension + `git` CLI for Activity Bar focus history.
+ * CLI spawns use a hidden Windows console.
+ * rq:["../../../../reqlan rq/extension/module/context-scope.rq".git_context]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".git_information_capture]
+ * rq:["../../../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ */
 import * as vscode from 'vscode';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fsPathFromFileUri } from '@reqlan/analytical';
 import { extractIdeaNames } from '@reqlan/analytical/core';
+import { withHiddenConsole } from '../shared/hidden-exec-file.js';
 import type {
     ContextFileEntry,
     GitAuthorRollup,
@@ -504,11 +512,15 @@ function logFormat(): string {
 
 async function runGitLog(args: string[], cwd: string): Promise<GitFocusCommit[]> {
     try {
-        const { stdout } = await execFileAsync('git', args, {
-            cwd,
-            timeout: GIT_LOG_TIMEOUT_MS,
-            maxBuffer: 512 * 1024
-        });
+        const { stdout } = await execFileAsync(
+            'git',
+            args,
+            withHiddenConsole({
+                cwd,
+                timeout: GIT_LOG_TIMEOUT_MS,
+                maxBuffer: 512 * 1024
+            })
+        );
         return parseGitLogRecords(stdout);
     } catch {
         return [];
@@ -561,11 +573,15 @@ async function runGitText(
     maxBuffer = 512 * 1024
 ): Promise<string | undefined> {
     try {
-        const { stdout } = await execFileAsync('git', args, {
-            cwd,
-            timeout: GIT_LOG_TIMEOUT_MS,
-            maxBuffer
-        });
+        const { stdout } = await execFileAsync(
+            'git',
+            args,
+            withHiddenConsole({
+                cwd,
+                timeout: GIT_LOG_TIMEOUT_MS,
+                maxBuffer
+            })
+        );
         return stdout;
     } catch {
         return undefined;

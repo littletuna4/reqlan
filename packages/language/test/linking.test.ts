@@ -543,6 +543,36 @@ later_member {
         expect(unresolved).toHaveLength(0);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+    test('resolve ideaset-qualified bracket reference to member leaf not ideaset', async () => {
+        document = await parse(`references_to_subidea {
+    It should be acceptable to reference [example_ideaset.subidea1]
+}
+subidea1 hello
+example_ideaset (
+    subidea1
+)`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const bracketRef = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)[0];
+        const target = bracketRef?.target;
+        expect(isQualifiedReference(target)).toBe(true);
+        if (!isQualifiedReference(target)) {
+            return;
+        }
+        const qualifierRef = target.qualifier?.ref as unknown;
+        expect(qualifierRef && isIdeaSet(qualifierRef) && qualifierRef.name).toBe('example_ideaset');
+        expect(target.idea?.ref?.name).toBe('subidea1');
+        expect(isIdeaSet(target.idea?.ref as unknown)).toBe(false);
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
     test('resolve anonymous import in bracket reference without import statement', async () => {
         const ontologyDir = join(repoDir, 'reqlan rq');

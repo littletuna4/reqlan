@@ -1,10 +1,11 @@
 /**
  * Create a reqlan base by writing the `.reqlan` application-memory marker.
- * The native engine seeds `config.json` + `.rqignore` (single source of truth for
- * the default ignore patterns); this wrapper returns the base descriptor.
+ * The native engine seeds `config.json`, `.rqignore`, and `.gitignore`
+ * (SQLite artifacts); this wrapper returns the base descriptor.
  *
  * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
 import { resolve } from 'node:path';
@@ -23,7 +24,7 @@ interface NativeCreateBaseResult {
 }
 
 /**
- * Ensure `<baseRoot>/.reqlan/` exists and seed `config.json` + `.rqignore` when creating a new base.
+ * Ensure `<baseRoot>/.reqlan/` exists and seed `config.json`, `.rqignore`, and `.gitignore` when creating a new base.
  * Idempotent: existing markers are left alone and reported as `created: false`.
  */
 export async function createBase(baseRoot: string): Promise<CreateBaseResult> {

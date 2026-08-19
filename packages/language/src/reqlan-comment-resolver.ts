@@ -3,6 +3,7 @@
  * rq:["../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../reqlan rq/ontology.rq".reference_types]
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, URI } from 'langium';

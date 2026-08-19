@@ -22,6 +22,7 @@ definition {
 
 index {
     The ideas graph indexer: parse `.rq` with the native engine, extract ideas/edges, persist to rusqlite SQLite.
+    Same-file `[ideaset.member]` edges target the member leaf (["../language/syntax.rq".references_to_subidea]).
     Wildcard path+idea fan-out: [wildcard_reference_edges]
     (["../language/imports.rq".wildcard_references]).
     Ideas Summary graph can hide those edges via [ideas_summary_doc] /
@@ -31,6 +32,7 @@ index {
         ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
         ["../../crates/reqlan-index/tests/schema.rs:schema_v4_columns_round_trip_git_count_and_mtime"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset"]
     )
 }
 
@@ -139,8 +141,9 @@ index_diagnostics_timing {
 
 index_code_files {
     Index non-`.rq` source files that contain [comment_reference] (`rq:[idea]` / `rq:["path".idea]`).
-    After the `.rq` pass, the native sync walks allowlisted text files (respecting `.rqignore` and nested child bases),
-    cheap-filters on `rq:`, and persists matching files as documents plus `comment_link` edges.
+    After the `.rq` pass, the native sync walks allowlisted text files (respecting `.rqignore`, [app_memory_doc.binary_ignore], and nested child bases).
+    Binary files stay out unless a negation such as `!*.bin` opts them in.
+    The walk cheap-filters on `rq:`, and persists matching files as documents plus `comment_link` edges.
     Edge shape: source = referenced idea, `target_file` = code file URI, kind `comment_link` (no synthetic file ideas).
     Reindex of a `.rq` file re-applies comment links from already-indexed code documents so FK cascade does not drop them.
     Watcher + idle stale check cover code documents as well as `.rq` files ([triggers], [nonblocking_index]).
@@ -159,6 +162,7 @@ index_code_files {
         ["../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:unqualified_comment_ref_matches_catalog_idea_name"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:rq_reindex_restores_comment_links"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:skips_binary_comment_files_unless_rqignore_negation"]
         ["../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
         ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_comment_code_files"]
     )
@@ -177,6 +181,7 @@ indexer_rust {
     @todo surface per-file timing diagnostics from Rust sync into IndexDiagnosticsStore
     @tests (
         ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
         ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
         ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]

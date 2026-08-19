@@ -58,6 +58,7 @@ ideaset {
     An ideaset is a parenthesized, comma-separated list of idea names.
     Ideaset members may be unquoted identifiers or quoted strings.
     Ideasets act as namespace containers for ideas, nested ideasets, and references.
+    A bracket reference `[ideaset.member]` targets the member leaf per [references_to_subidea].
 
     @example (
         simple_idea,
@@ -273,6 +274,29 @@ comment_reference {
     Reqlan references may appear in line comments of arbitrary source files.
     Comment reference syntax is `rq:[idea]` or `rq:["path".idea]` (quoted path, optional extra qualification).
     Indexed as `comment_link` by ["../indexer/indexer.rq".index_code_files].
+    Unresolved targets: [comment_reference_resolution_error].
+}
+
+comment_reference_resolution_error {
+    If a comment reference cannot be resolved, show it as an error diagnostic.
+    Do not create a document link to a missing file (that underline then raises a generic cannot-find-file editor error).
+    Related: [comment_reference], [comment_reference_ignore], ["../reference_types.rq".comment_reference], ["../extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../packages/extension/src/extension/register-comment-reference-links.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/comment-reference-resolution.test.ts"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:reports an error when a comment reference file does not exist"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:does not create a document link for a missing comment reference file"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:creates a document link when the comment reference file and idea exist"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:reports an error when the comment reference idea is missing from the file"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:suppresses comment reference errors on the line after //rq-ignore-error"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:reports a missing comment reference file in a loaded document"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:reports a missing comment reference idea in a loaded file"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:accepts a resolved comment reference in a loaded document"]
+    )
 }
 
 string_literals {
@@ -351,10 +375,21 @@ example_ideaset (
 )
 
 references_to_subidea {
-    It should be acceptable to reference [example_ideaset.subidea1]
-    The indexer should mark such a reference againts the namespace leaf. I.e. in this case to subidea1, not to example_ideaset
-@tests
-@todo
+    It is valid to reference a member of an [ideaset] as `[ideaset.member]`, for example [example_ideaset.subidea1].
+    The indexer must record that reference on the namespace leaf node. In this example the leaf is [subidea1], not [example_ideaset].
+    Related: [reference_brackets], [same_file_reference], ["../reference_types.rq".idea_reference], ["../indexer/indexer.rq".index].
+    @status done
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve ideaset-qualified bracket reference to member leaf not ideaset"]
+        ["../../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:qualified_namespace_import_reference_targets_leaf_in_imported_file"]
+    )
+    @implementation (
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-scope.ts"]
+    )
 }
 
 no_name_idea_safe_warning {

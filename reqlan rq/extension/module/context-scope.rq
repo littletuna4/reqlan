@@ -211,6 +211,7 @@ git_context {
     Working-tree dirty files remain available as a demoted nested section and optional footprint contributors.
     Focus hero shows a history cue (last commit age / branch) instead of a staged/unstaged chip.
     Consumes [index_reqs.git_information_capture] and ["context-scope-v2.rq".development_history_signals].
+    Windows `git` spawns stay hidden per ["../../core_analysis/core.rq".consumption_silence].
     UI: [activitybar.git_history_lens].
 }
 

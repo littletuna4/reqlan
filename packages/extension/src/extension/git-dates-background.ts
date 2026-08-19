@@ -3,16 +3,54 @@
  * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
  * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
  * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+ * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+ * rq:["../../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 
 /** Ideas per analyser invocation. */
 export const GIT_DATES_BG_BATCH_SIZE = 3;
 /** Pause between batches so the extension host stays responsive. */
 export const GIT_DATES_BG_YIELD_MS = 400;
-/** Delay after index ready / catalog changes before starting work. */
+/** Delay after editor switch / continue-wave before starting work. */
 export const GIT_DATES_BG_START_IDLE_MS = 1_500;
+/** Quiet period after index catalog/status churn (saves) before a catalog-triggered wave. */
+export const GIT_DATES_BG_CATALOG_DEBOUNCE_MS = 10_000;
+/** Minimum gap between catalog-triggered waves that actually ran git. */
+export const GIT_DATES_BG_MIN_WAVE_GAP_MS = 45_000;
 /** Cap how many ideas we attempt in one continuous pump wave. */
 export const GIT_DATES_BG_MAX_PER_WAVE = 60;
+
+export type GitDatesScheduleReason = 'catalog' | 'editor' | 'continue';
+
+export interface GitDatesScheduleDelayInput {
+    reason: GitDatesScheduleReason;
+    nowMs: number;
+    /** Set only after a wave that processed at least one idea. */
+    lastFilledWaveAtMs?: number;
+    catalogDebounceMs?: number;
+    editorDebounceMs?: number;
+    minWaveGapMs?: number;
+}
+
+/**
+ * Delay before a git_dates wave. Catalog/save events coalesce and respect a min gap.
+ * Editor switches and in-flight continue waves stay on the short idle delay.
+ * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+ */
+export function gitDatesScheduleDelayMs(input: GitDatesScheduleDelayInput): number {
+    const editorDebounce = input.editorDebounceMs ?? GIT_DATES_BG_START_IDLE_MS;
+    if (input.reason === 'editor' || input.reason === 'continue') {
+        return editorDebounce;
+    }
+    const catalogDebounce = input.catalogDebounceMs ?? GIT_DATES_BG_CATALOG_DEBOUNCE_MS;
+    const minGap = input.minWaveGapMs ?? GIT_DATES_BG_MIN_WAVE_GAP_MS;
+    const sinceFill =
+        input.lastFilledWaveAtMs === undefined
+            ? Number.POSITIVE_INFINITY
+            : input.nowMs - input.lastFilledWaveAtMs;
+    const gapRemain = Math.max(0, minGap - sinceFill);
+    return Math.max(catalogDebounce, gapRemain);
+}
 
 export interface GitDatesBackgroundWaveInput {
     isReady: () => boolean;

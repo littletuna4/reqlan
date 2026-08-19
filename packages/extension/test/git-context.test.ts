@@ -1,3 +1,11 @@
+/**
+ * Tests for git-context history helpers and hidden git CLI spawns.
+ * rq:["../../reqlan rq/extension/module/context-scope.rq".git_context]
+ * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import {
     buildGitSummary,
@@ -7,6 +15,11 @@ import {
     rollupAuthors,
     shouldRefreshGitFocusCache
 } from '../src/activity_bar_module/git-context-helpers.js';
+
+const gitContextSource = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../src/activity_bar_module/git-context.ts'),
+    'utf8'
+);
 
 describe('git-context history helpers', () => {
     test('parseGitLogRecords reads null-delimited commits', () => {
@@ -125,5 +138,14 @@ describe('git-context history helpers', () => {
         expect(shouldRefreshGitFocusCache(Date.parse('2026-08-01T12:00:00Z'), latest)).toBe(false);
         expect(shouldRefreshGitFocusCache(Date.parse('2026-08-02T12:00:00Z'), latest)).toBe(false);
         expect(shouldRefreshGitFocusCache(Date.now(), undefined)).toBe(false);
+    });
+
+    // rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+    test('git CLI spawns hide the Windows console', () => {
+        expect(gitContextSource).toContain('withHiddenConsole');
+        expect(gitContextSource).toMatch(/execFileAsync\(\s*'git'/);
+        expect(gitContextSource).not.toMatch(
+            /execFileAsync\(\s*'git',\s*args,\s*\{\s*cwd/
+        );
     });
 });

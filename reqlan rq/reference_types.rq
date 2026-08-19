@@ -9,8 +9,10 @@ import "../packages/analytical/src/core/file-reference-resolve.ts" as file_refer
 idea_reference {
     Idea-to-idea ["./ontology.rq".reference]: bracket `[name]` / `[ideaset.name]` targets a local, imported, or same-file idea.
     Syntax: ["./language/syntax.rq".reference_brackets], ["./language/syntax.rq".same_file_reference],
-    ["./language/syntax.rq".reference_qualified], ["./language/syntax.rq".reference_embedding].
+    ["./language/syntax.rq".reference_qualified], ["./language/syntax.rq".reference_embedding],
+    ["./language/syntax.rq".references_to_subidea].
     Index edge kind `references` on [analytical_types] / [rust_index_types]. Extract: [idea_extractor], [rust_extract].
+    A `[ideaset.member]` form records the edge on the member leaf, not on the ideaset container.
     Wikilink surface for the same edge kind: [link_reference]. Fan-out across files: [wildcard_reference].
     @status done
     @implementation (
@@ -24,6 +26,8 @@ idea_reference {
         ["../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
         ["../packages/language/test/linking.test.ts:same-file idea references produce document links"]
         ["../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+        ["../packages/language/test/linking.test.ts:resolve ideaset-qualified bracket reference to member leaf not ideaset"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset"]
     )
 }
 
@@ -51,6 +55,7 @@ comment_reference {
     Inbound ["./ontology.rq".reference] from comments in non-`.rq` source: `rq:[idea]` / `rq:["path".idea]`.
     Spec: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     Syntax note: ["./language/syntax.rq".comment_reference]. Resolve: [comment_resolver].
+    Unresolved: ["./language/syntax.rq".comment_reference_resolution_error].
     Index edge kind `comment_link`. Related capture of those files: ["./ontology.rq".referenced_files].
     Indexer: ["./indexer/indexer.rq".index_code_files].
     @status done
@@ -58,6 +63,7 @@ comment_reference {
         [comment_resolver]
         [analytical_types]
         ["../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../packages/language/src/reqlan-comment-diagnostics.ts"]
         ["../crates/reqlan-index/src/comment.rs"]
     )
     @tests (

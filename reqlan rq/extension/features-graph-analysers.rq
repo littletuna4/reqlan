@@ -77,14 +77,18 @@ git_dates {
     soft-sync / catalog updates (batched, yielded) — not triggered by Activity Bar focus, opening Timeline,
     or Ideas table load.
     Background queue prefers ideas in the active `.rq` editor file before the rest of the backlog.
+    Catalog/save events follow ["git-codelens.rq".git_dates_rate_cap] so git log does not run on every save.
+    Windows git spawns stay hidden per ["../core_analysis/core.rq".consumption_silence].
     Consumers (Activity Bar signals, Timeline, Ideas table, future inlays) read indexed columns only.
     Detail and host wiring: ["git-codelens.rq".git_idea_timeline_analysis] and
     ["git-codelens.rq".git_dates_background_indexing].
-    Implemented by ["../../packages/analytical/src/analysis/git-dates-analyser.ts"],
-    ["../../packages/analytical/src/index-store/sqlite-store.ts"],
-    ["../../packages/extension/src/extension/git-dates-background.ts"], and
-    ["../../packages/extension/src/extension/register-git-dates-background.ts"].
     @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/extension/src/extension/git-dates-background.ts"]
+        ["../../packages/extension/src/extension/register-git-dates-background.ts"]
+    )
     @tests (
         ["../../packages/analytical/test/idea-timeline.test.ts"]
         ["../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
@@ -92,6 +96,7 @@ git_dates {
         ["../../packages/extension/test/git-dates-background.test.ts"]
         ["../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
         ["../../packages/extension/test/git-dates-background.test.ts:stops early when shouldStop flips so a new file can be prioritised"]
+        ["../../packages/extension/test/git-dates-background.test.ts:catalog events debounce and do not follow the short editor delay"]
     )
 }
 

@@ -82,7 +82,7 @@ configuration_rqignore {
     Each base may define path ignore rules in `.reqlan/.rqignore` using **gitignore syntax**.
     Patterns are relative to the base root (parent of `.reqlan`), not the `.reqlan` directory.
     Owned by `@reqlan/analytical` so the CLI, MCP, and extension share one filter for discovery and indexing walks.
-    Built-in defaults always apply (dependencies, venvs, build output, VCS/editor stores, `*.db3` / sqlite DBs, `*.secret.rq`, hidden entries, and `.reqlan/` itself); the on-disk file adds or overrides via the same syntax, including `!` negation.
+    Built-in defaults always apply (dependencies, venvs, build output, VCS/editor stores, `*.db3` / sqlite DBs, binary globs per ["./module/index.rq".binary_ignore], `*.secret.rq`, hidden entries, and `.reqlan/` itself); the on-disk file adds or overrides via the same syntax, including `!` negation.
     New bases seed `.reqlan/.rqignore` with those defaults (["./module/index.rq".rqignore]).
     Missing or unreadable `.rqignore` still uses built-in defaults.
     Location convention: [configuration_location]. Application memory: ["./module/index.rq".application_memory].
@@ -95,6 +95,7 @@ configuration_rqignore {
     )
     @tests (
         ["../../packages/analytical/test/rqignore.test.ts"]
+        ["../../packages/analytical/test/rqignore.test.ts:inverse rqignore patterns opt binary files back in"]
         ["../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
         ["../../packages/analytical/test/base-discovery.test.ts:skips node_modules and does not treat .reqlan as a walkable base root"]
         ["../../packages/analytical/test/workspace-index.test.ts:skips .rq files under rqignore patterns"]

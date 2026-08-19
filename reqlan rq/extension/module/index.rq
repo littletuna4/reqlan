@@ -13,6 +13,7 @@ application_memory {
     Index timing diagnostics persist separately as `index-diagnostics.sqlite` ([index_diagnostics_store] / ["../features-index-diagnostics.rq".index_diagnostics]) so rebuilds of the ideas index do not wipe history.
     Export form defaults (all formats via ["../features-export.rq".export_webview], including HTML options in ["../features-html-export.rq".html_export_form]) persist as `export_settings.json` in the same directory (active base).
     Path ignore rules live as `.rqignore` in the same directory ([rqignore] / [configuration.configuration_rqignore]).
+    Git ignore for SQLite stores lives as `.gitignore` in the same directory (["../../bases/base.rq".base_initialisation_ignore]).
     Path resolution is owned by [application_memory_impl] (`resolveApplicationMemoryPath`); consumers must use it (or `REQLAN_INDEX_PATH` override for a single store) so tools read and write the same store for a given base.
     Multi-base discovery/registry: ["../../bases/base.rq".multi_base_environment]. Index engine ownership: ["../../indexer/indexer.rq".ownership]. Extension wiring: [analytical_submodule].
     Aligns with ["../../cli/cli_package.rq".function_parity]: shared analytical memory, not host-only state.
@@ -37,17 +38,20 @@ index_diagnostics_store {
 rqignore {
     `.reqlan/.rqignore` filters which paths discovery and indexing crawl, using gitignore syntax relative to the base root.
     Owned by [rqignore_impl] in `@reqlan/analytical` so CLI and editor share behaviour.
-    Defaults cover `node_modules/`, virtualenvs, build dirs, VCS/editor stores, database files (`*.db3`, sqlite), secrets, and hidden entries; new bases seed the file via create-base.
+    Defaults cover `node_modules/`, virtualenvs, build dirs, VCS/editor stores, database files (`*.db3`, sqlite), binary globs ([binary_ignore]), secrets, and hidden entries; new bases seed the file via [rqignore_initialisation].
     Product configuration statement: [configuration.configuration_rqignore].
     @implementation (
         [rqignore_impl]
         [application_memory_impl]
+        ["../../../packages/analytical/src/core/rqignore.ts"]
+        ["../../../crates/reqlan-index/src/ignore.rs"]
         ["../../../packages/analytical/src/core/create-base.ts"]
         ["../../../packages/analytical/src/core/base-discovery.ts"]
         ["../../../packages/analytical/src/index-store/workspace-index.ts"]
     )
     @tests (
         ["../../../packages/analytical/test/rqignore.test.ts"]
+        ["../../../packages/analytical/test/rqignore.test.ts:seeded rqignore comments explain all features"]
         ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
         ["../../../packages/analytical/test/workspace-index.test.ts:skips .rq files under rqignore patterns"]
         ["../../../crates/reqlan-index/tests/sync.rs:default_rqignore_skips_node_modules"]
@@ -55,9 +59,55 @@ rqignore {
     @status done
 }
 
+rqignore_initialisation {
+    New bases seed `.reqlan/.rqignore` with comments that explain every feature of [rqignore] and [binary_ignore].
+    Written when a base is created: ["../installation.rq".base_rqignore_seed] / ["../../bases/base.rq".base_initialisation].
+    Comments cover purpose (discovery and index walks), base-root relative paths, gitignore syntax, last matching rule, `!` negation, built-in defaults that always apply, binary opt-in, hidden paths, `*.secret.rq`, and `.reqlan/` itself.
+    The seeded file is the editable surface. Built-in rules still apply if a user deletes a line.
+    Existing `.rqignore` files are not rewritten (["../installation.rq".base_installation] is idempotent).
+    @status done
+    @implementation (
+        [rqignore_impl]
+        ["../../../packages/analytical/src/core/rqignore.ts"]
+        ["../../../crates/reqlan-index/src/ignore.rs"]
+        ["../../../packages/analytical/src/core/create-base.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/rqignore.test.ts:defaultRqIgnoreFileContents documents gitignore-style defaults"]
+        ["../../../packages/analytical/test/rqignore.test.ts:seeded rqignore comments explain all features"]
+        ["../../../crates/reqlan-index/src/ignore.rs:seeded_rqignore_explains_features"]
+        ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
+    )
+}
+
+binary_ignore {
+    Discovery, coverage, and index walks skip binary files by default.
+    Built-in [rqignore] patterns include common binary globs (`*.bin`, images, archives, native objects, fonts, office documents).
+    Opt in with a gitignore negation in `.reqlan/.rqignore`. Example: `!*.bin` includes files with a `.bin` extension.
+    Opted-in files can receive ["../../indexer/indexer.rq".index_code_files] comment indexing. They are not parsed as `.rq` sources.
+    The editor source watcher stays on allowlisted text extensions. A soft or idle sync still walks opted-in binary paths.
+    Same filter as [configuration.configuration_rqignore].
+    @status done
+    @implementation (
+        [rqignore_impl]
+        ["../../../packages/analytical/src/core/rqignore.ts"]
+        ["../../../crates/reqlan-index/src/ignore.rs"]
+        ["../../../crates/reqlan-index/src/sync.rs"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/rqignore.test.ts:defaults ignore node_modules, venv, db3, and binary paths"]
+        ["../../../packages/analytical/test/rqignore.test.ts:inverse rqignore patterns opt binary files back in"]
+        ["../../../crates/reqlan-index/src/ignore.rs:default_rqignore_skips_binary_files_until_negated"]
+        ["../../../crates/reqlan-index/tests/code_file_index.rs:skips_binary_comment_files_unless_rqignore_negation"]
+        ["../../../crates/reqlan-index/tests/sync.rs:default_rqignore_skips_node_modules"]
+    )
+}
+
 idea_index_triggers {
     Refresh automatically on `.rq` file change via watchers ([graph_analysers.indexing_trigger_filesave]).
     Idle: cheap background staleness check — [graph_analysers.indexing_trigger_auto].
+    Git-dates fill is not an index trigger; it is a later analyser with
+    ["../git-codelens.rq".git_dates_rate_cap].
 }
 
 
@@ -68,6 +118,10 @@ git_information_capture {
         - creator (first introduction) and last meaningful modification
         - edit frequency / commit count for the focus path or idea line range
         - recent commit trail (subject, author, authoredAt, short hash) for the ["context-scope.rq".git_context] lens
+    Idea dates and change counts come from [graph_analysers.git_dates] /
+    ["../git-codelens.rq".git_dates_background_indexing], not from a git walk on every save
+    (["../git-codelens.rq".git_dates_rate_cap]).
+    Activity Bar git CLI calls stay hidden on Windows (["../../core_analysis/core.rq".consumption_silence]).
     Future: adjacency score from edit state and frequency of neighbours.
     Feeds ["context-scope-v2.rq".development_history_signals] and ["activitybar-panels/current_context_scope.rq".git_history_lens].
 }

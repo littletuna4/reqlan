@@ -1,7 +1,7 @@
 //! Extract behaviour matching Langium `extractIndexedDocument` on the same sources.
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 
-use reqlan_index::{extract_indexed_document, ExtractOptions};
+use reqlan_index::{extract_indexed_document, idea_id, EdgeKind, ExtractOptions};
 use serde_json::Value;
 
 fn extract(source: &str) -> reqlan_index::IndexedDocument {
@@ -70,4 +70,54 @@ fn indexes_scalar_list_block_and_flag_attribute_values() {
             Value::String(r#"["./bar.ts"]"#.into()),
         ]))
     );
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+#[test]
+fn qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset() {
+    let source = r#"references_to_subidea {
+    It should be acceptable to reference [example_ideaset.subidea1]
+}
+subidea1 hello
+example_ideaset (
+    subidea1
+)
+"#;
+    let indexed = extract(source);
+    let source_id = idea_id("file:///workspace/demo.rq", "references_to_subidea");
+    let leaf_id = idea_id("file:///workspace/demo.rq", "subidea1");
+    let ideaset_id = idea_id("file:///workspace/demo.rq", "example_ideaset");
+    let refs: Vec<_> = indexed
+        .edges
+        .iter()
+        .filter(|edge| edge.source_id == source_id && edge.kind == EdgeKind::References)
+        .collect();
+    assert_eq!(refs.len(), 1, "{refs:?}");
+    assert_eq!(refs[0].target_id.as_deref(), Some(leaf_id.as_str()));
+    assert_eq!(refs[0].label.as_deref(), Some("subidea1"));
+    assert_eq!(refs[0].is_resolved, Some(true));
+    assert!(
+        refs.iter().all(|edge| edge.target_id.as_deref() != Some(ideaset_id.as_str())),
+        "{refs:?}"
+    );
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+#[test]
+fn qualified_namespace_import_reference_targets_leaf_in_imported_file() {
+    let source = r#"import "./other.rq" as ns
+host {
+    see [ns.leaf]
+}
+"#;
+    let indexed = extract(source);
+    let source_id = idea_id("file:///workspace/demo.rq", "host");
+    let refs: Vec<_> = indexed
+        .edges
+        .iter()
+        .filter(|edge| edge.source_id == source_id && edge.kind == EdgeKind::References)
+        .collect();
+    assert_eq!(refs.len(), 1, "{refs:?}");
+    assert_eq!(refs[0].target_id.as_deref(), Some(idea_id("./other.rq", "leaf").as_str()));
+    assert_eq!(refs[0].label.as_deref(), Some("leaf"));
 }

@@ -23,6 +23,16 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.11.0
+
+#### Minor Changes
+
+- 6036b1a: up
+
+#### Patch Changes
+
+- @reqlan/analytical@1.11.0
+
 ### 1.10.9
 
 #### Patch Changes

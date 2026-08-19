@@ -117,14 +117,26 @@ base_modes {
 }
 
 base_initialisation {
-    Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see ["../extension/configuration.rq".configuration_rqignore]), and a sqlite ideas index under `.reqlan`.
-    [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json` plus default `.rqignore` when the base is new.
+    Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see [extension_configuration.configuration_rqignore]), `.reqlan/.gitignore` ([base_initialisation_ignore]), and a sqlite ideas index under `.reqlan` ([base_ownership]).
+    [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json`, default `.rqignore` (["../extension/module/index.rq".rqignore_initialisation]), and `.gitignore` when the base is new.
     Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/installation.rq".base_installation].
 }
 
 base_initialisation_ignore {
-gitignore in the base should exclude the sqlite artifacts.
-@todo
+    New bases seed `<base>/.reqlan/.gitignore` so Git does not track SQLite application-memory files.
+    Patterns cover the ideas index ([base_ownership]), the diagnostics store ([app_memory_doc.index_diagnostics_store]), and SQLite sidecars (`*.sqlite`, `*.sqlite-journal`, `*.sqlite-shm`, `*.sqlite-wal`).
+    This file is Git ignore for `.reqlan/`. Path filters for discovery stay in `.rqignore` ([extension_configuration.configuration_rqignore] / [app_memory_doc.rqignore]).
+    Written by [create_base_impl] as part of [base_initialisation] / ["../extension/installation.rq".base_installation].
+    @implementation (
+        [create_base_impl]
+        ["../../packages/analytical/src/core/application-memory.ts"]
+        ["../../crates/reqlan-index/src/ignore.rs"]
+    )
+    @tests (
+        ["../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.gitignore that excludes sqlite artifacts"]
+        ["../../crates/reqlan-index/src/ignore.rs:create_base_seeds_gitignore_for_sqlite_artifacts"]
+    )
+    @status done
 }
 
 implied_context {
