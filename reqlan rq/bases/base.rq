@@ -122,6 +122,11 @@ base_initialisation {
     Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/installation.rq".base_installation].
 }
 
+base_initialisation_ignore {
+gitignore in the base should exclude the sqlite artifacts.
+@todo
+}
+
 implied_context {
     The **active base** for editor-adjacent surfaces is the longest-matching base root that
     contains the focused file path. When no file is focused, the last selected base (Ideas Summary
