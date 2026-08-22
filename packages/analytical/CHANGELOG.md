@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.11.3
+
+### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+
 ## 1.11.2
 
 ### Patch Changes

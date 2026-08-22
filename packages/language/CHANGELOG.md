@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.9.7
+
+### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+
 ## 1.9.6
 
 ### Patch Changes
