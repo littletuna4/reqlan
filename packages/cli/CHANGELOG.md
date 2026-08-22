@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.7.12
+
+### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+- Updated dependencies [9571467]
+  - @reqlan/analytical@1.11.3
+
 ## 0.7.11
 
 ### Patch Changes
