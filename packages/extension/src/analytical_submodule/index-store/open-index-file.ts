@@ -1,14 +1,17 @@
 import * as vscode from 'vscode';
+import { pickOpenWorkspaceDocument } from './open-index-file-pick.js';
 import { resolveIndexFileUri } from './resolve-index-file-uri.js';
 
 /**
  * Open an indexed file at a line/column.
+ * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_open_live_file]
  *
- * Cursor can reject workspace.openTextDocument / vscode.open with a false
- * "Documents above the size limit cannot be synchronized with extensions"
- * error for small files (bad FileStat.size from the FS provider). Prefer an
- * already-synced document, then try file:// (local to the remote EH), then
- * the resolved URI, then Quick Open as a last resort.
+ * Show a visible workspace tab for that path when one exists.
+ * Do not open a detached `file://` copy — Cursor can show that as a
+ * read-only tab with stale content.
+ *
+ * If Cursor rejects `openTextDocument` with a false size-limit error,
+ * fall back to Quick Open (that path does not use extension-host sync).
  */
 export async function openIndexFile(
     fileUri: string,
@@ -23,64 +26,32 @@ export async function openIndexFile(
         preview: false
     };
 
-    const existing = findOpenDocument(uri);
+    const existing = pickOpenWorkspaceDocument(
+        vscode.window.visibleTextEditors
+            .map(editor => editor.document)
+            .filter(document => vscode.workspace.getWorkspaceFolder(document.uri)),
+        uri
+    );
     if (existing) {
         await vscode.window.showTextDocument(existing, options);
         return;
     }
 
-    const candidates = uniqueUris(vscode.Uri.file(uri.fsPath), uri);
-    let lastError: unknown;
-    for (const candidate of candidates) {
-        try {
-            await vscode.commands.executeCommand('vscode.open', candidate, options);
-            return;
-        } catch (error) {
-            lastError = error;
-            if (!isTooLargeForSyncError(error)) {
-                throw error;
-            }
+    try {
+        const document = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(document, options);
+    } catch (error) {
+        if (!isTooLargeForSyncError(error)) {
+            throw error;
         }
-        try {
-            const document = await vscode.workspace.openTextDocument(candidate);
-            await vscode.window.showTextDocument(document, options);
-            return;
-        } catch (error) {
-            lastError = error;
-            if (!isTooLargeForSyncError(error)) {
-                throw error;
-            }
-        }
+        await vscode.commands.executeCommand('workbench.action.quickOpen', uri.fsPath);
+        const detail = error instanceof Error ? error.message : String(error);
+        void vscode.window.showWarningMessage(
+            `Cursor blocked opening ${vscode.workspace.asRelativePath(uri)} from the extension host` +
+                (detail ? ` (${detail})` : '') +
+                '. Path is in Quick Open — press Enter.'
+        );
     }
-
-    // Cursor UI Quick Open does not hit the extension-host sync size check.
-    await vscode.commands.executeCommand('workbench.action.quickOpen', uri.fsPath);
-    const detail = lastError instanceof Error ? lastError.message : String(lastError ?? '');
-    void vscode.window.showWarningMessage(
-        `Cursor blocked opening ${vscode.workspace.asRelativePath(uri)} from the extension host` +
-            (detail ? ` (${detail})` : '') +
-            '. Path is in Quick Open — press Enter.'
-    );
-}
-
-function findOpenDocument(uri: vscode.Uri): vscode.TextDocument | undefined {
-    return vscode.workspace.textDocuments.find(
-        document => document.uri.fsPath === uri.fsPath || document.uri.toString() === uri.toString()
-    );
-}
-
-function uniqueUris(...uris: vscode.Uri[]): vscode.Uri[] {
-    const seen = new Set<string>();
-    const result: vscode.Uri[] = [];
-    for (const uri of uris) {
-        const key = uri.toString();
-        if (seen.has(key)) {
-            continue;
-        }
-        seen.add(key);
-        result.push(uri);
-    }
-    return result;
 }
 
 function isTooLargeForSyncError(error: unknown): boolean {

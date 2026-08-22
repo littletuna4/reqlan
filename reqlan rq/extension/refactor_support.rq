@@ -1,6 +1,7 @@
 from "./syntax/features-syntax.rq" import refactor_support
 from "./features-mutation-hooks.rq" import move_file, rename_file
 from "../language/syntax.rq" import comment_reference
+from "./features-commands.rq" import decompose, command_palette
 
 refactor_changes {
     On rename, move, or delete of files or symbols, the extension should update the
@@ -46,15 +47,38 @@ refactor_symbol_rename {
 }
 
 refactor_symbol_move {
-    An idea declaration should offer a code action to move it to another .rq file.
-    Moving should cut the declaration from the source, insert it into the destination,
-    rewrite imports and references (including comment references per [comment_reference_refactor_support]), and reindex without
-    leaving duplicate idea rows for the old hosting file.
+    An idea can move to another existing `.rq` file from a code action or the [command_palette].
+    Palette commands use the idea under the cursor, or a pick list when the cursor is not on an idea.
+    1. Move idea (`reqlan.refactor.moveIdea`)
+        - Cut the declaration from the source file.
+        - Insert it into the destination file.
+        - Remove source imports that the move makes unused.
+        - Add the imports that the moved idea needs to the destination.
+        - If the source file still refers to the idea, import it from the destination.
+        - Rewrite comment references per [comment_reference_refactor_support].
+        - Reindex without duplicate idea rows for the old hosting file.
+    2. Move idea content (`reqlan.refactor.moveIdeaContent`)
+        - Do the same as (1).
+        - Always import the destination file in the source.
+        - Leave a one-liner stub in the source: `idea_name [alias.idea_name]`.
+    Do not overlap [decompose]: decompose writes a new file. Move and decompose share the resolve-plan-apply sequence in ["../../packages/extension/src/refactor_module/idea-extract-flow.ts"].
     [refactor_support] [refactor_changes]
-    Implemented by ["../../packages/language/src/reqlan-idea-refactor.ts"], ["../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-idea-refactor.ts"]
+        ["../../packages/language/src/reqlan-idea-move-imports.ts"]
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/refactor_module/idea-extract-flow.ts"]
+        ["../../packages/extension/src/refactor_module/register-idea-refactor-commands.ts"]
+    )
     @tests (
         ["../../packages/language/test/idea-refactor.test.ts:move plan cuts from source and inserts into destination"]
         ["../../packages/language/test/idea-refactor.test.ts:move plan rewrites qualified comment paths for the moved idea"]
+        ["../../packages/language/test/idea-refactor.test.ts:move plan removes unused source imports and copies them to destination"]
+        ["../../packages/language/test/idea-refactor.test.ts:move plan adds a sibling import on the destination"]
+        ["../../packages/language/test/idea-refactor.test.ts:move content plan leaves a source stub that imports the moved idea"]
+        ["../../packages/language/test/code-actions.test.ts:offers move and delete actions at an idea declaration"]
+        ["../../packages/extension/test/extension-package.test.ts:package.json contributes move idea and move idea content commands"]
     )
 }
 

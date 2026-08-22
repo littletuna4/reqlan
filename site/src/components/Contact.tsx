@@ -1,12 +1,17 @@
 import { PhonebookIcon } from "@/components/PhonebookIcon";
 import { contact } from "@/content/contact";
+import type { PhonebookIconRef } from "@/lib/phonebook";
 import shared from "./shared.module.css";
 
 function LinkList({
   items,
   labelledBy,
 }: {
-  items: readonly { href: string; label: string; icon: { set: string; name: string } }[];
+  items: readonly {
+    href: string;
+    label: string;
+    icon?: PhonebookIconRef;
+  }[];
   labelledBy: string;
 }) {
   return (

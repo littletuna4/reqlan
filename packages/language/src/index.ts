@@ -2,6 +2,7 @@ export * from './reqlan-module.js';
 export * from './reqlan-parse-budget.js';
 export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser.js';
 export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
+export { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
 export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
 export * from './reqlan-comment-diagnostics.js';
@@ -17,7 +18,10 @@ export {
     isRefactorIdeaDeclaration,
     planIdeaDeleteEdits,
     planIdeaMoveEdits,
+    findIdeaDeclarationAtRange,
+    listRefactorIdeaDeclarations,
     type DocumentTextEdits,
+    type PlanIdeaMoveInput,
     type RefactorIdeaDeclaration
 } from './reqlan-idea-refactor.js';
 export * from './reqlan-path-resolve.js';

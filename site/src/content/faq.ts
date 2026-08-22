@@ -1,5 +1,6 @@
 // rq:["../../../reqlan rq/site/site.rq".copy]
 // rq:["../../../reqlan rq/site/site.rq".faq_page]
+// rq:["../../../reqlan rq/site/support-page.rq".support_page]
 import type { FaqItem, FaqSupportLink } from "@/content/types";
 
 export const faq = {
@@ -29,11 +30,13 @@ export const faq = {
       id: "support-reqlan",
       question: "How can I support reqlan?",
       answer:
-        "Star the GitHub repo and the VS Marketplace listing. Open issues for bugs; send PRs for fixes and docs. Sponsorship and donations: email reqlan@reqlan.com. Contribution welcome on the same GitHub repo.",
+        "Star the GitHub repo, leave a marketplace review, sponsor, contribute, cite, join Discord, or share. The Support page has the full list.",
+      page: { href: "/support", label: "Support page" },
       links: [
         { id: "github", label: "GitHub (stars, issues, PRs)" },
         { id: "vsc", label: "VS Marketplace (stars)" },
-        { id: "email", label: "Sponsorship / donation" },
+        { id: "github-sponsors", label: "Sponsor" },
+        { id: "discord", label: "Discord" },
       ] satisfies FaqSupportLink[],
     },
     {

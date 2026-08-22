@@ -28,10 +28,14 @@ iconify_stack {
 
 phonebook_icon_keys {
     per [phonebook_reqs.phonebook_icons]
-    Each phonebook link or package carries an `icon` object with `set` and `name`.
+    A phonebook link or package can omit `icon`. If `icon` is present, it is an object with `set` and `name`.
     Set ids and lookup URLs are canonical in ["../phonebook.json"].icons.
     Use each set's `search` URL to find replacement slugs when a name changes or an icon is removed upstream.
     Typed helpers live in [phonebook_script]: `formatPhonebookIconKey`, `getPhonebookIconSearchUrl`.
+    @status done
+    @tests (
+        ["../../site/src/lib/phonebook-icons.test.ts"]
+    )
 }
 
 current_link_icons {
@@ -40,7 +44,10 @@ current_link_icons {
     - `vsc` → simple-icons / visualstudiocode
     - `openvsx` → simple-icons / vscodium (proxy; no Open VSX slug in Simple Icons)
     - `github` → simple-icons / github
+    - `discord` → simple-icons / discord
+    - `github-sponsors` → simple-icons / githubsponsors
     - `email` → mdi / email-outline
+    - `sticker-form` → mdi / sticker-emoji
     Package entries under `packages` all use simple-icons / npm:
     - `language`, `analytical`, `cli`
 }

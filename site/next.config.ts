@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   output: "export",
   basePath,
   trailingSlash: true,
+  typedRoutes: true,
   distDir: "out",
   images: {
     unoptimized: true,

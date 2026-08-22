@@ -36,7 +36,7 @@
       "type": "object",
       "minProperties": 1,
       "additionalProperties": {
-        "$ref": "#/$defs/namedHref"
+        "$ref": "#/$defs/linkHref"
       }
     },
     "packages": {
@@ -48,10 +48,25 @@
     }
   },
   "$defs": {
+    "iconRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["set", "name"],
+      "properties": {
+        "set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "namedHref": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["label", "href", "icon"],
+      "required": ["label", "href"],
       "properties": {
         "label": {
           "type": "string",
@@ -62,19 +77,30 @@
           "minLength": 1
         },
         "icon": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["set", "name"],
-          "properties": {
-            "set": {
-              "type": "string",
-              "minLength": 1
-            },
-            "name": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
+          "$ref": "#/$defs/iconRef"
+        }
+      }
+    },
+    "linkHref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "href"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "href": {
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "$ref": "#/$defs/iconRef"
+        },
+        "show-in-footer": {
+          "type": "boolean",
+          "default": true,
+          "description": "When false, do not show this link in the site footer. Omitted means true."
         }
       }
     }

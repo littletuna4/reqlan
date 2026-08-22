@@ -4,7 +4,7 @@ import type { RoadmapItem } from "@/content/types";
 
 export const roadmap = {
   title: "Roadmap",
-  lead: "A short list. Scroll for the next one.",
+  lead: "Where we're going.",
   items: [
     {
       id: "context",

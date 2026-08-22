@@ -6,7 +6,7 @@ import type { PhonebookIconRef } from "@/lib/phonebook";
 import styles from "./PhonebookIcon.module.css";
 
 type PhonebookIconProps = {
-  icon: PhonebookIconRef;
+  icon?: PhonebookIconRef;
   className?: string;
 };
 

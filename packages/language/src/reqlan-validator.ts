@@ -11,6 +11,7 @@ import {
     type AnonymousBlock,
     type Model
 } from './generated/ast.js';
+import { collectCommentReferenceIssues } from './reqlan-comment-diagnostics.js';
 import {
     collectFileLinks,
     fileLinkTargetIssueMessage
@@ -36,6 +37,8 @@ import {
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
+ * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
@@ -53,6 +56,8 @@ export function registerValidationChecks(services: ReqlanServices) {
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
+ * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 export class ReqlanValidator {
 
@@ -64,6 +69,7 @@ export class ReqlanValidator {
         this.checkImportSyntax(model, accept);
         this.checkImportTargets(model, accept);
         this.checkFileReferenceTargets(model, accept);
+        this.checkCommentReferences(model, accept);
         this.checkWildcardReferences(model, accept);
     }
 
@@ -208,6 +214,23 @@ export class ReqlanValidator {
             accept('warning', fileLinkTargetIssueMessage(link.targetIssue), {
                 node: model,
                 range: link.sourceRange
+            });
+        }
+    }
+
+    checkCommentReferences(model: Model, accept: ValidationAcceptor): void {
+        const document = AstUtils.getDocument(model);
+        const { shared } = this.services;
+        for (const issue of collectCommentReferenceIssues(
+            document,
+            shared.workspace.LangiumDocuments,
+            shared.workspace.FileSystemProvider,
+            pathResolveContextFromServices(this.services)
+        )) {
+            accept('error', issue.message, {
+                node: model,
+                range: issue.range,
+                code: issue.code
             });
         }
     }

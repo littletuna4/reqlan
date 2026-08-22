@@ -49,6 +49,12 @@
   line-height: 1.65;
 }
 
+.pageLink {
+  margin: 0.75rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .supportLinks {
   display: flex;
   flex-wrap: wrap;

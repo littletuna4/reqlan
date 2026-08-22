@@ -23,6 +23,7 @@ search_pane {
     [search_pane_query]
     [search_pane_layout]
     [search_pane_results]
+    [search_pane_open_live_file]
     [search_pane_load_more]
     [search_pane_file_hits]
     [search_pane_insert_reference]
@@ -67,11 +68,27 @@ search_pane_layout {
 
 search_pane_results {
     [search_pane] results list is paged (default page size 40) with name, path, and one-line summary;
-    click opens the idea or file. Exceeded counts and further pages: [search_pane_load_more].
+    click opens the idea or file ([search_pane_open_live_file]). Exceeded counts and further pages: [search_pane_load_more].
     File hits: [search_pane_file_hits].
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/src/activity_bar_module/search-results-meta.ts"]
+    )
+    @status done
+}
+
+search_pane_open_live_file {
+    A click on a [search_pane] hit must show the live workspace file at that path.
+    If that file is already open in a workspace tab, focus that tab and move the caret.
+    Do not open a second read-only tab with stale content (a detached `file://` copy that Cursor does not sync).
+    Keep the click path cheap: no extra index read, no base discovery.
+    @implementation (
+        ["../../../../packages/extension/src/analytical_submodule/index-store/open-index-file.ts"]
+        ["../../../../packages/extension/src/analytical_submodule/index-store/open-index-file-pick.ts"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/open-index-file.test.ts"]
+        ["../../../../packages/extension/test/open-index-file.test.ts:prefers the document whose URI matches the workspace target"]
     )
     @status done
 }

@@ -2,6 +2,7 @@
 // rq:["../../../reqlan rq/site/site.rq".sidebar_nav]
 // rq:["../../../reqlan rq/site/site.rq".nav_graph]
 // rq:["../../../reqlan rq/site/site.rq".routes]
+// rq:["../../../reqlan rq/site/support-page.rq".support_page]
 import type { NavGraphEdge, NavGraphNode, NavItem } from "@/content/types";
 
 export const nav = [
@@ -38,6 +39,11 @@ export const nav = [
       { id: "when-to-use", label: "When to use" },
       { id: "support-reqlan", label: "Support reqlan" },
     ],
+  },
+  {
+    id: "support",
+    label: "Support",
+    href: "/support",
   },
   { id: "spec", label: "Spec", href: "/spec" },
 ] satisfies NavItem[];
@@ -118,6 +124,14 @@ export const navGraph = {
       y: 56,
     },
     { id: "faq", label: "FAQ", kind: "page", target: "/faq", x: 68, y: 28 },
+    {
+      id: "support",
+      label: "Support",
+      kind: "page",
+      target: "/support",
+      x: 58,
+      y: 16,
+    },
   ] satisfies NavGraphNode[],
   edges: [
     { from: "hero", to: "motivation" },
@@ -130,5 +144,6 @@ export const navGraph = {
     { from: "hero", to: "tutorials" },
     { from: "hero", to: "showcase" },
     { from: "hero", to: "faq" },
+    { from: "hero", to: "support" },
   ] satisfies NavGraphEdge[],
 } as const;

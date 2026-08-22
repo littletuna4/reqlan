@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 
-import { CertificatePage } from "@/views/CertificatePage";
+import { LegacyPathRedirect } from "@/components/LegacyPathRedirect";
+import { CERTS_CERTIFICATE_PATH } from "@/lib/certs-paths";
 
 export const metadata: Metadata = {
   title: "Certificate · reqlan",
-  description: "reqlan tutorial assessment certificate",
+  description: "reqlan tutorial certificate",
 };
 
 export default function Page() {
-  return <CertificatePage />;
+  // rq:["../../../../../reqlan rq/site/certs.rq".certificate_page]
+  return <LegacyPathRedirect to={`${CERTS_CERTIFICATE_PATH}/`} />;
 }

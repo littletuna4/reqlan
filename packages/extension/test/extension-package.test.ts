@@ -89,6 +89,34 @@ describe('search code action host wiring', () => {
     });
 });
 
+describe('idea move palette commands', () => {
+    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    test('package.json contributes move idea and move idea content commands', () => {
+        const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
+            contributes: { commands: Array<{ command: string; title: string }> };
+        };
+        const commands = pkg.contributes.commands;
+        expect(commands).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    command: 'reqlan.refactor.moveIdea',
+                    title: 'Move Idea to Another File'
+                }),
+                expect.objectContaining({
+                    command: 'reqlan.refactor.moveIdeaContent',
+                    title: 'Move Idea Content to Another File'
+                })
+            ])
+        );
+        const registerSource = readFileSync(
+            join(extensionRoot, 'src/refactor_module/register-idea-refactor-commands.ts'),
+            'utf8'
+        );
+        expect(registerSource).toContain('REQLAN_REFACTOR_MOVE_IDEA_CONTENT_COMMAND');
+        expect(registerSource).toContain('leaveSourceStub: true');
+    });
+});
+
 describe('extension host esbuild CJS import.meta', () => {
     // rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
     test('rewrites import.meta.url instead of emptying it for ES2017 CJS', async () => {

@@ -28,6 +28,8 @@ const site = getPhonebookLink("site");
 const github = getPhonebookLink("github");
 const vsc = getPhonebookLink("vsc");
 const openvsx = getPhonebookLink("openvsx");
+const discord = getPhonebookLink("discord");
+const sponsor = getPhonebookLink("github-sponsors");
 const email = getPhonebookLink("email");
 const logoUrl = `${github.href.replace(
   "https://github.com/",
@@ -42,6 +44,10 @@ const readme = renderTemplate(readFileSync(templatePath, "utf8"), {
   OPENVSX_LABEL: openvsx.label,
   OPENVSX_URL: openvsx.href,
   GITHUB_URL: github.href,
+  DISCORD_LABEL: discord.label,
+  DISCORD_URL: discord.href,
+  SPONSOR_LABEL: sponsor.label,
+  SPONSOR_URL: sponsor.href,
   EMAIL_URL: email.href,
   LOGO_URL: logoUrl,
 });

@@ -1,0 +1,52 @@
+from "../phonebook.rq" import phonebook
+
+support_page {
+    Rank actions by ease and likelihood to nudge. Star on GitHub is first.
+    Default view is a graph. Toggle Graph / Tiles / Table as icon buttons on the right of the header, with hover tooltips.
+    Graph: cola layout, settled on first paint to the visible window; copy has no graph coordinates; each node moves with its label; nodes are draggable; a drop keeps the new position; a drag does not start the action; all nodes offset slightly toward the cursor; nodes repel so some canvas edges stay open; action radius is impact × ease and stays latent to users; action nodes are solid and flat; each action links to a smaller passive original-group node in secondary colour (advocacy, community, cite, contribute, sponsor); group labels grow on group hover; labels do not overlap.
+    Hover on an action node shows a tooltip with the action blurb.
+    Star and sponsor tags are featured in the orange brand colour: the Star action, sponsor actions, and the Sponsor group.
+    Tiles: responsive flex layout.
+    Table: action and group only. Ease, impact, and score stay latent.
+    Action names use the aqua link colour in Graph, Tiles, and Table, including copy and share, except featured graph tags.
+    Each table row runs the same action as the graph and tiles: open a link, copy, or share.
+    Support via, in tile order:
+    - one click
+        - star on github
+        - share
+        - discord
+    - a minute
+        - cite
+        - issues
+        - post your certificate
+        - say something nice on the Visual Studio Marketplace
+        - say something nice on Open VSX
+        - FREE stickers: show the world you are a reqling, via [phonebook] sticker-form
+    - write
+        - reach out and send an email
+        - write a testimonial
+    - sponsor
+        - github sponsorship
+        - direct sponsorship
+    integrated with [phonebook].
+    Copy lives in ["../../site/src/content/support.ts"] per ["./site.rq".copy].
+    The site exposes `/support/` as a statically generated page.
+    Sidebar nests Support section anchors as same-page children per ["./site.rq".sidebar_nav].
+    Landing nav graph includes Support as a page node per ["./site.rq".nav_graph].
+    @status done
+    @implementation (
+        ["@/site/src/app/support/page.tsx"]
+        ["@/site/src/views/SupportPage.tsx"]
+        ["@/site/src/views/SupportGraph.tsx"]
+        ["@/site/src/views/SupportTable.tsx"]
+        ["@/site/src/views/support.module.css"]
+        ["@/site/src/content/support.ts"]
+        ["@/site/src/lib/support-action.ts"]
+        ["@/site/src/lib/support-graph-cola.ts"]
+        ["@/site/src/content/nav.ts"]
+    )
+    @tests (
+        ["@/site/src/content/support.test.ts"]
+        ["@/site/src/lib/support-graph-cola.test.ts"]
+    )
+}

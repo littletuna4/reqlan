@@ -2,6 +2,7 @@
 export type {
   CodeLanguage,
   FaqItem,
+  FaqPageLink,
   FaqSupportLink,
   LinkItem,
   MotivationFeature,
@@ -25,6 +26,7 @@ import { motivation } from "@/content/motivation";
 import { nav, navGraph } from "@/content/nav";
 import { roadmap } from "@/content/roadmap";
 import { stickyCta } from "@/content/sticky-cta";
+import { support } from "@/content/support";
 import { syntax } from "@/content/syntax";
 
 export const siteContent = {
@@ -40,6 +42,7 @@ export const siteContent = {
   roadmap,
   contact,
   faq,
+  support,
   stickyCta,
   footer,
 } as const;

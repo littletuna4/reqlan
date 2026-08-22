@@ -92,7 +92,7 @@ export const assessmentQuestions: AssessmentQuestion[] = [
     prompt: "What is an ideaset?",
     choices: [
       { id: "a", label: "A namespace of unrelated files" },
-      { id: "b", label: "A namespace namespace container for related idea names" },
+      { id: "b", label: "A namespace container for related idea names" },
       { id: "c", label: "A required metadata form on every idea" },
       { id: "d", label: "The Ideas Summary export format" },
     ],
@@ -106,7 +106,8 @@ export const assessmentQuestions: AssessmentQuestion[] = [
       { id: "b", label: "Only via chat mentions" },
       {
         id: "c",
-        label: "With bracket references / wikilinks (and file paths in brackets)",
+        label:
+          "With bracket references / wikilinks (and file paths in brackets)",
       },
       { id: "d", label: "By renaming files to match idea names" },
     ],
@@ -114,7 +115,8 @@ export const assessmentQuestions: AssessmentQuestion[] = [
   },
   {
     id: "q-extension-map",
-    prompt: "Which surface is best for curated tables and graph maps you choose?",
+    prompt:
+      "Which surface is best for curated tables and graph maps you choose?",
     choices: [
       { id: "a", label: "Ideas Summary" },
       { id: "b", label: "package-lock.json" },

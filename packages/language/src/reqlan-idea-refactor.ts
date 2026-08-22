@@ -18,9 +18,20 @@ import {
 import { buildInboundPathRewriteEdits } from './file-path-rewrite.js';
 import {
     buildFromImportEdit,
+    buildNamespaceImportEdit,
+    fileBasenameAlias,
     findImportInsertPosition,
+    namespaceAliasForPath,
     relativeRqImportPath
 } from './reqlan-import-edits.js';
+import {
+    collectUsedBindingNames,
+    planDestRequiredImportEdits,
+    planUnusedImportEdits,
+    positionsEqual,
+    sourceBoundNames,
+    uniqueImportAlias
+} from './reqlan-idea-move-imports.js';
 import { findCommentPathReferencesInText } from './reqlan-path-references.js';
 
 export type RefactorIdeaDeclaration = Idea | OneLinerIdea;
@@ -78,14 +89,21 @@ export function planIdeaDeleteEdits(
     return toDocumentEdits(byUri);
 }
 
-export function planIdeaMoveEdits(input: {
+export interface PlanIdeaMoveInput {
     idea: RefactorIdeaDeclaration;
     sourceDocument: LangiumDocument;
     destinationDocument: LangiumDocument;
     references: readonly ReferenceDescription[];
-    /** Extra file texts (code or `.rq`) that may hold `rq:["path".idea]` links. */
+    /** Extra file texts (code or `.rq`) that may hold qualified comment idea links. */
     documentsText?: Map<string, string>;
-}): DocumentTextEdits[] {
+    /**
+     * Leave a one-liner stub in the source that refers to the moved idea, and always
+     * import the destination file. Used by "Move idea content".
+     */
+    leaveSourceStub?: boolean;
+}
+
+export function planIdeaMoveEdits(input: PlanIdeaMoveInput): DocumentTextEdits[] {
     const ideaText = ideaDeclarationText(input.sourceDocument, input.idea);
     if (!ideaText) {
         return [];
@@ -95,22 +113,74 @@ export function planIdeaMoveEdits(input: {
     const sourceUri = input.sourceDocument.uri.toString();
     const destUri = input.destinationDocument.uri.toString();
     const declarationRange = expandDeclarationRange(input.idea);
-    if (declarationRange) {
-        pushEdit(byUri, sourceUri, { range: declarationRange, newText: '' });
-    }
-
+    const sourceModel = input.sourceDocument.parseResult.value;
     const destModel = input.destinationDocument.parseResult.value;
-    if (isModel(destModel)) {
-        const insert = findIdeaInsertPosition(destModel);
-        pushEdit(byUri, destUri, {
-            range: { start: insert, end: insert },
-            newText: `${ideaText}\n`
-        });
+    const destImportPath = relativeRqImportPath(input.sourceDocument.uri, input.destinationDocument.uri);
+    const existingDestAlias = isModel(sourceModel)
+        ? namespaceAliasForPath(sourceModel, destImportPath)
+        : undefined;
+    const stubAlias = input.leaveSourceStub && isModel(sourceModel)
+        ? (existingDestAlias ?? uniqueImportAlias(
+            fileBasenameAlias(input.destinationDocument.uri),
+            sourceBoundNames(sourceModel)
+        ))
+        : undefined;
+
+    if (declarationRange) {
+        const stubText = stubAlias
+            ? `${input.idea.name} [${stubAlias}.${input.idea.name}]\n`
+            : '';
+        pushEdit(byUri, sourceUri, { range: declarationRange, newText: stubText });
     }
 
-    if (sourceKeepsReferences(input.references, sourceUri, declarationRange)) {
-        const importPath = relativeRqImportPath(input.sourceDocument.uri, input.destinationDocument.uri);
-        const importEdit = buildFromImportEdit(input.sourceDocument, importPath, input.idea.name);
+    if (isModel(sourceModel)) {
+        const usedAfterMove = collectUsedBindingNames(sourceModel, input.idea);
+        if (stubAlias) {
+            usedAfterMove.add(stubAlias);
+        }
+        for (const edit of planUnusedImportEdits(input.sourceDocument, usedAfterMove)) {
+            pushEdit(byUri, sourceUri, edit);
+        }
+    }
+
+    const destImportEdits = planDestRequiredImportEdits({
+        idea: input.idea,
+        sourceDocument: input.sourceDocument,
+        destinationDocument: input.destinationDocument
+    });
+    const ideaInsert = isModel(destModel) ? findIdeaInsertPosition(destModel) : undefined;
+    let insertedIdea = false;
+    if (ideaInsert) {
+        for (const edit of destImportEdits) {
+            if (
+                positionsEqual(edit.range.start, ideaInsert)
+                && positionsEqual(edit.range.end, ideaInsert)
+            ) {
+                edit.newText = `${edit.newText}${ideaText}\n`;
+                insertedIdea = true;
+                break;
+            }
+        }
+        if (!insertedIdea) {
+            pushEdit(byUri, destUri, {
+                range: { start: ideaInsert, end: ideaInsert },
+                newText: `${ideaText}\n`
+            });
+        }
+    }
+    for (const edit of destImportEdits) {
+        pushEdit(byUri, destUri, edit);
+    }
+
+    if (stubAlias) {
+        if (!existingDestAlias) {
+            const nsEdit = buildNamespaceImportEdit(input.sourceDocument, destImportPath, stubAlias);
+            if (nsEdit) {
+                pushEdit(byUri, sourceUri, nsEdit);
+            }
+        }
+    } else if (sourceKeepsReferences(input.references, sourceUri, declarationRange)) {
+        const importEdit = buildFromImportEdit(input.sourceDocument, destImportPath, input.idea.name);
         if (importEdit) {
             pushEdit(byUri, sourceUri, importEdit);
         }
@@ -131,6 +201,38 @@ export function planIdeaMoveEdits(input: {
     }
 
     return toDocumentEdits(byUri);
+}
+
+export function findIdeaDeclarationAtRange(
+    document: LangiumDocument,
+    range: Range
+): RefactorIdeaDeclaration | undefined {
+    const offset = document.textDocument.offsetAt(range.start);
+    for (const node of AstUtils.streamAst(document.parseResult.value)) {
+        if (!isRefactorIdeaDeclaration(node) || !node.$cstNode) {
+            continue;
+        }
+        const start = document.textDocument.offsetAt(node.$cstNode.range.start);
+        const end = document.textDocument.offsetAt(node.$cstNode.range.end);
+        if (offset >= start && offset <= end) {
+            return node;
+        }
+        if (
+            range.start.line === node.$cstNode.range.start.line
+            && range.start.character <= (node.name?.length ?? 0) + 1
+        ) {
+            return node;
+        }
+    }
+    return undefined;
+}
+
+export function listRefactorIdeaDeclarations(document: LangiumDocument): RefactorIdeaDeclaration[] {
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return [];
+    }
+    return model.elements.filter(isRefactorIdeaDeclaration);
 }
 
 function planCommentPathRewritesForMovedIdea(

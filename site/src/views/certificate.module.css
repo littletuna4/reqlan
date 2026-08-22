@@ -62,6 +62,16 @@
   line-height: 1.5;
 }
 
+.assessmentLink {
+  color: var(--color-aqua);
+  text-decoration: none;
+}
+
+.assessmentLink:hover {
+  color: var(--color-aqua-bright);
+  text-decoration: underline;
+}
+
 .name {
   margin: 0.35rem 0 0.55rem;
   font-size: clamp(1.6rem, 4vw, 2.15rem);
@@ -118,6 +128,88 @@
   color: var(--color-aqua-bright);
 }
 
+.share,
+.sticker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.shareLead,
+.stickerLead {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.linkRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.linkInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.linkInput:focus {
+  outline: 2px solid var(--color-aqua);
+  outline-offset: 1px;
+}
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary:hover {
+  border-color: var(--color-aqua);
+}
+
+.stickerTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.stickerFrame {
+  width: 100%;
+  min-height: 42rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-surface);
+}
+
+.stickerOpen {
+  color: var(--color-aqua);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.stickerOpen:hover {
+  color: var(--color-aqua-bright);
+}
+
 .invalid {
   display: flex;
   flex-direction: column;
@@ -149,6 +241,14 @@
   .cert {
     padding: 2rem 1.25rem 1.75rem;
   }
+
+  .linkRow {
+    grid-template-columns: 1fr;
+  }
+
+  .stickerFrame {
+    min-height: 36rem;
+  }
 }
 
 @media print {
@@ -157,7 +257,9 @@
     padding: 0;
   }
 
-  .toolbar {
+  .toolbar,
+  .share,
+  .sticker {
     display: none !important;
   }
 
@@ -174,7 +276,12 @@
   .name,
   .date,
   .line,
-  .footnote {
+  .footnote,
+  .assessmentLink {
     color: #111 !important;
+  }
+
+  .assessmentLink {
+    text-decoration: none;
   }
 }

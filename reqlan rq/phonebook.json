@@ -47,12 +47,37 @@
         "name": "github"
       }
     },
+    "discord": {
+      "label": "Discord",
+      "href": "https://discord.gg/R487KDVfmA",
+      "icon": {
+        "set": "simple-icons",
+        "name": "discord"
+      }
+    },
+    "github-sponsors": {
+      "label": "Sponsor",
+      "href": "https://github.com/sponsors/littletuna4",
+      "icon": {
+        "set": "simple-icons",
+        "name": "githubsponsors"
+      }
+    },
     "email": {
       "label": "Email",
       "href": "mailto:reqlan@reqlan.com",
       "icon": {
         "set": "mdi",
         "name": "email-outline"
+      }
+    },
+    "sticker-form": {
+      "label": "Sticker Form",
+      "href": "https://forms.gle/TA4pF8iNxPub7Juu6",
+      "show-in-footer": false,
+      "icon": {
+        "set": "mdi",
+        "name": "sticker-emoji"
       }
     }
   },

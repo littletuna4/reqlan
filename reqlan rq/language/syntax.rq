@@ -303,6 +303,7 @@ comment_reference_resolution_error {
 
 
 
+
 string_literals {
     String literals in import paths and quoted idea names may use double or single quotes.
     Escaped characters inside strings follow standard backslash escaping.

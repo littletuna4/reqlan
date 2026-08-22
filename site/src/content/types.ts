@@ -83,10 +83,16 @@ export type FaqSupportLink = {
   label: string;
 };
 
+export type FaqPageLink = {
+  href: string;
+  label: string;
+};
+
 export type FaqItem = {
   id: string;
   question: string;
   answer: string;
+  page?: FaqPageLink;
   links?: readonly FaqSupportLink[];
 };
 

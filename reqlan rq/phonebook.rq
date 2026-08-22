@@ -1,12 +1,12 @@
 phonebook {
     Canonical project links and publishable npm package URLs live in ["./phonebook.json"].
-    Modules that need contact, repo, marketplace, or npm package URLs should read from there instead of hardcoding values.
+    Modules that need contact, repo, marketplace, Discord, sponsorship, or npm package URLs should read from there instead of hardcoding values.
     Typed access is shared via ["../scripts/phonebook.ts"] for the site and extension README generator.
 }
 
 phonebook_icons {
     Icon sets and lookup URLs live under the `icons` key in ["./phonebook.json"].
-    Each link or package icon references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
+    A link or package can omit `icon`. If `icon` is present, it references a set id (`simple-icons`, `mdi`, …) and slug `name` from that set's catalog.
     Search a set at its `search` URL when renaming or replacing icons.
     Surfaces render icons with Iconify via the packages listed in each set's `package` field per ["./development/core.rq".iconify_stack].
     Site registry: ["../site/src/lib/phonebook-icons.ts"] per ["./site/site.rq".icon_registry].
@@ -20,7 +20,7 @@ npm_packages {
 }
 
 extension_readme_links {
-    The extension VSIX README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, and `email` for site, repository, marketplace, Open VSX, and contact URLs.
+    The extension VSIX README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, `discord`, `github-sponsors`, and `email` for site, repository, marketplace, Open VSX, Discord, sponsorship, and contact URLs.
     Generation is defined in ["./distribution/distribution.rq".extension_readme].
 }
 
@@ -34,6 +34,40 @@ activity_bar_site_link {
 }
 
 root_readme_links {
-    The repository README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, and `email` for site, repository, marketplace, Open VSX, and contact URLs.
+    The repository README uses phonebook link ids `site`, `github`, `vsc`, `openvsx`, `discord`, `github-sponsors`, and `email` for site, repository, marketplace, Open VSX, Discord, sponsorship, and contact URLs.
     Generation is defined in ["./distribution/distribution.rq".root_readme].
+}
+
+github_funding {
+    The GitHub sponsor button is configured in ["../.github/FUNDING.yml"].
+    The GitHub Sponsors username is the account in phonebook link id `github-sponsors`.
+    Discord is community, not a funding platform: do not list it in FUNDING.yml.
+    @status done
+    @implementation (
+        ["../.github/FUNDING.yml"]
+    )
+}
+
+show_in_footer {
+    Each entry under `links` in ["./phonebook.json"] may set `show-in-footer`.
+    The property is optional. Omitted means true.
+    Set `show-in-footer` to false to keep a link out of the site footer and the landing contact list.
+    Packages do not have this property.
+    Schema: ["./phonebook.schema.json"].
+    Typed helpers: `isShownInFooter`, `phonebookFooterLinks` in ["../scripts/phonebook.ts"] and ["../site/src/lib/phonebook.ts"].
+    per ["./site/site.rq".footer]
+    per ["./site/site.rq".links]
+    @status done
+    @implementation (
+        ["./phonebook.schema.json"]
+        ["./phonebook.json"]
+        ["../scripts/phonebook.ts"]
+        ["../site/src/lib/phonebook.ts"]
+        ["../site/src/components/Footer.tsx"]
+        ["../site/src/content/contact.ts"]
+    )
+    @tests (
+        ["../site/src/lib/phonebook.test.ts"]
+        ["../site/src/content/contact.test.ts"]
+    )
 }

@@ -9,9 +9,17 @@ export type PhonebookIconRef = {
   name: string;
 };
 
+type PhonebookNamedHref = {
+  label: string;
+  href: string;
+  icon?: PhonebookIconRef;
+};
+
 export type PhonebookLinkId = keyof typeof phonebook.links;
 
-export type PhonebookLinkEntry = (typeof phonebook.links)[PhonebookLinkId];
+export type PhonebookLinkEntry = PhonebookNamedHref & {
+  "show-in-footer"?: boolean;
+};
 
 export type PhonebookLink = PhonebookLinkEntry & {
   id: PhonebookLinkId;
@@ -19,8 +27,7 @@ export type PhonebookLink = PhonebookLinkEntry & {
 
 export type PhonebookPackageId = keyof typeof phonebook.packages;
 
-export type PhonebookPackageEntry =
-  (typeof phonebook.packages)[PhonebookPackageId];
+export type PhonebookPackageEntry = PhonebookNamedHref;
 
 export type PhonebookPackage = PhonebookPackageEntry & {
   id: PhonebookPackageId;
@@ -32,6 +39,15 @@ export const phonebookLinks = (
   id,
   ...link,
 }));
+
+/** Omitted `show-in-footer` means true. */
+export function isShownInFooter(link: {
+  "show-in-footer"?: boolean;
+}): boolean {
+  return link["show-in-footer"] !== false;
+}
+
+export const phonebookFooterLinks = phonebookLinks.filter(isShownInFooter);
 
 export const phonebookPackages = (
   Object.entries(phonebook.packages) as [

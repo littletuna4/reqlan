@@ -1,3 +1,5 @@
+import "./support-page.rq" as support_page_reqs
+import "./certs.rq" as certs_reqs
 import "../distribution/distribution.rq" as distribution_reqs
 import "../phonebook.rq" as phonebook_reqs
 import "../development/core.rq" as development_core
@@ -58,22 +60,27 @@ workflow {
 
 routes {
     Marketing routes are statically generated App Router pages under ["../../site/src/app"].
-    Home `/` hosts landing sections; other top-level pages include quickstart per [quickstart_page], tutorials, showcase, FAQ, and the embedded `/spec` export.
+    Home `/` hosts landing sections; other top-level pages include quickstart per [quickstart_page], tutorials, showcase, FAQ per [faq_page], support per [support_page_reqs.support_page], certification per [certs_reqs.certs], and the embedded `/spec` export.
     per [sidebar_nav]
     per [faq_page]
     per [quickstart_page]
+    per [support_page_reqs.support_page]
+    per [certs_reqs.certs]
 }
 
 components {
     - sidebar per [sidebar_nav]
-    - footer (copy in ["../../site/src/content/meta.ts"])
+    - footer per [footer]
     - hero per [hero_section]
     - sticky page nav graph per [nav_graph]
     - links/contact per [links]
     - showcases
     - tutorials per [tutorials_section]
+    - certification per [certs_reqs.certs]
     - FAQ per [faq_page]
+    - support per [support_page_reqs.support_page]
     - content per [copy]
+        - elevator pitch per [elevator_pitch_section]
         - motivation per [motivation_section]
         - syntax per [syntax_section]
         - example per [example_section]
@@ -95,6 +102,52 @@ hero_section {
         ["../../site/src/content/hero.ts"]
         ["../../site/src/components/Hero.tsx"]
         ["../../site/src/components/HeroActions.tsx"]
+    )
+}
+
+elevator_pitch_section {
+    Landing `#elevator-pitch` after [hero_section] and before [motivation_section].
+    One-line thesis plus rotating claims.
+    Copy lives in ["../../site/src/content/meta.ts"] per [copy].
+    Thesis follows ["../constitution.rq".elevator_pitch].
+    Behaviours: [claim_cycle], [claim_progress], [claim_reduced_motion].
+    Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
+    @status done
+    @implementation (
+        ["../../site/src/content/meta.ts"]
+        ["../../site/src/components/ElevatorPitch.tsx"]
+        ["../../site/src/components/ElevatorPitch.module.css"]
+        ["../../site/src/views/HomePage.tsx"]
+    )
+}
+
+claim_cycle {
+    Show one claim at a time and cycle in order.
+    Pause on hover or focus. Tracks jump to a claim.
+    The active claim sits in the vertical centre of a slot sized for the longest claim, so shorter lines do not jump to the top.
+    @status done
+    @implementation (
+        ["../../site/src/components/ElevatorPitch.tsx"]
+        ["../../site/src/components/ElevatorPitch.module.css"]
+    )
+}
+
+claim_progress {
+    A track per claim shows hold-time state: past tracks are full, the current track fills left to right, later tracks stay empty.
+    Pause holds the fill. The fill and the cycle share one clock so they do not drift.
+    @status done
+    @implementation (
+        ["../../site/src/components/ElevatorPitch.tsx"]
+        ["../../site/src/components/ElevatorPitch.module.css"]
+    )
+}
+
+claim_reduced_motion {
+    When the visitor prefers reduced motion, show the full claim list with no cycle and no progress animation.
+    @status done
+    @implementation (
+        ["../../site/src/components/ElevatorPitch.tsx"]
+        ["../../site/src/components/ElevatorPitch.module.css"]
     )
 }
 
@@ -179,6 +232,8 @@ sidebar_nav {
     The active page uses `aria-current="page"`; the in-view same-page section uses `aria-current="location"` when known.
     Nav model and labels live in ["../../site/src/content/nav.ts"] per [copy]; the Sidebar client reads pathname (and hash/section when on home) to decide expansion and current markers.
     FAQ is a top-level page entry per [faq_page].
+    Support is a top-level page entry per [support_page_reqs.support_page].
+    Sidebar nests Support section anchors as same-page children.
     @status done
     @implementation (
         ["../../site/src/components/Sidebar.tsx"]
@@ -190,12 +245,12 @@ sidebar_nav {
 
 faq_page {
     The site exposes `/faq/` as a statically generated page answering a short set of common questions.
-    Copy lives in ["../../site/src/content/faq.ts"] and stays minimal per [copy]. Support answers point at phonebook surfaces (GitHub stars, marketplace stars, issues/contribution, email for sponsorship or donation) rather than inventing URLs.
+    Copy lives in ["../../site/src/content/faq.ts"] and stays minimal per [copy]. Support answers point at [support_page_reqs.support_page] and at phonebook surfaces (GitHub stars, marketplace stars, issues/contribution, GitHub Sponsors, Discord) rather than inventing URLs.
     Required topics:
     - how reqlan supports token efficiency
     - whether reqlan is the de facto standard for efficient developer-centric context management and semantic mapping
     - when to use reqlan
-    - how to support reqlan (GitHub stars, sponsorship, VS Marketplace stars, donation, contribution, bug reporting)
+    - how to support reqlan (GitHub stars, GitHub Sponsors, VS Marketplace stars, Discord, contribution, bug reporting)
     Sidebar nests FAQ question anchors as same-page children per [sidebar_nav].
     Landing nav graph includes FAQ as a page node.
     @status done
@@ -254,6 +309,7 @@ tutorials_section {
     Blurb and try-this live on the catalog and inside the slides, not as page chrome.
     The player is an App Router page ([presentation_player_route]) so it static-exports under `trailingSlash` without colliding with `public/` HTML.
     Sync ([sync_presentations]) converts authored deck/catalog JSONC under ["../../presentations/"] into runtime JSON under `public/presentations/`, and copies assets plus vendored Reveal.js (player shell excluded).
+    The catalog links to [certs_reqs.assessment_page] for tutorial certification.
     @status done
     @implementation (
         ["../../site/src/app/tutorials/page.tsx"]
@@ -344,7 +400,8 @@ copy {
     Shared types: ["../../site/src/content/types.ts"].
     Copy stays decoupled from layout/styling.
     Copy should be really super minimal and concise if at all. (show don't tell)
-    Landing modules: [hero_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [sticky_cta_node].
+    Copy should be user facing; not simply a description of the feature requirements. Production code doesn't have latent dev notes in visible components.
+    Landing modules: [hero_section], [elevator_pitch_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node].
     @status done
     @implementation (
         ["../../site/src/content/types.ts"]
@@ -358,20 +415,42 @@ copy {
         ["../../site/src/content/roadmap.ts"]
         ["../../site/src/content/contact.ts"]
         ["../../site/src/content/faq.ts"]
+        ["../../site/src/content/support.ts"]
         ["../../site/src/content/sticky-cta.ts"]
+    )
+}
+
+footer {
+    The site footer is on every page via ["../../site/src/components/SiteShell.tsx"].
+    Copyright copy lives in ["../../site/src/content/meta.ts"] per [copy].
+    The footer shows phonebook `links` where `show-in-footer` is not false per [phonebook_reqs.show_in_footer].
+    Icons render through [phonebook_icon_component].
+    @status done
+    @implementation (
+        ["../../site/src/components/Footer.tsx"]
+        ["../../site/src/components/Footer.module.css"]
+        ["../../site/src/content/meta.ts"]
+        ["../../site/src/lib/phonebook.ts"]
+    )
+    @tests (
+        ["../../site/src/lib/phonebook.test.ts"]
     )
 }
 
 links {
     per [phonebook_reqs.phonebook]
     per [phonebook_reqs.npm_packages]
+    per [phonebook_reqs.show_in_footer]
     Contact copy lives in ["../../site/src/content/contact.ts"] per [copy].
-    Contact shows phonebook `links` then a Packages subsection for phonebook `packages`.
+    Contact shows phonebook `links` that are not opted out of the footer, then a Packages subsection for phonebook `packages`.
     per [link_icons]
     per [package_icons]
     @implementation (
         ["../../site/src/content/contact.ts"]
         ["../../site/src/components/Contact.tsx"]
+    )
+    @tests (
+        ["../../site/src/content/contact.test.ts"]
     )
 }
 
@@ -379,28 +458,34 @@ links {
 
 icon_registry {
     [phonebook_icon_registry] maps phonebook icon keys to bundled Iconify data for the site.
-    Every link and package icon in the phonebook must have a matching registry entry; the module throws at startup if one is missing.
-    When adding or changing an icon in ["../phonebook.json"], update the registry import for that slug.
+    A link or package can omit `icon`. If `icon` is present, it must have a matching registry entry.
+    The module throws at startup if a present icon does not resolve.
+    When you add or change an icon in ["../phonebook.json"], update the registry import for that slug.
     per [development_core.iconify_stack]
     per [development_core.phonebook_icon_keys]
+    @status done
+    @tests (
+        ["../../site/src/lib/phonebook-icons.test.ts"]
+    )
 }
 
 phonebook_icon_component {
     [phonebook_icon_component] is the site's single render entry point for phonebook icons (`@iconify/react`).
-    It accepts a phonebook `icon` ref and renders an inline SVG with `aria-hidden`.
+    It accepts an optional phonebook `icon` ref. If the ref is absent, it renders nothing. If the ref is present, it renders an inline SVG with `aria-hidden`.
     Default sizing uses the `.phonebook-icon` class in ["../../site/src/styles/globals.css"].
     Must remain compatible with static export per [simple_lightweight_and_static].
     per [development_core.iconify_stack]
 }
 
 link_icons {
-    The contact link row in [contact_component] renders an icon beside each phonebook link label.
+    The contact link row in [contact_component] renders an icon beside each phonebook link label that has an icon.
+    Footer links that have an icon render through [phonebook_icon_component] per [footer].
     per [links]
     per [development_core.current_link_icons]
 }
 
 package_icons {
-    The contact Packages row in [contact_component] renders an icon beside each phonebook package label.
+    The contact Packages row in [contact_component] renders an icon beside each phonebook package label that has an icon.
     Package entries come from ["../phonebook.json"].packages per [phonebook_reqs.npm_packages].
     per [links]
     per [development_core.current_link_icons]

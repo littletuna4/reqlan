@@ -46,6 +46,8 @@ Set `REQLAN_WORKSPACE` to the workspace root (or run from that directory). Overr
 - [{{VSC_LABEL}}]({{VSC_URL}})
 - [{{OPENVSX_LABEL}}]({{OPENVSX_URL}})
 - [GitHub repository]({{GITHUB_URL}})
+- [{{DISCORD_LABEL}}]({{DISCORD_URL}})
+- [{{SPONSOR_LABEL}}]({{SPONSOR_URL}})
 - [Contact]({{EMAIL_URL}})
 
 ## Changelog

@@ -1,18 +1,26 @@
 /**
  * Diagnostics and document-link targets for `rq:[…]` comment references.
+ * One presentation supplies both, so the clickable link and the error underline stay in sync.
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
+import { AstUtils, URI } from 'langium';
 import type { Range } from 'vscode-languageserver';
 import {
     findCommentReferencesInText,
     resolveCommentReferenceIdea,
+    resolveFileUri,
     type EmbeddedCommentReference
 } from './reqlan-comment-resolver.js';
 import { findRqIgnoreErrorTargetLines } from './reqlan-ignore-error.js';
-import { findImportedDocument, isResolvableImportPath } from './reqlan-imports.js';
+import {
+    findImportedDocument,
+    isResolvableImportPath,
+    resolveImportCandidateUris
+} from './reqlan-imports.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 
 export const COMMENT_REFERENCE_MISSING_FILE = 'comment-reference-missing-file';
@@ -22,11 +30,13 @@ export interface CommentReferenceFileHost {
     exists(absolutePath: string): boolean;
     declaresIdea?(absolutePath: string, idea: string): boolean;
     workspaceDeclaresIdea?(idea: string): boolean;
+    resolveWorkspaceIdea?(idea: string): string | undefined;
 }
 
 export interface CommentReferenceLink {
     range: Range;
     targetPath: string;
+    targetUri?: string;
     idea: string;
 }
 
@@ -49,6 +59,10 @@ export function commentReferenceMissingIdeaMessage(idea: string): string {
     return `Could not resolve comment reference to idea '${idea}'.`;
 }
 
+export function isCommentReferenceDiagnosticCode(code: unknown): boolean {
+    return code === COMMENT_REFERENCE_MISSING_FILE || code === COMMENT_REFERENCE_MISSING_IDEA;
+}
+
 export function presentCommentReferences(
     text: string,
     sourceDir: string,
@@ -61,12 +75,45 @@ export function presentCommentReferences(
     for (const reference of findCommentReferencesInText(text)) {
         const issue = commentReferenceFileIssue(reference, sourceDir, host, resolvePath);
         if (!issue) {
-            if (reference.path) {
+            const targetPath = reference.path
+                ? resolvePath(sourceDir, reference.path)
+                : host.resolveWorkspaceIdea?.(reference.idea);
+            if (targetPath) {
                 links.push({
                     range: reference.range,
-                    targetPath: resolvePath(sourceDir, reference.path),
+                    targetPath,
                     idea: reference.idea
                 });
+            }
+            continue;
+        }
+        if (ignoredLines.has(reference.range.start.line)) {
+            continue;
+        }
+        diagnostics.push(issue);
+    }
+    return { links, diagnostics };
+}
+
+export function presentCommentReferencesForDocument(
+    document: LangiumDocument,
+    documents: LangiumDocuments,
+    fileSystem?: FileSystemProvider,
+    context?: PathResolveContext
+): CommentReferencePresentation {
+    const text = document.textDocument.getText();
+    const ignoredLines = findRqIgnoreErrorTargetLines(text);
+    const links: CommentReferenceLink[] = [];
+    const diagnostics: CommentReferenceDiagnostic[] = [];
+    for (const reference of findCommentReferencesInText(text)) {
+        if (!isSlashOrBlockCommentReference(text, reference.range)) {
+            continue;
+        }
+        const issue = commentReferenceLangiumIssue(reference, document, documents, fileSystem, context);
+        if (!issue) {
+            const link = commentReferenceLangiumLink(reference, document, documents, context);
+            if (link) {
+                links.push(link);
             }
             continue;
         }
@@ -84,24 +131,39 @@ export function collectCommentReferenceIssues(
     fileSystem?: FileSystemProvider,
     context?: PathResolveContext
 ): CommentReferenceDiagnostic[] {
+    return presentCommentReferencesForDocument(document, documents, fileSystem, context).diagnostics;
+}
+
+/**
+ * Relink this document when a changed `.rq` file can change comment-reference
+ * resolution (missing idea becomes present, or a targeted file changes).
+ */
+export function shouldRelinkCommentReferences(
+    document: LangiumDocument,
+    changedUris: Set<string>,
+    context?: PathResolveContext
+): boolean {
     const text = document.textDocument.getText();
-    const ignoredLines = findRqIgnoreErrorTargetLines(text);
-    const diagnostics: CommentReferenceDiagnostic[] = [];
+    if (!text.includes('rq:[')) {
+        return false;
+    }
+    if (document.diagnostics?.some(diagnostic => isCommentReferenceDiagnosticCode(diagnostic.code))) {
+        return true;
+    }
     for (const reference of findCommentReferencesInText(text)) {
-        if (ignoredLines.has(reference.range.start.line)) {
-            continue;
-        }
-        // .rq files use `//` / `/* */` comments. Skip `#` / triple-quote spans so
-        // fenced language examples are not treated as comment references.
         if (!isSlashOrBlockCommentReference(text, reference.range)) {
             continue;
         }
-        const issue = commentReferenceLangiumIssue(reference, document, documents, fileSystem, context);
-        if (issue) {
-            diagnostics.push(issue);
+        if (!reference.path) {
+            return true;
+        }
+        for (const uri of resolveImportCandidateUris(reference.path, document, context)) {
+            if (changedUris.has(uri.toString())) {
+                return true;
+            }
         }
     }
-    return diagnostics;
+    return false;
 }
 
 function isSlashOrBlockCommentReference(text: string, range: Range): boolean {
@@ -179,5 +241,40 @@ function commentReferenceLangiumIssue(
         range: reference.range,
         message: commentReferenceMissingIdeaMessage(reference.idea),
         code: COMMENT_REFERENCE_MISSING_IDEA
+    };
+}
+
+function commentReferenceLangiumLink(
+    reference: EmbeddedCommentReference,
+    document: LangiumDocument,
+    documents: LangiumDocuments,
+    context?: PathResolveContext
+): CommentReferenceLink | undefined {
+    const idea = resolveCommentReferenceIdea(reference, document, documents, context);
+    if (idea) {
+        const targetDocument = documents.getDocument(AstUtils.getDocument(idea).uri);
+        if (!targetDocument) {
+            return undefined;
+        }
+        const ideaNode = idea.$cstNode;
+        const targetUri = ideaNode
+            ? `${targetDocument.textDocument.uri}#L${ideaNode.range.start.line + 1}`
+            : targetDocument.textDocument.uri;
+        return {
+            range: reference.range,
+            targetPath: URI.parse(targetDocument.textDocument.uri).fsPath,
+            targetUri,
+            idea: reference.idea
+        };
+    }
+    if (!reference.path) {
+        return undefined;
+    }
+    const target = resolveFileUri(reference.path, document, context);
+    return {
+        range: reference.range,
+        targetPath: target.fsPath,
+        targetUri: target.toString(),
+        idea: reference.idea
     };
 }

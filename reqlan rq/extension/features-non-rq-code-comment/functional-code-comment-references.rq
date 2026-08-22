@@ -1,4 +1,6 @@
 
+from "../../language/syntax.rq" import comment_reference_resolution_error
+
 references_in_functional_code_comments {
     Comments in functional code should be able to reference reqlan ideas using the an `rq:` prefixed to an idea: `rq:[idea]` as demonstrated in python, but actually applicable to any language's comment context:
     ```python
@@ -16,4 +18,28 @@ references_in_functional_code_comments {
     @log:{
         textmate injection was attempted, but the specific implementation failed, this is presently partially implemented as a link.
     }
+}
+
+
+comment_reference_resolution_error_state {
+    [comment_reference_resolution_error]
+    The language server must share one resolution result for clickable links and the error underline.
+    Resolve comment references once against the loaded idea index, then reuse that result for both consumers.
+    When you create an idea that matches a comment reference, the language server must clear the underline and the missing-idea message.
+    Resolution and the index should be performed once and shared between consumers.
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../packages/language/src/reqlan-document-builder.ts"]
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+        ["../../packages/extension/src/extension/register-comment-reference-links.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:publishes a missing-idea diagnostic and no document link until the idea exists"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:clears the underline and creates a link after a matching idea is added"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:relinks documents that still show a missing comment-reference idea"]
+        ["../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
+    )
 }

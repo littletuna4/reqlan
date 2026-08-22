@@ -21,6 +21,7 @@ import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js
 import { ReqlanWorkspaceManager } from './reqlan-workspace-manager.js';
 import { ReqlanAsyncParser } from './reqlan-async-parser.js';
 import { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
+import { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -45,7 +46,8 @@ export type ReqlanServices = LangiumServices & ReqlanAddedServices
 export const ReqlanSharedModule: Module<LangiumSharedServices, PartialLangiumSharedCoreServices> = {
     workspace: {
         WorkspaceManager: services => new ReqlanWorkspaceManager(services),
-        LangiumDocumentFactory: services => new ReqlanLangiumDocumentFactory(services)
+        LangiumDocumentFactory: services => new ReqlanLangiumDocumentFactory(services),
+        DocumentBuilder: services => new ReqlanDocumentBuilder(services)
     }
 };
 

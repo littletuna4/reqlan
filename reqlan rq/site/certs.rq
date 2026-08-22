@@ -1,0 +1,85 @@
+from "../phonebook.rq" import phonebook
+
+certs {
+    Tutorial certification lives under `/certs/`.
+    Two pages:
+    - [assessment_page] at `/certs/assessment/`
+    - [certificate_page] at `/certs/certificate/`
+    The tutorials catalog and ["./support-page.rq".support_page] advocacy link send the user to [assessment_page].
+    Tokens are honor-system claims in ["../../site/src/lib/certificate-token.ts"].
+    @status done
+    @implementation (
+        ["../../site/src/app/certs/assessment/page.tsx"]
+        ["../../site/src/app/certs/certificate/page.tsx"]
+        ["../../site/src/lib/certs-paths.ts"]
+        ["../../site/src/lib/certificate-token.ts"]
+    )
+    @tests (
+        ["../../site/src/lib/certs-paths.test.ts"]
+        ["../../site/src/lib/certificate-token.test.ts"]
+    )
+}
+
+assessment_page {
+    `/certs/assessment/` is the tutorial quiz.
+    Questions live in ["../../site/src/content/assessment.ts"].
+    Pass at 80%. Then collect a display name and mint a certificate token.
+    After mint, go to [certificate_page] with the token and the just-completed query param.
+    Legacy `/assessment/` and `/tutorials/assessment/` redirect here and keep the query string.
+    @status done
+    @implementation (
+        ["../../site/src/app/certs/assessment/page.tsx"]
+        ["../../site/src/app/assessment/page.tsx"]
+        ["../../site/src/app/tutorials/assessment/page.tsx"]
+        ["../../site/src/views/AssessmentPage.tsx"]
+        ["../../site/src/content/assessment.ts"]
+        ["../../site/src/lib/certs-paths.ts"]
+    )
+    @tests (
+        ["../../site/src/content/assessment.test.ts"]
+        ["../../site/src/lib/certs-paths.test.ts"]
+    )
+}
+
+certificate_page {
+    `/certs/certificate/` shows a minted tutorial certificate.
+    Token query param `c` holds the packed claims.
+    Query param `just=1` marks the just-completed view:
+    - show the certificate
+    - show a shareable link that omits `just`
+    - embed the sticker form per [sticker_form_embed]
+    Without `just`, the page is the shareable certificate only. Do not embed the form.
+    Invalid or missing tokens send the user back to [assessment_page].
+    The completion line on a valid certificate links to [assessment_page].
+    Legacy `/tutorials/certificate/` redirects here and keeps the query string.
+    @status done
+    @implementation (
+        ["../../site/src/app/certs/certificate/page.tsx"]
+        ["../../site/src/app/tutorials/certificate/page.tsx"]
+        ["../../site/src/views/CertificatePage.tsx"]
+        ["../../site/src/lib/certs-paths.ts"]
+        ["../../site/src/lib/certificate-token.ts"]
+    )
+    @tests (
+        ["../../site/src/lib/certs-paths.test.ts"]
+        ["../../site/src/lib/certificate-token.test.ts"]
+    )
+}
+
+sticker_form_embed {
+    The just-completed [certificate_page] embeds phonebook link id `sticker-form` as a Google Form iframe.
+    Href comes from [phonebook], not a hardcoded URL in the view.
+    Convert the href to an embed `src` (`viewform` plus `embedded=true`).
+    Keep a direct link to the same phonebook href if the iframe does not load.
+    Hide the form when the user prints the certificate.
+    @status done
+    @implementation (
+        ["../../site/src/views/CertificatePage.tsx"]
+        ["../../site/src/lib/google-form-embed.ts"]
+        ["../../site/src/lib/phonebook.ts"]
+        ["../phonebook.json"]
+    )
+    @tests (
+        ["../../site/src/lib/google-form-embed.test.ts"]
+    )
+}

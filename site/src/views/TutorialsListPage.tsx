@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-
+import Link from "next/link";
+import type { Route } from "next";
 import { TutorialCard } from "@/components/TutorialCard";
 import { SiteShell } from "@/components/SiteShell";
 import {
@@ -17,7 +18,6 @@ import {
   type CompletionState,
 } from "@/lib/tutorial-progress";
 import { useTutorialProgress } from "@/lib/use-tutorial-progress";
-import { sitePath } from "@/lib/paths";
 import shared from "@/components/shared.module.css";
 import styles from "@/views/tutorials.module.css";
 
@@ -28,12 +28,14 @@ type TutorialsListPageProps = {
 function assessmentMatchesQuery(query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return ["assessment", "certificate", "quiz", "cert"].some(
+  return ["assessment", "certificate", "certification", "quiz", "cert"].some(
     (term) => term.includes(q) || q.includes(term),
   );
 }
 
 export function TutorialsListPage({ decks }: TutorialsListPageProps) {
+  // rq:["../../../reqlan rq/site/site.rq".tutorials_section]
+  // rq:["../../../reqlan rq/site/certs.rq".assessment_page]
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
   const progress = useTutorialProgress();
@@ -42,8 +44,7 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
     return tutorialSeriesOrder
       .map((series) => {
         const seriesDecks = decks.filter(
-          (deck) =>
-            deck.series === series && tutorialMatchesQuery(deck, query),
+          (deck) => deck.series === series && tutorialMatchesQuery(deck, query),
         );
         return { series, decks: seriesDecks };
       })
@@ -143,10 +144,7 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
                         tutorial.slideCount,
                       )}
                       onToggleComplete={() =>
-                        progress.toggleLesson(
-                          tutorial.id,
-                          tutorial.slideCount,
-                        )
+                        progress.toggleLesson(tutorial.id, tutorial.slideCount)
                       }
                     />
                   ))}
@@ -157,12 +155,12 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
         )}
 
         {!searching || assessmentMatchesQuery(query) ? (
-          <a className={styles.assessmentLink} href={sitePath("/tutorials/assessment/")}>
-            <span className={styles.assessmentTitle}>Assessment</span>
+          <Link className={styles.assessmentLink} href={"/certs/assessment" as Route}>
+            <span className={styles.assessmentTitle}>Certification</span>
             <span className={styles.assessmentBlurb}>
-              Pass the quiz, get a certificate
+              Pass the assessment, get a certificate
             </span>
-          </a>
+          </Link>
         ) : null}
       </main>
     </SiteShell>
@@ -238,4 +236,3 @@ function SeriesAccordion({
     </section>
   );
 }
-

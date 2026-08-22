@@ -3,6 +3,7 @@ import { SiteShell } from "@/components/SiteShell";
 import shared from "@/components/shared.module.css";
 import { faq } from "@/content/faq";
 import { getPhonebookLink } from "@/lib/phonebook";
+import { sitePath } from "@/lib/paths";
 import styles from "@/views/faq.module.css";
 
 export function FaqPage() {
@@ -28,6 +29,11 @@ export function FaqPage() {
                 {item.question}
               </h2>
               <p className={styles.answer}>{item.answer}</p>
+              {item.page ? (
+                <p className={styles.pageLink}>
+                  <a href={sitePath(`${item.page.href}/`)}>{item.page.label}</a>
+                </p>
+              ) : null}
               {item.links ? (
                 <ul className={styles.supportLinks}>
                   {item.links.map((link) => {

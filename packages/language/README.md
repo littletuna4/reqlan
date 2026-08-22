@@ -25,9 +25,64 @@ npm install @reqlan/language
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
+- [Discord](https://discord.gg/R487KDVfmA)
+- [Sponsor](https://github.com/sponsors/littletuna4)
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.9.6
+
+#### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+
+### 1.9.5
+
+#### Patch Changes
+
+- c6d524e: Useability bug fixes.
+
+### 1.9.4
+
+#### Patch Changes
+
+- fccc1ea: build matrix in extension build
+
+### 1.9.3
+
+#### Patch Changes
+
+- 712ae40: avoid linux in production.
+
+### 1.9.2
+
+#### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+
+### 1.9.1
+
+#### Patch Changes
+
+- 06e9150: fix build and deps.
+
+### 1.9.0
+
+#### Minor Changes
+
+- e9b7e8a: rust
+
+#### Patch Changes
+
+- 72246b6: up pnpm
+- 70ccc6f: up pnpm version
+
+### 1.8.3
+
+#### Patch Changes
+
+- 45d37df: Fix Windows CLI startup: dynamic import of `C:\...` is protocol `c:`; use `file://` URLs. Treat drive-letter paths as filesystem paths, not URI schemes.
 
 ### 1.8.2
 

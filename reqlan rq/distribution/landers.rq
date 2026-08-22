@@ -1,4 +1,4 @@
-from "../phonebook.rq" import phonebook
+from "../phonebook.rq" import phonebook, github_funding
 
 landers {
     The reqlan extension has the following entry points:
@@ -6,6 +6,7 @@ landers {
     - npm packages via ["../../packages/language/README.template.md"], ["../../packages/analytical/README.template.md"], ["../../packages/cli/README.template.md"], and ["../../packages/mcp/README.template.md"]
     - the site.
     - the github repository via the ["../../README.template.md"]
+    - the GitHub sponsor button via [github_funding]
     - landers must keep cross references up to date via the ["../../scripts/phonebook.ts"]
     [phonebook]
 }

@@ -1,6 +1,7 @@
 /**
- * Honor-system certificate tokens for the tutorial assessment.
+ * Honor-system certificate tokens for tutorial certification.
  */
+// rq:["../../../reqlan rq/site/certs.rq".certs]
 export const CERTIFICATE_PASSPHRASE =
   "You better not spoof this cert.";
 

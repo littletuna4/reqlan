@@ -19,9 +19,20 @@ Language support for the reqlan language
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
+- [Discord](https://discord.gg/R487KDVfmA)
+- [Sponsor](https://github.com/sponsors/littletuna4)
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.11.2
+
+#### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+- Updated dependencies [ae5fbc3]
+  - @reqlan/analytical@1.11.2
+  - @reqlan/language@1.9.6
 
 ### 1.11.1
 

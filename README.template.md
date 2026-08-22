@@ -14,6 +14,8 @@ reqlan is a structured language for composing a graph of natural language ideas 
 - [{{VSC_LABEL}}]({{VSC_URL}})
 - [{{OPENVSX_LABEL}}]({{OPENVSX_URL}})
 - [GitHub repository]({{GITHUB_URL}})
+- [{{DISCORD_LABEL}}]({{DISCORD_URL}})
+- [{{SPONSOR_LABEL}}]({{SPONSOR_URL}})
 - [Contact]({{EMAIL_URL}})
 
 ## Repository

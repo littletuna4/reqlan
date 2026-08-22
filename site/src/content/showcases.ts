@@ -1,4 +1,13 @@
+// rq:["../../../reqlan rq/site/site.rq".showcase]
+// rq:["../../../reqlan rq/phonebook.rq".phonebook]
 import type { CodeLanguage } from "@/content/types";
+import { mailtoWithSubject } from "@/lib/mailto";
+import { getPhonebookLink } from "@/lib/phonebook";
+
+export const showcaseFeatureMailto = mailtoWithSubject(
+  getPhonebookLink("email").href,
+  "reqlan showcase",
+);
 
 export type ShowcaseTier = "flagship" | "depth";
 

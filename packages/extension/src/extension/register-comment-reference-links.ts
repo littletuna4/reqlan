@@ -1,14 +1,16 @@
 /**
  * Document links and diagnostics for `rq:[…]` tokens in non-`.rq` source comments.
+ * Links and the error underline use one cached presentation so they stay in sync.
  * rq:["../../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../../reqlan rq/ontology.rq".reference_types]
  * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { presentCommentReferences } from '@reqlan/language';
+import { presentCommentReferences, type CommentReferencePresentation } from '@reqlan/language';
 
 const COMMENT_REFERENCE_LANGUAGES = [
     'python',
@@ -22,9 +24,12 @@ const COMMENT_REFERENCE_LANGUAGES = [
     'cpp'
 ];
 
+const RQ_FILE_GLOB = '**/*.rq';
+
 export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionContext): void {
     const selector = COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file', language }));
     const diagnostics = vscode.languages.createDiagnosticCollection('reqlan-comment-references');
+    const presentations = new Map<string, CommentReferencePresentation>();
     const refresh = (document: vscode.TextDocument): void => {
         if (!selector.some(item => item.language === document.languageId) || document.uri.scheme !== 'file') {
             return;
@@ -32,12 +37,10 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
         const presented = presentCommentReferences(
             document.getText(),
             path.dirname(document.uri.fsPath),
-            {
-                exists: fileExists,
-                declaresIdea: (absolutePath, idea) => rqFileDeclaresIdea(absolutePath, idea)
-            },
+            createCommentReferenceHost(),
             path.resolve
         );
+        presentations.set(document.uri.toString(), presented);
         diagnostics.set(
             document.uri,
             presented.diagnostics.map(issue => {
@@ -52,25 +55,54 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
             })
         );
     };
+    const refreshOpenSources = (): void => {
+        for (const document of vscode.workspace.textDocuments) {
+            refresh(document);
+        }
+    };
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleRefreshOpenSources = (): void => {
+        if (refreshTimer !== undefined) {
+            clearTimeout(refreshTimer);
+        }
+        refreshTimer = setTimeout(() => {
+            refreshTimer = undefined;
+            refreshOpenSources();
+        }, 50);
+    };
+    const rqWatcher = vscode.workspace.createFileSystemWatcher(RQ_FILE_GLOB);
     context.subscriptions.push(
         diagnostics,
+        rqWatcher,
+        { dispose: () => { if (refreshTimer !== undefined) { clearTimeout(refreshTimer); } } },
         vscode.workspace.onDidOpenTextDocument(refresh),
-        vscode.workspace.onDidChangeTextDocument(event => refresh(event.document)),
-        vscode.workspace.onDidCloseTextDocument(document => diagnostics.delete(document.uri)),
+        vscode.workspace.onDidChangeTextDocument(event => {
+            if (isRqDocument(event.document)) {
+                scheduleRefreshOpenSources();
+                return;
+            }
+            refresh(event.document);
+        }),
+        vscode.workspace.onDidCloseTextDocument(document => {
+            presentations.delete(document.uri.toString());
+            diagnostics.delete(document.uri);
+        }),
+        rqWatcher.onDidCreate(() => scheduleRefreshOpenSources()),
+        rqWatcher.onDidChange(() => scheduleRefreshOpenSources()),
+        rqWatcher.onDidDelete(() => scheduleRefreshOpenSources()),
         vscode.languages.registerDocumentLinkProvider(selector, {
             provideDocumentLinks(document) {
                 if (!document.getText().includes('rq:[')) {
                     return [];
                 }
-                const presented = presentCommentReferences(
-                    document.getText(),
-                    path.dirname(document.uri.fsPath),
-                    {
-                        exists: fileExists,
-                        declaresIdea: (absolutePath, idea) => rqFileDeclaresIdea(absolutePath, idea)
-                    },
-                    path.resolve
-                );
+                let presented = presentations.get(document.uri.toString());
+                if (!presented) {
+                    refresh(document);
+                    presented = presentations.get(document.uri.toString());
+                }
+                if (!presented) {
+                    return [];
+                }
                 return presented.links.map(link => {
                     const documentLink = new vscode.DocumentLink(
                         toRange(link.range),
@@ -82,12 +114,27 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
             }
         })
     );
-    for (const document of vscode.workspace.textDocuments) {
-        refresh(document);
-    }
+    refreshOpenSources();
+}
+
+function isRqDocument(document: vscode.TextDocument): boolean {
+    return document.languageId === 'reqlan' || document.fileName.toLowerCase().endsWith('.rq');
+}
+
+function createCommentReferenceHost() {
+    return {
+        exists: fileExists,
+        declaresIdea: (absolutePath: string, idea: string) => rqFileDeclaresIdea(absolutePath, idea),
+        workspaceDeclaresIdea: (idea: string) => findOpenIdeaFile(idea) !== undefined,
+        resolveWorkspaceIdea: (idea: string) => findOpenIdeaFile(idea)
+    };
 }
 
 function fileExists(absolutePath: string): boolean {
+    const open = openDocumentAt(absolutePath);
+    if (open) {
+        return true;
+    }
     try {
         return fs.statSync(absolutePath).isFile();
     } catch {
@@ -96,13 +143,34 @@ function fileExists(absolutePath: string): boolean {
 }
 
 function rqFileDeclaresIdea(absolutePath: string, idea: string): boolean {
+    const open = openDocumentAt(absolutePath);
     try {
-        const text = fs.readFileSync(absolutePath, 'utf8');
-        const pattern = new RegExp(`^${escapeRegExp(idea)}(?:\\s*\\{|\\s+)`, 'm');
-        return pattern.test(text);
+        const text = open ? open.getText() : fs.readFileSync(absolutePath, 'utf8');
+        return rqTextDeclaresIdea(text, idea);
     } catch {
         return false;
     }
+}
+
+function findOpenIdeaFile(idea: string): string | undefined {
+    for (const document of vscode.workspace.textDocuments) {
+        if (!isRqDocument(document)) {
+            continue;
+        }
+        if (rqTextDeclaresIdea(document.getText(), idea)) {
+            return document.uri.fsPath;
+        }
+    }
+    return undefined;
+}
+
+function openDocumentAt(absolutePath: string): vscode.TextDocument | undefined {
+    return vscode.workspace.textDocuments.find(document => document.uri.fsPath === absolutePath);
+}
+
+function rqTextDeclaresIdea(text: string, idea: string): boolean {
+    const pattern = new RegExp(`^${escapeRegExp(idea)}(?:\\s*\\{|\\s+)`, 'm');
+    return pattern.test(text);
 }
 
 function escapeRegExp(value: string): string {

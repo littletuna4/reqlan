@@ -18,6 +18,7 @@ import {
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_REFACTOR_DELETE_IDEA_COMMAND,
     REQLAN_REFACTOR_MOVE_IDEA_COMMAND,
+    REQLAN_REFACTOR_MOVE_IDEA_CONTENT_COMMAND,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     ReqlanCodeActionProvider,
     resolveReferenceSearchSiteFromDocument,
@@ -350,9 +351,16 @@ describe('Idea refactor code actions', () => {
             ideaName: 'alpha'
         });
 
-        const moveAction = actions.find(action => action.title.includes('Move idea'));
+        const moveAction = actions.find(action => action.title.includes("Move idea 'alpha' to another file"));
         expect(moveAction?.command?.command).toBe(REQLAN_REFACTOR_MOVE_IDEA_COMMAND);
         expect(moveAction?.command?.arguments?.[0]).toMatchObject({
+            documentUri: document.textDocument.uri,
+            ideaName: 'alpha'
+        });
+
+        const moveContentAction = actions.find(action => action.title.includes("Move idea 'alpha' content"));
+        expect(moveContentAction?.command?.command).toBe(REQLAN_REFACTOR_MOVE_IDEA_CONTENT_COMMAND);
+        expect(moveContentAction?.command?.arguments?.[0]).toMatchObject({
             documentUri: document.textDocument.uri,
             ideaName: 'alpha'
         });

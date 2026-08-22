@@ -4,7 +4,7 @@
 
 # @reqlan/analytical
 
-Shared requirement graph index and analysers for reqlan
+Native requirement graph index and analysis API for reqlan
 
 ## Features
 
@@ -26,9 +26,92 @@ npm install @reqlan/analytical
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=reqlan.reqlan-extension)
 - [Open VSX](https://open-vsx.org/extension/reqlan/reqlan-extension)
 - [GitHub repository](https://github.com/littletuna4/reqlan)
+- [Discord](https://discord.gg/R487KDVfmA)
+- [Sponsor](https://github.com/sponsors/littletuna4)
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.11.2
+
+#### Patch Changes
+
+- ae5fbc3: Publish test distribution fixes, click idea development.
+
+### 1.11.1
+
+#### Patch Changes
+
+- c6d524e: Useability bug fixes.
+
+### 1.11.0
+
+### 1.10.9
+
+#### Patch Changes
+
+- 07e7c2f: change deployment sequencing
+
+### 1.10.8
+
+#### Patch Changes
+
+- a315963: Keep the VS Code extension on the same semver as `@reqlan/analytical` and its platform native packages. Marketplace already published 1.10.x, so the shared number stays on that line rather than 0.10.x.
+
+### 0.10.6
+
+#### Patch Changes
+
+- fccc1ea: build matrix in extension build
+
+### 0.10.5
+
+#### Patch Changes
+
+- 712ae40: avoid linux in production.
+
+### 0.10.4
+
+#### Patch Changes
+
+- 5348d34: update target binary
+
+### 0.10.3
+
+#### Patch Changes
+
+- 2860f9f: deployment binary availability fix attempt
+
+### 0.10.2
+
+#### Patch Changes
+
+- 75902d5: fix tests; and decouple golden corpus.
+
+### 0.10.1
+
+#### Patch Changes
+
+- 06e9150: fix build and deps.
+
+### 0.10.0
+
+#### Minor Changes
+
+- e9b7e8a: rust
+
+#### Patch Changes
+
+- 72246b6: up pnpm
+- 70ccc6f: up pnpm version
+
+### 0.9.1
+
+#### Patch Changes
+
+- 45d37df: Fix Windows CLI startup: dynamic import of `C:\...` is protocol `c:`; use `file://` URLs. Treat drive-letter paths as filesystem paths, not URI schemes.
+- Updated dependencies [45d37df]
+  - @reqlan/language@1.8.3
 
 ### 0.9.0
 

@@ -25,3 +25,8 @@ inspiration {
 supply_chain {
     The supply chain for this project should be open and transparent, minimising risk and immature dependencies.
 }
+
+elevator_pitch {
+    Build high quality, verifiable, explainable systems, quickly
+    Site landing: ["./site/site.rq".elevator_pitch_section]
+}

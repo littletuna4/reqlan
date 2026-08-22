@@ -7,6 +7,7 @@ import { registerIdeaRefactorCommands } from './register-idea-refactor-commands.
 /**
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_support]
  * rq:["../../../../reqlan rq/extension/features-commands.rq".barrel_page]
+ * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
  */
 export function registerRefactorModule(
     context: vscode.ExtensionContext,

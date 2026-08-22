@@ -61,6 +61,15 @@ export function hasNamespaceImport(model: Model, importPath: string): boolean {
     );
 }
 
+export function namespaceAliasForPath(model: Model, importPath: string): string | undefined {
+    for (const decl of model.imports) {
+        if (isNamespaceImport(decl) && unquoteReqlanString(decl.path) === importPath && decl.alias) {
+            return decl.alias;
+        }
+    }
+    return undefined;
+}
+
 export function buildFromImportEdit(
     document: LangiumDocument,
     importPath: string,

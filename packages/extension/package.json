@@ -323,6 +323,11 @@
         "category": "reqlan"
       },
       {
+        "command": "reqlan.refactor.moveIdeaContent",
+        "title": "Move Idea Content to Another File",
+        "category": "reqlan"
+      },
+      {
         "command": "reqlan.barrelPage",
         "title": "Barrel Page",
         "category": "reqlan"
@@ -497,24 +502,25 @@
     "deploy:openvsx": "node ../../scripts/package-extension-targets.mjs --openvsx"
   },
   "dependencies": {
+    "@reqlan/analytical": "workspace:*",
+    "@reqlan/language": "workspace:*",
     "cytoscape": "^3.33.1",
     "cytoscape-cola": "^2.5.1",
     "cytoscape-fcose": "^2.2.0",
     "langium": "~4.3.0",
     "vscode-languageclient": "~10.0.0",
     "vscode-languageserver": "~10.0.0",
-    "vscode-languageserver-textdocument": "~1.0.12",
-    "@reqlan/analytical": "workspace:*",
-    "@reqlan/language": "workspace:*"
+    "vscode-languageserver-textdocument": "~1.0.12"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "~5.0.3",
     "@tsconfig/svelte": "~5.0.4",
-    "@vscode/vsce": "^3.6.2",
-    "sharp": "^0.34.5",
+    "@types/node": "^26.2.0",
     "@types/vscode": "~1.91.0",
+    "@vscode/vsce": "^3.6.2",
     "concurrently": "~10.0.3",
     "esbuild": "~0.28.1",
+    "sharp": "^0.34.5",
     "svelte": "~5.33.14",
     "vite": "~6.2.5",
     "vitest": "~3.1.3"
