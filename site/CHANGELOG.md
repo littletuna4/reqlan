@@ -1,5 +1,11 @@
 # site
 
+## 0.17.1
+
+### Patch Changes
+
+- 69a7c4b: responsive fixes
+
 ## 0.17.0
 
 ### Minor Changes

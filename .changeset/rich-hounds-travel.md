@@ -1,5 +1,0 @@
----
-"site": patch
----
-
-responsive fixes
