@@ -19,6 +19,9 @@
   --color-text-muted: #a89488;
   --color-text-faint: #6e5f56;
   --sidebar-width: 15rem;
+  --page-pad-x: 2.5rem;
+  --page-pad-x-wide: 1.25rem;
+  --inset-pad-x: 1.5rem;
 }
 
 @theme inline {
@@ -56,6 +59,9 @@ a:hover {
 @media (max-width: 768px) {
   :root {
     --sidebar-width: 0px;
+    --page-pad-x: 0.75rem;
+    --page-pad-x-wide: 0.75rem;
+    --inset-pad-x: 0.7rem;
   }
 }
 

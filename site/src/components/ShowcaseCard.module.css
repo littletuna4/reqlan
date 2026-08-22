@@ -10,7 +10,7 @@
 }
 
 .card {
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem var(--inset-pad-x);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: var(--color-surface);
@@ -78,4 +78,10 @@
 .cardLink {
   font-size: 0.8125rem;
   font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding-block: 0.9rem;
+  }
 }

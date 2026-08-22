@@ -88,7 +88,7 @@
 
 .exchange {
   overflow-x: auto;
-  padding: 1rem 1.25rem;
+  padding: 1rem var(--inset-pad-x);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: #0c0a09;
@@ -180,7 +180,7 @@
 .diagram {
   margin: 0;
   overflow-x: auto;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem var(--inset-pad-x);
   border: 1px dashed var(--color-border);
   border-radius: 0.5rem;
   background: color-mix(in srgb, var(--color-surface-raised) 60%, transparent);
@@ -189,4 +189,19 @@
   font-size: 0.8125rem;
   line-height: 1.7;
   white-space: pre;
+}
+
+@media (max-width: 768px) {
+  .callout,
+  .diagnostic,
+  .diagnosticWarning {
+    padding: 0.7rem var(--inset-pad-x);
+  }
+
+  .exchange,
+  .diagram {
+    padding: 0.7rem var(--inset-pad-x);
+    font-size: 0.6875rem;
+    line-height: 1.5;
+  }
 }

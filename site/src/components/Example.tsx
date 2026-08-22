@@ -1,5 +1,6 @@
 import { CodeBlock } from "@/components/CodeBlock";
 import { example } from "@/content/example";
+import styles from "./Example.module.css";
 import shared from "./shared.module.css";
 
 export function Example() {
@@ -12,7 +13,11 @@ export function Example() {
       </h2>
       {example.lead ? <p className={shared.sectionLead}>{example.lead}</p> : null}
 
-      <CodeBlock language="rq" content={example.code} />
+      <CodeBlock
+        language="rq"
+        content={example.code}
+        className={styles.block}
+      />
     </section>
   );
 }

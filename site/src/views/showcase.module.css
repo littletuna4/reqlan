@@ -3,7 +3,6 @@
   width: 100%;
   max-width: 52rem;
   margin: 0 auto;
-  padding: 3rem 2.5rem 4rem;
 }
 
 .header {
@@ -20,10 +19,4 @@
 .grid {
   display: grid;
   gap: 1rem;
-}
-
-@media (max-width: 768px) {
-  .page {
-    padding: 2rem 1.25rem 3rem;
-  }
 }

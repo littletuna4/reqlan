@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem 1.5rem;
-  padding: 1.5rem 2.5rem;
+  padding: 1.5rem var(--page-pad-x);
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -39,6 +39,6 @@
 
 @media (max-width: 768px) {
   .footer {
-    padding: 1.25rem;
+    padding: 1rem var(--page-pad-x);
   }
 }

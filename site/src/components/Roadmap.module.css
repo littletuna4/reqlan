@@ -144,6 +144,11 @@
     height: 12rem;
   }
 
+  .item {
+    margin-inline: 0.4rem;
+    padding-inline: 0.6rem;
+  }
+
   .dotActive {
     transform: scaleX(1.65);
   }

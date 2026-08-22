@@ -17,12 +17,12 @@
   width: 100%;
   max-width: 52rem;
   margin: 0 auto;
-  padding: 3rem 2.5rem 4rem;
+  padding: 3rem var(--page-pad-x) 4rem;
 }
 
 .main :global(main[data-wide]) {
   max-width: min(96rem, 100%);
-  padding: 1rem 1.25rem 1.5rem;
+  padding: 1rem var(--page-pad-x-wide) 1.5rem;
 }
 
 @media (max-width: 768px) {
@@ -35,6 +35,10 @@
   }
 
   .main :global(main) {
-    padding: 2rem 1.25rem 3rem;
+    padding: 2rem var(--page-pad-x) 3rem;
+  }
+
+  .main :global(main[data-wide]) {
+    padding: 0.75rem var(--page-pad-x-wide) 1.25rem;
   }
 }

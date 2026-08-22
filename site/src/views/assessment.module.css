@@ -3,7 +3,6 @@
   width: 100%;
   max-width: 40rem;
   margin: 0 auto;
-  padding: 3rem 2.5rem 4rem;
 }
 
 .header {
@@ -224,8 +223,12 @@
 }
 
 @media (max-width: 768px) {
-  .page {
-    padding: 2rem 1.25rem 3rem;
+  .question {
+    padding: 0.8rem var(--inset-pad-x) 0.7rem;
+  }
+
+  .result {
+    padding: 0.9rem var(--inset-pad-x);
   }
 
   .linkRow {

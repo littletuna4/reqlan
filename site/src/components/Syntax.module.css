@@ -53,6 +53,23 @@
   padding-bottom: 2rem;
 }
 
+@media (max-width: 768px) {
+  .frame {
+    margin-inline: calc(-1 * var(--page-pad-x) + 0.25rem);
+  }
+
+  .toggle {
+    right: 0.45rem;
+    bottom: 0.35rem;
+    font-size: 0.6875rem;
+  }
+
+  .slot :global(pre) {
+    padding-right: var(--inset-pad-x);
+    padding-bottom: 1.7rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .toggle {
     transition: none;

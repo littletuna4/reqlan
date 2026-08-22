@@ -67,3 +67,9 @@
     animation: none;
   }
 }
+
+@media (max-width: 768px) {
+  .inner {
+    padding: 0.55rem 0.85rem;
+  }
+}

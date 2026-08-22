@@ -2,6 +2,7 @@
   margin-bottom: 3.5rem;
   padding-bottom: 2.5rem;
   border-bottom: 1px solid var(--color-border);
+  min-width: 0;
 }
 
 .lead {
@@ -9,35 +10,33 @@
   flex-direction: column;
   align-items: center;
   gap: 1.25rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .mascot {
   display: block;
   width: min(42vw, 8.5rem);
+  max-width: 100%;
   height: auto;
   flex-shrink: 0;
 }
 
 .snippet {
-  margin: 0;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  overflow-x: auto;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 900px) {
   .lead {
     flex-direction: row;
     align-items: center;
     gap: 1.75rem;
   }
 
-  .mascot {
-    width: 7.5rem;
-  }
-}
-
-@media (min-width: 900px) {
   .mascot {
     width: 9rem;
   }

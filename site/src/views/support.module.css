@@ -577,4 +577,17 @@ button.action:hover .actionTitle {
     flex-basis: 100%;
     min-width: 0;
   }
+
+  .action {
+    padding: 0.85rem var(--inset-pad-x);
+  }
+
+  .featured .action {
+    padding: 0.9rem var(--inset-pad-x);
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem 0.55rem;
+  }
 }

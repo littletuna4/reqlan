@@ -1,0 +1,7 @@
+@media (max-width: 768px) {
+  .block {
+    margin-inline: calc(-1 * var(--page-pad-x) + 0.25rem);
+    width: calc(100% + 2 * var(--page-pad-x) - 0.5rem);
+    max-width: none;
+  }
+}

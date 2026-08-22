@@ -372,4 +372,21 @@
   .ideList {
     grid-template-columns: 1fr;
   }
+
+  .detail {
+    padding: 0.85rem var(--inset-pad-x);
+  }
+
+  .cli,
+  .snippet {
+    padding: 0.6rem var(--inset-pad-x);
+  }
+
+  .cliCode {
+    font-size: 0.75rem;
+  }
+
+  .snippetPre {
+    font-size: 0.6875rem;
+  }
 }
