@@ -139,6 +139,7 @@ describe("native platform packaging", () => {
     expect(deployNpm).toContain("id-token: write");
     expect(deployNpm).toContain("Publish platform packages");
     expect(deployNpm).toContain("build-native");
+    expect(deployNpm).toContain("require-natives-published.mjs");
     expect(existsSync(join(root, "scripts/ensure-host-native.mjs"))).toBe(true);
     const site = readFileSync(
       join(root, ".github/workflows/deploy-site.yml"),
@@ -146,5 +147,29 @@ describe("native platform packaging", () => {
     );
     expect(site).toContain("stage-host-native.mjs");
     expect(site).toContain("REQLAN_FORCE_NATIVE_BUILD");
+  });
+
+  // rq:["../../../reqlan rq/distribution/distribution.rq".npm_distribution]
+  // rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+  test("deploy-npm publishes platform packages before @reqlan/analytical", () => {
+    const deployNpm = readFileSync(
+      join(root, ".github/workflows/deploy-npm.yml"),
+      "utf8",
+    );
+    const nativesAt = deployNpm.indexOf("- name: Publish platform packages");
+    const requireAt = deployNpm.indexOf(
+      "- name: Require natives before @reqlan/analytical",
+    );
+    const analyticalAt = deployNpm.indexOf("- name: Publish @reqlan/analytical");
+    expect(nativesAt).toBeGreaterThan(-1);
+    expect(requireAt).toBeGreaterThan(nativesAt);
+    expect(analyticalAt).toBeGreaterThan(requireAt);
+    expect(deployNpm).toContain(
+      "node scripts/require-natives-published.mjs --ready-file artifacts/natives-ready.txt",
+    );
+    const requireStep = deployNpm.slice(requireAt, analyticalAt);
+    expect(requireStep).toContain(
+      "if: steps.check_analytical.outputs.should_publish == 'true'",
+    );
   });
 });

@@ -174,18 +174,15 @@ jobs:
         if: steps.check_language.outputs.should_publish == 'true'
         run: pnpm --filter "@reqlan/language" publish --access public --no-git-checks
 
-      - name: Check @reqlan/analytical
-        id: check_analytical
-        run: node scripts/skip-already-published.mjs --filter "@reqlan/analytical"
-
-      - name: Publish @reqlan/analytical
-        if: steps.check_analytical.outputs.should_publish == 'true'
-        run: pnpm --filter "@reqlan/analytical" publish --access public --no-git-checks
-
+      # rq:["../../reqlan rq/distribution/distribution.rq".npm_distribution]
+      # rq:["../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
       - name: Publish platform packages
         if: needs.build-native.result == 'success'
         run: |
           set -euo pipefail
+          mkdir -p artifacts
+          ready="artifacts/natives-ready.txt"
+          : > "$ready"
           for pkg_dir in packages/analytical-native/*/; do
             name="$(node -p "require('./${pkg_dir}package.json').name")"
             out="$(mktemp)"
@@ -202,7 +199,20 @@ jobs:
             else
               echo "skip $name"
             fi
+            printf '%s\n' "$name" >> "$ready"
           done
+
+      - name: Check @reqlan/analytical
+        id: check_analytical
+        run: node scripts/skip-already-published.mjs --filter "@reqlan/analytical"
+
+      - name: Require natives before @reqlan/analytical
+        if: steps.check_analytical.outputs.should_publish == 'true'
+        run: node scripts/require-natives-published.mjs --ready-file artifacts/natives-ready.txt
+
+      - name: Publish @reqlan/analytical
+        if: steps.check_analytical.outputs.should_publish == 'true'
+        run: pnpm --filter "@reqlan/analytical" publish --access public --no-git-checks
 
       - name: Check @reqlan/cli
         id: check_cli

@@ -20,18 +20,34 @@ version_management {
 npm_distribution {
   npm publishing runs only when a `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language/analytical/cli/mcp once, then publishes each package in sequence via `pnpm --filter <pkg> publish --access public --no-git-checks` (language, then analytical, then platform packages for [native_targets], then cli, then mcp).
+  The deploy workflow builds language, analytical, cli, and mcp once.
+  It then publishes each package in sequence with `pnpm --filter <pkg> publish --access public --no-git-checks`.
+  The sequence is language, then all platform packages for [native_targets], then `@reqlan/analytical`, then cli, then mcp.
+  The workflow does not publish `@reqlan/analytical` until every platform package of that version is on the npm registry or was published in the same job ([rust_binary_distribution]).
+  ["../../scripts/require-natives-published.mjs"] enforces that gate.
   Before each package publishes, ["../../scripts/skip-already-published.mjs"] with `--filter <pkg>` checks the public npm registry and skips that step when the version is already published (sets `should_publish=false`). That avoids re-attempting already-published versions under OIDC.
   Auth uses npm trusted publishing (OIDC) from GitHub Actions — no long-lived `NPM_TOKEN`.
   Workflow requirements: `permissions.id-token: write`, Node ≥ 22.14 with npm ≥ 11.5.1, registry `https://registry.npmjs.org`.
   Each of `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`, and every `@reqlan/analytical-<platform>-<arch>` platform package must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
-  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then platform packages, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
+  Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then platform packages, then analytical, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
   Note: Packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`), as with `reqlan-extension`. Platform packages are in a Changesets `fixed` group with `@reqlan/analytical` so they share its version; CI publishes them per-package after binaries are built and does not use `changeset publish` for those tarballs.
   Published packages declare `publishConfig.access: public`.
    Trusted Publisher is configured on npmjs.com for each `@reqlan/analytical-<platform>-<arch>` package
-  @implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/collect-napi-binary.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+  @implementation (
+    ["../../.github/workflows/deploy-npm.yml"]
+    ["../../scripts/skip-already-published.mjs"]
+    ["../../scripts/require-natives-published.mjs"]
+    ["../../scripts/prepare-native-packages.mjs"]
+    ["../../scripts/collect-napi-binary.mjs"]
+    ["../../package.json"]
+  )
   @status in-progress
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
+    ["../../packages/analytical/test/require-natives-published.test.ts"]
+  )
 }
 
 native_targets {
@@ -58,10 +74,16 @@ rust_binary_distribution {
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
   Per-target VSIX packaging uses the same package layout under ["../../packages/analytical-native/"], filled by Azure from this git commit ([vsix_export], [vsix_native_not_from_npm]). npm tarballs of those packages are for CLI/MCP only.
-  Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../.changeset/config.json"], ["../../.github/workflows/deploy-npm.yml"] build-native job, ["../../azure-pipelines.yml"] build_native job.
+  Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/require-natives-published.mjs"], ["../../.changeset/config.json"], ["../../.github/workflows/deploy-npm.yml"] build-native job, ["../../azure-pipelines.yml"] build_native job.
   @status in-progress
   @todo first analytical/v* release with platform packages not yet published to npm
   @todo Trusted Publisher registration for platform packages on npmjs.com
+  @tests (
+    ["../../packages/analytical/test/load-native.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
+    ["../../packages/analytical/test/require-natives-published.test.ts"]
+  )
   @plan {
     goal
       Ship per-architecture core engine binaries beside `@reqlan/analytical` so CLI, MCP, and per-target VSIXes can load the Rust engine for the extension-host platform.
@@ -72,12 +94,13 @@ rust_binary_distribution {
       - Trusted publishing and `analytical/v*` tagging stay [npm_distribution] / [release_tagging] for CLI/MCP.
       - gnu-only linux; musl and GitHub-release postinstall out of scope.
       - Website binary listing deferred.
+      - Do not publish `@reqlan/analytical` until every platform package of that version is deployed ([npm_distribution]).
 
     steps
       1. Scaffold six platform packages with os/cpu and the napi binary. (done)
       2. Wire optionalDependencies on `@reqlan/analytical`; version-lock via Changesets `fixed` group. (done)
       3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml and azure-pipelines.yml)
-      4. Publish platform packages on `analytical/v*` after `@reqlan/analytical`.
+      4. Publish platform packages on `analytical/v*` before `@reqlan/analytical`.
       5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)
   }
 }

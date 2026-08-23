@@ -243,7 +243,7 @@ accurate_rq_snippets_must_parse {
         ["../../site/src/content/example.ts"]
         ["../../site/src/content/syntax.ts"]
         ["../../site/src/content/hero.ts"]
-        ["../../site/src/content/showcases.ts"]
+        ["../../site/src/content/showcases"]
         ["../../site/scripts/validate-showcase-rq.mts"]
     )
     @tests (
@@ -662,7 +662,7 @@ showcase {
     This file is the source of truth for intent, ordering, and editorial rules.
 
     @implementation (
-        ["@/site/src/content/showcases.ts"]
+        ["@/site/src/content/showcases"]
         ["@/site/src/app/showcase"]
         ["@/site/src/views/ShowcaseListPage.tsx"]
         ["@/site/src/views/ShowcaseDetailPage.tsx"]
@@ -715,7 +715,7 @@ showcase_problems {
 }
 
 every_rq_block_must_parse {
-    Every language-"rq" block in showcases.ts must parse against the langium grammar.
+    Every language-"rq" block in showcase content files must parse against the langium grammar.
     Prefer enforcement via a build step that runs the real parser over content.
     Site-wide (landing + showcases): [accurate_rq_snippets_must_parse].
     aligns with [phase_1_parse_gate]
@@ -774,7 +774,8 @@ features_tier_1 {
         refs_break_loudly {
             Unresolved references are error diagnostics with quick-fix code actions.
             File moves prompt to rewrite every inbound ref.
-            The anti-rot argument — currently demonstrated nowhere.
+            The same check is ["../core_analysis/check.rq".check] (`reqlan check`, exit 1),
+            so CI can reject rot. Demonstrated by [broken_links_showcase].
         }
         mcp_as_shaped_context {
             search_requirements, file_context, local_graph, summarize_subtree.
@@ -852,6 +853,7 @@ agent_context_showcase {
         mcp
         planning
     )
+    @implementation ["../../site/src/content/showcases/agent-context.ts"]
 }
 
 interlock_showcase {
@@ -876,12 +878,15 @@ interlock_showcase {
         safety
         sequencing
     )
+    @implementation ["../../site/src/content/showcases/interlock.ts"]
 }
 
 broken_links_showcase {
     Flagship. Links that break loudly.
     Someone renames a file. Show the diagnostic, the quick-fix menu, and the
-    rewritten refs. This is the argument against a wiki.
+    rewritten refs. Then the same issue from ["../core_analysis/check.rq".check]
+    (`reqlan check`, exit 1) and that command as a CI step so a merge cannot land rot.
+    This is the argument against a wiki.
     Domain: refactor safety, any stack.
 
     @domain refactor-safety
@@ -889,12 +894,20 @@ broken_links_showcase {
         unresolved_ref_diagnostics
         code_actions
         file_mutation_hooks
+        check
+        ci
     )
     @tier flagship
     @status done
     @tags (
         diagnostics
         refactor
+        cli
+        ci
+    )
+    @implementation ["../../site/src/content/showcases/broken-links.ts"]
+    @tests (
+        ["../../site/src/content/showcases.test.ts:broken-links shows reqlan check as a CI gate"]
     )
 }
 
@@ -917,6 +930,7 @@ firmware_cloud_contract_showcase {
         cross-stack
         embedded
     )
+    @implementation ["../../site/src/content/showcases/firmware-cloud.ts"]
 }
 
 audit_trail_showcase {
@@ -939,6 +953,7 @@ audit_trail_showcase {
         audit
         export
     )
+    @implementation ["../../site/src/content/showcases/audit-trail.ts"]
 }
 
 module_surface_showcase {
@@ -961,6 +976,7 @@ module_surface_showcase {
         imports
         ideasets
     )
+    @implementation ["../../site/src/content/showcases/module-surface.ts"]
 }
 
 test_proves_showcase {
@@ -980,6 +996,7 @@ test_proves_showcase {
         testing
         traceability
     )
+    @implementation ["../../site/src/content/showcases/test-proves.ts"]
 }
 
 legacy_archaeology_showcase {
@@ -1001,6 +1018,7 @@ legacy_archaeology_showcase {
         discovery
         deprecation
     )
+    @implementation ["../../site/src/content/showcases/legacy-archaeology.ts"]
 }
 
 graph_view_showcase {
@@ -1021,6 +1039,7 @@ graph_view_showcase {
         extension
         graph
     )
+    @implementation ["../../site/src/content/showcases/graph-view.ts"]
 }
 
 attribute_dialect_showcase {
@@ -1042,6 +1061,7 @@ attribute_dialect_showcase {
         attributes
         extensibility
     )
+    @implementation ["../../site/src/content/showcases/attribute-dialect.ts"]
 }
 
 antipatterns_showcase {
@@ -1061,6 +1081,7 @@ antipatterns_showcase {
         antipattern
         craft
     )
+    @implementation ["../../site/src/content/showcases/antipatterns.ts"]
 }
 
 showcase_set (
@@ -1100,6 +1121,12 @@ absorbed_and_dropped {
 
 showcase_module {
     Showcases are standardised and typed in TS content objects.
+    Types live in ["../../site/src/content/showcases/types.ts"].
+    Each showcase is its own file under ["../../site/src/content/showcases"].
+    ["../../site/src/content/showcases/index.ts"] composes them in [showcase_set] order.
+    Each showcase file carries rq: comment references to its showcase idea
+    and to the product ideas it demonstrates.
+
     Short version (list card): id, title, summary, tags, mechanism badge.
     Long version (detail page): full blocks array including payoff.
 
@@ -1114,7 +1141,15 @@ showcase_module {
     caption / mechanism fields on the showcase object
 
     Copy stays minimal and show-don't-tell, aligned with site copy rules.
-    @implementation ["@/site/src/content/showcases.ts"]
+    @implementation (
+        ["../../site/src/content/showcases/types.ts"]
+        ["../../site/src/content/showcases/index.ts"]
+        ["../../site/src/content/showcases"]
+    )
+    @tests (
+        ["../../site/src/content/showcases.test.ts"]
+        ["../../site/src/content/showcases.test.ts:gives each showcase its own file with rq comment references"]
+    )
     @status done
 }
 
@@ -1152,7 +1187,7 @@ phase_0_honesty_audit {
 phase_1_parse_gate {
     Make dishonesty impossible.
     Add a build step that runs the Langium parser over every language-"rq" block
-    in showcases.ts and fails on parse errors or unresolved local refs.
+    in showcase content files and fails on parse errors or unresolved local refs.
     Do this first so the rewrite cannot reintroduce the current problem.
     Also expand Shiki language set per [showcase_languages].
 
@@ -1169,7 +1204,7 @@ phase_2_content_schema {
 
 phase_3_reqs_as_truth {
     This file is the source of truth: one idea per showcase with mechanism,
-    domain, and status; [showcase_set] listing them; refs into showcases.ts.
+    domain, and status; [showcase_set] listing them; refs into showcase content files.
     Reqlan's own showcase plan is tracked in reqlan.
 
     @status done

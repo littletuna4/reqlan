@@ -2,7 +2,7 @@ import { accessSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { showcases } from "../src/content/showcases.ts";
+import { showcases } from "../src/content/showcases/index.ts";
 
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const outDir = resolve(rootDir, "out");
