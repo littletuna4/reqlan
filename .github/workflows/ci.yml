@@ -1,0 +1,82 @@
+# rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
+# rq:["../../reqlan rq/distribution/distribution.rq".prerelease_tests]
+# rq:["../../reqlan rq/core_analysis/check.rq".check]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+# rq:["../../reqlan rq/development/build.rq".typescript_compile]
+# rq:["../../reqlan rq/development/commit.rq".rust_fmt]
+name: CI
+
+# One sequential job: install workspace packages, build once, then reuse that
+# build for crate tests, requirement check, and JS/TS tests.
+# Do not install @reqlan packages from npm. Do not repeat checkout or compile.
+# release.yml calls this workflow because a push to main must not tag or
+# publish until this job succeeds.
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Assert @reqlan packages are workspace packages
+        run: node scripts/assert-workspace-reqlan.mjs
+
+      - name: Format crates
+        working-directory: crates
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        working-directory: crates
+        run: cargo clippy --workspace --exclude reqlan-napi --all-targets
+      - name: Compile crate tests
+        working-directory: crates
+        run: cargo test --no-run --workspace --exclude reqlan-napi
+      - name: Build reqlan-napi (host)
+        working-directory: crates
+        run: cargo build -p reqlan-napi --release
+      - name: Stage host native package
+        run: node scripts/pack-host-native-package.mjs --target linux-x64-gnu
+      - name: Native addon smoke
+        run: |
+          node --input-type=module -e "
+            import { createRequire } from 'node:module';
+            import { existsSync } from 'node:fs';
+            const binary = 'packages/analytical-native/linux-x64-gnu/reqlan_napi.linux-x64-gnu.node';
+            if (!existsSync(binary)) throw new Error('packed host binary missing: ' + binary);
+            const addon = createRequire(import.meta.url)('./' + binary);
+            if (!addon.NativeAnalysisRuntime) throw new Error('NativeAnalysisRuntime missing');
+            console.log('native addon loaded');
+          "
+      - name: Build TypeScript
+        run: pnpm run build:tsc
+
+      - name: Test crates
+        working-directory: crates
+        run: cargo test --workspace --exclude reqlan-napi
+      - name: Check requirement references
+        run: node packages/cli/bin/cli.js check --skip-target "**/.cursor/**"
+      - name: Test packages
+        run: pnpm run test:js

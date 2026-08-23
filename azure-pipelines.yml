@@ -215,7 +215,7 @@ jobs:
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm run test
+          pnpm run test:js
         displayName: Run tests
         timeoutInMinutes: 15
 

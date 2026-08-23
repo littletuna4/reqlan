@@ -130,7 +130,7 @@ describe('rust fmt pre-commit hook', () => {
 
     // rq:["../../../reqlan rq/development/commit.rq".rust_fmt]
     test('CI still checks cargo fmt --all and prepare installs committed hooks', () => {
-        const ci = readFileSync(join(root, '.github/workflows/ci-rust.yml'), 'utf8');
+        const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
         expect(ci).toMatch(/cargo fmt --all -- --check/);
         expect(ci).toContain('rq:["../../reqlan rq/development/commit.rq".rust_fmt]');
 

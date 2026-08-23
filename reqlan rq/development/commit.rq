@@ -1,4 +1,4 @@
-import "../../.github/workflows/ci-rust.yml" as ci_rust
+import "../../.github/workflows/ci.yml" as ci
 import "../../package.json" as workspace_package
 import "../../scripts/pre-commit-rust-fmt.mjs" as rust_fmt_hook
 import "../../scripts/install-git-hooks.mjs" as install_git_hooks
@@ -8,14 +8,14 @@ import "../../packages/analytical/test/rust-fmt-hook.test.ts" as rust_fmt_tests
 import "../core_analysis/rust_port.rq" as rust_port
 
 rust_fmt {
-    [ci_rust] checks `cargo fmt --all -- --check` on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
-    Pull requests that touch crates start [ci_rust] directly; the release workflow calls the same file before versioning (["../distribution/distribution.rq".ci_gate]).
+    [ci] checks `cargo fmt --all -- --check` on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
+    Pull requests and the release workflow run the same sequential CI job (["../distribution/distribution.rq".ci_gate]).
     Git pre-commit runs the same formatter in write mode so local commits stay formatted; CI remains the enforcement layer.
     Skip when no crate Rust is staged, format in place and restage, skip merge/rebase, `SKIP_RUST_FMT=1` escape hatch.
     [workspace_package] `prepare` sets `core.hooksPath` to `.githooks`.
     @status done
     @implementation (
-        [ci_rust]
+        [ci]
         ["../../.github/workflows/release.yml"]
         [pre_commit_hook]
         [rust_fmt_hook]
@@ -28,6 +28,6 @@ rust_fmt {
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:selects only staged crate rust sources"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:runs cargo fmt --all in crates then restages the rust files"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI still checks cargo fmt --all and prepare installs committed hooks"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust, check, and test workflows before versioning"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls sequential CI before versioning"]
     )
 }

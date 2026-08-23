@@ -16,29 +16,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ci-rust:
-    name: Rust crates
+  ci:
+    name: CI
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-    uses: ./.github/workflows/ci-rust.yml
-    permissions:
-      contents: read
-
-  ci-check:
-    name: Check references
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-    uses: ./.github/workflows/ci-check.yml
-    permissions:
-      contents: read
-
-  ci-test:
-    name: Build and test
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
-    uses: ./.github/workflows/ci-test.yml
+    uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
 
   release:
-    needs: [ci-rust, ci-check, ci-test]
+    needs: [ci]
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     outputs:

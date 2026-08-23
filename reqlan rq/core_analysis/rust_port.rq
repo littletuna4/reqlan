@@ -66,7 +66,7 @@ rust_crate_layout {
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
     Golden tests compare Rust extract against Langium on the frozen [golden_corpus], plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
     Format: ["../development/commit.rq".rust_fmt].
-    Root `pnpm test` runs `test:rust` from ["../../package.json"] after the JS/TS package tests. `test:rust` is `cargo test --workspace --exclude reqlan-napi`.
+    Root `pnpm test` runs `test:js` then `test:rust` from ["../../package.json"]. `test:rust` is `cargo test --workspace --exclude reqlan-napi`. GitHub CI compiles crates once, then runs `cargo test` as its own step so crate tests reuse that build (["../distribution/distribution.rq".ci_gate]).
     @status done
     @implementation (
         ["../../package.json"]

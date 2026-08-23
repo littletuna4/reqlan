@@ -97,13 +97,12 @@ typescript_compile {
     Langium writes `packages/language/src/generated` (ast, grammar, module). That directory is gitignored.
     `tsc -b tsconfig.build.json` fails on a clean checkout if those files are missing.
     Root script `build:tsc` is `langium:generate` then that `tsc -b`. Full `pnpm run build` starts with `build:tsc`.
-    GitHub JS CI, Azure package build, and npm deploy use `build:tsc` so compile matches a clean local build ([distribution.prerelease_tests], [distribution.ci_gate], [distribution.npm_distribution]).
-    Pull-request check and test jobs compile the TypeScript workspace from this checkout ([check.check_meta_implementation]).
+    GitHub CI, Azure package build, and npm deploy use `build:tsc` so compile matches a clean local build ([distribution.prerelease_tests], [distribution.ci_gate], [distribution.npm_distribution]).
+    GitHub CI compiles the TypeScript workspace once in the sequential job, then reuses that emit for [check.check] and package tests ([check.check_meta_implementation]).
     @status done
     @implementation (
         ["../../package.json"]
-        ["../../.github/workflows/ci-test.yml"]
-        ["../../.github/workflows/ci-check.yml"]
+        ["../../.github/workflows/ci.yml"]
         ["../../.github/workflows/deploy-npm.yml"]
         ["../../azure-pipelines.yml"]
         ["../../.gitignore"]
