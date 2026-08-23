@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.9.1
+
+### Patch Changes
+
+- 4a70c69: update core.
+- Updated dependencies [4a70c69]
+  - @reqlan/analytical@1.13.1
+
 ## 0.9.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @reqlan/analytical-win32-arm64-msvc
 
+## 1.13.1
+
+### Patch Changes
+
+- 4a70c69: update core.
+
 ## 1.13.0
 
 ## 1.12.0

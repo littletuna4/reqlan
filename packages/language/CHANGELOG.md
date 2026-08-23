@@ -1,5 +1,12 @@
 # @reqlan/language
 
+## 1.10.2
+
+### Patch Changes
+
+- Updated dependencies [4a70c69]
+  - @reqlan/analytical@1.13.1
+
 ## 1.10.1
 
 ### Patch Changes
