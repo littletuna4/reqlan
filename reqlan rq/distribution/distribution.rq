@@ -122,34 +122,38 @@ deployment_flow {
 }
 
 ci_gate {
-  Pull-request CI and the main release pipeline share the rust workflow and the JS build/test/check workflow.
+  Pull-request CI and the main release pipeline share the rust, check, and JS test workflows.
   ["./distribution.rq".deployment_flow] must not apply changesets or create tags until those workflows succeed.
   Rust crates: format, clippy, tests, and host napi smoke in ["../../.github/workflows/ci-rust.yml"] (["../development/commit.rq".rust_fmt]).
-  JS packages: compile this git checkout, run ["./distribution.rq".prerelease_tests], then ["../core_analysis/check.rq".check] with the workspace CLI in ["../../.github/workflows/ci-test.yml"] (["../core_analysis/check.rq".check_meta_implementation], ["../core_analysis/check.rq".check_skip_targets]).
-  Pull requests start rust (crate paths) and the JS workflow so review does not wait for a main release.
+  Requirement graph: ["../core_analysis/check.rq".check] with the workspace CLI in ["../../.github/workflows/ci-check.yml"] (["../core_analysis/check.rq".check_meta_implementation], ["../core_analysis/check.rq".check_skip_targets]).
+  JS packages: compile this git checkout and run ["./distribution.rq".prerelease_tests] in ["../../.github/workflows/ci-test.yml"].
+  Pull requests start rust (crate paths), check, and tests so review does not wait for a main release.
   A push to main does not start the CI workflows a second time as independent workflows; ["../../.github/workflows/release.yml"] calls them with `workflow_call`.
   The version-bump commit (`chore(release):`) skips the gate and the version job to prevent a recursive run.
   @status done
   @implementation (
     ["../../.github/workflows/release.yml"]
     ["../../.github/workflows/ci-rust.yml"]
+    ["../../.github/workflows/ci-check.yml"]
     ["../../.github/workflows/ci-test.yml"]
   )
   @tests (
     ["../../packages/analytical/test/release-ci-gate.test.ts"]
-    ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and JS workflows before versioning"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust, check, and test workflows before versioning"]
     ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
-    ["../../packages/analytical/test/release-ci-gate.test.ts:JS CI builds from this checkout then tests then checks"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:JS CI builds from this checkout then tests"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:reference check uses the workspace CLI"]
   )
 }
 
 prerelease_tests {
-  JS/TS package tests (`pnpm run test`) run after full TypeScript compile (`pnpm run build:tsc`) from this git checkout.
-  The same job then runs ["../core_analysis/check.rq".check] with the workspace CLI (["../core_analysis/check.rq".check_meta_implementation]).
+  Package tests (`pnpm run test`) run after full TypeScript compile (`pnpm run build:tsc`) from this git checkout.
+  `pnpm run test` runs JS/TS package tests, then crate tests via `test:rust` (["../core_analysis/rust_port.rq".rust_crate_layout]).
   This job runs on every pull request and on main before versioning.
   Host native addon is required because analytical and language tests load `reqlan-napi`.
   Azure still runs `pnpm run test` before VSIX publish ([extension_distribution]).
   The implementation lives in ["../../.github/workflows/ci-test.yml"]; ["../../.github/workflows/release.yml"] calls it with `workflow_call` as part of ["./distribution.rq".ci_gate].
+  Related: ["../core_analysis/check.rq".check_meta_implementation]
   @status done
   @implementation (
     ["../../.github/workflows/ci-test.yml"]
@@ -158,7 +162,8 @@ prerelease_tests {
   )
   @tests (
     ["../../packages/analytical/test/release-ci-gate.test.ts"]
-    ["../../packages/analytical/test/release-ci-gate.test.ts:JS CI builds from this checkout then tests then checks"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:JS CI builds from this checkout then tests"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:pnpm test runs crate tests"]
     ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
   )
 }

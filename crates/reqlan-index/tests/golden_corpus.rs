@@ -173,9 +173,7 @@ fn opaque_file_examples_do_not_extract_inline_or_fenced_paths() {
     );
     assert!(
         file_labels.iter().all(|label| {
-            label != "./plc/interlock.stL#41-58"
-                && label != "./file.rq"
-                && label != "./missing.rq"
+            label != "./plc/interlock.stL#41-58" && label != "./file.rq" && label != "./missing.rq"
         }),
         "opaque examples leaked as file refs: {file_labels:?}"
     );

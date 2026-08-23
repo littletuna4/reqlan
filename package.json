@@ -16,7 +16,7 @@
         "build:clean": "pnpm run clean && pnpm run build",
         "langium:generate": "pnpm --filter ./packages/language run langium:generate",
         "langium:watch": "pnpm --filter ./packages/language run langium:watch",
-        "test": "pnpm --filter ./packages/language run test && pnpm --filter ./packages/analytical run test && pnpm --filter ./packages/cli run test && pnpm --filter ./packages/extension run test",
+        "test": "pnpm --filter ./packages/language run test && pnpm --filter ./packages/analytical run test && pnpm --filter ./packages/cli run test && pnpm --filter ./packages/extension run test && pnpm run test:rust",
         "test:rust": "cargo test --manifest-path crates/Cargo.toml --workspace --exclude reqlan-napi",
         "check": "node packages/cli/bin/cli.js check",
         "native:types": "cargo run --manifest-path crates/Cargo.toml -p reqlan-analytical --bin export-ts",

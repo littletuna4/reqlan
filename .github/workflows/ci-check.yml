@@ -1,13 +1,15 @@
-# rq:["../../reqlan rq/distribution/distribution.rq".prerelease_tests]
+# rq:["../../reqlan rq/core_analysis/check.rq".check]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 # rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
 # rq:["../../reqlan rq/development/build.rq".typescript_compile]
-name: Build and test
+name: Check references
 
-# Pull requests and the release workflow share this job.
-# Compile from this git checkout, then run package tests.
-# Requirement-reference check is ci-check.yml (workspace CLI).
-# release.yml calls this workflow because a push to main
-# must not tag or publish until JS compile and tests succeed.
+# Pull requests run this workflow directly.
+# Compile this git checkout, then `reqlan check` with the workspace CLI
+# (not a globally installed npm `reqlan`).
+# release.yml also calls this workflow because a push to main
+# must not tag or publish until requirement references resolve.
 
 on:
   pull_request:
@@ -17,9 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -40,5 +41,6 @@ jobs:
         run: node scripts/ensure-host-native.mjs
       - name: Build TypeScript
         run: pnpm run build:tsc
-      - name: Test packages
-        run: pnpm run test
+      - name: Check requirement references
+        # this is skipped becuase it's not available in the ci environment
+        run: node packages/cli/bin/cli.js check --skip-target "**/.cursor/**"

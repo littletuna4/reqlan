@@ -23,15 +23,22 @@ jobs:
     permissions:
       contents: read
 
+  ci-check:
+    name: Check references
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    uses: ./.github/workflows/ci-check.yml
+    permissions:
+      contents: read
+
   ci-test:
-    name: Build, test, and check
+    name: Build and test
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     uses: ./.github/workflows/ci-test.yml
     permissions:
       contents: read
 
   release:
-    needs: [ci-rust, ci-test]
+    needs: [ci-rust, ci-check, ci-test]
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     outputs:
