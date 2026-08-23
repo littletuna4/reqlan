@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.13.4
+
+### Patch Changes
+
+- e388596: cicd changes
+
 ## 1.13.3
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @reqlan/mcp
 
+## 0.3.9
+
+### Patch Changes
+
+- e388596: cicd changes
+- Updated dependencies [e388596]
+  - @reqlan/analytical@1.13.4
+
 ## 0.3.8
 
 ### Patch Changes

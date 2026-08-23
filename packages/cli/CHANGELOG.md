@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.9.4
+
+### Patch Changes
+
+- e388596: cicd changes
+- Updated dependencies [e388596]
+  - @reqlan/analytical@1.13.4
+
 ## 0.9.3
 
 ### Patch Changes
