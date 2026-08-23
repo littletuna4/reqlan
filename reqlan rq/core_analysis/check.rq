@@ -130,12 +130,21 @@ check_wildcard_one {
 }
 
 check_meta_implementation {
-    [check] should be performed in ci of this codebase.
+    [check] runs on every pull request and as a required job of the GitHub release workflow before versioning.
+    Pull requests use ["../../.github/workflows/ci-check.yml"].
+    Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
+    Azure also runs `pnpm run check` on `ext/v*` tags.
     Related: [check]
     @status done
     @implementation (
         ["../../.github/workflows/ci-check.yml"]
+        ["../../.github/workflows/release.yml"]
         ["../../azure-pipelines.yml"]
         ["../../package.json"]
+    )
+    @tests (
+        ["../../packages/analytical/test/release-ci-gate.test.ts"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
     )
 }

@@ -108,16 +108,38 @@ site_package {
 }
 
 deployment_flow {
-  On push to main, if pending changesets remain, the release workflow applies them with `pnpm changeset version`.
+  On push to main, the release workflow first completes ["./distribution.rq".ci_gate].
+  If pending changesets remain, it then applies them with `pnpm changeset version`.
   This bumps package.json for each affected package and writes changelogs.
   The workflow commits the result, creates annotated tags for every bumped publishable package, and pushes the commit and tags back to main.
   Release tags use `site/v{version}`, `ext/v{version}`, `language/v{version}`, `analytical/v{version}`, `cli/v{version}`, and `mcp/v{version}` where `{version}` is the semver from that package's package.json.
-  Deployment is tag-driven for every channel per ["./distribution.rq".release_tagging]; the release workflow only versions and tags.
+  Deployment is tag-driven for every channel per ["./distribution.rq".release_tagging]; after ["./distribution.rq".ci_gate], the release workflow only versions and tags.
   GitHub Actions pushes with the default `GITHUB_TOKEN` do not trigger other workflows, so site and npm deploy are also invoked directly from the release workflow.
   Optional `RELEASE_PAT` allows tag pushes to trigger downstream workflows for manual reruns and external CI.
   Recursive runs are prevented by skipping the release workflow for release commits.
   Tag patterns and downstream deploy workflows follow ["./distribution.rq".release_tagging].
   The implementation lives in ["../../.github/workflows/release.yml"].
+}
+
+ci_gate {
+  Pull-request CI and the main release pipeline share the same check workflows.
+  ["./distribution.rq".deployment_flow] must not apply changesets or create tags until those workflows succeed.
+  Rust crates: format, clippy, tests, and host napi smoke in ["../../.github/workflows/ci-rust.yml"] (["../development/commit.rq".rust_fmt]).
+  Requirement graph: `pnpm run check` in ["../../.github/workflows/ci-check.yml"] (["../core_analysis/check.rq".check_meta_implementation]).
+  Pull requests still start those workflows so review does not wait for a main release.
+  A push to main does not start the CI workflows a second time as independent workflows; ["../../.github/workflows/release.yml"] calls them with `workflow_call`.
+  The version-bump commit (`chore(release):`) skips the gate and the version job to prevent a recursive run.
+  @status done
+  @implementation (
+    ["../../.github/workflows/release.yml"]
+    ["../../.github/workflows/ci-rust.yml"]
+    ["../../.github/workflows/ci-check.yml"]
+  )
+  @tests (
+    ["../../packages/analytical/test/release-ci-gate.test.ts"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
+  )
 }
 
 release_tagging {

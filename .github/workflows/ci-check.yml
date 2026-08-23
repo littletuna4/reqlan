@@ -1,12 +1,18 @@
 # rq:["../../reqlan rq/core_analysis/check.rq".check]
 # rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+# rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
 name: Check references
 
+# Pull requests run this workflow directly.
+# release.yml also calls it before versioning because a push to main
+# must not tag or publish until requirement references resolve.
+
 on:
-  push:
-    branches:
-      - main
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   check:

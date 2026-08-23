@@ -9,12 +9,14 @@ import "../core_analysis/rust_port.rq" as rust_port
 
 rust_fmt {
     [ci_rust] checks `cargo fmt --all -- --check` on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
+    Pull requests that touch crates start [ci_rust] directly; the release workflow calls the same file before versioning (["../distribution/distribution.rq".ci_gate]).
     Git pre-commit runs the same formatter in write mode so local commits stay formatted; CI remains the enforcement layer.
     Skip when no crate Rust is staged, format in place and restage, skip merge/rebase, `SKIP_RUST_FMT=1` escape hatch.
     [workspace_package] `prepare` sets `core.hooksPath` to `.githooks`.
     @status done
     @implementation (
         [ci_rust]
+        ["../../.github/workflows/release.yml"]
         [pre_commit_hook]
         [rust_fmt_hook]
         [install_git_hooks]
@@ -26,5 +28,6 @@ rust_fmt {
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:selects only staged crate rust sources"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:runs cargo fmt --all in crates then restages the rust files"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI still checks cargo fmt --all and prepare installs committed hooks"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
     )
 }

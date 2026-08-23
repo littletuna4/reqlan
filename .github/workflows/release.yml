@@ -1,3 +1,5 @@
+# rq:["../../reqlan rq/distribution/distribution.rq".deployment_flow]
+# rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
 name: Release packages
 
 on:
@@ -13,7 +15,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ci-rust:
+    name: Rust crates
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    uses: ./.github/workflows/ci-rust.yml
+    permissions:
+      contents: read
+
+  ci-check:
+    name: Check references
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    uses: ./.github/workflows/ci-check.yml
+    permissions:
+      contents: read
+
   release:
+    needs: [ci-rust, ci-check]
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     outputs:

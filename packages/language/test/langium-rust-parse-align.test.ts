@@ -16,23 +16,21 @@ import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model, ReferenceTarget } from '@reqlan/language';
 import {
     createReqlanServices,
-    isAnonymousBlock,
     isBracketReference,
     isCodeSnippet,
     isFileReference,
     isFileSymbolReference,
     isFromImport,
-    isIdea,
-    isIdeaSet,
+    isInlineTextPart,
     isInvalidFromImport,
     isListItemBody,
     isLocalReference,
-    isMarkdownLink,
     isNamespaceImport,
+    isNonBangInlineTextPart,
     isOneLinerBody,
-    isOneLinerIdea,
     isQualifiedImport,
     isQualifiedReference,
+    isRichTextPart,
     isWikiLink,
     isWildcardReference,
     unquoteReqlanString
@@ -110,23 +108,34 @@ function langiumImport(importDecl: Model['imports'][number]): NativeParseElement
 }
 
 function langiumTopLevel(element: Model['elements'][number]): NativeParseElement {
-    if (isIdea(element)) {
-        return { type: 'Idea', name: element.name };
+    switch (element.$type) {
+        case 'Idea':
+            return { type: 'Idea', name: element.name };
+        case 'IdeaSet':
+            return { type: 'IdeaSet', name: element.name };
+        case 'OneLinerIdea':
+            return { type: 'OneLinerIdea', name: element.name };
+        case 'AnonymousBlock':
+            return { type: 'AnonymousBlock' };
     }
-    if (isIdeaSet(element)) {
-        return { type: 'IdeaSet', name: element.name };
-    }
-    if (isOneLinerIdea(element)) {
-        return { type: 'OneLinerIdea', name: element.name };
-    }
-    if (isAnonymousBlock(element)) {
-        return { type: 'AnonymousBlock' };
-    }
-    return { type: element.$type };
 }
 
 function isInlineCodeLiteral(text: string): boolean {
     return text.startsWith('`') && text.endsWith('`') && text.length > 2 && !text.startsWith('```');
+}
+
+/** INLINE_CODE terminals only — not BracketReference / WikiLink / MarkdownLink subtypes. */
+function astInlineCode(node: unknown): string | undefined {
+    if (isRichTextPart(node) && node.$type === 'RichTextPart') {
+        return node.inlineCode;
+    }
+    if (isInlineTextPart(node) && node.$type === 'InlineTextPart') {
+        return node.inlineCode;
+    }
+    if (isNonBangInlineTextPart(node) && node.$type === 'NonBangInlineTextPart') {
+        return node.inlineCode;
+    }
+    return undefined;
 }
 
 function targetMeta(target: ReferenceTarget): { kind: string; label: string } {
@@ -171,14 +180,7 @@ function langiumSnapshot(model: Model, ok: boolean): NativeAlignSnapshot {
         if (isWikiLink(node)) {
             refs.push({ form: 'wiki', ...targetMeta(node.target) });
         }
-        const inlineCode =
-            !isBracketReference(node)
-            && !isWikiLink(node)
-            && !isMarkdownLink(node)
-            && typeof (node as { inlineCode?: unknown }).inlineCode === 'string'
-                ? (node as { inlineCode: string }).inlineCode
-                : undefined;
-        if (inlineCode) {
+        if (astInlineCode(node)) {
             inlineCodeCount += 1;
         }
         if (isOneLinerBody(node) || isListItemBody(node)) {

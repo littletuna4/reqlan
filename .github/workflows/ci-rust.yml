@@ -1,14 +1,20 @@
+# rq:["../../reqlan rq/development/commit.rq".rust_fmt]
+# rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
 name: Rust crates
 
+# Pull requests that touch crates run this workflow directly.
+# release.yml also calls it before versioning because a push to main
+# must not tag or publish until crate checks pass.
+
 on:
-  push:
-    paths:
-      - 'crates/**'
-      - '.github/workflows/ci-rust.yml'
   pull_request:
     paths:
       - 'crates/**'
       - '.github/workflows/ci-rust.yml'
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   test:
