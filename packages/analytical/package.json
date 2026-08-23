@@ -1,7 +1,7 @@
 {
     "name": "@reqlan/analytical",
     "description": "Native requirement graph index and analysis API for reqlan",
-    "version": "1.11.3",
+    "version": "1.12.0",
     "type": "module",
     "license": "AGPL-3.0-only",
     "repository": {

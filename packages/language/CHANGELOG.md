@@ -1,5 +1,17 @@
 # @reqlan/language
 
+## 1.10.0
+
+### Minor Changes
+
+- 15b6a53: Add check; and fix broken references.
+
+### Patch Changes
+
+- Updated dependencies [15b6a53]
+- Updated dependencies [15b6a53]
+  - @reqlan/analytical@1.12.0
+
 ## 1.9.7
 
 ### Patch Changes

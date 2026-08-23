@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/analytical-darwin-x64",
-    "version": "1.11.3",
+    "version": "1.12.0",
     "description": "Native reqlan analytical engine for darwin-x64",
     "license": "AGPL-3.0-only",
     "repository": {

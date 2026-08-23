@@ -1,5 +1,15 @@
 # @reqlan/analytical
 
+## 1.12.0
+
+### Minor Changes
+
+- 15b6a53: Add check; and fix broken references.
+
+### Patch Changes
+
+- 15b6a53: Add `reqlan check` so CI can report unresolved idea, comment, and file references.
+
 ## 1.11.3
 
 ### Patch Changes
