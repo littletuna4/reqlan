@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/analytical-darwin-arm64",
-    "version": "1.13.2",
+    "version": "1.13.3",
     "description": "Native reqlan analytical engine for darwin-arm64",
     "license": "AGPL-3.0-only",
     "repository": {

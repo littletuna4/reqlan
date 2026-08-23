@@ -1,5 +1,13 @@
 # @reqlan/analytical
 
+## 1.13.3
+
+### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+
 ## 1.13.2
 
 ### Patch Changes
