@@ -1,5 +1,17 @@
 # @reqlan/cli
 
+## 0.9.3
+
+### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+- Updated dependencies [6f39ab6]
+- Updated dependencies [b5e5373]
+- Updated dependencies [2622292]
+  - @reqlan/analytical@1.13.3
+
 ## 0.9.2
 
 ### Patch Changes
