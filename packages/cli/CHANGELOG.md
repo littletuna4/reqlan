@@ -1,5 +1,18 @@
 # @reqlan/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- 15b6a53: Add `reqlan check` so CI can report unresolved idea, comment, and file references.
+- 15b6a53: Add check; and fix broken references.
+
+### Patch Changes
+
+- Updated dependencies [15b6a53]
+- Updated dependencies [15b6a53]
+  - @reqlan/analytical@1.12.0
+
 ## 0.7.12
 
 ### Patch Changes

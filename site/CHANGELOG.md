@@ -1,5 +1,11 @@
 # site
 
+## 0.18.0
+
+### Minor Changes
+
+- 15b6a53: Add check; and fix broken references.
+
 ## 0.17.1
 
 ### Patch Changes

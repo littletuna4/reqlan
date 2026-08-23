@@ -1,5 +1,7 @@
 # @reqlan/analytical-linux-x64-gnu
 
+## 1.12.0
+
 ## 1.11.3
 
 ## 1.11.2
