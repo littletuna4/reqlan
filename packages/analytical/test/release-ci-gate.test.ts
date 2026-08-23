@@ -2,6 +2,7 @@
  * Release on main must reuse pull-request rust and check workflows.
  * rq:["../../../reqlan rq/distribution/distribution.rq".ci_gate]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+ * rq:["../../../reqlan rq/development/build.rq".typescript_compile]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -42,6 +43,35 @@ describe('release CI gate', () => {
         expect(check).toContain('rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]');
         expect(check).toContain(
             'rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]'
+        );
+    });
+
+    // rq:["../../../reqlan rq/development/build.rq".typescript_compile]
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+    test('TypeScript compile generates Langium sources first', () => {
+        const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+            scripts: Record<string, string>;
+        };
+        expect(pkg.scripts['build:tsc']).toContain('langium:generate');
+        expect(pkg.scripts['build:tsc']).toContain('tsc -b tsconfig.build.json');
+        expect(pkg.scripts.build.startsWith('pnpm run build:tsc')).toBe(true);
+
+        const check = readWorkflow('ci-check.yml');
+        expect(check).toContain('pnpm run build:tsc');
+        expect(check).toContain(
+            'rq:["../../reqlan rq/development/build.rq".typescript_compile]'
+        );
+
+        const azure = readFileSync(join(root, 'azure-pipelines.yml'), 'utf8');
+        expect(azure).toContain('pnpm run build:tsc');
+        expect(azure).toContain(
+            'rq:["reqlan rq/development/build.rq".typescript_compile]'
+        );
+
+        const npm = readWorkflow('deploy-npm.yml');
+        expect(npm).toContain('pnpm run build:tsc');
+        expect(npm).toContain(
+            'rq:["../../reqlan rq/development/build.rq".typescript_compile]'
         );
     });
 });

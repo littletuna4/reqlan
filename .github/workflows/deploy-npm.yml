@@ -127,10 +127,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # rq:["../../reqlan rq/development/build.rq".typescript_compile]
       - name: Build npm packages
         run: |
-          pnpm run langium:generate
-          pnpm exec tsc -b tsconfig.build.json
+          pnpm run build:tsc
           pnpm --filter @reqlan/cli run build
           pnpm --filter @reqlan/mcp run build
           pnpm run build:readme

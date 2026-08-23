@@ -1,6 +1,7 @@
 # rq:["../../reqlan rq/core_analysis/check.rq".check]
 # rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
 # rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
+# rq:["../../reqlan rq/development/build.rq".typescript_compile]
 name: Check references
 
 # Pull requests run this workflow directly.
@@ -35,7 +36,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build host native addon
         run: node scripts/ensure-host-native.mjs
-      - name: Build CLI
-        run: pnpm exec tsc -b tsconfig.build.json
+      - name: Build TypeScript
+        run: pnpm run build:tsc
       - name: Check requirement references
         run: pnpm run check

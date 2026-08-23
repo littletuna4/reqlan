@@ -1,5 +1,6 @@
 import "./core.rq" as development_core
 import "../distribution/distribution.rq" as distribution
+import "../core_analysis/check.rq" as check
 import "../../packages/extension/scripts/build.mjs" as extension_build_script
 import "../../packages/extension/scripts/generate-readme.ts" as extension_readme_script
 import "../../packages/extension/esbuild.mjs" as extension_esbuild
@@ -88,7 +89,27 @@ typescript_emit {
     Package TypeScript emit goes to each package `out/` via `tsc -b` project references (["../../tsconfig.build.json"]).
     Shared compiler options live in ["../../tsconfig.base.json"]. ["../../tsconfig.json"] is a solution file (`files: []`) so a plain `tsc` / VS Code "tsc: build" does not write `.js`, `.d.ts`, or `.js.map` next to sources.
     Webview tsconfigs are `noEmit` — Vite bundles to `packages/extension/media/webviews/`.
+    A clean compile must generate Langium sources first ([typescript_compile]).
     @status done
+}
+
+typescript_compile {
+    Langium writes `packages/language/src/generated` (ast, grammar, module). That directory is gitignored.
+    `tsc -b tsconfig.build.json` fails on a clean checkout if those files are missing.
+    Root script `build:tsc` is `langium:generate` then that `tsc -b`. Full `pnpm run build` starts with `build:tsc`.
+    GitHub check CI, Azure package build, and npm deploy use `build:tsc` so compile matches a clean local build ([check.check_meta_implementation], [distribution.ci_gate], [distribution.npm_distribution]).
+    @status done
+    @implementation (
+        ["../../package.json"]
+        ["../../.github/workflows/ci-check.yml"]
+        ["../../.github/workflows/deploy-npm.yml"]
+        ["../../azure-pipelines.yml"]
+        ["../../.gitignore"]
+    )
+    @tests (
+        ["../../packages/analytical/test/release-ci-gate.test.ts"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
+    )
 }
 
 extension_typecheck {

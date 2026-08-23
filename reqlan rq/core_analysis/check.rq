@@ -133,6 +133,7 @@ check_meta_implementation {
     [check] runs on every pull request and as a required job of the GitHub release workflow before versioning.
     Pull requests use ["../../.github/workflows/ci-check.yml"].
     Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
+    The check job compiles TypeScript with `pnpm run build:tsc` (Langium generate then `tsc -b`) so the CLI exists on a clean checkout (["../development/build.rq".typescript_compile]).
     Azure also runs `pnpm run check` on `ext/v*` tags.
     Related: [check]
     @status done
@@ -146,5 +147,6 @@ check_meta_implementation {
         ["../../packages/analytical/test/release-ci-gate.test.ts"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
     )
 }

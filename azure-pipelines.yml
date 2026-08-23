@@ -204,10 +204,10 @@ jobs:
         displayName: Ensure host native optionalDependency
         timeoutInMinutes: 5
 
+      # rq:["reqlan rq/development/build.rq".typescript_compile]
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm run langium:generate
-          pnpm exec tsc -b tsconfig.build.json
+          pnpm run build:tsc
           pnpm --filter '!./site' -r run build
           pnpm run sync:cursor
         displayName: Build packages (skip site)
