@@ -1,5 +1,14 @@
 # @reqlan/cli
 
+## 0.9.2
+
+### Patch Changes
+
+- a18c1ff: decouple extension from core.
+- Updated dependencies [a18c1ff]
+- Updated dependencies [70715af]
+  - @reqlan/analytical@1.13.2
+
 ## 0.9.1
 
 ### Patch Changes

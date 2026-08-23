@@ -1,5 +1,7 @@
 # @reqlan/analytical-win32-x64-msvc
 
+## 1.13.2
+
 ## 1.13.1
 
 ### Patch Changes

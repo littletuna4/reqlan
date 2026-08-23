@@ -1,5 +1,12 @@
 # @reqlan/analytical
 
+## 1.13.2
+
+### Patch Changes
+
+- a18c1ff: decouple extension from core.
+- 70715af: bump
+
 ## 1.13.1
 
 ### Patch Changes
