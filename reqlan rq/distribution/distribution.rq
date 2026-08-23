@@ -122,11 +122,12 @@ deployment_flow {
 }
 
 ci_gate {
-  Pull-request CI and the main release pipeline share the same check workflows.
-  ["./distribution.rq".deployment_flow] must not apply changesets or create tags until those workflows succeed.
+  Pull-request CI and the main release pipeline share the rust and check workflows.
+  ["./distribution.rq".deployment_flow] must not apply changesets or create tags until those workflows succeed, and until ["./distribution.rq".prerelease_tests] succeeds.
   Rust crates: format, clippy, tests, and host napi smoke in ["../../.github/workflows/ci-rust.yml"] (["../development/commit.rq".rust_fmt]).
-  Requirement graph: `pnpm run check` in ["../../.github/workflows/ci-check.yml"] (["../core_analysis/check.rq".check_meta_implementation]).
-  Pull requests still start those workflows so review does not wait for a main release.
+  Requirement graph: `pnpm run check` with `--skip-target "**/.cursor/**"` in ["../../.github/workflows/ci-check.yml"] (["../core_analysis/check.rq".check_meta_implementation], ["../core_analysis/check.rq".check_skip_targets]).
+  Pull requests still start rust (crate paths) and check so review does not wait for a main release.
+  Package tests are not a pull-request workflow; they run only as ["./distribution.rq".prerelease_tests].
   A push to main does not start the CI workflows a second time as independent workflows; ["../../.github/workflows/release.yml"] calls them with `workflow_call`.
   The version-bump commit (`chore(release):`) skips the gate and the version job to prevent a recursive run.
   @status done
@@ -134,11 +135,32 @@ ci_gate {
     ["../../.github/workflows/release.yml"]
     ["../../.github/workflows/ci-rust.yml"]
     ["../../.github/workflows/ci-check.yml"]
+    ["../../.github/workflows/ci-test.yml"]
   )
   @tests (
     ["../../packages/analytical/test/release-ci-gate.test.ts"]
     ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
     ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:package tests run as a pre-release gate, not on pull requests"]
+  )
+}
+
+prerelease_tests {
+  JS/TS package tests (`pnpm run test`) and full TypeScript compile (`pnpm run build:tsc`) run on main before versioning, not on every pull request.
+  Pull requests keep rust-on-crate-paths and ["../core_analysis/check.rq".check] only.
+  Host native addon is required because analytical and language tests load `reqlan-napi`.
+  Azure still runs `pnpm run test` before VSIX publish ([extension_distribution]).
+  The implementation lives in ["../../.github/workflows/ci-test.yml"]; ["../../.github/workflows/release.yml"] calls it with `workflow_call` as part of ["./distribution.rq".ci_gate].
+  @status done
+  @implementation (
+    ["../../.github/workflows/ci-test.yml"]
+    ["../../.github/workflows/release.yml"]
+    ["../../package.json"]
+  )
+  @tests (
+    ["../../packages/analytical/test/release-ci-gate.test.ts"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:package tests run as a pre-release gate, not on pull requests"]
+    ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
   )
 }
 

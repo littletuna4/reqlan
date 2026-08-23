@@ -856,6 +856,7 @@ agent_context_showcase {
 
 interlock_showcase {
     Flagship. The interlock that must not fail.
+    //rq-ignore-error
     `["./plc/interlock.stL#41-58"]`
     A safety requirement bound to that PLC symbol and line range,
     line range, to a vitest case by test name, with an rq-comment in the ST

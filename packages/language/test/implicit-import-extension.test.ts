@@ -222,18 +222,25 @@ describe('implicit import file extension', () => {
     });
 
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
-    test('filesystem lookups append .rq but never accept a directory', () => {
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+    test('filesystem lookups append .rq then accept an existing directory', () => {
         const fileSystem = new VirtualFileSystemProvider();
         fileSystem.insert('file:///ws/target.rq', 'target_idea { body }');
         fileSystem.insert('file:///ws/module/inner.rq', 'inner_idea { body }');
+        fileSystem.insert('file:///ws/dual.rq', 'rq_idea { body }');
+        fileSystem.insert('file:///ws/dual/inner.rq', 'folder_idea { body }');
         const documents = services.shared.workspace.LangiumDocuments;
         const source = createSourceTextDocument('file:///ws/source.rq', 'consumer { body }');
 
         expect(isResolvableImportPath('./target', source, documents, fileSystem)).toBe(true);
-        expect(isResolvableImportPath('./module', source, documents, fileSystem)).toBe(false);
+        expect(isResolvableImportPath('./module', source, documents, fileSystem)).toBe(true);
         expect(isResolvableImportPath('./missing', source, documents, fileSystem)).toBe(false);
         expect(resolveExistingImportUri('./target', source, documents, fileSystem).toString())
             .toBe(URI.parse('file:///ws/target.rq').toString());
+        expect(resolveExistingImportUri('./module', source, documents, fileSystem).toString())
+            .toBe(URI.parse('file:///ws/module').toString());
+        expect(resolveExistingImportUri('./dual', source, documents, fileSystem).toString())
+            .toBe(URI.parse('file:///ws/dual.rq').toString());
     });
 
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]

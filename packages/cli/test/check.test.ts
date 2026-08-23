@@ -4,6 +4,7 @@
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
@@ -196,6 +197,44 @@ describe('CLI check', () => {
             const bad = runCheck(root, ['--wildcard-zero', 'nope']);
             expect(bad.status, bad.stderr).toBe(1);
             expect(bad.stderr).toContain('--wildcard-zero must be warn, error, or off');
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('honours skip-target globs', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-skip-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(
+                join(root, 'host.rq'),
+                [
+                    'host {',
+                    '    [missing_idea]',
+                    '    ["../../../.cursor/mcp.json"]',
+                    '    ["../../../.cursor/skills"]',
+                    '}',
+                    ''
+                ].join('\n')
+            );
+
+            const skipped = runCheck(root, ['--json', '--skip-target', '**/.cursor/**']);
+            expect(skipped.status, skipped.stderr).toBe(1);
+            const skippedRows = JSON.parse(skipped.stdout) as Array<{ label: string }>;
+            expect(skippedRows.some(row => row.label === 'missing_idea')).toBe(true);
+            expect(skippedRows.every(row => !row.label.includes('.cursor'))).toBe(true);
+
+            const allSkipped = runCheck(root, [
+                '--json',
+                '--skip-target',
+                '**/.cursor/**',
+                '--skip-target',
+                'missing_idea'
+            ]);
+            expect(allSkipped.status, allSkipped.stderr).toBe(0);
+            expect(JSON.parse(allSkipped.stdout)).toEqual([]);
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

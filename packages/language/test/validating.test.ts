@@ -9,7 +9,8 @@ import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from '@reqlan/language';
 import { createReqlanServices, isModel } from '@reqlan/language';
 
-const exampleDir = join(dirname(fileURLToPath(import.meta.url)), '../../../example_rq_project');
+const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+const exampleDir = join(repoDir, 'example_rq_project');
 
 let services: ReturnType<typeof createReqlanServices>;
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -148,6 +149,28 @@ describe('Validating', () => {
         );
         expect(missingFileErrors.length).toBeGreaterThanOrEqual(1);
         expect(missingFileErrors[0]?.severity).toBe(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+    test('does not report an error when an import path is an existing folder', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const importerUri = URI.parse(pathToFileURL(
+            join(repoDir, 'reqlan rq/extension/module/ideas_summary/webview.rq')
+        ).href);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media\n',
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missingFileErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve import')
+        );
+        expect(missingFileErrors).toHaveLength(0);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]

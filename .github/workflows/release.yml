@@ -1,5 +1,6 @@
 # rq:["../../reqlan rq/distribution/distribution.rq".deployment_flow]
 # rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
+# rq:["../../reqlan rq/distribution/distribution.rq".prerelease_tests]
 name: Release packages
 
 on:
@@ -29,8 +30,15 @@ jobs:
     permissions:
       contents: read
 
+  ci-test:
+    name: Pre-release tests
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    uses: ./.github/workflows/ci-test.yml
+    permissions:
+      contents: read
+
   release:
-    needs: [ci-rust, ci-check]
+    needs: [ci-rust, ci-check, ci-test]
     if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     outputs:

@@ -3,6 +3,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 
 use reqlan_index::sync::{sync_workspace, SyncOptions};
@@ -60,6 +61,16 @@ fn path_glob_matches_nested_rq_with_bare_pattern() {
     assert!(path_glob_matches("*.rq", "reqs/host.rq"));
     assert!(path_glob_matches("src/**", "src/app.ts"));
     assert!(!path_glob_matches("src/**", "reqs/host.rq"));
+}
+
+#[test]
+fn path_glob_matches_cursor_skip_glob() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+    assert!(path_glob_matches("**/.cursor/**", "../../../.cursor/mcp.json"));
+    assert!(path_glob_matches("**/.cursor/**", "../../../.cursor/skills"));
+    assert!(path_glob_matches("**/.cursor/**", "./.cursor/mcp.json"));
+    assert!(!path_glob_matches("**/.cursor/**", "./src/gone.ts"));
+    assert!(!path_glob_matches("**/.cursor/**", "missing_idea"));
 }
 
 #[test]
@@ -451,5 +462,57 @@ fn check_skips_sparse_wildcard_warning_on_rq_ignore_error() {
     let store = sync_root(&root);
     let rows = run_check(&store, &root, None);
     assert!(rows.iter().all(|row| row.kind != "wildcard_reference"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_skips_targets_that_match_skip_globs() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+    let root = scratch("skip-targets");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    [missing_idea]\n    [\"./src/gone.ts\"]\n    [\"../../../.cursor/mcp.json\"]\n    [\"../../../.cursor/skills\"]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+
+    let all = run_check(&store, &root, None);
+    assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
+    assert!(all.iter().any(|row| row.label == "./src/gone.ts"), "{all:?}");
+    assert!(all.iter().any(|row| row.label == "../../../.cursor/mcp.json"), "{all:?}");
+    assert!(all.iter().any(|row| row.label == "../../../.cursor/skills"), "{all:?}");
+
+    let skipped = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { skip_targets: &["**/.cursor/**"], ..Default::default() },
+    )
+    .unwrap();
+    assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
+    assert!(skipped.iter().any(|row| row.label == "./src/gone.ts"), "{skipped:?}");
+    assert!(skipped.iter().all(|row| !row.label.contains(".cursor")), "{skipped:?}");
+
+    let exact = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions {
+            skip_targets: &["missing_idea", "./src/gone.ts"],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(exact.iter().all(|row| row.label != "missing_idea"), "{exact:?}");
+    assert!(exact.iter().all(|row| row.label != "./src/gone.ts"), "{exact:?}");
+    assert!(exact.iter().any(|row| row.label.contains(".cursor")), "{exact:?}");
+
+    let empty_pattern = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { skip_targets: &[""], ..Default::default() },
+    )
+    .unwrap();
+    assert_eq!(empty_pattern.len(), all.len(), "{empty_pattern:?}");
+
     std::fs::remove_dir_all(&root).ok();
 }

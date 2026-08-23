@@ -55,6 +55,7 @@ export function registerValidationChecks(services: ReqlanServices) {
 /**
  * Custom validations for Reqlan documents.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
  * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
@@ -170,7 +171,7 @@ export class ReqlanValidator {
     }
 
     /**
-     * Error underline when an `import` / `from` path does not resolve to a file.
+     * Error underline when an `import` / `from` path does not resolve to a file or folder.
      * Missing imported ideas are reported by the linker as unresolved references.
      */
     checkImportTargets(model: Model, accept: ValidationAcceptor): void {

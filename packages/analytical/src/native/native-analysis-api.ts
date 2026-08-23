@@ -129,16 +129,19 @@ export class NativeAnalysisApi {
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
      */
     async check(options?: {
         pathGlob?: string;
         wildcardZero?: string;
         wildcardOne?: string;
+        skipTargets?: string[];
     }): Promise<NativeBrokenReference[]> {
         return this.native.checkReferences(
             options?.pathGlob,
             options?.wildcardZero,
-            options?.wildcardOne
+            options?.wildcardOne,
+            options?.skipTargets
         ) as NativeBrokenReference[];
     }
 

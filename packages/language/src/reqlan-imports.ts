@@ -1,8 +1,10 @@
 /**
  * Resolves imported requirement documents from relative and import-root-aliased paths.
  * Interacts with scope linking and go-to-definition for import paths.
+ * A path that exists as a folder is a valid import target (same as a file).
  * rq:["../../../reqlan rq/ontology.rq".import_statement]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
 import {
@@ -16,7 +18,7 @@ export const IMPLICIT_IMPORT_EXTENSION = '.rq';
 
 /**
  * Import paths written without an extension mean `.rq`; the literal path stays a fallback so
- * extensionless files on disk keep resolving.
+ * extensionless files and folders on disk keep resolving.
  */
 export function importPathCandidates(path: string): string[] {
     const implicit = importPathWithImplicitExtension(path);
@@ -99,10 +101,7 @@ function isImportTarget(
     if (documents.getDocument(uri)) {
         return true;
     }
-    if (!fileSystem?.existsSync(uri)) {
-        return false;
-    }
-    return !fileSystem.statSync(uri).isDirectory;
+    return fileSystem?.existsSync(uri) === true;
 }
 
 function withFileSystem(

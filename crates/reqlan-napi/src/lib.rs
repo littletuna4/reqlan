@@ -111,18 +111,22 @@ impl NativeAnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
     #[napi]
     pub fn check_references(
         &self,
         path_glob: Option<String>,
         wildcard_zero: Option<String>,
         wildcard_one: Option<String>,
+        skip_targets: Option<Vec<String>>,
     ) -> Result<serde_json::Value> {
         let wildcard_zero = parse_sparse_wildcard_handling("wildcardZero", wildcard_zero)?;
         let wildcard_one = parse_sparse_wildcard_handling("wildcardOne", wildcard_one)?;
+        let skip_owned = skip_targets.unwrap_or_default();
+        let skip_refs: Vec<&str> = skip_owned.iter().map(String::as_str).collect();
         let rows = self
             .lock()?
-            .check(path_glob.as_deref(), wildcard_zero, wildcard_one)
+            .check(path_glob.as_deref(), wildcard_zero, wildcard_one, &skip_refs)
             .map_err(map_err)?;
         serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
     }

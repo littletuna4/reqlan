@@ -855,6 +855,35 @@ example_ideaset (
         expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+    test('folder import paths produce folder document links', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/module/ideas_summary/webview.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media
+
+                ideas_summary {
+                    assets from [ideas_summary_media]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missingImportErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve import')
+        );
+        expect(missingImportErrors).toHaveLength(0);
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
+    });
+
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
     test('empty file references produce document links and warning diagnostics', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);

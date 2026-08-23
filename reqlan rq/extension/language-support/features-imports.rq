@@ -36,14 +36,34 @@ import_error {
 
 implicit_file_extension {
     The import statements should not require an extension, i.e. it should assume ".rq" unless otherwise specified.
-    An extensionless path resolves to the ".rq" file first, then to a literal extensionless file.
+    An extensionless path resolves to the ".rq" file first, then to a literal extensionless file or folder.
     A path that already carries any extension is resolved exactly as written.
+    Folder targets: [import_folder_targets].
     @implementation (
         ["../../../packages/language/src/reqlan-imports.ts"]
         ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
     )
     @tests (
         ["../../../packages/language/test/implicit-import-extension.test.ts"]
+    )
+}
+
+import_folder_targets {
+    An import path may refer to a folder.
+    A folder is a valid import target when that path exists as a directory.
+    Namespace import of a folder binds the alias to that folder, the same as a file.
+    Extensionless paths still prefer a `.rq` file: [implicit_file_extension].
+    Related: ["../../language/imports.rq".import_paths], [import_does_not_exist_error], ["../syntax/features-syntax.rq".file_references].
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-imports.ts"]
+        ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../../packages/language/src/reqlan-validator.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/implicit-import-extension.test.ts:filesystem lookups append .rq then accept an existing directory"]
+        ["../../../packages/language/test/validating.test.ts:does not report an error when an import path is an existing folder"]
+        ["../../../packages/language/test/linking.test.ts:folder import paths produce folder document links"]
     )
 }
 
@@ -133,14 +153,17 @@ import_code_completion_substring_match {
 }
 
 import_does_not_exist_error {
-    Imports show an underline error when the target file does not exist.
+    Imports show an underline error when the target file or folder does not exist.
     Imports also show an underline error when a named imported idea does not exist in the target file.
+    An existing folder is not an error: [import_folder_targets].
     [general_errors]
     @tests (
         ["../../../packages/language/test/validating.test.ts"]
+        ["../../../packages/language/test/validating.test.ts:does not report an error when an import path is an existing folder"]
     )
     @implementation (
         ["../../../packages/language/src/reqlan-validator.ts"]
+        ["../../../packages/language/src/reqlan-imports.ts"]
     )
 }
 

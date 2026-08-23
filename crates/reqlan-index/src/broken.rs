@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
@@ -73,11 +74,14 @@ impl SparseWildcardHandling {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 #[derive(Debug, Clone)]
 pub struct CheckReferencesOptions<'a> {
     pub path_glob: Option<&'a str>,
     pub wildcard_zero: SparseWildcardHandling,
     pub wildcard_one: SparseWildcardHandling,
+    /// Globs matched against the missing target `label`. Empty globs are ignored.
+    pub skip_targets: &'a [&'a str],
 }
 
 impl Default for CheckReferencesOptions<'_> {
@@ -86,6 +90,7 @@ impl Default for CheckReferencesOptions<'_> {
             path_glob: None,
             wildcard_zero: SparseWildcardHandling::Warn,
             wildcard_one: SparseWildcardHandling::Warn,
+            skip_targets: &[],
         }
     }
 }
@@ -122,6 +127,7 @@ fn error_severity() -> String {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 pub fn check_references(
     store: &IndexStore,
     workspace_root: &Path,
@@ -138,8 +144,23 @@ pub fn check_references(
     )?;
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
     append_wildcard_sparse_rows(store, workspace_root, &options, &mut rows, &mut ignore_cache)?;
+    omit_skipped_targets(&mut rows, options.skip_targets);
     sort_check_rows_by_target(&mut rows);
     Ok(rows)
+}
+
+fn omit_skipped_targets(rows: &mut Vec<BrokenReference>, skip_targets: &[&str]) {
+    if skip_targets.is_empty() {
+        return;
+    }
+    rows.retain(|row| !target_is_skipped(&row.label, skip_targets));
+}
+
+fn target_is_skipped(label: &str, skip_targets: &[&str]) -> bool {
+    skip_targets.iter().any(|pattern| {
+        let pattern = pattern.trim();
+        !pattern.is_empty() && (pattern == label || path_glob_matches(pattern, label))
+    })
 }
 
 fn sort_check_rows_by_target(rows: &mut [BrokenReference]) {

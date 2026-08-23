@@ -88,7 +88,8 @@ export interface NativeAnalysisRuntimeHandle {
     checkReferences(
         pathGlob?: string,
         wildcardZero?: string,
-        wildcardOne?: string
+        wildcardOne?: string,
+        skipTargets?: string[]
     ): unknown;
     exportGraph(request: unknown): unknown;
     resolveRequirementReference(name?: string): unknown;

@@ -4,6 +4,7 @@
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
@@ -34,6 +35,7 @@ export class CheckCommand extends Command {
             Wildcard references that match 0 ideas use --wildcard-zero (default warn).
             Wildcard references that match 1 idea use --wildcard-one (default warn).
             Each flag is warn, error, or off.
+            Repeat --skip-target <glob> to omit issues whose missing target matches a glob.
             Exit status is 1 when the command finds issues.
             Use --json or --pipe for machine output.
         `,
@@ -43,7 +45,8 @@ export class CheckCommand extends Command {
             ['Pipe output', '$0 check --pipe'],
             ['Limit to a path glob', '$0 check --glob "reqlan rq/**"'],
             ['Treat empty wildcards as errors', '$0 check --wildcard-zero error'],
-            ['Skip singleton-wildcard warnings', '$0 check --wildcard-one off']
+            ['Skip singleton-wildcard warnings', '$0 check --wildcard-one off'],
+            ['Skip gitignored Cursor paths', '$0 check --skip-target "**/.cursor/**"']
         ]
     });
 
@@ -64,6 +67,9 @@ export class CheckCommand extends Command {
     });
     wildcardOne = Option.String('--wildcard-one', 'warn', {
         description: `How to handle a wildcard that matches 1 idea (${HANDLING_VALUES})`
+    });
+    skipTargets = Option.Array('--skip-target', {
+        description: 'Omit issues whose missing target matches this glob (repeatable)'
     });
 
     async execute(): Promise<number> {
@@ -87,7 +93,8 @@ export class CheckCommand extends Command {
                 const rows = await api.check({
                     pathGlob: this.glob,
                     wildcardZero,
-                    wildcardOne
+                    wildcardOne,
+                    skipTargets: this.skipTargets
                 });
                 if (this.json) {
                     emit(rows, true);

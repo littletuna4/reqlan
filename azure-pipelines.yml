@@ -220,9 +220,10 @@ jobs:
         timeoutInMinutes: 15
 
       # rq:["reqlan rq/core_analysis/check.rq".check_meta_implementation]
+      # rq:["reqlan rq/core_analysis/check.rq".check_skip_targets]
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          pnpm run check
+          pnpm run check -- --skip-target "**/.cursor/**"
         displayName: Check requirement references
         timeoutInMinutes: 10
 

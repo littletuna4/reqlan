@@ -7,7 +7,7 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
-    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation].
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -129,13 +129,44 @@ check_wildcard_one {
     )
 }
 
+check_skip_targets {
+    [check] omits an issue when the missing [reference] target matches a skip glob.
+    The analyser function `check_references` takes `skip_targets`: a list of globs.
+    Match uses the same path glob rules as `--glob`. Match is against the issue `label` (the missing target), not the source file.
+    An empty skip glob has no effect.
+    Use this when a referenced file is not in git. `.cursor/` is listed in ["../../.gitignore"], so a CI checkout does not contain Cursor project files that ["../extension/module/chat-participant.rq".mcp] references.
+    CLI: repeatable `--skip-target <glob>` (["../cli/cli_package.rq".commands]).
+    API: `AnalysisApi.check({ skipTargets })`.
+    CI: ["../../.github/workflows/ci-check.yml"] and ["../../azure-pipelines.yml"] pass `--skip-target "**/.cursor/**"`.
+    Related: [check] [check_meta_implementation]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../.github/workflows/ci-check.yml"]
+        ["../../azure-pipelines.yml"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_targets_that_match_skip_globs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:path_glob_matches_cursor_skip_glob"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_skip_targets"]
+        ["../../packages/cli/test/check.test.ts:honours skip-target globs"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored .cursor targets"]
+    )
+}
+
 check_meta_implementation {
     [check] runs on every pull request and as a required job of the GitHub release workflow before versioning.
     Pull requests use ["../../.github/workflows/ci-check.yml"].
     Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
-    The check job compiles TypeScript with `pnpm run build:tsc` (Langium generate then `tsc -b`) so the CLI exists on a clean checkout (["../development/build.rq".typescript_compile]).
+    The check job compiles only the CLI (`pnpm run build:cli`) so `reqlan check` can run on a clean checkout. The CLI does not load Langium; generated language sources are not required.
+    Full TypeScript compile and package tests run on main before versioning (["../distribution/distribution.rq".prerelease_tests]).
+    GitHub and Azure pass `--skip-target "**/.cursor/**"` because `.cursor/` is not in git ([check_skip_targets]).
     Azure also runs `pnpm run check` on `ext/v*` tags.
-    Related: [check]
+    Related: [check] [check_skip_targets]
     @status done
     @implementation (
         ["../../.github/workflows/ci-check.yml"]
@@ -147,6 +178,8 @@ check_meta_implementation {
         ["../../packages/analytical/test/release-ci-gate.test.ts"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:package tests run as a pre-release gate, not on pull requests"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored .cursor targets"]
     )
 }

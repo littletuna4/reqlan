@@ -4,6 +4,7 @@
  * Missing file refs stay in this result so the validator can underline them without creating a link.
  * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
  */
 import type { AstNode, CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, Reference, URI } from 'langium';
 import { AstUtils, CstUtils, GrammarUtils } from 'langium';
@@ -133,14 +134,18 @@ export function resolveImportPathLink(
     }
     const imported = findImportedDocument(path, document, documents, context);
     const target = imported?.parseResult.value.$cstNode;
-    if (!imported || !target) {
+    if (imported && target) {
+        return {
+            sourceRange,
+            targetUri: imported.textDocument.uri,
+            targetRange: target.range
+        };
+    }
+    const fileSystem = context?.fileSystem;
+    if (!fileSystem) {
         return undefined;
     }
-    return {
-        sourceRange,
-        targetUri: imported.textDocument.uri,
-        targetRange: target.range
-    };
+    return resolveImportedFileLink(document, documents, fileSystem, path, sourceRange, context);
 }
 
 export function resolveQualifiedReferencePathLink(
