@@ -158,7 +158,7 @@ for (const target of targets) {
         '--target',
         target.napiSuffix,
     ]);
-    // Keep analytical optionalDependencies as workspace:* after a targeted prepare.
+    // Keep analytical package.json without optionalDependencies after a targeted prepare.
     run(process.execPath, [path.join(root, 'scripts/prepare-native-packages.mjs')]);
 
     const pkgDir = path.join(root, 'packages/analytical-native', target.napiSuffix);

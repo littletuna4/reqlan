@@ -36,7 +36,7 @@ native_host_binary_development {
     At run time, search in this order:
     1. The `native/` folder of the extension, if `target.json` records the host tuple.
     2. The resolved `main` of the host npm package (`createRequire` from `@reqlan/analytical/package.json`).
-    3. The host file in `packages/analytical-native/<napiSuffix>/` (workspace optionalDependency, same layout as a published package).
+    3. The host file in `packages/analytical-native/<napiSuffix>/` (workspace package directory, same layout as a published package).
     4. The host npm package name.
     5. `crates/target/<rustTarget>/release` and `crates/target/release`.
     6. The debug folders with the same names.
@@ -71,8 +71,8 @@ native_host_binary_distributed {
     Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution], ["./distribution.rq".vsix_native_not_from_npm].
 
     CLI and MCP:
-    npm installs the host package from `optionalDependencies` on `@reqlan/analytical`.
-    Those entries are concrete versions on the published tarball (not `workspace:*`).
+    npm installs the host package from `optionalDependencies` on the published `@reqlan/analytical` tarball.
+    Git does not list those entries. ["../../scripts/prepare-native-packages.mjs"] `--publish-versions` writes them at npm publish.
     The loader resolves that package from `@reqlan/analytical/package.json` (`createRequire`), which is where the optional dependency is attached after `npm install`.
     Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
 

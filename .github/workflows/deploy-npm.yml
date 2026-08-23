@@ -143,8 +143,8 @@ jobs:
           pattern: napi-*
           merge-multiple: false
 
-      # Platform packages are not versioned by Changesets. Copy version and
-      # optionalDependencies from @reqlan/analytical (SSOT).
+      # Platform packages are Changesets-ignored. Copy version from
+      # @reqlan/analytical (SSOT) and pin optionalDependencies for npm only.
       - name: Prepare native packages
         run: |
           set -euo pipefail
@@ -158,7 +158,7 @@ jobs:
             node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi --publish-versions
           else
             # Pin optionalDependencies to this version even when this tag does
-            # not rebuild napi, so published @reqlan/analytical is not workspace:*.
+            # not rebuild napi. Git does not list those deps (Changesets ignore).
             node scripts/prepare-native-packages.mjs --publish-versions
           fi
 

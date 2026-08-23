@@ -11,7 +11,7 @@ version_management {
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
   `reqlan-extension` has its own semver. It is not version-locked to `@reqlan/analytical`. The extension can update independently of the analytical surfaces it uses ([extension_package]).
-  The version of `@reqlan/analytical` is the single source of truth for every `@reqlan/analytical-<platform>-<arch>` package ([rust_binary_distribution]). Changesets does not version platform packages: ["../../.changeset/config.json"] ignores `@reqlan/analytical-*` so they do not show in the Changesets CLI. After `changeset version`, ["../../scripts/prepare-native-packages.mjs"] copies the analytical version onto each platform package.
+  The version of `@reqlan/analytical` is the single source of truth for every `@reqlan/analytical-<platform>-<arch>` package ([rust_binary_distribution]). Platform packages are in the Changesets `ignore` list (`@reqlan/analytical-*`). Git `@reqlan/analytical` does not list them as `optionalDependencies`, so `changeset version` can run. After `changeset version`, ["../../scripts/prepare-native-packages.mjs"] copies the analytical version onto each platform package. npm publish writes pinned `optionalDependencies` with `--publish-versions`.
   Platform native packages are not a separate tag channel; they ride `analytical/v*` ([rust_binary_distribution]).
   VSIX packaging uses the package.json versions in that git commit ([vsix_native_not_from_npm]).
   `@reqlan/language`, `@reqlan/cli`, `@reqlan/mcp`, and the site keep their own versions.
@@ -20,6 +20,7 @@ version_management {
   @tests (
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:analytical version is SSOT for platform packages; Changesets ignores them"]
+    ["../../packages/analytical/test/native-packaging.test.ts:@reqlan/analytical optionalDependencies are publish-only, not in git"]
   )
 }
 
@@ -37,7 +38,7 @@ npm_distribution {
   Each of `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, `@reqlan/mcp`, and every `@reqlan/analytical-<platform>-<arch>` platform package must have a Trusted Publisher on npmjs.com for GitHub Actions with org/user `littletuna4`, repository `reqlan`, workflow filename `deploy-npm.yml`, allowed action `npm publish`.
   Package `repository.url` must match `https://github.com/littletuna4/reqlan.git`. Provenance attestations are generated automatically for public packages from this public repo.
   Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then platform packages, then analytical, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
-  Note: Packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`), as with `reqlan-extension`. Platform packages are in the Changesets `ignore` list (`@reqlan/analytical-*`); their version is copied from `@reqlan/analytical` by ["../../scripts/prepare-native-packages.mjs"]. CI publishes them per-package after binaries are built and does not use `changeset publish` for those tarballs.
+  Note: Packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`), as with `reqlan-extension`. Platform packages are in the Changesets `ignore` list (`@reqlan/analytical-*`). Git `@reqlan/analytical` does not list them as `optionalDependencies`. ["../../scripts/prepare-native-packages.mjs"] `--publish-versions` writes pinned optionalDependencies for the npm checkout only. CI publishes platform packages per-package after binaries are built and does not use `changeset publish` for those tarballs.
   Published packages declare `publishConfig.access: public`.
    Trusted Publisher is configured on npmjs.com for each `@reqlan/analytical-<platform>-<arch>` package
   @implementation (
@@ -53,6 +54,7 @@ npm_distribution {
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
     ["../../packages/analytical/test/native-packaging.test.ts:analytical version is SSOT for platform packages; Changesets ignores them"]
+    ["../../packages/analytical/test/native-packaging.test.ts:@reqlan/analytical optionalDependencies are publish-only, not in git"]
     ["../../packages/analytical/test/require-natives-published.test.ts"]
   )
 }
@@ -74,9 +76,8 @@ native_targets {
 
 rust_binary_distribution {
   One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
-  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and uses the `@reqlan/analytical` package.json version as the single source of truth. ["../../scripts/prepare-native-packages.mjs"] writes that version. Changesets ignores `@reqlan/analytical-*` in ["../../.changeset/config.json"] so platform packages do not show in the Changesets CLI and are not a version gate ([version_management]).
-  `@reqlan/analytical` lists them as `optionalDependencies` so CLI/MCP install the host-matching binary at install time.
-  Published tarballs pin those optionalDependencies to the same version (not `workspace:*`).
+  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and uses the `@reqlan/analytical` package.json version as the single source of truth. ["../../scripts/prepare-native-packages.mjs"] writes that version. Changesets ignores `@reqlan/analytical-*` in ["../../.changeset/config.json"]. Git `@reqlan/analytical` does not list platform packages as `optionalDependencies`; the published tarball does, pinned to the analytical version (`--publish-versions`) ([version_management]).
+  CLI and MCP install the host-matching binary from those published optionalDependencies.
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
@@ -90,6 +91,7 @@ rust_binary_distribution {
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
     ["../../packages/analytical/test/native-packaging.test.ts:analytical version is SSOT for platform packages; Changesets ignores them"]
+    ["../../packages/analytical/test/native-packaging.test.ts:@reqlan/analytical optionalDependencies are publish-only, not in git"]
     ["../../packages/analytical/test/require-natives-published.test.ts"]
   )
   @plan {
@@ -106,7 +108,7 @@ rust_binary_distribution {
 
     steps
       1. Scaffold six platform packages with os/cpu and the napi binary. (done)
-      2. Wire optionalDependencies on `@reqlan/analytical`; copy version from `@reqlan/analytical` (Changesets ignores platform packages). (done)
+      2. Wire optionalDependencies on published `@reqlan/analytical` only; git omits them so Changesets can ignore platform packages. (done)
       3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml and azure-pipelines.yml)
       4. Publish platform packages on `analytical/v*` before `@reqlan/analytical`.
       5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)

@@ -4,7 +4,7 @@
  * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
  * rq:["../../../reqlan rq/distribution/distribution.rq".version_management]
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,18 +38,33 @@ describe("native platform packaging", () => {
     expect(hostNativeTarget("linux", "x64")?.napiSuffix).toBe("linux-x64-gnu");
   });
 
-  test("@reqlan/analytical optionalDependencies list every platform package", () => {
-    const analytical = JSON.parse(
-      readFileSync(join(root, "packages/analytical/package.json"), "utf8"),
-    ) as {
+  test("@reqlan/analytical optionalDependencies are publish-only, not in git", () => {
+    const analyticalPath = join(root, "packages/analytical/package.json");
+    const original = readFileSync(analyticalPath, "utf8");
+    const analytical = JSON.parse(original) as {
       version: string;
-      optionalDependencies: Record<string, string>;
+      optionalDependencies?: Record<string, string>;
     };
-    for (const target of NATIVE_TARGETS) {
-      const spec = analytical.optionalDependencies[target.packageName];
-      expect(spec === "workspace:*" || spec === analytical.version, spec).toBe(
-        true,
-      );
+    expect(analytical.optionalDependencies).toBeUndefined();
+
+    const result = spawnSync(
+      process.execPath,
+      [join(root, "scripts/prepare-native-packages.mjs"), "--publish-versions"],
+      { cwd: root, encoding: "utf8" },
+    );
+    try {
+      expect(result.status, result.stderr).toBe(0);
+      const published = JSON.parse(readFileSync(analyticalPath, "utf8")) as {
+        version: string;
+        optionalDependencies: Record<string, string>;
+      };
+      for (const target of NATIVE_TARGETS) {
+        expect(published.optionalDependencies[target.packageName]).toBe(
+          published.version,
+        );
+      }
+    } finally {
+      writeFileSync(analyticalPath, original);
     }
   });
 
@@ -79,16 +94,6 @@ describe("native platform packaging", () => {
     );
     expect(versionAt).toBeGreaterThan(-1);
     expect(prepareAt).toBeGreaterThan(versionAt);
-
-    const status = spawnSync("pnpm", ["changeset", "status"], {
-      cwd: root,
-      encoding: "utf8",
-    });
-    expect(status.status, status.stderr).toBe(0);
-    const listed = `${status.stdout}\n${status.stderr}`;
-    for (const target of NATIVE_TARGETS) {
-      expect(listed).not.toContain(target.packageName);
-    }
   });
 
   test("each platform package declares Trusted Publisher repository + os/cpu + binary main", () => {

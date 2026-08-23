@@ -1,16 +1,17 @@
 /**
- * Scaffold / refresh `@reqlan/analytical-<platform>-<arch>` package directories
- * and sync `optionalDependencies` on `@reqlan/analytical`.
+ * Scaffold / refresh `@reqlan/analytical-<platform>-<arch>` package directories.
  *
- * Version SSOT is `packages/analytical/package.json`. Platform packages are not
- * versioned by Changesets (`ignore`: `@reqlan/analytical-*`).
+ * Version SSOT is `packages/analytical/package.json`. Platform packages are
+ * Changesets-ignored. Git does not list them as optionalDependencies (that
+ * would make `changeset version` refuse). `--publish-versions` writes pinned
+ * optionalDependencies onto `@reqlan/analytical` for the npm publish checkout
+ * only.
  *
  * Usage:
  *   node scripts/prepare-native-packages.mjs
  *   node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi
  *   node scripts/prepare-native-packages.mjs --target linux-x64-gnu
  *   node scripts/prepare-native-packages.mjs --publish-versions
- *     (rewrite optionalDependencies from workspace:* to concrete versions for npm publish)
  *
  * rq:["../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
  * rq:["../reqlan rq/distribution/distribution.rq".version_management]
@@ -97,23 +98,24 @@ for (const target of targets) {
         console.log(`copied ${src} → ${path.join(dir, target.binaryName)}`);
     }
 
-    optionalDependencies[target.packageName] = publishVersions ? version : 'workspace:*';
+    optionalDependencies[target.packageName] = version;
     console.log(`prepared ${target.packageName}@${version}`);
 }
 
-if (onlySuffix) {
-    const existing = analytical.optionalDependencies ?? {};
-    for (const [name, ver] of Object.entries(existing)) {
-        if (!(name in optionalDependencies)) {
-            optionalDependencies[name] =
-                publishVersions && ver === 'workspace:*' ? version : ver;
+if (publishVersions) {
+    if (onlySuffix) {
+        const existing = analytical.optionalDependencies ?? {};
+        for (const [name, ver] of Object.entries(existing)) {
+            if (!(name in optionalDependencies)) {
+                optionalDependencies[name] = ver === 'workspace:*' ? version : ver;
+            }
         }
     }
+    analytical.optionalDependencies = optionalDependencies;
+    fs.writeFileSync(analyticalPkgPath, `${JSON.stringify(analytical, null, 4)}\n`);
+    console.log(`updated optionalDependencies on @reqlan/analytical@${version} (publish versions)`);
+} else if ('optionalDependencies' in analytical) {
+    delete analytical.optionalDependencies;
+    fs.writeFileSync(analyticalPkgPath, `${JSON.stringify(analytical, null, 4)}\n`);
+    console.log('removed optionalDependencies from @reqlan/analytical (git / workspace)');
 }
-
-analytical.optionalDependencies = optionalDependencies;
-fs.writeFileSync(analyticalPkgPath, `${JSON.stringify(analytical, null, 4)}\n`);
-console.log(
-    `updated optionalDependencies on @reqlan/analytical@${version}` +
-        (publishVersions ? ' (publish versions)' : ' (workspace:*)')
-);
