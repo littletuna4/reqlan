@@ -2,6 +2,7 @@
  * Platform package + VSIX target layout for the first native release.
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../../../reqlan rq/distribution/distribution.rq".version_management]
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -43,26 +44,29 @@ describe("native platform packaging", () => {
       version: string;
       optionalDependencies: Record<string, string>;
     };
-    const extension = JSON.parse(
-      readFileSync(join(root, "packages/extension/package.json"), "utf8"),
-    ) as { version: string };
-    expect(extension.version).toBe(analytical.version);
-    const changeset = JSON.parse(
-      readFileSync(join(root, ".changeset/config.json"), "utf8"),
-    ) as { fixed: string[][] };
-    expect(
-      changeset.fixed.some(
-        (group) =>
-          group.includes("reqlan-extension") &&
-          group.includes("@reqlan/analytical"),
-      ),
-    ).toBe(true);
     for (const target of NATIVE_TARGETS) {
       const spec = analytical.optionalDependencies[target.packageName];
       expect(spec === "workspace:*" || spec === analytical.version, spec).toBe(
         true,
       );
     }
+  });
+
+  // rq:["../../../reqlan rq/distribution/distribution.rq".version_management]
+  // rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+  test("Changesets fixed group locks analytical to platform packages, not the extension", () => {
+    const changeset = JSON.parse(
+      readFileSync(join(root, ".changeset/config.json"), "utf8"),
+    ) as { fixed: string[][] };
+    const analyticalGroup = changeset.fixed.find((group) =>
+      group.includes("@reqlan/analytical"),
+    );
+    expect(analyticalGroup).toBeDefined();
+    expect(analyticalGroup).toContain("@reqlan/analytical-*");
+    expect(analyticalGroup).not.toContain("reqlan-extension");
+    expect(
+      changeset.fixed.some((group) => group.includes("reqlan-extension")),
+    ).toBe(false);
   });
 
   test("each platform package declares Trusted Publisher repository + os/cpu + binary main", () => {

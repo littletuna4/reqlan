@@ -10,11 +10,17 @@ version_management {
   - Marketplace/Open VSX: ["./distribution.rq".extension_package] (private npm package; tagged `ext/v*`)
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
-  The extension does not carry an independent semver. `reqlan-extension`, `@reqlan/analytical`, and every `@reqlan/analytical-<platform>-<arch>` package are one Changesets `fixed` group: they always share one version. Marketplace already shipped `1.10.x`, so that line is the shared number (npm `@reqlan/analytical` moves onto it; it cannot drop back to `0.10.x`).
+  `reqlan-extension` has its own semver. It is not in a Changesets `fixed` group with `@reqlan/analytical`. The extension can update independently of the analytical surfaces it uses ([extension_package]).
+  `@reqlan/analytical` and every `@reqlan/analytical-<platform>-<arch>` package are one Changesets `fixed` group: they always share one version ([rust_binary_distribution]).
   Platform native packages are not a separate tag channel; they ride `analytical/v*` ([rust_binary_distribution]).
   VSIX packaging uses the package.json versions in that git commit ([vsix_native_not_from_npm]).
   `@reqlan/language`, `@reqlan/cli`, `@reqlan/mcp`, and the site keep their own versions.
   Contributors record release intent by adding a changeset file when a publishable package changes.
+  @status done
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts:Changesets fixed group locks analytical to platform packages, not the extension"]
+  )
 }
 
 npm_distribution {
@@ -67,7 +73,7 @@ native_targets {
 
 rust_binary_distribution {
   One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
-  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical` and `reqlan-extension` via the Changesets `fixed` group in ["../../.changeset/config.json"].
+  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and is version-locked to `@reqlan/analytical` via the Changesets `fixed` group in ["../../.changeset/config.json"]. The group does not include `reqlan-extension` ([version_management]).
   `@reqlan/analytical` lists them as `optionalDependencies` so CLI/MCP install the host-matching binary at install time.
   Published tarballs pin those optionalDependencies to the same version (not `workspace:*`).
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
@@ -82,6 +88,7 @@ rust_binary_distribution {
     ["../../packages/analytical/test/load-native.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
+    ["../../packages/analytical/test/native-packaging.test.ts:Changesets fixed group locks analytical to platform packages, not the extension"]
     ["../../packages/analytical/test/require-natives-published.test.ts"]
   )
   @plan {
@@ -122,7 +129,11 @@ extension_host_target {
 
 extension_package {
   The VS Code extension lives in packages/extension with npm package name `reqlan-extension` (Marketplace / Open VSX id `reqlan.reqlan-extension`).
-  Its package.json version is the Marketplace and Open VSX release version and is the same semver as `@reqlan/analytical` ([version_management]).
+  Its package.json version is the Marketplace and Open VSX release version. That version is independent of `@reqlan/analytical` ([version_management]).
+  @status done
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts:Changesets fixed group locks analytical to platform packages, not the extension"]
+  )
 }
 
 site_package {
@@ -228,17 +239,16 @@ vsix_native_not_from_npm {
     ["../../packages/analytical/test/native-packaging.test.ts"]
   )
   @justification {
-    One git commit is one version set: `reqlan-extension`, `@reqlan/analytical`, and each `@reqlan/analytical-<platform>-<arch>` package.json ([version_management]).
-    Azure can compile the six host binaries from that commit (`build_native` in ["../../azure-pipelines.yml"]).
-    The VSIX then contains the engine that matches the tag, not a different npm tarball.
+    Marketplace version is `reqlan-extension` package.json and can differ from `@reqlan/analytical` ([version_management]).
+    Azure compiles the six host binaries from that `ext/v*` commit (`build_native` in ["../../azure-pipelines.yml"]).
+    The VSIX then contains the engine that matches the extension checkout, not a different `@reqlan/analytical` npm tarball.
   }
   @negative {
     Do not feed [npm_distribution] into Marketplace or Open VSX packaging.
     Do not wait for an `analytical/v*` tag, and do not poll `npm view` or `npm pack` (`scripts/fetch-native-packages.mjs --latest`).
     That path couples two tag channels and two clocks.
-    Changesets can bump `@reqlan/analytical` and `reqlan-extension` while platform package.json files stay on the previous patch.
-    `--latest` then packs a different semver than the `ext/v*` tag, or the pipeline waits on packages that are not on the registry yet.
-    Tests that require git versions to match then fail for a structural lag, not for a product defect.
+    Changesets can bump `@reqlan/analytical` and `reqlan-extension` independently ([version_management]).
+    `--latest` then packs a different `@reqlan/analytical` semver than the `ext/v*` tag, or the pipeline waits on packages that are not on the registry yet.
   }
   @history {
     First native VSIX design: GitHub Actions compiled napi on `analytical/v*`, published platform packages, and Azure fetched `--latest` from npm.
