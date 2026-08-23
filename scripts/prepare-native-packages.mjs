@@ -2,10 +2,11 @@
  * Scaffold / refresh `@reqlan/analytical-<platform>-<arch>` package directories.
  *
  * Version SSOT is `packages/analytical/package.json`. Platform packages are
- * Changesets-ignored. Git does not list them as optionalDependencies (that
- * would make `changeset version` refuse). `--publish-versions` writes pinned
- * optionalDependencies onto `@reqlan/analytical` for the npm publish checkout
- * only.
+ * Changesets-ignored. Git `packages/analytical/package.json` does not list them
+ * as optionalDependencies (that would make `changeset version` refuse). This
+ * workspace still links checkout packages via `packageExtensions` in
+ * `pnpm-workspace.yaml`. `--publish-versions` writes pinned optionalDependencies
+ * onto `@reqlan/analytical` for the npm publish checkout only.
  *
  * Usage:
  *   node scripts/prepare-native-packages.mjs

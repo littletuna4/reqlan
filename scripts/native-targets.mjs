@@ -90,6 +90,22 @@ export function hostNativeTarget(platform = process.platform, arch = process.arc
 }
 
 /**
+ * Workspace install map for `@reqlan/analytical` optionalDependencies.
+ * Applied by pnpm `packageExtensions` in `pnpm-workspace.yaml` (dev/CI).
+ * Not written into git `packages/analytical/package.json` so Changesets can
+ * ignore natives.
+ * @returns {Record<string, 'workspace:*'>}
+ */
+export function workspaceNativeOptionalDependencies() {
+    /** @type {Record<string, 'workspace:*'>} */
+    const deps = {};
+    for (const target of NATIVE_TARGETS) {
+        deps[target.packageName] = 'workspace:*';
+    }
+    return deps;
+}
+
+/**
  * @param {string} vsCodeTarget
  * @returns {NativeTarget | undefined}
  */

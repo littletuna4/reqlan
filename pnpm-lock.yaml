@@ -4,6 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: sha256-d9jc9dExVu1elF5XfKZTnUlXQal+YTS/+CX5RMFRio4=
+
 importers:
 
   .:
@@ -54,6 +56,25 @@ importers:
       vitest:
         specifier: ~3.1.3
         version: 3.1.4(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@10.2.2)(tsx@4.23.0)
+    optionalDependencies:
+      '@reqlan/analytical-darwin-arm64':
+        specifier: workspace:*
+        version: link:../analytical-native/darwin-arm64
+      '@reqlan/analytical-darwin-x64':
+        specifier: workspace:*
+        version: link:../analytical-native/darwin-x64
+      '@reqlan/analytical-linux-arm64-gnu':
+        specifier: workspace:*
+        version: link:../analytical-native/linux-arm64-gnu
+      '@reqlan/analytical-linux-x64-gnu':
+        specifier: workspace:*
+        version: link:../analytical-native/linux-x64-gnu
+      '@reqlan/analytical-win32-arm64-msvc':
+        specifier: workspace:*
+        version: link:../analytical-native/win32-arm64-msvc
+      '@reqlan/analytical-win32-x64-msvc':
+        specifier: workspace:*
+        version: link:../analytical-native/win32-x64-msvc
 
   packages/analytical-native/darwin-arm64: {}
 

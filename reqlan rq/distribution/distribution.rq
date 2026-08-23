@@ -11,7 +11,7 @@ version_management {
   - GitHub Pages: ["./distribution.rq".site_package] (tagged `site/v*`)
   - npm: `@reqlan/language`, `@reqlan/analytical`, `@reqlan/cli`, and `@reqlan/mcp` (tagged `language/v*`, `analytical/v*`, `cli/v*`, `mcp/v*`)
   `reqlan-extension` has its own semver. It is not version-locked to `@reqlan/analytical`. The extension can update independently of the analytical surfaces it uses ([extension_package]).
-  The version of `@reqlan/analytical` is the single source of truth for every `@reqlan/analytical-<platform>-<arch>` package ([rust_binary_distribution]). Platform packages are in the Changesets `ignore` list (`@reqlan/analytical-*`). Git `@reqlan/analytical` does not list them as `optionalDependencies`, so `changeset version` can run. After `changeset version`, ["../../scripts/prepare-native-packages.mjs"] copies the analytical version onto each platform package. npm publish writes pinned `optionalDependencies` with `--publish-versions`.
+  The version of `@reqlan/analytical` is the single source of truth for every `@reqlan/analytical-<platform>-<arch>` package ([rust_binary_distribution]). Platform packages are in the Changesets `ignore` list (`@reqlan/analytical-*`). Git `@reqlan/analytical` does not list them as `optionalDependencies`, so `changeset version` can run. This workspace still links the checkout packages during `pnpm install` via `packageExtensions` in ["../../pnpm-workspace.yaml"] (`workspace:*`, not npm). After `changeset version`, ["../../scripts/prepare-native-packages.mjs"] copies the analytical version onto each platform package. The published tarball lists pinned `optionalDependencies` (`--publish-versions`) so CLI and MCP customers get the host binary.
   Platform native packages are not a separate tag channel; they ride `analytical/v*` ([rust_binary_distribution]).
   VSIX packaging uses the package.json versions in that git commit ([vsix_native_not_from_npm]).
   `@reqlan/language`, `@reqlan/cli`, `@reqlan/mcp`, and the site keep their own versions.
@@ -76,7 +76,7 @@ native_targets {
 
 rust_binary_distribution {
   One platform-specific npm package per [native_targets] tuple: `@reqlan/analytical-<platform>-<arch>` (napi suffixes: `linux-x64-gnu`, `linux-arm64-gnu`, `darwin-x64`, `darwin-arm64`, `win32-x64-msvc`, `win32-arm64-msvc`).
-  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and uses the `@reqlan/analytical` package.json version as the single source of truth. ["../../scripts/prepare-native-packages.mjs"] writes that version. Changesets ignores `@reqlan/analytical-*` in ["../../.changeset/config.json"]. Git `@reqlan/analytical` does not list platform packages as `optionalDependencies`; the published tarball does, pinned to the analytical version (`--publish-versions`) ([version_management]).
+  Each package declares `os` and `cpu`, contains the matching core engine `.node`, and uses the `@reqlan/analytical` package.json version as the single source of truth. ["../../scripts/prepare-native-packages.mjs"] writes that version. Changesets ignores `@reqlan/analytical-*` in ["../../.changeset/config.json"]. Git `@reqlan/analytical` does not list platform packages as `optionalDependencies`; this workspace links them through `packageExtensions` in ["../../pnpm-workspace.yaml"]. The published tarball lists pinned optionalDependencies (`--publish-versions`) ([version_management]).
   CLI and MCP install the host-matching binary from those published optionalDependencies.
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
@@ -163,7 +163,7 @@ ci_gate {
   Pull-request CI and the main release pipeline share one sequential workflow: ["../../.github/workflows/ci.yml"].
   ["./distribution.rq".deployment_flow] must not apply changesets or create tags until that workflow succeeds.
   Order in one job: install workspace packages, compile crates and TypeScript once, then crate tests, ["../core_analysis/check.rq".check], then JS/TS tests (["./distribution.rq".prerelease_tests], ["../core_analysis/check.rq".check_meta_implementation], ["../development/commit.rq".rust_fmt]).
-  `@reqlan/*` packages come from this git checkout (`workspace:*`), not from the npm registry.
+  `@reqlan/*` packages come from this git checkout (`workspace:*`), not from the npm registry. Platform native packages are linked the same way in this workspace through `packageExtensions` in ["../../pnpm-workspace.yaml"]; they are not listed in git `@reqlan/analytical` `optionalDependencies`.
   A push to main does not start CI a second time as an independent workflow; ["../../.github/workflows/release.yml"] calls ["../../.github/workflows/ci.yml"] with `workflow_call`.
   The version-bump commit (`chore(release):`) skips the gate and the version job to prevent a recursive run.
   @status done

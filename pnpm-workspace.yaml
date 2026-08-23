@@ -11,3 +11,16 @@ allowBuilds:
   unrs-resolver: true
   '@vscode/vsce-sign': true
   keytar: true
+# Dev/CI only: link checkout natives into @reqlan/analytical without listing
+# them in git packages/analytical/package.json (Changesets ignore).
+# The published tarball gets pinned optionalDependencies via
+# scripts/prepare-native-packages.mjs --publish-versions.
+packageExtensions:
+  '@reqlan/analytical':
+    optionalDependencies:
+      '@reqlan/analytical-win32-x64-msvc': workspace:*
+      '@reqlan/analytical-win32-arm64-msvc': workspace:*
+      '@reqlan/analytical-linux-x64-gnu': workspace:*
+      '@reqlan/analytical-linux-arm64-gnu': workspace:*
+      '@reqlan/analytical-darwin-x64': workspace:*
+      '@reqlan/analytical-darwin-arm64': workspace:*

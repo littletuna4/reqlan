@@ -192,7 +192,7 @@ check_meta_implementation {
     Pull requests use ["../../.github/workflows/ci.yml"].
     Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
     The job installs workspace packages once (`pnpm install --frozen-lockfile`), asserts `@reqlan/*` resolve under `packages/` (["../../scripts/assert-workspace-reqlan.mjs"]), compiles crates and TypeScript, then runs crate tests, `node packages/cli/bin/cli.js check`, and JS/TS tests against that build.
-    Do not install `@reqlan/cli` or other `@reqlan/*` packages from npm. Do not call a global `reqlan` binary. Do not run a second install before check.
+    Do not install `@reqlan/cli` or other `@reqlan/*` packages from npm. Platform natives in this workspace come from `packages/analytical-native/` via `packageExtensions` in ["../../pnpm-workspace.yaml"], not from the registry. Do not call a global `reqlan` binary. Do not run a second install before check.
     GitHub and Azure pass `--skip-gitignored-targets` because gitignored files are not in a CI checkout ([check_skip_gitignored_targets]).
     Azure uses the same workspace CLI after its package build on `ext/v*` tags.
     Related: [check] [check_skip_targets] [check_skip_gitignored_targets] ["../distribution/distribution.rq".ci_gate]

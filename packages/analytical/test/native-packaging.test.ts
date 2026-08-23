@@ -12,6 +12,7 @@ import { describe, expect, test } from "vitest";
 import {
   NATIVE_TARGETS,
   hostNativeTarget,
+  workspaceNativeOptionalDependencies,
 } from "../../../scripts/native-targets.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -46,6 +47,15 @@ describe("native platform packaging", () => {
       optionalDependencies?: Record<string, string>;
     };
     expect(analytical.optionalDependencies).toBeUndefined();
+
+    const workspaceYaml = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
+    expect(workspaceYaml).toContain("packageExtensions:");
+    expect(workspaceYaml).toContain("'@reqlan/analytical':");
+    for (const [name, spec] of Object.entries(
+      workspaceNativeOptionalDependencies(),
+    )) {
+      expect(workspaceYaml).toContain(`'${name}': ${spec}`);
+    }
 
     const result = spawnSync(
       process.execPath,

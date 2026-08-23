@@ -144,6 +144,7 @@ describe('release CI gate', () => {
         expect(asserted.status, asserted.stderr).toBe(0);
         expect(asserted.stdout).toContain('@reqlan/cli');
         expect(asserted.stdout).toContain('@reqlan/analytical');
+        expect(asserted.stdout).toContain('@reqlan/analytical-linux-x64-gnu');
     });
 
     // rq:["../../../reqlan rq/development/build.rq".typescript_compile]
