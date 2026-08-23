@@ -1,5 +1,11 @@
 # site
 
+## 0.18.2
+
+### Patch Changes
+
+- 70715af: bump
+
 ## 0.18.1
 
 ### Patch Changes

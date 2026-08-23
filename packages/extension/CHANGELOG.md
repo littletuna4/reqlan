@@ -1,5 +1,15 @@
 # reqlan-extension
 
+## 1.13.2
+
+### Patch Changes
+
+- a18c1ff: decouple extension from core.
+- Updated dependencies [a18c1ff]
+- Updated dependencies [70715af]
+  - @reqlan/analytical@1.13.2
+  - @reqlan/language@1.10.3
+
 ## 1.13.1
 
 ### Patch Changes

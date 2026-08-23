@@ -1,5 +1,7 @@
 # @reqlan/analytical-linux-x64-gnu
 
+## 1.13.2
+
 ## 1.13.1
 
 ### Patch Changes
