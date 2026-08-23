@@ -1,7 +1,7 @@
 {
     "name": "@reqlan/mcp",
     "description": "MCP server exposing reqlan requirement graph tools",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "type": "module",
     "license": "AGPL-3.0-only",
     "repository": {

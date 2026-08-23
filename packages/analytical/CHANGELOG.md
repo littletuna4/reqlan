@@ -1,5 +1,22 @@
 # @reqlan/analytical
 
+## 1.13.0
+
+### Minor Changes
+
+- 7c6eca5: add skip gitignored targets
+
+### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Add `check` skip-targets, and rebuild the ideas index when extract rules change so stale inline-code file refs drop.
+- 7c6eca5: Add `check --skip-gitignored-targets` so CI can omit missing files that Git ignore rules exclude.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+
 ## 1.12.0
 
 ### Minor Changes

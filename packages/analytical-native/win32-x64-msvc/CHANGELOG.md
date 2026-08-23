@@ -1,5 +1,7 @@
 # @reqlan/analytical-win32-x64-msvc
 
+## 1.13.0
+
 ## 1.12.0
 
 ## 1.11.3

@@ -1,5 +1,17 @@
 # site
 
+## 0.18.1
+
+### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- 7c6eca5: add skip gitignored targets
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+
 ## 0.18.0
 
 ### Minor Changes

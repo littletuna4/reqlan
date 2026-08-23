@@ -1,5 +1,28 @@
 # reqlan-extension
 
+## 1.13.0
+
+### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- 7c6eca5: add skip gitignored targets
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+- Updated dependencies [c219dbe]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [d6b6246]
+- Updated dependencies [9b788d2]
+- Updated dependencies [900a2fd]
+- Updated dependencies [70bcb70]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [70bcb70]
+- Updated dependencies [76546b3]
+  - @reqlan/analytical@1.13.0
+  - @reqlan/language@1.10.1
+
 ## 1.12.0
 
 ### Minor Changes
