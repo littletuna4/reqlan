@@ -5,6 +5,7 @@
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
  * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
@@ -36,6 +37,7 @@ export class CheckCommand extends Command {
             Wildcard references that match 1 idea use --wildcard-one (default warn).
             Each flag is warn, error, or off.
             Repeat --skip-target <glob> to omit issues whose missing target matches a glob.
+            --skip-gitignored-targets omits missing file targets that Git ignore rules ignore.
             Exit status is 1 when the command finds issues.
             Use --json or --pipe for machine output.
         `,
@@ -46,7 +48,8 @@ export class CheckCommand extends Command {
             ['Limit to a path glob', '$0 check --glob "reqlan rq/**"'],
             ['Treat empty wildcards as errors', '$0 check --wildcard-zero error'],
             ['Skip singleton-wildcard warnings', '$0 check --wildcard-one off'],
-            ['Skip gitignored Cursor paths', '$0 check --skip-target "**/.cursor/**"']
+            ['Skip gitignored Cursor paths', '$0 check --skip-target "**/.cursor/**"'],
+            ['Skip gitignored file targets', '$0 check --skip-gitignored-targets']
         ]
     });
 
@@ -71,6 +74,9 @@ export class CheckCommand extends Command {
     skipTargets = Option.Array('--skip-target', {
         description: 'Omit issues whose missing target matches this glob (repeatable)'
     });
+    skipGitignoredTargets = Option.Boolean('--skip-gitignored-targets', false, {
+        description: 'Omit file-reference issues whose missing target is gitignored'
+    });
 
     async execute(): Promise<number> {
         if (this.json && this.pipe) {
@@ -94,7 +100,8 @@ export class CheckCommand extends Command {
                     pathGlob: this.glob,
                     wildcardZero,
                     wildcardOne,
-                    skipTargets: this.skipTargets
+                    skipTargets: this.skipTargets,
+                    skipGitignoredTargets: this.skipGitignoredTargets
                 });
                 if (this.json) {
                     emit(rows, true);

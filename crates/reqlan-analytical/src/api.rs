@@ -308,18 +308,26 @@ impl AnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
     pub fn check(
         &mut self,
         path_glob: Option<&str>,
         wildcard_zero: SparseWildcardHandling,
         wildcard_one: SparseWildcardHandling,
         skip_targets: &[&str],
+        skip_gitignored_targets: bool,
     ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
         self.ensure_ready()?;
         let rows = check_references(
             &self.store,
             &self.workspace_root,
-            CheckReferencesOptions { path_glob, wildcard_zero, wildcard_one, skip_targets },
+            CheckReferencesOptions {
+                path_glob,
+                wildcard_zero,
+                wildcard_one,
+                skip_targets,
+                skip_gitignored_targets,
+            },
         )?;
         Ok(rows.into_iter().map(to_broken_dto).collect())
     }

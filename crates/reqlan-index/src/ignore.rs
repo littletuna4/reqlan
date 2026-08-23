@@ -133,6 +133,79 @@ impl RqIgnoreFilter {
     }
 }
 
+/// Workspace Git ignore matcher for [check] skip-gitignored-targets.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+pub struct WorkspaceGitignore {
+    workspace_root: PathBuf,
+    gitignore: Gitignore,
+}
+
+impl WorkspaceGitignore {
+    /// Load the workspace `.gitignore` and `.git/info/exclude`.
+    pub fn load(workspace_root: &Path) -> Self {
+        let mut builder = GitignoreBuilder::new(workspace_root);
+        let gitignore_path = workspace_root.join(GITIGNORE_FILENAME);
+        if gitignore_path.is_file() {
+            let _ = builder.add(&gitignore_path);
+        }
+        let exclude_path = workspace_root.join(".git").join("info").join("exclude");
+        if exclude_path.is_file() {
+            let _ = builder.add(&exclude_path);
+        }
+        let gitignore = builder.build().unwrap_or_else(|_| Gitignore::empty());
+        Self { workspace_root: workspace_root.to_path_buf(), gitignore }
+    }
+
+    /// True when Git ignore rules ignore `relative_path` (file or directory).
+    pub fn ignores(&self, relative_path: &str) -> bool {
+        let Some(normalized) = normalize_workspace_relative(relative_path) else {
+            return false;
+        };
+        if gitignore_matches(&self.gitignore, &normalized) {
+            return true;
+        }
+        nested_gitignore_matches(&self.workspace_root, &normalized)
+    }
+}
+
+fn normalize_workspace_relative(relative_path: &str) -> Option<String> {
+    let normalized = relative_path.replace('\\', "/").trim_start_matches('/').to_string();
+    if normalized.is_empty() || normalized == "." || normalized.starts_with("../") {
+        return None;
+    }
+    let path = normalized.trim_end_matches('/');
+    if path.is_empty() {
+        return None;
+    }
+    Some(path.to_string())
+}
+
+fn gitignore_matches(gitignore: &Gitignore, relative_path: &str) -> bool {
+    gitignore.matched_path_or_any_parents(relative_path, false).is_ignore()
+        || gitignore.matched_path_or_any_parents(relative_path, true).is_ignore()
+}
+
+fn nested_gitignore_matches(workspace_root: &Path, relative_path: &str) -> bool {
+    let mut current = Path::new(relative_path);
+    while let Some(parent) = current.parent() {
+        if parent.as_os_str().is_empty() || parent == Path::new(".") {
+            break;
+        }
+        let gitignore_path = workspace_root.join(parent).join(GITIGNORE_FILENAME);
+        if gitignore_path.is_file() {
+            let (gitignore, _) = Gitignore::new(&gitignore_path);
+            if let Ok(remainder) = Path::new(relative_path).strip_prefix(parent) {
+                let rem = remainder.to_string_lossy().replace('\\', "/");
+                if !rem.is_empty() && gitignore_matches(&gitignore, &rem) {
+                    return true;
+                }
+            }
+        }
+        current = parent;
+    }
+    false
+}
+
 pub const CONFIG_FILENAME: &str = "config.json";
 
 /// Text seeded into a new base's `.reqlan/.rqignore` (comments + built-in defaults).
@@ -322,6 +395,29 @@ mod tests {
         let result = create_base(&root).unwrap();
         let on_disk = std::fs::read_to_string(result.memory_path.join(RQIGNORE_FILENAME)).unwrap();
         assert_eq!(on_disk, text);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    #[test]
+    fn workspace_gitignore_matches_root_and_nested_rules() {
+        let root = scratch("workspace-gitignore");
+        std::fs::write(
+            root.join(GITIGNORE_FILENAME),
+            ".cursor/\npackages/extension/media/webviews/\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join("packages").join("extension")).unwrap();
+        std::fs::write(root.join("packages").join("extension").join(GITIGNORE_FILENAME), "out/\n")
+            .unwrap();
+
+        let filter = WorkspaceGitignore::load(&root);
+        assert!(filter.ignores(".cursor/mcp.json"));
+        assert!(filter.ignores("packages/extension/media/webviews/onboarding"));
+        assert!(filter.ignores("packages/extension/out/bundle.js"));
+        assert!(!filter.ignores("src/gone.ts"));
+        assert!(!filter.ignores("packages/extension/webviews/onboarding"));
+        assert!(!filter.ignores("../outside.ts"));
         std::fs::remove_dir_all(&root).ok();
     }
 }

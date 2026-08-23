@@ -3,6 +3,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 
 use reqlan_analytical::AnalysisRuntime;
 use std::path::PathBuf;
@@ -35,7 +36,7 @@ fn analysis_api_lists_broken_refs_with_glob_and_comments() {
     assert_eq!(comments[0].kind, "comment_link");
     assert_eq!(comments[0].label, "gone");
 
-    let checked = runtime.check(None, Default::default(), Default::default(), &[]).unwrap();
+    let checked = runtime.check(None, Default::default(), Default::default(), &[], false).unwrap();
     assert!(checked.iter().any(|row| row.label == "missing_idea"));
     assert!(checked.iter().any(|row| row.kind == "comment_link" && row.label == "gone"));
     std::fs::remove_dir_all(&root).ok();
@@ -54,13 +55,38 @@ fn analysis_api_check_honours_skip_targets() {
     std::fs::create_dir_all(&storage).unwrap();
     let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
 
-    let all = runtime.check(None, Default::default(), Default::default(), &[]).unwrap();
+    let all = runtime.check(None, Default::default(), Default::default(), &[], false).unwrap();
     assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
     assert!(all.iter().any(|row| row.label.contains(".cursor")), "{all:?}");
 
-    let skipped =
-        runtime.check(None, Default::default(), Default::default(), &["**/.cursor/**"]).unwrap();
+    let skipped = runtime
+        .check(None, Default::default(), Default::default(), &["**/.cursor/**"], false)
+        .unwrap();
     assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
     assert!(skipped.iter().all(|row| !row.label.contains(".cursor")), "{skipped:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn analysis_api_check_honours_skip_gitignored_targets() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    let root = scratch("api-skip-gi");
+    std::fs::write(root.join(".gitignore"), "build/\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    [missing_idea]\n    [\"./build/out.js\"]\n}\n",
+    )
+    .unwrap();
+    let storage = root.join(".reqlan-index");
+    std::fs::create_dir_all(&storage).unwrap();
+    let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+
+    let all = runtime.check(None, Default::default(), Default::default(), &[], false).unwrap();
+    assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
+    assert!(all.iter().any(|row| row.label.contains("build/out.js")), "{all:?}");
+
+    let skipped = runtime.check(None, Default::default(), Default::default(), &[], true).unwrap();
+    assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
+    assert!(skipped.iter().all(|row| !row.label.contains("build/")), "{skipped:?}");
     std::fs::remove_dir_all(&root).ok();
 }

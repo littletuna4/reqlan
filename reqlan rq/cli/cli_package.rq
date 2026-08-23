@@ -67,6 +67,8 @@ commands {
       (["../core_analysis/check.rq".check_wildcard_zero], ["../core_analysis/check.rq".check_wildcard_one]).
       Repeatable `--skip-target <glob>` omits issues whose missing target matches the glob
       (["../core_analysis/check.rq".check_skip_targets]).
+      `--skip-gitignored-targets` omits file-reference issues whose missing target is gitignored
+      (["../core_analysis/check.rq".check_skip_gitignored_targets]).
     - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/features-commands.rq".barrel_page]).
     Extra args from `pnpm run`: [pnpm_extra_args].
 }

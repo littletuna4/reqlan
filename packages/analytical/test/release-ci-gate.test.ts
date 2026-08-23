@@ -175,19 +175,21 @@ describe('release CI gate', () => {
         );
     });
 
-    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
     // rq:["../../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
-    test('CI check skips gitignored .cursor targets', () => {
+    test('CI check skips gitignored targets', () => {
         const ci = readWorkflow('ci.yml');
-        expect(ci).toContain('--skip-target "**/.cursor/**"');
+        expect(ci).toContain('--skip-gitignored-targets');
         expect(ci).toContain('node packages/cli/bin/cli.js check');
         expect(ci).toContain(
-            'rq:["../../reqlan rq/core_analysis/check.rq".check_skip_targets]'
+            'rq:["../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]'
         );
 
         const azure = readFileSync(join(root, 'azure-pipelines.yml'), 'utf8');
-        expect(azure).toContain('--skip-target "**/.cursor/**"');
+        expect(azure).toContain('--skip-gitignored-targets');
         expect(azure).toContain('node packages/cli/bin/cli.js check');
-        expect(azure).toContain('rq:["reqlan rq/core_analysis/check.rq".check_skip_targets]');
+        expect(azure).toContain(
+            'rq:["reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]'
+        );
     });
 });

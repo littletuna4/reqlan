@@ -5,6 +5,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
@@ -13,13 +14,14 @@ use crate::comment::{unresolved_comment_references, CommentReference};
 use crate::extract::{
     count_wildcard_matches, path_glob_matches, split_wildcard_label, WildcardIdeaCandidate,
 };
+use crate::ignore::WorkspaceGitignore;
 use crate::path_resolve::load_applying_rq_config;
 use crate::rq_ignore::find_rq_ignore_error_target_lines;
 use crate::store::{IndexStore, StoreError};
 use crate::types::{EdgeKind, EdgeRecord, IdeaKind};
 use reqlan_parse::{
-    file_from_idea_id, match_import_root_mapping, parse_file_reference_string, resolve_rq_path,
-    unquote_path, ImportRootMapping,
+    file_from_idea_id, is_absolute_uri_or_path, match_import_root_mapping,
+    parse_file_reference_string, resolve_rq_path, unquote_path, ImportRootMapping,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -75,6 +77,7 @@ impl SparseWildcardHandling {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 #[derive(Debug, Clone)]
 pub struct CheckReferencesOptions<'a> {
     pub path_glob: Option<&'a str>,
@@ -82,6 +85,8 @@ pub struct CheckReferencesOptions<'a> {
     pub wildcard_one: SparseWildcardHandling,
     /// Globs matched against the missing target `label`. Empty globs are ignored.
     pub skip_targets: &'a [&'a str],
+    /// Omit missing file targets that Git ignore rules ignore.
+    pub skip_gitignored_targets: bool,
 }
 
 impl Default for CheckReferencesOptions<'_> {
@@ -91,6 +96,7 @@ impl Default for CheckReferencesOptions<'_> {
             wildcard_zero: SparseWildcardHandling::Warn,
             wildcard_one: SparseWildcardHandling::Warn,
             skip_targets: &[],
+            skip_gitignored_targets: false,
         }
     }
 }
@@ -128,6 +134,7 @@ fn error_severity() -> String {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 pub fn check_references(
     store: &IndexStore,
     workspace_root: &Path,
@@ -145,6 +152,9 @@ pub fn check_references(
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
     append_wildcard_sparse_rows(store, workspace_root, &options, &mut rows, &mut ignore_cache)?;
     omit_skipped_targets(&mut rows, options.skip_targets);
+    if options.skip_gitignored_targets {
+        omit_gitignored_file_targets(&mut rows, workspace_root);
+    }
     sort_check_rows_by_target(&mut rows);
     Ok(rows)
 }
@@ -161,6 +171,45 @@ fn target_is_skipped(label: &str, skip_targets: &[&str]) -> bool {
         let pattern = pattern.trim();
         !pattern.is_empty() && (pattern == label || path_glob_matches(pattern, label))
     })
+}
+
+fn omit_gitignored_file_targets(rows: &mut Vec<BrokenReference>, workspace_root: &Path) {
+    let gitignore = WorkspaceGitignore::load(workspace_root);
+    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
+    rows.retain(|row| {
+        row.kind != EdgeKind::FileReference.as_str()
+            || !file_target_is_gitignored(row, &gitignore, &import_roots)
+    });
+}
+
+fn file_target_is_gitignored(
+    row: &BrokenReference,
+    gitignore: &WorkspaceGitignore,
+    import_roots: &[ImportRootMapping],
+) -> bool {
+    let Some(relative) = resolved_workspace_relative_path(&row.file_uri, &row.label, import_roots)
+    else {
+        return false;
+    };
+    gitignore.ignores(&relative)
+}
+
+fn resolved_workspace_relative_path(
+    source_file: &str,
+    label: &str,
+    import_roots: &[ImportRootMapping],
+) -> Option<String> {
+    if label.contains("://") {
+        return None;
+    }
+    let resolved = resolve_rq_path(label, source_file, import_roots);
+    if is_absolute_uri_or_path(&resolved) {
+        return None;
+    }
+    if resolved.is_empty() || resolved == "." || resolved.starts_with("../") {
+        return None;
+    }
+    Some(resolved)
 }
 
 fn sort_check_rows_by_target(rows: &mut [BrokenReference]) {

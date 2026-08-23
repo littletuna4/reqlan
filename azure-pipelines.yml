@@ -220,10 +220,10 @@ jobs:
         timeoutInMinutes: 15
 
       # rq:["reqlan rq/core_analysis/check.rq".check_meta_implementation]
-      # rq:["reqlan rq/core_analysis/check.rq".check_skip_targets]
+      # rq:["reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          node packages/cli/bin/cli.js check --skip-target "**/.cursor/**"
+          node packages/cli/bin/cli.js check --skip-gitignored-targets
         displayName: Check requirement references
         timeoutInMinutes: 10
 

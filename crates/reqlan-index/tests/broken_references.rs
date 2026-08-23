@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 
 use reqlan_index::sync::{sync_workspace, SyncOptions};
@@ -519,6 +520,51 @@ fn check_skips_targets_that_match_skip_globs() {
     )
     .unwrap();
     assert_eq!(empty_pattern.len(), all.len(), "{empty_pattern:?}");
+
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_skips_gitignored_file_targets() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    let root = scratch("skip-gitignored");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::create_dir_all(root.join("reqlan rq").join("extension").join("onboarding")).unwrap();
+    std::fs::write(
+        root.join(".gitignore"),
+        ".cursor/\npackages/extension/media/webviews/\nbuild/\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    [missing_idea]\n    [\"./src/gone.ts\"]\n    [\"./.cursor/mcp.json\"]\n    [\"./build/out.js\"]\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("reqlan rq").join("extension").join("onboarding").join("page.rq"),
+        "installation_event {\n    [\"../../../packages/extension/media/webviews/onboarding\"]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+
+    let all = run_check(&store, &root, None);
+    assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
+    assert!(all.iter().any(|row| row.label == "./src/gone.ts"), "{all:?}");
+    assert!(all.iter().any(|row| row.label.contains(".cursor")), "{all:?}");
+    assert!(all.iter().any(|row| row.label.contains("build/out.js")), "{all:?}");
+    assert!(all.iter().any(|row| row.label.contains("media/webviews")), "{all:?}");
+
+    let skipped = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { skip_gitignored_targets: true, ..Default::default() },
+    )
+    .unwrap();
+    assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
+    assert!(skipped.iter().any(|row| row.label == "./src/gone.ts"), "{skipped:?}");
+    assert!(skipped.iter().all(|row| !row.label.contains(".cursor")), "{skipped:?}");
+    assert!(skipped.iter().all(|row| !row.label.contains("build/")), "{skipped:?}");
+    assert!(skipped.iter().all(|row| !row.label.contains("media/webviews")), "{skipped:?}");
 
     std::fs::remove_dir_all(&root).ok();
 }

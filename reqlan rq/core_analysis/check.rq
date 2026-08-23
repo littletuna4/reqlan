@@ -7,7 +7,7 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
-    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation].
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -134,14 +134,43 @@ check_skip_targets {
     The analyser function `check_references` takes `skip_targets`: a list of globs.
     Match uses the same path glob rules as `--glob`. Match is against the issue `label` (the missing target), not the source file.
     An empty skip glob has no effect.
-    Use this when a referenced file is not in git. `.cursor/` is listed in ["../../.gitignore"], so a CI checkout does not contain Cursor project files that ["../extension/module/chat-participant.rq".mcp] references.
+    Use this when a referenced file is not in git and you name the skip glob.
+    For all Git ignore rules, use [check_skip_gitignored_targets].
     CLI: repeatable `--skip-target <glob>` (["../cli/cli_package.rq".commands]).
     API: `AnalysisApi.check({ skipTargets })`.
-    CI: ["../../.github/workflows/ci.yml"] and ["../../azure-pipelines.yml"] pass `--skip-target "**/.cursor/**"` to the workspace CLI.
-    Related: [check] [check_meta_implementation]
+    Related: [check] [check_skip_gitignored_targets] [check_meta_implementation]
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_targets_that_match_skip_globs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:path_glob_matches_cursor_skip_glob"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_skip_targets"]
+        ["../../packages/cli/test/check.test.ts:honours skip-target globs"]
+    )
+}
+
+check_skip_gitignored_targets {
+    [check] omits a file [reference] issue when Git ignore rules ignore the missing target.
+    The analyser function `check_references` takes `skip_gitignored_targets` (default false).
+    Match uses the workspace ["../../.gitignore"] and nested `.gitignore` files on the target path.
+    Match uses the resolved path from the workspace root, not the authored path in the source file.
+    Idea references and comment references stay in the issue list.
+    Use this when a referenced file is build output or editor config that git does not store.
+    Examples: `.cursor/` for ["../extension/module/chat-participant.rq".mcp], and `packages/extension/media/webviews/` for ["../extension/onboarding/page-thanks-for-installing.rq".installation_event].
+    CLI: `--skip-gitignored-targets` (["../cli/cli_package.rq".commands]).
+    API: `AnalysisApi.check({ skipGitignoredTargets })`.
+    CI: ["../../.github/workflows/ci.yml"] and ["../../azure-pipelines.yml"] pass `--skip-gitignored-targets` because a CI checkout does not contain gitignored files ([check_meta_implementation]).
+    Related: [check] [check_skip_targets] [check_meta_implementation]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/ignore.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../crates/reqlan-napi/src/lib.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
@@ -150,11 +179,11 @@ check_skip_targets {
         ["../../azure-pipelines.yml"]
     )
     @tests (
-        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_targets_that_match_skip_globs"]
-        ["../../crates/reqlan-index/tests/broken_references.rs:path_glob_matches_cursor_skip_glob"]
-        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_skip_targets"]
-        ["../../packages/cli/test/check.test.ts:honours skip-target globs"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored .cursor targets"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_gitignored_file_targets"]
+        ["../../crates/reqlan-index/src/ignore.rs:workspace_gitignore_matches_root_and_nested_rules"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_skip_gitignored_targets"]
+        ["../../packages/cli/test/check.test.ts:honours skip-gitignored-targets"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored targets"]
     )
 }
 
@@ -164,9 +193,9 @@ check_meta_implementation {
     Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
     The job installs workspace packages once (`pnpm install --frozen-lockfile`), asserts `@reqlan/*` resolve under `packages/` (["../../scripts/assert-workspace-reqlan.mjs"]), compiles crates and TypeScript, then runs crate tests, `node packages/cli/bin/cli.js check`, and JS/TS tests against that build.
     Do not install `@reqlan/cli` or other `@reqlan/*` packages from npm. Do not call a global `reqlan` binary. Do not run a second install before check.
-    GitHub and Azure pass `--skip-target "**/.cursor/**"` because `.cursor/` is not in git ([check_skip_targets]).
+    GitHub and Azure pass `--skip-gitignored-targets` because gitignored files are not in a CI checkout ([check_skip_gitignored_targets]).
     Azure uses the same workspace CLI after its package build on `ext/v*` tags.
-    Related: [check] [check_skip_targets] ["../distribution/distribution.rq".ci_gate]
+    Related: [check] [check_skip_targets] [check_skip_gitignored_targets] ["../distribution/distribution.rq".ci_gate]
     @status done
     @implementation (
         ["../../.github/workflows/ci.yml"]
@@ -182,6 +211,6 @@ check_meta_implementation {
         ["../../packages/analytical/test/release-ci-gate.test.ts:one build is reused by crate tests, check, and package tests"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:reference check uses workspace packages not npm"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored .cursor targets"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored targets"]
     )
 }

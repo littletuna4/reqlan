@@ -100,7 +100,7 @@ consumption_silence {
 
 check {
     reqlan check is a analysis tool surfaced by the cli. Intended for use in CI.
-    see ["./check.rq".check] ["./check.rq".check_order_by_target] ["./check.rq".check_wildcard_sparse] ["./check.rq".check_wildcard_zero] ["./check.rq".check_wildcard_one] ["./check.rq".check_meta_implementation]
+    see ["./check.rq".check] ["./check.rq".check_order_by_target] ["./check.rq".check_wildcard_sparse] ["./check.rq".check_wildcard_zero] ["./check.rq".check_wildcard_one] ["./check.rq".check_skip_targets] ["./check.rq".check_skip_gitignored_targets] ["./check.rq".check_meta_implementation]
 }
 
 modules (

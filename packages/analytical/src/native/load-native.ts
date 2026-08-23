@@ -89,7 +89,8 @@ export interface NativeAnalysisRuntimeHandle {
         pathGlob?: string,
         wildcardZero?: string,
         wildcardOne?: string,
-        skipTargets?: string[]
+        skipTargets?: string[],
+        skipGitignoredTargets?: boolean
     ): unknown;
     exportGraph(request: unknown): unknown;
     resolveRequirementReference(name?: string): unknown;

@@ -2,7 +2,7 @@
 # rq:["../../reqlan rq/distribution/distribution.rq".prerelease_tests]
 # rq:["../../reqlan rq/core_analysis/check.rq".check]
 # rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
-# rq:["../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 # rq:["../../reqlan rq/development/build.rq".typescript_compile]
 # rq:["../../reqlan rq/development/commit.rq".rust_fmt]
 name: CI
@@ -77,6 +77,6 @@ jobs:
         working-directory: crates
         run: cargo test --workspace --exclude reqlan-napi
       - name: Check requirement references
-        run: node packages/cli/bin/cli.js check --skip-target "**/.cursor/**"
+        run: node packages/cli/bin/cli.js check --skip-gitignored-targets
       - name: Test packages
         run: pnpm run test:js
