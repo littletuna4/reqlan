@@ -28,6 +28,6 @@ rust_fmt {
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:selects only staged crate rust sources"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:runs cargo fmt --all in crates then restages the rust files"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI still checks cargo fmt --all and prepare installs committed hooks"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and JS workflows before versioning"]
     )
 }

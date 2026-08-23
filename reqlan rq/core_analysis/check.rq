@@ -137,7 +137,7 @@ check_skip_targets {
     Use this when a referenced file is not in git. `.cursor/` is listed in ["../../.gitignore"], so a CI checkout does not contain Cursor project files that ["../extension/module/chat-participant.rq".mcp] references.
     CLI: repeatable `--skip-target <glob>` (["../cli/cli_package.rq".commands]).
     API: `AnalysisApi.check({ skipTargets })`.
-    CI: ["../../.github/workflows/ci-check.yml"] and ["../../azure-pipelines.yml"] pass `--skip-target "**/.cursor/**"`.
+    CI: ["../../.github/workflows/ci-test.yml"] and ["../../azure-pipelines.yml"] pass `--skip-target "**/.cursor/**"` to the workspace CLI.
     Related: [check] [check_meta_implementation]
     @status done
     @implementation (
@@ -146,7 +146,7 @@ check_skip_targets {
         ["../../crates/reqlan-napi/src/lib.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/commands/check.ts"]
-        ["../../.github/workflows/ci-check.yml"]
+        ["../../.github/workflows/ci-test.yml"]
         ["../../azure-pipelines.yml"]
     )
     @tests (
@@ -159,26 +159,27 @@ check_skip_targets {
 }
 
 check_meta_implementation {
-    [check] runs on every pull request and as a required job of the GitHub release workflow before versioning.
-    Pull requests use ["../../.github/workflows/ci-check.yml"].
+    [check] runs after TypeScript compile and package tests, on every pull request and as a required job of the GitHub release workflow before versioning.
+    Pull requests use ["../../.github/workflows/ci-test.yml"].
     Main uses the same workflow through ["../../.github/workflows/release.yml"] (["../distribution/distribution.rq".ci_gate]).
-    The check job compiles only the CLI (`pnpm run build:cli`) so `reqlan check` can run on a clean checkout. The CLI does not load Langium; generated language sources are not required.
-    Full TypeScript compile and package tests run on main before versioning (["../distribution/distribution.rq".prerelease_tests]).
+    CI compiles this git checkout (`pnpm run build:tsc`), runs `pnpm run test`, then invokes the workspace CLI: `node packages/cli/bin/cli.js check`.
+    Do not install `@reqlan/cli` from npm. Do not call a global `reqlan` binary.
+    Do not use `pnpm run check -- --skip-target …`: the extra `--` is end of options (["../cli/cli_package.rq".pnpm_extra_args]).
     GitHub and Azure pass `--skip-target "**/.cursor/**"` because `.cursor/` is not in git ([check_skip_targets]).
-    Azure also runs `pnpm run check` on `ext/v*` tags.
-    Related: [check] [check_skip_targets]
+    Azure uses the same workspace CLI after build and tests on `ext/v*` tags.
+    Related: [check] [check_skip_targets] ["../distribution/distribution.rq".prerelease_tests]
     @status done
     @implementation (
-        ["../../.github/workflows/ci-check.yml"]
+        ["../../.github/workflows/ci-test.yml"]
         ["../../.github/workflows/release.yml"]
         ["../../azure-pipelines.yml"]
         ["../../package.json"]
     )
     @tests (
         ["../../packages/analytical/test/release-ci-gate.test.ts"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and check workflows before versioning"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:release calls rust and JS workflows before versioning"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI workflows stay reusable and pull-request triggered"]
-        ["../../packages/analytical/test/release-ci-gate.test.ts:package tests run as a pre-release gate, not on pull requests"]
+        ["../../packages/analytical/test/release-ci-gate.test.ts:JS CI builds from this checkout then tests then checks"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored .cursor targets"]
     )

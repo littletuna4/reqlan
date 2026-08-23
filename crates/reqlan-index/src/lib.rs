@@ -31,7 +31,7 @@ pub use comment::{
 pub use diagnostics::{now_ms, DiagnosticsError, FileIssueDraft, IndexDiagnosticsStore};
 pub use extract::{
     count_wildcard_matches, extract_indexed_document, path_glob_matches, split_wildcard_label,
-    ExtractOptions, WildcardIdeaCandidate,
+    ExtractOptions, WildcardIdeaCandidate, EXTRACT_VERSION,
 };
 pub use git_dates::{fill_git_dates, parse_git_author_dates, CREATE_NO_WINDOW};
 pub use ids::{edge_id, idea_id};

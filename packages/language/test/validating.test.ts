@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
@@ -156,11 +156,11 @@ describe('Validating', () => {
     test('does not report an error when an import path is an existing folder', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
-        const importerUri = URI.parse(pathToFileURL(
-            join(repoDir, 'reqlan rq/extension/module/ideas_summary/webview.rq')
-        ).href);
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/folder-import');
+        mkdirSync(join(fixturesDir, 'target'), { recursive: true });
+        const importerUri = URI.parse(pathToFileURL(join(fixturesDir, 'importer.rq')).href);
         const document = services.shared.workspace.LangiumDocumentFactory.fromString(
-            'import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media\n',
+            'import "./target" as folder_target\n',
             importerUri
         ) as LangiumDocument<Model>;
         services.shared.workspace.LangiumDocuments.addDocument(document);

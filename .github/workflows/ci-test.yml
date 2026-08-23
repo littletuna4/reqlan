@@ -1,13 +1,19 @@
 # rq:["../../reqlan rq/distribution/distribution.rq".prerelease_tests]
 # rq:["../../reqlan rq/distribution/distribution.rq".ci_gate]
 # rq:["../../reqlan rq/development/build.rq".typescript_compile]
-name: Pre-release tests
+# rq:["../../reqlan rq/core_analysis/check.rq".check]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+name: Build, test, and check
 
-# Package tests are not a pull-request gate.
-# release.yml calls this before versioning so a push to main
-# must not tag or publish until JS/TS tests pass.
+# Pull requests and the release workflow share this job.
+# Compile from this git checkout, run package tests, then check
+# with the workspace CLI (not a globally installed npm `reqlan`).
+# release.yml calls this workflow because a push to main
+# must not tag or publish until JS compile, tests, and references succeed.
 
 on:
+  pull_request:
   workflow_call:
 
 permissions:
@@ -39,3 +45,5 @@ jobs:
         run: pnpm run build:tsc
       - name: Test packages
         run: pnpm run test
+      - name: Check requirement references
+        run: node packages/cli/bin/cli.js check --skip-target "**/.cursor/**"

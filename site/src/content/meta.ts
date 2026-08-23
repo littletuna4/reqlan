@@ -13,7 +13,7 @@ export const elevator_pitch = {
     "integrate your system with your actual intent",
     "demand excellence from your clanker, with the right atomic specification",
     "vibecode without the constant doubt",
-    "tightly control the scoping of your context",
+    "tightly control the scoping of your context, with the best of a file hierarchy, and a knowledge graph",
     "shorter prompts, better agentic search, less rework and more focus",
     "make your precise intent explicit, leave implicit details latent",
     "make your intent compilable",

@@ -295,6 +295,24 @@
       "kind": "block"
     }
   ],
+  "testdata/golden-corpus/language/opaque-file-examples.rq": [
+    {
+      "name": "live_anchor",
+      "kind": "block"
+    },
+    {
+      "name": "inline_code_file_only",
+      "kind": "block"
+    },
+    {
+      "name": "inline_code_qualified",
+      "kind": "block"
+    },
+    {
+      "name": "fenced_file_example",
+      "kind": "block"
+    }
+  ],
   "testdata/golden-corpus/language/parser_lexer.rq": [
     {
       "name": "lexer_bridge_to_syntax",

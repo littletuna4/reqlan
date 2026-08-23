@@ -61,6 +61,25 @@ impl IndexStore {
             .map_err(Into::into)
     }
 
+    pub fn extract_version(&self) -> Result<i64, StoreError> {
+        Ok(self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key = 'extract_version'", [], |row| {
+                let value: String = row.get(0)?;
+                Ok(value.parse().unwrap_or(0))
+            })
+            .optional()?
+            .unwrap_or(0))
+    }
+
+    pub fn set_extract_version(&self, version: i64) -> Result<(), StoreError> {
+        self.conn.execute(
+            "INSERT INTO meta(key, value) VALUES ('extract_version', ?1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![version.to_string()],
+        )?;
+        Ok(())
+    }
+
     pub fn get_document_hash(&self, file_uri: &str) -> Result<Option<String>, StoreError> {
         self.conn
             .query_row(

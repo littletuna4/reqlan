@@ -11,6 +11,7 @@ use crate::comment::{
 };
 use crate::extract::{
     extract_from_parse, extract_indexed_document, ExtractOptions, WildcardIdeaCandidate,
+    EXTRACT_VERSION,
 };
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
 use crate::path_resolve::load_applying_rq_config;
@@ -111,7 +112,8 @@ pub fn sync_workspace(
     options: &SyncOptions,
     cancel: &AtomicBool,
 ) -> Result<SyncResult, StoreError> {
-    if options.hard_rebuild {
+    let stale_extract = store.extract_version()? != EXTRACT_VERSION;
+    if options.hard_rebuild || stale_extract {
         store.clear()?;
     }
     let filter = RqIgnoreFilter::load(&options.workspace_root);
@@ -189,12 +191,13 @@ pub fn sync_workspace(
             &options.workspace_root,
             &code_files,
             &stored_mtimes,
-            options.hard_rebuild || rq_indexed > 0,
+            options.hard_rebuild || stale_extract || rq_indexed > 0,
             cancel,
             &mut progress,
             &mut file_issues,
             &import_roots,
         )?;
+        store.set_extract_version(EXTRACT_VERSION)?;
     }
 
     Ok(SyncResult { progress, file_issues })

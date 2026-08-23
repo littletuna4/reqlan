@@ -26,6 +26,11 @@ use reqlan_parse::{
 };
 use sha2::{Digest, Sha256};
 
+/// Bump when extract rules change so mtime skip does not keep stale edges.
+/// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+/// rq:["../../../reqlan rq/indexer/indexer.rq".index]
+pub const EXTRACT_VERSION: i64 = 1;
+
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
     pub file_uri: String,
@@ -941,4 +946,53 @@ pub fn hash_text(text: &str) -> String {
     hasher.update(text.as_bytes());
     let digest = hasher.finalize();
     digest.iter().take(8).map(|byte| format!("{byte:02x}")).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_indexed_document, find_embedded_file_references, ExtractOptions};
+    use crate::types::EdgeKind;
+
+    #[test]
+    fn embedded_scan_skips_backticked_file_ref_with_line_range() {
+        // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+        let source = concat!("host {\n", "    `[\"", "./plc/interlock.stL#41-58", "\"]`\n", "}\n");
+        let found = find_embedded_file_references(source);
+        assert!(found.iter().all(|(path, _)| !path.contains("interlock.st")), "{found:?}");
+    }
+
+    #[test]
+    fn extract_skips_backticked_file_only_ref() {
+        // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+        let source = concat!("host {\n", "    `[\"", "./plc/interlock.stL#41-58", "\"]`\n", "}\n");
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        let files: Vec<String> = doc
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::FileReference)
+            .filter_map(|edge| edge.label.clone())
+            .collect();
+        assert!(files.iter().all(|label| !label.contains("interlock.st")), "{files:?}");
+    }
+
+    #[test]
+    fn site_rq_does_not_index_backticked_interlock_path() {
+        // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+        // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+        let source = include_str!("../../../reqlan rq/site/site.rq");
+        let found = find_embedded_file_references(source);
+        let leaked: Vec<_> =
+            found.iter().filter(|(path, _)| path.contains("interlock.st")).collect();
+        assert!(leaked.is_empty(), "{leaked:?}");
+        let doc =
+            extract_indexed_document("reqlan rq/site/site.rq", source, &ExtractOptions::default());
+        let files: Vec<String> = doc
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::FileReference)
+            .filter_map(|edge| edge.label.clone())
+            .filter(|label| label.contains("interlock.st"))
+            .collect();
+        assert!(files.is_empty(), "{files:?}");
+    }
 }

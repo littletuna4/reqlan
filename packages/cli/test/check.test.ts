@@ -6,6 +6,7 @@
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
+ * rq:["../../../reqlan rq/cli/cli_package.rq".pnpm_extra_args]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { spawnSync } from 'node:child_process';
@@ -235,6 +236,34 @@ describe('CLI check', () => {
             ]);
             expect(allSkipped.status, allSkipped.stderr).toBe(0);
             expect(JSON.parse(allSkipped.stdout)).toEqual([]);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('accepts skip-target after a pnpm end-of-options marker', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/cli/cli_package.rq".pnpm_extra_args]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-pnpm-dash-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(
+                join(root, 'host.rq'),
+                [
+                    'host {',
+                    '    [missing_idea]',
+                    '    ["../../../.cursor/mcp.json"]',
+                    '}',
+                    ''
+                ].join('\n')
+            );
+
+            const skipped = runCheck(root, ['--', '--json', '--skip-target', '**/.cursor/**']);
+            expect(skipped.status, skipped.stderr).toBe(1);
+            expect(skipped.stderr).not.toMatch(/Unknown Syntax Error/i);
+            const skippedRows = JSON.parse(skipped.stdout) as Array<{ label: string }>;
+            expect(skippedRows.some(row => row.label === 'missing_idea')).toBe(true);
+            expect(skippedRows.every(row => !row.label.includes('.cursor'))).toBe(true);
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

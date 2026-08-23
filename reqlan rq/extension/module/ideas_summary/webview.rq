@@ -6,7 +6,7 @@ import "./graphical_graph.rq" as graphical_graph_doc
 import "./base-scope.rq" as ideas_summary_base
 import "../../../development/core.rq" as development_core
 import "../../../ontology.rq" as ontology
-import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media
+import "../../../../packages/extension/webviews/ideas-summary" as ideas_summary_webview
 import "../../../../packages/analytical/src/index-store/webview-table-queries.ts" as webview_table_queries
 import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
 import "../../../../packages/extension/src/webview_module/shared/table-ui-state.ts" as table_ui_state
@@ -36,7 +36,7 @@ ideas_summary {
     It should be paginated.
     It should be filterable and sortable via a ui-sql layer per [table_column_filters] and [table_column_options].
     Webview UI is implemented with Svelte per [development_core]
-    the extension host loads compiled assets from [ideas_summary_media]
+    the extension host loads compiled assets from `packages/extension/media/webviews/ideas-summary` (Vite output of [ideas_summary_webview])
     table queries are built in [webview_table_queries]
     the extension host forwards query state through [ideas_summary_panel]
     Ideas Summary chrome should include a link that opens [features_export.export_webview].

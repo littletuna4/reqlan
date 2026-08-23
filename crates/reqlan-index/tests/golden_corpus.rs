@@ -4,6 +4,8 @@
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".rust_crate_layout]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
+//! rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+//! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 
 use reqlan_index::{extract_indexed_document, ExtractOptions};
 use reqlan_parse::parse_document;
@@ -136,5 +138,45 @@ fn tutorials_rq_keeps_ideas_after_nested_slides_lists() {
         ideas.iter().any(|idea| idea.name == "tutorial_success_metrics"),
         "expected later ideas after adv_02, got {:?}",
         ideas.iter().map(|idea| idea.name.as_str()).collect::<Vec<_>>()
+    );
+}
+
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
+// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+#[test]
+fn opaque_file_examples_do_not_extract_inline_or_fenced_paths() {
+    let rel = "testdata/golden-corpus/language/opaque-file-examples.rq";
+    let source = std::fs::read_to_string(repo_root().join(rel)).unwrap();
+    let ideas = rust_ideas(rel, &source);
+    let names: Vec<_> = ideas.iter().map(|idea| idea.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![
+            "live_anchor",
+            "inline_code_file_only",
+            "inline_code_qualified",
+            "fenced_file_example"
+        ]
+    );
+
+    let doc = extract_indexed_document(rel, &source, &ExtractOptions::default());
+    let file_labels: Vec<String> = doc
+        .edges
+        .iter()
+        .filter(|edge| edge.kind.as_str() == "file_reference")
+        .filter_map(|edge| edge.label.clone())
+        .collect();
+    assert!(
+        file_labels.iter().any(|label| label == "./present.ts"),
+        "live file ref missing, got {file_labels:?}"
+    );
+    assert!(
+        file_labels.iter().all(|label| {
+            label != "./plc/interlock.stL#41-58"
+                && label != "./file.rq"
+                && label != "./missing.rq"
+        }),
+        "opaque examples leaked as file refs: {file_labels:?}"
     );
 }

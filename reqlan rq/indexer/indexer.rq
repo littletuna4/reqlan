@@ -27,12 +27,14 @@ index {
     (["../language/imports.rq".wildcard_references]).
     Ideas Summary graph can hide those edges via [ideas_summary_doc] /
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    Soft mtime sync skips unchanged files. `extract_version` in the ideas index meta is the extract-rule generation. When that number does not match the engine, sync rebuilds so stale edges do not remain (["../language/syntax.rq".inline_code]).
     Owned by [ownership]; consumed per [consumption].
     @tests (
         ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
         ["../../crates/reqlan-index/tests/schema.rs:schema_v4_columns_round_trip_git_count_and_mtime"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:qualified_ideaset_member_reference_targets_leaf_idea_not_ideaset"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:sync_drops_stale_inline_code_file_refs_when_extract_version_changes"]
     )
 }
 

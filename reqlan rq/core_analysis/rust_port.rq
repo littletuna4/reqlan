@@ -84,6 +84,7 @@ golden_corpus {
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
         ["../../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
     )
 }
 

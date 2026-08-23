@@ -355,6 +355,7 @@ code_snippets {
         ["../../packages/language/test/langium-rust-parse-align.test.ts:fenced_file_example"]
         ["../../crates/reqlan-parse/tests/align.rs:fence_body_is_one_code_snippet_not_inner_refs"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
     )
 }
 
@@ -376,6 +377,11 @@ inline_code {
         ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_example"]
         ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_example_is_not_a_live_ref"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
+        ["../../crates/reqlan-index/src/extract.rs:embedded_scan_skips_backticked_file_ref_with_line_range"]
+        ["../../crates/reqlan-index/src/extract.rs:extract_skips_backticked_file_only_ref"]
+        ["../../crates/reqlan-index/src/extract.rs:site_rq_does_not_index_backticked_interlock_path"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:sync_drops_stale_inline_code_file_refs_when_extract_version_changes"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
     )
 }
 

@@ -1,0 +1,19 @@
+live_anchor {
+    Live file reference ["./present.ts"] must remain an extract edge.
+}
+
+inline_code_file_only {
+    A file-only example with a line-range suffix stays opaque:
+    `["./plc/interlock.stL#41-58"]`
+}
+
+inline_code_qualified {
+    Exact `["./file.rq".missing_idea]` stays [live_anchor].
+}
+
+fenced_file_example {
+    ```
+    ["./missing.rq"]
+    ```
+    then [live_anchor]
+}

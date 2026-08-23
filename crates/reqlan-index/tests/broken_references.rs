@@ -8,8 +8,9 @@
 
 use reqlan_index::sync::{sync_workspace, SyncOptions};
 use reqlan_index::{
-    check_references, list_broken_references, path_glob_matches, CheckReferencesOptions,
-    IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
+    check_references, extract_indexed_document, list_broken_references, path_glob_matches,
+    CheckReferencesOptions, EdgeKind, EdgeRecord, ExtractOptions, IndexStore,
+    ListBrokenReferencesOptions, SparseWildcardHandling, EXTRACT_VERSION,
 };
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -272,6 +273,7 @@ fn check_skips_file_refs_inside_inline_code_and_fences() {
         root.join("host.rq"),
         r#"host {
     Exact `["./example.rq".idea]` stays
+    `["./plc/interlock.stL#41-58"]`
     ```
     ["./fenced.rq"]
     ```
@@ -287,7 +289,11 @@ fn check_skips_file_refs_inside_inline_code_and_fences() {
         "{rows:?}"
     );
     assert!(
-        rows.iter().all(|row| row.label != "./example.rq" && row.label != "./fenced.rq"),
+        rows.iter().all(|row| {
+            row.label != "./example.rq"
+                && row.label != "./fenced.rq"
+                && row.label != "./plc/interlock.stL#41-58"
+        }),
         "{rows:?}"
     );
     std::fs::remove_dir_all(&root).ok();
@@ -514,5 +520,45 @@ fn check_skips_targets_that_match_skip_globs() {
     .unwrap();
     assert_eq!(empty_pattern.len(), all.len(), "{empty_pattern:?}");
 
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn sync_drops_stale_inline_code_file_refs_when_extract_version_changes() {
+    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+    // rq:["../../../reqlan rq/indexer/indexer.rq".index]
+    let root = scratch("stale-extract");
+    let source = concat!("host {\n", "    `[\"", "./gone.ts", "\"]`\n", "}\n");
+    std::fs::write(root.join("host.rq"), source).unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let mut document = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+    document.edges.push(EdgeRecord {
+        id: "host.rq#host->file_reference:./gone.ts".into(),
+        source_id: "host.rq#host".into(),
+        target_id: None,
+        target_file: Some("./gone.ts".into()),
+        kind: EdgeKind::FileReference,
+        label: Some("./gone.ts".into()),
+        source_line: None,
+        snippet: None,
+        is_resolved: Some(true),
+    });
+    let mtime_ms = std::fs::metadata(root.join("host.rq"))
+        .ok()
+        .and_then(|meta| meta.modified().ok())
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as f64);
+    store.persist_extracted(document, mtime_ms).unwrap();
+    store.set_extract_version(0).unwrap();
+
+    sync_workspace(
+        &mut store,
+        &SyncOptions { workspace_root: root.clone(), hard_rebuild: false },
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert_eq!(store.extract_version().unwrap(), EXTRACT_VERSION);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| row.label != "./gone.ts"), "{rows:?}");
     std::fs::remove_dir_all(&root).ok();
 }

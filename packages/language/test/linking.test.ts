@@ -858,13 +858,16 @@ example_ideaset (
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
     test('folder import paths produce folder document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/module/ideas_summary/webview.rq');
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/folder-import');
+        const targetDir = join(fixturesDir, 'target');
+        mkdirSync(targetDir, { recursive: true });
+        const sourcePath = join(fixturesDir, 'importer.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
-                import "../../../../packages/extension/media/webviews/ideas-summary" as ideas_summary_media
+                import "./target" as folder_target
 
                 ideas_summary {
-                    assets from [ideas_summary_media]
+                    assets from [folder_target]
                 }
             `,
             URI.parse(pathToFileURL(sourcePath).href)
