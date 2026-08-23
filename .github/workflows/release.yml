@@ -31,6 +31,7 @@ jobs:
       site_tag: ${{ steps.tags.outputs.site_tag }}
       extension_tag: ${{ steps.tags.outputs.extension_tag }}
       npm_ref: ${{ steps.tags.outputs.npm_ref }}
+      analytical_tag: ${{ steps.tags.outputs.analytical_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -152,6 +153,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'site_tag=\n');
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'extension_tag=\n');
             fs.appendFileSync(process.env.GITHUB_OUTPUT, 'npm_ref=\n');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'analytical_tag=\n');
             process.exit(0);
           }
 
@@ -168,6 +170,7 @@ jobs:
 
           const siteTag = tags.find((tag) => tag.startsWith('site/v')) ?? '';
           const extensionTag = tags.find((tag) => tag.startsWith('ext/v')) ?? '';
+          const analyticalTag = tags.find((tag) => tag.startsWith('analytical/v')) ?? '';
           const npmRef =
             tags.find((tag) =>
               tag.startsWith('language/v') ||
@@ -178,6 +181,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `site_tag=${siteTag}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `extension_tag=${extensionTag}\n`);
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `npm_ref=${npmRef}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `analytical_tag=${analyticalTag}\n`);
           EOF
         env:
           EXTENSION_BEFORE: ${{ steps.versions.outputs.extension_before }}
@@ -217,6 +221,7 @@ jobs:
     uses: ./.github/workflows/deploy-npm.yml
     with:
       npm_ref: ${{ needs.release.outputs.npm_ref }}
+      analytical_tag: ${{ needs.release.outputs.analytical_tag }}
     permissions:
       contents: read
       id-token: write

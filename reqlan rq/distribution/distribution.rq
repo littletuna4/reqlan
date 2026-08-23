@@ -27,7 +27,7 @@ version_management {
 npm_distribution {
   npm publishing runs only when a `language/v*`, `analytical/v*`, `cli/v*`, or `mcp/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the npm workflow does not publish on ordinary commits.
-  The deploy workflow builds language, analytical, cli, and mcp once.
+  The workflow builds platform binaries when `@reqlan/analytical` was bumped (`analytical/v*` tag, or `analytical_tag` from the release workflow). It does not use `github.event_name == 'workflow_call'` for that gate: in a reusable workflow that name is the caller event (`push`), and `npm_ref` is the first language/analytical/cli/mcp tag, so a language bump would skip natives.
   It then publishes each package in sequence with `pnpm --filter <pkg> publish --access public --no-git-checks`.
   The sequence is language, then all platform packages for [native_targets], then `@reqlan/analytical`, then cli, then mcp.
   The workflow does not publish `@reqlan/analytical` until every platform package of that `@reqlan/analytical` version is on the npm registry or was published in the same job ([rust_binary_distribution]).
@@ -53,6 +53,7 @@ npm_distribution {
   @tests (
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
+    ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm builds natives when analytical was bumped, not when npm_ref is language"]
     ["../../packages/analytical/test/native-packaging.test.ts:analytical version is SSOT for platform packages; Changesets ignores them"]
     ["../../packages/analytical/test/native-packaging.test.ts:@reqlan/analytical optionalDependencies are publish-only, not in git"]
     ["../../packages/analytical/test/require-natives-published.test.ts"]
@@ -79,6 +80,7 @@ rust_binary_distribution {
   Each package declares `os` and `cpu`, contains the matching core engine `.node`, and uses the `@reqlan/analytical` package.json version as the single source of truth. ["../../scripts/prepare-native-packages.mjs"] writes that version. Changesets ignores `@reqlan/analytical-*` in ["../../.changeset/config.json"]. Git `@reqlan/analytical` does not list platform packages as `optionalDependencies`; this workspace links them through `packageExtensions` in ["../../pnpm-workspace.yaml"]. The published tarball lists pinned optionalDependencies (`--publish-versions`) ([version_management]).
   CLI and MCP install the host-matching binary from those published optionalDependencies.
   Published on the existing `analytical/v*` channel ([npm_distribution] / [release_tagging]); not a separate tag channel.
+  The napi build runs when this channel moved: a direct `analytical/v*` tag, or `analytical_tag` from [deployment_flow]. The first npm tag (`npm_ref`) can be `language/v*` in the same release, so that ref is not the native-build gate.
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
   Per-target VSIX packaging uses the same package layout under ["../../packages/analytical-native/"], filled by Azure from this git commit ([vsix_export], [vsix_native_not_from_npm]). npm tarballs of those packages are for CLI/MCP only.
@@ -90,6 +92,7 @@ rust_binary_distribution {
     ["../../packages/analytical/test/load-native.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts"]
     ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm publishes platform packages before @reqlan/analytical"]
+    ["../../packages/analytical/test/native-packaging.test.ts:deploy-npm builds natives when analytical was bumped, not when npm_ref is language"]
     ["../../packages/analytical/test/native-packaging.test.ts:analytical version is SSOT for platform packages; Changesets ignores them"]
     ["../../packages/analytical/test/native-packaging.test.ts:@reqlan/analytical optionalDependencies are publish-only, not in git"]
     ["../../packages/analytical/test/require-natives-published.test.ts"]

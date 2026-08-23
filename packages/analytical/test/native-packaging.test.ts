@@ -213,4 +213,30 @@ describe("native platform packaging", () => {
       "if: steps.check_analytical.outputs.should_publish == 'true'",
     );
   });
+
+  // rq:["../../../reqlan rq/distribution/distribution.rq".npm_distribution]
+  // rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+  test("deploy-npm builds natives when analytical was bumped, not when npm_ref is language", () => {
+    const deployNpm = readFileSync(
+      join(root, ".github/workflows/deploy-npm.yml"),
+      "utf8",
+    );
+    const release = readFileSync(
+      join(root, ".github/workflows/release.yml"),
+      "utf8",
+    );
+    const buildIf = deployNpm.slice(
+      deployNpm.indexOf("name: Build napi"),
+      deployNpm.indexOf("strategy:"),
+    );
+    expect(buildIf).toContain("startsWith(inputs.analytical_tag, 'analytical/v')");
+    expect(buildIf).toContain("startsWith(github.ref, 'refs/tags/analytical/v')");
+    expect(buildIf).not.toContain("github.event_name == 'workflow_call'");
+    expect(deployNpm).toContain("analytical_tag:");
+    expect(release).toContain("analytical_tag: ${{ steps.tags.outputs.analytical_tag }}");
+    expect(release).toContain(
+      "analytical_tag: ${{ needs.release.outputs.analytical_tag }}",
+    );
+    expect(release).toContain("analytical_tag=${analyticalTag}");
+  });
 });
