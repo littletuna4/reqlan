@@ -10,8 +10,8 @@ use reqlan_analytical::{
 use reqlan_index::queries::{
     self, GraphViewQuery, IdeasTableQuery, IdeasetsTableQuery, ReferencesTableQuery,
 };
-use reqlan_index::{EdgeRecord, IdeaRecord, SqlBridge};
-use reqlan_parse::{parse_document, Import, Severity, TopLevelElement};
+use reqlan_index::{EdgeRecord, IdeaRecord, SparseWildcardHandling, SqlBridge};
+use reqlan_parse::{parse_document, Severity};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -104,6 +104,25 @@ impl NativeAnalysisRuntime {
                 path_glob.as_deref(),
                 include_comment_references.unwrap_or(false),
             )
+            .map_err(map_err)?;
+        serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+    #[napi]
+    pub fn check_references(
+        &self,
+        path_glob: Option<String>,
+        wildcard_zero: Option<String>,
+        wildcard_one: Option<String>,
+    ) -> Result<serde_json::Value> {
+        let wildcard_zero = parse_sparse_wildcard_handling("wildcardZero", wildcard_zero)?;
+        let wildcard_one = parse_sparse_wildcard_handling("wildcardOne", wildcard_one)?;
+        let rows = self
+            .lock()?
+            .check(path_glob.as_deref(), wildcard_zero, wildcard_one)
             .map_err(map_err)?;
         serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
     }
@@ -1278,10 +1297,23 @@ impl NativeWorkspaceIndex {
 
 /// Single-file parse for CLI `reqlan parse` — no workspace index, no Langium.
 /// rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
+/// rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_align]
 /// rq:["../../../reqlan rq/cli/cli_package.rq".commands]
 #[napi]
 pub fn parse_reqlan_source(source: String) -> Result<serde_json::Value> {
     Ok(parse_source_summary(&source))
+}
+
+/// 0-based line indexes whose diagnostics `//rq-ignore-error` suppresses.
+/// rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+#[napi(js_name = "findRqIgnoreErrorTargetLines")]
+pub fn find_rq_ignore_error_target_lines(source: String) -> Vec<i64> {
+    let mut lines: Vec<i64> = reqlan_index::find_rq_ignore_error_target_lines(&source)
+        .into_iter()
+        .map(i64::from)
+        .collect();
+    lines.sort_unstable();
+    lines
 }
 
 /// Top-level idea names in a document — used by git-context historical extract.
@@ -1341,12 +1373,16 @@ pub fn create_base(base_root: String) -> Result<serde_json::Value> {
 
 fn parse_source_summary(source: &str) -> serde_json::Value {
     let parsed = parse_document(source);
-    let elements: Vec<serde_json::Value> = parsed
-        .model
-        .imports
+    let align = reqlan_parse::align_snapshot_from_parsed(&parsed);
+    let elements: Vec<serde_json::Value> = align
+        .elements
         .iter()
-        .map(import_element)
-        .chain(parsed.model.elements.iter().map(top_level_element))
+        .map(|element| {
+            serde_json::json!({
+                "type": element.type_name,
+                "name": element.name,
+            })
+        })
         .collect();
     let diagnostics: Vec<serde_json::Value> = parsed
         .diagnostics
@@ -1374,32 +1410,18 @@ fn parse_source_summary(source: &str) -> serde_json::Value {
         "errorCount": error_count,
         "diagnostics": diagnostics,
         "elements": elements,
+        "refs": align
+            .refs
+            .iter()
+            .map(|reference| serde_json::json!({
+                "form": reference.form,
+                "kind": reference.kind,
+                "label": reference.label,
+            }))
+            .collect::<Vec<_>>(),
+        "inlineCodeCount": align.inline_code_count,
+        "codeSnippetCount": align.code_snippet_count,
     })
-}
-
-fn import_element(import: &Import) -> serde_json::Value {
-    match import {
-        Import::From(from) => serde_json::json!({ "type": "FromImport", "name": from.path }),
-        Import::Namespace(namespace) => serde_json::json!({
-            "type": "NamespaceImport",
-            "name": namespace.alias.clone().unwrap_or_else(|| namespace.path.clone()),
-        }),
-        Import::Qualified(qualified) => {
-            serde_json::json!({ "type": "QualifiedImport", "name": qualified.idea })
-        }
-        Import::InvalidFrom(_) => serde_json::json!({ "type": "InvalidFromImport" }),
-    }
-}
-
-fn top_level_element(element: &TopLevelElement) -> serde_json::Value {
-    match element {
-        TopLevelElement::Idea(idea) => serde_json::json!({ "type": "Idea", "name": idea.name }),
-        TopLevelElement::IdeaSet(set) => serde_json::json!({ "type": "IdeaSet", "name": set.name }),
-        TopLevelElement::OneLiner(one) => {
-            serde_json::json!({ "type": "OneLinerIdea", "name": one.name })
-        }
-        TopLevelElement::Anonymous(_) => serde_json::json!({ "type": "AnonymousBlock" }),
-    }
 }
 
 fn column_at(source: &str, offset: usize) -> u32 {
@@ -1413,6 +1435,15 @@ fn line_text(source: &str, offset: usize) -> String {
     let start = source[..clamped].rfind('\n').map(|index| index + 1).unwrap_or(0);
     let end = source[start..].find('\n').map(|index| start + index).unwrap_or(source.len());
     source.get(start..end).unwrap_or("").to_string()
+}
+
+fn parse_sparse_wildcard_handling(
+    label: &str,
+    value: Option<String>,
+) -> Result<SparseWildcardHandling> {
+    let raw = value.unwrap_or_else(|| SparseWildcardHandling::Warn.as_str().to_string());
+    SparseWildcardHandling::parse(&raw)
+        .ok_or_else(|| Error::from_reason(format!("{label} must be warn, error, or off")))
 }
 
 fn map_err(error: reqlan_analytical::AnalysisError) -> Error {

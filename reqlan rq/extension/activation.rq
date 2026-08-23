@@ -43,7 +43,7 @@ first_paint_startup {
     ["../../packages/extension/src/extension/startup-gate.ts"] resolves that handshake once; `IndexService.activate` then discovers bases and syncs. If no view opens, a bounded three-second fallback starts the index without any visible first paint to contend with.
     Index open/sync requires the host-matching core engine (rusqlite); missing `.node` fails activate.
     Windows claim/dispose races: ["./startup-performance.rq".webview_claim_race].
-    @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/extension/test/safe-webview-post.test.ts", "../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    @tests ("../../packages/extension/test/startup-gate.test.ts", "../../packages/extension/test/safe-webview-post.test.ts", "../../packages/analytical/src/index-store/workspace-index.ts")
     @status done
 }
 

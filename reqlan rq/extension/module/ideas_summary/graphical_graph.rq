@@ -1,4 +1,5 @@
-from "../library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
+from "../../../ontology.rq" import referenced_files
+from "@/reqlan rq/extension/library/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
 from "./webview.rq" import ideas_summary
 from "../../../core_analysis/html_export.rq" import html_export_graph_page
 
@@ -7,13 +8,13 @@ from "../../../core_analysis/html_export.rq" import html_export_graph_page
 graphical_graph {
     There should be a tab that renders requirement ideas and references as a force-directed web.
     The graph tab lives in the Ideas Summary webview per [ideas_summary].
-    UI is implemented in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"].
-    Graph slices are built in ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"] and served by ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
+    UI is implemented in ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"].
+    Graph slices are built in ["../../../../packages/analytical/src/index-store/webview-graph-queries.ts"] and served by ["../../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
     By default the view focuses on the active editor file's first idea; without a focus it shows a capped slice of matching ideas rather than dumping the full graph.
     Users can filter by search text, path, multi-select @status, and multi-select tags per [graph_status_tag_filters].
     An "Indirect references" toggle expands neighbourhood depth from 1 to 2 hops.
     A "Wildcard refs" toggle includes or hides edges expanded from path+idea wildcards per [wildcard_refs_toggle]
-    (["../../language/imports.rq".wildcard_references]).
+    ["@/reqlan rq/language/imports.rq".wildcard_references]
     A "Files" dropdown selects hosting-`.rq` treatment per [file_treatment_toggle]
     (hidden / compound containers / linked ideaset nodes), with per-option info tooltips.
     Interactive graph controls that also exist on HTML export must stay aligned per [webview_export_graph_parity].
@@ -32,17 +33,17 @@ library {
     should consume the [graph_library]
 }
 
-root ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+root ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
 
 ui_controls {
-    Controls live in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] and dispatch events to GraphView.
+    Controls live in ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"] and dispatch events to GraphView.
     [manual_reframe] — "Fit to view" calls GraphCyController.reframeToViewport per [reframe_view].
     [auto_reframe] and [reframe_animation] are handled by the shared controller; no extra UI beyond pan/zoom/drag.
     Labels control cycles [graph_label_modes] (auto / on / off) and applies [graph_label_auto] via GraphCyController.setLabelMode.
-    Files dropdown ([file_treatment_toggle]) uses ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
+    Files dropdown ([file_treatment_toggle]) uses ["../../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
     with Hidden / Compound / Linked options and info tooltips; selection patches `fileTreatment` in [graph_ui_persistence].
     Status and tag filters are multi-select dropdowns per [graph_status_tag_filters].
-    The Key button toggles a draggable legend panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
+    The Key button toggles a draggable legend panel in ["../../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] over the graph canvas.
     The Controls button toggles [control_panel].
     Overlay panels (Key and Controls) are siblings of the cytoscape mount inside a graph-surface-wrap — never children of the cy container — so native form controls receive pointer events.
 }
@@ -50,44 +51,44 @@ ui_controls {
 wildcard_refs_toggle {
     Toolbar chip "Wildcard refs" (next to Indirect refs) on GraphControls toggles `GraphViewQuery.includeWildcardRefs`.
     Default true — edges of kind `wildcard_reference` from the indexer fan-out stay visible
-    (["../../indexer/indexer.rq".wildcard_reference_edges]).
+    (["../../../indexer/indexer.rq".wildcard_reference_edges]).
     When false, `buildGraphViewSlice` omits those edges and does not expand neighbourhood through them
     (`includeWildcardRefs !== false` normalisation in Ideas Summary host + analytical query).
     Distinct from plain `references` and from the Indirect refs depth toggle; Key legend shows a dotted
     "Wildcard reference" row; cytoscape marks `edge[?isWildcard]` with `line-style: dotted`.
     Query field flows Ideas Summary loadGraph → `buildGraphViewSlice` in
-    ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"].
+    ["../../../../packages/analytical/src/index-store/webview-graph-queries.ts"].
     HTML export workspace graph has the same chip (client filter on embedded edges; dotted stroke) per
     [webview_export_graph_parity] and [html_export_graph_page].
-    Related: ["../../language/imports.rq".wildcard_references],
-    ["../../indexer/indexer.rq".wildcard_reference_edges],
-    ["../../indexer/indexer.rq".index],
+    Related: ["../../../language/imports.rq".wildcard_references],
+    ["../../../indexer/indexer.rq".wildcard_reference_edges],
+    ["../../../indexer/indexer.rq".index],
     [graphical_graph], [ui_controls], [webview_export_graph_parity].
 
     @status done
     @implementation (
-        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
-        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
-        ["../../../packages/extension/src/webview_module/shared/messages.ts"]
-        ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
-        ["../../../packages/extension/webviews/ideas-summary/lib/default-queries.ts"]
-        ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
-        ["../../../crates/reqlan-index/src/extract.rs"]
-        ["../../../packages/analytical/src/index-store/idea-extractor.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"]
-        ["../../../packages/extension/webviews/ideas-summary/styles/global.css"]
-        ["../../../crates/reqlan-export/src/html_template.rs"]
-        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../../packages/extension/src/webview_module/shared/messages.ts"]
+        ["../../../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../../../packages/extension/webviews/ideas-summary/lib/default-queries.ts"]
+        ["../../../../packages/analytical/src/index-store/webview-graph-queries.ts"]
+        ["../../../../crates/reqlan-index/src/extract.rs"]
+        ["../../../../crates/reqlan-index/src/extract.rs"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-theme.ts"]
+        ["../../../../packages/extension/webviews/ideas-summary/styles/global.css"]
+        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
-        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
-        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts"]
-        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
     )
 }
 
@@ -103,33 +104,33 @@ file_treatment_toggle {
       - linked / Linked nodes (default) — synthetic ideaset-styled leaf per hosting file (`rq-file:…`) with `ideaset_member`
         edges to ideas in that file; click/dbl-click opens the hosting file like other nodes.
     Client reshape via `applyFileTreatment` in
-    ["../../../packages/analytical/src/index-store/file-treatment.ts"]; no re-query on mode flip.
+    ["../../../../packages/extension/webviews/shared/graph/file-treatment.ts"]; no re-query on mode flip.
     Ideas Summary: `FileTreatmentSelect` on GraphControls; persisted as `fileTreatment` in
     [graph_ui_persistence].
     HTML export: same three options via a select; compound boxes are hittable/draggable with
     clickable titles; linked nodes carry `pageUrl` / `hostFilePageUrl` for navigation.
     Related: [graphical_graph], [ui_controls], [webview_export_graph_parity],
-    ["../../ontology.rq".file], ["../../ontology.rq".ideaset],
+    ["../../../ontology.rq".file], ["../../../ontology.rq".ideaset],
     [html_export_graph_page].
 
     @status done
     @implementation (
-        ["../../../packages/analytical/src/index-store/file-treatment.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]
-        ["../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"]
-        ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
-        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
-        ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
-        ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
-        ["../../../crates/reqlan-export/src/html_template.rs"]
-        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../../packages/extension/webviews/shared/graph/file-treatment.ts"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-cy-interactions.ts"]
+        ["../../../../packages/extension/webviews/shared/graph/graph-cy-highlight.ts"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
+        ["../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
+        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../../packages/analytical/test/file-treatment.test.ts"]
-        ["../../../packages/extension/test/graph-ui-state.test.ts"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../../packages/extension/webviews/shared/graph/file-treatment.ts"]
+        ["../../../../packages/extension/test/graph-ui-state.test.ts"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
     )
 }
 
@@ -153,29 +154,29 @@ webview_export_graph_parity {
 
     @status done
     @implementation (
-        ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
-        ["../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
-        ["../../../crates/reqlan-export/src/html_template.rs"]
-        ["../../../crates/reqlan-export/assets/app.js"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
+        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
-        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
-        ["../../../packages/analytical/test/file-treatment.test.ts"]
-        ["../../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
-        ["../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
-        ["../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count"]
+        ["../../../../packages/extension/webviews/shared/graph/file-treatment.ts"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
+        ["../../../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
+        ["../../../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
     )
 }
 
 graph_loading {
     the extension pushes graphSlice when the index is ready — no empty waitingForIndex wedge.
-    ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"] sets graphSlicePending on loadGraph and delivers the slice when the index becomes ready (including via index status updates).
+    ["../../../../packages/extension/src/webview_module/ideas-summary-panel.ts"] sets graphSlicePending on loadGraph and delivers the slice when the index becomes ready (including via index status updates).
     Index status posts must not await graph slice builds, so sync progress keeps updating the Index tab.
-    webview state in ["../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"] is query, slice, loading, rendering, and error only.
+    webview state in ["../../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"] is query, slice, loading, rendering, and error only.
     App.init attaches the window message listener during App.svelte script setup (before child onMount) so loadGraph replies are never dropped.
     GraphView marks a slice as synced only in onRendered (after cytoscape flush + layout), not before syncSlice is queued.
-    Webview→extension posts go through ["../../../packages/extension/webviews/ideas-summary/lib/vscode.ts"] which JSON-clones payloads so Svelte $state proxies are structured-clone safe.
+    Webview→extension posts go through ["../../../../packages/extension/webviews/ideas-summary/lib/vscode.ts"] which JSON-clones payloads so Svelte $state proxies are structured-clone safe.
     GraphView remount reuses app.graph.slice when present; it only loadGraphs when there is no slice and nothing in flight, or force-retries after an error.
     GraphView mounts only while the graph tab is active (see TabPanels); per [graph_cy_controller] do not keep cytoscape alive under display:none.
 }
@@ -184,7 +185,7 @@ node_truncation {
     nodes are truncated if there are too many.
     the count should be configurable; as should the truncation basis (last changed.., last accessed.., owned by etc.)
     Max nodes and keep-by basis are edited in [control_panel]; query fields are maxNodes and truncationBasis on GraphViewQuery.
-    Default budget is GRAPH_MAX_NODES (120); hard ceiling is GRAPH_NODES_HARD_CAP (1000) in ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"] — raise that constant to lift the cap.
+    Default budget is GRAPH_MAX_NODES (120); hard ceiling is GRAPH_NODES_HARD_CAP (1000) in ["../../../../packages/analytical/src/index-store/webview-graph-queries.ts"] — raise that constant to lift the cap.
     Supported bases today: path, git-modified, git-created (git timestamps from the index). Last-accessed / owned-by need index fields before UI can offer them.
 }
 
@@ -203,7 +204,7 @@ key_and_controls {
 }
 
 control_panel {
-    Floating panel in ["../../../packages/extension/webviews/ideas-summary/components/GraphControlPanel.svelte"], toggled from [ui_controls].
+    Floating panel in ["../../../../packages/extension/webviews/ideas-summary/components/GraphControlPanel.svelte"], toggled from [ui_controls].
     Provides layout algorithm selection, live-physics toggle, compound grouping, physics force sliders, max node count, and truncation basis.
     Physics tunables call GraphCyController.setPhysicsSettings; node budget changes re-request the graph slice via loadGraph.
     Mounted as a sibling of the cytoscape container (not inside it) so range sliders and selects work with native browser events.
@@ -213,19 +214,19 @@ control_panel {
 
 key_panel_toggle {
     the key panel should be able to toggle inclusion/visibility of the different node types.
-    Node-type rows in ["../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] are toggle buttons; hidden types render dimmed with a struck-through label.
-    Toggleable types are block, one-liner, ideaset, focused idea, and external file — GraphNodeTypeId in ["../../../packages/extension/webviews/shared/graph/graph-theme.ts"], classified per node by graphNodeTypeId (same priority as node fill colour).
+    Node-type rows in ["../../../../packages/extension/webviews/ideas-summary/components/GraphKeyPanel.svelte"] are toggle buttons; hidden types render dimmed with a struck-through label.
+    Toggleable types are block, one-liner, ideaset, focused idea, and external file — GraphNodeTypeId in ["../../../../packages/extension/webviews/shared/graph/graph-theme.ts"], classified per node by graphNodeTypeId (same priority as node fill colour).
     Linked file ideaset nodes (`isFileIdeaset`) classify as ideaset for Key toggles; file compound containers are legend-only ("File group") and follow member visibility like other compounds.
-    GraphView tracks hidden types and calls GraphCyController.setHiddenNodeTypes in ["../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"], which flags matching nodes with data typeHidden; a display:none stylesheet rule in ["../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"] hides them, and cytoscape hides edges whose endpoint is hidden.
+    GraphView tracks hidden types and calls GraphCyController.setHiddenNodeTypes in ["../../../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"], which flags matching nodes with data typeHidden; a display:none stylesheet rule in ["../../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"] hides them, and cytoscape hides edges whose endpoint is hidden.
     Compound containers whose members are all hidden are hidden too. Hiding is client-side visibility only: the slice still contains the nodes, node/edge counts are unchanged, and flags reapply after every slice sync.
     Key open state and hidden node types persist per [graph_ui_persistence].
 }
 
 graph_ui_persistence {
     Key and Controls state is stored in VS Code ExtensionContext.workspaceState under key GRAPH_UI_WORKSPACE_STATE_KEY (reqlan.ideasSummary.graphUi).
-    Shape and normalisation live in ["../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]; the host reads/writes it from ["../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
-    On webview ready the extension posts graphUiState; the webview posts persistGraphUiState (debounced) whenever AppState.patchGraphUi runs in ["../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"].
+    Shape and normalisation live in ["../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]; the host reads/writes it from ["../../../../packages/extension/src/webview_module/ideas-summary-panel.ts"].
+    On webview ready the extension posts graphUiState; the webview posts persistGraphUiState (debounced) whenever AppState.patchGraphUi runs in ["../../../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"].
     Persisted fields: showKey, showControls, hiddenNodeTypes, layoutId, useCompound, compoundBasisId, animatePhysics, labelMode, fileTreatment, maxNodes, truncationBasis, and the five physics sliders (gravity, repulsion, linkStrength, linkDistance, damping).
-    GraphView in ["../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types/label mode/fileTreatment to GraphCyController when those fields change.
+    GraphView in ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"] treats app.graph.ui as the source of truth and applies layout/physics/hidden types/label mode/fileTreatment to GraphCyController when those fields change.
     The first graph load waits for graphUiState so restored node budget is included in loadGraph.
 }

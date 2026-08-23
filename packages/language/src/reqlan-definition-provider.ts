@@ -278,7 +278,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
 
     private createFileLink(source: CstNode, reference: FileReference | FileSymbolReference): GoToLink | undefined {
         const resolved = resolveFileReferenceLink(reference, this.documents, this.fileSystem, this.pathContext());
-        if (!resolved) {
+        if (!resolved || resolved.resolution === 'missing') {
             return undefined;
         }
         const targetDocument = this.documents.getDocument(URI.parse(resolved.targetUri));

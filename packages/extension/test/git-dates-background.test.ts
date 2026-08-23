@@ -1,9 +1,9 @@
 /**
  * Tests for silent background git_dates indexing (batched, yielded, not on-the-fly).
- * rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
- * rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
- * rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
- * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+ * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { describe, expect, test } from 'vitest';
 import {
@@ -15,7 +15,7 @@ import {
 } from '../src/extension/git-dates-background.js';
 
 describe('git dates background indexing', () => {
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('does nothing when the index is not ready', async () => {
         const runAnalyser = async (): Promise<void> => {
             throw new Error('should not run');
@@ -30,7 +30,7 @@ describe('git dates background indexing', () => {
         expect(result).toEqual({ processed: 0, batches: 0 });
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('processes missing ids in small batches and yields between them', async () => {
         const missing = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
         const batches: string[][] = [];
@@ -60,7 +60,7 @@ describe('git dates background indexing', () => {
         expect(GIT_DATES_BG_BATCH_SIZE).toBe(3);
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('skips already-attempted ids and respects the wave cap', async () => {
         const attempted = new Set<string>(['skip-me']);
         const seen: string[] = [];
@@ -87,7 +87,7 @@ describe('git dates background indexing', () => {
         expect(seen).toHaveLength(10);
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('marks ids attempted even when the analyser fails', async () => {
         const attempted = new Set<string>();
         await runGitDatesBackgroundWave({
@@ -113,7 +113,7 @@ describe('git dates background indexing', () => {
         expect(second.processed).toBe(0);
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('processes active-file priority ids before the global backlog', async () => {
         const attempted = new Set<string>();
         const seen: string[] = [];
@@ -142,7 +142,7 @@ describe('git dates background indexing', () => {
         expect(takePreferredIdeaIds(['a', 'b'], ['b', 'c'], 2)).toEqual(['a', 'b']);
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('stops early when shouldStop flips so a new file can be prioritised', async () => {
         const attempted = new Set<string>();
         const seen: string[] = [];
@@ -170,7 +170,7 @@ describe('git dates background indexing', () => {
 });
 
 describe('git dates schedule delay', () => {
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
     test('catalog events debounce and do not follow the short editor delay', () => {
         expect(
             gitDatesScheduleDelayMs({
@@ -202,7 +202,7 @@ describe('git dates schedule delay', () => {
         ).toBe(1_500);
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_rate_cap]
     test('catalog waves wait for the min gap after a fill', () => {
         expect(
             gitDatesScheduleDelayMs({

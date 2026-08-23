@@ -127,12 +127,14 @@ auth_surface (login, session.session_expiry, session.session_refresh)`,
       label: "typescript",
       rule: {
         language: "ts",
+        // rq-ignore-error
         code: `// rq:["./syntax.rq".comment_reference]
 // An rq: comment in TypeScript pins this location back to an idea.`,
       },
       practical: {
         label: "auth.test.ts",
         language: "ts",
+        // rq-ignore-error
         code: `// rq:["./expiry.rq".session_expiry]
 test("rejects expired access token", async () => {
   const res = await request(app)
@@ -163,12 +165,14 @@ Promote only after staging smoke passes.`,
       label: "python",
       rule: {
         language: "py",
+        // rq-ignore-error
         code: `# rq:["./syntax.rq".comment_reference]
 # An rq: comment in Python pins this location back to an idea.`,
       },
       practical: {
         label: "session_store.py",
         language: "py",
+        // rq-ignore-error
         code: `# rq:["./session.rq".session_store]
 class SessionStore:
     def validate(self, token: str) -> bool:

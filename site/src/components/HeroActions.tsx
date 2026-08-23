@@ -2,17 +2,23 @@
 
 import { useEffect, useState } from "react";
 
-import { cta } from "@/content/hero";
+import { PhonebookIcon } from "@/components/PhonebookIcon";
+import { cta, starCta } from "@/content/hero";
 import { prefersReducedMotion } from "@/lib/deeplink";
+import { getPhonebookLink } from "@/lib/phonebook";
 import { sitePath } from "@/lib/paths";
-import { InstallSplitButton } from "@/components/InstallSplitButton";
+import { CliInstallButton, InstallSplitButton } from "@/components/InstallSplitButton";
 import { Tip } from "@/components/Tip";
 import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import styles from "./HeroActions.module.css";
 
 export function HeroActions() {
   // rq:["../../../reqlan rq/site/site.rq".cta_icon]
+  // rq:["../../../reqlan rq/site/site.rq".install_cli_menu]
   // rq:["../../../reqlan rq/site/site.rq".hero_section]
+  // rq:["../../../reqlan rq/site/site.rq".get_started_cta_motion]
+  // rq:["../../../reqlan rq/site/site.rq".hero_github_star]
+  const github = getPhonebookLink(starCta.linkId);
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -36,6 +42,17 @@ export function HeroActions() {
         </Tip>
 
         <InstallSplitButton />
+        <CliInstallButton />
+
+        <a
+          href={github.href}
+          className={styles.star}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <PhonebookIcon icon={github.icon} className={styles.starIcon} />
+          {starCta.label}
+        </a>
       </div>
     </div>
   );

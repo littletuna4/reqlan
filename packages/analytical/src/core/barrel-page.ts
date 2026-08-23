@@ -3,9 +3,9 @@
  * The plan is computed by the native engine (`reqlan-parse`); this module only performs
  * the filesystem writes. Shared by CLI `barrel`, the extension code action, and headless tools.
  *
- * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
- * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/extension/features-commands.rq".barrel_page]
+ * rq:["../../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';

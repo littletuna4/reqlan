@@ -55,7 +55,7 @@ workspace_agent_files {
     Install Cursor Skills ([skills_mcp.cursor_skills_install]) copies bundled `rq-*` skills into `<workspace>/.cursor/skills/` and writes `<workspace>/.cursor/mcp.json` ([install_cursor_skills_impl]): local `packages/mcp/bin/mcp.js` when present, otherwise `npx -y @reqlan/mcp`.
     Requires an open workspace folder; does not create a base and does not write into `.reqlan`.
     Naming: skills / chat slash commands use `rq-` prefix ([skills_mcp.chat_skill_naming]); command palette stays category "reqlan" ([configuration.ai_naming]).
-    AI command surfaces that depend on skills being present: [agents.ai_integration], [agents.ai_build_requirement], [agents.ai_add_to_context], [agents.ai_write_plan].
+    AI command surfaces that depend on skills being present: [agents.ai_integration], [agents.ai_build_requirement], [agents.ai_add_to_context], [agents.ai_write_plan], [agents.ai_fix_stale_references].
     Dev sync of the same skill sources into this repo's `.cursor/skills` is a build concern (["../development/build.rq"]), distinct from end-user install sequencing.
 }
 

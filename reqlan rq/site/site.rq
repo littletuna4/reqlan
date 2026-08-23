@@ -7,7 +7,7 @@ import "../core_analysis/html_export.rq" as html_export
 import "../cli/cli_package.rq" as cli_package
 import "../../site/src/components/Contact.tsx" as contact_component
 import "../../site/src/components/Hero.tsx" as hero_component
-import "../../site/src/components/PhonebookIcon.tsx" as phonebook_icon_component
+import "../../site/src/components/PhonebookIcon.tsx" as phonebook_icon_tsx_component
 import "../../site/src/lib/phonebook-icons.ts" as phonebook_icon_registry
 
 site {
@@ -86,8 +86,10 @@ components {
         - example per [example_section]
         - roadmap per [roadmap_section]
     - CTA:
-        - download the extension
+        - install the extension and the CLI
         per [cta_icon]
+        per [install_cli_menu]
+        - GitHub star on the hero action row per [hero_github_star]
         - sticky draggable action buttons per [sticky_cta_node]
     - 404 page (just something silly / a redirect)
 }
@@ -96,12 +98,49 @@ hero_section {
     Landing `#hero`: mascot plus a short `.rq` snippet.
     Copy lives in ["../../site/src/content/hero.ts"] per [copy].
     The snippet must parse as accurate reqlan per [accurate_rq_snippets_must_parse].
-    Install control is [cta_icon]; get-started CTA href is `/quickstart` per [quickstart_page].
+    Install controls are [cta_icon] and [install_cli_menu]; get-started CTA href is `/quickstart` per [quickstart_page].
+    Get-started motion follows [get_started_cta_motion].
+    A GitHub star control sits in the action row per [hero_github_star].
     @status done
     @implementation (
         ["../../site/src/content/hero.ts"]
         ["../../site/src/components/Hero.tsx"]
         ["../../site/src/components/HeroActions.tsx"]
+    )
+}
+
+get_started_cta_motion {
+    The get-started control on [hero_section] shows a moving colour wash on the border and on the button fill.
+    The wash uses the aqua and rust brand colours.
+    The border wash and the fill wash share one spin period and one spin direction.
+    When the visitor prefers reduced motion, show a static fill and a static border.
+    per [styling_architecture]
+    @status done
+    @implementation (
+        ["../../site/src/components/ui/hover-border-gradient.tsx"]
+        ["../../site/src/components/ui/hover-border-gradient.module.css"]
+        ["../../site/src/components/HeroActions.tsx"]
+    )
+    @tests (
+        ["../../site/src/components/ui/hover-border-gradient.test.ts"]
+    )
+}
+
+hero_github_star {
+    The [hero_section] action row shows a Star on GitHub control next to get-started and the install controls.
+    The control opens the GitHub repository from [phonebook_reqs.phonebook] in a new tab.
+    The icon comes from [phonebook_icon_component].
+    Copy lives in ["../../site/src/content/hero.ts"] per [copy].
+    The hero control is in addition to [sticky_cta_node] and [support_page_reqs.support_page].
+    @status done
+    @implementation (
+        ["../../site/src/content/hero.ts"]
+        ["../../site/src/components/HeroActions.tsx"]
+        ["../../site/src/components/HeroActions.module.css"]
+    )
+    @tests (
+        ["../../site/src/content/hero.test.ts"]
+        ["../../site/src/components/HeroActions.test.ts"]
     )
 }
 
@@ -250,6 +289,7 @@ faq_page {
     - how reqlan supports token efficiency
     - whether reqlan is the de facto standard for efficient developer-centric context management and semantic mapping
     - when to use reqlan
+    - how `.rq` files stay in sync with code per [faq_drift]
     - how to support reqlan (GitHub stars, GitHub Sponsors, VS Marketplace stars, Discord, contribution, bug reporting)
     Sidebar nests FAQ question anchors as same-page children per [sidebar_nav].
     Landing nav graph includes FAQ as a page node.
@@ -263,6 +303,30 @@ faq_page {
         ["../../site/src/components/Sidebar.tsx"]
         ["../../site/src/components/NavGraph.tsx"]
     )
+    @tests (
+        ["../../site/src/content/faq.test.ts"]
+    )
+}
+
+faq_drift {
+    The FAQ includes this question: How do you keep `.rq` files from drifting once the code moves on?
+    `.rq` files are code. They are the source of truth. They are not a document.
+    Specify material work as an idea first.
+    Implementation and tests point back with rq-comments per [development_core.code_comment_references] and [development_core.testing].
+    A check requires each test to serve a requirement.
+    Agents see only the ideas that attach to the files they touch.
+    Mark a replaced idea deprecated and point to the new idea.
+    The indexer flags missing references like a compile check.
+    Copy lives in ["../../site/src/content/faq.ts"] (item id `drift`) per [copy] and [faq_page].
+    The sidebar nests this question as a same-page child per [sidebar_nav].
+    @status done
+    @implementation (
+        ["../../site/src/content/faq.ts"]
+        ["../../site/src/content/nav.ts"]
+    )
+    @tests (
+        ["../../site/src/content/faq.test.ts"]
+    )
 }
 
 quickstart_page {
@@ -270,6 +334,8 @@ quickstart_page {
     Primary path: editor install chooser.
     Also explains headless [cli_package.cli_package] (`@reqlan/cli`) and ["../core-architecture.rq".mcp_package] (`@reqlan/mcp`) on the same `.reqlan` index.
     Package npm hrefs come from [phonebook_reqs.npm_packages], not hardcoded URLs.
+    CLI and MCP install commands offer npm, pnpm, yarn, and bun per [install_cli_menu].
+    They share one stored preference per [package_manager_preference].
     After install steps, it links onward to Tutorials, Showcases, and FAQ so visitors can continue without returning to the home nav.
     Related link copy lives in ["../../site/src/content/quickstart.ts"] per [copy].
     Sidebar nests Extension / CLI / MCP as same-page children per [sidebar_nav].
@@ -281,6 +347,9 @@ quickstart_page {
         ["../../site/src/components/QuickstartClient.module.css"]
         ["../../site/src/content/quickstart.ts"]
         ["../../site/src/content/nav.ts"]
+    )
+    @tests (
+        ["../../site/src/content/install-actions.test.ts"]
     )
 }
 
@@ -383,7 +452,7 @@ logo {
 }
 
 assets {
-    this site is published in in gh pages at the "/reqlan" path. Any assets in the /public folder should be referenced as "/reqlan/assets/...".
+    this site is published in in gh pages at the `/reqlan` path. Any assets in the /public folder should be referenced as `/reqlan/assets/...`.
     Embedded spec export hrefs follow the same base via [spec_html_export] / [html_export.html_export_url_base].
 }
 
@@ -470,7 +539,7 @@ icon_registry {
 }
 
 phonebook_icon_component {
-    [phonebook_icon_component] is the site's single render entry point for phonebook icons (`@iconify/react`).
+    [phonebook_icon_tsx_component] is the site's single render entry point for phonebook icons (`@iconify/react`).
     It accepts an optional phonebook `icon` ref. If the ref is absent, it renders nothing. If the ref is present, it renders an inline SVG with `aria-hidden`.
     Default sizing uses the `.phonebook-icon` class in ["../../site/src/styles/globals.css"].
     Must remain compatible with static export per [simple_lightweight_and_static].
@@ -492,11 +561,70 @@ package_icons {
 }
 
 cta_icon {
-    The hero install control is a single "Install" menu button that opens an editor/download chooser (Cursor, VS Code, Open VSX, Download VSIX) — it must not assume the user's editor or pre-select one silently.
+    The hero has a separate "Install extension" menu button.
+    The menu lists Cursor, VS Code, and Download VSIX.
+    It must not include Open VSX. Open VSX stays on [quickstart_page].
+    It must not assume the user's editor or pre-select one silently.
+    The CLI control is a separate button per [install_cli_menu].
     Get-started CTA copy lives in ["../../site/src/content/hero.ts"] per [hero_section].
     Each menu row shows the target's icon beside its full label; icons resolve through [phonebook_icon_registry] via the quickstart icon set/name refs in ["../../site/src/content/install-actions.ts"].
     per [components]
     per [development_core.iconify_stack]
+    @status done
+    @implementation (
+        ["../../site/src/content/hero.ts"]
+        ["../../site/src/content/install-actions.ts"]
+        ["../../site/src/components/HeroActions.tsx"]
+        ["../../site/src/components/InstallSplitButton.tsx"]
+        ["../../site/src/lib/quickstart-icons.ts"]
+    )
+    @tests (
+        ["../../site/src/content/install-actions.test.ts"]
+    )
+}
+
+install_cli_menu {
+    The hero has a separate "Install CLI" control. It must not nest inside [cta_icon].
+    The primary action copies the selected package manager command for [cli_package.cli_package] per [package_manager_preference].
+    A chevron menu lists npm, pnpm, yarn, and bun.
+    Each command uses the CLI package name from [phonebook_reqs.npm_packages].
+    A click copies the selected command to the clipboard and stores the preference.
+    The [quickstart_page] CLI and MCP install rows use the same package manager options and the same preference.
+    A copy must not change the last-used editor.
+    @status done
+    @implementation (
+        ["../../site/src/content/install-actions.ts"]
+        ["../../site/src/content/quickstart.ts"]
+        ["../../site/src/components/HeroActions.tsx"]
+        ["../../site/src/components/InstallSplitButton.tsx"]
+        ["../../site/src/components/QuickstartClient.tsx"]
+        ["../../site/src/lib/quickstart-icons.ts"]
+        ["../../site/src/lib/package-manager.ts"]
+        ["../../site/src/lib/use-package-manager.ts"]
+    )
+    @tests (
+        ["../../site/src/content/install-actions.test.ts"]
+        ["../../site/src/lib/package-manager.test.ts"]
+    )
+}
+
+package_manager_preference {
+    The site keeps one global JavaScript package manager value: npm, pnpm, yarn, or bun.
+    The default is npm.
+    All CLI and MCP install commands read and write this one value. Do not keep a separate choice on each control.
+    The value persists in the browser across pages and reloads.
+    Surfaces: [install_cli_menu], [quickstart_page].
+    Compatible with [simple_lightweight_and_static].
+    @status done
+    @implementation (
+        ["../../site/src/lib/package-manager.ts"]
+        ["../../site/src/lib/use-package-manager.ts"]
+        ["../../site/src/components/InstallSplitButton.tsx"]
+        ["../../site/src/components/QuickstartClient.tsx"]
+    )
+    @tests (
+        ["../../site/src/lib/package-manager.test.ts"]
+    )
 }
 
 sticky_cta_node {
@@ -635,7 +763,7 @@ features_tier_1 {
 
     @subreqs (
         sub_file_binding {
-            Symbol refs ["auth.ts".login], line ranges ["adc.cL#41-58"],
+            Symbol refs `["auth.ts".login]`, line ranges ["adc.cL#41-58"],
             and test-name anchors ["x.test.ts:rejects expired token"].
             Requirements attach to code at symbol granularity, in any language.
         }
@@ -728,7 +856,8 @@ agent_context_showcase {
 
 interlock_showcase {
     Flagship. The interlock that must not fail.
-    A safety requirement bound to ["./plc/interlock.stL#41-58"] by symbol and
+    `["./plc/interlock.stL#41-58"]`
+    A safety requirement bound to that PLC symbol and line range,
     line range, to a vitest case by test name, with an rq-comment in the ST
     source pointing back.
     Domain: industrial control / IEC 61131.
@@ -975,7 +1104,7 @@ showcase_module {
     Long version (detail page): full blocks array including payoff.
 
     Exist as a list page and as a full page per slug.
-    Routes: /showcase/ and /showcase/[slug]/ — static export.
+    Routes: `/showcase/` and `/showcase/[slug]/` — static export.
 
     Block kinds needed beyond today's code | features union:
     callout — the one-sentence point of the page

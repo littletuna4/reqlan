@@ -12,18 +12,21 @@ export const elevator_pitch = {
     "less input tokens, better output tokens",
     "integrate your system with your actual intent",
     "demand excellence from your clanker, with the right atomic specification",
+    "vibecode without the constant doubt",
+    "tightly control the scoping of your context",
     "shorter prompts, better agentic search, less rework and more focus",
     "make your precise intent explicit, leave implicit details latent",
     "make your intent compilable",
     "core implemented in rust, so you know it's fast and reliable",
-    "Integrate compliance, testing, functional requirements, non-functional requirements, and more into your system",
+    "integrate compliance, testing, functional requirements, non-functional requirements, and more into your system",
+    "build docs that resist drift, and store the things you actually care about",
   ],
 } as const;
 
 export const meta = {
   title: "reqlan",
   description:
-    "Markdown on steroids for requirements - Obsidian meets Dendron meets the IDE. A graph of named ideas your agents can search, link, and reuse.",
+    "A graph of named ideas your agents can search, link, and reuse. Build high-quality, verifiable systems quickly by describing the parts that matter and how they relate.",
 } as const;
 
 export const brand = {

@@ -1,5 +1,6 @@
 // rq:["../../../reqlan rq/site/site.rq".copy]
 // rq:["../../../reqlan rq/site/site.rq".faq_page]
+// rq:["../../../reqlan rq/site/site.rq".faq_drift]
 // rq:["../../../reqlan rq/site/support-page.rq".support_page]
 import type { FaqItem, FaqSupportLink } from "@/content/types";
 
@@ -25,6 +26,13 @@ export const faq = {
       question: "When should I use reqlan?",
       answer:
         "When requirements sprawl across chats, wikis, and code comments, and you want one writable graph that stays next to the code - for yourself, a team, or an agent that should stop re-explaining the system every sprint.",
+    },
+    {
+      id: "drift",
+      question:
+        "How do you keep .rq files from drifting once the code moves on?",
+      answer:
+        "Treat .rq files as code - the source of truth, not a document. Specify material work as an idea first. Implementation and tests point back with rq: comments. A check requires every test to serve a requirement. Agents see only the ideas attached to the files they touch. Mark a replaced idea deprecated and point to the new one. The indexer flags missing references like a compile check.",
     },
     {
       id: "support-reqlan",

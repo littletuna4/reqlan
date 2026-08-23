@@ -1,7 +1,7 @@
 /**
  * Native CLI/MCP entry must not load Langium or @reqlan/language.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

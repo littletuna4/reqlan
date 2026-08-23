@@ -121,7 +121,7 @@ export class SqliteIndexStore {
     }
 
     async listDocumentUris(): Promise<string[]> {
-        // rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
+        // rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
         return this.db.conn.listDocumentUris();
     }
 

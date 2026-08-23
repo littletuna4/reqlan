@@ -10,8 +10,9 @@ use reqlan_export::{
 use reqlan_index::ignore::{application_memory_path, ideas_index_path};
 use reqlan_index::sync::{sync_workspace, to_indexed_uri, SyncOptions};
 use reqlan_index::{
-    is_deprecated, list_broken_references, parse_attributes, IndexStore,
-    ListBrokenReferencesOptions, StoreError,
+    check_references, is_deprecated, list_broken_references, parse_attributes,
+    CheckReferencesOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
+    StoreError,
 };
 use reqlan_search::{rerank_matches_with_context, resolve_search_context_refs, semantic_search};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -294,20 +295,31 @@ impl AnalysisRuntime {
         let rows = list_broken_references(
             &self.store,
             &self.workspace_root,
-            ListBrokenReferencesOptions { path_glob, include_comment_references },
+            ListBrokenReferencesOptions {
+                path_glob,
+                include_comment_references,
+                ..Default::default()
+            },
         )?;
-        Ok(rows
-            .into_iter()
-            .map(|row| BrokenReferenceDto {
-                file_uri: row.file_uri,
-                source_id: row.source_id,
-                source_name: row.source_name,
-                kind: row.kind,
-                label: row.label,
-                source_line: row.source_line,
-                snippet: row.snippet,
-            })
-            .collect())
+        Ok(rows.into_iter().map(to_broken_dto).collect())
+    }
+
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+    pub fn check(
+        &mut self,
+        path_glob: Option<&str>,
+        wildcard_zero: SparseWildcardHandling,
+        wildcard_one: SparseWildcardHandling,
+    ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
+        self.ensure_ready()?;
+        let rows = check_references(
+            &self.store,
+            &self.workspace_root,
+            CheckReferencesOptions { path_glob, wildcard_zero, wildcard_one },
+        )?;
+        Ok(rows.into_iter().map(to_broken_dto).collect())
     }
 
     pub fn get_deprecation_impact(&mut self) -> Result<Vec<DeprecationImpact>, AnalysisError> {
@@ -448,6 +460,10 @@ impl AnalysisRuntime {
                 "list_broken_references",
                 "List unresolved idea references, optionally scoped by path glob and comment references.",
             ),
+            desc(
+                "check",
+                "Check idea, comment, and file references. Skip lines after //rq-ignore-error.",
+            ),
             desc("export_html", "Export the requirement graph as a multi-file static HTML site."),
         ]
     }
@@ -458,6 +474,20 @@ fn desc(name: &str, description: &str) -> InteractionDescriptor {
         name: name.into(),
         description: description.into(),
         parameters: std::collections::BTreeMap::new(),
+    }
+}
+
+fn to_broken_dto(row: reqlan_index::BrokenReference) -> BrokenReferenceDto {
+    BrokenReferenceDto {
+        file_uri: row.file_uri,
+        source_id: row.source_id,
+        source_name: row.source_name,
+        kind: row.kind,
+        label: row.label,
+        source_line: row.source_line,
+        snippet: row.snippet,
+        severity: row.severity,
+        match_count: row.match_count,
     }
 }
 

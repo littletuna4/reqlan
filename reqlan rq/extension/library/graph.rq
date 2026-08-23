@@ -149,7 +149,7 @@ graph_status_tag_filters {
     )
     @tests (
         ["../../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
-        ["../../../packages/analytical/test/filter-specials.test.ts"]
+        ["../../../packages/extension/webviews/shared/filter/filter-specials.ts"]
     )
 }
 

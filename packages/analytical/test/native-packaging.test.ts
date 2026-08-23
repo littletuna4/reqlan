@@ -1,7 +1,7 @@
 /**
  * Platform package + VSIX target layout for the first native release.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";

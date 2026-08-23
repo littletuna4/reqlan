@@ -44,7 +44,7 @@ Same analytical index as extension/MCP (`<base>/.reqlan`).
 
 ## Surfaces
 
-- Skills: `/rq-requirements`, `/rq-search`, `/rq-build-requirement`, …
+- Skills: `/rq-requirements`, `/rq-search`, `/rq-fix-stale-references`, `/rq-build-requirement`, …
 - MCP: `search_requirements`, `file_context`, `local_graph`, `requirement_reference`, `file_reference`
 - `@reqlan` chat: `/rq-search`, `/rq-context`, `/rq-graph`, `/rq-related`
 - Palette: Semantic Search, File Related Requirements, Ideas Summary

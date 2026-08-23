@@ -1,0 +1,141 @@
+from "../language/syntax.rq" import comment_reference_ignore
+from "../ontology.rq" import reference
+from "./core.rq" import index
+
+check {
+    `reqlan check` should run perform the following checks:
+    - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
+    - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
+    - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../crates/reqlan-index/src/rq_ignore.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/cli/src/format-broken-refs.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:skips_idea_and_comment_refs_on_rq_ignore_error_lines"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_file_refs_and_skips_existing"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_strips_test_name_and_line_suffix_before_file_exists"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_test_names_that_contain_colons_from_nested_rq"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_same_file_idea_refs_and_reports_true_missing"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_lists_broken_refs_with_glob_and_comments"]
+        ["../../packages/cli/test/check.test.ts:reports unresolved idea, comment, and file refs and exits 1"]
+        ["../../packages/cli/test/check.test.ts:exits 0 when there are no issues"]
+        ["../../packages/cli/test/check.test.ts:quotes source paths that contain spaces"]
+        ["../../packages/cli/test/check.test.ts:orders json rows by missing target"]
+        ["../../packages/cli/test/format-broken-refs.test.ts:quotes paths that contain spaces"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_orders_issues_by_missing_target"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
+    )
+}
+
+check_order_by_target {
+    [check] returns issues ordered by the missing [reference] target, not by the source file.
+    Rows that share the same missing idea, comment target, or file path stay together so you can see every site that points at one missing thing.
+    Inside a target group, order by kind, then source file, then line.
+    JSON and pipe keep a flat list in that order. Terminal output uses one heading per missing target.
+    Related: [check] ["../cli/cli_package.rq".commands]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../packages/cli/src/format-broken-refs.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_orders_issues_by_missing_target"]
+        ["../../packages/cli/test/check.test.ts:orders json rows by missing target"]
+        ["../../packages/cli/test/format-broken-refs.test.ts:groups rows that share a missing target under one heading"]
+    )
+}
+
+check_wildcard_sparse {
+    A ["../reference_types.rq".wildcard_reference] is for many matches.
+    [check] recounts each wildcard against the full idea catalog, not the stored edges, so files that the indexer visited first still get the true match count.
+    How 0-match and 1-match rows are handled is controlled by [check_wildcard_zero] and [check_wildcard_one] (both default `warn`).
+    Ignore a site with [comment_reference_ignore].
+    The language server already warns when a wildcard matches nothing (["../language/imports.rq".wildcard_references]); it also warns when the match count is 1.
+    Related: [check] ["../language/imports.rq".wildcard_references]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../packages/cli/src/format-broken-refs.ts"]
+        ["../../packages/language/src/reqlan-validator.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_sparse_wildcard_warning_on_rq_ignore_error"]
+        ["../../packages/cli/test/check.test.ts:warns on wildcards with 0 or 1 match"]
+        ["../../packages/cli/test/format-broken-refs.test.ts:marks wildcard sparse rows as warnings"]
+        ["../../packages/language/test/wildcard-references.test.ts:warns when wildcard matches nothing"]
+        ["../../packages/language/test/wildcard-references.test.ts:warns when wildcard matches only one idea"]
+    )
+}
+
+check_wildcard_zero {
+    `check_references` flag `wildcard_zero` (default `warn`) controls a ["../reference_types.rq".wildcard_reference] that matches 0 ideas.
+    0 matches means the pattern hits nothing.
+    `warn` — emit the row with severity `warning` and match count 0.
+    `error` — emit the row with severity `error` and match count 0.
+    `off` — omit the row.
+    CLI: `--wildcard-zero <warn|error|off>` (["../cli/cli_package.rq".commands]).
+    API: `AnalysisApi.check({ wildcardZero })`.
+    Related: [check] [check_wildcard_sparse] [check_wildcard_one]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_wildcard_zero_flag_off_omits_empty_match"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_wildcard_zero_flag_error_sets_severity"]
+        ["../../packages/cli/test/check.test.ts:warns on wildcards with 0 or 1 match"]
+        ["../../packages/cli/test/check.test.ts:honours wildcard-zero and wildcard-one handling flags"]
+    )
+}
+
+check_wildcard_one {
+    `check_references` flag `wildcard_one` (default `warn`) controls a ["../reference_types.rq".wildcard_reference] that matches exactly 1 idea.
+    1 match means the pattern is too narrow — use a concrete [reference] instead.
+    `warn` — emit the row with severity `warning` and match count 1.
+    `error` — emit the row with severity `error` and match count 1.
+    `off` — omit the row.
+    CLI: `--wildcard-one <warn|error|off>` (["../cli/cli_package.rq".commands]).
+    API: `AnalysisApi.check({ wildcardOne })`.
+    Related: [check] [check_wildcard_sparse] [check_wildcard_zero] ["../language/imports.rq".wildcard_references]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_wildcard_one_flag_off_omits_singleton_match"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_wildcard_one_flag_error_sets_severity"]
+        ["../../packages/cli/test/check.test.ts:warns on wildcards with 0 or 1 match"]
+        ["../../packages/cli/test/check.test.ts:honours wildcard-zero and wildcard-one handling flags"]
+        ["../../packages/language/test/wildcard-references.test.ts:warns when wildcard matches only one idea"]
+    )
+}
+
+check_meta_implementation {
+    [check] should be performed in ci of this codebase.
+    Related: [check]
+    @status done
+    @implementation (
+        ["../../.github/workflows/ci-check.yml"]
+        ["../../azure-pipelines.yml"]
+        ["../../package.json"]
+    )
+}

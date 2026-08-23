@@ -233,7 +233,7 @@ next_idea still here`);
         expect(oneLinerText(oneLiners[1]!)).toBe('this is a blob of text');
     });
 
-    // rq:["../../../reqlan rq/extension/features-imports.rq".from_import_syntax]
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".from_import_syntax]
     test('parse from import with multiple symbols', async () => {
         const document = await parse('from "./example.rq" import symbol1, symbol2, symbol3');
         expect(checkDocumentValid(document)).toBeUndefined();

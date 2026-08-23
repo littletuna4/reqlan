@@ -1,7 +1,7 @@
 /**
  * Drop-in workspace sync facade over napi NativeWorkspaceIndex.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".indexer_rust]
  */
 import { loadNativeEngine } from './load-native.js';
 import type { NativeQuerySurface, NativeSqlDbHandle } from './native-sql-db.js';
@@ -78,7 +78,7 @@ export interface NativeFuzzySearchResult {
 /**
  * Coverage metrics for the Ideas Summary Overview, computed natively.
  * Shape mirrors the Rust `OverviewCoverageScores` (camelCase serde).
- * rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+ * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
  */
 export interface OverviewCoverageScores {
     ideaCount: number;
@@ -154,7 +154,7 @@ export class NativeWorkspaceIndex {
     /**
      * Once closed, the underlying Rust handle rejects every call. Diagnostic
      * mutations from a lagging soft-sync task must no-op rather than throw.
-     * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+     * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
      */
     private closed = false;
 

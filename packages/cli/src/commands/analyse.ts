@@ -2,6 +2,7 @@ import { Command, Option } from 'clipanion';
 import type { CompletionSummary, FileRelatedRequirements, GraphSlice, IdeaSummary } from '@reqlan/analytical/core';
 import { withAnalysisApi } from '../runtime.js';
 import { emit } from '../output.js';
+import { formatBrokenRefs } from '../format-broken-refs.js';
 
 /**
  * rq:["../../../../reqlan rq/core_analysis/core.rq".test_references]
@@ -46,26 +47,6 @@ function formatCompletion(formatIdea: (idea: IdeaSummary) => string, summary: Co
         formatIdeaList(formatIdea, summary.outstanding.slice(0, 12), '## Outstanding (sample)'),
         formatIdeaList(formatIdea, summary.deprecated.slice(0, 12), '## Deprecated (sample)')
     ].join('\n\n');
-}
-
-function formatBrokenRefs(
-    rows: Array<{
-        fileUri: string;
-        sourceName?: string | null;
-        kind: string;
-        label: string;
-        sourceLine?: number | null;
-    }>
-): string {
-    if (rows.length === 0) {
-        return '## Broken references\n(none)';
-    }
-    const lines = rows.map(row => {
-        const line = (row.sourceLine ?? 0) + 1;
-        const source = row.sourceName ? ` ${row.sourceName}` : '';
-        return `- ${row.fileUri}:${line}${source} [${row.kind}] ${row.label}`;
-    });
-    return `## Broken references (${rows.length})\n${lines.join('\n')}`;
 }
 
 export class AnalyseCommand extends Command {

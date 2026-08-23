@@ -1,7 +1,7 @@
 /**
  * Core analytical engine for CLI and MCP: Rust via napi, no Langium.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 export { createBase } from '../core/create-base.js';
 export type { CreateBaseResult } from '../core/create-base.js';
@@ -38,9 +38,18 @@ export {
     type HeadlessAnalysisApi,
     type OpenedAnalysisApi
 } from './open-analysis-api.js';
-export { extractIdeaNames, parseReqlanSource } from './parse-source.js';
+export { extractIdeaNames, parseAlignSnapshot, parseReqlanSource } from './parse-source.js';
 export type {
+    NativeAlignRef,
+    NativeAlignSnapshot,
     NativeParseDiagnostic,
     NativeParseElement,
     NativeParseResult
 } from './parse-source.js';
+/** rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore] */
+export { findRqIgnoreErrorTargetLines } from './ignore-error.js';
+export {
+    addNativeEngineSearchDirs,
+    hostNativeBindingSpec
+} from './load-native.js';
+export type { HostNativeBindingSpec } from './load-native.js';

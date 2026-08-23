@@ -1,8 +1,8 @@
 /**
  * Resolve authored file-reference paths against the defining idea's file.
  * Shared by graph slices and reference-list rows so open actions match the editor.
- * rq:["../../../reqlan rq/ontology.rq".referenced_files]
- * rq:["../../../reqlan rq/ontology.rq".reference_types]
+ * rq:["../../../../reqlan rq/ontology.rq".referenced_files]
+ * rq:["../../../../reqlan rq/ontology.rq".reference_types]
  */
 import { isWindowsAbsolutePath } from './path-relative.js';
 import { posix } from 'node:path';

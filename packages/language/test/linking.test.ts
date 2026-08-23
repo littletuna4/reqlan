@@ -9,7 +9,12 @@ import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from '@reqlan/language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
 import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
-import { classifyReferenceUri, collectFileLinks } from '../src/reqlan-file-link-resolver.js';
+import {
+    classifyReferenceUri,
+    collectFileLinks,
+    FILE_REFERENCE_MISSING,
+    fileLinkMissingMessage
+} from '../src/reqlan-file-link-resolver.js';
 import { isNamespaceImportOnlyReference, resolveNamespaceImportReferenceLink } from '../src/reqlan-namespace-import-links.js';
 import {
     createSourceTextDocument,
@@ -411,7 +416,7 @@ describe('Linking tests', () => {
         expect(texts.filter(text => text === 'exampleimport2').length).toBeGreaterThanOrEqual(2);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_graph_resolution]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('import idea reference resolves to imported file when local idea shares name', async () => {
         const subreqs = services.shared.workspace.LangiumDocumentFactory.fromString(
             'myidea imported body',
@@ -512,6 +517,77 @@ beta {
         const unresolved = (document.diagnostics ?? []).filter(
             diagnostic => typeof diagnostic.message === 'string'
                 && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+    test('resolve forward reference to later ideaset in the same file', async () => {
+        document = await parse(`hierarchy_of_truth {
+    see [workspace_packages], [language_runtime], and [product_map].
+}
+workspace_packages (
+    monorepo
+)
+language_runtime (
+    grammar_and_parser
+)
+product_map (
+    extension_surfaces
+)
+monorepo { body }
+grammar_and_parser { body }
+extension_surfaces { body }`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const names = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBracketReference)
+            .map(ref => ref.target)
+            .filter(isLocalReference)
+            .map(target => target.idea?.ref?.name);
+        expect(names).toEqual(['workspace_packages', 'language_runtime', 'product_map']);
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+    test('resolve local ideaset before imports', async () => {
+        const imported = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'other_set (\n    leaf\n)\nleaf { body }',
+            URI.parse('file:///tmp/imported.rq')
+        ) as LangiumDocument<Model>;
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            `from "imported.rq" import other_set
+host {
+    see [local_set]
+}
+local_set (
+    host
+)`,
+            URI.parse('file:///tmp/consumer.rq')
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(imported);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([imported, consumer], { validation: true });
+        document = consumer;
+
+        const localSet = consumer.parseResult.value.elements.find(
+            element => isIdeaSet(element) && element.name === 'local_set'
+        );
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)[0];
+        const target = bracketRef?.target;
+        expect(isLocalReference(target) && target.idea?.ref).toBe(localSet);
+
+        const unresolved = (consumer.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+                && diagnostic.message.includes('local_set')
         );
         expect(unresolved).toHaveLength(0);
     });
@@ -866,6 +942,7 @@ example_ideaset (
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
     test('missing file references do not produce document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -878,12 +955,63 @@ example_ideaset (
             URI.parse(pathToFileURL(sourcePath).href)
         ) as LangiumDocument<Model>;
         fileServices.shared.workspace.LangiumDocuments.addDocument(document);
-        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
 
         const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
             textDocument: { uri: document.textDocument.uri }
         });
         expect(links).toHaveLength(0);
+
+        const missing = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
+        );
+        expect(missing).toHaveLength(1);
+        expect(missing[0]?.severity).toBe(1);
+        expect(missing[0]?.message).toBe(fileLinkMissingMessage('./does-not-exist.rq'));
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    test('missing file reference errors are suppressed after //rq-ignore-error', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                missing_reference {
+                    //rq-ignore-error
+                    see ["./does-not-exist.rq"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missing = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
+        );
+        expect(missing).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    test('remote file references are not reported as missing', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                remote_reference {
+                    see ["https://example.com/does-not-exist.ts"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missing = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
+        );
+        expect(missing).toHaveLength(0);
     });
 
     // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
@@ -1128,7 +1256,7 @@ example_ideaset (
         expect(unresolvedErrors).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('does not report linking error for @tests file references with test name suffix', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');

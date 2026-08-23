@@ -97,7 +97,7 @@ extension_package {
     Host entry: [extension_main]. LSP process entry: [language_server_main].
     Depends on [language_package] and [analytical_package].
     Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] for JS state;
-    webview UI standards in ["../codestyle/typescript.rq".ui_state_management].
+    webview UI standards in ["./codestyle/typescript.rq".ui_state_management].
     This is the one Marketplace/Open VSX shippable; see [package_versioning].
 }
 

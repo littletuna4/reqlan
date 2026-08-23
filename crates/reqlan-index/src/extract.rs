@@ -5,18 +5,24 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
 //! rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+//! rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+//! rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
 //! rq:["../../../reqlan rq/language/syntax.rq".block_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".attribute_forms]
 //! rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+//! rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+//! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+//! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 
 use crate::ids::{edge_id, idea_id};
 use crate::types::{
     AttributeValue, EdgeKind, EdgeRecord, IdeaAttributeMap, IdeaKind, IdeaRecord, IndexedDocument,
 };
 use reqlan_parse::{
-    parse_document, Attribute, AttributeValue as AstAttrValue, BodyElement, Import, ListItem,
-    ParseResult, ReferenceTarget, RichPart, TopLevelElement,
+    parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
+    BodyElement, Import, ImportRootMapping, ListItem, ParseResult, ReferenceTarget, RichPart,
+    TopLevelElement,
 };
 use sha2::{Digest, Sha256};
 
@@ -27,9 +33,16 @@ pub struct WildcardIdeaCandidate {
     pub idea_name: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExtractOptions {
     pub idea_candidates: Vec<WildcardIdeaCandidate>,
+    pub import_roots: Vec<ImportRootMapping>,
+}
+
+impl Default for ExtractOptions {
+    fn default() -> Self {
+        Self { idea_candidates: Vec::new(), import_roots: reqlan_parse::default_import_roots() }
+    }
 }
 
 pub fn extract_indexed_document(
@@ -117,6 +130,7 @@ pub fn extract_from_parse(
                     &model.imports,
                     &ideas,
                     &options.idea_candidates,
+                    &options.import_roots,
                     &mut edges,
                 );
             }
@@ -129,6 +143,7 @@ pub fn extract_from_parse(
                     &model.imports,
                     &ideas,
                     &options.idea_candidates,
+                    &options.import_roots,
                     &mut edges,
                 );
             }
@@ -310,15 +325,12 @@ fn collect_parts_edges(
     imports: &[Import],
     ideas: &[IdeaRecord],
     candidates: &[WildcardIdeaCandidate],
+    import_roots: &[ImportRootMapping],
     edges: &mut Vec<EdgeRecord>,
 ) {
     let source_id = idea_id(file_uri, idea_name);
-    let local_names: Vec<&str> = ideas
-        .iter()
-        .filter(|idea| idea.kind != IdeaKind::Ideaset)
-        .map(|idea| idea.name.as_str())
-        .collect();
-    let local_leaf_names: Vec<&str> = ideas.iter().map(|idea| idea.name.as_str()).collect();
+    // Include ideasets so a bare `[ideaset_name]` resolves even when declared later in the file.
+    let local_names: Vec<&str> = ideas.iter().map(|idea| idea.name.as_str()).collect();
     for part in parts {
         match part {
             RichPart::MarkdownLink { raw, span } => {
@@ -339,8 +351,8 @@ fn collect_parts_edges(
                     target,
                     imports,
                     &local_names,
-                    &local_leaf_names,
                     candidates,
+                    import_roots,
                     span.line_start + 1,
                     &snippet,
                 ) {
@@ -383,8 +395,8 @@ fn reference_to_edges(
     target: &ReferenceTarget,
     imports: &[Import],
     local_names: &[&str],
-    local_leaf_names: &[&str],
     candidates: &[WildcardIdeaCandidate],
+    import_roots: &[ImportRootMapping],
     source_line: u32,
     snippet: &str,
 ) -> Vec<EdgeRecord> {
@@ -397,6 +409,7 @@ fn reference_to_edges(
             idea_pattern,
             file_uri,
             candidates,
+            import_roots,
             source_line,
             meta_snippet.clone(),
         ),
@@ -417,7 +430,7 @@ fn reference_to_edges(
                     Vec::new()
                 }
             } else if let Some((path, imported)) = from_import_binding(imports, idea) {
-                let target_id = idea_id(&path, &imported);
+                let target_id = idea_id(&resolve_rq_path(&path, file_uri, import_roots), &imported);
                 vec![ref_edge(
                     source_id,
                     Some(target_id),
@@ -433,13 +446,16 @@ fn reference_to_edges(
         ReferenceTarget::Qualified { path, qualifier, ideaset: _, idea, .. } => {
             // Namespace leaf is the last segment (`idea`), not the ideaset/alias head.
             if let Some(path) = path {
-                let file = unquote_if_needed(path);
+                let file = resolve_rq_path(&unquote_path(path), file_uri, import_roots);
                 let target_id = idea_id(&file, idea);
                 vec![ref_edge(source_id, Some(target_id), idea, true, source_line, meta_snippet)]
             } else if let Some(qualifier) = qualifier {
                 if let Some(import) = namespace_import(imports, qualifier) {
                     if let Some(path) = import.path() {
-                        let target_id = idea_id(&unquote_if_needed(path), idea);
+                        let target_id = idea_id(
+                            &resolve_rq_path(&unquote_path(path), file_uri, import_roots),
+                            idea,
+                        );
                         vec![ref_edge(
                             source_id,
                             Some(target_id),
@@ -451,7 +467,7 @@ fn reference_to_edges(
                     } else {
                         Vec::new()
                     }
-                } else if local_leaf_names.iter().any(|name| *name == idea.as_str()) {
+                } else if local_names.iter().any(|name| *name == idea.as_str()) {
                     let target_id = idea_id(file_uri, idea);
                     vec![ref_edge(
                         source_id,
@@ -462,7 +478,8 @@ fn reference_to_edges(
                         meta_snippet,
                     )]
                 } else if let Some((path, imported)) = from_import_binding(imports, idea) {
-                    let target_id = idea_id(&path, &imported);
+                    let target_id =
+                        idea_id(&resolve_rq_path(&path, file_uri, import_roots), &imported);
                     vec![ref_edge(
                         source_id,
                         Some(target_id),
@@ -528,14 +545,7 @@ fn from_import_binding(imports: &[Import], name: &str) -> Option<(String, String
 }
 
 fn unquote_if_needed(value: &str) -> String {
-    let bytes = value.as_bytes();
-    if bytes.len() >= 2 {
-        let quote = bytes[0];
-        if (quote == b'"' || quote == b'\'') && bytes[bytes.len() - 1] == quote {
-            return value[1..value.len() - 1].replace("\\", "");
-        }
-    }
-    value.to_string()
+    unquote_path(value)
 }
 
 fn wildcard_edges(
@@ -544,10 +554,11 @@ fn wildcard_edges(
     idea_pattern: &str,
     from_file: &str,
     candidates: &[WildcardIdeaCandidate],
+    import_roots: &[ImportRootMapping],
     source_line: u32,
     snippet: Option<String>,
 ) -> Vec<EdgeRecord> {
-    let path = unquote_if_needed(path_pattern_quoted);
+    let path = resolve_rq_path(&unquote_if_needed(path_pattern_quoted), from_file, import_roots);
     let label = format!("{path}.{idea_pattern}");
     let matches = match_wildcard(&path, idea_pattern, from_file, candidates);
     if matches.is_empty() {
@@ -577,13 +588,32 @@ fn wildcard_edges(
                 target_id: Some(target_id),
                 target_file: None,
                 kind: EdgeKind::WildcardReference,
-                label: Some(matched.idea_name),
+                label: Some(label.clone()),
                 source_line: Some(source_line),
                 snippet: snippet.clone(),
                 is_resolved: Some(true),
             }
         })
         .collect()
+}
+
+/// Split a stored wildcard edge label `{resolved_path}.{idea_pattern}`.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
+pub fn split_wildcard_label(label: &str) -> Option<(&str, &str)> {
+    let (path, idea) = label.rsplit_once('.')?;
+    if path.is_empty() || idea.is_empty() {
+        return None;
+    }
+    Some((path, idea))
+}
+
+/// Count catalog ideas that match a workspace-relative path glob and idea glob.
+pub fn count_wildcard_matches(
+    path_pattern: &str,
+    idea_pattern: &str,
+    candidates: &[WildcardIdeaCandidate],
+) -> usize {
+    match_wildcard(path_pattern, idea_pattern, "", candidates).len()
 }
 
 fn match_wildcard(
@@ -811,7 +841,7 @@ fn collect_file_reference_edges(
 ) {
     let source_id =
         ideas.first().map(|idea| idea.id.clone()).unwrap_or_else(|| format!("{file_uri}#__file__"));
-    for file in find_embedded_file_references(source) {
+    for (file, line) in find_embedded_file_references(source) {
         edges.push(EdgeRecord {
             id: edge_id(&source_id, EdgeKind::FileReference.as_str(), &file),
             source_id: source_id.clone(),
@@ -819,39 +849,87 @@ fn collect_file_reference_edges(
             target_file: Some(file.clone()),
             kind: EdgeKind::FileReference,
             label: Some(file),
-            source_line: None,
+            source_line: Some(line),
             snippet: None,
             is_resolved: Some(true),
         });
     }
 }
 
-fn find_embedded_file_references(source: &str) -> Vec<String> {
+fn find_embedded_file_references(source: &str) -> Vec<(String, u32)> {
     let mut files = Vec::new();
-    for line in source.lines() {
-        let mut rest = line;
-        while let Some(start) = rest.find(['"', '\'']) {
-            let quote = rest.as_bytes()[start];
-            let after = &rest[start + 1..];
-            if let Some(end) = after.as_bytes().iter().position(|&b| b == quote) {
-                let inner = &after[..end];
-                // Glob paths belong to wildcard_reference fan-out, not concrete file edges.
-                if !inner.contains('*')
-                    && !inner.contains('?')
-                    && (inner.contains('/')
-                        || inner.contains('\\')
-                        || inner.contains('.') && inner.contains('/')
-                        || looks_file_ref(inner))
-                {
-                    files.push(inner.to_string());
-                }
-                rest = &after[end + 1..];
-            } else {
-                break;
+    let mut in_fence = false;
+    for (line_index, line) in source.lines().enumerate() {
+        if is_code_fence_line(line) {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        let opaque = inline_code_spans(line);
+        let bytes = line.as_bytes();
+        let mut index = 0;
+        while index < bytes.len() {
+            let quote = bytes[index];
+            if quote != b'"' && quote != b'\'' {
+                index += 1;
+                continue;
             }
+            let after = index + 1;
+            let Some(rel) = bytes[after..].iter().position(|&b| b == quote) else {
+                break;
+            };
+            let end = after + rel;
+            let inner = &line[after..end];
+            // Glob paths belong to wildcard_reference fan-out, not concrete file edges.
+            if !range_overlaps(index, end + 1, &opaque)
+                && !inner.contains('*')
+                && !inner.contains('?')
+                && (inner.contains('/')
+                    || inner.contains('\\')
+                    || inner.contains('.') && inner.contains('/')
+                    || looks_file_ref(inner))
+            {
+                files.push((inner.to_string(), line_index as u32 + 1));
+            }
+            index = end + 1;
         }
     }
     files
+}
+
+fn is_code_fence_line(line: &str) -> bool {
+    line.trim_start().starts_with("```")
+}
+
+fn inline_code_spans(line: &str) -> Vec<(usize, usize)> {
+    let bytes = line.as_bytes();
+    let mut spans = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'`' {
+            index += 1;
+            continue;
+        }
+        if index + 2 < bytes.len() && bytes[index + 1] == b'`' && bytes[index + 2] == b'`' {
+            index += 3;
+            continue;
+        }
+        let Some(rel) = bytes[index + 1..].iter().position(|&b| b == b'`') else {
+            break;
+        };
+        let close = index + 1 + rel;
+        if close > index + 1 {
+            spans.push((index, close + 1));
+        }
+        index = close + 1;
+    }
+    spans
+}
+
+fn range_overlaps(start: usize, end: usize, spans: &[(usize, usize)]) -> bool {
+    spans.iter().any(|&(left, right)| start < right && end > left)
 }
 
 fn looks_file_ref(value: &str) -> bool {

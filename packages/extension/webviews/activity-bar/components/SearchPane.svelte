@@ -5,9 +5,9 @@
     import CollapsiblePane from './CollapsiblePane.svelte';
     import SearchHighlight from './SearchHighlight.svelte';
 
-    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane]
-    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
-    // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_file_hits]
+    // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane]
+    // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+    // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_file_hits]
 
     interface Props {
         expanded: boolean;

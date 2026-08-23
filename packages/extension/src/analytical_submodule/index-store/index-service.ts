@@ -155,7 +155,7 @@ export class IndexService {
 
     /**
      * Native git-dates fill for the active base (all missing when `ideaIds` omitted).
-     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     * rq:["../../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
      */
     fillGitDates(ideaIds?: string[]): number {
         const entry = this.getActiveBase();
@@ -167,7 +167,7 @@ export class IndexService {
 
     /**
      * Native Ideas Summary overview coverage for the active base.
-     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     * rq:["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
      */
     computeOverviewCoverage() {
         const entry = this.getActiveBase();

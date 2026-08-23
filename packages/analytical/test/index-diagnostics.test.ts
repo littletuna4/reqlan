@@ -1,6 +1,6 @@
 /**
- * rq:["../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
- * rq:["../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
+ * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
  */
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

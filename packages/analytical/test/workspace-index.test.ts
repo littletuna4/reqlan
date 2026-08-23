@@ -236,8 +236,8 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
-    // rq:["../../reqlan rq/extension/configuration.rq".configuration_rqignore]
-    // rq:["../../reqlan rq/extension/module/index.rq".rqignore]
+    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+    // rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
     test('skips .rq files under rqignore patterns', async () => {
         const root = await writeWorkspace({
             'keep.rq': 'keep this stays\n',
@@ -258,7 +258,7 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
-    // rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+    // rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
     test('fuzzySearch ranks from the native index without listing all ideas in JS', async () => {
         const root = await writeWorkspace({
             'demo.rq': 'cli_package CLI package\nsearch_code_actions code action search\n'
@@ -276,8 +276,8 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
-    // rq:["../../reqlan rq/core_analysis/search.rq".file_search]
-    // rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+    // rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
+    // rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
     test('fuzzySearch returns file-name hits and pages with offset', async () => {
         const root = await writeWorkspace({
             'core_analysis/search.rq': 'alpha {\n    body\n}\n',

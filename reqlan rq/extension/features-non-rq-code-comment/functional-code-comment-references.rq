@@ -5,7 +5,7 @@ references_in_functional_code_comments {
     Comments in functional code should be able to reference reqlan ideas using the an `rq:` prefixed to an idea: `rq:[idea]` as demonstrated in python, but actually applicable to any language's comment context:
     ```python
     # rq:[myidea]
-    # This has been built to comply with rq:["../file.rq".ideanme] - which is very important.
+    # This has been built to comply with a qualified comment reference — which is very important.
     ```
 
     Relates to ["../refactor_support.rq".comment_reference_refactor_support].
@@ -29,17 +29,17 @@ comment_reference_resolution_error_state {
     Resolution and the index should be performed once and shared between consumers.
     @status done
     @implementation (
-        ["../../packages/language/src/reqlan-comment-diagnostics.ts"]
-        ["../../packages/language/src/reqlan-document-builder.ts"]
-        ["../../packages/language/src/reqlan-document-link-provider.ts"]
-        ["../../packages/language/src/reqlan-validator.ts"]
-        ["../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../../packages/language/src/reqlan-document-builder.ts"]
+        ["../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../packages/language/src/reqlan-validator.ts"]
+        ["../../../packages/extension/src/extension/register-comment-reference-links.ts"]
     )
     @tests (
-        ["../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
-        ["../../packages/language/test/comment-reference-resolution.test.ts:publishes a missing-idea diagnostic and no document link until the idea exists"]
-        ["../../packages/language/test/comment-reference-resolution.test.ts:clears the underline and creates a link after a matching idea is added"]
-        ["../../packages/language/test/comment-reference-resolution.test.ts:relinks documents that still show a missing comment-reference idea"]
-        ["../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:publishes a missing-idea diagnostic and no document link until the idea exists"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:clears the underline and creates a link after a matching idea is added"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:relinks documents that still show a missing comment-reference idea"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
     )
 }

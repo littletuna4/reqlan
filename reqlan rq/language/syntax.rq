@@ -1,4 +1,13 @@
 from "./syntax_whitespace.rq" import syntax_whitespace
+import "../../crates/reqlan-index/src/rq_ignore.rs" as rq_ignore
+import "../../crates/reqlan-napi/src/lib.rs" as reqlan_napi
+import "../../packages/analytical/src/native/ignore-error.ts" as ignore_error_bridge
+import "../../packages/language/src/reqlan-ignore-error.ts" as langium_ignore_error
+import "../../packages/language/src/reqlan-comment-diagnostics.ts" as comment_diagnostics
+import "../../packages/extension/src/language/main.ts" as language_server_main
+import "../../packages/extension/src/extension/main.ts" as extension_main
+import "../../crates/reqlan-index/src/broken.rs" as broken_refs
+import "../../packages/cli/src/commands/check.ts" as check_command
 
 file_suffix Reqlan requirement documents use the .rq file suffix.
 
@@ -19,11 +28,16 @@ idea_name {
     Unquoted names follow identifier rules and may use letters, digits, underscores, and dashes, for example myidea, my_idea, or dash-or_underscore_delimited-idea.
     Quoted names allow spaces and other characters when wrapped in double quotes.
     Idea names must be unique within their ideaset or file.
+    An idea, one-liner, and ideaset must not share a name in the same file.
     Idea names should not use reserved keywords.
 
+    @implementation (
+        ["../../packages/language/src/reqlan-validator.ts"]
+    )
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse dash and underscore delimited idea names"]
         ["../../crates/reqlan-parse/tests/parser.rs:parse_dash_and_underscore_delimited_idea_names"]
+        ["../../packages/language/test/validating.test.ts:reports duplicate when local ideaset shares a local idea name"]
     )
 }
 
@@ -43,7 +57,7 @@ block_idea {
     A block idea is written as a name followed by curly braces containing a body and optional attributes.
     The first unstructured text in an idea body is the main description when no other body attribute is marked.
     @tests (
-        ["../../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../../crates/reqlan-parse/tests/parser.rs:parses_block_and_oneliner"]
     )
@@ -58,6 +72,7 @@ ideaset {
     An ideaset is a parenthesized, comma-separated list of idea names.
     Ideaset members may be unquoted identifiers or quoted strings.
     Ideasets act as namespace containers for ideas, nested ideasets, and references.
+    A bare bracket reference `[ideaset_name]` targets the ideaset declaration in the same file per [same_file_reference].
     A bracket reference `[ideaset.member]` targets the member leaf per [references_to_subidea].
 
     @example (
@@ -72,16 +87,49 @@ reference_brackets {
 }
 
 same_file_reference {
-    [reference_brackets] should work if the target is either imported, or it is in the same file.
-    Forward references to ideas declared later in the file are valid.
-    Circular references between ideas in the same file are valid.
-    So, this idea should not throw an error.
+    [reference_brackets] and [reference_wikilink] may target an idea, one-liner, or [ideaset] in the same file.
+    The target may be declared before or after the reference. Forward references are valid.
+    Circular references between declarations in the same file are valid.
+    Resolution order: [reference_resolution_order].
 
+    @implementation (
+        ["../../packages/language/src/reqlan-scope.ts"]
+        ["../../packages/language/src/reqlan-linker.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+    )
     @tests (
         ["../../packages/language/test/linking.test.ts:resolve same-file bracket reference to local idea"]
         ["../../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
         ["../../packages/language/test/linking.test.ts:resolve circular same-file references"]
         ["../../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+        ["../../packages/language/test/linking.test.ts:resolve forward reference to later ideaset in the same file"]
+        ["../../packages/language/test/linking.test.ts:resolve local ideaset before imports"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:same_file_forward_reference_is_resolved"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:same_file_forward_ideaset_reference_is_resolved"]
+    )
+}
+
+reference_resolution_order {
+    For each `.rq` file, identify the names in local scope, then resolve references.
+    Sequence:
+    1. Collect all idea, one-liner, and ideaset declarations in the file. Declaration order does not change which names are in scope.
+    2. Collect reference candidates in the file.
+    3. Resolve each candidate against those local declarations.
+    4. Resolve imports only for candidates that have no local match. Stop import lookup for a candidate when a local match exists.
+    The language server and the indexer must use this sequence.
+    Related: [same_file_reference], [ideaset], ["./imports.rq".import_tokenisation].
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-scope.ts"]
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
+        ["../../packages/language/test/linking.test.ts:resolve forward reference to later ideaset in the same file"]
+        ["../../packages/language/test/linking.test.ts:resolve local ideaset before imports"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:same_file_forward_ideaset_reference_is_resolved"]
     )
 }
 
@@ -104,8 +152,27 @@ reference_qualified {
 reference_file {
     References may target arbitrary files, not only .rq files.
     File reference syntax uses a bracketed quoted path.
-    Line or line-range references append L# and services after the path inside the brackets.
+    Line or line-range references append `L#n` or `L#n-m` after the path inside the brackets.
+    Test-name references append `:` and the test title after the path (for example `./app.test.ts:lists items`).
+    The first `:` after the path starts the title; later `:` characters stay in the title (`e2e: …`).
+    `://` and a Windows drive `C:` / `C:/` are part of the path, not a test suffix.
     Symbol references append a dot-separated symbol path after the quoted file path.
+    @implementation (
+        ["../../packages/language/src/reqlan-file-references.ts"]
+        ["../../crates/reqlan-parse/src/path.rs"]
+        ["../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../crates/reqlan-index/src/broken.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/references.test.ts:parses L# line suffix from file reference strings"]
+        ["../../packages/language/test/references.test.ts:parses :test name suffix from file reference strings"]
+        ["../../packages/language/test/references.test.ts:keeps colons inside the test name suffix"]
+        ["../../crates/reqlan-parse/src/path.rs:strips_test_name_and_line_suffix"]
+        ["../../crates/reqlan-parse/src/path.rs:test_name_suffix_keeps_colons_in_the_title"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_strips_test_name_and_line_suffix_before_file_exists"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_test_names_that_contain_colons_from_nested_rq"]
+        ["../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
+    )
 }
 
 string_and_reference_apostrophes {
@@ -161,7 +228,7 @@ attribute_forms {
     @tests (
         ["../../packages/language/test/parsing.test.ts:parses valued attributes without a colon"]
         ["../../packages/language/test/parsing.test.ts:still accepts optional colon before attribute values"]
-        ["../../packages/analytical/test/idea-extraction.test.ts:indexes scalar, list, block, and flag attribute values"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
     )
 }
@@ -204,11 +271,11 @@ comments {
     Block comments use `/* … */` and may span multiple lines (hidden `ML_COMMENT`).
     Meta comments on the same line after content are allowed (`keep this // meta`).
     Comments must not open inside a string / reference-string context:
-    - Naked body quotes (["naked_strings_in_body"]): `"//also not a comment"`, `'https://…'`,
+    - Naked body quotes (["naked_strings_in_body"]): a quoted slash-slash that is not a comment, quoted urls,
       `"../mod/**/*.rq"`.
     - Reference / import `STRING` paths (`["…"]`, `from "…" import …`) — the lexer consumes the
       whole quoted path as one `STRING`, so neither `//` nor `/*` inside the quotes starts a comment.
-      Example: `["a reference containing '//' that doesn't start a comment"]`,
+      Example: a file reference whose path text contains slash-slash,
       `["../extension/module/**/*.rq".*webview*]`.
     - URL / path-segment guard: `//` immediately after `:` or `/` is not a line comment.
     Multiline / glob clash: the empty block form `/**/` is **not** a comment — it is the recursive
@@ -222,7 +289,6 @@ comments {
         ["../../packages/language/src/reqlan-token-builder.ts"]
         ["../../packages/language/src/reqlan.langium"]
         ["../../packages/language/src/reqlan-comment-resolver.ts"]
-        ["../../packages/language/src/reqlan-ignore-error.ts"]
     )
     @tests (
         ["../../packages/language/test/comment-in-string.test.ts"]
@@ -242,8 +308,26 @@ comments {
 comment_reference_ignore {
     Comment reference ignore syntax uses `//rq-ignore-error`.
     Comment reference ignore suppresses diagnostics on the immediately following line.
+    The language server and the CLI use the same core scanner [rq_ignore].
+    @status done
+    @implementation (
+        [rq_ignore]
+        [reqlan_napi]
+        [ignore_error_bridge]
+        [langium_ignore_error]
+        [comment_diagnostics]
+        [language_server_main]
+        [extension_main]
+        [broken_refs]
+        [check_command]
+    )
     @tests (
+        ["../../crates/reqlan-index/src/rq_ignore.rs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:skips_idea_and_comment_refs_on_rq_ignore_error_lines"]
+        ["../../packages/analytical/test/ignore-error.test.ts"]
+        ["../../packages/analytical/test/load-native.test.ts:exposes findRqIgnoreErrorTargetLines on the engine when present"]
         ["../../packages/language/test/ignore-error.test.ts"]
+        ["../../packages/cli/test/check.test.ts"]
     )
 }
 
@@ -267,6 +351,31 @@ code_snippets {
         ["../../packages/language/test/parsing.test.ts:parse fenced code block in attribute value"]
         ["../../packages/language/test/parsing.test.ts:treats fenced rq example as opaque text"]
         ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
+        ["../../packages/language/test/references.test.ts:embedded file reference scan ignores fenced code blocks"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:fenced_file_example"]
+        ["../../crates/reqlan-parse/tests/align.rs:fence_body_is_one_code_snippet_not_inner_refs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
+    )
+}
+
+inline_code {
+    Single-backtick spans (`…`) are opaque `INLINE_CODE`. They may show example syntax such as a quoted path plus idea.
+    The grammar does not parse bracket or file references inside the span.
+    Check and the language server must not report those examples as unresolved ["../reference_types.rq".file_reference] or idea refs.
+    Related: [code_snippets].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-embedded-file-references.ts"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/references.test.ts:embedded file reference scan ignores inline code examples"]
+        ["../../packages/language/test/ignore-error.test.ts:does not report file references inside inline code"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_example"]
+        ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_example_is_not_a_live_ref"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
     )
 }
 

@@ -100,7 +100,7 @@ comment_reference_refactor_support {
     When an idea is renamed, update matching comment idea tokens.
     When an idea moves to another `.rq` file, rewrite qualified comment paths that targeted the old file for that idea. Pathless `rq:[idea]` tokens stay as name-only links.
     When an idea is deleted, remove comment references that targeted it.
-    Relates to [refactor_file_moves], [refactor_symbol_rename], [refactor_symbol_move], [refactor_symbol_delete], [refactor_changes], ["../features-mutation-hooks.rq".move_file], ["../features-mutation-hooks.rq".rename_file], ["../features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments].
+    Relates to [refactor_file_moves], [refactor_symbol_rename], [refactor_symbol_move], [refactor_symbol_delete], [refactor_changes], ["./features-mutation-hooks.rq".move_file], ["./features-mutation-hooks.rq".rename_file], ["./features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments].
     @status done
     @implementation (
         ["../../packages/language/src/reqlan-path-references.ts"]

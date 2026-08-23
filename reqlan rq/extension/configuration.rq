@@ -1,4 +1,4 @@
-from "@/bases/base.rq" import base_configuration
+from "../bases/base.rq" import base_configuration
 
 configuration_location {
     An optional `.reqlan/config.json` may appear under a base's `.reqlan` directory.
@@ -6,7 +6,10 @@ configuration_location {
     The applying config is that base's `.reqlan/config.json` when present.
     If the owning base has no `config.json`, or no owning base is found, defaults from [configuration_import_roots] apply.
     A child base does not inherit a parent base's config.
-    Implemented by ["../../packages/language/src/reqlan-path-resolve.ts"].
+    @implementation (
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+    )
     @tests (
         ["../../packages/language/test/config.test.ts:returns undefined when no config exists"]
         ["../../packages/language/test/config.test.ts:loads config from the owning base .reqlan"]
@@ -15,6 +18,8 @@ configuration_location {
         ["../../packages/language/test/config.test.ts:owning base without config does not inherit parent"]
         ["../../packages/language/test/config.test.ts:resolveRqConfig uses defaults when no applying file exists"]
         ["../../packages/language/test/path-resolve.test.ts:loads importRoots list from nearest base config"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:missing_import_roots_uses_default_alias"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:relative_root_resolves_against_base"]
     )
 }
 
@@ -49,6 +54,9 @@ configuration_import_roots {
         ["../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../packages/language/src/reqlan-path-completion.ts"]
         ["../../packages/extension/schemas/config.schema.json"]
+        ["../../crates/reqlan-parse/src/path.rs"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../crates/reqlan-index/src/broken.rs"]
     )
     @tests (
         ["../../packages/language/test/config.test.ts:empty object uses default alias mapping"]
@@ -75,6 +83,9 @@ configuration_import_roots {
         ["../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
         ["../../packages/language/test/path-resolve.test.ts:toDirectoryUri does not parse a drive letter as a URI scheme"]
         ["../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+        ["../../crates/reqlan-parse/src/path.rs:resolves_default_alias_against_workspace_folder"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:missing_import_roots_uses_default_alias"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:relative_root_resolves_against_base"]
     )
 }
 

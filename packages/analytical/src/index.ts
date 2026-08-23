@@ -185,6 +185,7 @@ export {
     type HeadlessAnalysisApi,
     type OpenedAnalysisApi
 } from './native/open-analysis-api.js';
+export { findRqIgnoreErrorTargetLines } from './native/ignore-error.js';
 export {
     nativeEngineRequested,
     loadNativeEngine,

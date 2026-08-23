@@ -1,6 +1,6 @@
 /**
  * Native-only AnalysisApi factory.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdir, writeFile } from 'node:fs/promises';

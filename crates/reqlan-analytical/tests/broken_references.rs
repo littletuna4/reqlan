@@ -1,4 +1,7 @@
 //! rq:["../../../reqlan rq/core_analysis/core.rq".test_references]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 
 use reqlan_analytical::AnalysisRuntime;
 use std::path::PathBuf;
@@ -30,5 +33,9 @@ fn analysis_api_lists_broken_refs_with_glob_and_comments() {
     assert_eq!(comments.len(), 1);
     assert_eq!(comments[0].kind, "comment_link");
     assert_eq!(comments[0].label, "gone");
+
+    let checked = runtime.check(None, Default::default(), Default::default()).unwrap();
+    assert!(checked.iter().any(|row| row.label == "missing_idea"));
+    assert!(checked.iter().any(|row| row.kind == "comment_link" && row.label == "gone"));
     std::fs::remove_dir_all(&root).ok();
 }

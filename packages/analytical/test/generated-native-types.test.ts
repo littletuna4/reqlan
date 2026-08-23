@@ -1,6 +1,6 @@
 /**
  * Specta-generated TS facade stays checked in and fully typed.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

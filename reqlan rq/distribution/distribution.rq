@@ -29,9 +29,9 @@ npm_distribution {
   Bootstrap: first publish of each scoped package can be done locally (you must be logged in to npm as an `@reqlan` org member) with `pnpm --filter @reqlan/language publish --access public --no-git-checks`, then analytical, then platform packages, then cli, then mcp — or wait for the trusted-publisher CI path after packages exist and Trusted Publisher is configured.
   Note: Packages must be `private: true` to skip local `changeset publish` (`pnpm run release:npm`), as with `reqlan-extension`. Platform packages are in a Changesets `fixed` group with `@reqlan/analytical` so they share its version; CI publishes them per-package after binaries are built and does not use `changeset publish` for those tarballs.
   Published packages declare `publishConfig.access: public`.
-  Implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/collect-napi-binary.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
+   Trusted Publisher is configured on npmjs.com for each `@reqlan/analytical-<platform>-<arch>` package
+  @implementation: ["../../.github/workflows/deploy-npm.yml"], ["../../scripts/skip-already-published.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/collect-napi-binary.mjs"], and root `release:npm` in ["../../package.json"] for local changeset-based publish. Docs: ["https://docs.npmjs.com/trusted-publishers"].
   @status in-progress
-  @todo Trusted Publisher not yet configured on npmjs.com for each `@reqlan/analytical-<platform>-<arch>` package
 }
 
 native_targets {
@@ -212,7 +212,7 @@ vsix_export {
 site_distribution {
   GitHub Pages deployment runs only when an `site/v*` tag is pushed.
   Tags are created by ["./distribution.rq".deployment_flow]; the site workflow does not deploy on ordinary commits.
-  The static build embeds `/spec` via [site.spec_html_export], which needs the host `reqlan-napi` binary.
+  The static build embeds `/spec` via ["../site/site.rq".spec_html_export], which needs the host `reqlan-napi` binary.
   The site workflow therefore builds and stages the host native engine (`scripts/stage-host-native.mjs` with `REQLAN_FORCE_NATIVE_BUILD=1`) before `pnpm run build`.
   The implementation lives in ["../../.github/workflows/deploy-site.yml"].
   @tests (

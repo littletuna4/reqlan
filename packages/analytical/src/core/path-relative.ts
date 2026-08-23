@@ -1,8 +1,8 @@
 /**
  * Workspace-relative path helpers with no Langium / @reqlan/language imports.
  * Used by the `@reqlan/analytical/core` entry so headless commands do not load the LSP parser.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { isAbsolute, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';

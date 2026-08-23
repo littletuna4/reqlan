@@ -1,5 +1,5 @@
 /**
- * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

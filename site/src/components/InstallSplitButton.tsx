@@ -4,11 +4,16 @@ import { Icon } from "@iconify/react/dist/offline";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import {
-  installActions,
+  cliInstallCommands,
+  getCliInstallCommand,
+  heroInstallActions,
+  type CliInstallCommand,
   type InstallAction,
+  type QuickstartIconRef,
   type QuickstartIdeId,
 } from "@/content/install-actions";
 import { getPreferredIde } from "@/lib/deeplink";
+import { usePreferredPackageManager } from "@/lib/use-package-manager";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -17,10 +22,11 @@ import {
 } from "@/components/InstallFallback";
 import styles from "./InstallSplitButton.module.css";
 
-const buttonGlyph = { set: "mdi", name: "package-down" } as const;
+const extensionGlyph = { set: "mdi", name: "package-down" } as const;
+const cliGlyph = { set: "mdi", name: "console" } as const;
 
-function ActionIcon({ action }: { action: InstallAction }) {
-  const data = resolveQuickstartIcon(action.icon);
+function ActionIcon({ icon }: { icon: QuickstartIconRef }) {
+  const data = resolveQuickstartIcon(icon);
   if (!data) {
     return null;
   }
@@ -28,25 +34,13 @@ function ActionIcon({ action }: { action: InstallAction }) {
   return <Icon icon={data} className={styles.actionIcon} aria-hidden />;
 }
 
-export function InstallSplitButton() {
-  const menuId = useId();
+function useDismissibleMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [lastUsedId, setLastUsedId] = useState<QuickstartIdeId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { fallback, runInstallAction, dismissFallback } =
-    useInstallActionHandler();
-
-  useEffect(() => {
-    const stored = getPreferredIde();
-    if (stored) {
-      setLastUsedId(stored);
-    }
-  }, []);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
-    dismissFallback();
-  }, [dismissFallback]);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -73,6 +67,44 @@ export function InstallSplitButton() {
     };
   }, [menuOpen, closeMenu]);
 
+  return { rootRef, menuOpen, setMenuOpen, closeMenu };
+}
+
+async function copyText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function InstallSplitButton() {
+  // rq:["../../../reqlan rq/site/site.rq".cta_icon]
+  const menuId = useId();
+  const { rootRef, menuOpen, setMenuOpen, closeMenu } = useDismissibleMenu();
+  const [lastUsedId, setLastUsedId] = useState<QuickstartIdeId | null>(null);
+  const { fallback, runInstallAction, dismissFallback } =
+    useInstallActionHandler();
+
+  useEffect(() => {
+    const stored = getPreferredIde();
+    if (stored && stored !== "openvsx") {
+      setLastUsedId(stored);
+    }
+  }, []);
+
+  const dismiss = useCallback(() => {
+    closeMenu();
+    dismissFallback();
+  }, [closeMenu, dismissFallback]);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      dismissFallback();
+    }
+  }, [menuOpen, dismissFallback]);
+
   const handleSelect = useCallback(
     async (action: InstallAction) => {
       setLastUsedId(action.id);
@@ -80,13 +112,13 @@ export function InstallSplitButton() {
       // Deep links reveal an inline recovery panel on failure, so keep the
       // menu open; external links and downloads are terminal, so dismiss it.
       if (action.kind !== "deeplink") {
-        setMenuOpen(false);
+        dismiss();
       }
     },
-    [runInstallAction],
+    [dismiss, runInstallAction],
   );
 
-  const glyph = resolveQuickstartIcon(buttonGlyph);
+  const glyph = resolveQuickstartIcon(extensionGlyph);
 
   return (
     <div className={styles.wrap} ref={rootRef}>
@@ -96,12 +128,12 @@ export function InstallSplitButton() {
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-controls={menuId}
-        onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
+        onClick={() => (menuOpen ? dismiss() : setMenuOpen(true))}
       >
         {glyph ? (
           <Icon icon={glyph} className={styles.buttonIcon} aria-hidden />
         ) : null}
-        <span>Install</span>
+        <span>Install extension</span>
         <span
           className={cn(styles.chevron, menuOpen && styles.chevronOpen)}
           aria-hidden
@@ -119,29 +151,127 @@ export function InstallSplitButton() {
           {fallback ? (
             <InstallFallback ideId={fallback.ideId} onDismiss={dismissFallback} />
           ) : (
-            <>
-              <p className={styles.menuLabel}>Install for your editor</p>
-              {installActions.map((action) => {
-                const isLastUsed = action.id === lastUsedId;
+            heroInstallActions.map((action) => {
+              const isLastUsed = action.id === lastUsedId;
 
-                return (
-                  <button
-                    key={action.id}
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => handleSelect(action)}
-                  >
-                    <ActionIcon action={action} />
-                    <span className={styles.menuItemLabel}>{action.label}</span>
-                    {isLastUsed ? (
-                      <span className={styles.menuMark}>Last used</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </>
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  role="menuitem"
+                  className={styles.menuItem}
+                  onClick={() => handleSelect(action)}
+                >
+                  <ActionIcon icon={action.icon} />
+                  <span className={styles.menuItemLabel}>{action.label}</span>
+                  {isLastUsed ? (
+                    <span className={styles.menuMark}>Last used</span>
+                  ) : null}
+                </button>
+              );
+            })
           )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function CliInstallButton() {
+  // rq:["../../../reqlan rq/site/site.rq".install_cli_menu]
+  // rq:["../../../reqlan rq/site/site.rq".package_manager_preference]
+  const menuId = useId();
+  const { rootRef, menuOpen, setMenuOpen, closeMenu } = useDismissibleMenu();
+  const [copiedId, setCopiedId] = useState<CliInstallCommand["id"] | null>(
+    null,
+  );
+  const [packageManager, setPackageManager] = usePreferredPackageManager();
+  const selectedCommand = getCliInstallCommand(packageManager);
+
+  const handleCopy = useCallback(
+    async (command: CliInstallCommand) => {
+      setPackageManager(command.id);
+      const copied = await copyText(command.command);
+      setCopiedId(copied ? command.id : null);
+      if (!copied) {
+        return;
+      }
+
+      window.setTimeout(() => {
+        setCopiedId((current) => (current === command.id ? null : current));
+      }, 1800);
+    },
+    [setPackageManager],
+  );
+
+  const glyph = resolveQuickstartIcon(cliGlyph);
+  const copiedSelected = copiedId === selectedCommand.id && !menuOpen;
+
+  return (
+    <div className={styles.wrap} ref={rootRef}>
+      <div className={styles.split}>
+        <button
+          type="button"
+          className={styles.splitMain}
+          title={`Copy ${selectedCommand.command}`}
+          onClick={() => {
+            closeMenu();
+            void handleCopy(selectedCommand);
+          }}
+        >
+          {glyph ? (
+            <Icon icon={glyph} className={styles.buttonIcon} aria-hidden />
+          ) : null}
+          <span>{copiedSelected ? "Copied" : "Install CLI"}</span>
+        </button>
+        <button
+          type="button"
+          className={styles.splitChevron}
+          aria-label="More package managers"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-controls={menuId}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <span
+            className={cn(styles.chevron, menuOpen && styles.chevronOpen)}
+            aria-hidden
+          >
+            ▾
+          </span>
+        </button>
+      </div>
+
+      {menuOpen ? (
+        <div id={menuId} className={styles.menu} role="menu">
+          {cliInstallCommands.map((command) => {
+            const copied = command.id === copiedId;
+            const isSelected = command.id === packageManager;
+
+            return (
+              <button
+                key={command.id}
+                type="button"
+                role="menuitem"
+                className={styles.menuItem}
+                aria-label={`Copy ${command.label} install command`}
+                onClick={() => handleCopy(command)}
+              >
+                <ActionIcon icon={command.icon} />
+                <span className={styles.menuItemStack}>
+                  <span className={styles.menuItemLabel}>{command.label}</span>
+                  <code className={styles.menuItemCommand}>
+                    {command.command}
+                  </code>
+                </span>
+                {copied ? (
+                  <span className={styles.menuMark}>Copied</span>
+                ) : isSelected ? (
+                  <span className={styles.menuMark}>Selected</span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

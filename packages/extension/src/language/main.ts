@@ -1,9 +1,12 @@
 import './object-group-by-polyfill.js';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startLanguageServer } from 'langium/lsp';
 import { NodeFileSystem } from 'langium/node';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 import type { Position, Range } from 'vscode-languageserver';
 import { URI } from 'langium';
+import { addNativeEngineSearchDirs, hostNativeBindingSpec } from '@reqlan/analytical/core';
 import {
     createReqlanServices,
     createSourceTextDocument,
@@ -23,6 +26,40 @@ import {
     type AttributeCatalog,
     type NameCatalog
 } from '@reqlan/language';
+
+declare const __dirname: string | undefined;
+
+/**
+ * The LSP process is separate from the extension host, so it must locate the
+ * native addon on its own. `REQLAN_NATIVE_DIR` is set by the extension host.
+ * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ */
+function languageServerDirectory(): string {
+    if (typeof __dirname === 'string') {
+        return __dirname;
+    }
+    return dirname(fileURLToPath(import.meta.url));
+}
+
+function registerNativeEngineForLanguageServer(): void {
+    const here = languageServerDirectory();
+    const envDir = process.env.REQLAN_NATIVE_DIR?.trim();
+    if (envDir) {
+        addNativeEngineSearchDirs(envDir);
+    }
+    addNativeEngineSearchDirs(join(here, '../../native'));
+    const host = hostNativeBindingSpec();
+    if (host) {
+        addNativeEngineSearchDirs(
+            join(here, '../../../../crates/target', host.rustTarget, 'release'),
+            join(here, '../../../../crates/target/release'),
+            join(here, '../../../../crates/target', host.rustTarget, 'debug'),
+            join(here, '../../../../crates/target/debug')
+        );
+    }
+}
+
+registerNativeEngineForLanguageServer();
 
 // Create a connection to the client
 const connection = createConnection(ProposedFeatures.all);

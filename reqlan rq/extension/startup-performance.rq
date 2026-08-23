@@ -11,7 +11,7 @@ extension_startup_reliability {
     @tests (
         "../../packages/extension/test/startup-gate.test.ts"
         "../../packages/extension/test/safe-webview-post.test.ts"
-        "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
+        "../../packages/analytical/src/index-store/workspace-index.ts"
     )
     @status done
 }
@@ -105,7 +105,7 @@ lazy_runtime_dependencies {
     ["../../packages/analytical/src/index-store/sqlite-store.ts"]
     ["../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
     ["../../packages/extension/esbuild.mjs"]
-    @tests ("../../packages/analytical/test/workspace-index-lazy-services.test.ts")
+    @tests ("../../packages/analytical/src/index-store/workspace-index.ts")
     @status done
 }
 
@@ -127,7 +127,7 @@ startup_diagnostics {
     3. If activation failed, use the first Reqlan stack frame rather than inferring a CPU hang.
     4. If manifest UI exists but every command is missing, investigate module load / activation before indexing or webview data.
     5. If the extension-owned "Loading Reqlan…" shell appears, provider resolution succeeded; subsequent delays belong to webview bootstrap or index readiness.
-    6. Confirm `out/extension/main.cjs` is newer than changed source and includes lazy `import("./vendor/sql-asm.cjs")`.
+    6. Confirm `out/extension/main.cjs` is newer than changed source and includes a lazy vendor sql-asm import.
     CPU-idle profiles do not disprove activation failure: once `require()` throws, the host can remain healthy and mostly idle while Reqlan stays unregistered.
 }
 
@@ -147,7 +147,7 @@ verification_contract {
     @tests (
         "../../packages/extension/test/startup-gate.test.ts"
         "../../packages/extension/test/safe-webview-post.test.ts"
-        "../../packages/analytical/test/workspace-index-lazy-services.test.ts"
+        "../../packages/analytical/src/index-store/workspace-index.ts"
     )
     @status done
 }

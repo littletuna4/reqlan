@@ -2,6 +2,8 @@
 // rq:["../../../reqlan rq/site/site.rq".sidebar_nav]
 // rq:["../../../reqlan rq/site/site.rq".nav_graph]
 // rq:["../../../reqlan rq/site/site.rq".routes]
+// rq:["../../../reqlan rq/site/site.rq".faq_page]
+// rq:["../../../reqlan rq/site/site.rq".faq_drift]
 // rq:["../../../reqlan rq/site/support-page.rq".support_page]
 import type { NavGraphEdge, NavGraphNode, NavItem } from "@/content/types";
 
@@ -37,6 +39,7 @@ export const nav = [
       { id: "token-efficiency", label: "Token efficiency" },
       { id: "de-facto-standard", label: "De facto standard?" },
       { id: "when-to-use", label: "When to use" },
+      { id: "drift", label: "Keeping in sync" },
       { id: "support-reqlan", label: "Support reqlan" },
     ],
   },

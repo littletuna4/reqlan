@@ -15,13 +15,13 @@ export const CONFIG_FILENAME = 'config.json';
 
 /**
  * Gitignore-syntax ignore file under `<base>/.reqlan/` (path filters for discovery/indexing).
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
  */
 export const RQIGNORE_FILENAME = '.rqignore';
 
 /**
  * Git ignore file under `<base>/.reqlan/` so SQLite artifacts stay out of VCS.
- * rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
+ * rq:["../../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
  */
 export const GITIGNORE_FILENAME = '.gitignore';
 
@@ -30,8 +30,8 @@ export const IDEAS_INDEX_FILENAME = 'ideas-index.sqlite';
 
 /**
  * Sibling SQLite for indexing timing diagnostics (survives ideas-index rebuild).
- * rq:["../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
- * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
+ * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics]
  */
 export const INDEX_DIAGNOSTICS_FILENAME = 'index-diagnostics.sqlite';
 

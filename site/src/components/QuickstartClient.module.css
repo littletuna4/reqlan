@@ -193,6 +193,55 @@
   background: var(--color-bg);
 }
 
+.installBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pmTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pmTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.875rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.pmTab:hover {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.pmTabActive {
+  border-color: color-mix(in srgb, var(--color-aqua) 40%, var(--color-border));
+  background: var(--color-surface);
+  color: var(--color-aqua-bright);
+}
+
+.pmTabIcon {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .cliLabel {
   color: var(--color-text-faint);
   font-size: 0.6875rem;

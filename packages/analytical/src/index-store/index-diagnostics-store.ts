@@ -3,9 +3,9 @@
  * Sibling of ideas-index; survives Clear & rebuild.
  * Backed by rusqlite via the core native engine (NativeSqlDb).
  *
- * rq:["../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
- * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
- * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".index_diagnostics_store]
+ * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
 import { unlink } from 'node:fs/promises';
 import { NativeSqlConnection } from '../native/native-sql-db.js';

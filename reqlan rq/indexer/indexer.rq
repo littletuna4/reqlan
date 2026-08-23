@@ -63,7 +63,7 @@ wildcard_reference_edges {
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-index/src/types.rs"]
         ["../../crates/reqlan-index/src/sync.rs"]
-        ["../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
         ["../../packages/analytical/src/core/types.ts"]
         ["../../packages/analytical/src/index-store/sqlite-store.ts"]
         ["../../packages/language/src/reqlan-wildcard-resolve.ts"]
@@ -77,7 +77,7 @@ wildcard_reference_edges {
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_unresolved_wildcard_edge_when_catalog_has_no_matches"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
-        ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
     )
 }
@@ -110,7 +110,7 @@ nonblocking_index {
     Implemented by [workspace_index]; editor adapter [editor_index_adapter].
     @tests (
         [workspace_index_tests]
-        ["../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
+        ["../../packages/analytical/src/index-store/workspace-index.ts"]
         ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]
         ["../../crates/reqlan-index/tests/sync.rs:hard_rebuild_reindexes_despite_mtime"]
     )
@@ -173,7 +173,7 @@ index_code_files {
 indexer_rust {
     The [index] engine (parse-for-index → extract → SQLite persist → incremental sync) should be written in Rust.
     Crate: `reqlan-index` over `reqlan-parse` per ["../core_analysis/rust_port.rq".rust_crate_layout].
-    Extractor ports ["../../packages/analytical/src/index-store/idea-extractor.ts"] including [wildcard_reference_edges].
+    Extractor ports ["../../crates/reqlan-index/src/extract.rs"] including [wildcard_reference_edges].
     Store ports schema v4 (["../../packages/analytical/src/index-store/schema.ts"]) via rusqlite; diagnostics live in `index-diagnostics.sqlite` on the same engine.
     Sync keeps [nonblocking_index]: per-file upsert, mtime skip, hard rebuild, cancellable progress.
     Not the Langium LSP. Comment-file indexing: [index_code_files].

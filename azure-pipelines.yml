@@ -219,6 +219,13 @@ jobs:
         displayName: Run tests
         timeoutInMinutes: 15
 
+      # rq:["reqlan rq/core_analysis/check.rq".check_meta_implementation]
+      - pwsh: |
+          $ErrorActionPreference = "Stop"
+          pnpm run check
+        displayName: Check requirement references
+        timeoutInMinutes: 10
+
       - pwsh: |
           $ErrorActionPreference = "Stop"
           $tagRef = "$(Build.SourceBranch)"

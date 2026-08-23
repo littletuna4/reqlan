@@ -67,7 +67,7 @@ function createTempWorkspace(): string {
 }
 
 describe('Completion', () => {
-    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".attribute_code_completion_main_descriptiption]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_main_descriptiption]
     test('suppresses completion in main description prose', async () => {
         document = await parse(`demo {
             This is main description prose.
@@ -86,7 +86,7 @@ describe('Completion', () => {
         expect(result?.items ?? []).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
     test('completes attribute keys after @ at line start', async () => {
         document = await parse(`demo {
             @ta
@@ -106,7 +106,7 @@ describe('Completion', () => {
         expect(labels).toContain('tags');
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
     test('completes attribute values from workspace and index catalog', async () => {
         document = await parse(`demo {
             @status don
@@ -131,7 +131,7 @@ describe('Completion', () => {
         expect(labels).toContain('done');
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion]
     test('completes idea names for bracket references', async () => {
         document = await parse(`demo {
             see [my
@@ -212,7 +212,7 @@ describe('Completion', () => {
         expect(remote?.additionalTextEdits).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
     test('orders reference completions by distance then alphabetically', async () => {
         document = await parse(`hub {
             see [a_near]

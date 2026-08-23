@@ -121,3 +121,48 @@ host {
     assert_eq!(refs[0].target_id.as_deref(), Some(idea_id("./other.rq", "leaf").as_str()));
     assert_eq!(refs[0].label.as_deref(), Some("leaf"));
 }
+
+// rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+#[test]
+fn same_file_forward_reference_is_resolved() {
+    let source = r#"first {
+    see [second]
+}
+second {
+    later
+}
+"#;
+    let indexed = extract(source);
+    let refs: Vec<_> =
+        indexed.edges.iter().filter(|edge| edge.kind == EdgeKind::References).collect();
+    assert_eq!(refs.len(), 1, "{refs:?}");
+    assert_eq!(refs[0].is_resolved, Some(true));
+    assert_eq!(refs[0].label.as_deref(), Some("second"));
+    assert_eq!(
+        refs[0].target_id.as_deref(),
+        Some(idea_id("file:///workspace/demo.rq", "second").as_str())
+    );
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+// rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+#[test]
+fn same_file_forward_ideaset_reference_is_resolved() {
+    let source = r#"first {
+    see [later_set]
+}
+later_set (
+    first
+)
+"#;
+    let indexed = extract(source);
+    let refs: Vec<_> =
+        indexed.edges.iter().filter(|edge| edge.kind == EdgeKind::References).collect();
+    assert_eq!(refs.len(), 1, "{refs:?}");
+    assert_eq!(refs[0].is_resolved, Some(true));
+    assert_eq!(refs[0].label.as_deref(), Some("later_set"));
+    assert_eq!(
+        refs[0].target_id.as_deref(),
+        Some(idea_id("file:///workspace/demo.rq", "later_set").as_str())
+    );
+}

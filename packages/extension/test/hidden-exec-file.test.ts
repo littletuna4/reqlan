@@ -1,5 +1,5 @@
 /**
- * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { describe, expect, test } from 'vitest';
 import { withHiddenConsole } from '../src/shared/hidden-exec-file.js';

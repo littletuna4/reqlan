@@ -2,7 +2,9 @@
  * Clickable document links for idea references, file references, import paths, and comment references.
  * Same-file and cross-file idea refs both get links so the editor underline is consistent.
  * Comment-reference links come from the same presentation as the missing-idea underline.
+ * Missing file refs get an error underline and no document link.
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  */
 import type { LangiumDocument } from 'langium';
 import { URI } from 'langium';
@@ -41,6 +43,9 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
                     link.sourceRange,
                     folderReferenceCommandTarget(link.targetUri)
                 )];
+            }
+            if (link.resolution === 'missing') {
+                return [];
             }
             if (link.resolution === 'wildcard' && link.wildcardArgs) {
                 return [LspDocumentLink.create(

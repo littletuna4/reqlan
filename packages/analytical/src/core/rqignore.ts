@@ -1,10 +1,10 @@
 /**
  * Base-local `.reqlan/.rqignore` — gitignore-syntax path filters for discovery and indexing.
  *
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
- * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
- * rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
- * rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+ * rq:["../../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".rqignore]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".binary_ignore]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
  */
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
@@ -158,7 +158,7 @@ export const BINARY_RQIGNORE_PATTERNS: readonly string[] = [
 
 /**
  * Header comments for a new `.reqlan/.rqignore`.
- * rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
  */
 const RQIGNORE_SEED_HEADER: readonly string[] = [
   "# reqlan path ignore",

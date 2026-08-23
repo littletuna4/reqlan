@@ -51,9 +51,9 @@ export function activateAnalyticalSubmodule(
 ): AnalyticalSubmodule {
     // Host-matching core engine `.node` is staged under native/ by the extension build
     // (F5) and by per-target VSIX packaging.
-    // rq:["../../../reqlan rq/distribution/distribution.rq".extension_host_target]
-    // rq:["../../../reqlan rq/distribution/distribution.rq".vsix_export]
-    // rq:["../../../reqlan rq/development/build.rq".incremental_extension_build]
+    // rq:["../../../../reqlan rq/distribution/distribution.rq".extension_host_target]
+    // rq:["../../../../reqlan rq/distribution/distribution.rq".vsix_export]
+    // rq:["../../../../reqlan rq/development/build.rq".incremental_extension_build]
     addNativeEngineSearchDirs(path.join(context.extensionPath, 'native'));
     const host = hostNativeBindingSpec();
     // Local F5 / monorepo checkout: also probe cargo outputs next to the extension package.

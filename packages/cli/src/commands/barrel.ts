@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { emit } from '../output.js';
 
 /**
- * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+ * rq:["../../../../reqlan rq/extension/features-commands.rq".barrel_page]
  */
 export class BarrelCommand extends Command {
     static override paths = [['barrel']];

@@ -6,11 +6,6 @@
         "allowJs": true,
         "checkJs": false
     },
-    "references": [
-        {
-            "path": "../language/tsconfig.src.json"
-        }
-    ],
     "include": [
         "src/**/*.ts",
         "src/**/*.js",

@@ -1,28 +1,14 @@
 /**
- * Suppresses diagnostics on lines immediately following `//rq-ignore-error`.
+ * Langium glue: drop diagnostics on lines that `//rq-ignore-error` suppresses.
+ * Line detection is the core Rust scanner (`find_rq_ignore_error_target_lines`).
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { DocumentState, type LangiumDocument, type LangiumSharedCoreServices } from 'langium';
 import type { Diagnostic } from 'vscode-languageserver';
-import { findLineCommentStart } from './reqlan-comment-resolver.js';
-
-const RQ_IGNORE_ERROR = /\/\/\s*rq-ignore-error\b/;
+import { findRqIgnoreErrorTargetLines as nativeFindRqIgnoreErrorTargetLines } from '@reqlan/analytical/core';
 
 export function findRqIgnoreErrorTargetLines(text: string): Set<number> {
-    const lines = text.split(/\r?\n/);
-    const targetLines = new Set<number>();
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const line = lines[lineIndex]!;
-        const commentStart = findLineCommentStart(line);
-        if (commentStart < 0) {
-            continue;
-        }
-        const commentText = line.slice(commentStart);
-        if (RQ_IGNORE_ERROR.test(commentText) && lineIndex + 1 < lines.length) {
-            targetLines.add(lineIndex + 1);
-        }
-    }
-    return targetLines;
+    return new Set(nativeFindRqIgnoreErrorTargetLines(text));
 }
 
 export function filterRqIgnoredDiagnostics(text: string, diagnostics: Diagnostic[]): Diagnostic[] {

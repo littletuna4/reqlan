@@ -1,6 +1,9 @@
 /**
  * Resolves file references, idea references, and import paths to target URIs and editor ranges.
  * Document links use these so same-file and cross-file refs share the same underline/click affordance.
+ * Missing file refs stay in this result so the validator can underline them without creating a link.
+ * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
  */
 import type { AstNode, CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, Reference, URI } from 'langium';
 import { AstUtils, CstUtils, GrammarUtils } from 'langium';
@@ -50,6 +53,8 @@ export type ReferenceResolution = 'file' | 'folder' | 'missing' | 'wildcard';
 
 export type FileLinkTargetIssue = 'empty' | 'parse-error';
 
+export const FILE_REFERENCE_MISSING = 'file-reference-missing';
+
 export interface ResolvedFileLink {
     sourceRange: Range;
     targetUri: string;
@@ -57,6 +62,8 @@ export interface ResolvedFileLink {
     resolution?: ReferenceResolution;
     folderFiles?: string[];
     targetIssue?: FileLinkTargetIssue;
+    /** Authored path (no test/line suffix) for missing-file diagnostics. */
+    authoredPath?: string;
     /** Present when resolution is `wildcard`. */
     wildcardArgs?: WildcardReferenceArgs;
     wildcardMatches?: WildcardMatch[];
@@ -238,21 +245,28 @@ function resolvePathStringLink(
     targetUri: URI,
     sourceRange: Range
 ): ResolvedFileLink | undefined {
+    if (!parsed.filePath.trim()) {
+        return missingFileLink(sourceRange, targetUri, parsed.filePath);
+    }
+    if (isRemoteFileReferencePath(parsed.filePath)) {
+        return undefined;
+    }
     const resolution = classifyReferenceUri(targetUri, documents, fileSystem);
     if (resolution === 'missing') {
-        return undefined;
+        return missingFileLink(sourceRange, targetUri, parsed.filePath);
     }
     if (resolution === 'folder') {
         return {
             sourceRange,
             targetUri: targetUri.toString(),
             resolution,
-            folderFiles: listFolderFileNames(fileSystem, targetUri)
+            folderFiles: listFolderFileNames(fileSystem, targetUri),
+            authoredPath: parsed.filePath
         };
     }
     const text = readTargetText(targetUri, documents, fileSystem);
     if (text === undefined) {
-        return undefined;
+        return missingFileLink(sourceRange, targetUri, parsed.filePath);
     }
     const targetIssue = detectFileLinkTargetIssue(text, findTargetDocument(targetUri, documents));
     let targetRange: Range | undefined;
@@ -271,8 +285,22 @@ function resolvePathStringLink(
         targetUri: targetUri.toString(),
         targetRange,
         resolution: 'file',
-        targetIssue
+        targetIssue,
+        authoredPath: parsed.filePath
     };
+}
+
+function missingFileLink(sourceRange: Range, targetUri: URI, authoredPath: string): ResolvedFileLink {
+    return {
+        sourceRange,
+        targetUri: targetUri.toString(),
+        resolution: 'missing',
+        authoredPath
+    };
+}
+
+function isRemoteFileReferencePath(path: string): boolean {
+    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(path);
 }
 
 export function detectFileLinkTargetIssue(
@@ -295,6 +323,14 @@ export function fileLinkTargetIssueMessage(issue: FileLinkTargetIssue): string {
         case 'parse-error':
             return 'Referenced file has parse errors.';
     }
+}
+
+export function fileLinkMissingMessage(path: string): string {
+    const trimmed = path.trim();
+    if (!trimmed) {
+        return 'Could not resolve file reference.';
+    }
+    return `Could not resolve file reference '${trimmed}'.`;
 }
 
 function findTargetDocument(targetUri: URI, documents: LangiumDocuments): LangiumDocument | undefined {
@@ -347,7 +383,11 @@ export function resolveImportedFileLink(
     context?: PathResolveContext
 ): ResolvedFileLink | undefined {
     const targetUri = resolveExistingImportUri(filePath, document, documents, fileSystem, context);
-    return resolvePathStringLink(document, documents, fileSystem, { filePath }, targetUri, sourceRange);
+    const link = resolvePathStringLink(document, documents, fileSystem, { filePath }, targetUri, sourceRange);
+    if (!link || link.resolution === 'missing') {
+        return undefined;
+    }
+    return link;
 }
 
 export function filePathRangeInStringNode(pathNode: CstNode, parsed: ParsedFileReference): Range {

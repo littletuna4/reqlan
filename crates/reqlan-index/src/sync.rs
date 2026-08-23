@@ -3,6 +3,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+//! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 
 use crate::comment::{
     code_file_content_hash, comment_link_edges, is_comment_index_path,
@@ -12,9 +13,10 @@ use crate::extract::{
     extract_from_parse, extract_indexed_document, ExtractOptions, WildcardIdeaCandidate,
 };
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
+use crate::path_resolve::load_applying_rq_config;
 use crate::store::{IndexStore, StoreError};
 use crate::types::IdeaSummary;
-use reqlan_parse::{parse_document, Severity};
+use reqlan_parse::{parse_document, ImportRootMapping, Severity};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -113,6 +115,7 @@ pub fn sync_workspace(
         store.clear()?;
     }
     let filter = RqIgnoreFilter::load(&options.workspace_root);
+    let import_roots = load_applying_rq_config(&options.workspace_root, None).import_roots;
     let rq_files = collect_rq_files(&options.workspace_root, &filter);
     let code_files = collect_code_files(&options.workspace_root, &filter);
     let stored_mtimes = store.list_document_mtimes()?;
@@ -159,7 +162,10 @@ pub fn sync_workspace(
         let extracted = extract_indexed_document(
             &file_uri,
             &source,
-            &ExtractOptions { idea_candidates: catalog.clone() },
+            &ExtractOptions {
+                idea_candidates: catalog.clone(),
+                import_roots: import_roots.clone(),
+            },
         );
         if let Err(error) = store.persist_extracted(extracted.clone(), mtime_ms) {
             progress.errors += 1;
@@ -187,6 +193,7 @@ pub fn sync_workspace(
             cancel,
             &mut progress,
             &mut file_issues,
+            &import_roots,
         )?;
     }
 
@@ -202,6 +209,7 @@ fn index_code_files(
     cancel: &AtomicBool,
     progress: &mut SyncProgress,
     file_issues: &mut Vec<FileIssue>,
+    import_roots: &[ImportRootMapping],
 ) -> Result<(), StoreError> {
     let catalog = store.list_all_ideas()?;
     let mut keep = HashSet::new();
@@ -220,6 +228,7 @@ fn index_code_files(
             &catalog,
             stored_mtimes,
             force_reextract,
+            import_roots,
         )? {
             CodeIndexOutcome::SkippedMtime => {
                 progress.skipped_mtime += 1;
@@ -261,6 +270,7 @@ fn index_code_file_path(
     catalog: &[IdeaSummary],
     stored_mtimes: &std::collections::HashMap<String, Option<f64>>,
     force_reextract: bool,
+    import_roots: &[ImportRootMapping],
 ) -> Result<CodeIndexOutcome, StoreError> {
     if too_large_for_comment_index(path) {
         return Ok(CodeIndexOutcome::Empty);
@@ -275,7 +285,7 @@ fn index_code_file_path(
         Err(_) if is_binary_rqignore_path(path) => return Ok(CodeIndexOutcome::Empty),
         Err(error) => return Ok(CodeIndexOutcome::Error(error.to_string())),
     };
-    persist_code_source(store, file_uri, &source, catalog, mtime_ms)
+    persist_code_source(store, file_uri, &source, catalog, mtime_ms, import_roots)
 }
 
 fn persist_code_source(
@@ -284,6 +294,7 @@ fn persist_code_source(
     source: &str,
     catalog: &[IdeaSummary],
     mtime_ms: Option<f64>,
+    import_roots: &[ImportRootMapping],
 ) -> Result<CodeIndexOutcome, StoreError> {
     if !looks_like_comment_reference_source(source)
         || crate::comment::find_comment_references_in_text(source).is_empty()
@@ -293,7 +304,7 @@ fn persist_code_source(
         }
         return Ok(CodeIndexOutcome::Empty);
     }
-    let edges = comment_link_edges(file_uri, source, catalog);
+    let edges = comment_link_edges(file_uri, source, catalog, import_roots);
     store.persist_code_comment_file(file_uri, &code_file_content_hash(source), &edges, mtime_ms)?;
     Ok(CodeIndexOutcome::Indexed)
 }
@@ -303,6 +314,7 @@ fn refresh_indexed_code_documents(
     workspace_root: &Path,
 ) -> Result<(), StoreError> {
     let catalog = store.list_all_ideas()?;
+    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
     for file_uri in store.list_code_document_uris()? {
         let path = workspace_root.join(&file_uri);
         if !path.is_file() {
@@ -317,7 +329,7 @@ fn refresh_indexed_code_documents(
             }
         };
         let mtime_ms = file_mtime_ms(&path);
-        let _ = persist_code_source(store, &file_uri, &source, &catalog, mtime_ms)?;
+        let _ = persist_code_source(store, &file_uri, &source, &catalog, mtime_ms, &import_roots)?;
     }
     Ok(())
 }
@@ -348,6 +360,8 @@ pub fn index_one_file(
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
+    let import_roots = load_applying_rq_config(workspace_root, Some(&path)).import_roots;
+
     if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
         if is_binary_rqignore_path(&path) {
             let filter = RqIgnoreFilter::load(workspace_root);
@@ -365,7 +379,7 @@ pub fn index_one_file(
             Err(error) => return Err(error.into()),
         };
         let mtime_ms = file_mtime_ms(&path);
-        persist_code_source(store, &file_uri, &source, &catalog, mtime_ms)?;
+        persist_code_source(store, &file_uri, &source, &catalog, mtime_ms, &import_roots)?;
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
@@ -392,7 +406,7 @@ pub fn index_one_file(
         &file_uri,
         &source,
         &parsed,
-        &ExtractOptions { idea_candidates: catalog },
+        &ExtractOptions { idea_candidates: catalog, import_roots },
     );
     store.persist_extracted(extracted, mtime_ms)?;
     refresh_indexed_code_documents(store, workspace_root)?;

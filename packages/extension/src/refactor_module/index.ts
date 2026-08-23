@@ -5,7 +5,7 @@ import { registerCommentRenameProvider } from './register-comment-rename-provide
 import { registerIdeaRefactorCommands } from './register-idea-refactor-commands.js';
 
 /**
- * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_support]
+ * rq:["../../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
  * rq:["../../../../reqlan rq/extension/features-commands.rq".barrel_page]
  * rq:["../../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
  */

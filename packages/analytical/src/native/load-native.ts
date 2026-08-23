@@ -1,9 +1,9 @@
 /**
  * Native engine feature flag and napi-rs loader.
- * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
- * rq:["../../../reqlan rq/distribution/distribution.rq".extension_host_target]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../../../../reqlan rq/distribution/distribution.rq".extension_host_target]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -17,7 +17,7 @@ import type { NativeWorkspaceIndexHandle } from './native-workspace-index.js';
  * Prefer `__dirname` in the extension host CJS bundle. Under Node ESM, use
  * `import.meta.url` — do not eval that expression; Node 24 treats a script eval
  * as `Cannot use 'import.meta' outside a module`.
- * rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+ * rq:["../../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
  */
 declare const __dirname: string | undefined;
 declare const __filename: string | undefined;
@@ -85,6 +85,11 @@ export interface NativeAnalysisRuntimeHandle {
     getCompletionStatus(): unknown;
     getDeprecationImpact(): unknown;
     listBrokenReferences(pathGlob?: string, includeCommentReferences?: boolean): unknown;
+    checkReferences(
+        pathGlob?: string,
+        wildcardZero?: string,
+        wildcardOne?: string
+    ): unknown;
     exportGraph(request: unknown): unknown;
     resolveRequirementReference(name?: string): unknown;
     resolveFileReference(pathPrefix?: string): unknown;
@@ -104,6 +109,11 @@ export interface NativeModule {
     parseReqlanSource?(source: string): unknown;
     /** Top-level idea names in a document (git-context historical extract). */
     extractIdeaNames?(source: string): string[];
+    /**
+     * 0-based line indexes suppressed by `//rq-ignore-error`.
+     * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+     */
+    findRqIgnoreErrorTargetLines?(source: string): number[];
     /** Barrel-page plan from source text (no filesystem writes). */
     barrelPagePlan?(source: string, containerName: string | undefined, sourceFileName: string): unknown;
     /** Seed a reqlan base marker (`.reqlan/` + `config.json` + `.rqignore`). */
@@ -302,7 +312,12 @@ export function listNativeEngineCandidates(
     }
     const here = moduleDirectory();
     const repoRoot = findRepoRoot(here);
-    const staged = extraSearchDirs.flatMap(dir => stagedDirCandidates(dir, spec));
+    // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    const envDir = process.env.REQLAN_NATIVE_DIR?.trim();
+    const staged = [
+        ...(envDir ? stagedDirCandidates(envDir, spec) : []),
+        ...extraSearchDirs.flatMap(dir => stagedDirCandidates(dir, spec))
+    ];
     const stagedHostPkg = repoRoot ? hostNativePackageFile(repoRoot, spec) : undefined;
     const resolvedPkg = resolvedHostPackageMain(spec);
 

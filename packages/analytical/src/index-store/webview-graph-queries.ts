@@ -1,7 +1,7 @@
 /**
  * Graph slice queries for Ideas Summary and HTML export cartographic maps.
- * rq:["../../../reqlan rq/ontology.rq".cartographic_map]
- * rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+ * rq:["../../../../reqlan rq/ontology.rq".cartographic_map]
+ * rq:["../../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
  */
 import type { EdgeRecord, IdeaSummary } from '../core/types.js';
 import { FILTER_EMPTY, FILTER_NOT_PRESENT } from '../core/filter-specials.js';

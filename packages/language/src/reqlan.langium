@@ -38,8 +38,11 @@ OneLinerIdea:
 OneLinerBody:
     content+=(MarkdownLink | BracketReference | WikiLink | OneLinerText)+;
 
+// Bare [name] refs resolve to any of these. Collect all declarations before linking
+// so a reference may target a name declared later in the same file.
+// rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
 IdeaDeclaration:
-    Idea | OneLinerIdea;
+    Idea | OneLinerIdea | IdeaSet;
 
 Idea:
     name=IdeaName '{'

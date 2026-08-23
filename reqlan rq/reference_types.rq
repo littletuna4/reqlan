@@ -1,6 +1,6 @@
 import "../packages/language/src/reqlan.langium" as reqlan_grammar
 import "../packages/analytical/src/core/types.ts" as analytical_types
-import "../packages/analytical/src/index-store/idea-extractor.ts" as idea_extractor
+import "../crates/reqlan-index/src/extract.rs" as idea_extractor
 import "../crates/reqlan-index/src/types.rs" as rust_index_types
 import "../crates/reqlan-index/src/extract.rs" as rust_extract
 import "../packages/language/src/reqlan-comment-resolver.ts" as comment_resolver
@@ -46,6 +46,7 @@ ideaset_reference {
     )
     @tests (
         ["../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+        ["../packages/language/test/linking.test.ts:resolve forward reference to later ideaset in the same file"]
         ["../packages/language/test/linking.test.ts:resolve namespace import references to files"]
         ["../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
     )
@@ -123,6 +124,8 @@ wildcard_reference {
     Index: one `wildcard_reference` edge per catalog match
     (["./indexer/indexer.rq".wildcard_reference_edges]); never stored as plain `references`.
     Native extract: ["../crates/reqlan-index/src/extract.rs"].
+    Sparse match handling: ["./core_analysis/check.rq".check_wildcard_sparse]
+    (["./core_analysis/check.rq".check_wildcard_zero], ["./core_analysis/check.rq".check_wildcard_one]).
     @status done
     @implementation (
         [rust_extract]

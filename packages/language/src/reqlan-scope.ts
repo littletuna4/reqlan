@@ -1,18 +1,20 @@
 /**
  * Publishes idea and ideaset declarations for file-local and cross-file reference resolution.
+ * Local declarations are collected first; imports are consulted only when a name is not local.
+ * rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
+ * rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
  */
 import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
 import {
     isFromImport,
     isFromImportSpecifier,
-    isIdea,
+    isIdeaDeclaration,
     isIdeaSet,
     isInvalidFromImport,
     isLocalReference,
     isModel,
     isNamespaceImport,
-    isOneLinerIdea,
     isQualifiedImport,
     isQualifiedReference,
     type FromImportSpecifier,
@@ -34,7 +36,7 @@ export class ReqlanScopeComputation extends DefaultScopeComputation {
         const model = document.parseResult.value;
         if (isModel(model)) {
             for (const element of model.elements) {
-                if (isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element)) {
+                if (isIdeaDeclaration(element)) {
                     this.addExportedSymbol(element, exports, document);
                 }
             }
@@ -146,20 +148,49 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private buildFileIdeasScope(document: LangiumDocument): Scope {
+        const locals = this.localDeclarationDescriptions(document);
+        return new StreamScope(
+            stream(locals),
+            new LazyScope(() => this.importedIdeaScope(document)),
+            { concatOuterScope: false }
+        );
+    }
+
+    /**
+     * Every named top-level declaration in the file, regardless of source order.
+     * Bare `[name]` and ideaset members resolve against this set first.
+     */
+    private localDeclarationDescriptions(document: LangiumDocument): AstNodeDescription[] {
         const model = document.parseResult.value as Model;
         if (!isModel(model)) {
-            return new StreamScope(stream([]));
+            return [];
         }
-        const descriptions = model.elements
-            .filter(element => isIdea(element) || isOneLinerIdea(element))
-            .map(idea => this.descriptions.createDescription(idea, idea.name, document));
+        return model.elements
+            .filter(isIdeaDeclaration)
+            .map(element => this.descriptions.createDescription(element, element.name, document));
+    }
+
+    /**
+     * Imported bindings only. Built lazily so a fully-local file never walks import `.ref`s
+     * while resolving same-file names.
+     */
+    private importedIdeaScope(document: LangiumDocument): Scope {
+        return new StreamScope(stream(this.importedIdeaDescriptions(document)));
+    }
+
+    private importedIdeaDescriptions(document: LangiumDocument): AstNodeDescription[] {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return [];
+        }
+        const descriptions: AstNodeDescription[] = [];
         // Imported ideas enter scope under their binding name only (alias when present).
         // See import_tokenisation: aliased base names are not reserved locally.
         for (const importDecl of model.imports) {
             if (isFromImport(importDecl)) {
                 for (const specifier of importDecl.specifiers) {
                     const target = specifier.idea.ref;
-                    if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+                    if (!target || !isIdeaDeclaration(target)) {
                         continue;
                     }
                     const name = specifierBindingName(specifier) ?? target.name;
@@ -169,21 +200,21 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             }
             if (isQualifiedImport(importDecl)) {
                 const target = importDecl.idea.ref;
-                if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+                if (!target || !isIdeaDeclaration(target)) {
                     continue;
                 }
                 const name = importDecl.alias ?? target.name;
                 descriptions.push(this.descriptions.createDescription(target, name, AstUtils.getDocument(target)));
             }
         }
-        return new StreamScope(stream(descriptions));
+        return descriptions;
     }
 
     private scopeForIdeasetMembers(ideaset: IdeaSet, document: LangiumDocument): Scope {
         const descriptions = ideaset.members
             .map(member => member.ref)
             .filter((target): target is NonNullable<typeof target> =>
-                target !== undefined && (isIdea(target) || isOneLinerIdea(target))
+                target !== undefined && isIdeaDeclaration(target)
             )
             .map(target => this.descriptions.createDescription(target, target.name, AstUtils.getDocument(target)));
         if (descriptions.length > 0) {
@@ -209,7 +240,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             return new StreamScope(stream([]));
         }
         const locals = model.elements
-            .filter(element => isIdea(element) || isOneLinerIdea(element) || isIdeaSet(element))
+            .filter(isIdeaDeclaration)
             .map(element => this.descriptions.createDescription(element, element.name, document));
         const namedImports = model.imports.flatMap(importDecl => {
             if (isFromImport(importDecl)) {
@@ -247,7 +278,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return undefined;
             }
             const target = importDecl.idea.ref;
-            if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+            if (!target || !isIdeaDeclaration(target)) {
                 return undefined;
             }
             const description = this.descriptions.createDescription(target, target.name, imported);
@@ -261,7 +292,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             const descriptions = importDecl.specifiers
                 .map(specifier => specifier.idea.ref)
                 .filter((target): target is NonNullable<typeof target> =>
-                    target !== undefined && (isIdea(target) || isOneLinerIdea(target))
+                    target !== undefined && isIdeaDeclaration(target)
                 )
                 .map(target => this.descriptions.createDescription(target, target.name, imported));
             return new StreamScope(stream(descriptions));
@@ -272,7 +303,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return undefined;
             }
             const target = importDecl.idea.ref;
-            if (!target || (!isIdea(target) && !isOneLinerIdea(target))) {
+            if (!target || !isIdeaDeclaration(target)) {
                 return undefined;
             }
             const description = this.descriptions.createDescription(target, target.name, imported);
@@ -315,7 +346,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             return undefined;
         }
         const descriptions = model.elements
-            .filter(element => isIdea(element) || isOneLinerIdea(element))
+            .filter(isIdeaDeclaration)
             .map(idea => this.descriptions.createDescription(idea, idea.name, imported));
         const scope = new StreamScope(stream(descriptions));
         this.importPathCache.set(key, { version: imported.textDocument.version, scope });
@@ -348,4 +379,30 @@ function importAlias(entry: Import): string | undefined {
         return undefined;
     }
     return entry.alias;
+}
+
+/**
+ * Defers outer-scope construction until a local lookup misses.
+ * StreamScope `getElement` does not call the outer scope when a local name matches.
+ */
+class LazyScope implements Scope {
+    private resolved: Scope | undefined;
+
+    constructor(private readonly load: () => Scope) {}
+
+    getElement(name: string): AstNodeDescription | undefined {
+        return this.inner().getElement(name);
+    }
+
+    getElements(name: string): ReturnType<Scope['getElements']> {
+        return this.inner().getElements(name);
+    }
+
+    getAllElements(): ReturnType<Scope['getAllElements']> {
+        return this.inner().getAllElements();
+    }
+
+    private inner(): Scope {
+        return this.resolved ??= this.load();
+    }
 }

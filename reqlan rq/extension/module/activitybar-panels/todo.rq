@@ -1,8 +1,9 @@
-import "../../ai-support.rq" as ai_support
+import "../../../ai-support.rq" as ai_support
 import "../ideas_summary/webview.rq" as ideas_summary_doc
 import "../../features-commands.rq" as commands
 import "./search.rq" as search_panel
 import "../../../../packages/extension/webviews/activity-bar/components/TodoPane.svelte" as TodoPane
+import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
 import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
 import "../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts" as app_state
 import "../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
@@ -25,7 +26,7 @@ todo_pane {
     Host query + wire: [activity_bar_webview] / [activity_bar_data] / [activity_bar_messages] / [app_state]; store query [sqlite_store].
     Implemented by [TodoPane] under [CollapsiblePane]; same scroll / fill pattern as [SearchPane].
     @tests (
-        ["../../../../packages/analytical/test/activity-bar-queries.test.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/TodoPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/TodoPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/App.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]

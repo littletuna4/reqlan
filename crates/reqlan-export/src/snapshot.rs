@@ -1131,77 +1131,7 @@ fn empty_slice(center_id: Option<&str>, depth: u32) -> GraphViewSlice {
 }
 
 pub fn resolve_referenced_file_path(target_file: &str, source_id: &str) -> String {
-    let target = target_file.replace('\\', "/");
-    if target.contains("://")
-        || target.starts_with('/')
-        || is_windows_absolute(target_file)
-        || is_windows_absolute(&target)
-    {
-        return target_file.to_string();
-    }
-    let defining = defining_file_path(source_id).replace('\\', "/");
-    if defining.is_empty()
-        || defining.contains("://")
-        || defining.starts_with('/')
-        || is_windows_absolute(&defining)
-    {
-        return target_file.to_string();
-    }
-    posix_join(&posix_dirname(&defining), &target)
-}
-
-fn defining_file_path(source_id: &str) -> String {
-    match source_id.rfind('#') {
-        Some(index) => source_id[..index].to_string(),
-        None => source_id.to_string(),
-    }
-}
-
-fn is_windows_absolute(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && (bytes[2] == b'\\' || bytes[2] == b'/')
-}
-
-fn posix_dirname(path: &str) -> String {
-    let trimmed = path.trim_end_matches('/');
-    match trimmed.rfind('/') {
-        Some(0) => "/".into(),
-        Some(index) => trimmed[..index].to_string(),
-        None => ".".into(),
-    }
-}
-
-fn posix_join(base: &str, rel: &str) -> String {
-    if rel.starts_with('/') {
-        return normalize_posix(rel);
-    }
-    if base.is_empty() || base == "." {
-        return normalize_posix(rel);
-    }
-    normalize_posix(&format!("{}/{}", base.trim_end_matches('/'), rel))
-}
-
-fn normalize_posix(path: &str) -> String {
-    let absolute = path.starts_with('/');
-    let mut stack = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                stack.pop();
-            }
-            other => stack.push(other),
-        }
-    }
-    let joined = stack.join("/");
-    if absolute {
-        format!("/{joined}")
-    } else {
-        joined
-    }
+    reqlan_index::resolve_rq_path(target_file, reqlan_index::file_from_idea_id(source_id), &[])
 }
 
 fn build_manifest(request: &ExportRequest) -> ExportManifest {

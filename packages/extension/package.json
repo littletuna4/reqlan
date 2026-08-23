@@ -113,6 +113,9 @@
       },
       {
         "path": "./skills/rq-search/SKILL.md"
+      },
+      {
+        "path": "./skills/rq-fix-stale-references/SKILL.md"
       }
     ],
     "chatPromptFiles": [

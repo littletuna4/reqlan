@@ -1,7 +1,7 @@
 /**
  * HTML export is native (`reqlan-export` via NativeAnalysisApi).
- * rq:["../../reqlan rq/core_analysis/html_export.rq".html_export]
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".export_rust]
+ * rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".export_rust]
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

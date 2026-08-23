@@ -1,7 +1,7 @@
 /**
  * Tests for git-context history helpers and hidden git CLI spawns.
- * rq:["../../reqlan rq/extension/module/context-scope.rq".git_context]
- * rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ * rq:["../../../reqlan rq/extension/module/context-scope.rq".git_context]
+ * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -140,7 +140,7 @@ describe('git-context history helpers', () => {
         expect(shouldRefreshGitFocusCache(Date.now(), undefined)).toBe(false);
     });
 
-    // rq:["../../reqlan rq/core_analysis/core.rq".consumption_silence]
+    // rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
     test('git CLI spawns hide the Windows console', () => {
         expect(gitContextSource).toContain('withHiddenConsole');
         expect(gitContextSource).toMatch(/execFileAsync\(\s*'git'/);

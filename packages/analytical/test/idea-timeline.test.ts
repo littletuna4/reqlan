@@ -21,9 +21,9 @@ function mockIdea(name: string, fileUri: string, overrides: Partial<IdeaRecord> 
 }
 
 describe('idea timeline git dates', () => {
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
     test('upsert preserves analyser git dates and change count across reindex', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const fileUri = 'file:///workspace/timeline.rq';
@@ -66,7 +66,7 @@ describe('idea timeline git dates', () => {
         await store.close();
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('listIdeaIdsMissingGitDates returns ideas without dates', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const fileUri = 'file:///workspace/timeline.rq';
@@ -80,10 +80,10 @@ describe('idea timeline git dates', () => {
         await store.close();
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
-    // rq:["../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+    // rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
     test('listIdeaIdsMissingGitDates includes ideas missing change count', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const fileUri = 'file:///workspace/timeline.rq';
@@ -96,9 +96,9 @@ describe('idea timeline git dates', () => {
         await store.close();
     });
 
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
-    // rq:["../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+    // rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
     test('listIdeaIdsMissingGitDates can filter or prefer a file', async () => {
         const store = await SqliteIndexStore.open(join(tmpdir(), `reqlan-timeline-${randomUUID()}.sqlite`));
         const current = 'reqlan rq/current.rq';

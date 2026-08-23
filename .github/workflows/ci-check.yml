@@ -1,0 +1,35 @@
+# rq:["../../reqlan rq/core_analysis/check.rq".check]
+# rq:["../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
+name: Check references
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build host native addon
+        run: node scripts/ensure-host-native.mjs
+      - name: Build CLI
+        run: pnpm exec tsc -b tsconfig.build.json
+      - name: Check requirement references
+        run: pnpm run check

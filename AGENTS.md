@@ -1,1 +1,4 @@
-USE ASD-STE100
+- USE ASD-STE100
+- All non-trivial user requirements must be documented in an .rq file.
+- Implementation and tests should be cross referenced.
+- Do not use the browser tool.

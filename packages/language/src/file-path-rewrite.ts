@@ -19,7 +19,7 @@ import {
 export interface PathReference {
     path: string;
     range: Range;
-    /** Idea name when this path came from `rq:["path".idea]`. */
+    /** Idea name when this path came from a qualified comment reference. */
     idea?: string;
 }
 

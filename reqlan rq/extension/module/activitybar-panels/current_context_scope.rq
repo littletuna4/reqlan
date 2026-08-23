@@ -5,7 +5,7 @@ import "../../../../packages/extension/webviews/activity-bar/components/NestedSe
 import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
 import "../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte" as ContextFingerprint
 import "../../../../packages/extension/webviews/activity-bar/components/widgets/DependencyPulse.svelte" as DependencyPulse
-import "../../../../packages/analytical/src/core/context-signals.ts" as context_signals
+import "../../../../packages/extension/src/activity_bar_module/lib/context-signals.ts" as context_signals
 import "../context-scope-v2.rq" as context_scope_v2
 
 current_file_pane {
@@ -45,8 +45,8 @@ git_history_lens {
         ["../../../../packages/extension/src/activity_bar_module/git-context.ts"]
         ["../../../../packages/extension/src/activity_bar_module/git-context-helpers.ts"]
         ["../../../../packages/extension/test/git-context.test.ts"]
-        ["../../../../packages/analytical/src/core/context-model.ts"]
-        ["../../../../packages/analytical/src/core/context-signals.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/lib/context-model.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
     )
     @status done
 }
@@ -64,8 +64,8 @@ reference_lists_pane {
     Implemented by [ReferenceListsPane].
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
-        ["../../../../packages/analytical/src/index-store/idea-extractor.ts"]
-        ["../../../../packages/analytical/test/idea-extractor-namespace-refs.test.ts"]
+        ["../../../../crates/reqlan-index/src/extract.rs"]
+        ["../../../../crates/reqlan-index/tests/extract_parity.rs"]
     )
 }
 
@@ -73,17 +73,17 @@ reference_resolution_parity {
     Reference resolution for the activity-bar references pane must use the same shared rules as the editor
     (document links / go-to-definition), not a second ad-hoc classifier.
     - Bare namespace-alias bracket refs such as `[ActivityBarApp]` that open a file in the editor must index as
-      resolved `file_reference` edges (import path), not unresolved idea refs — per ["../../language/imports.rq".import_namespace].
+      resolved `file_reference` edges (import path), not unresolved idea refs — per ["../../../language/imports.rq".import_namespace].
     - Quoted file paths and markdown file links use the same file-target treatment as the language file-link resolver
       in ["../../../../packages/language/src/reqlan-file-link-resolver.ts"] /
       ["../../../../packages/language/src/reqlan-namespace-import-links.ts"].
     - File targets are opened relative to the defining `.rq` file (same path join as the miniature graph), not the workspace root.
     - If a target resolves in the file view, it must resolve (and be openable) in [reference_lists_pane].
-    Implemented by ["../../../../packages/analytical/src/index-store/idea-extractor.ts"],
+    Implemented by ["../../../../crates/reqlan-index/src/extract.rs"],
     ["../../../../packages/analytical/src/core/file-reference-resolve.ts"],
     [ReferenceListsPane].
     @tests (
-        ["../../../../packages/analytical/test/idea-extractor-namespace-refs.test.ts"]
+        ["../../../../crates/reqlan-index/tests/extract_parity.rs"]
         ["../../../../packages/analytical/test/file-reference-resolve.test.ts"]
         ["../../../../packages/language/test/linking.test.ts:does not report linking error for bare namespace alias references"]
     )
@@ -148,8 +148,8 @@ tooltip_detail {
     - Scoring copy is sourced from [context_signals] (`CONTEXT_FINGERPRINT_HELP`, `CONTEXT_FINGERPRINT_AXIS_HELP`, `buildContextFingerprint`) so UI stays aligned with [context_scope_v2.context_fingerprint] and [context_scope_v2.ai_readiness_gauge].
     Implemented by [ContextFingerprint] [ScopePane].
     @tests (
-        ["../../../../packages/analytical/src/core/context-signals.ts"]
-        ["../../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
         ["../../../../packages/extension/webviews/activity-bar/components/widgets/ContextFingerprint.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte"]
     )

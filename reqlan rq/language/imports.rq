@@ -42,8 +42,8 @@ import_error_recovery {
 import_namespace {
     Namespace import syntax uses import and a quoted path.
     Namespace import may include an alias using as.
-    A bracket reference to the alias alone — for example [context_model] — opens the imported file and links only the alias name, like an ideaset namespace.
-    Qualified references through the alias — for example [context_model.builder] — resolve ideas from the imported module.
+    A bracket reference to the alias alone — for example `[context_model]` — opens the imported file and links only the alias name, like an ideaset namespace.
+    Qualified references through the alias — for example `[context_model.builder]` — resolve ideas from the imported module.
 
     @tests (
         ["../../packages/language/test/linking.test.ts:resolve namespace import references to files"]
@@ -76,6 +76,7 @@ configuration_import_root_alias {
     Related path forms: [import_paths]. Completion: ["../extension/syntax/features-syntax.rq".code_completion].
 
     @example {
+        //rq-ignore-error
         from "@/path/relative/to/import/root.rq" import idea
     }
 
@@ -84,6 +85,9 @@ configuration_import_root_alias {
         ["../../packages/language/src/file-path-rewrite.ts"]
         ["../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../crates/reqlan-parse/src/path.rs"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../crates/reqlan-index/src/broken.rs"]
     )
     @tests (
         ["../../packages/language/test/path-resolve.test.ts:resolves import-root alias against the workspace folder"]
@@ -97,11 +101,14 @@ configuration_import_root_alias {
         ["../../packages/language/test/config.test.ts:longest alias wins when mappings overlap"]
         ["../../packages/language/test/config.test.ts:aliased path uses relative root from applying config"]
         ["../../packages/language/test/config.test.ts:aliased path uses workspace folder when root is omitted"]
+        ["../../crates/reqlan-parse/src/path.rs:match_import_root_alias_requires_alias_then_slash"]
+        ["../../crates/reqlan-parse/src/path.rs:resolves_default_alias_against_workspace_folder"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
     )
 }
 
 anonymous_imports_allowed {
-    imports can be inlined with this syntax: `["./ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
+    imports can be inlined with this syntax: `["../ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
 }
 
 import_tokenisation {
@@ -140,9 +147,12 @@ wildcard_references {
     ([configuration_import_root_alias]). Relative globs resolve against the defining document directory;
     `.` / `..` segments are collapsed before matching.
     Idea pattern is an unquoted `WILDCARD_NAME` that must contain at least one `*` or `?`
-    (e.g. `import_*`, `*_pane`, `widget_*_v2`). Exact `["./file.rq".idea]` stays ["./syntax.rq".reference_qualified].
+    Exact quoted-path plus idea stays ["./syntax.rq".reference_qualified].
     Matching uses anchored globs (not full JS regex): path `*` is one segment, `**` crosses segments;
-    idea `*` / `?` match within the idea name. Zero matches produce a warning diagnostic.
+    idea `*` / `?` match within the idea name.
+    Zero matches produce a warning diagnostic. One match also produces a warning — a wildcard is for many ideas;
+    use a concrete ["./syntax.rq".reference_qualified] when only one idea matches
+    (["../core_analysis/check.rq".check_wildcard_one]).
     Path segment `/**/` must not be lexed as an empty block comment — see ["./syntax.rq".comments].
     Lexer note: `ID` is a prefix of many wildcard names (`import_` vs `import_*`); the token builder
     sets `ID.LONGER_ALT = WILDCARD_NAME` so `import_*` is one token. Body prose `*` tokens are accepted
@@ -154,12 +164,15 @@ wildcard_references {
     Indexing fans out per ["../indexer/indexer.rq".wildcard_reference_edges]
     (owned under ["../indexer/indexer.rq".index]): native extract writes one `wildcard_reference`
     edge per catalog match; empty catalog / zero matches → one unresolved edge of that kind
-    labeled with the pattern text.
+    labeled with the pattern text. ["../core_analysis/check.rq".check] handles 0-match and 1-match fan-out
+    through ["../core_analysis/check.rq".check_wildcard_zero] and ["../core_analysis/check.rq".check_wildcard_one]
+    (["../core_analysis/check.rq".check_wildcard_sparse]).
     Ideas Summary graph toggles those edges via
     ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
     Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink],
-    ["../indexer/indexer.rq".wildcard_reference_edges].
+    ["../indexer/indexer.rq".wildcard_reference_edges], ["../core_analysis/check.rq".check_wildcard_sparse],
+    ["../core_analysis/check.rq".check_wildcard_zero], ["../core_analysis/check.rq".check_wildcard_one].
 
     Illustrative forms (fenced so this file does not embed live wildcards):
     ```
@@ -179,7 +192,7 @@ wildcard_references {
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-index/src/sync.rs"]
-        ["../../packages/analytical/src/index-store/idea-extractor.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
         ["../../packages/analytical/src/index-store/workspace-index-file.ts"]
         ["../../packages/extension/src/language/main.ts"]
     )
@@ -196,7 +209,7 @@ wildcard_references {
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:imports_rq_extract_includes_webview_and_path_filter_ideas"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
-        ["../../packages/analytical/test/wildcard-graph-toggle.test.ts:e2e: includeWildcardRefs false drops wildcard edges from slice"]
+        ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
     )
 }
 

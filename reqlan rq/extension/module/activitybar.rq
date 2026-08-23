@@ -25,6 +25,7 @@ import "../../../packages/extension/webviews/activity-bar/components/MiniGraphCa
 import "../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
 import "../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte" as WorkspacePane
 import "../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../packages/extension/webviews/activity-bar/components/SelectionPane.svelte" as SelectionPane
 import "../../../packages/extension/webviews/activity-bar/components/TodoPane.svelte" as TodoPane
 import "../../../packages/extension/webviews/activity-bar/components/ScopePane.svelte" as ScopePane
 import "../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte" as ReferenceListsPane
@@ -219,8 +220,8 @@ performance {
     - Link navigation must stay snappy once a target is already resolved: [link_open_decoupled_from_git], [link_open_interactive_quiet], [lean_resolved_open], [git_focus_cache_by_head].
     @tests (
         ["../../../packages/extension/test/startup-gate.test.ts"]
-        ["../../../packages/analytical/test/workspace-index-lazy-services.test.ts"]
-        ["../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../packages/analytical/src/index-store/workspace-index.ts"]
+        ["../../../crates/reqlan-search/tests/fuzzy.rs"]
         ["../../../packages/extension/test/git-context.test.ts"]
     )
     @status done
@@ -261,7 +262,7 @@ lean_resolved_open {
     so ["../../../packages/extension/src/analytical_submodule/index-store/resolve-index-file-uri.ts"] skips tree discovery.
     `toIndexFileUri` fallbacks (editor selection, git chrome, open-tab scan) must use
     ["../../../packages/analytical/src/core/base-discovery.ts".nearestBaseRoot] (ancestor `.reqlan` walk),
-    never [`discoverBases`] (full workspace scan). Clicking a search hit that already has `fileUri` + line
+    never `discoverBases` (full workspace scan). Clicking a search hit that already has `fileUri` + line
     must not wait on catalog scoring or base rediscovery.
     @tests (
         ["../../../packages/extension/src/analytical_submodule/index-store/open-index-file.ts"]

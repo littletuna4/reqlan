@@ -1,5 +1,6 @@
 /**
  * Parses file path strings from bracket references, including L# line suffixes and :test name suffixes.
+ * rq:["../../../reqlan rq/language/syntax.rq".reference_file]
  */
 
 export interface ParsedFileReference {
@@ -30,28 +31,37 @@ export function parseFileReferenceString(file: string): ParsedFileReference {
 }
 
 function parseTestNameSuffix(file: string): { filePath: string; testName?: string } {
-    let colonIndex = -1;
-    for (let index = file.length - 1; index >= 0; index--) {
+    for (let index = 0; index < file.length; index++) {
         if (file[index] !== ':') {
             continue;
         }
-        if (index > 0 && file[index - 1] === '/' && index > 1 && file[index - 2] === '/') {
+        if (isUriSchemeColon(file, index) || isWindowsDriveColon(file, index)) {
             continue;
         }
-        colonIndex = index;
-        break;
+        const testName = file.slice(index + 1);
+        if (!testName) {
+            return { filePath: file };
+        }
+        return {
+            filePath: file.slice(0, index),
+            testName
+        };
     }
-    if (colonIndex < 0) {
-        return { filePath: file };
-    }
-    const testName = file.slice(colonIndex + 1);
-    if (!testName) {
-        return { filePath: file };
-    }
-    return {
-        filePath: file.slice(0, colonIndex),
-        testName
-    };
+    return { filePath: file };
+}
+
+/** `https://` / `file://` — the colon that starts `://`. */
+function isUriSchemeColon(file: string, index: number): boolean {
+    return file[index + 1] === '/' && file[index + 2] === '/';
+}
+
+/** Drive letter in `C:\…` or `file://C:/…`. */
+function isWindowsDriveColon(file: string, index: number): boolean {
+    const previous = file[index - 1];
+    const next = file[index + 1];
+    return previous !== undefined
+        && /[A-Za-z]/.test(previous)
+        && (next === '\\' || next === '/');
 }
 
 const NON_RQ_FILE_EXTENSION = /\.[^./\\]+$/;

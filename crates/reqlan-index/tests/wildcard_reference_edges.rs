@@ -40,7 +40,11 @@ fn extract_host(
     source: &str,
     candidates: Vec<WildcardIdeaCandidate>,
 ) -> reqlan_index::IndexedDocument {
-    extract_indexed_document("host.rq", source, &ExtractOptions { idea_candidates: candidates })
+    extract_indexed_document(
+        "host.rq",
+        source,
+        &ExtractOptions { idea_candidates: candidates, ..Default::default() },
+    )
 }
 
 fn host_wildcard_edges(indexed: &reqlan_index::IndexedDocument) -> Vec<&reqlan_index::EdgeRecord> {

@@ -3,10 +3,9 @@ import { AstUtils } from 'langium';
 import type { reqlanAstType } from './generated/ast.js';
 import {
     isFromImport,
-    isIdea,
+    isIdeaDeclaration,
     isInvalidFromImport,
     isModel,
-    isOneLinerIdea,
     isWildcardReference,
     type AnonymousBlock,
     type Model
@@ -14,6 +13,8 @@ import {
 import { collectCommentReferenceIssues } from './reqlan-comment-diagnostics.js';
 import {
     collectFileLinks,
+    FILE_REFERENCE_MISSING,
+    fileLinkMissingMessage,
     fileLinkTargetIssueMessage
 } from './reqlan-file-link-resolver.js';
 import {
@@ -34,6 +35,7 @@ import {
 /**
  * Registers validation hooks for the requirement graph AST.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
@@ -53,10 +55,12 @@ export function registerValidationChecks(services: ReqlanServices) {
 /**
  * Custom validations for Reqlan documents.
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 export class ReqlanValidator {
@@ -139,6 +143,8 @@ export class ReqlanValidator {
     /**
      * Duplicate check uses import *bindings* only (alias when present, otherwise the idea name).
      * An aliased import does not reserve the imported base name for local ideas.
+     * Ideasets share the same name space as ideas in the file.
+     * rq:["../../../reqlan rq/language/syntax.rq".idea_name]
      */
     checkDuplicateIdeaNames(model: Model, accept: ValidationAcceptor): void {
         const seen = new Map<string, AstNode>();
@@ -148,7 +154,7 @@ export class ReqlanValidator {
             }
         }
         for (const element of model.elements) {
-            if (!isIdea(element) && !isOneLinerIdea(element)) {
+            if (!isIdeaDeclaration(element)) {
                 continue;
             }
             const name = element.name;
@@ -208,6 +214,14 @@ export class ReqlanValidator {
             shared.workspace.FileSystemProvider,
             pathResolveContextFromServices(this.services)
         )) {
+            if (link.resolution === 'missing') {
+                accept('error', fileLinkMissingMessage(link.authoredPath ?? ''), {
+                    node: model,
+                    range: link.sourceRange,
+                    code: FILE_REFERENCE_MISSING
+                });
+                continue;
+            }
             if (!link.targetIssue) {
                 continue;
             }
@@ -256,6 +270,12 @@ export class ReqlanValidator {
                 accept(
                     'warning',
                     `No ideas match wildcard reference [${wildcardReferenceLabel(path, node.ideaPattern)}].`,
+                    { node }
+                );
+            } else if (matches.length === 1) {
+                accept(
+                    'warning',
+                    `Wildcard reference [${wildcardReferenceLabel(path, node.ideaPattern)}] matches only 1 idea.`,
                     { node }
                 );
             }

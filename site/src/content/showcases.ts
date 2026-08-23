@@ -338,6 +338,7 @@ ingest_contract (
       {
         language: "c",
         label: "firmware/adc.c",
+        // rq-ignore-error
         code: `/* rq:["../contracts/ingest.rq".sensor_sample_rate] */
 void sample_loop(void) {
     const uint32_t period_ms = 100; /* 10 Hz */
@@ -351,6 +352,7 @@ void sample_loop(void) {
       {
         language: "ts",
         label: "api/ingest.ts",
+        // rq-ignore-error
         code: `// rq:["../contracts/ingest.rq".api_ingest]
 export async function ingestBatch(events: Event[]) {
   const deadline = Date.now() + 50;
@@ -528,6 +530,7 @@ checkout {
       {
         language: "ts",
         label: "auth.test.ts",
+        // rq-ignore-error
         code: `// rq:["./expiry.rq".session_expiry]
 test("rejects expired access token", async () => {
   const res = await request(app)
@@ -591,6 +594,7 @@ legacy_tax_helper {
       {
         language: "py",
         label: "legacy/billing.py - after",
+        // rq-ignore-error
         code: `# rq:["../migrate/billing.rq".calc_total]
 def calc_total(lines, tax_region):
     """order total includes regional tax (ISO-3166-2)."""

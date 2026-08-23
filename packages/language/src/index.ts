@@ -8,6 +8,11 @@ export * from './reqlan-comment-resolver.js';
 export * from './reqlan-comment-diagnostics.js';
 export * from './reqlan-ignore-error.js';
 export * from './reqlan-file-references.js';
+export {
+    FILE_REFERENCE_MISSING,
+    fileLinkMissingMessage,
+    fileLinkTargetIssueMessage
+} from './reqlan-file-link-resolver.js';
 export * from './reqlan-embedded-file-references.js';
 export * from './file-path-rewrite.js';
 export * from './reqlan-path-references.js';

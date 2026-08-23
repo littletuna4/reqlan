@@ -1,8 +1,13 @@
 import {
+  cliInstallCommands,
   defaultInstallIde,
   extensionMeta,
+  getCliInstallCommand,
+  getMcpInstallCommand,
   installActions,
+  mcpInstallCommands,
   vsixDownloadUrl,
+  type CliInstallCommand,
   type InstallAction,
   type QuickstartIconRef,
   type QuickstartIdeId,
@@ -57,6 +62,7 @@ export type QuickstartPackage = {
   packageId: PhonebookPackageId;
   intro: string;
   install: string;
+  installCommands?: readonly CliInstallCommand[];
   steps: string[];
   commands?: string[];
   snippet?: QuickstartSnippet;
@@ -77,6 +83,7 @@ export const quickstartContent = {
   vsixDownloadUrl,
   ides: installActions.map(toQuickstartIde),
   //rq:["../../../reqlan rq/cli/cli_package.rq".cli_package]
+  //rq:["../../../reqlan rq/site/site.rq".install_cli_menu]
   //rq:["../../../reqlan rq/core-architecture.rq".mcp_package]
   //rq:["../../../reqlan rq/phonebook.rq".phonebook]
   packages: [
@@ -86,7 +93,8 @@ export const quickstartContent = {
       packageId: "cli",
       intro:
         "`@reqlan/cli` (`reqlan` / `rq`) searches, analyses, and exports the graph. It uses the same `.reqlan` index as the editor.",
-      install: "npm install -g @reqlan/cli",
+      install: getCliInstallCommand("npm").command,
+      installCommands: cliInstallCommands,
       steps: [
         "Install `@reqlan/cli` (or run `npx @reqlan/cli`).",
         "In a workspace, run `reqlan init` to create `.reqlan`.",
@@ -109,7 +117,8 @@ export const quickstartContent = {
       packageId: "mcp",
       intro:
         "`@reqlan/mcp` is a stdio MCP server on that same index. No VS Code host is required.",
-      install: "npx -y @reqlan/mcp",
+      install: getMcpInstallCommand("npm").command,
+      installCommands: mcpInstallCommands,
       steps: [
         "Add the server to your MCP client, or in Cursor run Reqlan: Install Cursor Skills after you install the extension.",
         "Set `REQLAN_WORKSPACE` to the workspace root (or start the process from that directory).",

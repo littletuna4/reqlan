@@ -60,7 +60,7 @@ describe('ideas table column filters', () => {
         expect(order.startsWith('i.kind ASC')).toBe(true);
     });
 
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
     test('orders by git date and change count columns', () => {
         expect(buildIdeasOrderClause({
             page: 0,

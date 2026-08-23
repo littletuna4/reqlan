@@ -1,5 +1,7 @@
+// rq:["../../../reqlan rq/site/site.rq".cta_icon]
+// rq:["../../../reqlan rq/site/site.rq".install_cli_menu]
 import extensionPackage from "../../../packages/extension/package.json";
-import { getPhonebookLink } from "@/lib/phonebook";
+import { getPhonebookLink, getPhonebookPackage } from "@/lib/phonebook";
 
 export type QuickstartIdeId = "cursor" | "vscode" | "openvsx" | "vsix";
 
@@ -37,6 +39,82 @@ export const extensionMeta = {
 } as const;
 
 export const vsixDownloadUrl = `https://open-vsx.org/api/reqlan/${extensionPackage.name}/${extensionVersion}/file/${extensionId}-${extensionVersion}.vsix`;
+
+export type CliPackageManagerId = "npm" | "pnpm" | "yarn" | "bun";
+
+export type CliInstallCommand = {
+  id: CliPackageManagerId;
+  label: string;
+  icon: QuickstartIconRef;
+  command: string;
+};
+
+const cliPackageName = getPhonebookPackage("cli").label;
+
+export const defaultCliPackageManager: CliPackageManagerId = "npm";
+
+export const cliInstallCommands: CliInstallCommand[] = [
+  {
+    id: "npm",
+    label: "npm",
+    icon: { set: "simple-icons", name: "npm" },
+    command: `npm install -g ${cliPackageName}`,
+  },
+  {
+    id: "pnpm",
+    label: "pnpm",
+    icon: { set: "simple-icons", name: "pnpm" },
+    command: `pnpm add -g ${cliPackageName}`,
+  },
+  {
+    id: "yarn",
+    label: "yarn",
+    icon: { set: "simple-icons", name: "yarn" },
+    command: `yarn global add ${cliPackageName}`,
+  },
+  {
+    id: "bun",
+    label: "bun",
+    icon: { set: "simple-icons", name: "bun" },
+    command: `bun add -g ${cliPackageName}`,
+  },
+];
+
+export function getCliInstallCommand(
+  id: CliPackageManagerId,
+): CliInstallCommand {
+  const command = cliInstallCommands.find((item) => item.id === id);
+  if (!command) {
+    throw new Error(`Unknown CLI install command: ${id}`);
+  }
+  return command;
+}
+
+const mcpPackageName = getPhonebookPackage("mcp").label;
+
+const mcpCommandByManager: Record<CliPackageManagerId, string> = {
+  npm: `npx -y ${mcpPackageName}`,
+  pnpm: `pnpm dlx ${mcpPackageName}`,
+  yarn: `yarn dlx ${mcpPackageName}`,
+  bun: `bunx ${mcpPackageName}`,
+};
+
+export const mcpInstallCommands: CliInstallCommand[] = cliInstallCommands.map(
+  (item) => ({
+    ...item,
+    command: mcpCommandByManager[item.id],
+  }),
+);
+
+export function getMcpInstallCommand(
+  id: CliPackageManagerId,
+): CliInstallCommand {
+  const command = mcpInstallCommands.find((item) => item.id === id);
+  if (!command) {
+    throw new Error(`Unknown MCP install command: ${id}`);
+  }
+  return command;
+}
 
 export const installActions: InstallAction[] = [
   {
@@ -111,6 +189,10 @@ export const installActions: InstallAction[] = [
 ];
 
 export const defaultInstallIde: QuickstartIdeId = "vscode";
+
+export const heroInstallActions = installActions.filter(
+  (action) => action.id !== "openvsx",
+);
 
 export function getInstallAction(id: QuickstartIdeId): InstallAction {
   const action = installActions.find((item) => item.id === id);

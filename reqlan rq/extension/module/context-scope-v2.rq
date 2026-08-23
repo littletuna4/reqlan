@@ -31,7 +31,7 @@ context_scope_v2 {
     @status in-progress
     @tags (context, ui, knowledge, v2)
     @tests (
-        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
         ["../../../packages/extension/test/context-model.test.ts"]
         ["../../../packages/extension/test/context-widgets.test.ts"]
     )
@@ -52,8 +52,8 @@ context_model_layers {
 
     @status done
     @tests (
-        ["../../../packages/analytical/src/core/context-model.ts"]
-        ["../../../packages/analytical/src/core/context-signals.ts"]
+        ["../../../packages/extension/src/activity_bar_module/lib/context-model.ts"]
+        ["../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
     )
 }
 
@@ -123,7 +123,7 @@ context_signals {
 
     @status done
     @tests (
-        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
         ["../../../packages/extension/test/context-model.test.ts"]
     )
 }
@@ -148,7 +148,7 @@ development_history_signals {
     ownership concentration, refactor/merge likelihood, stability score.
 
     First UI consumer beyond create/modify dates: [context_scope_v1.git_context]
-    / ["activitybar-panels/current_context_scope.rq".git_history_lens] —
+    / ["./activitybar-panels/current_context_scope.rq".git_history_lens] —
     focus commit trail and authors; working-tree staging demoted to secondary.
 
     @development_history {
@@ -235,7 +235,7 @@ synthesized_context {
 
     @status done
     @tests (
-        ["../../../packages/analytical/test/context-signals.test.ts"]
+        ["../../../packages/extension/src/activity_bar_module/lib/context-signals.ts"]
         ["../../../packages/extension/test/context-model.test.ts"]
     )
 }
@@ -316,7 +316,7 @@ dependency_pulse {
     Consumes [requirement_signals] and [relationship_signals].
     Surfaced on focus hero and graph node details.
     Click any arm or the centre toggles a reference table below the compass
-    (Dir / Role / Idea / Status) per ["../activitybar-panels/current_context_scope.rq".dependency_pulse_table].
+    (Dir / Role / Idea / Status) per ["./activitybar-panels/current_context_scope.rq".dependency_pulse_table].
 
     @status incomplete
     @tags (widget, dependencies)

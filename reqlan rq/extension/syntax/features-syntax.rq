@@ -11,7 +11,7 @@ syntax_highlighting {
     .rq files should receive full syntax highlighting coverage for all reqlan constructs.
     Semantic token highlighting should distinguish ideas, attributes, references, imports, and keywords.
     Path + wildcard idea refs (`["…/*.rq".idea_*]`) must highlight as links/strings — not comment-grey —
-    see ["features-syntax-highlighting.rq".wildcard_reference_highlighting].
+    see ["./features-syntax-highlighting.rq".wildcard_reference_highlighting].
 
     @status done
     @implementation (
@@ -32,7 +32,7 @@ syntax_hovering {
 
 comment_support {
     The extension should recognise reqlan references embedded in comments of arbitrary source files.
-    Comment reference syntax should follow the form `rq:"../reqfile.rq".idea_name` in line comments.
+    Comment reference syntax should follow the form rq, then a quoted path, then a dotted idea name in line comments.
     Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
     Arbitrary file references should be supported from both .rq files and comment references.
 }
@@ -62,11 +62,13 @@ refactor_support {
 file_references {
     A file reference should act as a link in the editor.
     If the target file is empty or has a parse error, the link should remain available and clickable, but should show a warning underline.
+    If the target file is missing, show an error underline and do not create a document link — see ["../language-support/language-server-errors.rq".file_reference_errors].
     Same-file and imported idea bracket references should use the same document-link underline as file targets — no visual distinction between local and external refs.
 
     Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../packages/language/src/reqlan-document-link-provider.ts"], ["../../../packages/language/src/reqlan-definition-provider.ts"], and ["../../../packages/language/src/reqlan-validator.ts"].
     @tests (
         ["../../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
+        ["../../../packages/language/test/references.test.ts:keeps colons inside the test name suffix"]
         ["../../../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
         ["../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
         ["../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]
@@ -82,17 +84,17 @@ sensible_alias_support {
     
     @subreqs (
         duplicate_error {
-            should be raised if a local idea shares a name with an import binding (unaliased idea name, or the alias when present).
+            should be raised if a local idea or ideaset shares a name with an import binding (unaliased idea name, or the alias when present).
             @tests (
                 ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares unaliased import binding"]
                 ["../../../packages/language/test/validating.test.ts:reports duplicate when local idea shares import alias"]
+                ["../../../packages/language/test/validating.test.ts:reports duplicate when local ideaset shares a local idea name"]
             )
             }
         sensible_graph_resolution {
             the imported namespace should not be assosciated with the new idea: e.g.
-            ```rq
-            from "../subreqs.rq" import myidea as myideaalias
-            myidea this a new idea. maybe it references [myideaalias]
+            ```
+            from-import an idea as an alias, then declare a local idea with the original name
             ```
             `myidea` in the import statement should not be assosciated with the new `myidea` definition - they're totally different.
             @tests (
@@ -116,7 +118,7 @@ at_sign_in_idea_text_block{
 
 code_completion_import_file_paths {
     import files should code complete nicely based on the current file's path; and the resolved import config.
-    it should support normal "../string/paths"; and if "@/the-paths/are-@-aliased"
+    it should support normal relative folder paths; and if import-root aliases are configured.
     ["../configuration.rq"]
     ["../../language/imports.rq"]
     ["../code_completion.rq"]

@@ -29,7 +29,7 @@ afterEach(async () => {
 
 describe('Validating', () => {
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
     test('check no errors for exampleimport1.rq', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'exampleimport1.rq'), 'utf8'));
 
@@ -38,7 +38,7 @@ describe('Validating', () => {
         ).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/features-syntax.rq".duplicate_error]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('reports duplicate import alias in sub idea.rq', async () => {
         const document = await parse(readFileSync(join(exampleDir, 'sub idea.rq'), 'utf8'));
 
@@ -51,7 +51,7 @@ describe('Validating', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_graph_resolution]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('allows local idea when import uses an alias', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea as myideaalias
@@ -81,7 +81,7 @@ describe('Validating', () => {
         expect(duplicateErrors).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('reports duplicate when local idea shares unaliased import binding', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea
@@ -96,7 +96,7 @@ describe('Validating', () => {
         expect(duplicateErrors[0].range.start.line).toBe(1);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".duplicate_error]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
     test('reports duplicate when local idea shares import alias', async () => {
         const document = await parse(s`
             from "subreqs.rq" import myidea as sharedname
@@ -109,6 +109,25 @@ describe('Validating', () => {
         );
         expect(duplicateErrors).toHaveLength(1);
         expect(duplicateErrors[0].range.start.line).toBe(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
+    // rq:["../../../reqlan rq/language/syntax.rq".idea_name]
+    test('reports duplicate when local ideaset shares a local idea name', async () => {
+        const document = await parse(s`
+            shared {
+                body
+            }
+            shared (
+                shared
+            )
+        `);
+
+        const duplicateErrors = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("'shared' is already defined in this file.")
+        );
+        expect(duplicateErrors).toHaveLength(1);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]

@@ -4,7 +4,7 @@ import type { MotivationSlide } from "@/content/types";
 
 export const motivation = {
   title: "What is reqlan?",
-  lead: "A token efficient data format for writing functional requirments - supporting personal knowledge management inspired naming linking and tagging, plus an editor extension and a CLI on the same index. Engineers who wrangle complexity use it so they can focus on describing their highest-alpha ideas.",
+  lead: "A token efficient data format for writing functional requirements - supporting personal knowledge management inspired naming linking and tagging, plus an editor extension and a CLI on the same index. Engineers who wrangle complexity use it so they can focus on describing their highest-alpha ideas.",
   slides: [
     {
       id: "language",

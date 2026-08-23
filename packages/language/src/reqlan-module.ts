@@ -110,6 +110,7 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
     );
     shared.ServiceRegistry.register(Reqlan);
     registerValidationChecks(Reqlan);
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     registerRqIgnoreErrorFiltering(shared);
     if (!context.connection) {
         // We don't run inside a language server

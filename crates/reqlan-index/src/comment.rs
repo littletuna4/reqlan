@@ -1,12 +1,15 @@
+// rq-ignore-error
 //! Extract `rq:[idea]` / `rq:["path".idea]` comment references from non-`.rq` files.
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
+//! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
 
-use crate::extract::hash_text;
+use crate::extract::{extract_indexed_document, hash_text, ExtractOptions};
 use crate::ids::edge_id;
-use crate::types::{EdgeKind, EdgeRecord, IdeaKind, IdeaSummary};
-use std::collections::HashMap;
+use crate::types::{EdgeKind, EdgeRecord, IdeaSummary};
+use reqlan_parse::{import_path_candidates, resolve_rq_path, ImportRootMapping};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 const MAX_CODE_FILE_BYTES: u64 = 1_048_576;
@@ -91,12 +94,15 @@ pub fn comment_link_edges(
     code_file_uri: &str,
     source: &str,
     catalog: &[IdeaSummary],
+    import_roots: &[ImportRootMapping],
 ) -> Vec<EdgeRecord> {
     let (by_file_name, by_name) = comment_catalog_maps(catalog);
     let mut edges = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for reference in find_comment_references_in_text(source) {
-        for idea in comment_targets(&reference, code_file_uri, &by_file_name, &by_name) {
+        for idea in
+            comment_targets(&reference, code_file_uri, &by_file_name, &by_name, import_roots)
+        {
             let key = idea.id.clone();
             if !seen.insert(key.clone()) {
                 continue;
@@ -117,17 +123,29 @@ pub fn comment_link_edges(
     edges
 }
 
-/// Comment `rq:[…]` sites in `source` that do not resolve against the idea catalog.
+/// Comment `rq:[…]` sites in `source` that do not resolve against the idea catalog
+/// or, for qualified paths, against the target `.rq` file on disk.
 pub fn unresolved_comment_references(
     code_file_uri: &str,
     source: &str,
     catalog: &[IdeaSummary],
+    import_roots: &[ImportRootMapping],
+    workspace_root: Option<&Path>,
 ) -> Vec<CommentReference> {
     let (by_file_name, by_name) = comment_catalog_maps(catalog);
+    let mut disk_names: HashMap<String, HashSet<String>> = HashMap::new();
     find_comment_references_in_text(source)
         .into_iter()
         .filter(|reference| {
-            comment_targets(reference, code_file_uri, &by_file_name, &by_name).is_empty()
+            !comment_reference_resolves(
+                reference,
+                code_file_uri,
+                &by_file_name,
+                &by_name,
+                import_roots,
+                workspace_root,
+                &mut disk_names,
+            )
         })
         .collect()
 }
@@ -135,16 +153,63 @@ pub fn unresolved_comment_references(
 fn comment_catalog_maps(
     catalog: &[IdeaSummary],
 ) -> (HashMap<(String, String), &IdeaSummary>, HashMap<String, Vec<&IdeaSummary>>) {
-    let by_file_name: HashMap<(String, String), &IdeaSummary> = catalog
-        .iter()
-        .filter(|idea| idea.kind != IdeaKind::Ideaset)
-        .map(|idea| ((idea.file_uri.clone(), idea.name.clone()), idea))
-        .collect();
+    let by_file_name: HashMap<(String, String), &IdeaSummary> =
+        catalog.iter().map(|idea| ((idea.file_uri.clone(), idea.name.clone()), idea)).collect();
     let mut by_name: HashMap<String, Vec<&IdeaSummary>> = HashMap::new();
-    for idea in catalog.iter().filter(|idea| idea.kind != IdeaKind::Ideaset) {
+    for idea in catalog {
         by_name.entry(idea.name.clone()).or_default().push(idea);
     }
     (by_file_name, by_name)
+}
+
+fn comment_reference_resolves<'a>(
+    reference: &CommentReference,
+    code_file_uri: &str,
+    by_file_name: &HashMap<(String, String), &'a IdeaSummary>,
+    by_name: &HashMap<String, Vec<&'a IdeaSummary>>,
+    import_roots: &[ImportRootMapping],
+    workspace_root: Option<&Path>,
+    disk_names: &mut HashMap<String, HashSet<String>>,
+) -> bool {
+    if let Some(path) = &reference.path {
+        for candidate in comment_file_candidates(code_file_uri, path, import_roots) {
+            if by_file_name.contains_key(&(candidate.clone(), reference.idea.clone())) {
+                return true;
+            }
+            if disk_file_declares_idea(workspace_root, &candidate, &reference.idea, disk_names) {
+                return true;
+            }
+        }
+        return false;
+    }
+    by_name.get(&reference.idea).is_some_and(|ideas| !ideas.is_empty())
+}
+
+fn disk_file_declares_idea(
+    workspace_root: Option<&Path>,
+    file_uri: &str,
+    idea: &str,
+    cache: &mut HashMap<String, HashSet<String>>,
+) -> bool {
+    let Some(root) = workspace_root else {
+        return false;
+    };
+    let names = cache.entry(file_uri.to_string()).or_insert_with(|| {
+        let path = if Path::new(file_uri).is_absolute() {
+            Path::new(file_uri).to_path_buf()
+        } else {
+            root.join(file_uri)
+        };
+        let Ok(source) = std::fs::read_to_string(&path) else {
+            return HashSet::new();
+        };
+        extract_indexed_document(file_uri, &source, &ExtractOptions::default())
+            .ideas
+            .into_iter()
+            .map(|record| record.name)
+            .collect()
+    });
+    names.contains(idea)
 }
 
 fn comment_targets<'a>(
@@ -152,16 +217,36 @@ fn comment_targets<'a>(
     code_file_uri: &str,
     by_file_name: &HashMap<(String, String), &'a IdeaSummary>,
     by_name: &HashMap<String, Vec<&'a IdeaSummary>>,
+    import_roots: &[ImportRootMapping],
 ) -> Vec<&'a IdeaSummary> {
     if let Some(path) = &reference.path {
-        let resolved = resolve_comment_path(code_file_uri, path);
-        return by_file_name
-            .get(&(resolved, reference.idea.clone()))
-            .copied()
-            .into_iter()
-            .collect();
+        for candidate in comment_file_candidates(code_file_uri, path, import_roots) {
+            if let Some(idea) = by_file_name.get(&(candidate, reference.idea.clone())).copied() {
+                return vec![idea];
+            }
+        }
+        return Vec::new();
     }
     by_name.get(&reference.idea).cloned().unwrap_or_default()
+}
+
+fn comment_file_candidates(
+    from_file: &str,
+    path: &str,
+    import_roots: &[ImportRootMapping],
+) -> Vec<String> {
+    let mut candidates = Vec::new();
+    for authored in import_path_candidates(path) {
+        push_unique_candidate(&mut candidates, resolve_rq_path(&authored, from_file, import_roots));
+    }
+    candidates
+}
+
+fn push_unique_candidate(candidates: &mut Vec<String>, path: String) {
+    if path.is_empty() || candidates.iter().any(|existing| existing == &path) {
+        return;
+    }
+    candidates.push(path);
 }
 
 impl CommentReference {
@@ -222,38 +307,6 @@ fn is_idea_name(value: &str) -> bool {
     };
     (first == '_' || first.is_ascii_alphabetic())
         && chars.all(|ch| ch == '-' || ch == '_' || ch.is_ascii_alphanumeric())
-}
-
-fn resolve_comment_path(from_file: &str, path: &str) -> String {
-    let path = path.replace('\\', "/");
-    if path.contains("://") || Path::new(&path).is_absolute() || is_windows_absolute(&path) {
-        return path;
-    }
-    let from = from_file.replace('\\', "/");
-    let dir = from.rsplit_once('/').map(|(prefix, _)| prefix).unwrap_or("");
-    normalize_posix(&format!("{dir}/{path}"))
-}
-
-fn is_windows_absolute(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && (bytes[2] == b'\\' || bytes[2] == b'/')
-}
-
-fn normalize_posix(path: &str) -> String {
-    let mut out: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                out.pop();
-            }
-            _ => out.push(part),
-        }
-    }
-    out.join("/")
 }
 
 fn line_of_offset(text: &str, offset: usize) -> u32 {
@@ -414,6 +467,7 @@ enum BlockKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::IdeaKind;
 
     #[test]
     fn finds_line_and_hash_comment_refs() {
@@ -442,6 +496,27 @@ mod tests {
     }
 
     #[test]
+    fn parses_qualified_path_with_a_space_in_a_folder_name() {
+        let inner = "\"../../../reqlan rq/marketing_and_media/tutorials.rq\".tutorials";
+        assert_eq!(
+            parse_comment_reference_target(inner),
+            Some((
+                Some("../../../reqlan rq/marketing_and_media/tutorials.rq".into()),
+                "tutorials".into()
+            ))
+        );
+        let refs = find_comment_references_in_text(
+            "//rq:[\"../../../reqlan rq/marketing_and_media/tutorials.rq\".tutorials]\n",
+        );
+        assert_eq!(refs.len(), 1);
+        assert_eq!(
+            refs[0].path.as_deref(),
+            Some("../../../reqlan rq/marketing_and_media/tutorials.rq")
+        );
+        assert_eq!(refs[0].idea, "tutorials");
+    }
+
+    #[test]
     fn lists_unresolved_comment_refs_and_skips_resolved() {
         let catalog = vec![IdeaSummary {
             id: "demo.rq#alpha".into(),
@@ -459,8 +534,67 @@ mod tests {
             git_change_count: None,
         }];
         let source = "// rq:[alpha]\n// rq:[missing_idea]\n";
-        let unresolved = unresolved_comment_references("src/app.ts", source, &catalog);
+        let unresolved = unresolved_comment_references("src/app.ts", source, &catalog, &[], None);
         assert_eq!(unresolved.len(), 1);
         assert_eq!(unresolved[0].idea, "missing_idea");
+    }
+
+    #[test]
+    fn resolves_aliased_qualified_comment_path() {
+        let catalog = vec![IdeaSummary {
+            id: "reqs/demo.rq#alpha".into(),
+            name: "alpha".into(),
+            kind: IdeaKind::Block,
+            file_uri: "reqs/demo.rq".into(),
+            line_start: 0,
+            summary: String::new(),
+            status: None,
+            status_key: String::new(),
+            tags: Vec::new(),
+            tags_keys: Vec::new(),
+            git_created_at: None,
+            git_modified_at: None,
+            git_change_count: None,
+        }];
+        let source = "// rq:[\"@/reqs/demo.rq\".alpha]\n// rq:[\"@/reqs/demo.rq\".missing]\n";
+        let unresolved = unresolved_comment_references(
+            "packages/pkg/src/core/app.ts",
+            source,
+            &catalog,
+            &[],
+            None,
+        );
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].idea, "missing");
+    }
+
+    #[test]
+    fn disk_fallback_resolves_qualified_comment_in_a_nested_base() {
+        let nanos =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("reqlan-comment-nested-{nanos}"));
+        std::fs::create_dir_all(root.join("reqlan rq/media")).unwrap();
+        std::fs::create_dir_all(root.join("site/src/content")).unwrap();
+        std::fs::write(
+            root.join("reqlan rq/media/tutorials.rq"),
+            "tutorials {\n    body\n}\nseries (\n    member\n)\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("site/src/content/quickstart.ts"),
+            "//rq:[\"../../../reqlan rq/media/tutorials.rq\".tutorials]\n//rq:[\"../../../reqlan rq/media/tutorials.rq\".series]\n//rq:[\"../../../reqlan rq/media/tutorials.rq\".gone]\n",
+        )
+        .unwrap();
+        let source = std::fs::read_to_string(root.join("site/src/content/quickstart.ts")).unwrap();
+        let unresolved = unresolved_comment_references(
+            "site/src/content/quickstart.ts",
+            &source,
+            &[],
+            &[],
+            Some(&root),
+        );
+        assert_eq!(unresolved.len(), 1, "{unresolved:?}");
+        assert_eq!(unresolved[0].idea, "gone");
+        std::fs::remove_dir_all(&root).ok();
     }
 }

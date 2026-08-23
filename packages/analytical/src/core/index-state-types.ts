@@ -4,8 +4,8 @@
  * The lifecycle FSM, counts, problem list, and activity rings now live in the
  * Rust `WorkspaceIndexRuntime` (surfaced via `NativeWorkspaceIndex.statusSnapshot`).
  * These are the plain shapes the TS side reads back from that snapshot.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/codestyle/typescript.rq".zustand_boundary]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/codestyle/typescript.rq".zustand_boundary]
  */
 
 export type IndexState =

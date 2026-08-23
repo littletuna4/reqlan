@@ -1,7 +1,7 @@
 /**
  * Activity-bar search match-count copy.
- * rq:["../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
- * rq:["../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+ * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+ * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
  */
 import { describe, expect, test } from 'vitest';
 import { formatSearchMatchCount } from '../src/activity_bar_module/search-results-meta.js';

@@ -25,6 +25,15 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.11.3
+
+#### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+- Updated dependencies [9571467]
+  - @reqlan/analytical@1.11.3
+  - @reqlan/language@1.9.7
+
 ### 1.11.2
 
 #### Patch Changes

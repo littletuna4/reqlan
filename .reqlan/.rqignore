@@ -2,6 +2,8 @@
 # Applied relative to the base root (parent of .reqlan).
 # Built-in defaults always apply; use !pattern to force-include.
 
+/packages/extension/templates/thanks-for-installing.template.rq
+
 # Dependencies
 node_modules/
 bower_components/
@@ -57,3 +59,8 @@ coverage/
 *.log
 tmp/
 temp/
+
+# Fixtures and generated output
+testdata/
+example_rq_project/
+export/

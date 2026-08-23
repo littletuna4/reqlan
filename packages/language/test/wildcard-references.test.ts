@@ -178,6 +178,32 @@ describe('wildcard references', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
+    test('warns when wildcard matches only one idea', async () => {
+        const gammaUri = URI.parse(pathToFileURL(join(fixtureDir, 'gamma.rq')).href);
+        const gammaDoc = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import_gamma { g }
+            `,
+            gammaUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(gammaDoc);
+        await services.shared.workspace.DocumentBuilder.build([gammaDoc]);
+
+        const hostPath = join(fixtureDir, 'one-match-host.rq');
+        const host = await parseAt(hostPath, s`
+            host {
+                See ["./*.rq".import_g*].
+            }
+        `);
+        const diagnostics = host.diagnostics ?? [];
+        expect(
+            diagnostics.map(diagnostic => String(diagnostic.message)).join('\n')
+        ).toContain('matches only 1 idea');
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
     test('warns when wildcard matches nothing', async () => {
         const hostPath = join(fixtureDir, 'empty-host.rq');
         const host = await parseAt(hostPath, s`

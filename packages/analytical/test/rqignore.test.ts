@@ -1,8 +1,8 @@
 /**
- * rq:["../../reqlan rq/extension/configuration.rq".configuration_rqignore]
- * rq:["../../reqlan rq/extension/module/index.rq".rqignore]
- * rq:["../../reqlan rq/extension/module/index.rq".binary_ignore]
- * rq:["../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+ * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
+ * rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
+ * rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

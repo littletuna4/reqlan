@@ -117,11 +117,11 @@ git_information_capture {
         - ownership and top authors (name; email when available)
         - creator (first introduction) and last meaningful modification
         - edit frequency / commit count for the focus path or idea line range
-        - recent commit trail (subject, author, authoredAt, short hash) for the ["context-scope.rq".git_context] lens
+        - recent commit trail (subject, author, authoredAt, short hash) for the ["./context-scope.rq".git_context] lens
     Idea dates and change counts come from [graph_analysers.git_dates] /
     ["../git-codelens.rq".git_dates_background_indexing], not from a git walk on every save
     (["../git-codelens.rq".git_dates_rate_cap]).
     Activity Bar git CLI calls stay hidden on Windows (["../../core_analysis/core.rq".consumption_silence]).
     Future: adjacency score from edit state and frequency of neighbours.
-    Feeds ["context-scope-v2.rq".development_history_signals] and ["activitybar-panels/current_context_scope.rq".git_history_lens].
+    Feeds ["./context-scope-v2.rq".development_history_signals] and ["./activitybar-panels/current_context_scope.rq".git_history_lens].
 }

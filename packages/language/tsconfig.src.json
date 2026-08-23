@@ -4,6 +4,11 @@
       "rootDir": "src",
       "outDir": "out"
     },
+    "references": [
+      {
+        "path": "../analytical/tsconfig.json"
+      }
+    ],
     "include": [
       "src/**/*.ts",
     ]

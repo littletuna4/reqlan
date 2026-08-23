@@ -1,6 +1,7 @@
 /**
  * Chat skills, prompts, and agents are contributed once via package.json
  * (chatSkills, chatPromptFiles, chatAgents) per chat_participant_skills.
+ * rq:["../../../../reqlan rq/extension/agents/features-ai.rq".ai_fix_stale_references]
  */
 import * as vscode from 'vscode';
 
@@ -14,7 +15,8 @@ const PROMPT_FILES = [
 
 const SKILL_FILES = [
     'rq-requirements/SKILL.md',
-    'rq-search/SKILL.md'
+    'rq-search/SKILL.md',
+    'rq-fix-stale-references/SKILL.md'
 ] as const;
 
 const AGENT_FILES = ['reqlan.agent.md'] as const;

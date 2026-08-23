@@ -1,7 +1,7 @@
 /**
  * Headless AnalysisApi over the core native engine.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
 import {
     NativeAnalysisApi,

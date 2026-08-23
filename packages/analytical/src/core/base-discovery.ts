@@ -5,9 +5,9 @@
  * Walk pruning uses built-in `.rqignore` defaults (and the search root's `.reqlan/.rqignore`
  * when that root is already a base).
  *
- * rq:["../../../reqlan rq/ontology.rq".base]
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
- * rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
+ * rq:["../../../../reqlan rq/ontology.rq".base]
+ * rq:["../../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
+ * rq:["../../../../reqlan rq/extension/module/index.rq".rqignore]
  */
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';

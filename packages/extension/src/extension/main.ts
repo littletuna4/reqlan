@@ -155,12 +155,18 @@ async function startLanguageClient(
     // The debug options for the server
     // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging.
     // By setting `process.env.DEBUG_BREAK` to a truthy value, the language server will wait until a debugger is attached.
-    const debugOptions = { execArgv: ['--nolazy', `--inspect${process.env.DEBUG_BREAK ? '-brk' : ''}=${process.env.DEBUG_SOCKET || '6009'}`] };
+    const nativeDir = path.join(context.extensionPath, 'native');
+    // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    const serverEnv = { ...process.env, REQLAN_NATIVE_DIR: nativeDir };
+    const debugOptions = {
+        execArgv: ['--nolazy', `--inspect${process.env.DEBUG_BREAK ? '-brk' : ''}=${process.env.DEBUG_SOCKET || '6009'}`],
+        env: serverEnv
+    };
 
     // If the extension is launched in debug mode then the debug server options are used
     // Otherwise the run options are used
     const serverOptions: ServerOptions = {
-        run: { module: serverModule, transport: TransportKind.ipc, runtime },
+        run: { module: serverModule, transport: TransportKind.ipc, runtime, options: { env: serverEnv } },
         debug: { module: serverModule, transport: TransportKind.ipc, runtime, options: debugOptions }
     };
 

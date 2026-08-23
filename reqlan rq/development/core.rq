@@ -66,7 +66,7 @@ code_comment_references {
 }
 
 testing {
-    tests should have comment references to the requirements they serve to test. per ["../extension/features-code-comment/functional-code-comment-references.rq"]
+    tests should have comment references to the requirements they serve to test. per ["../extension/features-non-rq-code-comment/functional-code-comment-references.rq"]
     @tests: (
         ["../../packages/language/test/testing.test.ts:each test file includes rq comment references to its requirements"]
     )

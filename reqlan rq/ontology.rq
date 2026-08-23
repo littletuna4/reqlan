@@ -4,7 +4,7 @@ import "../packages/language/src/reqlan-comment-resolver.ts" as comment_resolver
 import "../packages/language/src/reqlan-imports.ts" as import_resolver
 import "../packages/language/src/reqlan-path-resolve.ts" as path_resolve
 import "../packages/analytical/src/core/types.ts" as analytical_types
-import "../packages/analytical/src/index-store/idea-extractor.ts" as idea_extractor
+import "../crates/reqlan-index/src/extract.rs" as idea_extractor
 import "../packages/analytical/src/core/file-reference-resolve.ts" as file_reference_resolve
 import "../packages/analytical/src/core/base-discovery.ts" as base_discovery
 import "../crates/reqlan-parse/src/ast.rs" as rust_ast
@@ -33,7 +33,7 @@ idea {
     @tests (
         ["../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
         ["../packages/language/test/parsing.test.ts:parse one-liner ideas"]
-        ["../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
     )
@@ -55,6 +55,7 @@ ideaset {
     @tests (
         ["../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
         ["../packages/language/test/linking.test.ts:resolve ideaset member forward reference"]
+        ["../packages/language/test/linking.test.ts:resolve forward reference to later ideaset in the same file"]
     )
 }
 
@@ -250,7 +251,7 @@ attribute {
     @tests (
         ["../packages/language/test/parsing.test.ts:parses valued attributes without a colon"]
         ["../packages/language/test/parsing.test.ts:treats mid-line @ as body text and line-start @ as attribute"]
-        ["../packages/analytical/test/idea-extraction.test.ts:indexes scalar, list, block, and flag attribute values"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
         ["../crates/reqlan-index/tests/extract_parity.rs:indexes_scalar_list_block_and_flag_attribute_values"]
     )
 }
@@ -265,7 +266,7 @@ attribute_body {
         [rust_extract]
     )
     @tests (
-        ["../packages/analytical/test/idea-extraction.test.ts:block idea body populates summary from rich text parts"]
+        ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
     )

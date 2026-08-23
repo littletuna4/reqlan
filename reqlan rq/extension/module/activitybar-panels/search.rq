@@ -1,7 +1,7 @@
 import "../../features-commands.rq" as commands
 import "../../../core_analysis/search.rq" as core_search
 import "../ideas_summary/webview.rq" as ideas_summary_doc
-import "../../../../packages/analytical/src/analysis/fuzzy-search.ts" as fuzzy_search_impl
+import "../../../../packages/extension/src/shared/fuzzy-search.ts" as fuzzy_search_impl
 import "../../../../packages/analytical/src/native/native-workspace-index.ts" as native_workspace_index
 import "../../../../packages/extension/src/activity_bar_module/search-results-meta.ts" as search_results_meta
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
@@ -49,7 +49,7 @@ search_pane_query {
     Pages: [search_pane_load_more] / [core_search.fuzzy_search_pages].
     Highlighting stays in the TS `./fuzzy-search` export.
     @tests (
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
         ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_ranks_without_exporting_catalog"]
@@ -127,7 +127,7 @@ search_pane_file_hits {
     )
     @tests (
         ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts:ranks file name hits with ideas"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
         ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
         ["../../../../packages/extension/test/search-results-meta.test.ts"]
     )
@@ -195,17 +195,17 @@ search_pane_match_highlighting {
     separator-insensitive spans, token prefixes / part matches, reordered words, and character-subsequence
     (fuzzy / acronym) marks on short fields such as the idea name — not scattered letters in long summaries.
     @implementation (
-        ["../../../../packages/analytical/src/analysis/fuzzy-search.ts"]
+        ["../../../../packages/extension/src/shared/fuzzy-search.ts"]
         ["../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
     )
     @tests (
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts"]
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights exact and prefix substrings"]
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts:maps separator-insensitive matches back onto the original text"]
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights token prefixes and reordered words"]
-        ["../../../../packages/analytical/test/fuzzy-search.test.ts:highlights acronym and sparse fuzzy matches on short fields"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
     )
     @status done
 }
@@ -232,7 +232,7 @@ search_add_to_chat {
 }
 
 search_progress {
-    Activity-bar search ranks in the native [search_reqs.fuzzy_search] module (rusqlite read + score in-process).
+    Activity-bar search ranks in the native [core_search.fuzzy_search] module (rusqlite read + score in-process).
     The host must not hydrate a JS idea catalog or worker before scoring — return only the capped hit list.
     A static "Searching…" / "Loading…" label must not be the only signal: the pane should show **live progress** so a slow wait reads as working, not hung.
     - Host posts progress for the in-flight search request while native scoring runs (`Scoring ideas…`).

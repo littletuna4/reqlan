@@ -2,7 +2,7 @@ import "./activitybar.rq" as activitybar
 import "./context-scope.rq" as context_scope
 import "../library/graph.rq" as graph_lib
 import "../features-graph-analysers.rq" as graph_analysers
-import "../module/graphical_graph.rq" as graphical_graph
+import "./ideas_summary/graphical_graph.rq" as graphical_graph
 
 graph_path_walk {
     Future capability: walk the requirement graph **point-to-point** between two chosen ideas.
@@ -45,7 +45,7 @@ path_ui_design {
     - Command palette: `Reqlan: Find path between requirements`.
 
     Presentation (sidebar-first):
-    - Collapsed: [path_result.summaryLine] under the scope footprint line.
+    - Collapsed: [path_result] `summaryLine` under the scope footprint line.
     - Expanded: vertical stepper (breadcrumb) with edge kind labels; optional overlay on [graph_lib.graph_library] highlighting only path edges/nodes.
     - When no path: show closest partial path or "no connection within N hops" with expand-in-Summary action.
 
@@ -55,7 +55,7 @@ path_ui_design {
 }
 
 relationship_to_context {
-    Path endpoints should default from [context_scope.context_focus] and [context_scope.effective_center_id].
+    Path endpoints should default from [context_scope.context_focus] and [context_scope.context_footprint].
     A successful walk contributes traversed idea ids to a transient "path context" slice suitable for [context_scope.ai_context_export] without pinning every intermediate node.
 }
 

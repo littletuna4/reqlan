@@ -29,6 +29,28 @@
   animation: spin var(--hbg-duration, 4s) linear infinite;
 }
 
+.fill {
+  position: absolute;
+  inset: 1px;
+  overflow: hidden;
+  border-radius: calc(0.5rem - 1px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fillSpin {
+  position: absolute;
+  inset: -140%;
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    color-mix(in srgb, var(--color-aqua-dim) 42%, var(--color-surface)),
+    color-mix(in srgb, var(--color-aqua-bright) 36%, var(--color-surface)),
+    color-mix(in srgb, var(--color-rust) 38%, var(--color-surface)),
+    color-mix(in srgb, var(--color-aqua-dim) 42%, var(--color-surface))
+  );
+  animation: spin var(--hbg-duration, 4s) linear infinite;
+}
+
 .inner {
   position: relative;
   z-index: 1;
@@ -40,7 +62,7 @@
   min-height: 2.625rem;
   padding: 0.625rem 1.125rem;
   border-radius: calc(0.5rem - 1px);
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 42%, transparent);
   color: var(--color-text);
   font-size: 0.875rem;
   font-weight: 600;
@@ -50,9 +72,14 @@
 
 .innerStatic {
   border: 1px solid var(--color-aqua-dim);
+  background: var(--color-surface);
 }
 
 .container:hover .inner {
+  background: color-mix(in srgb, var(--color-surface-raised) 28%, transparent);
+}
+
+.container:hover .innerStatic {
   background: var(--color-surface-raised);
 }
 
@@ -63,7 +90,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spin {
+  .spin,
+  .fillSpin {
     animation: none;
   }
 }

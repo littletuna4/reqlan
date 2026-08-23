@@ -6,7 +6,7 @@ const MIN_NODE_MAJOR = 21;
 
 /**
  * Node probe used when the extension host is older than {@link MIN_NODE_MAJOR}.
- * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
+ * rq:["../../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 export const LANGUAGE_SERVER_NODE_PROBE_OPTIONS = withHiddenConsole({ encoding: 'utf8' as const });
 

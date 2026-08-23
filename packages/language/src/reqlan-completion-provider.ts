@@ -2,8 +2,8 @@
  * Code completion for references, import paths, file paths, and attributes.
  * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
- * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion]
- * rq:["../../../reqlan rq/extension/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]

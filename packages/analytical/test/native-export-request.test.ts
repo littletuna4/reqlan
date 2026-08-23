@@ -1,7 +1,7 @@
 /**
  * Native HTML export must forward host page options to the napi DTO.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../reqlan rq/site/site.rq".spec_html_export]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../reqlan rq/site/site.rq".spec_html_export]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

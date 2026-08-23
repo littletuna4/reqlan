@@ -1,6 +1,6 @@
 /**
  * Schema v4 file compatibility via the native rusqlite store.
- * rq:["../../reqlan rq/core_analysis/rust_port.rq".cutover]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  */
 import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, writeFile } from 'node:fs/promises';

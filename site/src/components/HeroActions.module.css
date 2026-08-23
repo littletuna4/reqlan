@@ -27,12 +27,55 @@
   min-height: 2.625rem;
 }
 
+.star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.625rem;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.star:hover {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-aqua) 40%, var(--color-border));
+  background: var(--color-surface-raised);
+}
+
+.star:focus-visible {
+  outline: 2px solid var(--color-aqua);
+  outline-offset: 2px;
+}
+
+.starIcon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
 @media (max-width: 768px) {
   .row {
     gap: 0.75rem;
   }
 
   .getStartedLink {
+    width: fit-content;
+  }
+
+  .star {
     width: fit-content;
   }
 }

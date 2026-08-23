@@ -1,217 +1,336 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { describe, expect, test } from 'vitest';
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "vitest";
 import {
-    findCommentReferencesInText,
-    findCommentSpansInText,
-    findLineCommentStart,
-    parseCommentReferenceTarget
-} from '../src/reqlan-comment-resolver.js';
-import { findEmbeddedFileReferencesInText } from '../src/reqlan-embedded-file-references.js';
-import { findTestLineInText, isOpaqueFileReferencePath, parseFileReferenceString } from '../src/reqlan-file-references.js';
-import { parseMarkdownLink, unquoteReqlanString } from '../src/reqlan-references.js';
+  findCommentReferencesInText,
+  findCommentSpansInText,
+  findLineCommentStart,
+  parseCommentReferenceTarget,
+} from "../src/reqlan-comment-resolver.js";
+import { findEmbeddedFileReferencesInText } from "../src/reqlan-embedded-file-references.js";
+import {
+  findTestLineInText,
+  isOpaqueFileReferencePath,
+  parseFileReferenceString,
+} from "../src/reqlan-file-references.js";
+import {
+  parseMarkdownLink,
+  unquoteReqlanString,
+} from "../src/reqlan-references.js";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../../..');
-const demoDir = join(repoRoot, 'reqlan rq/extension/features-non-rq-code-comment');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const demoDir = join(
+  repoRoot,
+  "reqlan rq/extension/features-non-rq-code-comment",
+);
 
-describe('Comment and file reference utilities', () => {
+describe("Comment and file reference utilities", () => {
+  // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+  test("unquotes single-quoted reqlan string literals", () => {
+    expect(unquoteReqlanString("'./ontology.rq'")).toBe("./ontology.rq");
+    expect(unquoteReqlanString("'it\\'s fine'")).toBe("it's fine");
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
-    test('unquotes single-quoted reqlan string literals', () => {
-        expect(unquoteReqlanString("'./ontology.rq'")).toBe('./ontology.rq');
-        expect(unquoteReqlanString("'it\\'s fine'")).toBe("it's fine");
+  // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+  test("parses qualified rq comment reference targets with single-quoted paths", () => {
+    expect(parseCommentReferenceTarget("'./main.rq'.myidea")).toMatchObject({
+      path: "./main.rq",
+      idea: "myidea",
     });
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
-    test('parses qualified rq comment reference targets with single-quoted paths', () => {
-        expect(parseCommentReferenceTarget("'./main.rq'.myidea")).toMatchObject({
-            path: './main.rq',
-            idea: 'myidea'
-        });
+  // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+  test("finds rq comment references with single-quoted paths", () => {
+    const sample = findCommentReferencesInText(
+      "// see rq:['./main.rq'.myidea] for details",
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]).toMatchObject({ path: "./main.rq", idea: "myidea" });
+  });
+
+  // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
+  test("finds embedded file references with single-quoted paths", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      "['../../packages/language/test/validating.test.ts']",
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]?.file).toContain("validating.test.ts");
+  });
+
+  // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
+  test("unquotes reqlan string literals for anonymous import paths", () => {
+    expect(unquoteReqlanString('"./ontology.rq"')).toBe("./ontology.rq");
+    expect(unquoteReqlanString("./ontology.rq")).toBe("./ontology.rq");
+  });
+
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("parses qualified and local rq: bracket comment reference targets", () => {
+    expect(parseCommentReferenceTarget('"./main.rq".myidea')).toMatchObject({
+      path: "./main.rq",
+      idea: "myidea",
     });
-
-    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
-    test('finds rq comment references with single-quoted paths', () => {
-        const sample = findCommentReferencesInText("// see rq:['./main.rq'.myidea] for details");
-        expect(sample).toHaveLength(1);
-        expect(sample[0]).toMatchObject({ path: './main.rq', idea: 'myidea' });
+    expect(parseCommentReferenceTarget("myidea")).toMatchObject({
+      idea: "myidea",
     });
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
-    test('finds embedded file references with single-quoted paths', () => {
-        const sample = findEmbeddedFileReferencesInText("['../../packages/language/test/validating.test.ts']");
-        expect(sample).toHaveLength(1);
-        expect(sample[0]?.file).toContain('validating.test.ts');
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("finds rq: bracket comment references in line comments", () => {
+    const sample = findCommentReferencesInText(
+      // rq-ignore-error
+      '// see rq:["./main.rq".myidea] for details',
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]).toMatchObject({ path: "./main.rq", idea: "myidea" });
+  });
 
-    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
-    test('unquotes reqlan string literals for anonymous import paths', () => {
-        expect(unquoteReqlanString('"./ontology.rq"')).toBe('./ontology.rq');
-        expect(unquoteReqlanString('./ontology.rq')).toBe('./ontology.rq');
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("finds rq: local comment references in line comments", () => {
+    const sample = findCommentReferencesInText(
+      // rq-ignore-error
+      "# rq:[myidea]",
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]).toMatchObject({ idea: "myidea" });
+    expect(sample[0]?.path).toBeUndefined();
+  });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('parses qualified and local rq: bracket comment reference targets', () => {
-        expect(parseCommentReferenceTarget('"./main.rq".myidea')).toMatchObject({
-            path: './main.rq',
-            idea: 'myidea'
-        });
-        expect(parseCommentReferenceTarget('myidea')).toMatchObject({ idea: 'myidea' });
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("finds rq: comment references in block comments", () => {
+    const sample = findCommentReferencesInText(
+      `/**` +
+        // rq-ignore-error
+        `built to comply with rq:["../file.rq".ideaname]` +
+        `*/`,
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]).toMatchObject({ path: "../file.rq", idea: "ideaname" });
+  });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('finds rq: bracket comment references in line comments', () => {
-        const sample = findCommentReferencesInText('// see rq:["./main.rq".myidea] for details');
-        expect(sample).toHaveLength(1);
-        expect(sample[0]).toMatchObject({ path: './main.rq', idea: 'myidea' });
-    });
-
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('finds rq: local comment references in line comments', () => {
-        const sample = findCommentReferencesInText('# rq:[myidea]');
-        expect(sample).toHaveLength(1);
-        expect(sample[0]).toMatchObject({ idea: 'myidea' });
-        expect(sample[0]?.path).toBeUndefined();
-    });
-
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('finds rq: comment references in block comments', () => {
-        const sample = findCommentReferencesInText(`/**
-         * built to comply with rq:["../file.rq".ideaname]
-         */`);
-        expect(sample).toHaveLength(1);
-        expect(sample[0]).toMatchObject({ path: '../file.rq', idea: 'ideaname' });
-    });
-
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('finds rq: comment references in python triple-quoted comments', () => {
-        const sample = findCommentReferencesInText(`'''
-    rq:["./functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("finds rq: comment references in python triple-quoted comments", () => {
+    const sample = findCommentReferencesInText(`'''
+    rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     '''`);
-        expect(sample).toHaveLength(1);
-        expect(sample[0]).toMatchObject({
-            path: './functional-code-comment-references.rq',
-            idea: 'references_in_functional_code_comments'
-        });
+    expect(sample).toHaveLength(1);
+    expect(sample[0]).toMatchObject({
+      path: "../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq",
+      idea: "references_in_functional_code_comments",
     });
+  });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('finds rq: references in feature demo source files', () => {
-        const js = readFileSync(join(demoDir, 'features-code-comment.text.js'), 'utf8');
-        const py = readFileSync(join(demoDir, 'features-code-comment.text.py'), 'utf8');
-        const jsRefs = findCommentReferencesInText(js);
-        const pyRefs = findCommentReferencesInText(py);
-        expect(jsRefs.length).toBeGreaterThanOrEqual(2);
-        expect(pyRefs.length).toBeGreaterThanOrEqual(2);
-        for (const ref of [...jsRefs, ...pyRefs]) {
-            expect(ref).toMatchObject({
-                path: './functional-code-comment-references.rq',
-                idea: 'references_in_functional_code_comments'
-            });
-        }
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("finds rq: references in feature demo source files", () => {
+    const js = readFileSync(
+      join(demoDir, "features-code-comment.text.js"),
+      "utf8",
+    );
+    const py = readFileSync(
+      join(demoDir, "features-code-comment.text.py"),
+      "utf8",
+    );
+    const jsRefs = findCommentReferencesInText(js);
+    const pyRefs = findCommentReferencesInText(py);
+    expect(jsRefs.length).toBeGreaterThanOrEqual(2);
+    expect(pyRefs.length).toBeGreaterThanOrEqual(2);
+    for (const ref of [...jsRefs, ...pyRefs]) {
+      expect(ref).toMatchObject({
+        path: "./functional-code-comment-references.rq",
+        idea: "references_in_functional_code_comments",
+      });
+    }
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".comments]
-    test('ignores // inside string literals when locating line comments', () => {
-        expect(findLineCommentStart('const url = "https://not a comment.com";')).toBe(-1);
-        expect(findLineCommentStart('const note = "//also not a comment"; // real')).toBe(
-            'const note = "//also not a comment"; // real'.indexOf('// real')
-        );
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".comments]
+  test("ignores // inside string literals when locating line comments", () => {
+    expect(
+      findLineCommentStart('const url = "https://not a comment.com";'),
+    ).toBe(-1);
+    expect(
+      findLineCommentStart('const note = "//also not a comment"; // real'),
+    ).toBe('const note = "//also not a comment"; // real'.indexOf("// real"));
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".comments]
-    test('e2e: findLineCommentStart skips // inside bracket reference strings', () => {
-        const line = `["a reference containing '//' that doesn't start a comment"] // real`;
-        expect(findLineCommentStart(line)).toBe(line.indexOf('// real'));
-        expect(findLineCommentStart('["https://host/file.rq".idea]')).toBe(-1);
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".comments]
+  test("e2e: findLineCommentStart skips // inside bracket reference strings", () => {
+    const line = `["a reference containing '//' that doesn't start a comment"] // real`;
+    expect(findLineCommentStart(line)).toBe(line.indexOf("// real"));
+    expect(findLineCommentStart('["https://host/file.rq".idea]')).toBe(-1);
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".comments]
-    test('e2e: findCommentSpansInText skips empty /**/ glob segments', () => {
-        const text = 'see ../mod/**/*.rq /* real comment */ done';
-        const spans = findCommentSpansInText(text);
-        expect(spans).toHaveLength(1);
-        expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe('/* real comment */');
-        expect(text.slice(0, spans[0]!.start)).toContain('/**/');
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".comments]
+  test("e2e: findCommentSpansInText skips empty /**/ glob segments", () => {
+    const text = "see ../mod/**/*.rq /* real comment */ done";
+    const spans = findCommentSpansInText(text);
+    expect(spans).toHaveLength(1);
+    expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe(
+      "/* real comment */",
+    );
+    expect(text.slice(0, spans[0]!.start)).toContain("/**/");
+  });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('ignores rq references outside comment spans', () => {
-        const sample = findCommentReferencesInText('const x = "https://x.com // rq:[\\"./main.rq\\".myidea]";');
-        expect(sample).toHaveLength(0);
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("ignores rq references outside comment spans", () => {
+    const sample = findCommentReferencesInText(
+      'const x = "https://x.com // rq:[\\"./main.rq\\".myidea]";',
+    );
+    expect(sample).toHaveLength(0);
+  });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
-    test('findCommentSpansInText includes slash and hash line comments', () => {
-        const text = 'code // line\n# hash';
-        const spans = findCommentSpansInText(text);
-        expect(spans).toHaveLength(2);
-    });
+  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  test("findCommentSpansInText includes slash and hash line comments", () => {
+    const text = "code // line\n# hash";
+    const spans = findCommentSpansInText(text);
+    expect(spans).toHaveLength(2);
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
-    test('parses L# line suffix from file reference strings', () => {
-        expect(parseFileReferenceString('./apythonfile.pyL#1-2')).toEqual({
-            filePath: './apythonfile.py',
-            lineStart: 1,
-            lineEnd: 2
-        });
-        expect(parseFileReferenceString('./apythonfile.py')).toEqual({ filePath: './apythonfile.py' });
+  // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+  test("parses L# line suffix from file reference strings", () => {
+    expect(parseFileReferenceString("./apythonfile.pyL#1-2")).toEqual({
+      filePath: "./apythonfile.py",
+      lineStart: 1,
+      lineEnd: 2,
     });
+    expect(parseFileReferenceString("./apythonfile.py")).toEqual({
+      filePath: "./apythonfile.py",
+    });
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
-    test('parses markdown link label and target from raw link text', () => {
-        expect(parseMarkdownLink('[the reqlan rq folder](../../reqlan rq)')).toEqual({
-            label: 'the reqlan rq folder',
-            target: '../../reqlan rq'
-        });
+  // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
+  test("parses markdown link label and target from raw link text", () => {
+    expect(
+      parseMarkdownLink("[the reqlan rq folder](../../reqlan rq)"),
+    ).toEqual({
+      label: "the reqlan rq folder",
+      target: "../../reqlan rq",
     });
+  });
 
-    // rq:["../../../reqlan rq/development/core.rq".testing]
-    test('parses :test name suffix from file reference strings', () => {
-        expect(parseFileReferenceString('../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name')).toEqual({
-            filePath: '../../packages/language/test/validating.test.ts',
-            testName: 'reports duplicate when local idea shares imported idea name'
-        });
+  // rq:["../../../reqlan rq/development/core.rq".testing]
+  // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+  test("parses :test name suffix from file reference strings", () => {
+    expect(
+      parseFileReferenceString(
+        "../../packages/language/test/validating.test.ts:reports duplicate when local idea shares imported idea name",
+      ),
+    ).toEqual({
+      filePath: "../../packages/language/test/validating.test.ts",
+      testName: "reports duplicate when local idea shares imported idea name",
     });
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
-    test('classifies opaque file reference paths for linker', () => {
-        expect(isOpaqueFileReferencePath('../../packages/language/test/validating.test.ts:reports duplicate')).toBe(true);
-        expect(isOpaqueFileReferencePath('../../packages/language/test/linking.test.ts')).toBe(true);
-        expect(isOpaqueFileReferencePath('./apythonfile.pyL#1-2')).toBe(true);
-        expect(isOpaqueFileReferencePath('./ontology.rq')).toBe(false);
-        expect(isOpaqueFileReferencePath('myidea')).toBe(false);
-        expect(isOpaqueFileReferencePath("a reference containing '//' that doesn't start a comment")).toBe(false);
+  // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+  test("keeps colons inside the test name suffix", () => {
+    expect(
+      parseFileReferenceString(
+        "../../packages/language/test/comment-in-string.test.ts:e2e: real block comments still hide body text",
+      ),
+    ).toEqual({
+      filePath: "../../packages/language/test/comment-in-string.test.ts",
+      testName: "e2e: real block comments still hide body text",
     });
+    expect(
+      parseFileReferenceString("C:\\Users\\tony\\foo.ts:e2e: lists items"),
+    ).toEqual({
+      filePath: "C:\\Users\\tony\\foo.ts",
+      testName: "e2e: lists items",
+    });
+    expect(
+      parseFileReferenceString("https://host/app.test.ts:e2e: lists items"),
+    ).toEqual({
+      filePath: "https://host/app.test.ts",
+      testName: "e2e: lists items",
+    });
+  });
 
-    // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
-    test('embedded file reference scan ignores markdown link labels', () => {
-        const sample = findEmbeddedFileReferencesInText(
-            'see [the label](../../path.rq) and ["../../packages/language/test/validating.test.ts"]'
-        );
-        expect(sample).toHaveLength(1);
-        expect(sample[0]?.file).toContain('validating.test.ts');
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+  test("classifies opaque file reference paths for linker", () => {
+    expect(
+      isOpaqueFileReferencePath(
+        "../../packages/language/test/validating.test.ts:reports duplicate",
+      ),
+    ).toBe(true);
+    expect(
+      isOpaqueFileReferencePath("../../packages/language/test/linking.test.ts"),
+    ).toBe(true);
+    expect(isOpaqueFileReferencePath("./apythonfile.pyL#1-2")).toBe(true);
+    expect(isOpaqueFileReferencePath("./ontology.rq")).toBe(false);
+    expect(isOpaqueFileReferencePath("myidea")).toBe(false);
+    expect(
+      isOpaqueFileReferencePath(
+        "a reference containing '//' that doesn't start a comment",
+      ),
+    ).toBe(false);
+  });
 
-    // rq:["../../../reqlan rq/development/core.rq".testing]
-    test('finds embedded file references in @tests lists', () => {
-        const sample = findEmbeddedFileReferencesInText(
-            '@tests: ( ["../../packages/language/test/validating.test.ts:reports duplicate"] )'
-        );
-        expect(sample).toHaveLength(1);
-        expect(sample[0]?.file).toContain('validating.test.ts');
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".markdown_links]
+  test("embedded file reference scan ignores markdown link labels", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      'see [the label](../../path.rq) and ["../../packages/language/test/validating.test.ts"]',
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]?.file).toContain("validating.test.ts");
+  });
 
-    // rq:["../../../reqlan rq/development/core.rq".testing]
-    test('finds vitest test lines by name', () => {
-        const sample = [
-            "describe('Validating', () => {",
-            "    test('reports duplicate when local idea shares imported idea name', async () => {",
-            '        expect(true).toBe(true);',
-            '    });',
-            '});'
-        ].join('\n');
-        expect(findTestLineInText(sample, 'reports duplicate when local idea shares imported idea name')).toBe(1);
-    });
+  // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+  test("embedded file reference scan ignores inline code examples", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      'Exact `["./file.rq".idea]` and `["./gone.ts"]` then ["./live.ts"].',
+    );
+    expect(sample.map((reference) => reference.file)).toEqual(["./live.ts"]);
+  });
+
+  // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+  test("embedded file reference scan ignores fenced code blocks", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      [
+        'live ["./live.rq"]',
+        "```",
+        '["../extension/**/*.rq".*_pane]',
+        '["./modules/gone.rq"]',
+        "```",
+        'after ["./after.rq"]',
+      ].join("\n"),
+    );
+    expect(sample.map((reference) => reference.file)).toEqual([
+      "./live.rq",
+      "./after.rq",
+    ]);
+  });
+
+  // rq:["../../../reqlan rq/development/core.rq".testing]
+  test("finds embedded file references in @tests lists", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      '@tests: ( ["../../packages/language/test/validating.test.ts:reports duplicate"] )',
+    );
+    expect(sample).toHaveLength(1);
+    expect(sample[0]?.file).toContain("validating.test.ts");
+  });
+
+  // rq:["../../../reqlan rq/development/core.rq".testing]
+  test("finds vitest test lines by name", () => {
+    const sample = [
+      "describe('Validating', () => {",
+      "    test('reports duplicate when local idea shares imported idea name', async () => {",
+      "        expect(true).toBe(true);",
+      "    });",
+      "    test('e2e: real block comments still hide body text', async () => {",
+      "        expect(true).toBe(true);",
+      "    });",
+      "});",
+    ].join("\n");
+    expect(
+      findTestLineInText(
+        sample,
+        "reports duplicate when local idea shares imported idea name",
+      ),
+    ).toBe(1);
+    expect(
+      findTestLineInText(
+        sample,
+        "e2e: real block comments still hide body text",
+      ),
+    ).toBe(4);
+  });
 });

@@ -5,8 +5,9 @@ import "./context-scope-v2.rq" as context_scope_v2
 import "../agents/features-ai.rq" as features_ai
 import "../features-non-rq-code-comment/functional-code-comment-references.rq" as code_comment_refs
 import "../../../packages/extension/src/activity_bar_module/context-model.ts" as context_model
-import "../../../packages/analytical/src/core/context-model.ts" as analytical_context_model
+import "../../../packages/extension/src/activity_bar_module/lib/context-model.ts" as analytical_context_model
 import "../../../packages/analytical/src/core/file-path-match.ts" as file_path_match
+import "../../../packages/extension/src/activity_bar_module/context-session.ts" as context_session
 
 context_scope {
     Reqlan sidebar and AI workflows reason about a composed [reqlan_context_model], not a single "current file" blob.
@@ -23,14 +24,14 @@ any_file_scope {
     [current_file_context] must surface requirement links even when the file contains no block ideas.
 
   Signals for non-.rq files (and .rq files without a caret idea):
-    - [file_reference_links]: `.rq` ideas whose outbound `file_reference` edges target this file path (e.g. `["./apythonfile.py"]`).
+    - [file_reference_links]: `.rq` ideas whose outbound `file_reference` edges target this file path (for example `./apythonfile.py`).
     - [folder_reference_links]: `.rq` ideas whose `file_reference` targets a parent folder of this file.
     - [comment_reference_links]: ideas resolved from `rq:[…]` tokens in this file's comments per [code_comment_refs.references_in_functional_code_comments].
     - [git_context]: focus-centric git history (recent commits, authors, branch); working-tree dirty badge secondary.
 
   Focus behaviour:
     - `.rq` file with caret in a block → idea focus (unchanged).
-    - Any file with linked requirements → file focus; [effective_center_id] defaults to the first linked requirement.
+    - Any file with linked requirements → file focus; `effectiveCenterId` defaults to the first linked requirement.
     - No links → file focus with empty related lists; graph/refs panes stay idle until a requirement is focused.
 
   Implementation: [context_model] uses [file_path_match] and `file_related_requirements` analyser; comment links are also resolved from live buffer text when indexed edges are absent.
@@ -53,7 +54,7 @@ context_dimensions {
     Each dimension has a stable id, human label, default weight, and a one-line summary for collapsed UI.
 
     - workspace [workspace_context]
-        Ambient VS Code workspace chrome and multi-base index glance: discovered bases, active base readiness / idea/edge counts — not a full graph dump. Distinct from the active [base] source in v2.
+        Ambient VS Code workspace chrome and multi-base index glance: discovered bases, active base readiness / idea/edge counts — not a full graph dump. Distinct from the active ["../../bases/base.rq".base] source in v2.
     - current_file [current_file_context]
         Active editor file. For `.rq`: caret idea, in-file outline, unresolved refs. For any file: [any_file_scope] links and git badge.
     - open_files [open_files_context]
@@ -73,8 +74,8 @@ reqlan_context_model {
     Implementation: [context_model].
     - [context_focus] is the single anchor (idea, file, selection, or none).
     - [context_dimensions] each contribute [context_contribution] records with counts and summary lines.
-    - [context_footprint] merges enabled dimensions into deduped idea/file sets and an [effective_center_id] for graph/refs panes.
-    - [current_file_slice] is the projection used when the current-file lens is expanded. Includes `isRqFile`, `referencingIdeas`, `commentLinkedIdeas`, `folderReferencingIdeas`, and optional `gitChange`.
+    - [context_footprint] merges enabled dimensions into deduped idea/file sets and an `effectiveCenterId` for graph/refs panes.
+    - `currentFileSlice` is the projection used when the current-file lens is expanded. Includes `isRqFile`, `referencingIdeas`, `commentLinkedIdeas`, `folderReferencingIdeas`, and optional `gitChange`.
     - [context_selection] when the user highlights a non-empty range spanning one or more `.rq` ideas ([activitybar.selection_pane]).
     - [global_hop_depth] and [dimension_hop_control] overrides on the model.
     Host increments `revision` when any dimension or hop depth changes; webview ignores stale posts by revision.
@@ -125,7 +126,7 @@ dimension_hop_control {
 
 context_footprint {
     Merged view across enabled dimensions.
-    - deduped idea ids and file uris with [context_provenance] (which dimensions contributed each entry).
+    - deduped idea ids and file uris with provenance (which dimensions contributed each entry).
     - `summaryLine`: compact human text, e.g. "this file · 3 open · 2 git · 1 pinned".
     - `effectiveCenterId`: graph/refs/ancestors panes use this; defaults to focus idea, selection's first idea, first linked requirement for non-.rq files, else first idea in current file.
 }
@@ -199,7 +200,7 @@ edit_history_context {
 
 manual_context {
     weight: 0.9
-    Enabled when tray non-empty; pins override sync focus for [effective_center_id] when user chooses "focus pinned".
+    Enabled when tray non-empty; pins override sync focus for `effectiveCenterId` when user chooses "focus pinned".
 }
 
 git_context {
@@ -210,7 +211,7 @@ git_context {
     Summary prefers history richness (e.g. "main · 3 commits · 2 authors"), not staged/unstaged counts.
     Working-tree dirty files remain available as a demoted nested section and optional footprint contributors.
     Focus hero shows a history cue (last commit age / branch) instead of a staged/unstaged chip.
-    Consumes [index_reqs.git_information_capture] and ["context-scope-v2.rq".development_history_signals].
+    Consumes [index_reqs.git_information_capture] and ["./context-scope-v2.rq".development_history_signals].
     Windows `git` spawns stay hidden per ["../../core_analysis/core.rq".consumption_silence].
     UI: [activitybar.git_history_lens].
 }

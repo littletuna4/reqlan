@@ -1,7 +1,7 @@
 /**
  * Editor webview panel for index timing diagnostics.
  *
- * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_webview]
+ * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_webview]
  */
 import * as vscode from 'vscode';
 import { join } from 'node:path';

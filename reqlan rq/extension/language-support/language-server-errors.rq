@@ -1,7 +1,39 @@
 from "../../core-architecture.rq" import language_server
+from "../../reference_types.rq" import file_reference
+from "../../language/syntax.rq" import comment_reference_ignore, comment_reference_resolution_error, inline_code
 
 
 general_errors {
     error messages should be deliberate and developer friendly.
     recommendations should be offerred where appropriate.
+}
+
+
+file_reference_errors {
+    If a [file_reference] is not found, is broken, or cannot be resolved, the language server must show an underline.
+    Do not show the underline when [comment_reference_ignore] (`//rq-ignore-error`) is on the line before.
+    Missing files: error underline, no document link.
+    Do not underline examples inside [inline_code] or ["../../language/syntax.rq".code_snippets].
+    Empty files and files with parse errors: warning underline; the document link stays.
+    Related: [general_errors], [comment_reference_resolution_error], [inline_code],
+    ["./features-imports.rq".import_does_not_exist_error],
+    ["../syntax/features-syntax.rq".file_references].
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-validator.ts"]
+        ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../packages/language/src/reqlan-ignore-error.ts"]
+        ["../../../packages/language/src/reqlan-embedded-file-references.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/linking.test.ts:missing file references do not produce document links"]
+        ["../../../packages/language/test/linking.test.ts:missing file reference errors are suppressed after //rq-ignore-error"]
+        ["../../../packages/language/test/linking.test.ts:remote file references are not reported as missing"]
+        ["../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]
+        ["../../../packages/language/test/ignore-error.test.ts:reports a missing file reference as an error"]
+        ["../../../packages/language/test/ignore-error.test.ts:suppresses missing file reference errors on the line after //rq-ignore-error"]
+        ["../../../packages/language/test/ignore-error.test.ts:does not report file references inside inline code"]
+    )
 }

@@ -6,6 +6,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import styles from "./hover-border-gradient.module.css";
 
+// rq:["../../../../reqlan rq/site/site.rq".get_started_cta_motion]
+
 type HoverBorderGradientProps = {
   children: React.ReactNode;
   as?: React.ElementType;
@@ -44,14 +46,22 @@ export function HoverBorderGradient({
       {...props}
     >
       {!reducedMotion ? (
-        <span className={styles.ring} aria-hidden>
-          <motion.span
-            className={styles.spin}
-            style={{ animationDirection }}
-            animate={{ opacity: hovered ? 0.95 : 0.22 }}
-            transition={{ duration: 0.25 }}
-          />
-        </span>
+        <>
+          <span className={styles.ring} aria-hidden>
+            <motion.span
+              className={styles.spin}
+              style={{ animationDirection }}
+              animate={{ opacity: hovered ? 0.95 : 0.22 }}
+              transition={{ duration: 0.25 }}
+            />
+          </span>
+          <span className={styles.fill} aria-hidden>
+            <span
+              className={styles.fillSpin}
+              style={{ animationDirection }}
+            />
+          </span>
+        </>
       ) : null}
 
       <span

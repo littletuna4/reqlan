@@ -58,6 +58,13 @@ commands {
       `--url-base` mounts root-relative hrefs per [html_export.html_export_url_base].
       `--header-href` / `--header-label` set the topbar home link per [html_export.html_export_header_link].
     - `init [directory]` — create a new [base] marker (`.reqlan`) at the given path or cwd ([init]).
+    - `check` — CI wrapper around ["../core_analysis/core.rq".index] unresolved references (["../core_analysis/check.rq".check]).
+      Reports broken idea, comment, and file references. Skips lines after ["../language/syntax.rq".comment_reference_ignore].
+      `--glob` limits the check to a path subset of the base.
+      `--json` / `--pipe` select machine output. Exit status is 1 when the command finds issues.
+      Issue order groups shared missing targets (["../core_analysis/check.rq".check_order_by_target]).
+      `--wildcard-zero` / `--wildcard-one` are `warn` (default), `error`, or `off`
+      (["../core_analysis/check.rq".check_wildcard_zero], ["../core_analysis/check.rq".check_wildcard_one]).
     - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/features-commands.rq".barrel_page]).
 }
 

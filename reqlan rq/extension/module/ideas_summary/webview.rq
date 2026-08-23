@@ -91,7 +91,7 @@ ideas_list {
         [IdeasTable]
         [webview_table_queries]
         ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
-        ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
     )
     @tests (
         ["../../../../packages/analytical/test/idea-timeline.test.ts"]
@@ -100,7 +100,7 @@ ideas_list {
         ["../../../../packages/analytical/test/webview-table-queries.test.ts:orders by git date and change count columns"]
         ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
         ["../../../../packages/extension/test/format-git-date.test.ts"]
-        ["../../../../packages/analytical/test/git-dates-parse.test.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
     )
     @status done
     @tags (ideas, git, table)
@@ -139,7 +139,7 @@ ideas_list_git_date_format {
     The `git_dates` analyser must only persist ISO author-date lines so patch hunks never
     become stored "dates".
     Implemented by ["../../../../packages/extension/webviews/ideas-summary/lib/format-git-date.ts"]
-    and ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"] (`parseGitAuthorDates`).
+    and ["../../../../crates/reqlan-index/src/git_dates.rs"] (`parseGitAuthorDates`).
     @status done
     @tags (ideas, git, formatting)
     @tests (
@@ -147,8 +147,8 @@ ideas_list_git_date_format {
         ["../../../../packages/extension/test/format-git-date.test.ts:formats git %aI timestamps as YYYY-MM-DD"]
         ["../../../../packages/extension/test/format-git-date.test.ts:keeps authored calendar day (does not shift across timezone)"]
         ["../../../../packages/extension/test/format-git-date.test.ts:renders empty and invalid values as an em dash"]
-        ["../../../../packages/analytical/test/git-dates-parse.test.ts"]
-        ["../../../../packages/analytical/test/git-dates-parse.test.ts:keeps only ISO author-date lines from git -L output with patch noise"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs:parses_iso_author_dates_and_ignores_patch_noise"]
     )
     [ideas_list]
     [git_idea_timeline_analysis]
@@ -188,10 +188,10 @@ overview_coverage_scores {
     @implementation (
         [OverviewPanel]
         [ideas_summary_panel]
-        ["../../../../packages/analytical/src/index-store/overview-coverage.ts"]
+        ["../../../../crates/reqlan-index/src/overview.rs"]
     )
     @test (
-        ["../../../../packages/analytical/test/overview-coverage.test.ts"]
+        ["../../../../crates/reqlan-index/src/overview.rs"]
     )
     @status done
     @tags (overview, coverage, metrics)
@@ -214,7 +214,7 @@ timeline_page {
     - Git idea lifecycle from indexed `git_created_at` / `git_modified_at` (created + last edited as separate events when they differ)
     - Session idea reindex activity (one event per idea persisted, with name / status / summary when available)
     Missing git dates are filled by the silent background indexer
-    (["../../features-graph-analysers.rq".git_dates] / ["../git-codelens.rq".git_dates_background_indexing]) —
+    (["../../features-graph-analysers.rq".git_dates] / ["../../git-codelens.rq".git_dates_background_indexing]) —
     opening Timeline must not run git log on the UI path.
     Reindex must preserve existing git dates across upsert.
     Entries are reverse-chronological, filterable by source (git / reindexed), and clickable to open the idea.
@@ -224,7 +224,7 @@ timeline_page {
         [TimelinePanel]
         [ideas_summary_panel]
         ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
-        ["../../../../packages/analytical/src/analysis/git-dates-analyser.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
         ["../../../../packages/extension/src/extension/register-git-dates-background.ts"]
         ["../../../../packages/extension/src/extension/git-dates-background.ts"]
     )

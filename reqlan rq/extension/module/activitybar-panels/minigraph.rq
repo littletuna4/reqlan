@@ -1,6 +1,6 @@
 import "../../features-graph-analysers.rq" as graph_analysers
 import "../../library/graph.rq" as graph_lib
-import "../graphical_graph.rq" as graphical_graph_doc
+import "../ideas_summary/graphical_graph.rq" as graphical_graph_doc
 import "../../../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
 import "../../../../packages/extension/webviews/activity-bar/components/MiniGraphCanvas.svelte" as MiniGraphCanvas
 

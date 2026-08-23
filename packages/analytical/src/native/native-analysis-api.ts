@@ -1,7 +1,7 @@
 /**
  * AnalysisApi-compatible facade over the core Rust engine.
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
  */
 import type {
     CompletionSummary,
@@ -125,6 +125,23 @@ export class NativeAnalysisApi {
         ) as NativeBrokenReference[];
     }
 
+    /**
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+     */
+    async check(options?: {
+        pathGlob?: string;
+        wildcardZero?: string;
+        wildcardOne?: string;
+    }): Promise<NativeBrokenReference[]> {
+        return this.native.checkReferences(
+            options?.pathGlob,
+            options?.wildcardZero,
+            options?.wildcardOne
+        ) as NativeBrokenReference[];
+    }
+
     async exportHtml(
         request: Omit<ExportRequest, 'workspaceRoot'> & { workspaceRoot?: string },
         _onProgress?: ExportProgressCallback
@@ -210,6 +227,15 @@ export class NativeAnalysisApi {
                 parameters: {
                     pathGlob: 'Optional path glob over a subset of the base',
                     includeCommentReferences: 'Optional: include unresolved rq:[…] comment references'
+                }
+            },
+            {
+                name: 'check',
+                description:
+                    'Check idea, comment, and file references. Skip lines after //rq-ignore-error.',
+                // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+                parameters: {
+                    pathGlob: 'Optional path glob over a subset of the base'
                 }
             },
             {

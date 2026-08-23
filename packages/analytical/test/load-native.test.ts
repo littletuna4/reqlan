@@ -1,8 +1,8 @@
 /**
  * Unit tests for the core native engine loader.
- * rq:["../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
- * rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
- * rq:["../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+ * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
+ * rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
  */
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -52,6 +52,19 @@ describe('load-native', () => {
         expect(loaded.NativeWorkspaceIndex).toBeTypeOf('function');
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    it('exposes findRqIgnoreErrorTargetLines on the engine when present', () => {
+        const loaded = tryLoadNativeEngine();
+        if (!loaded) {
+            return;
+        }
+        expect(loaded.findRqIgnoreErrorTargetLines).toBeTypeOf('function');
+        const lines = loaded.findRqIgnoreErrorTargetLines?.(
+            'keep this //rq-ignore-error\nnext line\n'
+        );
+        expect(lines).toEqual([1]);
+    });
+
     it('exposes parseReqlanSource on the engine when present', () => {
         const loaded = tryLoadNativeEngine();
         if (!loaded) {
@@ -98,7 +111,7 @@ describe('load-native', () => {
         expect(candidates).not.toContain('@reqlan/analytical-win32-arm64-msvc');
     });
 
-    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_distributed]
+    // rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_distributed]
     it('resolves the host optionalDependency from @reqlan/analytical package.json', () => {
         const spec = hostNativeBindingSpec();
         if (!spec) {
@@ -136,7 +149,7 @@ describe('load-native', () => {
         }
     });
 
-    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
+    // rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
     it('explains a Linux-staged native/ folder to a Windows extension host', () => {
         const dir = mkdtempSync(join(tmpdir(), 'reqlan-native-win-host-'));
         try {
@@ -155,7 +168,7 @@ describe('load-native', () => {
         }
     });
 
-    // rq:["../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_development]
+    // rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_development]
     it('lists the Windows cargo dll among win32-x64 candidates', () => {
         const candidates = listNativeEngineCandidates('win32', 'x64');
         expect(candidates).toContain('@reqlan/analytical-win32-x64-msvc');

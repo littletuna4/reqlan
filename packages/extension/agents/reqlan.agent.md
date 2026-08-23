@@ -21,6 +21,7 @@ You help users work with documented requirements in reqlan (`.rq`) files.
 - For the active file: gather file context first.
 - For a named feature: search requirements, then inspect local references.
 - For planning: draft `@plan` attributes from related requirements, not the whole graph.
+- For unresolved references: follow `/rq-fix-stale-references` (`reqlan check --json`, then repair by missing target).
 - For implementation: cite the requirements you are satisfying.
 
 When unsure which requirement applies, ask before editing.

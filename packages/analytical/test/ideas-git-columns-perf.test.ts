@@ -1,8 +1,8 @@
 /**
  * Performance guards for Ideas table git columns (indexed read, never git-on-load).
- * rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
- * rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
- * rq:["../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+ * rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+ * rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
+ * rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
  */
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -93,7 +93,7 @@ describe('Ideas list git columns performance', () => {
         vi.restoreAllMocks();
     });
 
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
     test('listIdeasPage reads indexed git columns without running the analyser', async () => {
         store = await seedLargeIdeasIndex();
         const updateSpy = vi.spyOn(store, 'updateGitDates').mockImplementation(async () => {
@@ -114,8 +114,8 @@ describe('Ideas list git columns performance', () => {
         expect(updateSpy).not.toHaveBeenCalled();
     }, 60_000);
 
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
     test('indexed git page load stays interactive and under simulated git-per-row cost', async () => {
         store = await seedLargeIdeasIndex();
         const total = await store.countIdeas(baseQuery);
@@ -156,8 +156,8 @@ describe('Ideas list git columns performance', () => {
         expect(gitMs).toBeLessThan(Math.max(simulatedGitPageMs, pathMs * 2));
     }, 60_000);
 
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
-    // rq:["../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
+    // rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
     test('listIdeaIdsMissingGitDates stays fast on a large filled index', async () => {
         store = await seedLargeIdeasIndex();
         // Warm.
@@ -173,7 +173,7 @@ describe('Ideas list git columns performance', () => {
         expect(median(samples)).toBeLessThan(500);
     }, 60_000);
 
-    // rq:["../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
+    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_columns_performance]
     test('git change-count sort page stays within absolute budget', async () => {
         store = await seedLargeIdeasIndex();
         await store.listIdeasPage({ ...baseQuery, sortBy: 'gitChangeCount', sortDir: 'desc' });

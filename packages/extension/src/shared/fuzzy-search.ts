@@ -1,8 +1,8 @@
 /**
  * Client-side fuzzy helpers for webview highlight + reference-search panel.
  * Ranking for activity-bar search is native (`NativeWorkspaceIndex.fuzzySearch`).
- * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
- * rq:["../../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+ * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
+ * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
  */
 export interface IdeaSummaryLike {
     id: string;

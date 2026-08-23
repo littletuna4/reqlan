@@ -1,5 +1,5 @@
 from "../module/chat-participant.rq" import chat_participant, chat_participant_completion
-import "./features-skills-and-mcp.rq" as skills_and_mcp
+import "../features-skills-and-mcp.rq" as skills_and_mcp
 
 ai_api should use the chat participant api. which should be in a module. that consumes analysis functions from other modules. https://code.visualstudio.com/api/extension-guides/ai/chat
 
@@ -20,5 +20,18 @@ ai_add_to_context {
 
 ai_write_plan {
     A command palette action (e.g. ctrl+p: write plan) should draft or update an @plan attribute for the selected idea.
+}
+
+ai_fix_stale_references {
+    A chat skill `/rq-fix-stale-references` finds and repairs unresolved idea, comment, file, and wildcard references.
+    The issue list comes from ["../../core_analysis/check.rq".check] (`reqlan check --json`).
+    Repair choices follow ["../language-support/features-imports.rq".import_error] and ["../refactor_support.rq".comment_reference_refactor_support].
+    Slash-command name uses [skills_and_mcp.chat_skill_naming].
+    @status done
+    @implementation (
+        ["../../../packages/extension/skills/rq-fix-stale-references/SKILL.md"]
+        ["../../../packages/extension/src/ai_commands_module/register-agent-contributions.ts"]
+        ["../../../packages/extension/package.json"]
+    )
 }
 

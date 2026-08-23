@@ -145,76 +145,9 @@ fn list_resolved_file_references(conn: &Connection) -> Result<HashSet<String>, S
     Ok(resolved)
 }
 
-/// Resolve an authored file reference against the defining idea's file directory.
-/// Mirrors `resolveReferencedFilePath` for workspace-relative index URIs.
-fn resolve_referenced_file_path(target_file: &str, source_id: &str) -> String {
-    let target = target_file.replace('\\', "/");
-    if target.contains("://") || target.starts_with('/') || is_windows_absolute(&target) {
-        return target_file.to_string();
-    }
-    let defining_file = defining_file_path(source_id).replace('\\', "/");
-    if defining_file.is_empty()
-        || defining_file.contains("://")
-        || defining_file.starts_with('/')
-        || is_windows_absolute(&defining_file)
-    {
-        return target_file.to_string();
-    }
-    posix_join(posix_dirname(&defining_file), &target)
-}
-
-fn defining_file_path(source_id: &str) -> String {
-    match source_id.rfind('#') {
-        Some(index) => source_id[..index].to_string(),
-        None => source_id.to_string(),
-    }
-}
-
-fn is_windows_absolute(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
-}
-
-fn posix_dirname(path: &str) -> &str {
-    match path.rfind('/') {
-        Some(0) => "/",
-        Some(index) => &path[..index],
-        None => ".",
-    }
-}
-
-fn posix_join(base: &str, relative: &str) -> String {
-    let combined = if base.is_empty() || base == "." {
-        relative.to_string()
-    } else {
-        format!("{}/{}", base.trim_end_matches('/'), relative)
-    };
-    normalize_posix_segments(&combined)
-}
-
-/// Collapse `.` / `..` segments the way `posix.join` does.
-fn normalize_posix_segments(path: &str) -> String {
-    let absolute = path.starts_with('/');
-    let mut out: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                if matches!(out.last(), Some(&last) if last != "..") {
-                    out.pop();
-                } else if !absolute {
-                    out.push(part);
-                }
-            }
-            other => out.push(other),
-        }
-    }
-    let joined = out.join("/");
-    if absolute {
-        format!("/{joined}")
-    } else {
-        joined
-    }
+/// Resolve an authored file reference using the parser path rules (aliases + document-relative).
+pub(crate) fn resolve_referenced_file_path(target_file: &str, source_id: &str) -> String {
+    reqlan_parse::resolve_rq_path(target_file, reqlan_parse::file_from_idea_id(source_id), &[])
 }
 
 fn normalize_rel_path(path: &str) -> String {
@@ -325,6 +258,13 @@ mod tests {
             "reqlan rq/foo.ts"
         );
         assert_eq!(resolve_referenced_file_path("./bar.ts", "a/b.rq#i"), "a/bar.ts");
+        assert_eq!(
+            resolve_referenced_file_path(
+                "@/site/src/app/support/page.tsx",
+                "reqlan rq/site/x.rq#i"
+            ),
+            "site/src/app/support/page.tsx"
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 /**
  * Wire types for the index diagnostics webview.
  *
- * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_webview]
+ * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_webview]
  */
 
 export interface DiagnosticsRunView {

@@ -183,6 +183,9 @@ importers:
 
   packages/language:
     dependencies:
+      '@reqlan/analytical':
+        specifier: workspace:*
+        version: link:../analytical
       langium:
         specifier: ~4.3.0
         version: 4.3.0

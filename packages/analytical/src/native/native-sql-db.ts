@@ -1,6 +1,6 @@
 /**
  * Thin TS wrapper around napi SQL surfaces (NativeSqlDb or NativeWorkspaceIndex).
- * rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */
 import { mkdir } from 'node:fs/promises';
 import { statSync } from 'node:fs';

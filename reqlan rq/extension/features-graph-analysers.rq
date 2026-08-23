@@ -50,7 +50,7 @@ list_all_ideas {
 
 index_comment_reference_inclusion {
     Comment `rq:[…]` sites are indexed as `comment_link` edges plus first-class code-file documents, not a separate idea kind.
-    Graph surfaces them as idea → external file nodes (same file-node id as outbound [file_reference]).
+    Graph surfaces them as idea → external file nodes (same file-node id as outbound ["../reference_types.rq".file_reference]).
     Live editor links still use [comment_grammar] / the comment resolver; the index path is native ["../indexer/indexer.rq".index_code_files].
     @status done
 }
@@ -77,11 +77,11 @@ git_dates {
     soft-sync / catalog updates (batched, yielded) — not triggered by Activity Bar focus, opening Timeline,
     or Ideas table load.
     Background queue prefers ideas in the active `.rq` editor file before the rest of the backlog.
-    Catalog/save events follow ["git-codelens.rq".git_dates_rate_cap] so git log does not run on every save.
+    Catalog/save events follow ["./git-codelens.rq".git_dates_rate_cap] so git log does not run on every save.
     Windows git spawns stay hidden per ["../core_analysis/core.rq".consumption_silence].
     Consumers (Activity Bar signals, Timeline, Ideas table, future inlays) read indexed columns only.
-    Detail and host wiring: ["git-codelens.rq".git_idea_timeline_analysis] and
-    ["git-codelens.rq".git_dates_background_indexing].
+    Detail and host wiring: ["./git-codelens.rq".git_idea_timeline_analysis] and
+    ["./git-codelens.rq".git_dates_background_indexing].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/git_dates.rs"]

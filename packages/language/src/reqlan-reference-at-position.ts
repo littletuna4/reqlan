@@ -1,5 +1,8 @@
 /**
  * Locates file path references at a cursor position and resolves them to files, folders, or missing paths.
+ * Missing targets are omitted here so go-to-definition can still try import-path resolution
+ * (for example `from "./target"` → `./target.rq`). Diagnostics still underline those refs.
+ * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  */
 import type { CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { CstUtils, GrammarUtils } from 'langium';
@@ -55,13 +58,24 @@ export function findFileReferenceAtPosition(
     }
     const embeddedReference = findEmbeddedFileReferenceAt(document, position);
     if (embeddedReference) {
-        return resolveEmbeddedFileReferenceLink(embeddedReference, document, documents, fileSystem, pathContext);
+        return navigableFileLink(
+            resolveEmbeddedFileReferenceLink(embeddedReference, document, documents, fileSystem, pathContext)
+        );
     }
     const fileReference = findFileReferenceNodeAtPosition(document, position);
     if (fileReference) {
-        return resolveFileReferenceLink(fileReference.node, documents, fileSystem, pathContext);
+        return navigableFileLink(
+            resolveFileReferenceLink(fileReference.node, documents, fileSystem, pathContext)
+        );
     }
     return undefined;
+}
+
+function navigableFileLink(link: ResolvedFileLink | undefined): ResolvedFileLink | undefined {
+    if (!link || link.resolution === 'missing') {
+        return undefined;
+    }
+    return link;
 }
 
 function resolvePathReference(

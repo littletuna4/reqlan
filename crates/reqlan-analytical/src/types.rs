@@ -229,6 +229,14 @@ pub struct BrokenReferenceDto {
     pub source_line: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet: Option<String>,
+    #[serde(default = "error_severity")]
+    pub severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_count: Option<u32>,
+}
+
+fn error_severity() -> String {
+    "error".to_string()
 }
 
 pub fn from_index_summary(idea: reqlan_index::IdeaSummary) -> IdeaSummary {

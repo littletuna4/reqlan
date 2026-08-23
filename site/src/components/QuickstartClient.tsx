@@ -14,10 +14,12 @@ import {
   type QuickstartIdeId,
   type QuickstartPackage,
 } from "@/content/quickstart";
+import { type CliInstallCommand } from "@/content/install-actions";
 import { getPreferredIde } from "@/lib/deeplink";
 import { getPhonebookPackage } from "@/lib/phonebook";
 import { sitePath } from "@/lib/paths";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
+import { usePreferredPackageManager } from "@/lib/use-package-manager";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
 import styles from "./QuickstartClient.module.css";
@@ -73,7 +75,61 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function PackageManagerInstall({
+  commands,
+  fallback,
+}: {
+  commands?: readonly CliInstallCommand[];
+  fallback: string;
+}) {
+  // rq:["../../../reqlan rq/site/site.rq".package_manager_preference]
+  const [activeId, setPackageManager] = usePreferredPackageManager();
+  const active =
+    commands?.find((command) => command.id === activeId) ?? commands?.[0];
+  const value = active?.command ?? fallback;
+
+  return (
+    <div className={styles.installBlock}>
+      {commands?.length ? (
+        <div
+          className={styles.pmTabs}
+          role="tablist"
+          aria-label="Package manager"
+        >
+          {commands.map((command) => {
+            const selected = command.id === (active?.id ?? activeId);
+            const icon = resolveQuickstartIcon(command.icon);
+
+            return (
+              <button
+                key={command.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                className={cn(styles.pmTab, selected && styles.pmTabActive)}
+                onClick={() => setPackageManager(command.id)}
+              >
+                {icon ? (
+                  <Icon icon={icon} className={styles.pmTabIcon} aria-hidden />
+                ) : null}
+                {command.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <div className={styles.cli}>
+        <span className={styles.cliLabel}>Install</span>
+        <code className={styles.cliCode}>{value}</code>
+        <CopyButton value={value} />
+      </div>
+    </div>
+  );
+}
+
 function PackageSection({ pkg }: { pkg: QuickstartPackage }) {
+  // rq:["../../../reqlan rq/site/site.rq".install_cli_menu]
+  // rq:["../../../reqlan rq/site/site.rq".quickstart_page]
   const npm = getPhonebookPackage(pkg.packageId);
 
   return (
@@ -97,11 +153,10 @@ function PackageSection({ pkg }: { pkg: QuickstartPackage }) {
         </a>
       </div>
       <p className={styles.tagline}>{pkg.intro}</p>
-      <div className={styles.cli}>
-        <span className={styles.cliLabel}>Install</span>
-        <code className={styles.cliCode}>{pkg.install}</code>
-        <CopyButton value={pkg.install} />
-      </div>
+      <PackageManagerInstall
+        commands={pkg.installCommands}
+        fallback={pkg.install}
+      />
       <ol className={styles.steps}>
         {pkg.steps.map((step) => (
           <li key={step}>{step}</li>

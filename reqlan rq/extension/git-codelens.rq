@@ -71,10 +71,10 @@ git_dates_rate_cap {
     Catalog and index-status events must debounce (quiet period after the last notify)
     and must wait a minimum gap after a wave that actually filled dates.
     Editor-switch priority and draining a capped wave may use the short idle delay.
-    Distinct from ["features-graph-analysers.rq".indexing_trigger_filesave]: the ideas
+    Distinct from ["./features-graph-analysers.rq".indexing_trigger_filesave]: the ideas
     index still updates on save; only git analysis is rate-capped.
     Related: [git_dates_background_indexing], [graph_analysers.git_dates],
-    ["module/index.rq".idea_index_triggers], ["module/index.rq".git_information_capture],
+    ["./module/index.rq".idea_index_triggers], ["./module/index.rq".git_information_capture],
     ["../core_analysis/core.rq".consumption_silence].
     @status done
     @implementation (

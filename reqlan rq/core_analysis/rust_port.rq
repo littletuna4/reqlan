@@ -16,7 +16,7 @@ analytical_rust_port {
     `@reqlan/analytical` remains the published JS facade (`createAnalysisRuntime` / `AnalysisApi` / Zustand host state).
     Native work lives in a `crates/` Cargo workspace and ships as per-architecture binaries per [distribution.rust_binary_distribution].
     Langium LSP stays in ["../core-architecture.rq".language_package] / ["../core-architecture.rq".language_server] — this port is not a tower-lsp rewrite.
-    Component plans: [rust_crate_layout], [lexer_rust], [parser_rust], [indexer.indexer_rust], [search_rust], [export_rust], [native_bridge], [cutover].
+    Component plans: [rust_crate_layout], [lexer_rust], [parser_rust], [parser_align], [indexer.indexer_rust], [search_rust], [export_rust], [native_bridge], [cutover].
     @status in-progress
     @todo first `@reqlan/analytical-<platform>-<arch>` publish (Trusted Publisher on npmjs.com + analytical/v* tag)
     @tests (
@@ -77,10 +77,12 @@ golden_corpus {
     Parser/extractor alignment uses a frozen `.rq` tree under `testdata/golden-corpus/`, not live product requirements in `reqlan rq/`.
     Production idea lists may change without regenerating the dump. Copy a representative file into the corpus and refresh `crates/reqlan-index/tests/golden/langium-corpus-names.json` only when grammar or extract behaviour needs a new sample.
     Langium and Rust both extract name+kind from that tree and must match the committed dump.
+    Live parse alignment (elements and refs, both engines in one test): [parser_align].
     @status done
     @tests (
         ["../../packages/language/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
         ["../../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
     )
 }
@@ -106,6 +108,7 @@ parser_rust {
     Wall-clock [parser_lexer.parse_budget_timeout] via native timeout/cancel — no Node worker process required on the index path.
     Dual-parser window: every grammar change updates Langium *and* `reqlan-parse` until the index path is Rust-only.
     CLI `parse` uses the core engine `parseReqlanSource` (`reqlan-parse`); Langium stays the editor LSP parser.
+    Alignment contract: [parser_align].
     @status done
     @tests (
         ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
@@ -117,8 +120,31 @@ parser_rust {
         ["../../crates/reqlan-index/tests/golden_corpus.rs:tutorials_rq_keeps_ideas_after_nested_slides_lists"]
         ["../../packages/language/test/parsing.test.ts:keeps later ideas after nested @slides lists with mid-line @plan braces"]
         ["../../packages/language/test/parsing.test.ts:parse tutorials.rq nested @slides lists without parser errors"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
         ["../../packages/cli/test/runtime-engine.test.ts:parse command uses native parseReqlanSource"]
         ["../../packages/analytical/test/load-native.test.ts:exposes parseReqlanSource on the engine when present"]
+    )
+}
+
+parser_align {
+    Langium and `reqlan-parse` stay two engines until the language server uses Rust.
+    Grammar truth is [syntax] / ["../../packages/language/src/reqlan.langium"].
+    The same source must yield the same parse snapshot: top-level elements, live bracket and wiki refs, inline-code count, and fence count.
+    One Node test runs Langium and native `parseReqlanSource` (`parseAlignSnapshot`) together. A committed name dump is not the only check.
+    Related: [golden_corpus], [parser_rust].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-parse/src/align.rs"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/parse-source.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_example"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:fenced_file_example"]
+        ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_example_is_not_a_live_ref"]
+        ["../../crates/reqlan-parse/tests/align.rs:fence_body_is_one_code_snippet_not_inner_refs"]
     )
 }
 
@@ -206,6 +232,7 @@ port_phases (
     rust_crate_layout,
     lexer_rust,
     parser_rust,
+    parser_align,
     search_rust,
     export_rust,
     native_bridge,

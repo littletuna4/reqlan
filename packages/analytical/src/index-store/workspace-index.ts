@@ -7,15 +7,15 @@
  * - workspace-index-file.ts
  * - workspace-mtime.ts
  *
- * rq:["../../../reqlan rq/indexer/indexer.rq".index]
- * rq:["../../../reqlan rq/indexer/indexer.rq".ownership]
- * rq:["../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".index_ideas]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_incrementality]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_auto]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_open]
- * rq:["../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
- * rq:["../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".index]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".ownership]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
+ * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".index_ideas]
+ * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_incrementality]
+ * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_auto]
+ * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_open]
+ * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
 import { fsPathFromFileUri } from '../core/path-relative.js';
 import { readdir } from 'node:fs/promises';
@@ -120,9 +120,9 @@ export class WorkspaceIndex {
 
     /**
      * Rank ideas and file names in the native search module. Does not copy the catalog into JS.
-     * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
-     * rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
-     * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
+     * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+     * rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
+     * rq:["../../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
      */
     fuzzySearch(
         query: string,
@@ -156,7 +156,7 @@ export class WorkspaceIndex {
      * Fill git creation / modified dates and change counts for ideas via native
      * git history (all missing ideas when `ideaIds` is omitted). The extension
      * only schedules background waves; the git log + persist work stays native.
-     * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
      */
     fillGitDates(ideaIds?: string[]): number {
         if (!this.native) {
@@ -167,7 +167,7 @@ export class WorkspaceIndex {
 
     /**
      * Compute Ideas Summary overview coverage over the workspace base natively.
-     * rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
      */
     computeOverviewCoverage(): OverviewCoverageScores {
         if (!this.native) {

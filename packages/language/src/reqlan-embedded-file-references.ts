@@ -1,5 +1,8 @@
 /**
  * Locates quoted file paths embedded in .rq source text, including @tests list entries.
+ * Skips inline code (`…`) and fenced ``` blocks — those are opaque examples, not live refs.
+ * rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+ * rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
  */
 import type { LangiumDocument } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';
@@ -18,19 +21,60 @@ const FILE_REFERENCE_LIKE = /(?:\.\w[\w.]*|\/)/;
 export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): EmbeddedFileReference[] {
     const references: EmbeddedFileReference[] = [];
     const lines = text.split(/\r?\n/);
+    let inFence = false;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
+        if (isCodeFenceLine(line)) {
+            inFence = !inFence;
+            continue;
+        }
+        if (inFence) {
+            continue;
+        }
+        const opaque = inlineCodeSpans(line);
         for (const match of line.matchAll(BRACKETED_FILE_REFERENCE_PATTERN)) {
-            pushEmbeddedReference(references, match, lineIndex, lineOffset, line);
+            pushEmbeddedReference(references, match, lineIndex, lineOffset, line, opaque);
         }
         for (const match of line.matchAll(QUOTED_FILE_REFERENCE_PATTERN)) {
             if (line.slice(Math.max(0, (match.index ?? 0) - 1), match.index).includes('[')) {
                 continue;
             }
-            pushEmbeddedReference(references, match, lineIndex, lineOffset, line);
+            pushEmbeddedReference(references, match, lineIndex, lineOffset, line, opaque);
         }
     }
     return references;
+}
+
+function isCodeFenceLine(line: string): boolean {
+    return line.trimStart().startsWith('```');
+}
+
+function inlineCodeSpans(line: string): Array<{ start: number; end: number }> {
+    const spans: Array<{ start: number; end: number }> = [];
+    let index = 0;
+    while (index < line.length) {
+        if (line[index] !== '`') {
+            index++;
+            continue;
+        }
+        if (line.startsWith('```', index)) {
+            index += 3;
+            continue;
+        }
+        const close = line.indexOf('`', index + 1);
+        if (close < 0) {
+            break;
+        }
+        if (close > index + 1) {
+            spans.push({ start: index, end: close + 1 });
+        }
+        index = close + 1;
+    }
+    return spans;
+}
+
+function rangeOverlapsOpaque(start: number, end: number, opaque: Array<{ start: number; end: number }>): boolean {
+    return opaque.some(span => start < span.end && end > span.start);
 }
 
 function pushEmbeddedReference(
@@ -38,7 +82,8 @@ function pushEmbeddedReference(
     match: RegExpMatchArray,
     lineIndex: number,
     lineOffset: number,
-    line: string
+    line: string,
+    opaque: Array<{ start: number; end: number }>
 ): void {
     const quoted = match[1];
     const file = parseReqlanQuotedString(quoted);
@@ -46,14 +91,18 @@ function pushEmbeddedReference(
         return;
     }
     const start = match.index ?? 0;
-    if (isRangeInsideMarkdownLinkLabel(line, start, start + match[0].length)) {
+    const end = start + match[0].length;
+    if (rangeOverlapsOpaque(start, end, opaque)) {
+        return;
+    }
+    if (isRangeInsideMarkdownLinkLabel(line, start, end)) {
         return;
     }
     references.push({
         file,
         range: {
             start: { line: lineOffset + lineIndex, character: start },
-            end: { line: lineOffset + lineIndex, character: start + match[0].length }
+            end: { line: lineOffset + lineIndex, character: end }
         }
     });
 }

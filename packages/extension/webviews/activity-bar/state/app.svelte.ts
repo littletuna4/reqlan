@@ -589,7 +589,7 @@ export class AppState {
     }
 
     searchIdeas(query: string, offset = 0): void {
-        // rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
         const requestId = this.nextRequestId('search');
         this.ideaSearchRequestId = requestId;
         const loadingMore = offset > 0;
@@ -613,7 +613,7 @@ export class AppState {
     }
 
     loadMoreIdeaSearch(): void {
-        // rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
         const query = this.ideaSearchAppliedQuery.trim();
         if (
             !query
