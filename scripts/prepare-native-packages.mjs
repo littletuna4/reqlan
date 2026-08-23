@@ -2,6 +2,9 @@
  * Scaffold / refresh `@reqlan/analytical-<platform>-<arch>` package directories
  * and sync `optionalDependencies` on `@reqlan/analytical`.
  *
+ * Version SSOT is `packages/analytical/package.json`. Platform packages are not
+ * versioned by Changesets (`ignore`: `@reqlan/analytical-*`).
+ *
  * Usage:
  *   node scripts/prepare-native-packages.mjs
  *   node scripts/prepare-native-packages.mjs --binary-dir artifacts/napi
@@ -10,6 +13,7 @@
  *     (rewrite optionalDependencies from workspace:* to concrete versions for npm publish)
  *
  * rq:["../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
+ * rq:["../reqlan rq/distribution/distribution.rq".version_management]
  */
 import fs from 'node:fs';
 import path from 'node:path';

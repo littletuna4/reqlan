@@ -222,6 +222,12 @@ const fixtures: Record<string, string> = {
         'real_idea { body }',
         ''
     ].join('\n'),
+    inline_code_file_only_line_range: [
+        'showcase {',
+        '    `["./plc/interlock.stL#41-58"]`',
+        '}',
+        ''
+    ].join('\n'),
     fenced_file_example: [
         'demo {',
         '```',

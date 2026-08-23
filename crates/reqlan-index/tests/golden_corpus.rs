@@ -8,7 +8,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 
 use reqlan_index::{extract_indexed_document, ExtractOptions};
-use reqlan_parse::parse_document;
+use reqlan_parse::{parse_align_snapshot, parse_document};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -176,5 +176,35 @@ fn opaque_file_examples_do_not_extract_inline_or_fenced_paths() {
             label != "./plc/interlock.stL#41-58" && label != "./file.rq" && label != "./missing.rq"
         }),
         "opaque examples leaked as file refs: {file_labels:?}"
+    );
+
+    let snapshot = parse_align_snapshot(&source);
+    assert!(snapshot.ok, "opaque-file-examples.rq must parse");
+    assert!(
+        snapshot.inline_code_count >= 2,
+        "expected inline code spans, got {}",
+        snapshot.inline_code_count
+    );
+    assert!(
+        snapshot.code_snippet_count >= 1,
+        "expected a fenced snippet, got {}",
+        snapshot.code_snippet_count
+    );
+    assert!(
+        snapshot.refs.iter().all(|reference| {
+            reference.label != "./plc/interlock.stL#41-58"
+                && reference.label != "./file.rq"
+                && reference.label != "./missing.rq"
+        }),
+        "parser treated opaque examples as live refs: {:?}",
+        snapshot.refs
+    );
+    assert!(
+        snapshot
+            .refs
+            .iter()
+            .any(|reference| reference.kind == "file" && reference.label == "./present.ts"),
+        "live file ref missing from parse snapshot: {:?}",
+        snapshot.refs
     );
 }

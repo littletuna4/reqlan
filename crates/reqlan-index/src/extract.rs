@@ -20,16 +20,16 @@ use crate::types::{
     AttributeValue, EdgeKind, EdgeRecord, IdeaAttributeMap, IdeaKind, IdeaRecord, IndexedDocument,
 };
 use reqlan_parse::{
-    parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
-    BodyElement, Import, ImportRootMapping, ListItem, ParseResult, ReferenceTarget, RichPart,
-    TopLevelElement,
+    lex, parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
+    BodyElement, Import, ImportRootMapping, ListItem, ParseBudget, ParseResult, ReferenceTarget,
+    RichPart, TokenKind, TopLevelElement,
 };
 use sha2::{Digest, Sha256};
 
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 1;
+pub const EXTRACT_VERSION: i64 = 2;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -862,79 +862,25 @@ fn collect_file_reference_edges(
 }
 
 fn find_embedded_file_references(source: &str) -> Vec<(String, u32)> {
+    // STRING tokens are produced only in string-literal context. Inline code and
+    // fenced blocks are opaque lexer tokens, so quotes inside them are not refs.
+    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    let lexed = lex(source, ParseBudget::unlimited());
     let mut files = Vec::new();
-    let mut in_fence = false;
-    for (line_index, line) in source.lines().enumerate() {
-        if is_code_fence_line(line) {
-            in_fence = !in_fence;
+    for token in &lexed.tokens {
+        if token.kind != TokenKind::String {
             continue;
         }
-        if in_fence {
+        let inner = unquote_path(token.text(source));
+        if inner.contains('*') || inner.contains('?') {
             continue;
         }
-        let opaque = inline_code_spans(line);
-        let bytes = line.as_bytes();
-        let mut index = 0;
-        while index < bytes.len() {
-            let quote = bytes[index];
-            if quote != b'"' && quote != b'\'' {
-                index += 1;
-                continue;
-            }
-            let after = index + 1;
-            let Some(rel) = bytes[after..].iter().position(|&b| b == quote) else {
-                break;
-            };
-            let end = after + rel;
-            let inner = &line[after..end];
-            // Glob paths belong to wildcard_reference fan-out, not concrete file edges.
-            if !range_overlaps(index, end + 1, &opaque)
-                && !inner.contains('*')
-                && !inner.contains('?')
-                && (inner.contains('/')
-                    || inner.contains('\\')
-                    || inner.contains('.') && inner.contains('/')
-                    || looks_file_ref(inner))
-            {
-                files.push((inner.to_string(), line_index as u32 + 1));
-            }
-            index = end + 1;
+        if inner.contains('/') || inner.contains('\\') || looks_file_ref(&inner) {
+            files.push((inner, token.line + 1));
         }
     }
     files
-}
-
-fn is_code_fence_line(line: &str) -> bool {
-    line.trim_start().starts_with("```")
-}
-
-fn inline_code_spans(line: &str) -> Vec<(usize, usize)> {
-    let bytes = line.as_bytes();
-    let mut spans = Vec::new();
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] != b'`' {
-            index += 1;
-            continue;
-        }
-        if index + 2 < bytes.len() && bytes[index + 1] == b'`' && bytes[index + 2] == b'`' {
-            index += 3;
-            continue;
-        }
-        let Some(rel) = bytes[index + 1..].iter().position(|&b| b == b'`') else {
-            break;
-        };
-        let close = index + 1 + rel;
-        if close > index + 1 {
-            spans.push((index, close + 1));
-        }
-        index = close + 1;
-    }
-    spans
-}
-
-fn range_overlaps(start: usize, end: usize, spans: &[(usize, usize)]) -> bool {
-    spans.iter().any(|&(left, right)| start < right && end > left)
 }
 
 fn looks_file_ref(value: &str) -> bool {

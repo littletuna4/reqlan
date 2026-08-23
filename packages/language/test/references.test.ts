@@ -281,6 +281,14 @@ describe("Comment and file reference utilities", () => {
     expect(sample.map((reference) => reference.file)).toEqual(["./live.ts"]);
   });
 
+  // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+  test("embedded file reference scan ignores site showcase interlock inline example", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      '    `["./plc/interlock.stL#41-58"]`\n',
+    );
+    expect(sample.map((reference) => reference.file)).toEqual([]);
+  });
+
   // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
   test("embedded file reference scan ignores fenced code blocks", () => {
     const sample = findEmbeddedFileReferencesInText(

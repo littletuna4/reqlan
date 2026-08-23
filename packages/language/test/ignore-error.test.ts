@@ -106,6 +106,7 @@ describe('comment reference ignore', () => {
         const document = await parse(s`
             demo {
                 Exact \`["./gone-example.rq".idea]\` stays ["./gone-live.ts"]
+                \`["./plc/interlock.stL#41-58"]\`
             }
         `, { validation: true });
 
@@ -116,6 +117,7 @@ describe('comment reference ignore', () => {
         expect(missing).toHaveLength(1);
         expect(missing[0]?.message).toContain('./gone-live.ts');
         expect(missing.every(diagnostic => !String(diagnostic.message).includes('gone-example.rq'))).toBe(true);
+        expect(missing.every(diagnostic => !String(diagnostic.message).includes('interlock.stL'))).toBe(true);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]

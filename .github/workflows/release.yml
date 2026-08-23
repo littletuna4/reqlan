@@ -101,6 +101,7 @@ jobs:
         if: steps.pending.outputs.has_pending == 'true'
         run: |
           pnpm changeset version
+          # Platform packages are Changesets-ignored; copy version from @reqlan/analytical.
           node scripts/prepare-native-packages.mjs
 
       - name: Commit version bumps

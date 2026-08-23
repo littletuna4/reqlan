@@ -5,6 +5,7 @@
  * rq:["../../../reqlan rq/distribution/distribution.rq".version_management]
  */
 import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
@@ -54,19 +55,40 @@ describe("native platform packaging", () => {
 
   // rq:["../../../reqlan rq/distribution/distribution.rq".version_management]
   // rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
-  test("Changesets fixed group locks analytical to platform packages, not the extension", () => {
+  test("analytical version is SSOT for platform packages; Changesets ignores them", () => {
     const changeset = JSON.parse(
       readFileSync(join(root, ".changeset/config.json"), "utf8"),
-    ) as { fixed: string[][] };
-    const analyticalGroup = changeset.fixed.find((group) =>
-      group.includes("@reqlan/analytical"),
-    );
-    expect(analyticalGroup).toBeDefined();
-    expect(analyticalGroup).toContain("@reqlan/analytical-*");
-    expect(analyticalGroup).not.toContain("reqlan-extension");
+    ) as { fixed: string[][]; ignore: string[] };
+    expect(changeset.ignore).toContain("@reqlan/analytical-*");
+    expect(
+      changeset.fixed.some((group) =>
+        group.some((name) => name.includes("@reqlan/analytical")),
+      ),
+    ).toBe(false);
     expect(
       changeset.fixed.some((group) => group.includes("reqlan-extension")),
     ).toBe(false);
+
+    const release = readFileSync(
+      join(root, ".github/workflows/release.yml"),
+      "utf8",
+    );
+    const versionAt = release.indexOf("pnpm changeset version");
+    const prepareAt = release.indexOf(
+      "node scripts/prepare-native-packages.mjs",
+    );
+    expect(versionAt).toBeGreaterThan(-1);
+    expect(prepareAt).toBeGreaterThan(versionAt);
+
+    const status = spawnSync("pnpm", ["changeset", "status"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    expect(status.status, status.stderr).toBe(0);
+    const listed = `${status.stdout}\n${status.stderr}`;
+    for (const target of NATIVE_TARGETS) {
+      expect(listed).not.toContain(target.packageName);
+    }
   });
 
   test("each platform package declares Trusted Publisher repository + os/cpu + binary main", () => {
@@ -162,7 +184,7 @@ describe("native platform packaging", () => {
     );
     const nativesAt = deployNpm.indexOf("- name: Publish platform packages");
     const requireAt = deployNpm.indexOf(
-      "- name: Require natives before @reqlan/analytical",
+      "- name: Require natives at @reqlan/analytical version",
     );
     const analyticalAt = deployNpm.indexOf("- name: Publish @reqlan/analytical");
     expect(nativesAt).toBeGreaterThan(-1);

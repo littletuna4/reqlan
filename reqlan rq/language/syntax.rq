@@ -373,9 +373,14 @@ inline_code {
     )
     @tests (
         ["../../packages/language/test/references.test.ts:embedded file reference scan ignores inline code examples"]
+        ["../../packages/language/test/references.test.ts:embedded file reference scan ignores site showcase interlock inline example"]
         ["../../packages/language/test/ignore-error.test.ts:does not report file references inside inline code"]
+        ["../../packages/language/test/parsing.test.ts:does not parse a backticked file-only line range as a bracket reference"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_example"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_only_line_range"]
         ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_example_is_not_a_live_ref"]
+        ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_only_line_range_is_not_a_live_ref"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:backticked_bracketed_file_ref_is_one_inline_code_token"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
         ["../../crates/reqlan-index/src/extract.rs:embedded_scan_skips_backticked_file_ref_with_line_range"]
         ["../../crates/reqlan-index/src/extract.rs:extract_skips_backticked_file_only_ref"]

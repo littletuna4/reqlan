@@ -481,6 +481,16 @@ from "./other.rq" import idea as idea_alias`);
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+    test('does not parse a backticked file-only line range as a bracket reference', async () => {
+        const document = await parse(`demo {
+    \`["./plc/interlock.stL#41-58"]\`
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const refs = [...AstUtils.streamAst(document.parseResult.value)].filter(isBracketReference);
+        expect(refs).toHaveLength(0);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
     test('parse code snippet in block idea', async () => {
         const document = await parse(`demo {

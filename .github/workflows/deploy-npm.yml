@@ -143,6 +143,8 @@ jobs:
           pattern: napi-*
           merge-multiple: false
 
+      # Platform packages are not versioned by Changesets. Copy version and
+      # optionalDependencies from @reqlan/analytical (SSOT).
       - name: Prepare native packages
         run: |
           set -euo pipefail
@@ -206,7 +208,10 @@ jobs:
         id: check_analytical
         run: node scripts/skip-already-published.mjs --filter "@reqlan/analytical"
 
-      - name: Require natives before @reqlan/analytical
+      # Refuse @reqlan/analytical until every platform package of *its* version
+      # is on npm or was published in this job. Version SSOT is
+      # packages/analytical/package.json, not Changesets.
+      - name: Require natives at @reqlan/analytical version
         if: steps.check_analytical.outputs.should_publish == 'true'
         run: node scripts/require-natives-published.mjs --ready-file artifacts/natives-ready.txt
 

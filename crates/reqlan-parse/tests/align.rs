@@ -24,6 +24,20 @@ fn inline_code_file_example_is_not_a_live_ref() {
 }
 
 #[test]
+fn inline_code_file_only_line_range_is_not_a_live_ref() {
+    // Same form as reqlan rq/site/site.rq interlock_showcase and the golden corpus.
+    let source = "showcase {\n    `[\"./plc/interlock.stL#41-58\"]`\n}\n";
+    let snapshot = parse_align_snapshot(source);
+    assert!(snapshot.ok);
+    assert_eq!(snapshot.inline_code_count, 1);
+    assert!(
+        snapshot.refs.is_empty(),
+        "backticked file-only span must not be a live ref: {:?}",
+        snapshot.refs
+    );
+}
+
+#[test]
 fn fence_body_is_one_code_snippet_not_inner_refs() {
     let source = "demo {\n```\n[\"./missing.rq\"]\n```\n    then [live]\n}\nlive { body }\n";
     let snapshot = parse_align_snapshot(source);

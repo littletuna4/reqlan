@@ -79,6 +79,30 @@ fn comments_inside_quotes_are_not_comments() {
     assert!(visible_kinds(source).contains(&TokenKind::String));
 }
 
+// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+#[test]
+fn backticked_bracketed_file_ref_is_one_inline_code_token() {
+    let source = "showcase {\n    `[\"./plc/interlock.stL#41-58\"]`\n}\n";
+    let lexed = lex(source, ParseBudget::unlimited());
+    let kinds: Vec<_> = lexed
+        .tokens
+        .iter()
+        .filter(|token| {
+            !token.kind.is_hidden() && token.kind != TokenKind::Eof && token.kind != TokenKind::Nl
+        })
+        .map(|token| token.kind)
+        .collect();
+    assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::InlineCode).count(), 1, "{kinds:?}");
+    assert!(
+        !kinds.contains(&TokenKind::String),
+        "quotes inside inline code must not lex as STRING: {kinds:?}"
+    );
+    assert!(
+        !kinds.contains(&TokenKind::LBrack),
+        "brackets inside inline code must not lex as LBRACK: {kinds:?}"
+    );
+}
+
 // rq:["../../../reqlan rq/language/syntax.rq".comments]
 #[test]
 fn url_slashes_are_not_line_comments() {

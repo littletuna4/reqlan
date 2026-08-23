@@ -2,6 +2,7 @@
  * Gate `@reqlan/analytical` npm publish until every platform package of the
  * same version is deployed.
  *
+ * Version SSOT is `packages/analytical/package.json` (not Changesets).
  * A name in `--ready-file` counts as deployed in this job (published or
  * already on npm). Names that are not in that file are checked on the
  * public registry.
