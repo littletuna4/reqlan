@@ -74,13 +74,34 @@ native_host_binary_distributed {
     npm installs the host package from `optionalDependencies` on the published `@reqlan/analytical` tarball.
     Git does not list those entries. ["../../scripts/prepare-native-packages.mjs"] `--publish-versions` writes them at npm publish.
     The loader resolves that package from `@reqlan/analytical/package.json` (`createRequire`), which is where the optional dependency is attached after `npm install`.
+    Published installs also run [published_host_native_install].
     Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
 
-    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"], ["../../azure-pipelines.yml"].
+    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"], ["../../packages/analytical/scripts/check-host-native.mjs"], ["../../azure-pipelines.yml"].
     @status in-progress
     @todo first multi-target VSIX and platform packages not yet published
     @tests (
         ["../../packages/analytical/test/load-native.test.ts"]
         ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
+}
+
+published_host_native_install {
+    After a published install of `@reqlan/analytical`, the host platform package must resolve.
+    The host is `process.platform` and `process.arch` of the install process ([native_host_binary]).
+    Git `@reqlan/analytical` does not list `optionalDependencies`. The check exits 0 in this workspace.
+    The published tarball lists pinned optionalDependencies (["./distribution.rq".rust_binary_distribution]).
+    That tarball runs ["../../packages/analytical/scripts/check-host-native.mjs"] as `postinstall`.
+    If the host package name is missing from `optionalDependencies`, or `createRequire` from `@reqlan/analytical/package.json` cannot resolve that package to a file, the script prints a warning and exits 0.
+    The warning text tells the user how to enable optional dependencies and how to limit pnpm to the host OS and CPU.
+    Do not use `--force`. `--force` installs every optional platform package.
+    Do not skip the script with `--ignore-scripts` on a published install.
+    CLI install documentation: ["../../packages/cli/README.template.md"].
+    Implementation: ["../../packages/analytical/scripts/check-host-native.mjs"], ["../../packages/analytical/package.json"], ["../../packages/cli/README.template.md"], ["../../packages/analytical/README.template.md"].
+    @status done
+    @todo postinstall warning is not covered by automated tests; package-manager optional install is not a reliable unit-test guarantee
+    @tests (
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+        ["../../packages/cli/test/readme-native-install.test.ts"]
     )
 }

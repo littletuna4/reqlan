@@ -18,8 +18,57 @@ CLI for parsing, analysing, and exporting reqlan requirement graphs
 ```bash
 npm install -g @reqlan/cli
 # or
+pnpm add -g @reqlan/cli
+# or
 npx @reqlan/cli --help
 ```
+
+The CLI needs one host-matching native package (`@reqlan/analytical-<os>-<cpu>`). npm and pnpm must install optional dependencies. `@reqlan/analytical` runs a `postinstall` check and warns when that host package is missing.
+
+### Native engine (pnpm)
+
+Install only the host architecture. Do not keep every platform package. Do not keep none.
+
+`pnpm ls` can list every `@reqlan/analytical-*` optional child from the lockfile. Confirm the host package is on disk (`pnpm -g why @reqlan/analytical-<os>-<cpu>`).
+
+**Every platform package is present** (darwin, linux, and win32 on one machine):
+
+1. Do not use `pnpm add --force`. `--force` installs every optional platform package.
+2. Remove a `supportedArchitectures` list that includes other OS or CPU values.
+3. Pin this machine, then reinstall:
+
+```bash
+node -p "process.platform + ' ' + process.arch"
+pnpm remove -g @reqlan/cli
+pnpm add -g @reqlan/cli --os <platform> --cpu <arch>
+```
+
+Or set in `pnpm-workspace.yaml` / the global pnpm `config.yaml`:
+
+```yaml
+supportedArchitectures:
+  os: [current]
+  cpu: [current]
+  libc: [current]
+```
+
+Then `pnpm remove -g @reqlan/cli` and `pnpm add -g @reqlan/cli` without `--force`.
+
+**No native package is present** (CLI fails; `pnpm ls` shows none of `@reqlan/analytical-*`):
+
+1. Run `pnpm config get optional`. The value must not be `false`.
+2. Remove `--no-optional`, `optional=false`, and `omit=optional`.
+3. Remove `ignoredOptionalDependencies` globs that match `@reqlan/analytical-*`.
+4. Do not set `supportedArchitectures` to a different OS than this machine.
+5. Do not pass `--ignore-scripts`. pnpm 10+ must allow the `@reqlan/analytical` build script if it prompts.
+6. Reinstall:
+
+```bash
+pnpm remove -g @reqlan/cli
+pnpm add -g @reqlan/cli --os <platform> --cpu <arch>
+```
+
+Replace `<platform>` and `<arch>` with `process.platform` and `process.arch` (example: `win32` and `x64`).
 
 ## Commands
 
@@ -45,6 +94,83 @@ The ideas index is shared application memory at `<workspace>/.reqlan/ideas-index
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 0.9.3
+
+#### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+- Updated dependencies [6f39ab6]
+- Updated dependencies [b5e5373]
+- Updated dependencies [2622292]
+  - @reqlan/analytical@1.13.3
+
+### 0.9.2
+
+#### Patch Changes
+
+- a18c1ff: decouple extension from core.
+- Updated dependencies [a18c1ff]
+- Updated dependencies [70715af]
+  - @reqlan/analytical@1.13.2
+
+### 0.9.1
+
+#### Patch Changes
+
+- 4a70c69: update core.
+- Updated dependencies [4a70c69]
+  - @reqlan/analytical@1.13.1
+
+### 0.9.0
+
+#### Minor Changes
+
+- 7c6eca5: add skip gitignored targets
+
+#### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Add `check` skip-targets, and rebuild the ideas index when extract rules change so stale inline-code file refs drop.
+- 7c6eca5: Add `check --skip-gitignored-targets` so CI can omit missing files that Git ignore rules exclude.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+- Updated dependencies [c219dbe]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [d6b6246]
+- Updated dependencies [9b788d2]
+- Updated dependencies [900a2fd]
+- Updated dependencies [70bcb70]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [70bcb70]
+- Updated dependencies [76546b3]
+  - @reqlan/analytical@1.13.0
+
+### 0.8.0
+
+#### Minor Changes
+
+- 15b6a53: Add `reqlan check` so CI can report unresolved idea, comment, and file references.
+- 15b6a53: Add check; and fix broken references.
+
+#### Patch Changes
+
+- Updated dependencies [15b6a53]
+- Updated dependencies [15b6a53]
+  - @reqlan/analytical@1.12.0
+
+### 0.7.12
+
+#### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+- Updated dependencies [9571467]
+  - @reqlan/analytical@1.11.3
 
 ### 0.7.11
 

@@ -6,6 +6,7 @@
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_substring_match]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
 import { UriUtils } from 'langium';
@@ -18,6 +19,17 @@ import {
 } from './reqlan-path-resolve.js';
 
 export const UNREACHABLE_PATH_DISTANCE = 9999;
+
+/** Directories that must not be walked for path completion (dependency and build output trees). */
+const SKIP_DIRECTORY_NAMES = new Set([
+    'node_modules',
+    'dist',
+    'build',
+    'target',
+    'coverage',
+    'out',
+    '__pycache__'
+]);
 
 export interface PathCompletionCandidate {
     path: string;
@@ -325,6 +337,9 @@ function collectDirectoryTree(
         if (!name || name.startsWith('.')) {
             continue;
         }
+        if (entry.isDirectory && SKIP_DIRECTORY_NAMES.has(name)) {
+            continue;
+        }
         if (entry.isDirectory) {
             const path = aliasPrefix && aliasRoot
                 ? (() => {
@@ -380,6 +395,9 @@ function collectFolderSegmentCandidates(
     for (const entry of fileSystem.readDirectorySync(dirUri)) {
         const name = entry.uri.path.split('/').pop() ?? '';
         if (!name || name.startsWith('.')) {
+            continue;
+        }
+        if (entry.isDirectory && SKIP_DIRECTORY_NAMES.has(name)) {
             continue;
         }
         if (entry.isDirectory) {

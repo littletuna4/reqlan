@@ -48,6 +48,12 @@ describe('Parsing tests', () => {
         expect(checkDocumentValid(document)).toBeUndefined();
     });
 
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    test('parse syntax-edge-cases.rq', async () => {
+        const document = await parse(readFileSync(join(repoDir, 'reqlan rq/language/syntax-edge-cases.rq'), 'utf8'));
+        expect(checkDocumentValid(document)).toBeUndefined();
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".lists]
     test('keeps inline parentheses in body prose as text', async () => {
         const document = await parse(`technology {
@@ -762,6 +768,7 @@ later_idea {
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
     test('does not treat naked quoted path-like prose as an import reference', async () => {
         const document = await parse(`demo {
     see "./not-an-import.rq" mentioned in prose only
@@ -772,6 +779,28 @@ later_idea {
                 && diagnostic.message.includes('Could not resolve reference to Import')
         );
         expect(importErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
+    test('does not parse unbracketed quoted paths as file references', async () => {
+        const document = await parse(`demo {
+    see "this is not a reference.rq"
+    and './also-not-a-reference.ts'
+    but this is: ["./live.ts"]
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const fileReferences = [...AstUtils.streamAst(document.parseResult.value)].filter(isFileReference);
+        expect(fileReferences).toHaveLength(1);
+        expect(fileReferences[0]?.file).toContain('live.ts');
+        const bracketReferences = [...AstUtils.streamAst(document.parseResult.value)].filter(isBracketReference);
+        expect(bracketReferences).toHaveLength(1);
+        const bodyText = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(bodyText).toContain('"this is not a reference.rq"');
+        expect(bodyText).toContain("'./also-not-a-reference.ts'");
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]

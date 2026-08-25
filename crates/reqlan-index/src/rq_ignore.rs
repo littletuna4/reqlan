@@ -1,6 +1,8 @@
 //! `//rq-ignore-error` suppresses diagnostics on the immediately following line.
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+//! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
 
+use reqlan_parse::is_inside_line_fence;
 use std::collections::HashSet;
 
 /// 0-based line indexes whose diagnostics `//rq-ignore-error` suppresses.
@@ -32,39 +34,18 @@ fn comment_has_rq_ignore_error(comment: &str) -> bool {
         || after.chars().next().is_some_and(|ch| !ch.is_ascii_alphanumeric() && ch != '_')
 }
 
-/// Line-comment start outside string literals. `//` after `:` or `/` is not a comment.
+/// Line-comment start outside complete same-line fences. `//` after `:` or `/` is not a comment.
 fn find_line_comment_start(line: &str) -> Option<usize> {
     let bytes = line.as_bytes();
-    let mut in_double = false;
-    let mut in_single = false;
     let mut index = 0;
     while index < bytes.len() {
         let char = bytes[index];
         let next = bytes.get(index + 1).copied();
-        if in_double || in_single {
-            if char == b'\\' {
+        if char == b'/' && next == Some(b'/') {
+            if is_inside_line_fence(bytes, index) {
                 index += 2;
                 continue;
             }
-            if in_double && char == b'"' {
-                in_double = false;
-            } else if in_single && char == b'\'' {
-                in_single = false;
-            }
-            index += 1;
-            continue;
-        }
-        if char == b'"' {
-            in_double = true;
-            index += 1;
-            continue;
-        }
-        if char == b'\'' {
-            in_single = true;
-            index += 1;
-            continue;
-        }
-        if char == b'/' && next == Some(b'/') {
             let mut previous = index;
             let mut skip = false;
             while previous > 0 {
@@ -120,6 +101,13 @@ mod tests {
     #[test]
     fn does_not_match_marker_prefix_inside_a_longer_word() {
         let text = "//rq-ignore-errors\nnext line\n";
+        assert!(find_rq_ignore_error_target_lines(text).is_empty());
+    }
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    #[test]
+    fn does_not_treat_marker_inside_backticks_as_a_directive() {
+        let text = "demo { note `//rq-ignore-error` here\nbroken line }";
         assert!(find_rq_ignore_error_target_lines(text).is_empty());
     }
 }

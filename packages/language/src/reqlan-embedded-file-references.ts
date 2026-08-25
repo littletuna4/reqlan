@@ -1,8 +1,10 @@
 /**
- * Locates quoted file paths embedded in .rq source text, including @tests list entries.
+ * Locates bracketed quoted file paths in .rq source text, including @tests list entries.
+ * Unbracketed quoted strings are body prose, not file references.
  * Skips inline code (`…`) and fenced ``` blocks — those are opaque examples, not live refs.
  * rq:["../../../reqlan rq/language/syntax.rq".inline_code]
  * rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+ * rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
  */
 import type { LangiumDocument } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';
@@ -15,7 +17,6 @@ export interface EmbeddedFileReference {
 }
 
 const BRACKETED_FILE_REFERENCE_PATTERN = new RegExp(`\\[\\s*(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\]`, 'g');
-const QUOTED_FILE_REFERENCE_PATTERN = new RegExp(`(${REQLAN_QUOTED_STRING_CAPTURE})`, 'g');
 const FILE_REFERENCE_LIKE = /(?:\.\w[\w.]*|\/)/;
 
 export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): EmbeddedFileReference[] {
@@ -33,12 +34,6 @@ export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): 
         }
         const opaque = inlineCodeSpans(line);
         for (const match of line.matchAll(BRACKETED_FILE_REFERENCE_PATTERN)) {
-            pushEmbeddedReference(references, match, lineIndex, lineOffset, line, opaque);
-        }
-        for (const match of line.matchAll(QUOTED_FILE_REFERENCE_PATTERN)) {
-            if (line.slice(Math.max(0, (match.index ?? 0) - 1), match.index).includes('[')) {
-                continue;
-            }
             pushEmbeddedReference(references, match, lineIndex, lineOffset, line, opaque);
         }
     }

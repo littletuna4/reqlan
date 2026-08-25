@@ -20,6 +20,10 @@ Native requirement graph index and analysis API for reqlan
 npm install @reqlan/analytical
 ```
 
+Published installs attach one host-matching `@reqlan/analytical-<os>-<cpu>` optional dependency and run a `postinstall` check. If that package is missing, the check prints a warning and the install continues.
+
+If pnpm installed every platform package, or none, follow the `@reqlan/cli` README section "Native engine (pnpm)" to keep only the host OS and CPU.
+
 ## Links
 
 - [Site](https://reqlan.com)
@@ -31,6 +35,60 @@ npm install @reqlan/analytical
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 1.13.3
+
+#### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+
+### 1.13.2
+
+#### Patch Changes
+
+- a18c1ff: decouple extension from core.
+- 70715af: bump
+
+### 1.13.1
+
+#### Patch Changes
+
+- 4a70c69: update core.
+
+### 1.13.0
+
+#### Minor Changes
+
+- 7c6eca5: add skip gitignored targets
+
+#### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Add `check` skip-targets, and rebuild the ideas index when extract rules change so stale inline-code file refs drop.
+- 7c6eca5: Add `check --skip-gitignored-targets` so CI can omit missing files that Git ignore rules exclude.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+
+### 1.12.0
+
+#### Minor Changes
+
+- 15b6a53: Add check; and fix broken references.
+
+#### Patch Changes
+
+- 15b6a53: Add `reqlan check` so CI can report unresolved idea, comment, and file references.
+
+### 1.11.3
+
+#### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
 
 ### 1.11.2
 

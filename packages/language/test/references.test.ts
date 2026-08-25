@@ -152,6 +152,31 @@ describe("Comment and file reference utilities", () => {
     ).toBe('const note = "//also not a comment"; // real'.indexOf("// real"));
   });
 
+  // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+  test("ignores // inside complete backtick fences when locating line comments", () => {
+    expect(findLineCommentStart("also `//this line` stays prose")).toBe(-1);
+    const line = 'this line `// finishes " with a comment';
+    expect(findLineCommentStart(line)).toBe(line.indexOf("//"));
+    const unclosed = 'as does "//this one';
+    expect(findLineCommentStart(unclosed)).toBe(unclosed.indexOf("//"));
+  });
+
+  // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+  test("findCommentSpansInText treats unclosed fences as comments and closed fences as prose", () => {
+    const closed = 'also `//this line` stays prose';
+    expect(findCommentSpansInText(closed)).toEqual([]);
+    const quoted = 'for example "//this line" contains no comment';
+    expect(findCommentSpansInText(quoted)).toEqual([]);
+    const unclosedTick = 'this line `// finishes " with a comment';
+    const tickSpans = findCommentSpansInText(unclosedTick);
+    expect(tickSpans).toHaveLength(1);
+    expect(unclosedTick.slice(tickSpans[0]!.start)).toContain("finishes");
+    const unclosedQuote = 'as does "//this one';
+    const quoteSpans = findCommentSpansInText(unclosedQuote);
+    expect(quoteSpans).toHaveLength(1);
+    expect(unclosedQuote.slice(quoteSpans[0]!.start)).toContain("this one");
+  });
+
   // rq:["../../../reqlan rq/language/syntax.rq".comments]
   test("e2e: findLineCommentStart skips // inside bracket reference strings", () => {
     const line = `["a reference containing '//' that doesn't start a comment"] // real`;
@@ -305,6 +330,20 @@ describe("Comment and file reference utilities", () => {
       "./live.rq",
       "./after.rq",
     ]);
+  });
+
+  // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+  test("embedded file reference scan ignores unbracketed quoted paths", () => {
+    const sample = findEmbeddedFileReferencesInText(
+      [
+        "demo {",
+        '    see "this is not a reference.rq"',
+        "    and './also-not-a-reference.ts'",
+        '    but this is: ["./live.ts"]',
+        "}",
+      ].join("\n"),
+    );
+    expect(sample.map((reference) => reference.file)).toEqual(["./live.ts"]);
   });
 
   // rq:["../../../reqlan rq/development/core.rq".testing]

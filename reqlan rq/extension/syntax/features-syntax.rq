@@ -1,3 +1,4 @@
+from "@/reqlan rq/extension/code_completion.rq" import code_completion as code_completion_base
 
 syntax_features {
     The extension should provide language support for .rq files via the lsp.
@@ -38,7 +39,7 @@ comment_support {
 }
 
 code_completion {
-    The extension should support sensible code completion.
+    The extension should support sensible [code_completion_base].
         - support for references
         - support for imports, including import-root alias paths such as `@/` from ["../../language/imports.rq".configuration_import_root_alias] and ["../configuration.rq".configuration_import_roots]
         - support for semantic search

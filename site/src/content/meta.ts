@@ -12,6 +12,7 @@ export const elevator_pitch = {
     "less input tokens, better output tokens",
     "integrate your system with your actual intent",
     "demand excellence from your clanker, with the right atomic specification",
+    "static analysis for specifications",
     "vibecode without the constant doubt",
     "tightly control the scoping of your context, with the best of a file system hierarchy and the best of a knowledge graph",
     "shorter prompts, better agentic search, less rework and more focus",

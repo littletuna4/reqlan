@@ -23,6 +23,10 @@ import {
     ReqlanCodeActionProvider,
     resolveReferenceSearchSiteFromDocument,
     sharedNameCatalog,
+    IGNORE_ERROR_ACTION_TITLE,
+    CREATE_ALL_UNRESOLVED_IDEAS_BELOW_TITLE,
+    createIdeaBelowTitle,
+    isIdea,
     type NameCatalog
 } from '@reqlan/language';
 
@@ -433,5 +437,200 @@ describe('File-based barrel page code action', () => {
             context: { diagnostics: [] }
         }).filter(isCodeAction);
         expect(noIdeas.some(action => action.command?.command === REQLAN_BARREL_PAGE_COMMAND)).toBe(false);
+    });
+});
+
+describe('Ignore-error code action', () => {
+    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    test('offers ignore-error quick fix on a line with a linking error', async () => {
+        const document = await parse(s`
+            consumer {
+                [missing_target]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        const diagnostic = unresolved[0];
+        expect(diagnostic).toBeDefined();
+        if (!diagnostic) {
+            return;
+        }
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: diagnostic.range,
+            context: { diagnostics: unresolved }
+        }).filter(isCodeAction);
+
+        const ignore = actions.find(action => action.title === IGNORE_ERROR_ACTION_TITLE);
+        expect(ignore).toBeDefined();
+        expect(ignore?.kind).toBe('quickfix');
+        expect(ignore?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText)
+            .toBe('    //rq-ignore-error\n');
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    test('omits ignore-error when only refactor is requested', async () => {
+        const document = await parse(s`
+            consumer {
+                [missing_target]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: unresolved[0]?.range ?? { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: unresolved, only: ['refactor'] }
+        }).filter(isCodeAction);
+        expect(actions.some(action => action.title === IGNORE_ERROR_ACTION_TITLE)).toBe(false);
+    });
+});
+
+describe('Create idea below unresolved reference', () => {
+    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    test('creates the missing idea below the containing idea when only one is unresolved', async () => {
+        const document = await parse(s`
+            consumer {
+                See [missing_target] here.
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('See ');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const create = actions.find(action => action.title === createIdeaBelowTitle('missing_target'));
+        expect(create).toBeDefined();
+        expect(create?.kind).toBe('quickfix');
+        expect(actions.some(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_BELOW_TITLE)).toBe(false);
+
+        const edit = create?.edit?.changes?.[document.textDocument.uri]?.[0];
+        expect(edit?.newText).toBe('\n\nmissing_target {\n    \n}\n');
+
+        const idea = document.parseResult.value.elements.find(element => isIdea(element) && element.name === 'consumer');
+        expect(edit?.range).toEqual({
+            start: idea?.$cstNode?.range.end,
+            end: idea?.$cstNode?.range.end
+        });
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    test('offers all or a specific unresolved idea when the caret idea has several', async () => {
+        const document = await parse(s`
+            consumer {
+                [alpha_missing] and [beta_missing]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('and');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const titles = actions.map(action => action.title);
+        expect(titles).toContain(CREATE_ALL_UNRESOLVED_IDEAS_BELOW_TITLE);
+        expect(titles).toContain(createIdeaBelowTitle('alpha_missing'));
+        expect(titles).toContain(createIdeaBelowTitle('beta_missing'));
+
+        const all = actions.find(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_BELOW_TITLE);
+        expect(all?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(
+            '\n\nalpha_missing {\n    \n}\n\nbeta_missing {\n    \n}\n'
+        );
+
+        const alpha = actions.find(action => action.title === createIdeaBelowTitle('alpha_missing'));
+        expect(alpha?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(
+            '\n\nalpha_missing {\n    \n}\n'
+        );
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    test('omits create-below when the caret idea has no unresolved local references', async () => {
+        const document = await parse(s`
+            alpha {
+                [missing_target]
+            }
+            beta {
+                local body
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('local body');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        expect(actions.some(action => action.title.includes('below'))).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    test('omits create-below for a qualified unresolved reference', async () => {
+        const document = await parse(s`
+            consumer {
+                ["missing.rq".ghost]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('ghost');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: document.diagnostics ?? [] }
+        }).filter(isCodeAction);
+
+        expect(actions.some(action => action.title.includes('below'))).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    test('omits create-below when only refactor is requested', async () => {
+        const document = await parse(s`
+            consumer {
+                [missing_target]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve reference')
+        );
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: unresolved[0]?.range ?? { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: unresolved, only: ['refactor'] }
+        }).filter(isCodeAction);
+        expect(actions.some(action => action.title.includes('below'))).toBe(false);
     });
 });

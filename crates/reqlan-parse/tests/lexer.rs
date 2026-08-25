@@ -139,3 +139,82 @@ fn meta_line_comment_after_content_is_hidden() {
     assert!(visible.contains("keep"));
     assert!(!visible.contains("meta comment"), "{visible}");
 }
+
+// rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+#[test]
+fn unbracketed_quoted_path_in_body_is_not_string() {
+    let source = concat!(
+        "demo {\n",
+        "    see \"this is not a reference.rq\"\n",
+        "    but this is: [\"./live.ts\"]\n",
+        "}\n",
+    );
+    let lexed = lex(source, ParseBudget::unlimited());
+    let strings: Vec<&str> = lexed
+        .tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::String)
+        .map(|token| token.text(source))
+        .collect();
+    assert_eq!(strings, vec!["\"./live.ts\""], "{strings:?}");
+}
+
+// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+#[test]
+fn quoted_slash_slash_in_body_is_not_a_comment() {
+    let source = r#"demo { for example "//this line" contains no comment }"#;
+    let offset = source.find("//").expect("quoted slash-slash");
+    assert!(reqlan_parse::is_inside_line_fence(source.as_bytes(), offset), "offset {offset}");
+    assert_eq!(comment_texts(source), Vec::<String>::new());
+}
+
+// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+#[test]
+fn backticked_slash_slash_in_body_is_not_a_comment() {
+    let source = "demo { also `//this line` does not comment }";
+    assert!(!has_comment(source), "{source}");
+    let kinds = visible_kinds(source);
+    assert!(kinds.contains(&TokenKind::InlineCode), "{kinds:?}");
+    let joined = visible_text(source);
+    assert!(joined.contains("//this line"), "{joined}");
+}
+
+// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+#[test]
+fn unclosed_backtick_then_slash_slash_is_a_comment() {
+    let source = "demo {\n    this line `// finishes \" with a comment\n    keep visible\n}";
+    let comments = comment_texts(source);
+    assert!(comments.iter().any(|text| text.contains("finishes")), "{comments:?}");
+    let joined = visible_text(source);
+    assert!(!joined.contains("finishes"), "{joined}");
+    assert!(joined.contains("keep"), "{joined}");
+}
+
+// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+#[test]
+fn unclosed_quote_then_slash_slash_is_a_comment() {
+    let source = "demo {\n    as does \"//this one\n    keep visible\n}";
+    let comments = comment_texts(source);
+    assert!(comments.iter().any(|text| text.contains("this one")), "{comments:?}");
+    let joined = visible_text(source);
+    assert!(!joined.contains("this one"), "{joined}");
+    assert!(joined.contains("keep"), "{joined}");
+}
+
+fn visible_text(source: &str) -> String {
+    lex(source, ParseBudget::unlimited())
+        .tokens
+        .into_iter()
+        .filter(|token| !token.kind.is_hidden() && token.kind != TokenKind::Eof)
+        .map(|token| token.text(source).to_string())
+        .collect()
+}
+
+fn comment_texts(source: &str) -> Vec<String> {
+    lex(source, ParseBudget::unlimited())
+        .tokens
+        .into_iter()
+        .filter(|token| token.kind == TokenKind::SlComment || token.kind == TokenKind::MlComment)
+        .map(|token| token.text(source).to_string())
+        .collect()
+}

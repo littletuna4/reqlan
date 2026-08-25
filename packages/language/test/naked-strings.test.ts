@@ -19,6 +19,15 @@ describe('Naked string lexer', () => {
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    test('does not emit STRING tokens for unbracketed quoted paths in body', () => {
+        const text = 'demo { see "this is not a reference.rq" and ["./live.ts"] }';
+        const tokens = services.Reqlan.parser.Lexer.tokenize(text).tokens;
+        const stringTokens = tokens.filter(token => token.tokenType.name === 'STRING');
+        expect(stringTokens.map(token => token.image)).toEqual(['"./live.ts"']);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]
     test('still emits STRING tokens for import paths and bracket references', () => {
         const text = 'from "./imports.rq" import x\ndemo { see ["../shared/base.rq"] }';
         const tokens = services.Reqlan.parser.Lexer.tokenize(text).tokens;

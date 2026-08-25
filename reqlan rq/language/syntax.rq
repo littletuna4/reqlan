@@ -157,6 +157,7 @@ reference_file {
     The first `:` after the path starts the title; later `:` characters stay in the title (`e2e: …`).
     `://` and a Windows drive `C:` / `C:/` are part of the path, not a test suffix.
     Symbol references append a dot-separated symbol path after the quoted file path.
+    Quoted body text is not a file reference: ["../reference_types.rq".reference_edgecase].
     @implementation (
         ["../../packages/language/src/reqlan-file-references.ts"]
         ["../../crates/reqlan-parse/src/path.rs"]
@@ -278,6 +279,8 @@ comments {
       Example: a file reference whose path text contains slash-slash,
       `["../extension/module/**/*.rq".*webview*]`.
     - URL / path-segment guard: `//` immediately after `:` or `/` is not a line comment.
+    Same-line fences: ["./syntax-edge-cases.rq".fencing_comments] — complete `"…"`, `'…'`, and `` `…` `` spans keep `//` as prose.
+    Unclosed quote or backtick openers are not fences, so `//` after them is a comment.
     Multiline / glob clash: the empty block form `/**/` is **not** a comment — it is the recursive
     glob segment used in paths such as `../mod/**/*.rq`. A real block comment needs a non-empty body
     (`/* note */`, `/*\n  note\n*/`). The token builder rejects length-4 `/**/` matches; comment-span
@@ -289,6 +292,7 @@ comments {
         ["../../packages/language/src/reqlan-token-builder.ts"]
         ["../../packages/language/src/reqlan.langium"]
         ["../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../packages/language/src/reqlan-line-fences.ts"]
     )
     @tests (
         ["../../packages/language/test/comment-in-string.test.ts"]
@@ -296,6 +300,7 @@ comments {
         ["../../packages/language/test/comment-in-string.test.ts:e2e: real block comments still hide body text"]
         ["../../packages/language/test/comment-in-string.test.ts:e2e: reference STRING with // tokenizes, parses, and keeps path text"]
         ["../../packages/language/test/references.test.ts:ignores // inside string literals when locating line comments"]
+        ["../../packages/language/test/references.test.ts:ignores // inside complete backtick fences when locating line comments"]
         ["../../packages/language/test/references.test.ts:e2e: findCommentSpansInText skips empty /**/ glob segments"]
         ["../../packages/language/test/ignore-error.test.ts"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
@@ -433,6 +438,7 @@ naked_strings_in_body {
     Quoted text in idea bodies, attribute values, and list items is plain prose, not a string literal.
     Quote characters are preserved in the body text. For example, "Fit to view" in a bullet line is body text.
     String literals are reserved for import paths, top-level quoted idea names, and quoted paths inside bracket references.
+    Quoted path-like body text is not a ["../reference_types.rq".file_reference]: ["../reference_types.rq".reference_edgecase].
     @tests (
         ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in block body text"]
         ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in attribute scalar values"]
@@ -441,10 +447,13 @@ naked_strings_in_body {
         ["../../packages/language/test/parsing.test.ts:keeps naked quoted phrases in list items"]
         ["../../packages/language/test/parsing.test.ts:keeps naked quotes alongside bracket references on one line"]
         ["../../packages/language/test/parsing.test.ts:does not treat naked quoted path-like prose as an import reference"]
+        ["../../packages/language/test/parsing.test.ts:does not parse unbracketed quoted paths as file references"]
         ["../../packages/language/test/parsing.test.ts:parses reframe requirement snippets with naked quoted UI labels"]
         ["../../packages/language/test/parsing.test.ts:parses self-contained ideas with apostrophe contractions in body prose"]
         ["../../packages/language/test/naked-strings.test.ts"]
         ["../../packages/language/test/comment-in-string.test.ts:single-quoted URL in block body is naked prose"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:unbracketed_quoted_path_in_body_is_not_string"]
+        ["../../crates/reqlan-parse/tests/parser.rs:unbracketed_quoted_path_is_not_a_file_reference"]
     )
 }
 

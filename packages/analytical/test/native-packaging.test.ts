@@ -44,11 +44,21 @@ describe("native platform packaging", () => {
     const original = readFileSync(analyticalPath, "utf8");
     const analytical = JSON.parse(original) as {
       version: string;
+      files: string[];
+      scripts: Record<string, string>;
       optionalDependencies?: Record<string, string>;
     };
     expect(analytical.optionalDependencies).toBeUndefined();
+    expect(analytical.files).toContain("out");
+    expect(analytical.files).toContain("scripts/check-host-native.mjs");
+    expect(analytical.scripts.postinstall).toBe(
+      "node ./scripts/check-host-native.mjs",
+    );
 
     const workspaceYaml = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
+    expect(workspaceYaml).toMatch(
+      /allowBuilds:[\s\S]*'@reqlan\/analytical': true/,
+    );
     expect(workspaceYaml).toContain("packageExtensions:");
     expect(workspaceYaml).toContain("'@reqlan/analytical':");
     for (const [name, spec] of Object.entries(
@@ -66,8 +76,12 @@ describe("native platform packaging", () => {
       expect(result.status, result.stderr).toBe(0);
       const published = JSON.parse(readFileSync(analyticalPath, "utf8")) as {
         version: string;
+        scripts: Record<string, string>;
         optionalDependencies: Record<string, string>;
       };
+      expect(published.scripts.postinstall).toBe(
+        "node ./scripts/check-host-native.mjs",
+      );
       for (const target of NATIVE_TARGETS) {
         expect(published.optionalDependencies[target.packageName]).toBe(
           published.version,

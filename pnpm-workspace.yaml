@@ -11,6 +11,7 @@ allowBuilds:
   unrs-resolver: true
   '@vscode/vsce-sign': true
   keytar: true
+  '@reqlan/analytical': true
 # Dev/CI only: link checkout natives into @reqlan/analytical without listing
 # them in git packages/analytical/package.json (Changesets ignore).
 # The published tarball gets pinned optionalDependencies via

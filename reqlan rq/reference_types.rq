@@ -82,6 +82,7 @@ file_reference {
     Editor links: ["./extension/syntax/features-syntax.rq".file_references].
     Non-`.rq` targets and inbound comment traffic: ["./ontology.rq".referenced_files].
     Markdown `[label](target)` also stores this edge kind — see [link_reference].
+    Quoted body text is not this kind: [reference_edgecase].
     @status done
     @implementation (
         [file_reference_resolve]
@@ -140,5 +141,36 @@ wildcard_reference {
         ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:expands_wildcard_refs_to_one_edge_per_matching_idea"]
         ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:emits_unresolved_edge_when_catalog_has_no_matches"]
         ["../crates/reqlan-index/tests/wildcard_reference_edges.rs:sync_persists_wildcard_reference_edges"]
+    )
+}
+
+
+reference_edgecase {
+    A quoted string is a [file_reference] only when it is inside brackets.
+    Example of a file reference: ["./reference_types.rq"]
+    Example of body text: "this is not a reference.rq"
+    The file suffix does not change this rule.
+    The parser must not make a file reference from quoted body text.
+    The language server must not make a document link or a missing-file error from quoted body text.
+    Related: [file_reference], ["./language/syntax.rq".naked_strings_in_body], ["./language/syntax.rq".reference_file].
+    @status done
+    @implementation (
+        ["../packages/language/src/reqlan-embedded-file-references.ts"]
+        ["../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../packages/language/src/reqlan-token-builder.ts"]
+        [idea_extractor]
+        [reqlan_grammar]
+        ["../crates/reqlan-parse/src/lexer.rs"]
+    )
+    @tests (
+        ["../packages/language/test/references.test.ts:embedded file reference scan ignores unbracketed quoted paths"]
+        ["../packages/language/test/parsing.test.ts:does not parse unbracketed quoted paths as file references"]
+        ["../packages/language/test/naked-strings.test.ts:does not emit STRING tokens for unbracketed quoted paths in body"]
+        ["../packages/language/test/linking.test.ts:unbracketed quoted paths do not produce document links or missing-file diagnostics"]
+        ["../packages/language/test/file-path-rewrite.test.ts:does not treat unbracketed quoted paths as embedded path references"]
+        ["../crates/reqlan-parse/tests/lexer.rs:unbracketed_quoted_path_in_body_is_not_string"]
+        ["../crates/reqlan-parse/tests/parser.rs:unbracketed_quoted_path_is_not_a_file_reference"]
+        ["../crates/reqlan-index/src/extract.rs:unbracketed_quoted_path_is_not_a_file_reference"]
+        ["../crates/reqlan-index/src/extract.rs:import_quoted_path_is_not_an_embedded_file_reference"]
     )
 }

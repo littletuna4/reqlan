@@ -7,6 +7,7 @@ export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
 export * from './reqlan-comment-diagnostics.js';
 export * from './reqlan-ignore-error.js';
+export * from './reqlan-ignore-error-action.js';
 export * from './reqlan-file-references.js';
 export {
     FILE_REFERENCE_MISSING,
@@ -40,6 +41,7 @@ export * from './reqlan-completion-context.js';
 export * from './reqlan-completion-provider.js';
 export * from './reqlan-path-completion.js';
 export * from './reqlan-code-action-provider.js';
+export * from './reqlan-create-idea-below.js';
 export * from './reqlan-idea-reference-site.js';
 export * from './reqlan-reference-search-site.js';
 export * from './reqlan-import-edits.js';

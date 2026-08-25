@@ -1,8 +1,8 @@
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 
 use reqlan_parse::{
-    parse_document, parse_document_with_budget, BodyElement, ParseBudget, TopLevelElement,
-    PARSE_HANG_SENTINEL,
+    parse_align_snapshot, parse_document, parse_document_with_budget, BodyElement, ParseBudget,
+    TopLevelElement, PARSE_HANG_SENTINEL,
 };
 
 fn idea_names(source: &str) -> Vec<String> {
@@ -208,4 +208,32 @@ fn unquoted_url_in_one_liner_preserves_text() {
     let text = source.get(idea.span.start..idea.span.end).unwrap_or("");
     assert!(text.contains("https://"));
     assert!(text.contains("comment.com"));
+}
+
+// rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+#[test]
+fn unbracketed_quoted_path_is_not_a_file_reference() {
+    let source = concat!(
+        "demo {\n",
+        "    see \"this is not a reference.rq\"\n",
+        "    and './also-not-a-reference.ts'\n",
+        "    but this is: [\"./live.ts\"]\n",
+        "}\n",
+    );
+    let snapshot = parse_align_snapshot(source);
+    let file_labels: Vec<&str> = snapshot
+        .refs
+        .iter()
+        .filter(|reference| reference.kind == "file")
+        .map(|reference| reference.label.as_str())
+        .collect();
+    assert_eq!(file_labels, vec!["./live.ts"], "{:?}", snapshot.refs);
+    assert!(
+        snapshot.refs.iter().all(|reference| {
+            reference.label != "this is not a reference.rq"
+                && reference.label != "./also-not-a-reference.ts"
+        }),
+        "{:?}",
+        snapshot.refs
+    );
 }

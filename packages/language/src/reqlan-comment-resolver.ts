@@ -17,6 +17,7 @@ import {
     type PathResolveContext
 } from './reqlan-path-resolve.js';
 import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
+import { isInsideLineFence } from './reqlan-line-fences.js';
 
 export interface EmbeddedCommentReference {
     path?: string;
@@ -40,34 +41,16 @@ interface CommentSpan {
     end: number;
 }
 
-/** Line comment start outside string literals; `//` after `:` (e.g. URLs) is not a comment. */
+/** Line comment start outside complete same-line fences; `//` after `:` (e.g. URLs) is not a comment. */
 export function findLineCommentStart(line: string): number {
-    let inDouble = false;
-    let inSingle = false;
     for (let index = 0; index < line.length; index++) {
         const char = line[index];
         const next = line[index + 1];
-        if (inDouble || inSingle) {
-            if (char === '\\') {
+        if (char === '/' && next === '/') {
+            if (isInsideLineFence(line, index)) {
                 index++;
                 continue;
             }
-            if (inDouble && char === '"') {
-                inDouble = false;
-            } else if (inSingle && char === "'") {
-                inSingle = false;
-            }
-            continue;
-        }
-        if (char === '"') {
-            inDouble = true;
-            continue;
-        }
-        if (char === "'") {
-            inSingle = true;
-            continue;
-        }
-        if (char === '/' && next === '/') {
             let previousIndex = index - 1;
             while (previousIndex >= 0 && /[ \t]/.test(line[previousIndex]!)) {
                 previousIndex--;
@@ -80,6 +63,9 @@ export function findLineCommentStart(line: string): number {
             continue;
         }
         if (char === '#') {
+            if (isInsideLineFence(line, index)) {
+                continue;
+            }
             return index;
         }
     }
@@ -141,6 +127,18 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
                 index += 2;
                 continue;
             }
+            if (char === '/' && next === '/') {
+                if (!isInsideLineFence(text, index)) {
+                    inLineComment = true;
+                    lineCommentStart = index;
+                    inDouble = false;
+                    inSingle = false;
+                    index += 2;
+                    continue;
+                }
+                index += 2;
+                continue;
+            }
             if (inDouble && char === '"') {
                 inDouble = false;
             } else if (inSingle && char === "'") {
@@ -184,6 +182,10 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
         if (char === '/' && next === '/') {
+            if (isInsideLineFence(text, index)) {
+                index += 2;
+                continue;
+            }
             let previousIndex = index - 1;
             while (previousIndex >= 0 && /[ \t]/.test(text[previousIndex]!)) {
                 previousIndex--;
@@ -199,6 +201,10 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
         if (char === '#') {
+            if (isInsideLineFence(text, index)) {
+                index++;
+                continue;
+            }
             inLineComment = true;
             lineCommentStart = index;
             index++;

@@ -1,49 +1,51 @@
 {
-    "name": "@reqlan/analytical",
-    "description": "Native requirement graph index and analysis API for reqlan",
-    "version": "1.13.4",
-    "type": "module",
-    "license": "AGPL-3.0-only",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/littletuna4/reqlan.git"
+  "name": "@reqlan/analytical",
+  "description": "Native requirement graph index and analysis API for reqlan",
+  "version": "1.13.4",
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/littletuna4/reqlan.git"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "files": [
+    "out",
+    "scripts/check-host-native.mjs"
+  ],
+  "main": "./out/index.js",
+  "types": "./out/index.d.ts",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./out/index.d.ts",
+      "default": "./out/index.js"
     },
-    "engines": {
-        "node": ">=20.10.0"
+    "./core": {
+      "types": "./out/native/index.d.ts",
+      "default": "./out/native/index.js"
     },
-    "files": [
-        "out"
-    ],
-    "main": "./out/index.js",
-    "types": "./out/index.d.ts",
-    "sideEffects": false,
-    "publishConfig": {
-        "access": "public"
-    },
-    "exports": {
-        ".": {
-            "types": "./out/index.d.ts",
-            "default": "./out/index.js"
-        },
-        "./core": {
-            "types": "./out/native/index.d.ts",
-            "default": "./out/native/index.js"
-        },
-        "./native": {
-            "types": "./out/native/index.d.ts",
-            "default": "./out/native/index.js"
-        }
-    },
-    "scripts": {
-        "clean": "shx rm -fr *.tsbuildinfo out",
-        "build": "tsc -b tsconfig.json",
-        "build:clean": "pnpm run clean && pnpm run build",
-        "test": "vitest run"
-    },
-    "devDependencies": {
-        "vitest": "~3.1.3"
-    },
-    "dependencies": {
-        "ignore": "^7.0.6"
+    "./native": {
+      "types": "./out/native/index.d.ts",
+      "default": "./out/native/index.js"
     }
+  },
+  "scripts": {
+    "clean": "shx rm -fr *.tsbuildinfo out",
+    "build": "tsc -b tsconfig.json",
+    "build:clean": "pnpm run clean && pnpm run build",
+    "postinstall": "node ./scripts/check-host-native.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "~3.1.3"
+  },
+  "dependencies": {
+    "ignore": "^7.0.6"
+  }
 }

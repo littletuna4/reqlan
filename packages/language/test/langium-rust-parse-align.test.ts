@@ -6,6 +6,7 @@
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
  * rq:["../../../reqlan rq/language/syntax.rq".inline_code]
  * rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+ * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -236,6 +237,17 @@ const fixtures: Record<string, string> = {
         '    then [live]',
         '}',
         'live { body }',
+        ''
+    ].join('\n'),
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    fencing_comments: [
+        'demo {',
+        '    for example "//this line" contains no comment',
+        '    also `//this line` does not either',
+        '    this line `// finishes with a comment',
+        '    as does "//this one',
+        '    keep',
+        '}',
         ''
     ].join('\n'),
     live_qualified_file_ref: 'see ["./syntax.rq".inline_code]\n',

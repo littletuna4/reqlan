@@ -20,6 +20,8 @@ npm install -g @reqlan/mcp
 npx @reqlan/mcp
 ```
 
+This package needs the host `@reqlan/analytical` native binary (optional dependency). If pnpm installed every platform package, or none, follow the `@reqlan/cli` README section "Native engine (pnpm)".
+
 ## Cursor
 
 Add to `.cursor/mcp.json`:

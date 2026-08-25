@@ -11,11 +11,13 @@ import {
     type Model,
     type OneLinerIdea
 } from '@reqlan/language';
+import { isInsideLineFence } from '../src/reqlan-line-fences.js';
 
 let parse: ReturnType<typeof parseHelper<Model>>;
+let services: ReturnType<typeof createReqlanServices>;
 
 beforeAll(async () => {
-    const services = createReqlanServices(EmptyFileSystem);
+    services = createReqlanServices(EmptyFileSystem);
     parse = parseHelper<Model>(services.Reqlan);
 });
 
@@ -49,6 +51,11 @@ function blockBodyText(document: LangiumDocument<Model>): string {
         .join('');
 }
 
+function slComments(text: string): Array<{ image: string }> {
+    const result = services.Reqlan.parser.Lexer.tokenize(text);
+    return [...result.tokens, ...result.hidden].filter(token => token.tokenType.name === 'SL_COMMENT');
+}
+
 describe('comments in string context', () => {
     // rq:["../../../reqlan rq/language/syntax.rq".comments]
     test('lexer does not treat URL slashes as line comments', () => {
@@ -73,6 +80,79 @@ describe('comments in string context', () => {
         const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
             .find(node => node.$type === 'BodyLine');
         expect(bodyLine?.$cstNode?.text).toContain('"//also not a comment"');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    test('isInsideLineFence treats only complete same-line fences as fences', () => {
+        const quoted = 'for example "//this line" contains no comment';
+        expect(isInsideLineFence(quoted, quoted.indexOf('//'))).toBe(true);
+        const ticks = 'also `//this line` does not either';
+        expect(isInsideLineFence(ticks, ticks.indexOf('//'))).toBe(true);
+        const unclosedTick = 'this line `// finishes " with a comment';
+        expect(isInsideLineFence(unclosedTick, unclosedTick.indexOf('//'))).toBe(false);
+        const unclosedQuote = 'as does "//this one';
+        expect(isInsideLineFence(unclosedQuote, unclosedQuote.indexOf('//'))).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    test('quoted //this line in block body is not a line comment', async () => {
+        const input = 'demo { for example "//this line" contains no comment }';
+        expect(slComments(input)).toHaveLength(0);
+        const document = await expectValid(input);
+        const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
+            .find(node => node.$type === 'BodyLine');
+        expect(bodyLine?.$cstNode?.text).toContain('"//this line"');
+        expect(bodyLine?.$cstNode?.text).toContain('contains no comment');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+    test('backticked //this line in block body is not a line comment', async () => {
+        const services = createReqlanServices(EmptyFileSystem);
+        const input = 'demo { also `//this line` does not comment }';
+        const tokens = services.Reqlan.parser.Lexer.tokenize(input);
+        expect(slComments(input)).toHaveLength(0);
+        expect(
+            tokens.tokens.some(token => token.tokenType.name === 'INLINE_CODE' && token.image === '`//this line`')
+        ).toBe(true);
+        const document = await expectValid(input);
+        const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
+            .find(node => node.$type === 'BodyLine');
+        expect(bodyLine?.$cstNode?.text).toContain('`//this line`');
+        expect(bodyLine?.$cstNode?.text).toContain('does not comment');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    test('unclosed backtick then // is a line comment', async () => {
+        const services = createReqlanServices(EmptyFileSystem);
+        const input = 'demo {\n    this line `// finishes " with a comment\n    keep visible\n}';
+        const comments = slComments(input);
+        expect(comments.some(token => token.image.includes('finishes'))).toBe(true);
+        const document = await expectValid(input);
+        const body = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(body).toContain('this line');
+        expect(body).toContain('keep visible');
+        expect(body).not.toContain('finishes');
+        expect(body).not.toContain('with a comment');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    test('unclosed quote then // is a line comment', async () => {
+        const services = createReqlanServices(EmptyFileSystem);
+        const input = 'demo {\n    as does "//this one\n    keep visible\n}';
+        const comments = slComments(input);
+        expect(comments.some(token => token.image.includes('this one'))).toBe(true);
+        const document = await expectValid(input);
+        const body = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(body).toContain('as does');
+        expect(body).toContain('keep visible');
+        expect(body).not.toContain('this one');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".comments]

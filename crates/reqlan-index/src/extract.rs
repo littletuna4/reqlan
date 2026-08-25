@@ -14,6 +14,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 //! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+//! rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
 
 use crate::ids::{edge_id, idea_id};
 use crate::types::{
@@ -29,7 +30,7 @@ use sha2::{Digest, Sha256};
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 2;
+pub const EXTRACT_VERSION: i64 = 3;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -862,14 +863,19 @@ fn collect_file_reference_edges(
 }
 
 fn find_embedded_file_references(source: &str) -> Vec<(String, u32)> {
-    // STRING tokens are produced only in string-literal context. Inline code and
-    // fenced blocks are opaque lexer tokens, so quotes inside them are not refs.
+    // STRING tokens are produced only in string-literal context. A file reference
+    // is a quoted path inside brackets. Import paths and quoted idea names are not.
+    // Inline code and fenced blocks are opaque lexer tokens, so quotes inside them are not refs.
     // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
     // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
     let lexed = lex(source, ParseBudget::unlimited());
     let mut files = Vec::new();
     for token in &lexed.tokens {
         if token.kind != TokenKind::String {
+            continue;
+        }
+        if !is_bracketed_quoted_path(source, token.start, token.end) {
             continue;
         }
         let inner = unquote_path(token.text(source));
@@ -881,6 +887,12 @@ fn find_embedded_file_references(source: &str) -> Vec<(String, u32)> {
         }
     }
     files
+}
+
+fn is_bracketed_quoted_path(source: &str, start: usize, end: usize) -> bool {
+    let before = source.get(..start).unwrap_or("").trim_end_matches([' ', '\t']);
+    let after = source.get(end..).unwrap_or("").trim_start_matches([' ', '\t']);
+    before.ends_with('[') && after.starts_with(']')
 }
 
 fn looks_file_ref(value: &str) -> bool {
@@ -940,5 +952,49 @@ mod tests {
             .filter(|label| label.contains("interlock.st"))
             .collect();
         assert!(files.is_empty(), "{files:?}");
+    }
+
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    #[test]
+    fn unbracketed_quoted_path_is_not_a_file_reference() {
+        let source = concat!(
+            "host {\n",
+            "    see \"this is not a reference.rq\"\n",
+            "    and './also-not-a-reference.ts'\n",
+            "    but this is: [\"./live.ts\"]\n",
+            "}\n",
+        );
+        let found = find_embedded_file_references(source);
+        assert_eq!(
+            found.iter().map(|(path, _)| path.as_str()).collect::<Vec<_>>(),
+            vec!["./live.ts"],
+            "{found:?}"
+        );
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        let files: Vec<String> = doc
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::FileReference)
+            .filter_map(|edge| edge.label.clone())
+            .collect();
+        assert!(
+            files.iter().all(|label| {
+                !label.contains("this is not a reference.rq")
+                    && !label.contains("also-not-a-reference.ts")
+            }),
+            "{files:?}"
+        );
+        assert!(
+            files.iter().any(|label| label.contains("live.ts")),
+            "bracketed file ref missing, got {files:?}"
+        );
+    }
+
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    #[test]
+    fn import_quoted_path_is_not_an_embedded_file_reference() {
+        let source = "from \"./imports.rq\" import seed\nhost {\n    body\n}\n";
+        let found = find_embedded_file_references(source);
+        assert!(found.is_empty(), "{found:?}");
     }
 }

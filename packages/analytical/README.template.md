@@ -20,6 +20,10 @@
 npm install @reqlan/analytical
 ```
 
+Published installs attach one host-matching `@reqlan/analytical-<os>-<cpu>` optional dependency and run a `postinstall` check. If that package is missing, the check prints a warning and the install continues.
+
+If pnpm installed every platform package, or none, follow the `@reqlan/cli` README section "Native engine (pnpm)" to keep only the host OS and CPU.
+
 ## Links
 
 - [{{SITE_LABEL}}]({{SITE_URL}})

@@ -1,0 +1,27 @@
+first_steps {
+    - install
+        - cli
+        - extension
+        - mcp
+    - create a base
+    - create your first file
+    - create your first idea
+    - add an attribute
+    - reference another idea
+    - reference a code file
+    - cross reference from a code comment.
+    - build an atlas/map
+    - search for closest requirements against a code file.
+    - import an idea, ideaset, codefile, and folder
+    - export a base to html and open it.
+    - view the graph
+    - search for an idea
+    - trace an idea (in the)
+    @todo
+}
+
+practical_or_toy_example {
+    example files at each state
+    - should be integrated into the tutorial
+    @todo
+}

@@ -628,14 +628,138 @@ describe('Completion', () => {
         expect(anonLabels.length).toBeGreaterThan(0);
         expect(anonLabels.every(label => label.startsWith('@/'))).toBe(true);
         expect(anonLabels.some(label => label.endsWith('exampleimport.rq'))).toBe(true);
-        expect(anonLabels.some(label => label.endsWith('.md'))).toBe(false);
 
-        // Incomplete in-memory docs may appear in one set but not the other (self-skip).
-        const importAliasLabels = new Set(
-            importLabels.filter(label => label.startsWith('@/') && !label.includes('-open.rq'))
+        // Import paths stay .rq-only. Anonymous file references may also list other files.
+        const importAliasLabels = importLabels.filter(
+            label => label.startsWith('@/') && label.endsWith('.rq') && !label.includes('-open.rq')
         );
-        for (const label of anonLabels.filter(label => !label.includes('-open.rq'))) {
-            expect(importAliasLabels.has(label)).toBe(true);
+        for (const label of importAliasLabels) {
+            expect(anonLabels).toContain(label);
         }
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    test('anonymous file references complete code files, folders, and .rq files', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const root = createTempWorkspace();
+        writeFileSync(join(root, 'lib.rq'), 'exported {}\n');
+        writeFileSync(join(root, 'util.ts'), 'export const x = 1;\n');
+        mkdirSync(join(root, 'assets'));
+        writeFileSync(join(root, 'assets', 'notes.md'), '# notes\n');
+        const importerPath = join(root, 'app.rq');
+        const anonContent = 'host {\n    see ["./"]\n}';
+        writeFileSync(importerPath, anonContent);
+        const libUri = URI.parse(pathToFileURL(join(root, 'lib.rq')).href);
+        services.shared.workspace.LangiumDocuments.addDocument(
+            services.shared.workspace.LangiumDocumentFactory.fromString('exported {}\n', libUri) as LangiumDocument<Model>
+        );
+        const importerUri = URI.parse(pathToFileURL(importerPath).href);
+        document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            anonContent,
+            importerUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build(
+            services.shared.workspace.LangiumDocuments.all.toArray(),
+            { validation: false }
+        );
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const anonResult = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 1, character: 12 }
+        });
+        const anonLabels = (anonResult?.items ?? []).map(item => String(item.label));
+        expect(anonLabels).toContain('./lib.rq');
+        expect(anonLabels).toContain('./util.ts');
+        expect(anonLabels).toContain('./assets/');
+        expect(anonLabels).toContain('./assets/notes.md');
+
+        const importContent = 'import "./"';
+        const importDoc = services.shared.workspace.LangiumDocumentFactory.fromString(
+            importContent,
+            URI.parse(pathToFileURL(join(root, 'importer.rq')).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(importDoc);
+        await services.shared.workspace.DocumentBuilder.build([importDoc], { validation: false });
+        const importResult = await provider.getCompletion(importDoc, {
+            textDocument: { uri: importDoc.textDocument.uri },
+            position: { line: 0, character: importContent.length - 1 }
+        });
+        const importLabels = (importResult?.items ?? []).map(item => String(item.label));
+        expect(importLabels).toContain('./lib.rq');
+        expect(importLabels).toContain('./assets/');
+        expect(importLabels.some(label => label.endsWith('util.ts'))).toBe(false);
+        expect(importLabels.some(label => label.endsWith('notes.md'))).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    test('completes ideas and ideasets after a quoted file path', async () => {
+        services = createReqlanServices(NodeFileSystem);
+        parse = parseHelper<Model>(services.Reqlan);
+        const root = createTempWorkspace();
+        const libContent = `exported {
+    body
+}
+bundle (
+    exported
+)
+`;
+        writeFileSync(join(root, 'lib.rq'), libContent);
+        const appContent = 'host {\n    see ["./lib.rq".\n}';
+        writeFileSync(join(root, 'app.rq'), appContent);
+        const libUri = URI.parse(pathToFileURL(join(root, 'lib.rq')).href);
+        services.shared.workspace.LangiumDocuments.addDocument(
+            services.shared.workspace.LangiumDocumentFactory.fromString(libContent, libUri) as LangiumDocument<Model>
+        );
+        const appUri = URI.parse(pathToFileURL(join(root, 'app.rq')).href);
+        document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            appContent,
+            appUri
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        await services.shared.workspace.DocumentBuilder.build(
+            services.shared.workspace.LangiumDocuments.all.toArray(),
+            { validation: false }
+        );
+
+        expect(getCompletionSite(document, { line: 1, character: 20 })).toBe('qualified_file_idea');
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 1, character: 20 }
+        });
+        const labels = (result?.items ?? []).map(item => String(item.label));
+        expect(labels).toContain('exported');
+        expect(labels).toContain('bundle');
+    });
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    test('completes ideaset members after a dotted qualifier', async () => {
+        document = await parse(`host {
+    see [bundle.
+}
+bundle (
+    exported,
+    other_member
+)
+exported {
+    body
+}
+other_member {
+    body
+}`);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+
+        const provider = services.Reqlan.lsp.CompletionProvider as ReqlanCompletionProvider;
+        const result = await provider.getCompletion(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: { line: 1, character: 17 }
+        });
+        const labels = (result?.items ?? []).map(item => String(item.label));
+        expect(labels).toContain('bundle.exported');
+        expect(labels).toContain('bundle.other_member');
+        expect(labels).not.toContain('host');
     });
 });

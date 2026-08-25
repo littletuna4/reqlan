@@ -12,7 +12,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { presentCommentReferences, type CommentReferencePresentation } from '@reqlan/language';
 
-const COMMENT_REFERENCE_LANGUAGES = [
+export const COMMENT_REFERENCE_LANGUAGES = [
     'python',
     'javascript',
     'typescript',

@@ -6,6 +6,7 @@ from "./features-graph-analysers.rq" import local_graph_analysis
 import "@/reqlan rq/core_analysis/search.rq" as search_analysis
 import "../cli/cli_package.rq" as cli
 from "./vsc-primitives.rq" import code_actions
+from "../language/syntax.rq" import comment_reference_ignore
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
@@ -163,7 +164,8 @@ file_based_code_actions {
     - barrel page — done via [barrel_page] (`source.barrelPage` / `reqlan.barrelPage`)
         - barrel idea
     - decompose idea
-    - search for refernces.
+    - search for references.
+    - create idea
     [code_actions]
     @todo
     @ideating.
@@ -177,6 +179,50 @@ file_based_code_actions {
 }
 
 code_actions_ignore_error {
-There should be a [code_actions] for a line with errors that adds the error suppression string.["../language/syntax.rq".comment_reference_ignore]
-@todo
+    A Quick Fix [code_actions] on a line with diagnostics inserts [comment_reference_ignore] (`//rq-ignore-error`) on the line before the error.
+    The inserted comment uses the same indent as the error line.
+    One action is offered per line when that line has one or more diagnostics.
+    The action is omitted when that line is already suppressed, and when the client asks only for non-quickfix kinds.
+    Available in `.rq` files and in a comment context in a code file (["./features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]).
+    In `#` comments the action inserts `# //rq-ignore-error` so the line stays a comment.
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-ignore-error-action.ts"]
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
+        ["../../packages/extension/src/extension/ignore-error-comment-filter.ts"]
+        ["../../packages/extension/src/extension/main.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/code-actions.test.ts:offers ignore-error quick fix on a line with a linking error"]
+        ["../../packages/language/test/code-actions.test.ts:omits ignore-error when only refactor is requested"]
+        ["../../packages/language/test/ignore-error-action.test.ts:inserts indented ignore comment before the error line"]
+        ["../../packages/language/test/ignore-error-action.test.ts:uses tab indent and CRLF when the error line uses them"]
+        ["../../packages/language/test/ignore-error-action.test.ts:wraps the ignore comment for a hash-comment error line"]
+        ["../../packages/language/test/ignore-error-action.test.ts:inserts at the start of the file for a first-line error"]
+        ["../../packages/language/test/ignore-error-action.test.ts:offers one action per diagnostic line"]
+        ["../../packages/language/test/ignore-error-action.test.ts:omits the action when //rq-ignore-error already suppresses the line"]
+        ["../../packages/extension/test/ignore-error-code-action.test.ts:accepts reqlan source and comment-reference codes"]
+        ["../../packages/extension/test/extension-package.test.ts:extension main registers ignore-error code actions for comment files"]
+    )
+}
+
+create_idea_below_idea_containing_unresolved_reference_under_cursor {
+    If a local idea reference does not resolve, a Quick Fix [code_actions] creates a new idea below the idea that contains the reference.
+    The action uses the unresolved local idea names in the idea that contains the caret:
+    - one unresolved name: apply `Create '<name>' below` directly
+    - several unresolved names: offer `Create all unresolved ideas below` and one action per name
+    Qualified file/import references are omitted. The new idea is an empty block inserted after the containing idea.
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-create-idea-below.ts"]
+        ["../../packages/language/src/reqlan-code-action-provider.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/code-actions.test.ts:creates the missing idea below the containing idea when only one is unresolved"]
+        ["../../packages/language/test/code-actions.test.ts:offers all or a specific unresolved idea when the caret idea has several"]
+        ["../../packages/language/test/code-actions.test.ts:omits create-below when the caret idea has no unresolved local references"]
+        ["../../packages/language/test/code-actions.test.ts:omits create-below for a qualified unresolved reference"]
+        ["../../packages/language/test/code-actions.test.ts:omits create-below when only refactor is requested"]
+    )
 }

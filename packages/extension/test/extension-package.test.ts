@@ -89,6 +89,17 @@ describe('search code action host wiring', () => {
     });
 });
 
+describe('ignore-error code action host wiring', () => {
+    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    test('extension main registers ignore-error code actions for comment files', () => {
+        const mainSource = readFileSync(
+            join(extensionRoot, 'src/extension/main.ts'),
+            'utf8'
+        );
+        expect(mainSource).toContain('registerIgnoreErrorCodeActions(context)');
+    });
+});
+
 describe('idea move palette commands', () => {
     // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
     test('package.json contributes move idea and move idea content commands', () => {

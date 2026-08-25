@@ -1,3 +1,7 @@
+
+from "../vsc-primitives.rq" import code_completion
+
+
 complementary_information_rendering {
     The extension should render computed information inline in the editor as complementary text.
     Complementary rendering should include resolved references and optionally indirect references behind a toggle.
@@ -89,9 +93,11 @@ reference_code_completion {
   references should code complete the available namespace of ideas
   this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
   Cross-file candidates show import paths and may auto-insert imports:
+  
   ["../language-support/features-imports.rq".import_code_completion_rendering]
   ["../language-support/features-imports.rq".import_code_completion_auto_file_import]
   Implemented by ["../../../packages/language/src/reqlan-completion-provider.ts"].
+  ["../code_completion.rq"]
 
   @tags (
     autocompletion
@@ -99,8 +105,31 @@ reference_code_completion {
   @tests (
     ["../../../packages/language/test/completion.test.ts"]
   )
-  ["../code_completion.rq"]
 
+}
+
+reference_code_completion_objects {
+    [reference_code_completion] must offer code completion for all valid reqlan references:
+    - reqlan files (`.rq`)
+    - ideas and ideasets in a reqlan file after a quoted path (`["path".idea]`)
+    - ideasets and ideaset members (`[ideaset.member]`)
+    - code files
+    - folders, including folders that do not contain `.rq` files
+
+    Import path completion stays limited to `.rq` files.
+    Anonymous file-reference paths share ranking and alias logic with import paths, but they include every file and folder target.
+
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-completion-context.ts"]
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
+        ["../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
+        ["../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
+    )
 }
 
 reference_code_completion_sequencing {

@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/language/parser_lexer.rq".lexer_bridge_to_syntax]
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".context_sensitive_lexer_scaling]
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
+//! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
 
 use crate::budget::ParseBudget;
 use crate::token::{Token, TokenKind};
@@ -247,33 +248,73 @@ fn match_nl(bytes: &[u8], offset: usize) -> Option<usize> {
 }
 
 fn is_inside_naked_quote(bytes: &[u8], offset: usize) -> bool {
+    is_inside_line_fence(bytes, offset)
+}
+
+/// True when `offset` sits inside a complete same-line `"..."`, `'...'`, or `` `...` `` fence.
+/// Unclosed openers are not fences, so `//` after them is a line comment.
+/// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+pub fn is_inside_line_fence(bytes: &[u8], offset: usize) -> bool {
     let line_start = line_start_offset(bytes, offset);
-    let mut in_double = false;
-    let mut in_single = false;
+    let line_end = line_end_offset(bytes, line_start);
     let mut index = line_start;
-    while index < offset {
-        let char = bytes[index];
-        if in_double || in_single {
-            if char == b'\\' {
-                index += 2;
-                continue;
-            }
-            if in_double && char == b'"' {
-                in_double = false;
-            } else if in_single && char == b'\'' {
-                in_single = false;
-            }
-            index += 1;
+    while index < offset && index < line_end {
+        if index + 2 < line_end
+            && bytes[index] == b'`'
+            && bytes[index + 1] == b'`'
+            && bytes[index + 2] == b'`'
+        {
+            index += 3;
             continue;
         }
-        if char == b'"' {
-            in_double = true;
-        } else if char == b'\'' {
-            in_single = true;
+        if let Some(end) = closed_fence_end(bytes, index, line_end) {
+            if offset < end {
+                return true;
+            }
+            index = end;
+            continue;
         }
         index += 1;
     }
-    in_double || in_single
+    false
+}
+
+fn line_end_offset(bytes: &[u8], line_start: usize) -> usize {
+    let mut index = line_start;
+    while index < bytes.len() && bytes[index] != b'\n' && bytes[index] != b'\r' {
+        index += 1;
+    }
+    index
+}
+
+fn closed_fence_end(bytes: &[u8], start: usize, line_end: usize) -> Option<usize> {
+    let open = bytes[start];
+    if open == b'`' {
+        let mut index = start + 1;
+        while index < line_end {
+            if bytes[index] == b'`' {
+                return (index > start + 1).then_some(index + 1);
+            }
+            index += 1;
+        }
+        return None;
+    }
+    if open != b'"' && open != b'\'' {
+        return None;
+    }
+    let mut index = start + 1;
+    while index < line_end {
+        let char = bytes[index];
+        if char == b'\\' {
+            index += 2;
+            continue;
+        }
+        if char == open {
+            return Some(index + 1);
+        }
+        index += 1;
+    }
+    None
 }
 
 fn match_sl_comment(bytes: &[u8], offset: usize) -> Option<usize> {

@@ -1002,6 +1002,37 @@ example_ideaset (
         expect(missing[0]?.message).toBe(fileLinkMissingMessage('./does-not-exist.rq'));
     });
 
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    test('unbracketed quoted paths do not produce document links or missing-file diagnostics', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                missing_prose {
+                    see "this is not a reference.rq"
+                    and './also-not-a-reference.ts'
+                    but this is: ["./does-not-exist.rq"]
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        expect(links).toHaveLength(0);
+
+        const missing = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
+        );
+        expect(missing).toHaveLength(1);
+        expect(missing[0]?.message).toBe(fileLinkMissingMessage('./does-not-exist.rq'));
+        expect(missing.every(diagnostic => !String(diagnostic.message).includes('this is not a reference.rq'))).toBe(true);
+        expect(missing.every(diagnostic => !String(diagnostic.message).includes('also-not-a-reference.ts'))).toBe(true);
+    });
+
     // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     test('missing file reference errors are suppressed after //rq-ignore-error', async () => {

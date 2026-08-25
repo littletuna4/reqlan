@@ -1,3 +1,5 @@
+from "@/reqlan rq/extension/vsc-primitives.rq" import code_completion as code_completion_primitive
 code_completion {
+    [code_completion_primitive]
     string and namespaces should code complete nicely based on the currnet files' path and the resolved import config.
 }

@@ -14,6 +14,7 @@ import {
 } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-actions.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
@@ -192,6 +193,7 @@ async function startLanguageClient(
 
     registerFolderReferenceCommand(context);
     registerCommentReferenceDocumentLinks(context);
+    registerIgnoreErrorCodeActions(context);
 
     // Start the client. This will also launch the server
     await client.start();

@@ -6,6 +6,8 @@
  * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
  * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
  * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
@@ -31,6 +33,8 @@ import {
     type NameCatalogKind
 } from './reqlan-name-catalog.js';
 import { findReferenceSearchSite } from './reqlan-reference-search-site.js';
+import { createIgnoreErrorCodeActions } from './reqlan-ignore-error-action.js';
+import { createIdeaBelowCodeActions } from './reqlan-create-idea-below.js';
 
 export const REQLAN_IMPORT_ERROR_SEARCH_COMMAND = 'reqlan.importError.search';
 export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile';
@@ -89,6 +93,13 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
         const actions: Array<Command | CodeActionLike> = [];
         for (const diagnostic of params.context.diagnostics) {
             actions.push(...this.actionsForDiagnostic(document, diagnostic));
+        }
+        if (actionKindAllowed(params.context.only, CodeActionKind.QuickFix)) {
+            actions.push(...createIgnoreErrorCodeActions(
+                document.textDocument,
+                params.context.diagnostics
+            ));
+            actions.push(...createIdeaBelowCodeActions(document, params.range));
         }
         const searchFromCursor = this.createSearchReferenceAction(document, params);
         if (searchFromCursor) {

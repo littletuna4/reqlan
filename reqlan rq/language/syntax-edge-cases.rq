@@ -32,11 +32,46 @@ context_sensitive_lexer_scaling {
     )
 }
 
+fencing_comments {
+    A complete same-line fence keeps `//` as prose, not a line comment.
+    Closed double quotes: "//this line" contains no comment.
+    Closed backticks: `//this line` contains no comment.
+    An unclosed backtick is not a fence, so this line `// finishes with a comment.
+    An unclosed quote is not a fence, so as does "//this one
+    The Langium lexer, the Rust lexer, and comment scanners must use this rule.
+    Related: ["./syntax.rq".comments], ["./syntax.rq".inline_code], ["./syntax.rq".naked_strings_in_body].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-line-fences.ts"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+        ["../../crates/reqlan-index/src/rq_ignore.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parse syntax-edge-cases.rq"]
+        ["../../packages/language/test/comment-in-string.test.ts:isInsideLineFence treats only complete same-line fences as fences"]
+        ["../../packages/language/test/comment-in-string.test.ts:quoted //this line in block body is not a line comment"]
+        ["../../packages/language/test/comment-in-string.test.ts:backticked //this line in block body is not a line comment"]
+        ["../../packages/language/test/comment-in-string.test.ts:unclosed backtick then // is a line comment"]
+        ["../../packages/language/test/comment-in-string.test.ts:unclosed quote then // is a line comment"]
+        ["../../packages/language/test/references.test.ts:ignores // inside complete backtick fences when locating line comments"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText treats unclosed fences as comments and closed fences as prose"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:fencing_comments"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:quoted_slash_slash_in_body_is_not_a_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:backticked_slash_slash_in_body_is_not_a_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:unclosed_backtick_then_slash_slash_is_a_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:unclosed_quote_then_slash_slash_is_a_comment"]
+        ["../../crates/reqlan-index/src/rq_ignore.rs:does_not_treat_marker_inside_backticks_as_a_directive"]
+    )
+}
+
 one_liner_curly_brace_context this should {be acceptable} as well
 
 closing_nested_curly_braces {
     if, for some reason, there is a prose block containing only closing curly braces, they should be escaped and allowed \} like this.
-
+    @bug
+    @todo fix this - it's currently not working as expected. in the 
     @tests (
         ["../../packages/language/test/parsing.test.ts:allows escaped closing brace in body prose"]
         ["../../crates/reqlan-parse/tests/parser.rs:allows_escaped_closing_brace_in_body_prose"]

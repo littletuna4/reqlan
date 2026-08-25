@@ -29,6 +29,7 @@ export type CompletionSite =
     | 'attribute_value'
     | 'reference'
     | 'anonymous_import_path'
+    | 'qualified_file_idea'
     | 'default';
 
 export interface AttributeKeyContext {
@@ -57,6 +58,13 @@ export interface AnonymousImportPathContext {
     replaceEnd: Position;
 }
 
+export interface QualifiedFileIdeaContext {
+    path: string;
+    ideaPrefix: string;
+    replaceStart: Position;
+    replaceEnd: Position;
+}
+
 export function getCompletionSite(document: LangiumDocument, position: Position): CompletionSite {
     if (getAttributeKeyContext(document, position)) {
         return 'attribute_key';
@@ -66,6 +74,9 @@ export function getCompletionSite(document: LangiumDocument, position: Position)
     }
     if (getAnonymousImportPathContext(document, position)) {
         return 'anonymous_import_path';
+    }
+    if (getQualifiedFileIdeaContext(document, position)) {
+        return 'qualified_file_idea';
     }
     if (getReferencePrefixContext(document, position)) {
         return 'reference';
@@ -92,7 +103,7 @@ export function getAnonymousImportPathContext(
         start: { line: position.line, character: 0 },
         end: { line: position.line, character: position.character }
     });
-    const match = /(?:^|[^[])\[(["'])([^"']*)$/.exec(line);
+    const match = /(?:^|[^[])\[{1,2}(["'])([^"']*)$/.exec(line);
     if (!match) {
         return undefined;
     }
@@ -102,6 +113,34 @@ export function getAnonymousImportPathContext(
         prefix,
         delimiter,
         replaceStart: { line: position.line, character: position.character - prefix.length },
+        replaceEnd: position
+    };
+}
+
+/**
+ * Idea / ideaset name after a quoted file path, e.g. `["./lib.rq".` or `["./lib.rq".expor`.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ */
+export function getQualifiedFileIdeaContext(
+    document: LangiumDocument,
+    position: Position
+): QualifiedFileIdeaContext | undefined {
+    if (isMarkdownLinkLabelPosition(document, position) || linePrefixBeforeMarkdownLinkTarget(document, position)) {
+        return undefined;
+    }
+    const line = document.textDocument.getText({
+        start: { line: position.line, character: 0 },
+        end: { line: position.line, character: position.character }
+    });
+    const match = /(?:^|[^[])\[{1,2}(["'])([^"']*)\1\.([\w_.]*)$/.exec(line);
+    if (!match) {
+        return undefined;
+    }
+    const ideaPrefix = match[3] ?? '';
+    return {
+        path: match[2] ?? '',
+        ideaPrefix,
+        replaceStart: { line: position.line, character: position.character - ideaPrefix.length },
         replaceEnd: position
     };
 }
@@ -203,7 +242,11 @@ export function getAttributeValueContext(
 }
 
 export function isInMainDescriptionProse(document: LangiumDocument, position: Position): boolean {
-    if (getAnonymousImportPathContext(document, position) || getReferencePrefixContext(document, position)) {
+    if (
+        getAnonymousImportPathContext(document, position)
+        || getQualifiedFileIdeaContext(document, position)
+        || getReferencePrefixContext(document, position)
+    ) {
         return false;
     }
     const linePrefix = document.textDocument.getText({

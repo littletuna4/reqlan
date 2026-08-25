@@ -1,46 +1,21 @@
 /**
- * Custom token builder so line/block comments do not match inside string literals,
- * empty slash-star-star-slash glob segments do not steal path text, and `@` only
- * introduces attributes at the start of a line.
+ * Custom token builder so line/block comments do not match inside string literals
+ * or complete backtick fences, empty slash-star-star-slash glob segments do not steal
+ * path text, and `@` only introduces attributes at the start of a line.
+ * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
  */
 import type { Grammar } from 'langium';
 import { DefaultTokenBuilder, type TokenBuilderOptions } from 'langium';
+import { isInsideLineFence } from './reqlan-line-fences.js';
 
 const SL_COMMENT_PATTERN = /\/\/[^\n\r]*/y;
 const ML_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//y;
-
-function isInsideNakedQuote(text: string, offset: number): boolean {
-    let inDouble = false;
-    let inSingle = false;
-    const lineStart = text.lastIndexOf('\n', offset - 1) + 1;
-    for (let index = lineStart; index < offset; index++) {
-        const char = text[index]!;
-        if (inDouble || inSingle) {
-            if (char === '\\') {
-                index++;
-                continue;
-            }
-            if (inDouble && char === '"') {
-                inDouble = false;
-            } else if (inSingle && char === "'") {
-                inSingle = false;
-            }
-            continue;
-        }
-        if (char === '"') {
-            inDouble = true;
-        } else if (char === "'") {
-            inSingle = true;
-        }
-    }
-    return inDouble || inSingle;
-}
 
 const slCommentPattern = (text: string, offset: number): RegExpExecArray | null => {
     if (text.charCodeAt(offset) !== 47 || text.charCodeAt(offset + 1) !== 47) {
         return null;
     }
-    if (isInsideNakedQuote(text, offset)) {
+    if (isInsideLineFence(text, offset)) {
         return null;
     }
     let previousIndex = offset - 1;
@@ -62,7 +37,7 @@ const mlCommentPattern = (text: string, offset: number): RegExpExecArray | null 
     if (text.charCodeAt(offset) !== 47 || text.charCodeAt(offset + 1) !== 42) {
         return null;
     }
-    if (isInsideNakedQuote(text, offset)) {
+    if (isInsideLineFence(text, offset)) {
         return null;
     }
     ML_COMMENT_PATTERN.lastIndex = offset;

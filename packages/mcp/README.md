@@ -20,6 +20,8 @@ npm install -g @reqlan/mcp
 npx @reqlan/mcp
 ```
 
+This package needs the host `@reqlan/analytical` native binary (optional dependency). If pnpm installed every platform package, or none, follow the `@reqlan/cli` README section "Native engine (pnpm)".
+
 ## Cursor
 
 Add to `.cursor/mcp.json`:
@@ -51,6 +53,71 @@ Set `REQLAN_WORKSPACE` to the workspace root (or run from that directory). Overr
 - [Contact](mailto:reqlan@reqlan.com)
 
 ## Changelog
+
+### 0.3.8
+
+#### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+- Updated dependencies [6f39ab6]
+- Updated dependencies [b5e5373]
+- Updated dependencies [2622292]
+  - @reqlan/analytical@1.13.3
+
+### 0.3.7
+
+#### Patch Changes
+
+- Updated dependencies [a18c1ff]
+- Updated dependencies [70715af]
+  - @reqlan/analytical@1.13.2
+
+### 0.3.6
+
+#### Patch Changes
+
+- Updated dependencies [4a70c69]
+  - @reqlan/analytical@1.13.1
+
+### 0.3.5
+
+#### Patch Changes
+
+- c219dbe: ci sequencing fix for deployment
+- 7c6eca5: add skip gitignored targets
+- d6b6246: build fix and cicd refinement
+- 9b788d2: fix ci
+- 900a2fd: testing fixes and cicd changes.
+- 70bcb70: Move testin in ci, add ignore check targets to check function for ci environment, fix folder references in ci environemnt.
+- 76546b3: fix ci testting.
+- Updated dependencies [c219dbe]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [d6b6246]
+- Updated dependencies [9b788d2]
+- Updated dependencies [900a2fd]
+- Updated dependencies [70bcb70]
+- Updated dependencies [7c6eca5]
+- Updated dependencies [70bcb70]
+- Updated dependencies [76546b3]
+  - @reqlan/analytical@1.13.0
+
+### 0.3.4
+
+#### Patch Changes
+
+- Updated dependencies [15b6a53]
+- Updated dependencies [15b6a53]
+  - @reqlan/analytical@1.12.0
+
+### 0.3.3
+
+#### Patch Changes
+
+- 9571467: Update site; and a few little bug fixes
+- Updated dependencies [9571467]
+  - @reqlan/analytical@1.11.3
 
 ### 0.3.2
 

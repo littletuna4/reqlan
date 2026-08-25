@@ -104,6 +104,18 @@ describe('findPathReferencesInMovedFile', () => {
         expect(refs.map(ref => ref.path)).toEqual(['./imports.rq', '../shared/base.rq']);
     });
 
+    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+    test('does not treat unbracketed quoted paths as embedded path references', () => {
+        const text = [
+            'demo {',
+            '    see "this is not a reference.rq"',
+            '    and ["./imports.rq"]',
+            '}'
+        ].join('\n');
+        const refs = findPathReferencesInMovedFile(text, true);
+        expect(refs.map(ref => ref.path)).toEqual(['./imports.rq']);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".string_and_reference_apostrophes]
     test('finds single-quoted import and embedded paths in rq files', () => {
         const text = [

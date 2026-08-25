@@ -25,6 +25,27 @@ Language support for the reqlan language
 
 ## Changelog
 
+### 1.13.4
+
+#### Patch Changes
+
+- Updated dependencies [e388596]
+  - @reqlan/analytical@1.13.4
+  - @reqlan/language@1.10.5
+
+### 1.13.3
+
+#### Patch Changes
+
+- 6f39ab6: cicd tweaks
+- b5e5373: cicd test
+- 2622292: deploy
+- Updated dependencies [6f39ab6]
+- Updated dependencies [b5e5373]
+- Updated dependencies [2622292]
+  - @reqlan/analytical@1.13.3
+  - @reqlan/language@1.10.4
+
 ### 1.13.2
 
 #### Patch Changes
