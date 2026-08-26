@@ -32,6 +32,19 @@
         }
       }
     },
+    "click": {
+      "type": "object",
+      "description": "Optional click-session defaults for CLI and MCP click. Controls how many click sessions are kept per base under .reqlan/click-sessions.sqlite.",
+      "additionalProperties": false,
+      "properties": {
+        "maxSessions": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100,
+          "description": "Maximum click sessions retained per base. Eviction drops the least recently touched sessions first. Default 100."
+        }
+      }
+    },
     "export": {
       "type": "object",
       "description": "Optional export defaults used by Reqlan export commands. These values provide defaults for prompt-driven exports and can be overridden per run.",

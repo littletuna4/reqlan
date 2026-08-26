@@ -308,6 +308,8 @@ reference_types {
 }
 
 click {
-    A cli/mcp function that dumps local context for a given idea.
+    A CLI/MCP function that dumps local context for a given idea, file, or path.
+    Uses a SQLite ["./cli/click.rq".click_session] so agents do not get the same ideas again.
+    Optional max detail sets hop depth. Session cache size is configurable.
     see ["./cli/click.rq".click]
 }

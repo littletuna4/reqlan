@@ -167,6 +167,72 @@ export async function startMcpServer(): Promise<void> {
   );
 
   server.registerTool(
+    "click",
+    {
+      description:
+        "Return the closest ideas for an idea name, path#idea, .rq file, or indexed path. Always pass sessionKey from the prior click on the next call so the same ideas are not resurfaced in this agent session.",
+      inputSchema: {
+        target: z
+          .string()
+          .describe("Idea name, path#idea, .rq file, or indexed path"),
+        sessionKey: z
+          .string()
+          .optional()
+          .describe("Click session key from a prior click response"),
+        maxDetail: z
+          .number()
+          .int()
+          .positive()
+          .max(8)
+          .optional()
+          .describe("Hop depth for closest ideas (default 1)"),
+      },
+    },
+    async ({ target, sessionKey, maxDetail }) => {
+      const result = await api.click(target, {
+        sessionKey,
+        maxDetail: maxDetail ?? 1,
+      });
+      const centers =
+        result.centers.length > 0
+          ? result.centers.map((idea) => api.formatIdea(idea)).join("\n\n")
+          : "(none)";
+      const nodes =
+        result.nodes.length > 0
+          ? result.nodes.map((idea) => api.formatIdea(idea)).join("\n\n")
+          : "(none)";
+      const edges =
+        result.edges.length > 0
+          ? result.edges
+              .slice(0, 40)
+              .map(
+                (edge) =>
+                  `- ${edge.kind}: ${edge.sourceId} -> ${edge.targetId ?? edge.targetFile ?? "?"}`,
+              )
+              .join("\n")
+          : "(none)";
+      return textContent(
+        [
+          `sessionKey: ${result.sessionKey}`,
+          `depth: ${result.depth}`,
+          `suppressedCount: ${result.suppressedCount}`,
+          "",
+          "Pass sessionKey on the next click to avoid resurfacing.",
+          "",
+          "## Centers",
+          centers,
+          "",
+          "## Closest ideas",
+          nodes,
+          "",
+          "## Edges",
+          edges,
+        ].join("\n"),
+      );
+    },
+  );
+
+  server.registerTool(
     "summarize_subtree",
     {
       description:

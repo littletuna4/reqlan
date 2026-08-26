@@ -52,6 +52,8 @@ commands {
     - `search <query>` — semantic search via `AnalysisApi.searchRequirements`.
       Repeatable `--context <path|path#idea|name>` biases ranking by graph hop distance
       (["../core_analysis/search.rq".contextual_search]).
+    - `click <target>` — local graph slice for an idea, file, or path via `AnalysisApi.click`
+      (["./click.rq".click]). Optional `--session` continues a click session; `--max-detail` sets hop depth.
     - `export` / `export html` — multi-file HTML site via `NativeAnalysisApi.exportHtml` ([html_export.html_export]).
       `--exclude-secret` omits `*.secret.rq`.
       `--exclude-ignored` omits paths matched by `.reqlan/.rqignore`.

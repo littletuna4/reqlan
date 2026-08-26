@@ -72,9 +72,16 @@ export interface RqExportConfig {
     html?: RqHtmlExportConfig;
 }
 
+/** Click session defaults from `.reqlan/config.json`. */
+export interface RqClickConfig {
+    /** Max sessions retained per base (default 100). */
+    maxSessions?: number;
+}
+
 export interface RqConfig {
     importRoots: ImportRootMapping[];
     export?: RqExportConfig;
+    click?: RqClickConfig;
 }
 
 export interface PathResolveContext {
@@ -202,13 +209,30 @@ function parseRqConfig(
         return undefined;
     }
     const parsedExport = parseExportConfig(record.export, baseRootUri);
+    const parsedClick = parseClickConfig(record.click);
     const config: RqConfig = {
         importRoots: importRoots ?? defaultRqConfig().importRoots
     };
     if (parsedExport) {
         config.export = parsedExport;
     }
+    if (parsedClick) {
+        config.click = parsedClick;
+    }
     return config;
+}
+
+function parseClickConfig(raw: unknown): RqClickConfig | undefined {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return undefined;
+    }
+    const record = raw as Record<string, unknown>;
+    const result: RqClickConfig = {};
+    if (typeof record.maxSessions === 'number' && Number.isFinite(record.maxSessions)) {
+        const value = Math.trunc(record.maxSessions);
+        result.maxSessions = value < 1 ? 1 : value;
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function parseImportRootEntry(entry: unknown, baseRootUri: URI): ImportRootMapping | undefined {

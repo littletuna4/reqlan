@@ -29,6 +29,8 @@ export type {
 export { NativeAnalysisApi } from './native-analysis-api.js';
 export type {
     AnalysisRuntimeOptions,
+    ClickOptions,
+    ClickResult,
     InteractionDescriptor,
     RequirementMatch,
     SearchRequirementsOptions

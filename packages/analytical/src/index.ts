@@ -23,12 +23,14 @@ export {
 } from './core/path-relative.js';
 export {
     APPLICATION_MEMORY_DIR,
+    CLICK_SESSIONS_FILENAME,
     CONFIG_FILENAME,
     GITIGNORE_FILENAME,
     IDEAS_INDEX_FILENAME,
     INDEX_DIAGNOSTICS_FILENAME,
     RQIGNORE_FILENAME,
     resolveApplicationMemoryPath,
+    resolveClickSessionsDbPath,
     resolveIdeasIndexDbPath,
     resolveIndexDiagnosticsDbPath
 } from './core/application-memory.js';
@@ -176,6 +178,8 @@ export {
 export { NativeAnalysisApi } from './native/native-analysis-api.js';
 export type {
     AnalysisRuntimeOptions,
+    ClickOptions,
+    ClickResult,
     InteractionDescriptor,
     RequirementMatch,
     SearchRequirementsOptions

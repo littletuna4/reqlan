@@ -235,6 +235,19 @@ pub struct BrokenReferenceDto {
     pub match_count: Option<u32>,
 }
 
+/// Result of a click: session-filtered local graph slice.
+/// rq:["../../../reqlan rq/cli/click.rq".click_output]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickResult {
+    pub session_key: String,
+    pub centers: Vec<IdeaSummary>,
+    pub depth: u32,
+    pub nodes: Vec<IdeaSummary>,
+    pub edges: Vec<EdgeDto>,
+    pub suppressed_count: u32,
+}
+
 fn error_severity() -> String {
     "error".to_string()
 }

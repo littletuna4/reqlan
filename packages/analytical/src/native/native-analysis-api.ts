@@ -21,6 +21,7 @@ import type {
     GraphSlice as NativeGraphSlice,
     IdeaSummary as NativeIdeaSummary,
     BrokenReferenceDto as NativeBrokenReference,
+    ClickResult as NativeClickResult,
     RequirementMatch as NativeRequirementMatch
 } from './generated.js';
 
@@ -38,6 +39,22 @@ export interface RequirementMatch {
 export interface SearchRequirementsOptions {
     /** Relative `.rq` paths, `path#idea` refs, or bare idea names that bias ranking by hop distance. */
     context?: string[];
+}
+
+export interface ClickOptions {
+    /** Existing click session key; omit to start a new session. */
+    sessionKey?: string;
+    /** Hop depth for the local graph slice (default 1). */
+    maxDetail?: number;
+}
+
+export interface ClickResult {
+    sessionKey: string;
+    centers: IdeaSummary[];
+    depth: number;
+    nodes: IdeaSummary[];
+    edges: GraphSlice['edges'];
+    suppressedCount: number;
 }
 
 export interface InteractionDescriptor {
@@ -94,6 +111,33 @@ export class NativeAnalysisApi {
     async summarizeSubtree(requirementName: string, depth = 2): Promise<GraphSlice | undefined> {
         const graph = this.native.summarizeSubtree(requirementName, depth) as NativeGraphSlice | null;
         return graph ? toGraph(graph) : undefined;
+    }
+
+    /**
+     * rq:["../../../../reqlan rq/cli/click.rq".click]
+     * rq:["../../../../reqlan rq/cli/click.rq".click_session]
+     */
+    async click(target: string, options?: ClickOptions): Promise<ClickResult> {
+        const result = this.native.click(
+            target,
+            options?.sessionKey,
+            options?.maxDetail
+        ) as NativeClickResult;
+        return {
+            sessionKey: result.sessionKey,
+            centers: result.centers.map(toIdea),
+            depth: result.depth,
+            nodes: result.nodes.map(toIdea),
+            edges: result.edges.map(edge => ({
+                id: edge.id,
+                sourceId: edge.sourceId,
+                targetId: edge.targetId ?? undefined,
+                targetFile: edge.targetFile ?? undefined,
+                kind: edge.kind as GraphSlice['edges'][number]['kind'],
+                label: edge.label ?? undefined
+            })),
+            suppressedCount: result.suppressedCount
+        };
     }
 
     async getCompletionStatus(): Promise<CompletionSummary> {
@@ -205,6 +249,16 @@ export class NativeAnalysisApi {
                 name: 'local_graph',
                 description: 'Get the local requirement graph around the first requirement in a file.',
                 parameters: { filePath: 'Relative or absolute path to a .rq file', depth: 'Optional hop depth' }
+            },
+            {
+                name: 'click',
+                description:
+                    'Return closest ideas for an idea, file, or path. Pass sessionKey on later calls to avoid resurfacing.',
+                parameters: {
+                    target: 'Idea name, path#idea, .rq file, or indexed path',
+                    sessionKey: 'Optional click session key from a prior click',
+                    maxDetail: 'Optional hop depth (default 1)'
+                }
             },
             {
                 name: 'summarize_subtree',

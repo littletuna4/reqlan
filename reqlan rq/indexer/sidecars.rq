@@ -12,6 +12,7 @@ reqlan_directory_layout {
     Contents:
     - `ideas-index.sqlite` — [ideas_schema.ideas_index_sqlite]
     - `index-diagnostics.sqlite` — [diagnostics_schema.diagnostics_sqlite] / [index_diagnostics_store]
+    - `click-sessions.sqlite` — ["../cli/click.rq".click_session]
     - SQLite WAL/SHM/journal sidecars — [sqlite_wal_sidecars]
     - `config.json` — [json_siblings] / [base_configuration]
     - `.rqignore` — [rqignore]
@@ -29,6 +30,7 @@ sqlite_wal_sidecars {
     When a SQLite file opens in WAL mode, the engine may create sibling files next to the DB:
     - `ideas-index.sqlite-wal` / `ideas-index.sqlite-shm` / `ideas-index.sqlite-journal`
     - `index-diagnostics.sqlite-wal` / `-shm` / `-journal`
+    - `click-sessions.sqlite-wal` / `-shm` / `-journal`
     These are true sidecars of the open database, not separate product stores.
     Seeded `.reqlan/.gitignore` must keep `*.sqlite*` artifacts out of VCS
     ([base_initialisation_ignore], [ignore_rust] `default_gitignore_file_contents`).

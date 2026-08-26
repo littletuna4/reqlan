@@ -12,6 +12,7 @@ application_memory {
     The ideas graph index (["../features-graph-analysers.rq".index_ideas] / ["../features-graph-analysers.rq".index_technology]) persists as `ideas-index.sqlite` inside that directory.
     Schema: ["../../indexer/sqlite-schema.rq".ideas_index_sqlite].
     Index timing diagnostics persist separately as `index-diagnostics.sqlite` ([index_diagnostics_store] / ["../features-index-diagnostics.rq".index_diagnostics]) so rebuilds of the ideas index do not wipe history.
+    Click session state persists as `click-sessions.sqlite` (["../../cli/click.rq".click_session]) so agent/CLI click cursors survive ideas-index rebuilds.
     Diagnostics schema: ["../../indexer/diagnostics-schema.rq".diagnostics_sqlite].
     WAL sidecars and JSON siblings: ["../../indexer/sidecars.rq".reqlan_directory_layout].
     Export form defaults (all formats via ["../features-export.rq".export_webview], including HTML options in ["../features-html-export.rq".html_export_form]) persist as `export_settings.json` in the same directory (active base).

@@ -2,8 +2,9 @@
 //! rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
 //! rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+//! rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 
-use crate::ignore::{APPLICATION_MEMORY_DIR, CONFIG_FILENAME};
+use crate::ignore::{APPLICATION_MEMORY_DIR, CONFIG_FILENAME, DEFAULT_CLICK_MAX_SESSIONS};
 use reqlan_parse::{default_import_roots, ImportRootMapping};
 use serde_json::Value;
 use std::path::Path;
@@ -11,10 +12,15 @@ use std::path::Path;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RqConfig {
     pub import_roots: Vec<ImportRootMapping>,
+    /// Max click sessions retained per base (`click.maxSessions`, default 100).
+    pub click_max_sessions: u32,
 }
 
 pub fn default_rq_config() -> RqConfig {
-    RqConfig { import_roots: default_import_roots() }
+    RqConfig {
+        import_roots: default_import_roots(),
+        click_max_sessions: DEFAULT_CLICK_MAX_SESSIONS,
+    }
 }
 
 /// Walk ancestors from `start`. The first directory that owns `.reqlan/` is the applying base.
@@ -62,13 +68,21 @@ fn parse_rq_config_file(config_path: &Path, base_root: &Path) -> RqConfig {
 fn parse_rq_config_json(text: &str, base_root: &Path) -> Option<RqConfig> {
     let raw: Value = serde_json::from_str(text).ok()?;
     let object = raw.as_object()?;
+    let mut config = default_rq_config();
     match object.get("importRoots") {
-        None => Some(default_rq_config()),
+        None => {}
         Some(value) => {
             let import_roots = parse_import_roots(value, base_root)?;
-            Some(RqConfig { import_roots })
+            config.import_roots = import_roots;
         }
     }
+    if let Some(click) = object.get("click").and_then(Value::as_object) {
+        if let Some(max) = click.get("maxSessions").and_then(Value::as_u64) {
+            config.click_max_sessions =
+                if max == 0 { 1 } else { max.min(u64::from(u32::MAX)) as u32 };
+        }
+    }
+    Some(config)
 }
 
 fn parse_import_roots(raw: &Value, base_root: &Path) -> Option<Vec<ImportRootMapping>> {
@@ -144,6 +158,26 @@ mod tests {
         assert_eq!(config.import_roots[0].alias, "~");
         let expected = path_to_posix(&root.join("lib"));
         assert_eq!(config.import_roots[0].root.as_deref(), Some(expected.as_str()));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+    #[test]
+    fn click_max_sessions_defaults_to_100() {
+        let root = scratch("click-default");
+        std::fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
+        let config = load_applying_rq_config(&root, None);
+        assert_eq!(config.click_max_sessions, 100);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+    #[test]
+    fn click_max_sessions_reads_config() {
+        let root = scratch("click-max");
+        std::fs::write(root.join(".reqlan/config.json"), r#"{"click":{"maxSessions":3}}"#).unwrap();
+        let config = load_applying_rq_config(&root, None);
+        assert_eq!(config.click_max_sessions, 3);
         std::fs::remove_dir_all(&root).ok();
     }
 }

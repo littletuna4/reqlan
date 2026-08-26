@@ -36,8 +36,10 @@ pub use extract::{
 pub use git_dates::{fill_git_dates, parse_git_author_dates, CREATE_NO_WINDOW};
 pub use ids::{edge_id, idea_id};
 pub use ignore::{
-    create_base, default_gitignore_file_contents, default_rqignore_file_contents, CreateBaseResult,
-    WorkspaceGitignore, GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME,
+    click_sessions_path, create_base, default_gitignore_file_contents,
+    default_rqignore_file_contents, CreateBaseResult, WorkspaceGitignore, CLICK_SESSIONS_FILENAME,
+    DEFAULT_CLICK_MAX_SESSIONS, GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME,
+    INDEX_DIAGNOSTICS_FILENAME,
 };
 pub use overview::{compute_overview_coverage, OverviewCoverageScores};
 pub use path_resolve::{default_rq_config, load_applying_rq_config, RqConfig};

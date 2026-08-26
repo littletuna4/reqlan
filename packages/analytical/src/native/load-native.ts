@@ -82,6 +82,7 @@ export interface NativeAnalysisRuntimeHandle {
     getFileContext(filePath: string): unknown;
     getLocalGraph(filePath: string, depth: number): unknown;
     summarizeSubtree(requirementName: string, depth: number): unknown;
+    click(target: string, sessionKey?: string, maxDetail?: number): unknown;
     getCompletionStatus(): unknown;
     getDeprecationImpact(): unknown;
     listBrokenReferences(pathGlob?: string, includeCommentReferences?: boolean): unknown;

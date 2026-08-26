@@ -1,17 +1,156 @@
-click {
-a click function should return a slice of the model.
-it should accept a session if that is passed back on each cli request as a cursor to prevent re supplying the same data.
+from "../ontology.rq" import click as click_ontology
+from "../extension/module/index.rq" import application_memory
+from "../extension/configuration.rq" import configuration_schema_file, configuration_location
+from "./cli_package.rq" import commands, function_parity
+import "../../packages/analytical/src/native/native-analysis-api.ts" as native_analysis_api
+import "../../packages/cli/src/commands/click.ts" as click_cli
+import "../../packages/mcp/src/server.ts" as mcp_server
+import "../../crates/reqlan-analytical/src/click.rs" as click_rust
+import "../../crates/reqlan-analytical/src/click_sessions.rs" as click_sessions_rust
 
-@todo
+click {
+    The [click_ontology] function returns a local slice of the requirement graph.
+    Input is one target: an idea name, a `path#idea` ref, a `.rq` file path, or another indexed path.
+    Optional `maxDetail` sets hop depth for the slice (default 1).
+    Optional `sessionKey` continues a [click_session] so the same ideas are not returned again.
+    Surfaces: CLI `reqlan click` ([click_cli]), MCP `click` ([mcp_server]), and [native_analysis_api] `click`.
+    Engine: [click_rust] on ["./cli_package.rq".architecture] / ["../core_analysis/rust_port.rq".analytical_rust_port].
+    Related: [function_parity], [commands], [agent_advisory], [click_session], [click_input], [click_max_detail], [click_output].
+    @status done
+    @implementation (
+        [click_rust]
+        [click_sessions_rust]
+        [native_analysis_api]
+        [click_cli]
+        [mcp_server]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_and_path_hash_idea"]
+        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
+        ["../../crates/reqlan-analytical/tests/click.rs:content_hash_change_allows_resurface"]
+        ["../../crates/reqlan-analytical/tests/click.rs:session_cache_evicts_by_count_and_last_touched"]
+        ["../../crates/reqlan-analytical/tests/click.rs:max_sessions_reads_base_config"]
+        ["../../packages/analytical/test/click.test.ts:click API returns session key and filters repeats"]
+        ["../../packages/cli/test/click.test.ts:click command emits session and neighbours"]
+    )
+}
+
+click_input {
+    Accept any of:
+    - idea name (exact match in the index)
+    - `path#idea` (indexed file URI + idea name)
+    - `.rq` file path (all ideas in that file are centres)
+    - other indexed path that resolves to ideas in a file
+    Trim optional surrounding brackets (`[name]`).
+    Resolution reuses search context ref rules
+    (["../core_analysis/search.rq".contextual_search] / `resolve_search_context_refs`).
+    When no centre resolves, return an empty slice and still return or create a [click_session] key.
+    @status done
+    @implementation (
+        [click_rust]
+        ["../../crates/reqlan-search/src/contextual.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_and_path_hash_idea"]
+    )
+}
+
+click_max_detail {
+    Optional `maxDetail` is the undirected hop depth for the local graph around the centres.
+    Default is 1. Values less than 1 are treated as 1.
+    Higher depth returns a larger neighbourhood of closest ideas.
+    @status done
+    @implementation (
+        [click_rust]
+        [click_cli]
+        [mcp_server]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
+    )
+}
+
+click_output {
+    A click result includes:
+    - `sessionKey` — pass on the next click in the same agent or CLI flow ([agent_advisory])
+    - `centers` — resolved seed ideas for the target
+    - `depth` — effective hop depth
+    - `nodes` — newly surfaced closest ideas (session-filtered)
+    - `edges` — graph edges among centres and returned nodes
+    - `suppressedCount` — ideas held back because the session already saw them at the same content hash
+    Centres are not listed again in `nodes` unless they would otherwise appear as neighbours of another centre.
+    @status done
+    @implementation (
+        [click_rust]
+        ["../../crates/reqlan-analytical/src/types.rs"]
+        [native_analysis_api]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
+        ["../../packages/analytical/test/click.test.ts:click API returns session key and filters repeats"]
+    )
 }
 
 agent_advisory {
-    Agents are advised in the mcp to pass the [click_session] ID to the next click action to avoid regurgitation of the same context.
-    @todo
+    Agents must pass the [click_session] ID (`sessionKey`) to the next click action.
+    This avoids regurgitation of the same context in one agent thread.
+    MCP tool text states this rule clearly ([mcp_server] `click`).
+    @status done
+    @implementation (
+        [mcp_server]
+        [click_cli]
+    )
+    @tests (
+        ["../../packages/cli/test/click.test.ts:click command emits session and neighbours"]
+    )
 }
 
 click_session {
-    Click sessions are stored in a sqlite and cached up to n entries. per base. (default to 100, configurable at base level.)
-    Sessions are keyed against ideas, and considers their content - such that if it changes, it is considered in the next click.
-    @todo
+    Click sessions live in SQLite under [application_memory] as `click-sessions.sqlite`
+    (sibling of `ideas-index.sqlite`; not deleted by ideas-index rebuild).
+    Each session has a stable `sessionKey`.
+    Sessions are keyed against ideas. Each surfaced idea stores a fingerprint of its
+    name, summary, status, and tags. When that fingerprint changes, the idea may
+    resurface on the next click.
+    Session cache size is [click_session_limit].
+    Eviction uses last-touched order: when the store exceeds the limit, drop the least recently touched sessions first.
+    Touch the active session on every successful click.
+    Path helper: ["../../packages/analytical/src/core/application-memory.ts"] / [click_sessions_rust].
+    Layout: ["../indexer/sidecars.rq".reqlan_directory_layout].
+    @status done
+    @implementation (
+        [click_sessions_rust]
+        [click_rust]
+        ["../../packages/analytical/src/core/application-memory.ts"]
+        ["../../crates/reqlan-index/src/ignore.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
+        ["../../crates/reqlan-analytical/tests/click.rs:content_hash_change_allows_resurface"]
+        ["../../crates/reqlan-analytical/tests/click.rs:session_cache_evicts_by_count_and_last_touched"]
+    )
+}
+
+click_session_limit {
+    Maximum stored click sessions per base defaults to 100.
+    Configure with `click.maxSessions` in `.reqlan/config.json` ([configuration_location], [configuration_schema_file]).
+    Invalid or missing values use 100. Values less than 1 use 1.
+    Eviction is by session count and last-touched time ([click_session]).
+    @status done
+    @implementation (
+        ["../../packages/extension/schemas/config.schema.json"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        [click_sessions_rust]
+        [click_rust]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:max_sessions_reads_base_config"]
+        ["../../crates/reqlan-analytical/tests/click.rs:session_cache_evicts_by_count_and_last_touched"]
+        ["../../packages/language/test/config.test.ts:schema file documents click maxSessions"]
+        ["../../packages/language/test/config.test.ts:loads click.maxSessions from applying config"]
+    )
 }

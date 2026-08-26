@@ -12,6 +12,12 @@ pub const RQIGNORE_FILENAME: &str = ".rqignore";
 pub const GITIGNORE_FILENAME: &str = ".gitignore";
 pub const IDEAS_INDEX_FILENAME: &str = "ideas-index.sqlite";
 pub const INDEX_DIAGNOSTICS_FILENAME: &str = "index-diagnostics.sqlite";
+/// Click session cursor store (CLI/MCP). Survives ideas-index rebuild.
+/// rq:["../../../reqlan rq/cli/click.rq".click_session]
+pub const CLICK_SESSIONS_FILENAME: &str = "click-sessions.sqlite";
+/// Default max click sessions retained per base.
+/// rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+pub const DEFAULT_CLICK_MAX_SESSIONS: u32 = 100;
 
 /// Gitignore patterns that exclude SQLite application-memory artifacts.
 /// rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
@@ -275,7 +281,8 @@ pub fn default_rqignore_file_contents() -> String {
 pub fn default_gitignore_file_contents() -> String {
     let mut lines = vec![
         "# reqlan SQLite artifacts — do not commit.".to_string(),
-        "# ideas-index.sqlite, index-diagnostics.sqlite, and sidecars.".to_string(),
+        "# ideas-index.sqlite, index-diagnostics.sqlite, click-sessions.sqlite, and sidecars."
+            .to_string(),
         String::new(),
     ];
     lines.extend(DEFAULT_GITIGNORE_PATTERNS.iter().map(|pattern| pattern.to_string()));
@@ -315,6 +322,12 @@ pub fn ideas_index_path(storage_path: &Path) -> PathBuf {
 
 pub fn index_diagnostics_path(storage_path: &Path) -> PathBuf {
     storage_path.join(INDEX_DIAGNOSTICS_FILENAME)
+}
+
+/// Path to `click-sessions.sqlite` under application memory.
+/// rq:["../../../reqlan rq/cli/click.rq".click_session]
+pub fn click_sessions_path(storage_path: &Path) -> PathBuf {
+    storage_path.join(CLICK_SESSIONS_FILENAME)
 }
 
 pub fn application_memory_path(workspace_root: &Path, storage_path: Option<&Path>) -> PathBuf {

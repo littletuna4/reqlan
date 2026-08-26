@@ -80,6 +80,19 @@ impl NativeAnalysisRuntime {
         serde_json::to_value(graph).map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// rq:["../../../reqlan rq/cli/click.rq".click]
+    #[napi]
+    pub fn click(
+        &self,
+        target: String,
+        session_key: Option<String>,
+        max_detail: Option<u32>,
+    ) -> Result<serde_json::Value> {
+        let result =
+            self.lock()?.click(&target, session_key.as_deref(), max_detail).map_err(map_err)?;
+        serde_json::to_value(result).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
     #[napi]
     pub fn get_completion_status(&self) -> Result<serde_json::Value> {
         let summary = self.lock()?.get_completion_status().map_err(map_err)?;
@@ -408,7 +421,8 @@ impl NativeSqlDb {
     #[napi]
     pub fn get_inbound_for_file_rows(&self, file_uri: String) -> Result<Vec<serde_json::Value>> {
         self.with_bridge(|b| {
-            queries::get_inbound_for_file_rows(b.connection(), &file_uri).map_err(map_sql_bridge_err)
+            queries::get_inbound_for_file_rows(b.connection(), &file_uri)
+                .map_err(map_sql_bridge_err)
         })
     }
 

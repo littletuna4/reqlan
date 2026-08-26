@@ -32,6 +32,7 @@ function insertBaseMarker(fs: VirtualFileSystemProvider, baseUri: string): void 
 
 describe('config schema file', () => {
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_schema_file]
+    // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
     test('schema file documents importRoots mappings', () => {
         const schemaPath = join(repoDir, 'packages/extension/schemas/config.schema.json');
         const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
@@ -45,6 +46,16 @@ describe('config schema file', () => {
                 export?: {
                     type?: string;
                 };
+                click?: {
+                    type?: string;
+                    properties?: {
+                        maxSessions?: {
+                            type?: string;
+                            default?: number;
+                            minimum?: number;
+                        };
+                    };
+                };
             };
         };
         expect(schema.properties?.importRoots?.items?.required).toEqual(['alias']);
@@ -54,6 +65,14 @@ describe('config schema file', () => {
         expect(schema.properties?.export).toMatchObject({
             type: 'object'
         });
+        expect(schema.properties?.click).toMatchObject({
+            type: 'object'
+        });
+        expect(schema.properties?.click?.properties?.maxSessions).toMatchObject({
+            type: 'integer',
+            default: 100,
+            minimum: 1
+        });
 
         const packageJson = JSON.parse(
             readFileSync(join(repoDir, 'packages/extension/package.json'), 'utf8')
@@ -62,6 +81,20 @@ describe('config schema file', () => {
             entry.fileMatch?.includes('**/.reqlan/config.json')
         );
         expect(validation?.url).toBe('./schemas/config.schema.json');
+    });
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+    test('schema file documents click maxSessions', () => {
+        const schemaPath = join(repoDir, 'packages/extension/schemas/config.schema.json');
+        const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
+            properties?: {
+                click?: {
+                    properties?: { maxSessions?: { default?: number; minimum?: number } };
+                };
+            };
+        };
+        expect(schema.properties?.click?.properties?.maxSessions?.default).toBe(100);
+        expect(schema.properties?.click?.properties?.maxSessions?.minimum).toBe(1);
     });
 });
 
@@ -81,6 +114,16 @@ describe('config location', () => {
         });
         const loaded = loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs);
         expect(loaded?.importRoots).toEqual([{ alias: '~' }]);
+    });
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+    test('loads click.maxSessions from applying config', () => {
+        const fs = new VirtualFileSystemProvider();
+        insertConfig(fs, 'file:///workspace/pkg', {
+            click: { maxSessions: 12 }
+        });
+        const loaded = loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs);
+        expect(loaded?.click?.maxSessions).toBe(12);
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]

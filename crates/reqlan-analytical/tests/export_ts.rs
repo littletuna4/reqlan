@@ -25,6 +25,7 @@ const REQUIRED_TYPES: &[&str] = &[
     "ExportRequestDto",
     "ExportResultDto",
     "InteractionDescriptor",
+    "ClickResult",
 ];
 
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]

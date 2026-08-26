@@ -4,10 +4,13 @@
 //! rq:["../../../reqlan rq/core_analysis/core.rq".runtime]
 
 mod api;
+mod click;
+mod click_sessions;
 mod types;
 mod workspace_index;
 
 pub use api::{AnalysisError, AnalysisRuntime};
+pub use click::{click_memory_path, ClickOptions};
 pub use reqlan_index::FileIssueDraft;
 pub use types::*;
 pub use workspace_index::{
@@ -33,5 +36,6 @@ pub fn type_collection() -> TypeCollection {
     types.register::<InteractionDescriptor>();
     types.register::<FileReferenceMatch>();
     types.register::<BrokenReferenceDto>();
+    types.register::<ClickResult>();
     types
 }

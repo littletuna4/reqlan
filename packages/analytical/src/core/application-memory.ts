@@ -36,6 +36,12 @@ export const IDEAS_INDEX_FILENAME = 'ideas-index.sqlite';
 export const INDEX_DIAGNOSTICS_FILENAME = 'index-diagnostics.sqlite';
 
 /**
+ * Sibling SQLite for CLI/MCP click session cursors (survives ideas-index rebuild).
+ * rq:["../../../../reqlan rq/cli/click.rq".click_session]
+ */
+export const CLICK_SESSIONS_FILENAME = 'click-sessions.sqlite';
+
+/**
  * Resolve the application-memory directory for a base.
  * Override with an absolute or relative `storagePath` when set (e.g. tests / REQLAN_INDEX_PATH).
  */
@@ -54,4 +60,9 @@ export function resolveIdeasIndexDbPath(workspaceRoot: string, storagePath?: str
 /** Full path to the index-diagnostics SQLite file under application memory. */
 export function resolveIndexDiagnosticsDbPath(workspaceRoot: string, storagePath?: string): string {
     return join(resolveApplicationMemoryPath(workspaceRoot, storagePath), INDEX_DIAGNOSTICS_FILENAME);
+}
+
+/** Full path to the click-sessions SQLite file under application memory. */
+export function resolveClickSessionsDbPath(workspaceRoot: string, storagePath?: string): string {
+    return join(resolveApplicationMemoryPath(workspaceRoot, storagePath), CLICK_SESSIONS_FILENAME);
 }
