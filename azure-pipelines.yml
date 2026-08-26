@@ -144,7 +144,7 @@ jobs:
       - pwsh: |
           $ErrorActionPreference = "Stop"
           corepack enable
-          corepack prepare pnpm@11.9.0 --activate
+          corepack prepare pnpm@11.23.0 --activate
           node --version
           pnpm --version
         displayName: Setup pnpm
