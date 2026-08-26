@@ -1,8 +1,9 @@
 /**
  * Detects where completion was requested in a reqlan document.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { CstNode, LangiumDocument } from 'langium';
-import { AstUtils, CstUtils, GrammarUtils } from 'langium';
+import { CstUtils, GrammarUtils } from 'langium';
 import type { Position } from 'vscode-languageserver';
 import {
     isAttribute,
@@ -12,6 +13,7 @@ import {
     isIdea,
     isImport,
     isMarkdownLink,
+    isModel,
     isOneLinerIdea,
     isQualifiedReference,
     isWikiLink,
@@ -270,19 +272,27 @@ export function isFilePathCompletion(contextProperty: string | undefined, contai
     return contextProperty === 'file' && (isFileReference(container) || isFileSymbolReference(container));
 }
 
-/** Innermost idea / one-liner whose range covers `position` (for completion ranking). */
+/**
+ * Innermost idea / one-liner whose range covers `position` (for completion ranking).
+ * Ideas are top-level declarations, so this is O(declarations) rather than a full AST walk.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ */
 export function findContainingIdea(
     document: LangiumDocument,
     position: Position
 ): IdeaDeclaration | undefined {
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return undefined;
+    }
     let match: IdeaDeclaration | undefined;
-    for (const node of AstUtils.streamAst(document.parseResult.value)) {
-        if ((!isIdea(node) && !isOneLinerIdea(node)) || !node.$cstNode?.range) {
+    for (const element of model.elements) {
+        if ((!isIdea(element) && !isOneLinerIdea(element)) || !element.$cstNode?.range) {
             continue;
         }
-        const range = node.$cstNode.range;
+        const range = element.$cstNode.range;
         if (position.line >= range.start.line && position.line <= range.end.line) {
-            match = node;
+            match = element;
         }
     }
     return match;

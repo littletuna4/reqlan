@@ -124,7 +124,6 @@ describe('comments in string context', () => {
 
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
     test('unclosed backtick then // is a line comment', async () => {
-        const services = createReqlanServices(EmptyFileSystem);
         const input = 'demo {\n    this line `// finishes " with a comment\n    keep visible\n}';
         const comments = slComments(input);
         expect(comments.some(token => token.image.includes('finishes'))).toBe(true);
@@ -141,7 +140,6 @@ describe('comments in string context', () => {
 
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
     test('unclosed quote then // is a line comment', async () => {
-        const services = createReqlanServices(EmptyFileSystem);
         const input = 'demo {\n    as does "//this one\n    keep visible\n}';
         const comments = slComments(input);
         expect(comments.some(token => token.image.includes('this one'))).toBe(true);

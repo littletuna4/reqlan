@@ -7,6 +7,7 @@
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
 import { UriUtils } from 'langium';
@@ -20,15 +21,33 @@ import {
 
 export const UNREACHABLE_PATH_DISTANCE = 9999;
 
+/** Keep completion lists bounded after proximity ranking. Distant hits still appear as the query narrows. */
+export const PATH_COMPLETION_MAX_RESULTS = 500;
+
+/** Reuse directory listings across keystrokes; new files appear after this window. */
+export const PATH_COMPLETION_LISTING_TTL_MS = 3_000;
+
+/** Hard cap on files+folders collected from one walk root. */
+export const PATH_COMPLETION_MAX_TREE_NODES = 8_000;
+
+const LISTING_CACHE_LIMIT = 4_096;
+
 /** Directories that must not be walked for path completion (dependency and build output trees). */
 const SKIP_DIRECTORY_NAMES = new Set([
     'node_modules',
+    'bower_components',
+    'vendor',
     'dist',
     'build',
     'target',
     'coverage',
     'out',
-    '__pycache__'
+    '__pycache__',
+    'venv',
+    'site-packages',
+    'Pods',
+    'tmp',
+    'temp'
 ]);
 
 export interface PathCompletionCandidate {
@@ -42,6 +61,56 @@ export interface CollectPathCompletionOptions {
     extensionFilter?: string;
     /** Unquoted typed query; folder browsing when it ends with `/`, otherwise substring/subsequence search. */
     prefix?: string;
+}
+
+export interface PathCompletionCacheStats {
+    directoryReads: number;
+    listingCacheHits: number;
+    listingCacheMisses: number;
+}
+
+interface CachedListing {
+    entries: readonly CachedDirEntry[];
+    expiresAt: number;
+}
+
+interface CachedDirEntry {
+    uri: URI;
+    name: string;
+    isDirectory: boolean;
+}
+
+interface FlattenedNode {
+    uri: URI;
+    isDirectory: boolean;
+    relativeFromRoot: string;
+}
+
+interface FlattenedTree {
+    nodes: readonly FlattenedNode[];
+    expiresAt: number;
+}
+
+const listingCache = new Map<string, CachedListing>();
+const flattenedCache = new Map<string, FlattenedTree>();
+
+const cacheStats: PathCompletionCacheStats = {
+    directoryReads: 0,
+    listingCacheHits: 0,
+    listingCacheMisses: 0
+};
+
+/** Test/diagnostics counters for path-completion filesystem I/O. */
+export function pathCompletionCacheStats(): PathCompletionCacheStats {
+    return { ...cacheStats };
+}
+
+export function clearPathCompletionCaches(): void {
+    listingCache.clear();
+    flattenedCache.clear();
+    cacheStats.directoryReads = 0;
+    cacheStats.listingCacheHits = 0;
+    cacheStats.listingCacheMisses = 0;
 }
 
 /** Directory hop count between two directory URIs (each `..` or named segment counts). */
@@ -85,6 +154,20 @@ export function comparePathCompletionCandidates(
     right: PathCompletionCandidate
 ): number {
     return pathCompletionSortText(document, left).localeCompare(pathCompletionSortText(document, right));
+}
+
+/**
+ * Sort with a single proximity-key computation per candidate.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ */
+export function sortPathCompletionCandidates(
+    document: LangiumDocument,
+    candidates: readonly PathCompletionCandidate[]
+): PathCompletionCandidate[] {
+    return candidates
+        .map(candidate => ({ candidate, key: pathCompletionSortText(document, candidate) }))
+        .sort((left, right) => left.key.localeCompare(right.key))
+        .map(entry => entry.candidate);
 }
 
 export function relativePathKeepExtension(fromDir: string, targetUri: URI): string {
@@ -199,7 +282,11 @@ export function collectPathCompletionCandidates(
     if (query.length > 0) {
         candidates = candidates.filter(candidate => pathMatchesQuery(candidate.path, query));
     }
-    return candidates;
+    const ranked = sortPathCompletionCandidates(document, candidates);
+    if (ranked.length <= PATH_COMPLETION_MAX_RESULTS) {
+        return ranked;
+    }
+    return ranked.slice(0, PATH_COMPLETION_MAX_RESULTS);
 }
 
 /** Directory prefixes for a file path, e.g. `../path/file.rq` → `../path/`. */
@@ -249,7 +336,6 @@ function collectRelativePathCandidates(
     extensionFilter?: string
 ): PathCompletionCandidate[] {
     const sourceDir = UriUtils.dirname(document.uri);
-    const dirname = sourceDir.toString();
     const candidates: PathCompletionCandidate[] = [];
 
     for (const doc of documents.all.toArray()) {
@@ -267,7 +353,16 @@ function collectRelativePathCandidates(
     }
 
     if (fileSystem.existsSync(sourceDir)) {
-        collectDirectoryTree(sourceDir, dirname, undefined, undefined, candidates, extensionFilter, fileSystem);
+        for (const node of flattenDirectoryTree(sourceDir, extensionFilter, fileSystem)) {
+            const path = node.isDirectory
+                ? `./${node.relativeFromRoot}/`
+                : `./${node.relativeFromRoot}`;
+            candidates.push({
+                path,
+                targetUri: node.uri,
+                isDirectory: node.isDirectory
+            });
+        }
     }
     return candidates;
 }
@@ -305,33 +400,75 @@ function collectAliasedPathCandidates(
             }
         }
         if (fileSystem.existsSync(importRoot)) {
-            collectDirectoryTree(
-                importRoot,
-                rootString,
-                aliasPrefix,
-                rootString,
-                candidates,
-                extensionFilter,
-                fileSystem
-            );
+            for (const node of flattenDirectoryTree(importRoot, extensionFilter, fileSystem)) {
+                const aliased = `${aliasPrefix}${node.relativeFromRoot}${node.isDirectory ? '/' : ''}`;
+                candidates.push({
+                    path: aliased,
+                    targetUri: node.uri,
+                    isDirectory: node.isDirectory
+                });
+            }
         }
     }
     return candidates;
 }
 
-function collectDirectoryTree(
+function flattenDirectoryTree(
+    root: URI,
+    extensionFilter: string | undefined,
+    fileSystem: FileSystemProvider
+): readonly FlattenedNode[] {
+    const now = Date.now();
+    const key = `${root.toString()}::${extensionFilter ?? '*'}`;
+    const cached = flattenedCache.get(key);
+    if (cached && cached.expiresAt > now) {
+        return cached.nodes;
+    }
+    const nodes: FlattenedNode[] = [];
+    collectFlattenedNodes(root, '', 0, extensionFilter, fileSystem, nodes);
+    flattenedCache.set(key, { nodes, expiresAt: now + PATH_COMPLETION_LISTING_TTL_MS });
+    return nodes;
+}
+
+function collectFlattenedNodes(
     directory: URI,
-    relativeFrom: string,
-    aliasPrefix: string | undefined,
-    aliasRoot: string | undefined,
-    candidates: PathCompletionCandidate[],
+    relativeFromRoot: string,
+    depth: number,
     extensionFilter: string | undefined,
     fileSystem: FileSystemProvider,
-    depth = 0
+    nodes: FlattenedNode[]
 ): void {
-    if (depth > 32) {
+    if (depth > 32 || nodes.length >= PATH_COMPLETION_MAX_TREE_NODES) {
         return;
     }
+    for (const entry of readDirectoryCached(directory, fileSystem)) {
+        if (nodes.length >= PATH_COMPLETION_MAX_TREE_NODES) {
+            return;
+        }
+        const rel = relativeFromRoot ? `${relativeFromRoot}/${entry.name}` : entry.name;
+        if (entry.isDirectory) {
+            nodes.push({ uri: entry.uri, isDirectory: true, relativeFromRoot: rel });
+            collectFlattenedNodes(entry.uri, rel, depth + 1, extensionFilter, fileSystem, nodes);
+            continue;
+        }
+        if (extensionFilter && !entry.name.endsWith(extensionFilter)) {
+            continue;
+        }
+        nodes.push({ uri: entry.uri, isDirectory: false, relativeFromRoot: rel });
+    }
+}
+
+function readDirectoryCached(directory: URI, fileSystem: FileSystemProvider): readonly CachedDirEntry[] {
+    const now = Date.now();
+    const key = directory.toString();
+    const cached = listingCache.get(key);
+    if (cached && cached.expiresAt > now) {
+        cacheStats.listingCacheHits += 1;
+        return cached.entries;
+    }
+    cacheStats.listingCacheMisses += 1;
+    cacheStats.directoryReads += 1;
+    const entries: CachedDirEntry[] = [];
     for (const entry of fileSystem.readDirectorySync(directory)) {
         const name = entry.uri.path.split('/').pop() ?? '';
         if (!name || name.startsWith('.')) {
@@ -340,43 +477,20 @@ function collectDirectoryTree(
         if (entry.isDirectory && SKIP_DIRECTORY_NAMES.has(name)) {
             continue;
         }
-        if (entry.isDirectory) {
-            const path = aliasPrefix && aliasRoot
-                ? (() => {
-                    const aliased = aliasedPathKeepExtension(aliasRoot, aliasPrefix, entry.uri);
-                    return aliased ? `${aliased}/` : undefined;
-                })()
-                : `${relativePathKeepExtension(relativeFrom, entry.uri)}/`;
-            if (path) {
-                candidates.push({ path, targetUri: entry.uri, isDirectory: true });
-            }
-            collectDirectoryTree(
-                entry.uri,
-                relativeFrom,
-                aliasPrefix,
-                aliasRoot,
-                candidates,
-                extensionFilter,
-                fileSystem,
-                depth + 1
-            );
-            continue;
+        entries.push({ uri: entry.uri, name, isDirectory: entry.isDirectory });
+    }
+    listingCache.set(key, { entries, expiresAt: now + PATH_COMPLETION_LISTING_TTL_MS });
+    evictOldestListings();
+    return entries;
+}
+
+function evictOldestListings(): void {
+    while (listingCache.size > LISTING_CACHE_LIMIT) {
+        const oldest = listingCache.keys().next().value;
+        if (oldest === undefined) {
+            return;
         }
-        if (extensionFilter && !name.endsWith(extensionFilter)) {
-            continue;
-        }
-        if (aliasPrefix && aliasRoot) {
-            const aliased = aliasedPathKeepExtension(aliasRoot, aliasPrefix, entry.uri);
-            if (aliased) {
-                candidates.push({ path: aliased, targetUri: entry.uri, isDirectory: false });
-            }
-            continue;
-        }
-        candidates.push({
-            path: relativePathKeepExtension(relativeFrom, entry.uri),
-            targetUri: entry.uri,
-            isDirectory: false
-        });
+        listingCache.delete(oldest);
     }
 }
 
@@ -392,27 +506,20 @@ function collectFolderSegmentCandidates(
         return [];
     }
     const candidates: PathCompletionCandidate[] = [];
-    for (const entry of fileSystem.readDirectorySync(dirUri)) {
-        const name = entry.uri.path.split('/').pop() ?? '';
-        if (!name || name.startsWith('.')) {
-            continue;
-        }
-        if (entry.isDirectory && SKIP_DIRECTORY_NAMES.has(name)) {
-            continue;
-        }
+    for (const entry of readDirectoryCached(dirUri, fileSystem)) {
         if (entry.isDirectory) {
             candidates.push({
-                path: `${prefix}${name}/`,
+                path: `${prefix}${entry.name}/`,
                 targetUri: entry.uri,
                 isDirectory: true
             });
             continue;
         }
-        if (extensionFilter && !name.endsWith(extensionFilter)) {
+        if (extensionFilter && !entry.name.endsWith(extensionFilter)) {
             continue;
         }
         candidates.push({
-            path: `${prefix}${name}`,
+            path: `${prefix}${entry.name}`,
             targetUri: entry.uri,
             isDirectory: false
         });
