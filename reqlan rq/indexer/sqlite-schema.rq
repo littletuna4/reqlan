@@ -13,7 +13,7 @@ import "./consumers.rq" as consumers
 ideas_index_sqlite {
     The ideas graph for one [base_ownership] lives at `<base>/.reqlan/ideas-index.sqlite`
     under [application_memory].
-    Schema version is 4 (`SCHEMA_VERSION` in [schema_ts] and [schema_rust]).
+    Schema version is in (`SCHEMA_VERSION` in [schema_ts] and [schema_rust]).
     Runtime migrate runs in Rust ([store_rust]); TypeScript opens the store and calls
     native migrate ([sqlite_store]).
     Keep [schema_ts] aligned with [schema_rust].
