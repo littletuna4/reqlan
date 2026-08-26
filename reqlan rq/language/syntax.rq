@@ -117,7 +117,10 @@ reference_resolution_order {
     3. Resolve each candidate against those local declarations.
     4. Resolve imports only for candidates that have no local match. Stop import lookup for a candidate when a local match exists.
     The language server and the indexer must use this sequence.
-    Related: [same_file_reference], [ideaset], ["./imports.rq".import_tokenisation].
+    Open-file editor underlines follow [open_file_reference_sequencing] so they do not wait
+    on a full workspace Langium link.
+    Related: [same_file_reference], [ideaset], ["./imports.rq".import_tokenisation],
+    ["../indexer/indexer.rq".local_symbolic_analysis].
 
     @status done
     @implementation (
@@ -130,6 +133,34 @@ reference_resolution_order {
         ["../../packages/language/test/linking.test.ts:resolve forward reference to later ideaset in the same file"]
         ["../../packages/language/test/linking.test.ts:resolve local ideaset before imports"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:same_file_forward_ideaset_reference_is_resolved"]
+    )
+}
+
+open_file_reference_sequencing {
+    When the editor opens a `.rq` buffer, reference UI must follow this order:
+    1. Fast file pass on this buffer only — resolve path-shaped refs with filesystem checks
+       ([reference_file], document links for imports and file targets).
+    2. Local Rust symbolic outbound for this buffer — ["../indexer/indexer.rq".local_symbolic_analysis]
+       (path + source → outbound edges with spans). Do not wait for workspace Linked or
+       `workspaceManager.ready`.
+    3. Inbound from SQLite — ["../indexer/cache-reuse.rq".unify_inbound_indexes] pushes a
+       per-file inbound snapshot when the index is ready. Empty until then; never freeze
+       on Langium IndexManager.
+    Background Langium workspace parse may continue for completion and rename. It must not
+    gate steps 1–3.
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../packages/language/src/reqlan-inlay-hint-provider.ts"]
+        ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../packages/extension/src/extension/register-inbound-sqlite-sync.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
     )
 }
 
@@ -147,6 +178,18 @@ reference_wikilink {
 reference_qualified {
     Cross-file references may qualify an import path or alias with an idea name.
     Qualified wikilinks may combine a quoted import path with a dot and idea name.
+    A quoted path opens the target file as an ideaset (["./imports.rq".anonymous_imports_allowed]).
+    Partial from-import of that path does not restrict which ideas the quoted path can name.
+
+    @implementation (
+        ["../../packages/language/src/reqlan-scope.ts"]
+        ["../../packages/language/src/reqlan-linker.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve import path in qualified wikilink"]
+        ["../../packages/language/test/linking.test.ts:quoted-path qualified idea is not limited to from-import specifiers"]
+        ["../../packages/language/test/linking.test.ts:sqlite-schema quoted path reaches indexer ideas that are not from-imported"]
+    )
 }
 
 reference_file {

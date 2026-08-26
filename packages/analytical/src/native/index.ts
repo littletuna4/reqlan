@@ -38,8 +38,12 @@ export {
     type HeadlessAnalysisApi,
     type OpenedAnalysisApi
 } from './open-analysis-api.js';
-export { extractIdeaNames, parseAlignSnapshot, parseReqlanSource } from './parse-source.js';
+export { extractIdeaNames, analyzeLocalSymbolic, parseAlignSnapshot, parseReqlanSource } from './parse-source.js';
 export type {
+    LocalSymbolicDocument,
+    LocalSymbolicEdge,
+    LocalSymbolicIdea,
+    LocalSymbolicImportRoot,
     NativeAlignRef,
     NativeAlignSnapshot,
     NativeParseDiagnostic,

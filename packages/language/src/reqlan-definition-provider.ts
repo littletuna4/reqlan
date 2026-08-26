@@ -42,6 +42,7 @@ import {
 } from './generated/ast.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { findLocalSymbolicDefinition } from './reqlan-local-symbolic-links.js';
 import { findWildcardReferenceAtPosition } from './reqlan-wildcard-resolve.js';
 
 export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
@@ -67,6 +68,25 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         // Same-file and cross-file idea refs both take this path, so neither is slower than the other.
         if (this.isIdeaReferencePosition(document, params.position)) {
             return super.getDefinition(document, params);
+        }
+        // Path-local symbolic extract: works before the workspace is Linked.
+        const symbolic = findLocalSymbolicDefinition(
+            document,
+            document.textDocument.offsetAt(params.position),
+            this.pathContext(),
+            this.documents
+        );
+        if (symbolic) {
+            const targetRange = symbolic.targetRange ?? {
+                start: { line: 0, character: 0 },
+                end: { line: 0, character: 0 }
+            };
+            return [LocationLink.create(
+                symbolic.targetUri,
+                targetRange,
+                targetRange,
+                symbolic.sourceRange
+            )];
         }
         if (isMarkdownLinkLabelPosition(document, params.position)) {
             return undefined;

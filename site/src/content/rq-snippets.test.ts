@@ -12,6 +12,8 @@ describe("accurate reqlan snippets", () => {
     assert.ok(ids.includes("hero.snippet"));
     assert.ok(ids.some((id) => id.startsWith("syntax.")));
     assert.ok(ids.some((id) => id.startsWith("showcase.")));
+    // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps]
+    assert.ok(ids.some((id) => id.startsWith("first-steps.")));
   });
 
   for (const snippet of accurateRqSnippets()) {

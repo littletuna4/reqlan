@@ -508,8 +508,10 @@ export function collectFileLinks(
     document: LangiumDocument,
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider,
-    context?: PathResolveContext
+    context?: PathResolveContext,
+    options?: { includeIdeaReferences?: boolean }
 ): ResolvedFileLink[] {
+    const includeIdeaReferences = options?.includeIdeaReferences !== false;
     const pathContext = withFileSystem(fileSystem, context);
     const links: ResolvedFileLink[] = [];
     const linkedRanges: string[] = [];
@@ -538,7 +540,7 @@ export function collectFileLinks(
             if (link) {
                 pushLink(link);
             }
-        } else if (isLocalReference(node) || isQualifiedReference(node)) {
+        } else if (includeIdeaReferences && (isLocalReference(node) || isQualifiedReference(node))) {
             for (const link of resolveIdeaReferenceLinks(node)) {
                 pushLink(link);
             }

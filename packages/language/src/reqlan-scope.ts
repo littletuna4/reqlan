@@ -1,8 +1,11 @@
 /**
  * Publishes idea and ideaset declarations for file-local and cross-file reference resolution.
  * Local declarations are collected first; imports are consulted only when a name is not local.
+ * Quoted-path qualified refs treat the target file as an ideaset even when a from-import
+ * of the same path only binds some names.
  * rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+ * rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
  */
 import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
@@ -28,6 +31,7 @@ import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
+import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 export class ReqlanScopeComputation extends DefaultScopeComputation {
 
@@ -102,18 +106,30 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 if (qualifier && isIdeaSet(qualifier)) {
                     return this.scopeForIdeasetMembers(qualifier, document);
                 }
-                const importDecl = container.qualifier?.ref ?? container.path?.ref;
-                if (importDecl) {
-                    const importScope = this.scopeForImportDeclaration(importDecl, document);
-                    if (importScope) {
-                        return importScope;
+                // Quoted path: open every idea in that file. Do not stop at a matching
+                // from-import / qualified-import specifier list (those bind bare `[name]` only).
+                if (container.path) {
+                    const path = qualifiedReferenceImportPath(container);
+                    if (path) {
+                        const importScope = this.scopeForImportPath(path, document);
+                        if (importScope) {
+                            return importScope;
+                        }
                     }
-                }
-                const path = qualifiedReferenceImportPath(container);
-                if (path) {
-                    const importScope = this.scopeForImportPath(path, document);
-                    if (importScope) {
-                        return importScope;
+                } else {
+                    const importDecl = container.qualifier?.ref;
+                    if (importDecl) {
+                        const importScope = this.scopeForImportDeclaration(importDecl, document);
+                        if (importScope) {
+                            return importScope;
+                        }
+                    }
+                    const path = qualifiedReferenceImportPath(container);
+                    if (path) {
+                        const importScope = this.scopeForImportPath(path, document);
+                        if (importScope) {
+                            return importScope;
+                        }
                     }
                 }
                 const aliasScope = this.scopeForImportAliasName(context.reference.$refText, document);
@@ -285,17 +301,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             return new StreamScope(stream([description]));
         }
         if (isFromImport(importDecl)) {
-            const imported = this.findImportedDocument(importDecl.path, document);
-            if (!imported) {
-                return undefined;
-            }
-            const descriptions = importDecl.specifiers
-                .map(specifier => specifier.idea.ref)
-                .filter((target): target is NonNullable<typeof target> =>
-                    target !== undefined && isIdeaDeclaration(target)
-                )
-                .map(target => this.descriptions.createDescription(target, target.name, imported));
-            return new StreamScope(stream(descriptions));
+            return this.scopeForImportPath(importDecl.path, document);
         }
         if (isQualifiedImport(importDecl)) {
             const imported = this.findImportedDocument(importDecl.path, document);
@@ -332,7 +338,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private scopeForImportPath(path: string, document: LangiumDocument): Scope | undefined {
-        const imported = this.findImportedDocument(path, document);
+        const imported = this.findImportedDocument(unquoteReqlanString(path), document);
         if (!imported) {
             return undefined;
         }

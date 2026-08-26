@@ -1,10 +1,11 @@
 /**
  * Clickable document links for idea references, file references, import paths, and comment references.
- * Same-file and cross-file idea refs both get links so the editor underline is consistent.
- * Comment-reference links come from the same presentation as the missing-idea underline.
+ * Idea underlines come from path-local Rust extract (no wait on workspace Linked).
  * Missing file refs get an error underline and no document link.
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+ * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { LangiumDocument } from 'langium';
 import { URI } from 'langium';
@@ -13,6 +14,7 @@ import type { DocumentLink, DocumentLinkParams } from 'vscode-languageserver';
 import { DocumentLink as LspDocumentLink } from 'vscode-languageserver';
 import { presentCommentReferencesForDocument } from './reqlan-comment-diagnostics.js';
 import { collectFileLinks, resolvedFileLinkTargetUri } from './reqlan-file-link-resolver.js';
+import { collectLocalSymbolicOutboundLinks } from './reqlan-local-symbolic-links.js';
 import { folderReferenceCommandTarget } from './reqlan-reference-at-position.js';
 import { wildcardReferenceCommandTarget } from './reqlan-wildcard-resolve.js';
 import type { ReqlanServices } from './reqlan-module.js';
@@ -36,7 +38,8 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             document,
             this.documents,
             this.fileSystem,
-            pathContext
+            pathContext,
+            { includeIdeaReferences: false }
         ).flatMap(link => {
             if (link.resolution === 'folder') {
                 return [LspDocumentLink.create(
@@ -59,6 +62,17 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             }
             return [LspDocumentLink.create(link.sourceRange, target)];
         });
+        const ideaLinks = collectLocalSymbolicOutboundLinks(
+            document,
+            pathContext,
+            this.documents
+        ).flatMap(link => {
+            const target = resolvedFileLinkTargetUri(link);
+            if (!target) {
+                return [];
+            }
+            return [LspDocumentLink.create(link.sourceRange, target)];
+        });
         const commentLinks = presentCommentReferencesForDocument(
             document,
             this.documents,
@@ -68,6 +82,6 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             link.range,
             link.targetUri ?? URI.file(link.targetPath).toString()
         ));
-        return [...fileLinks, ...commentLinks];
+        return [...fileLinks, ...ideaLinks, ...commentLinks];
     }
 }

@@ -112,6 +112,15 @@ export interface NativeModule {
     /** Top-level idea names in a document (git-context historical extract). */
     extractIdeaNames?(source: string): string[];
     /**
+     * File-local outbound symbolic extract (no catalog / ensure_ready).
+     * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+     */
+    analyzeLocalSymbolic?(
+        fileUri: string,
+        source: string,
+        importRoots?: Array<{ alias: string; root?: string }>
+    ): unknown;
+    /**
      * 0-based line indexes suppressed by `//rq-ignore-error`.
      * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
      */

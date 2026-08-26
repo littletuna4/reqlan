@@ -109,7 +109,22 @@ configuration_import_root_alias {
 }
 
 anonymous_imports_allowed {
-    imports can be inlined with this syntax: `["../ontology.rq".attribute]`. i.e. file references import the file as an ideaset.
+    A quoted path plus idea — for example `["../ontology.rq".attribute]` — opens that file as an ideaset.
+    Every idea in the target file is in scope for that reference.
+    A from-import or qualified import of the same path only binds the listed names for bare `[name]` references.
+    It must not hide other ideas from a quoted-path reference.
+
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-scope.ts"]
+        ["../../packages/language/src/reqlan-linker.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolve anonymous import in bracket reference without import statement"]
+        ["../../packages/language/test/linking.test.ts:quoted-path qualified idea is not limited to from-import specifiers"]
+        ["../../packages/language/test/linking.test.ts:quoted-path qualified idea is not limited to a qualified import of the same file"]
+        ["../../packages/language/test/linking.test.ts:sqlite-schema quoted path reaches indexer ideas that are not from-imported"]
+    )
 }
 
 import_tokenisation {

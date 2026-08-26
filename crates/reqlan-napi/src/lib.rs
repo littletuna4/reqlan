@@ -406,6 +406,13 @@ impl NativeSqlDb {
     }
 
     #[napi]
+    pub fn get_inbound_for_file_rows(&self, file_uri: String) -> Result<Vec<serde_json::Value>> {
+        self.with_bridge(|b| {
+            queries::get_inbound_for_file_rows(b.connection(), &file_uri).map_err(map_sql_bridge_err)
+        })
+    }
+
+    #[napi]
     pub fn get_idea_at_line_row(
         &self,
         file_uri: String,
@@ -1092,6 +1099,14 @@ impl NativeWorkspaceIndex {
     }
 
     #[napi]
+    pub fn get_inbound_for_file_rows(&self, file_uri: String) -> Result<Vec<serde_json::Value>> {
+        self.with_mut(|inner| {
+            queries::get_inbound_for_file_rows(inner.ideas_connection(), &file_uri)
+                .map_err(map_sql_bridge_err)
+        })
+    }
+
+    #[napi]
     pub fn get_idea_at_line_row(
         &self,
         file_uri: String,
@@ -1340,6 +1355,38 @@ pub fn extract_idea_names(source: String) -> Vec<String> {
         .filter_map(|element| element.name())
         .filter(|name| !name.is_empty())
         .map(str::to_string)
+        .collect()
+}
+
+/// Path + source only: outbound edges with spans. No workspace catalog, no SQLite.
+/// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+/// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+#[napi]
+pub fn analyze_local_symbolic(
+    file_uri: String,
+    source: String,
+    import_roots: Option<Vec<serde_json::Value>>,
+) -> Result<serde_json::Value> {
+    let roots = parse_import_root_dtos(import_roots.as_deref().unwrap_or(&[]));
+    let doc = reqlan_index::analyze_local_symbolic(&file_uri, &source, &roots);
+    serde_json::to_value(doc).map_err(|error| Error::from_reason(error.to_string()))
+}
+
+fn parse_import_root_dtos(entries: &[serde_json::Value]) -> Vec<reqlan_parse::ImportRootMapping> {
+    entries
+        .iter()
+        .filter_map(|entry| {
+            let alias = entry.get("alias")?.as_str()?.to_string();
+            if alias.is_empty() {
+                return None;
+            }
+            let root = entry
+                .get("root")
+                .and_then(|value| value.as_str())
+                .map(str::to_string)
+                .filter(|value| !value.is_empty());
+            Some(reqlan_parse::ImportRootMapping { alias, root })
+        })
         .collect()
 }
 

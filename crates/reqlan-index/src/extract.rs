@@ -4,9 +4,11 @@
 //! rq:["../../../reqlan rq/ontology.rq".reference]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+//! rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 //! rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
 //! rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+//! rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
 //! rq:["../../../reqlan rq/language/syntax.rq".block_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".attribute_forms]
 //! rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
@@ -43,12 +45,44 @@ pub struct WildcardIdeaCandidate {
 pub struct ExtractOptions {
     pub idea_candidates: Vec<WildcardIdeaCandidate>,
     pub import_roots: Vec<ImportRootMapping>,
+    /// When true, ignore `idea_candidates` so outbound extract stays file-local
+    /// (wildcards stay one unresolved pattern edge).
+    /// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+    pub local_symbolic: bool,
 }
 
 impl Default for ExtractOptions {
     fn default() -> Self {
-        Self { idea_candidates: Vec::new(), import_roots: reqlan_parse::default_import_roots() }
+        Self {
+            idea_candidates: Vec::new(),
+            import_roots: reqlan_parse::default_import_roots(),
+            local_symbolic: false,
+        }
     }
+}
+
+/// File-local symbolic outbound extract: no catalog, no SQLite, no other documents.
+/// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+/// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+pub fn analyze_local_symbolic(
+    file_uri: &str,
+    source: &str,
+    import_roots: &[ImportRootMapping],
+) -> IndexedDocument {
+    let roots = if import_roots.is_empty() {
+        reqlan_parse::default_import_roots()
+    } else {
+        import_roots.to_vec()
+    };
+    extract_indexed_document(
+        file_uri,
+        source,
+        &ExtractOptions {
+            idea_candidates: Vec::new(),
+            import_roots: roots,
+            local_symbolic: true,
+        },
+    )
 }
 
 pub fn extract_indexed_document(
@@ -118,6 +152,8 @@ pub fn extract_from_parse(
                         source_line: None,
                         snippet: None,
                         is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None
                     });
                 }
             }
@@ -135,7 +171,7 @@ pub fn extract_from_parse(
                     &walk_idea_parts(&idea.elements),
                     &model.imports,
                     &ideas,
-                    &options.idea_candidates,
+                    candidates(options),
                     &options.import_roots,
                     &mut edges,
                 );
@@ -148,7 +184,7 @@ pub fn extract_from_parse(
                     &idea.body,
                     &model.imports,
                     &ideas,
-                    &options.idea_candidates,
+                    candidates(options),
                     &options.import_roots,
                     &mut edges,
                 );
@@ -160,6 +196,14 @@ pub fn extract_from_parse(
     collect_file_reference_edges(source, file_uri, &ideas, &mut edges);
 
     IndexedDocument { file_uri: file_uri.to_string(), content_hash, ideas, edges }
+}
+
+fn candidates(options: &ExtractOptions) -> &[WildcardIdeaCandidate] {
+    if options.local_symbolic {
+        &[]
+    } else {
+        &options.idea_candidates
+    }
 }
 
 fn to_idea_record(
@@ -341,7 +385,10 @@ fn collect_parts_edges(
         match part {
             RichPart::MarkdownLink { raw, span } => {
                 if let Some(target) = parse_markdown_target(raw) {
-                    edges.push(file_edge(&source_id, &target, span.line_start + 1, raw));
+                    edges.push(
+                        file_edge(&source_id, &target, span.line_start + 1, raw)
+                            .with_source_offsets(span.start as u32, span.end as u32),
+                    );
                 }
             }
             RichPart::BracketRef { target, span } | RichPart::WikiLink { target, span, .. } => {
@@ -362,7 +409,7 @@ fn collect_parts_edges(
                     span.line_start + 1,
                     &snippet,
                 ) {
-                    edges.push(edge);
+                    edges.push(edge.with_source_offsets(span.start as u32, span.end as u32));
                 }
             }
             _ => {}
@@ -392,6 +439,8 @@ fn file_edge(source_id: &str, target: &str, source_line: u32, snippet: &str) -> 
             snippet.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(120).collect(),
         ),
         is_resolved: Some(true),
+        source_offset_start: None,
+        source_offset_end: None,
     }
 }
 
@@ -523,6 +572,8 @@ fn ref_edge(
         source_line: Some(source_line),
         snippet,
         is_resolved: Some(resolved),
+        source_offset_start: None,
+        source_offset_end: None,
     }
 }
 
@@ -582,6 +633,8 @@ fn wildcard_edges(
             source_line: Some(source_line),
             snippet,
             is_resolved: Some(false),
+            source_offset_start: None,
+            source_offset_end: None
         }];
     }
     matches
@@ -598,6 +651,8 @@ fn wildcard_edges(
                 source_line: Some(source_line),
                 snippet: snippet.clone(),
                 is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None
             }
         })
         .collect()
@@ -858,6 +913,8 @@ fn collect_file_reference_edges(
             source_line: Some(line),
             snippet: None,
             is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None
         });
     }
 }

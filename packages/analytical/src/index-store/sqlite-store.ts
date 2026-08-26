@@ -174,6 +174,33 @@ export class SqliteIndexStore {
         return rows.map(row => this.toSummary(row));
     }
 
+    /**
+     * Inbound edges targeting ideas in `fileUri`, plus comment/file refs to that file.
+     * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
+     */
+    async getInboundForFile(fileUri: string): Promise<InboundForFileRow[]> {
+        const rows = this.db.conn.getInboundForFileRows(fileUri) as unknown as InboundForFileSqlRow[];
+        return rows.map(row => ({
+            id: String(row.id),
+            sourceId: String(row.source_id),
+            targetId: row.target_id != null ? String(row.target_id) : undefined,
+            targetFile: row.target_file != null ? String(row.target_file) : undefined,
+            kind: String(row.kind),
+            label: row.label != null ? String(row.label) : undefined,
+            sourceLine: typeof row.source_line === 'number' ? row.source_line : undefined,
+            snippet: row.snippet != null ? String(row.snippet) : undefined,
+            isResolved: typeof row.is_resolved === 'number'
+                ? row.is_resolved !== 0
+                : typeof row.is_resolved === 'boolean'
+                    ? row.is_resolved
+                    : undefined,
+            sourceName: row.source_name != null ? String(row.source_name) : undefined,
+            sourceFileUri: row.source_file_uri != null ? String(row.source_file_uri) : undefined,
+            sourceIdeaLine: typeof row.source_idea_line === 'number' ? row.source_idea_line : undefined,
+            targetName: row.target_name != null ? String(row.target_name) : undefined
+        }));
+    }
+
     async getIdeaAtLine(fileUri: string, line: number): Promise<IdeaSummary | undefined> {
         const row = this.db.conn.getIdeaAtLineRow(fileUri, line) as unknown as SummaryRow | null;
         return row ? this.toSummary(row) : undefined;
@@ -932,6 +959,39 @@ interface SqliteEdgeRow {
     source_line?: number | null;
     snippet?: string | null;
     is_resolved?: number | null;
+}
+
+interface InboundForFileSqlRow {
+    id: string;
+    source_id: string;
+    target_id: string | null;
+    target_file: string | null;
+    kind: string;
+    label: string | null;
+    source_line?: number | boolean | null;
+    snippet?: string | null;
+    is_resolved?: number | boolean | null;
+    source_name?: string | null;
+    source_file_uri?: string | null;
+    source_idea_line?: number | null;
+    target_name?: string | null;
+}
+
+/** Row from {@link SqliteIndexStore.getInboundForFile}. */
+export interface InboundForFileRow {
+    id: string;
+    sourceId: string;
+    targetId?: string;
+    targetFile?: string;
+    kind: string;
+    label?: string;
+    sourceLine?: number;
+    snippet?: string;
+    isResolved?: boolean;
+    sourceName?: string;
+    sourceFileUri?: string;
+    sourceIdeaLine?: number;
+    targetName?: string;
 }
 
 interface SqliteIdeaRow {

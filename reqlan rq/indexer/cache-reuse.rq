@@ -88,12 +88,32 @@ avoid_full_list_all_ideas {
 }
 
 unify_inbound_indexes {
-    Inlays and code-lens may use a Langium inverse-reference index while mutation hooks
-    read inbound edges from SQLite.
-    When the workspace index is ready, workspace-wide inbound lookups should reuse
-    [ideas_schema.edges_table] so both paths share one graph.
-    [index_cache_reuse]
-    @status draft
+    Inlay hints and code lens must read inbound edges from [ideas_schema.edges_table],
+    not Langium IndexManager.
+    Query: edges whose `target_id` is an idea in the open file, plus `comment_link` /
+    `file_reference` rows whose `target_file` matches that file.
+    The extension host runs the query and pushes a snapshot to the language server.
+    The language server does not open SQLite ([consumers.extension_ui_consumers]).
+    Updates follow index sync independently of open-file parse
+    (["../language/syntax.rq".open_file_reference_sequencing]).
+    Mutation hooks already use the same store. Share one graph.
+    Related: [index_cache_reuse], ["../indexer/indexer.rq".local_symbolic_analysis],
+    ["../extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance].
+
+    @status done
+    @implementation (
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/language/src/reqlan-inlay-hint-provider.ts"]
+        ["../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
+        ["../../packages/language/src/reqlan-inbound-snapshot.ts"]
+        ["../../packages/language/src/reqlan-reference-code-lens.ts"]
+        ["../../packages/extension/src/extension/register-inbound-sqlite-sync.ts"]
+        ["../../crates/reqlan-index/src/queries.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_edges_targeting_ideas_in_file"]
+        ["../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
+    )
 }
 
 overview_coverage_reuse {

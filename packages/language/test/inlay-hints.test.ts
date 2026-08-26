@@ -19,6 +19,7 @@ import {
     formatInboundReferencesInlayLabel,
     referencerMarkdownLink
 } from '../src/reqlan-inbound-reference-inlay-label.js';
+import { sharedInboundSnapshot } from '../src/reqlan-inbound-snapshot.js';
 import { ReqlanInlayHintProvider } from '../src/reqlan-inlay-hint-provider.js';
 
 let services: ReturnType<typeof createReqlanServices>;
@@ -31,6 +32,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+    sharedInboundSnapshot.clear();
     const documents = services.shared.workspace.LangiumDocuments.all.toArray();
     if (documents.length > 0) {
         clearDocuments(services.shared, documents);
@@ -38,6 +40,19 @@ afterEach(async () => {
     document = undefined;
     services.shared.workspace.ConfigurationProvider.updateConfiguration({ settings: {} });
 });
+
+function seedInboundSnapshot(
+    doc: LangiumDocument<Model>,
+    byIdeaName: Record<string, Array<{ name: string; uri: string; line: number }>>
+): void {
+    sharedInboundSnapshot.update({
+        snapshots: [{
+            documentUri: doc.uri.toString(),
+            indexedUri: doc.uri.path.replace(/^\//, ''),
+            byIdeaName
+        }]
+    });
+}
 
 function setReferenceInlayHintsEnabled(enabled: boolean): void {
     services.shared.workspace.ConfigurationProvider.updateConfiguration({
@@ -167,6 +182,9 @@ describe('Reference inlay hints', () => {
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(document, {
+            target: [{ name: 'source', uri: document.uri.toString(), line: 4 }]
+        });
 
         const hints = await getInlayHintsForDocument(document);
 
@@ -212,9 +230,12 @@ describe('Reference inlay hints', () => {
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(document, {
+            target: [{ name: 'source', uri: document.uri.toString(), line: 4 }]
+        });
 
         const hints = await getInlayHintsForDocument(document);
-        const sourcePart = hintLabelParts(hints![0]).find(part => part.value === 'source');
+        const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
 
         expect(sourcePart?.location?.uri).toBe(document.uri.toString());
         expect(sourcePart?.location?.range.start.line).toBeGreaterThanOrEqual(0);
@@ -237,13 +258,19 @@ describe('Reference inlay hints', () => {
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(document, {
+            target: [
+                { name: 'alpha', uri: document.uri.toString(), line: 8 },
+                { name: 'beta', uri: document.uri.toString(), line: 4 }
+            ]
+        });
 
         const hints = await getInlayHintsForDocument(document);
 
         expect(hints).toHaveLength(1);
-        expect(hintLabelText(hints![0])).toBe('@referenced-by: (alpha, beta)');
-        expect(typeof hints![0].tooltip).toBe('object');
-        const tooltip = hints![0].tooltip as { kind: string; value: string };
+        expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (alpha, beta)');
+        expect(typeof hints![0]!.tooltip).toBe('object');
+        const tooltip = hints![0]!.tooltip as { kind: string; value: string };
         expect(tooltip.kind).toBe('markdown');
         expect(tooltip.value).toContain('[alpha]');
         expect(tooltip.value).toContain('[beta]');
@@ -311,12 +338,15 @@ describe('Reference inlay hints', () => {
         docs.addDocument(sourceDoc);
         await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(targetDoc, {
+            target: [{ name: 'source', uri: sourceDoc.uri.toString(), line: 3 }]
+        });
 
         const hints = await getInlayHintsForDocument(targetDoc);
 
         expect(hints).toHaveLength(1);
-        expect(hintLabelText(hints![0])).toBe('@referenced-by: (source)');
-        const sourcePart = hintLabelParts(hints![0]).find(part => part.value === 'source');
+        expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (source)');
+        const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
         expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 
@@ -344,12 +374,15 @@ describe('Reference inlay hints', () => {
         docs.addDocument(sourceDoc);
         await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(targetDoc, {
+            target: [{ name: 'source', uri: sourceDoc.uri.toString(), line: 1 }]
+        });
 
         const hints = await getInlayHintsForDocument(targetDoc);
 
         expect(hints).toHaveLength(1);
-        expect(hintLabelText(hints![0])).toBe('@referenced-by: (source)');
-        const sourcePart = hintLabelParts(hints![0]).find(part => part.value === 'source');
+        expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (source)');
+        const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
         expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 
@@ -377,12 +410,15 @@ describe('Reference inlay hints', () => {
         docs.addDocument(sourceDoc);
         await services.shared.workspace.DocumentBuilder.build([targetDoc, sourceDoc], { validation: false });
         setReferenceInlayHintsEnabled(true);
+        seedInboundSnapshot(targetDoc, {
+            shared: [{ name: 'shared', uri: sourceDoc.uri.toString(), line: 1 }]
+        });
 
         const hints = await getInlayHintsForDocument(targetDoc);
 
         expect(hints).toHaveLength(1);
-        expect(hintLabelText(hints![0])).toBe('@referenced-by: (shared)');
-        const sharedPart = hintLabelParts(hints![0]).find(part => part.value === 'shared');
+        expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (shared)');
+        const sharedPart = hintLabelParts(hints![0]!).find(part => part.value === 'shared');
         expect(sharedPart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 

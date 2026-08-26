@@ -13,8 +13,16 @@ import {
   type QuickstartIdeId,
 } from "@/content/install-actions";
 import type { PhonebookPackageId } from "@/lib/phonebook";
+import { firstStepsPath } from "@/content/first-steps";
 
 export type { InstallAction, QuickstartIconRef, QuickstartIdeId };
+
+export type QuickstartNextStep = {
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
+};
 
 export type QuickstartIde = InstallAction & {
   primaryAction: {
@@ -145,13 +153,35 @@ export const quickstartContent = {
     },
   ] satisfies QuickstartPackage[],
   nextSteps: [
+    // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
+    {
+      id: "first-steps",
+      title: "First steps walkthrough",
+      detail: "Install, write, link, and map your first ideas. A written tour, no videos needed.",
+      href: firstStepsPath,
+    },
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_02_first_idea]
-    "Create or open a `.rq` file in your workspace.",
+    {
+      id: "first-idea",
+      title: "Watch: Your first idea",
+      detail: "One-liners and blocks in a `.rq` file.",
+      href: "/tutorials/gs-02-first-idea",
+    },
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_04_first_base]
-    "Create a reqlan base (`.reqlan`) so the ideas index has a home.",
+    {
+      id: "first-base",
+      title: "Watch: Your first base",
+      detail: "Create a reqlan base (`.reqlan`) so the ideas index has a home.",
+      href: "/tutorials/gs-04-first-base",
+    },
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_05_activity_bar]
-    "Open the reqlan activity bar for neighbourhood context, then try @reqlan / rq-* skills.",
-  ],
+    {
+      id: "activity-bar",
+      title: "Watch: Neighbourhood context",
+      detail: "Open the activity bar, then try @reqlan / rq-* skills.",
+      href: "/tutorials/gs-05-activity-bar",
+    },
+  ] satisfies QuickstartNextStep[],
   related: [
     {
       id: "tutorials",

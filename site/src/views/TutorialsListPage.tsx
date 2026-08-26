@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { TutorialCard } from "@/components/TutorialCard";
 import { SiteShell } from "@/components/SiteShell";
+import { firstStepsPath } from "@/content/first-steps";
 import {
   tutorialMatchesQuery,
   tutorialSeriesMeta,
@@ -36,6 +37,7 @@ function assessmentMatchesQuery(query: string): boolean {
 export function TutorialsListPage({ decks }: TutorialsListPageProps) {
   // rq:["../../../reqlan rq/site/site.rq".tutorials_section]
   // rq:["../../../reqlan rq/site/certs.rq".assessment_page]
+  // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
   const progress = useTutorialProgress();
@@ -104,6 +106,19 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
             />
           </label>
         </header>
+
+        {!searching ? (
+          <Link className={styles.startHere} href={firstStepsPath as Route}>
+            <span className={styles.startHereKicker}>Start here</span>
+            <span className={styles.startHereTitle}>
+              First steps walkthrough
+            </span>
+            <span className={styles.startHereBlurb}>
+              Install, write, link, and map your first ideas. A written tour,
+              about 20 minutes, no video needed.
+            </span>
+          </Link>
+        ) : null}
 
         {groups.length === 0 ? (
           <p className={styles.empty}>No decks match “{query.trim()}”.</p>

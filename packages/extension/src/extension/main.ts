@@ -19,6 +19,7 @@ import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hi
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
+import { registerInboundSqliteSync } from './register-inbound-sqlite-sync.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
 import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js';
 import { registerOnboardingCommands } from './register-onboarding-commands.js';
@@ -124,6 +125,7 @@ function scheduleBackgroundStartup(
                 // that become ready afterwards.
                 registerAttributeCatalogSync(context, submodule.index, () => client);
                 registerNameCatalogSync(context, submodule.index, () => client);
+                registerInboundSqliteSync(context, submodule.index, () => client);
             })
             .catch(error => {
                 console.error('[reqlan] Language client failed to start:', error);

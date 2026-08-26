@@ -78,6 +78,9 @@ edges_table {
     [ideas_index_sqlite]
     ["./indexer.rq".wildcard_reference_edges]
     ["./indexer.rq".index_code_files]
+    @tests (
+        ["../../packages/language/test/linking.test.ts:sqlite-schema quoted path reaches indexer ideas that are not from-imported"]
+    )
 }
 
 edge_kinds {

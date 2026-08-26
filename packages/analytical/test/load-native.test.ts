@@ -79,6 +79,31 @@ describe('load-native', () => {
         expect(parsed.elements.some(element => element.name === 'hello')).toBe(true);
     });
 
+    // rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+    it('exposes analyzeLocalSymbolic on the engine when present', () => {
+        const loaded = tryLoadNativeEngine();
+        if (!loaded) {
+            return;
+        }
+        expect(loaded.analyzeLocalSymbolic).toBeTypeOf('function');
+        const doc = loaded.analyzeLocalSymbolic?.(
+            'demo/host.rq',
+            'host {\n    See [local].\n}\nlocal {\n    body\n}\n',
+            []
+        ) as {
+            edges: Array<{
+                kind: string;
+                label?: string;
+                sourceOffsetStart?: number;
+                sourceOffsetEnd?: number;
+            }>;
+        };
+        const local = doc.edges.find(edge => edge.label === 'local');
+        expect(local?.kind).toBe('references');
+        expect(local?.sourceOffsetStart).toBeTypeOf('number');
+        expect(local?.sourceOffsetEnd).toBeTypeOf('number');
+    });
+
     it('accepts extra search dirs without throwing', () => {
         addNativeEngineSearchDirs('/tmp/reqlan-missing-native-dir');
         expect(() => tryLoadNativeEngine()).not.toThrow();

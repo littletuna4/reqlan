@@ -588,6 +588,8 @@ fn sync_drops_stale_inline_code_file_refs_when_extract_version_changes() {
         source_line: None,
         snippet: None,
         is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None
     });
     let mtime_ms = std::fs::metadata(root.join("host.rq"))
         .ok()

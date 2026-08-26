@@ -21,7 +21,6 @@ import { sitePath } from "@/lib/paths";
 import { resolveQuickstartIcon } from "@/lib/quickstart-icons";
 import { usePreferredPackageManager } from "@/lib/use-package-manager";
 import { cn } from "@/lib/utils";
-import shared from "./shared.module.css";
 import styles from "./QuickstartClient.module.css";
 
 type QuickstartClientProps = {
@@ -351,9 +350,14 @@ export function QuickstartClient({ initialIde }: QuickstartClientProps) {
         <h2 id="quickstart-next-title" className={styles.nextTitle}>
           What&apos;s next
         </h2>
-        <ul className={shared.featureList}>
+        <ul className={styles.nextList}>
           {nextSteps.map((step) => (
-            <li key={step}>{step}</li>
+            <li key={step.id}>
+              <a href={sitePath(`${step.href}/`)} className={styles.relatedLink}>
+                <span className={styles.relatedLabel}>{step.title}</span>
+                <span className={styles.relatedDetail}>{step.detail}</span>
+              </a>
+            </li>
           ))}
         </ul>
       </section>

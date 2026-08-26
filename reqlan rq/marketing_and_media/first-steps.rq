@@ -1,27 +1,310 @@
+// Beginner-facing written walkthrough. Baseline step list kept from the original draft.
+from "../ontology.rq" import base, attribute
+from "../language/syntax.rq" import simple_idea, block_idea, reference_brackets, reference_wikilink
+from "../language/imports.rq" import import_from, import_namespace, wildcard_references
+from "../bases/base.rq" import base as base_detail, create_base_onboarding
+from "../cli/cli_package.rq" import cli_package
+from "../extension/installation.rq" import installation, extension_installation
+from "../extension/features-consumption.rq" import graph_view, local_graph_view
+from "../extension/module/activitybar.rq" import activity_bar
+from "../extension/module/context-scope.rq" import context_scope
+from "../extension/module/ideas_summary/webview.rq" import ideas_summary
+from "../extension/features-skills-and-mcp.rq" import mcp_tools
+from "../core_analysis/html_export.rq" import html_export
+from "../core_analysis/search.rq" import fuzzy_search, contextual_search
+from "../extension/features-non-rq-code-comment/functional-code-comment-references.rq" import references_in_functional_code_comments
+import "../site/site.rq" as site_reqs
+import "./tutorials.rq" as media_reqs
+
 first_steps {
-    - install
-        - cli
-        - extension
-        - mcp
-    - create a base
-    - create your first file
-    - create your first idea
-    - add an attribute
-    - reference another idea
-    - reference a code file
-    - cross reference from a code comment.
-    - build an atlas/map
-    - search for closest requirements against a code file.
-    - import an idea, ideaset, codefile, and folder
-    - export a base to html and open it.
-    - view the graph
-    - search for an idea
-    - trace an idea (in the)
-    @todo
+    First steps is a written walkthrough for day one. It needs no video player and no setup talk.
+    The reader performs one small action per step, sees a demo of each file state, and checks one result.
+    The step list below is the baseline order. Each step names the matching video lesson in [media_reqs.get_started_series]
+    so a learner can switch between reading and watching.
+    Scope: install, first base, first file and idea, one attribute, links between ideas,
+    links to code, one code comment link, two map views, one search against code,
+    imports, HTML export, idea search, and one trace. Nothing else on day one.
+    Hosted at `/tutorials/first-steps/` next to the video catalog per [site_reqs.tutorials_section].
+    Linked from Get started per [site_reqs.quickstart_page].
+    Learner-facing copy stays simple: short sentences, active voice, one instruction per line.
+    Every `rq` snippet on the page must parse per [site_reqs.accurate_rq_snippets_must_parse].
+    Demo fixture states live in [first_steps_demo_workspace].
+    @status draft
+    @tags (
+        marketing
+        media
+        first-steps
+    )
 }
 
-practical_or_toy_example {
-    example files at each state
-    - should be integrated into the tutorial
-    @todo
+first_step_order (
+    fs_01_install_extension,
+    fs_02_create_a_base,
+    fs_03_write_your_first_idea,
+    fs_04_add_an_attribute,
+    fs_05_reference_another_idea,
+    fs_06_reference_a_code_file,
+    fs_07_cross_reference_from_a_code_comment,
+    fs_08_see_your_neighbourhood,
+    fs_09_open_the_graph,
+    fs_10_find_requirements_for_code,
+    fs_11_import_across_files,
+    fs_12_export_to_html,
+    fs_13_search_for_an_idea,
+    fs_14_trace_an_idea
+)
+
+fs_01_install_extension {
+    Goal: the reader installs reqlan and opens a project folder.
+    Install the editor extension from the marketplace or by VSIX download per [installation] / [extension_installation].
+    The CLI and MCP packages are optional on day one; note them, do not teach them here ([cli_package], [mcp_tools]).
+    Result: the reqlan icon appears in the editor activity bar, and the welcome page offers docs links.
+    Video: [media_reqs.gs_01_why_reqlan] explains why before this step; this step assumes the reader already wants to try.
+    @example {
+        ```md
+        1. Open the Extensions view in your editor.
+        2. Search for "reqlan".
+        3. Select Install.
+        4. Open your project folder. An empty folder works too.
+        ```
+    }
+    @status draft
+}
+
+fs_02_create_a_base {
+    Goal: the reader marks the folder as a reqlan base, so ideas get a home index.
+    Run `reqlan init` in the workspace root, or use the onboarding prompt per [create_base_onboarding].
+    A base is the `.reqlan` folder: config, ignore rules, and the ideas index per [base_detail].
+    Result: a `.reqlan` folder appears with `config.json`.
+    Video: [media_reqs.gs_04_first_base].
+    @example {
+        ```sh
+        reqlan init
+        ```
+    }
+    @status draft
+}
+
+fs_03_write_your_first_idea {
+    Goal: the reader creates a `.rq` file and writes one one-liner idea and one block idea per [simple_idea] / [block_idea].
+    Create `reqs/product.rq`. Type the demo below. Names stay unique in the file.
+    Result: hover a name and the editor shows its summary text.
+    Video: [media_reqs.gs_02_first_idea].
+    @example {
+        ```rq
+        product_name FocusFlow is a small task board for a five person team
+
+        welcome_flow {
+            A new user opens the board and adds their first task.
+            No account is needed for the first task.
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_04_add_an_attribute {
+    Goal: the reader attaches one attribute to an existing idea per [attribute].
+    Add `@status draft` and one tag to `welcome_flow`. Status values track work state.
+    Result: the status shows in hover summaries and in search filters.
+    Video: [media_reqs.adv_02_attributes_status_plans] goes deeper than day one needs.
+    @example {
+        ```rq
+        welcome_flow {
+            A new user opens the board and adds their first task.
+            No account is needed for the first task.
+
+            @status draft
+            @tags (onboarding)
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_05_reference_another_idea {
+    Goal: the reader links two ideas, then jumps along the link per [reference_brackets] / [reference_wikilink].
+    Add `onboarding_checklist`, then point `welcome_flow` at it with a wikilink.
+    Ctrl+click (Cmd+click on macOS) the target to jump. Broken names show an error.
+    Result: each idea lists the other as a neighbour.
+    Video: [media_reqs.gs_03_link_ideas].
+    @example {
+        ```rq
+        welcome_flow {
+            A new user opens the board and adds their first task.
+            Needs [[onboarding_checklist]] before launch.
+
+            @status draft
+        }
+
+        onboarding_checklist {
+            Show three steps: add a task, invite the team, set a due date.
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_06_reference_a_code_file {
+    Goal: the reader points one idea at real code with a qualified path reference.
+    Add `"../src/board.ts".renderEmptyBoard` in brackets to `welcome_flow` per [reference_brackets].
+    The editor confirms the file and symbol exist, or reports a broken reference.
+    Result: the idea links to the function that implements part of it.
+    Video: [media_reqs.gs_07_link_code].
+    @example {
+        ```rq
+        welcome_flow {
+            A new user opens the board and adds their first task.
+            The empty state renders in ["../src/board.ts".renderEmptyBoard].
+
+            @status draft
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_07_cross_reference_from_a_code_comment {
+    Goal: the reader writes an `rq:` comment in a source file that points back at an idea per [references_in_functional_code_comments].
+    Open `src/board.ts`. Above `renderEmptyBoard`, type the demo comment.
+    Result: the comment resolves to `welcome_flow`, so navigation works from both directions.
+    Video: [media_reqs.adv_05_comment_references].
+    @example {
+        ```ts
+        // rq: welcome_flow - keep the empty state aligned with this idea
+        export function renderEmptyBoard() {
+            return [];
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_08_see_your_neighbourhood {
+    Goal: the reader opens the activity bar panel and reads local context around the caret idea per [activity_bar] / [context_scope].
+    Leave the caret inside `welcome_flow`. Click the reqlan icon. Read the neighbour list.
+    Sync follows the caret; hop depth controls how far the panel reaches.
+    Result: the panel shows `onboarding_checklist` and the code reference as neighbours.
+    Video: [media_reqs.gs_05_activity_bar].
+    @status draft
+}
+
+fs_09_open_the_graph {
+    Goal: the reader opens a visual map of the ideas in the base per [graph_view] / [ideas_summary].
+    Open the Ideas Summary or graph view from the activity bar panel.
+    Nodes are ideas. Edges are references. Small graphs stay readable; that is enough on day one.
+    Result: the reader sees the same three nodes they wrote, connected.
+    Video: [media_reqs.adv_03_ideas_summary_graph] shows larger graphs.
+    @status draft
+}
+
+fs_10_find_requirements_for_code {
+    Goal: the reader asks the tool which requirements relate to one source file per [contextual_search].
+    Run `reqlan analyse --file src/board.ts` in the workspace root, or ask the MCP tools for file context per [mcp_tools].
+    Result: the output lists `welcome_flow`, because of the reference written in [fs_06_reference_a_code_file].
+    Video: [media_reqs.con_03_cli] runs the same fixture from a terminal.
+    @example {
+        ```sh
+        reqlan analyse --file src/board.ts
+        ```
+    }
+    @status draft
+}
+
+fs_11_import_across_files {
+    Goal: the reader pulls one idea from another file, then a namespace, then a wildcard folder match
+    per [import_from] / [import_namespace] / [wildcard_references].
+    Create `reqs/auth.rq` with `login_rules`. Import it into `product.rq` and reference it.
+    Result: cross-file references resolve like local ones.
+    Video: [media_reqs.adv_01_imports_ideasets].
+    @example {
+        ```rq
+        from "./auth.rq" import login_rules
+        import "./auth.rq" as auth
+
+        password_reset {
+            Follows [login_rules] and every rule under [auth].
+            Applies to flows in ["./src/**/*.ts".*_flow].
+        }
+        ```
+    }
+    @status draft
+}
+
+fs_12_export_to_html {
+    Goal: the reader exports the base and opens the report per [html_export].
+    Run `reqlan export html`. Open the produced file in a browser.
+    Result: a static page lists ideas, statuses, and links, shareable with people who do not use the editor.
+    Video: [media_reqs.adv_06_html_export].
+    @example {
+        ```sh
+        reqlan export html
+        ```
+    }
+    @status draft
+}
+
+fs_13_search_for_an_idea {
+    Goal: the reader finds one idea by name or words per [fuzzy_search].
+    Search from the command palette, or run `reqlan search checklist`.
+    Fuzzy matches tolerate typos; scoped chat search keeps prompts small per [contextual_search].
+    Result: `onboarding_checklist` comes back as the top hit.
+    Video: [media_reqs.gs_06_chat_search].
+    @status draft
+}
+
+fs_14_trace_an_idea {
+    Goal: the reader walks one hop out and one hop in from an idea.
+    Outbound: what this idea points at. Inbound: what points at this idea.
+    Use the activity bar panel, the local graph per [local_graph_view], or `reqlan analyse --idea welcome_flow`.
+    Result: the reader can answer "what breaks if this changes?" for one idea.
+    Video: [media_reqs.adv_04_context_and_tokens] extends tracing to AI context budgets.
+    @status draft
+}
+
+first_steps_demo_workspace {
+    Shared written-walkthrough fixture: `focusflow-demo`. Same spirit as the video fixture in [media_reqs.demo_workspace];
+    learners may reuse one folder for both. Never record or screenshot the reqlan monorepo itself.
+    Cumulative end state after each milestone:
+    - After fs_01: folder open, extension installed, welcome seen once.
+    - After fs_02: `.reqlan/` exists with `config.json`. The folder is a [base].
+    - After fs_03: `reqs/product.rq` holds `product_name` (one-liner) and `welcome_flow` (block).
+    - After fs_04: `welcome_flow` carries `@status draft` and one tag.
+    - After fs_05: `welcome_flow -> onboarding_checklist` linked both ways in the panel.
+    - After fs_06 / fs_07: `src/board.ts` stub exists; idea-to-code and comment-to-idea links resolve.
+    - After fs_11: `reqs/auth.rq` holds `login_rules`; imports resolve from `product.rq`.
+    Example files at each state should ship with the page later, so a reader can diff instead of typing.
+    @todo publish downloadable fixture snapshots per milestone
+    @status draft
+}
+
+first_steps_page {
+    The site exposes `/tutorials/first-steps/` as a statically generated written walkthrough per [site_reqs.tutorials_section].
+    Page parts:
+    - header: title, one-line promise, estimated time, link back to Get started;
+    - step sections in [first_step_order]: goal, numbered actions, demo snippet, expected result, related lesson link;
+    - closing row: continue to the video course, the showcase, or the FAQ.
+    Get started links here as the first entry in its What's next section per [site_reqs.quickstart_page].
+    The tutorials catalog shows a Start-here banner above the course list.
+    Sidebar nests the page under Tutorials.
+    All `rq` demo snippets join the parse gate per [site_reqs.accurate_rq_snippets_must_parse].
+    Copy follows [first_steps] simplicity rules.
+    @status draft
+    @implementation (
+        ["../../site/src/app/tutorials/first-steps/page.tsx"]
+        ["../../site/src/views/FirstStepsPage.tsx"]
+        ["../../site/src/views/FirstStepsPage.module.css"]
+        ["../../site/src/content/first-steps.ts"]
+        ["../../site/src/content/quickstart.ts"]
+        ["../../site/src/components/QuickstartClient.tsx"]
+        ["../../site/src/views/TutorialsListPage.tsx"]
+        ["../../site/src/views/tutorials.module.css"]
+        ["../../site/src/content/nav.ts"]
+        ["../../site/src/content/accurate-rq-snippets.ts"]
+    )
+    @tests (
+        ["../../site/src/content/first-steps.test.ts"]
+        ["../../site/src/content/quickstart.test.ts"]
+        ["../../site/src/content/rq-snippets.test.ts:first-steps demo snippets parse"]
+    )
 }

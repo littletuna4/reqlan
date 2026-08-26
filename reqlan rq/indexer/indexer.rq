@@ -67,9 +67,11 @@ wildcard_reference_edges {
     Soft mtime sync skips unchanged files — after introducing this edge kind, reindex (or touch)
     `.rq` files that contain wildcards so stored rows leave any legacy `references` fan-out.
     Langium `idea-extractor` keeps the same kind for remaining TS extract paths.
+    Open-file local extract ([local_symbolic_analysis]) does not expand wildcards against a catalog.
 
     Related: ["../language/imports.rq".wildcard_references], [index], [indexer_rust],
-    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle],
+    [local_symbolic_analysis].
 
     @status done
     @implementation (
@@ -92,6 +94,52 @@ wildcard_reference_edges {
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas"]
         ["../../crates/reqlan-index/tests/wildcard_reference_edges.rs:stores_wildcard_fan_out_as_wildcard_reference_kind"]
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_workspace_graph_includes_wildcard_refs_chip_and_edges"]
+    )
+}
+
+local_symbolic_analysis {
+    Open-file symbolic outbound analysis must run in Rust on one file only.
+    Input: file URI plus source text (and optional import-root mappings).
+    Output: ideas in that file and outbound edges with source byte spans.
+    Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
+    Wildcard forms stay one `wildcard_reference` pattern edge (unresolved); sync still expands
+    them later via [wildcard_reference_edges].
+    Flag: `ExtractOptions.local_symbolic` forces an empty candidate list.
+    Related: ["../language/syntax.rq".open_file_reference_sequencing], [index],
+    ["./cache-reuse.rq".unify_inbound_indexes].
+
+    @status done
+    @plan {
+        goal
+            Path-local outbound symbolic refs for the open buffer without workspace Langium link.
+
+        constraints
+            - No `ensure_ready` / sync mutex on the open-file path.
+            - Persist schema unchanged; spans are live-only.
+            - Sync catalog fan-out for wildcards stays [wildcard_reference_edges].
+
+        steps
+            1. Add `local_symbolic` extract options and `analyze_local_symbolic`.
+            2. Expose free NAPI + TypeScript wrapper.
+            3. Wire document links and definition to the open-buffer result.
+            4. Serve inbound from SQLite independently of Langium IndexManager.
+
+        open
+            - None for the first cut.
+    }
+    @implementation (
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/parse-source.ts"]
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_returns_outbound_without_catalog"]
+        ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_ignores_catalog_candidates"]
+        ["../../packages/analytical/test/load-native.test.ts:exposes analyzeLocalSymbolic on the engine when present"]
+        ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
     )
 }
 

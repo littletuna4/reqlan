@@ -118,6 +118,20 @@ pub struct EdgeRecord {
     pub snippet: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_resolved: Option<bool>,
+    /// UTF-8 byte offset of the reference span (live extract only; not persisted).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_offset_start: Option<u32>,
+    /// UTF-8 byte offset end (exclusive) of the reference span (live extract only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_offset_end: Option<u32>,
+}
+
+impl EdgeRecord {
+    pub fn with_source_offsets(mut self, start: u32, end: u32) -> Self {
+        self.source_offset_start = Some(start);
+        self.source_offset_end = Some(end);
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

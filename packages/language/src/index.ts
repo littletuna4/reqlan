@@ -48,6 +48,7 @@ export * from './reqlan-import-edits.js';
 export * from './reqlan-import-bindings.js';
 export * from './reqlan-namespace-import-links.js';
 export * from './reqlan-name-catalog.js';
+export * from './reqlan-inbound-snapshot.js';
 export * from './reqlan-workspace-attribute-catalog.js';
 export * from './reqlan-inlay-hint-settings.js';
 export * from './reqlan-code-lens-settings.js';

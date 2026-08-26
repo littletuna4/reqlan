@@ -81,3 +81,62 @@ export function extractIdeaNames(source: string): string[] {
     }
     return engine.extractIdeaNames(source);
 }
+
+export interface LocalSymbolicImportRoot {
+    alias: string;
+    root?: string;
+}
+
+export interface LocalSymbolicEdge {
+    id: string;
+    sourceId: string;
+    targetId?: string;
+    targetFile?: string;
+    kind: string;
+    label?: string;
+    sourceLine?: number;
+    snippet?: string;
+    isResolved?: boolean;
+    sourceOffsetStart?: number;
+    sourceOffsetEnd?: number;
+}
+
+export interface LocalSymbolicIdea {
+    id: string;
+    name: string;
+    kind: string;
+    fileUri: string;
+    lineStart: number;
+    lineEnd: number;
+    summary: string;
+}
+
+export interface LocalSymbolicDocument {
+    fileUri: string;
+    contentHash: string;
+    ideas: LocalSymbolicIdea[];
+    edges: LocalSymbolicEdge[];
+}
+
+/**
+ * File-local outbound symbolic extract (path + source). No workspace catalog.
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+ * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ */
+export function analyzeLocalSymbolic(
+    fileUri: string,
+    source: string,
+    importRoots?: readonly LocalSymbolicImportRoot[]
+): LocalSymbolicDocument {
+    const engine = loadNativeEngine();
+    if (typeof engine.analyzeLocalSymbolic !== 'function') {
+        throw new Error(
+            'Native analyzeLocalSymbolic is missing; rebuild crates/reqlan-napi (cargo build -p reqlan-napi).'
+        );
+    }
+    const roots = importRoots?.map(root => ({
+        alias: root.alias,
+        ...(root.root !== undefined ? { root: root.root } : {})
+    }));
+    return engine.analyzeLocalSymbolic(fileUri, source, roots) as LocalSymbolicDocument;
+}

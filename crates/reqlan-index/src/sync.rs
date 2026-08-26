@@ -167,6 +167,7 @@ pub fn sync_workspace(
             &ExtractOptions {
                 idea_candidates: catalog.clone(),
                 import_roots: import_roots.clone(),
+                local_symbolic: false,
             },
         );
         if let Err(error) = store.persist_extracted(extracted.clone(), mtime_ms) {
@@ -409,7 +410,11 @@ pub fn index_one_file(
         &file_uri,
         &source,
         &parsed,
-        &ExtractOptions { idea_candidates: catalog, import_roots },
+        &ExtractOptions {
+            idea_candidates: catalog,
+            import_roots,
+            local_symbolic: false,
+        },
     );
     store.persist_extracted(extracted, mtime_ms)?;
     refresh_indexed_code_documents(store, workspace_root)?;

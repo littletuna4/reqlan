@@ -49,6 +49,7 @@ export interface NativeQuerySurface {
     listAllIdeaRows(): Record<string, unknown>[];
     getIdeaRow(id: string): Record<string, unknown> | null;
     getIdeasInFileRows(fileUri: string): Record<string, unknown>[];
+    getInboundForFileRows(fileUri: string): Record<string, unknown>[];
     getIdeaAtLineRow(fileUri: string, line: number): Record<string, unknown> | null;
     getIdeasetAtLineRow(fileUri: string, line: number): Record<string, unknown> | null;
     listIdeasInFileWithRangeRows(fileUri: string): Record<string, unknown>[];
@@ -250,6 +251,10 @@ export class NativeSqlConnection {
 
     getIdeasInFileRows(fileUri: string): Record<string, unknown>[] {
         return this.handle.getIdeasInFileRows(fileUri);
+    }
+
+    getInboundForFileRows(fileUri: string): Record<string, unknown>[] {
+        return this.handle.getInboundForFileRows(fileUri);
     }
 
     getIdeaAtLineRow(fileUri: string, line: number): Record<string, unknown> | null {

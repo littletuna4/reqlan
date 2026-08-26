@@ -173,7 +173,10 @@ describe('Linking tests', () => {
         expect(ideaLinks.length).toBeGreaterThanOrEqual(1);
         for (const link of ideaLinks) {
             expect(link.target).toContain('exampleimport');
-            expect(link.target).toMatch(/#L\d+/);
+            // Line fragment when the target document is already loaded; otherwise file URI alone.
+            if (link.target?.includes('#')) {
+                expect(link.target).toMatch(/#L\d+/);
+            }
         }
     });
 
@@ -678,6 +681,122 @@ example_ideaset (
         expect(bracketRef.target.idea.ref?.name).toBe('attribute');
         expect(bracketRef.target.idea.error).toBeUndefined();
         expect(AstUtils.getDocument(bracketRef.target.idea.ref!).uri.path).toContain('ontology.rq');
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_qualified]
+    test('quoted-path qualified idea is not limited to from-import specifiers', async () => {
+        const lib = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                imported_name {
+                    bound by from-import
+                }
+                other_name {
+                    must stay reachable through the quoted path
+                }
+            `,
+            URI.parse('file:///tmp/lib.rq')
+        ) as LangiumDocument<Model>;
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                from "./lib.rq" import imported_name
+
+                consumer {
+                    see ["./lib.rq".other_name]
+                }
+            `,
+            URI.parse('file:///tmp/consumer.rq')
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(lib);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([lib, consumer], { validation: true });
+        document = consumer;
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target) && ref.target.idea?.$refText === 'other_name');
+        expect(isQualifiedReference(bracketRef?.target) && bracketRef.target.idea?.ref?.name).toBe('other_name');
+        expect(isQualifiedReference(bracketRef?.target) ? bracketRef.target.idea?.error : 'missing').toBeUndefined();
+
+        const unresolved = (consumer.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes("Could not resolve reference to IdeaDeclaration named 'other_name'")
+        );
+        expect(unresolved).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_qualified]
+    test('quoted-path qualified idea is not limited to a qualified import of the same file', async () => {
+        const lib = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                imported_name {
+                    bound by qualified import
+                }
+                other_name {
+                    must stay reachable through the quoted path
+                }
+                bundle (
+                    imported_name
+                )
+            `,
+            URI.parse('file:///tmp/lib.rq')
+        ) as LangiumDocument<Model>;
+        const consumer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                import "./lib.rq".bundle.imported_name
+
+                consumer {
+                    see ["./lib.rq".other_name]
+                }
+            `,
+            URI.parse('file:///tmp/consumer.rq')
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(lib);
+        services.shared.workspace.LangiumDocuments.addDocument(consumer);
+        await services.shared.workspace.DocumentBuilder.build([lib, consumer], { validation: true });
+        document = consumer;
+
+        const bracketRef = [...AstUtils.streamAst(consumer.parseResult.value)]
+            .filter(isBracketReference)
+            .find(ref => isQualifiedReference(ref.target) && ref.target.idea?.$refText === 'other_name');
+        expect(isQualifiedReference(bracketRef?.target) && bracketRef.target.idea?.ref?.name).toBe('other_name');
+        expect(isQualifiedReference(bracketRef?.target) ? bracketRef.target.idea?.error : 'missing').toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
+    // rq:["../../../reqlan rq/indexer/sqlite-schema.rq".edges_table]
+    test('sqlite-schema quoted path reaches indexer ideas that are not from-imported', async () => {
+        const indexerDir = join(repoDir, 'reqlan rq/indexer');
+        const indexerPath = join(indexerDir, 'indexer.rq');
+        const schemaPath = join(indexerDir, 'sqlite-schema.rq');
+        const indexer = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(indexerPath, 'utf8'),
+            URI.parse(pathToFileURL(indexerPath).href)
+        ) as LangiumDocument<Model>;
+        const schema = services.shared.workspace.LangiumDocumentFactory.fromString(
+            readFileSync(schemaPath, 'utf8'),
+            URI.parse(pathToFileURL(schemaPath).href)
+        ) as LangiumDocument<Model>;
+        services.shared.workspace.LangiumDocuments.addDocument(indexer);
+        services.shared.workspace.LangiumDocuments.addDocument(schema);
+        await services.shared.workspace.DocumentBuilder.build([indexer, schema], { validation: true });
+        document = schema;
+
+        const ideaRefs = [...AstUtils.streamAst(schema.parseResult.value)]
+            .filter(isQualifiedReference)
+            .filter(target =>
+                target.idea?.$refText === 'wildcard_reference_edges'
+                || target.idea?.$refText === 'index_code_files'
+            );
+        expect(ideaRefs.map(target => target.idea?.ref?.name).sort()).toEqual([
+            'index_code_files',
+            'index_code_files',
+            'wildcard_reference_edges'
+        ]);
+        for (const target of ideaRefs) {
+            expect(target.idea?.error).toBeUndefined();
+        }
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]

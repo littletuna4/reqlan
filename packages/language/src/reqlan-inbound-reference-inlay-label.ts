@@ -1,7 +1,10 @@
 /**
  * Formats inbound reference lists for idea declaration inlay hints.
+ * Inbound lists come from the SQLite snapshot pushed by the extension host.
+ * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
  */
-import { AstUtils, GrammarUtils, type AstNode } from 'langium';
+import { AstUtils } from 'langium';
 import {
     Command,
     InlayHintLabelPart,
@@ -10,8 +13,9 @@ import {
     type InlayHintLabelPart as InlayHintLabelPartType,
     type MarkupContent
 } from 'vscode-languageserver';
-import { isIdea, isIdeaSet, isOneLinerIdea, type IdeaDeclaration, type IdeaSet } from './generated/ast.js';
+import type { IdeaDeclaration, IdeaSet } from './generated/ast.js';
 import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from './reqlan-inlay-hint-settings.js';
+import { sharedInboundSnapshot } from './reqlan-inbound-snapshot.js';
 import type { ReqlanServices } from './reqlan-module.js';
 
 export interface InboundReferenceInlayLabel {
@@ -28,86 +32,23 @@ export type ReferencedDeclaration = IdeaDeclaration | IdeaSet;
 
 const MAX_INLINE_NAMES = 3;
 
-/** Target key: `${documentUri}#${astNodePath}` — matches IndexManager reference descriptions. */
+/** Test helper map keyed by `${documentUri}#${ideaName}`. */
 export type InboundReferencerIndex = Map<string, InboundReferencer[]>;
 
-/**
- * Langium's IndexManager stores outbound refs per source document and scans every
- * document for each `findAllReferences` call. Building the inverse once makes
- * inlay hints O(workspace refs) instead of O(ideas × workspace refs).
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
- */
-type IndexManagerReferenceIndex = {
-    referenceIndex: Map<string, Array<{
-        sourceUri: { toString(): string };
-        sourcePath: string;
-        targetUri: { toString(): string };
-        targetPath: string;
-    }>>;
-};
-
 export function declarationInboundKey(
-    services: ReqlanServices,
+    _services: ReqlanServices,
     declaration: ReferencedDeclaration
 ): string {
     const document = AstUtils.getDocument(declaration);
-    const path = services.workspace.AstNodeLocator.getAstNodePath(declaration);
-    return `${document.uri.toString()}#${path}`;
+    return `${document.uri.toString()}#${declaration.name}`;
 }
 
 /**
- * Build inbound referencers for every idea/ideaset target in one pass.
+ * Empty stub — open-file inbound uses {@link sharedInboundSnapshot}.
+ * Tests may still inject a map via {@link lookupInboundReferencers}.
  */
-export function buildInboundReferencerIndex(services: ReqlanServices): InboundReferencerIndex {
-    const documents = services.shared.workspace.LangiumDocuments;
-    const locator = services.workspace.AstNodeLocator;
-    const indexManager = services.shared.workspace.IndexManager as unknown as IndexManagerReferenceIndex;
-    const buckets = new Map<string, Map<string, InboundReferencer>>();
-
-    for (const docRefs of indexManager.referenceIndex.values()) {
-        for (const reference of docRefs) {
-            const sourceDocument = documents.getDocument(reference.sourceUri as never);
-            if (!sourceDocument) {
-                continue;
-            }
-            const sourceNode = locator.getAstNode(sourceDocument.parseResult.value, reference.sourcePath);
-            if (!sourceNode) {
-                continue;
-            }
-            const referrer = enclosingReferrerDeclaration(sourceNode);
-            if (!referrer) {
-                continue;
-            }
-            const location = locationForReferrer(referrer);
-            if (!location) {
-                continue;
-            }
-            const targetKey = `${reference.targetUri.toString()}#${reference.targetPath}`;
-            const referrerDoc = AstUtils.getDocument(referrer).uri.toString();
-            const referrerPath = locator.getAstNodePath(referrer);
-            if (targetKey === `${referrerDoc}#${referrerPath}`) {
-                continue;
-            }
-            let byLocation = buckets.get(targetKey);
-            if (!byLocation) {
-                byLocation = new Map();
-                buckets.set(targetKey, byLocation);
-            }
-            byLocation.set(locationKey(location), {
-                name: referrer.name,
-                location
-            });
-        }
-    }
-
-    const result: InboundReferencerIndex = new Map();
-    for (const [targetKey, byLocation] of buckets) {
-        result.set(
-            targetKey,
-            [...byLocation.values()].sort((left, right) => left.name.localeCompare(right.name))
-        );
-    }
-    return result;
+export function buildInboundReferencerIndex(_services: ReqlanServices): InboundReferencerIndex {
+    return new Map();
 }
 
 export function lookupInboundReferencers(
@@ -115,21 +56,27 @@ export function lookupInboundReferencers(
     services: ReqlanServices,
     declaration: ReferencedDeclaration
 ): InboundReferencer[] {
+    const fromSnapshot = sharedInboundSnapshot.referencersForIdea(
+        AstUtils.getDocument(declaration).uri.toString(),
+        declaration.name
+    );
+    if (fromSnapshot.length > 0) {
+        return fromSnapshot;
+    }
     return index.get(declarationInboundKey(services, declaration)) ?? [];
 }
 
 /**
- * Collect inbound idea referencers from the whole Langium workspace index
- * (every indexed `.rq` document), not only the declaration's file.
- *
- * Prefer {@link buildInboundReferencerIndex} + {@link lookupInboundReferencers}
- * when resolving many declarations (e.g. inlay hints).
+ * Collect inbound idea referencers from the SQLite snapshot for this file.
  */
 export function collectInboundReferencers(
-    services: ReqlanServices,
+    _services: ReqlanServices,
     declaration: ReferencedDeclaration
 ): InboundReferencer[] {
-    return lookupInboundReferencers(buildInboundReferencerIndex(services), services, declaration);
+    return sharedInboundSnapshot.referencersForIdea(
+        AstUtils.getDocument(declaration).uri.toString(),
+        declaration.name
+    );
 }
 
 /** @deprecated Use {@link collectInboundReferencers} */
@@ -138,31 +85,6 @@ export function collectInboundReferencingNames(
     declaration: ReferencedDeclaration
 ): string[] {
     return collectInboundReferencers(services, declaration).map(referrer => referrer.name);
-}
-
-function enclosingReferrerDeclaration(node: AstNode): ReferencedDeclaration | undefined {
-    let current: AstNode | undefined = node;
-    while (current) {
-        if (isIdea(current) || isOneLinerIdea(current) || isIdeaSet(current)) {
-            return current;
-        }
-        current = current.$container;
-    }
-    return undefined;
-}
-
-function locationForReferrer(referrer: ReferencedDeclaration): Location | undefined {
-    const nameNode = GrammarUtils.findNodeForProperty(referrer.$cstNode, 'name');
-    if (!nameNode?.range) {
-        return undefined;
-    }
-    const document = AstUtils.getDocument(referrer);
-    return Location.create(document.textDocument.uri, nameNode.range);
-}
-
-function locationKey(location: Location): string {
-    const range = location.range;
-    return `${location.uri}#${range.start.line}:${range.start.character}`;
 }
 
 export function referencerMarkdownLink(referrer: InboundReferencer): string {
@@ -206,9 +128,9 @@ export function buildInboundReferencesInlayLabel(
             labelParts.push(InlayHintLabelPart.create(', '));
         }
         labelParts.push({
-            value: inlineReferencers[index].name,
-            location: inlineReferencers[index].location,
-            tooltip: referencerPartTooltip(inlineReferencers[index])
+            value: inlineReferencers[index]!.name,
+            location: inlineReferencers[index]!.location,
+            tooltip: referencerPartTooltip(inlineReferencers[index]!)
         });
     }
 

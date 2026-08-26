@@ -16,14 +16,17 @@ import {
     pathResolveContextFromServices,
     REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION,
     REQLAN_FILE_REFERENCE_AT_REQUEST,
+    REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
     REQLAN_NAME_CATALOG_NOTIFICATION,
     REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_WILDCARD_REFERENCE_AT_REQUEST,
     resolveReferenceSearchSiteFromDocument,
     sharedAttributeCatalog,
+    sharedInboundSnapshot,
     sharedNameCatalog,
     wildcardArgsFromReference,
     type AttributeCatalog,
+    type InboundSnapshotBatch,
     type NameCatalog
 } from '@reqlan/language';
 
@@ -115,6 +118,10 @@ connection.onNotification(REQLAN_ATTRIBUTE_CATALOG_NOTIFICATION, (catalog: Attri
 
 connection.onNotification(REQLAN_NAME_CATALOG_NOTIFICATION, (catalog: NameCatalog) => {
     sharedNameCatalog.update(catalog);
+});
+
+connection.onNotification(REQLAN_INBOUND_SNAPSHOT_NOTIFICATION, (batch: InboundSnapshotBatch) => {
+    sharedInboundSnapshot.update(batch);
 });
 
 function getTextDocument(params: { uri: string; text?: string }) {

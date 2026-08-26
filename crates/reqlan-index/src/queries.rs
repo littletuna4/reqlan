@@ -806,6 +806,40 @@ pub fn get_ideas_in_file_rows(
     )
 }
 
+/// Inbound edges for ideas hosted in `file_uri`, plus comment/file refs that target the file.
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
+pub fn get_inbound_for_file_rows(
+    conn: &Connection,
+    file_uri: &str,
+) -> Result<Vec<JsonValue>, SqlBridgeError> {
+    query(
+        conn,
+        "SELECT e.id AS id,
+                e.source_id AS source_id,
+                e.target_id AS target_id,
+                e.target_file AS target_file,
+                e.kind AS kind,
+                e.label AS label,
+                e.source_line AS source_line,
+                e.snippet AS snippet,
+                e.is_resolved AS is_resolved,
+                s.name AS source_name,
+                s.file_uri AS source_file_uri,
+                s.line_start AS source_idea_line,
+                t.name AS target_name
+         FROM edges e
+         LEFT JOIN ideas s ON s.id = e.source_id
+         LEFT JOIN ideas t ON t.id = e.target_id
+         WHERE e.target_id IN (SELECT id FROM ideas WHERE file_uri = ?1)
+            OR (
+                e.kind IN ('comment_link', 'file_reference')
+                AND e.target_file = ?1
+            )
+         ORDER BY e.source_id, e.id",
+        &[json!(file_uri)],
+    )
+}
+
 pub fn get_idea_at_line_row(
     conn: &Connection,
     file_uri: &str,
@@ -1177,6 +1211,8 @@ mod tests {
             source_line: None,
             snippet: None,
             is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None,
         }
     }
 
@@ -1192,6 +1228,18 @@ mod tests {
         store.upsert_document("f.rq", "h1", &ideas[..2], &edges, None).unwrap();
         store.upsert_document("g.rq", "h2", &ideas[2..], &[], None).unwrap();
         store
+    }
+
+    #[test]
+    fn inbound_for_file_returns_edges_targeting_ideas_in_file() {
+        let store = seeded();
+        let rows = get_inbound_for_file_rows(store.connection(), "g.rq").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["source_id"], json!("f.rq#alpha"));
+        assert_eq!(rows[0]["target_id"], json!("g.rq#gamma"));
+        assert_eq!(rows[0]["source_name"], json!("alpha"));
+        assert_eq!(rows[0]["target_name"], json!("gamma"));
+        assert_eq!(rows[0]["kind"], json!("references"));
     }
 
     #[test]
