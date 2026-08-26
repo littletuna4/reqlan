@@ -69,9 +69,9 @@
       "background": "brand-panel",
       "content": {
         "heading": "Install the extension",
-        "body": "Marketplace or Open VSX → Install → Open Folder."
+        "body": "Extensions view → search “reqlan” → Install. Any folder works — an empty one is fine."
       },
-      "notes": "Open a workspace folder even if it is empty. The welcome webview appears on first launch."
+      "notes": "The reqlan icon joins the activity bar after install. The welcome webview appears on first launch."
     },
     {
       "id": "onboarding",

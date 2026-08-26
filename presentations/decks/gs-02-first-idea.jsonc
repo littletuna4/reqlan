@@ -51,6 +51,16 @@
       "notes": "Inside the braces, the first free text is the main description. No required metadata yet."
     },
     {
+      "id": "hover",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Hover a name",
+        "body": "The editor shows its summary text."
+      },
+      "notes": "Instant feedback, no build step. Names stay unique in the file — a duplicate shows an error at once."
+    },
+    {
       "id": "language",
       "transition": "fade",
       "background": "brand-panel",

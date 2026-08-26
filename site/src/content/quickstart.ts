@@ -13,7 +13,6 @@ import {
   type QuickstartIdeId,
 } from "@/content/install-actions";
 import type { PhonebookPackageId } from "@/lib/phonebook";
-import { firstStepsPath } from "@/content/first-steps";
 
 export type { InstallAction, QuickstartIconRef, QuickstartIdeId };
 
@@ -153,12 +152,13 @@ export const quickstartContent = {
     },
   ] satisfies QuickstartPackage[],
   nextSteps: [
-    // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_01_why_reqlan]
+    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".walkthrough_absorbed]
     {
-      id: "first-steps",
-      title: "First steps walkthrough",
-      detail: "Install, write, link, and map your first ideas. A written tour, no videos needed.",
-      href: firstStepsPath,
+      id: "why-reqlan",
+      title: "Watch: Why requirements as code",
+      detail: "Deck one of seven — then write your first idea.",
+      href: "/tutorials/gs-01-why-reqlan",
     },
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_02_first_idea]
     {

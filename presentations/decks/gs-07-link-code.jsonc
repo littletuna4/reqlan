@@ -31,13 +31,16 @@
       "transition": "none",
       "background": "brand-panel",
       "content": {
-        "heading": "File references",
+        "heading": "Files, then symbols",
         "asset": "file-link",
         "code": "Implementation: [\"./src/login.ts\"]",
         "code_lang": "rq",
-        "code_label": ".rq"
+        "code_label": "file",
+        "code_b": "Empty-password guard: [\"./src/login.ts\".login]",
+        "code_b_lang": "rq",
+        "code_b_label": "symbol"
       },
-      "notes": "The path lives in brackets like any other link. Ctrl/Cmd-click to open."
+      "notes": "Both resolve against real files — a missing path or name reports an error."
     },
     {
       "id": "link-idea",
@@ -50,6 +53,18 @@
         "code_label": ".rq"
       },
       "notes": "Ideas and files share one graph — cross-link freely."
+    },
+    {
+      "id": "comment-ref",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Code points back",
+        "code": "// rq: login_api - the empty-password guard above enforces this idea\nif (!password) throw new Error(\"empty password\");",
+        "code_lang": "ts",
+        "code_label": "src/login.ts"
+      },
+      "notes": "An rq: comment links source back at the idea — navigation works from both directions. Advanced covers the details."
     },
     {
       "id": "reverse",

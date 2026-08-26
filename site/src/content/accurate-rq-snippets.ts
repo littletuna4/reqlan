@@ -1,6 +1,5 @@
 // rq:["../../../reqlan rq/site/site.rq".accurate_rq_snippets_must_parse]
 import { example } from "./example";
-import { firstStepsContent } from "./first-steps";
 import { hero } from "./hero";
 import { isCodeBlock, showcases } from "./showcases";
 import { syntax } from "./syntax";
@@ -40,17 +39,6 @@ export function accurateRqSnippets(): AccurateRqSnippet[] {
         code: block.code,
       });
     }
-  }
-
-  // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps]
-  for (const step of firstStepsContent.steps) {
-    if (step.demo?.language !== "rq") {
-      continue;
-    }
-    snippets.push({
-      id: `first-steps.${step.id}`,
-      code: step.demo.code,
-    });
   }
 
   return snippets;

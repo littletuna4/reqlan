@@ -39,6 +39,16 @@
       "notes": "Follow the link — you are navigating a graph, not scrolling a document."
     },
     {
+      "id": "broken-link",
+      "transition": "none",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Typos fail loudly",
+        "body": "A target that does not exist marks red. Fix it before you link more."
+      },
+      "notes": "Broken links show errors at once — the graph never grows silent dead ends."
+    },
+    {
       "id": "wikilink",
       "transition": "none",
       "background": "brand-panel",

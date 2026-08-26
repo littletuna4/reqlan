@@ -67,7 +67,7 @@
       "title": "Point ideas at code",
       "series": "get-started",
       "order": 7,
-      "blurb": "File references and reverse context from source.",
+      "blurb": "File and symbol references, plus reverse context from source.",
       "tryThis": "Link one more source file your welcome flow depends on.",
       "deck": "decks/gs-07-link-code.jsonc"
     },

@@ -373,7 +373,7 @@ tutorials_section {
     The site exposes `/tutorials` and `/tutorials/[slug]/` as statically generated pages.
     Catalog and deck ids come from authored ["../../presentations/manifest.jsonc"].
     Each detail page embeds the Reveal player iframe at `/presentations/player/?deck=<id>` using [assets] / SITE_BASE_PATH-aware `sitePath`.
-    Each detail page hosts a unified transport chrome (`<<` `<` steps `>` `>>`) that drives slide nav in the embedded player via postMessage, plus lesson jumps.
+    Each detail page hosts a unified transport chrome (`<<` `<` steps `>` `>>`) that drives slide nav in the embedded player via postMessage, plus lesson jumps ([tutorial_player_transport]).
     Location hierarchy chrome: [tutorial_location_crumb].
     Blurb and try-this live on the catalog and inside the slides, not as page chrome.
     The player is an App Router page ([presentation_player_route]) so it static-exports under `trailingSlash` without colliding with `public/` HTML.
@@ -415,6 +415,31 @@ tutorial_location_crumb {
     @implementation (
         ["../../site/src/components/TutorialPlayerShell.tsx"]
         ["../../site/src/components/TutorialPlayerShell.module.css"]
+    )
+}
+
+tutorial_player_transport {
+    The `<` control must show the previous slide when the player can go back.
+    When the player cannot go back, `<` must open the previous lesson if that lesson exists.
+    Open that lesson on the last slide.
+    The `>` control must show the next slide when the player can go forward.
+    When the player cannot go forward, `>` must open the next lesson if that lesson exists.
+    Open that lesson on the first slide.
+    The Left Arrow key and the Right Arrow key must do the same as `<` and `>`.
+    Shift+Left Arrow and Shift+Right Arrow must open the adjacent lesson from any slide.
+    The `<<` and `>>` controls must continue to open the adjacent lesson.
+    After the current lesson player is ready, the shell must start to load the next lesson player in the background.
+    The shell must prefetch the next lesson page.
+    The shell must ignore state messages from the background player.
+    @status done
+    @implementation (
+        ["../../site/src/lib/tutorial-transport.ts"]
+        ["../../site/src/components/TutorialPlayerShell.tsx"]
+        ["../../site/src/components/TutorialPlayerShell.module.css"]
+    )
+    @tests (
+        ["../../site/src/lib/tutorial-transport.test.ts"]
+        ["../../site/src/components/TutorialPlayerShell.test.ts"]
     )
 }
 

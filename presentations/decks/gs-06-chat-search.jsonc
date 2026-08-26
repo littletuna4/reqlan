@@ -50,6 +50,19 @@
       "notes": "Skills mirror chat commands when recording in Cursor."
     },
     {
+      "id": "cli-parity",
+      "transition": "fade",
+      "background": "brand-panel",
+      "content": {
+        "heading": "Terminal parity",
+        "body": "Same index, same ranking — scripts included.",
+        "code": "npx reqlan search checklist",
+        "code_lang": "bash",
+        "code_label": "terminal"
+      },
+      "notes": "Search forgives typos — onboarding_checklist still comes back as the top hit."
+    },
+    {
       "id": "misconception",
       "transition": "none",
       "background": "brand-contrast",

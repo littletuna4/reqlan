@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { Route } from "next";
 import { TutorialCard } from "@/components/TutorialCard";
 import { SiteShell } from "@/components/SiteShell";
-import { firstStepsPath } from "@/content/first-steps";
 import {
   tutorialMatchesQuery,
   tutorialSeriesMeta,
@@ -37,7 +36,7 @@ function assessmentMatchesQuery(query: string): boolean {
 export function TutorialsListPage({ decks }: TutorialsListPageProps) {
   // rq:["../../../reqlan rq/site/site.rq".tutorials_section]
   // rq:["../../../reqlan rq/site/certs.rq".assessment_page]
-  // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
+  // rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
   const progress = useTutorialProgress();
@@ -108,14 +107,15 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
         </header>
 
         {!searching ? (
-          <Link className={styles.startHere} href={firstStepsPath as Route}>
+          <Link
+            className={styles.startHere}
+            href={"/tutorials/gs-01-why-reqlan" as Route}
+          >
             <span className={styles.startHereKicker}>Start here</span>
-            <span className={styles.startHereTitle}>
-              First steps walkthrough
-            </span>
+            <span className={styles.startHereTitle}>Get started series</span>
             <span className={styles.startHereBlurb}>
-              Install, write, link, and map your first ideas. A written tour,
-              about 20 minutes, no video needed.
+              Install, write, link, and map your first ideas across seven
+              short decks.
             </span>
           </Link>
         ) : null}

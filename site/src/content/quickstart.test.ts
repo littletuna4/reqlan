@@ -1,18 +1,17 @@
 // rq:["../../../reqlan rq/site/site.rq".quickstart_page]
-// rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
+//rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { firstStepsPath } from "./first-steps.ts";
 import { quickstartContent } from "./quickstart.ts";
 
 describe("quickstart what's next", () => {
   const nextSteps = quickstartContent.nextSteps;
 
-  it("sends beginners to the first steps walkthrough first", () => {
+  it("sends beginners to the get-started decks first", () => {
     assert.equal(nextSteps.length, 4);
-    assert.equal(nextSteps[0]?.id, "first-steps");
-    assert.equal(nextSteps[0]?.href, firstStepsPath);
+    assert.equal(nextSteps[0]?.id, "why-reqlan");
+    assert.equal(nextSteps[0]?.href, "/tutorials/gs-01-why-reqlan");
   });
 
   it("gives every step a title, detail, and site href", () => {

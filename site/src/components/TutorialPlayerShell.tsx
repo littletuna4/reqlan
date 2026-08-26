@@ -18,6 +18,14 @@ import {
   completionLabel,
   type CompletionState,
 } from "@/lib/tutorial-progress";
+import {
+  resolveTransportStep,
+  transportControlCopy,
+  tutorialLessonHref,
+  tutorialPlayerSrc,
+  type TransportDir,
+  type TransportNeighbor,
+} from "@/lib/tutorial-transport";
 import { useTutorialProgress } from "@/lib/use-tutorial-progress";
 import styles from "./TutorialPlayerShell.module.css";
 
@@ -54,6 +62,8 @@ export function TutorialPlayerShell({
   seriesTitle,
   courses,
 }: TutorialPlayerShellProps) {
+  // rq:["../../../reqlan rq/site/site.rq".tutorials_section]
+  // rq:["../../../reqlan rq/site/site.rq".tutorial_player_transport]
   const { prev, next, seriesTotal, seriesDecks } = neighbors;
   const {
     getCourseState,
@@ -90,6 +100,7 @@ export function TutorialPlayerShell({
   });
   /** null = show the current lesson; otherwise the hovered/focused step */
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [currentReady, setCurrentReady] = useState(false);
 
   const labelId = hoveredId ?? tutorial.id;
   const labelMode = hoveredId ? "hover" : "current";
@@ -107,29 +118,64 @@ export function TutorialPlayerShell({
   }, []);
 
   const postNav = useCallback(
-    (dir: "prev" | "next") => {
+    (dir: TransportDir) => {
       postToPlayer({ type: "nav", dir });
     },
     [postToPlayer],
   );
 
+  const neighborFor = useCallback(
+    (deck: TutorialDeck | null): TransportNeighbor | null => {
+      if (!deck) return null;
+      return {
+        slug: deck.slug,
+        title: deck.title,
+        slideCount: deck.slideCount,
+      };
+    },
+    [],
+  );
+
+  const openLesson = useCallback((slug: string, landingSlide = 1) => {
+    window.location.href = tutorialLessonHref(slug, landingSlide);
+  }, []);
+
+  const goTransport = useCallback(
+    (dir: TransportDir) => {
+      const neighbor = neighborFor(dir === "prev" ? prev : next);
+      const canMove = dir === "prev" ? meta.canPrev : meta.canNext;
+      const step = resolveTransportStep(dir, canMove, neighbor);
+      if (step.kind === "slide") {
+        postNav(dir);
+        return;
+      }
+      if (step.kind === "lesson") {
+        openLesson(step.slug, step.slide);
+      }
+    },
+    [meta.canNext, meta.canPrev, neighborFor, next, openLesson, postNav, prev],
+  );
+
   // Stable iframe src for this lesson — include initial slide once so deep links open correctly.
   const playerSrc = useMemo(() => {
-    const params = new URLSearchParams({
-      deck: tutorial.id,
-      embed: "1",
-      slide: String(Math.max(1, slide)),
-    });
-    return sitePath(`/presentations/player/?${params.toString()}`);
+    return tutorialPlayerSrc(tutorial.id, slide);
     // Only remount when the lesson changes; slide updates go via postMessage.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: initial slide only
   }, [tutorial.id]);
+
+  const nextPlayerSrc = useMemo(() => {
+    if (!next) return null;
+    return tutorialPlayerSrc(next.id, 1);
+  }, [next]);
+
+  const nextLessonHref = next ? tutorialLessonHref(next.slug) : null;
 
   useEffect(() => {
     if (tutorialIdRef.current === tutorial.id) return;
     tutorialIdRef.current = tutorial.id;
     setHoveredId(null);
     skipGoto.current = true;
+    setCurrentReady(false);
     void setSlide(1);
     setMeta({ total: 0, canPrev: false, canNext: true });
   }, [tutorial.id, setSlide]);
@@ -141,9 +187,12 @@ export function TutorialPlayerShell({
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.origin !== window.location.origin) return;
+      const playerWindow = iframeRef.current?.contentWindow;
+      if (!playerWindow || event.source !== playerWindow) return;
       const data = event.data;
       if (!data || data.source !== MSG_SOURCE) return;
       if (data.type === "state") {
+        setCurrentReady(true);
         const index0 = Number(data.index) || 0;
         const nextSlide = index0 + 1;
         setMeta({
@@ -187,22 +236,34 @@ export function TutorialPlayerShell({
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       if (event.shiftKey) {
-        if (prev) window.location.href = sitePath(`/tutorials/${prev.slug}/`);
-      } else if (meta.canPrev) {
-        postNav("prev");
+        if (prev) openLesson(prev.slug);
+      } else {
+        goTransport("prev");
       }
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
       if (event.shiftKey) {
-        if (next) window.location.href = sitePath(`/tutorials/${next.slug}/`);
-      } else if (meta.canNext) {
-        postNav("next");
+        if (next) openLesson(next.slug);
+      } else {
+        goTransport("next");
       }
     }
   };
 
   const slideLabel =
     meta.total > 0 ? `slide ${slide} of ${meta.total}` : "slides";
+  const prevStep = resolveTransportStep(
+    "prev",
+    meta.canPrev,
+    neighborFor(prev),
+  );
+  const nextStep = resolveTransportStep(
+    "next",
+    meta.canNext,
+    neighborFor(next),
+  );
+  const prevCopy = transportControlCopy(prevStep, slideLabel);
+  const nextCopy = transportControlCopy(nextStep, slideLabel);
   const slideValue =
     meta.total > 0 ? `${slide}/${meta.total}` : "…";
   const lessonOrder = String(tutorial.order).padStart(2, "0");
@@ -399,7 +460,7 @@ export function TutorialPlayerShell({
           {prev ? (
             <a
               className={styles.jump}
-              href={sitePath(`/tutorials/${prev.slug}/`)}
+              href={tutorialLessonHref(prev.slug)}
               aria-label={`Previous lesson: ${prev.title}`}
               data-tooltip={`Previous lesson · ${prev.title} (Shift+←)`}
             >
@@ -418,14 +479,10 @@ export function TutorialPlayerShell({
           <button
             type="button"
             className={styles.stepBtn}
-            onClick={() => postNav("prev")}
-            disabled={!meta.canPrev}
-            aria-label={`Previous slide (${slideLabel})`}
-            data-tooltip={
-              meta.canPrev
-                ? `Previous slide · ${slideLabel} (←)`
-                : "Start of deck"
-            }
+            onClick={() => goTransport("prev")}
+            disabled={prevCopy.disabled}
+            aria-label={prevCopy.aria}
+            data-tooltip={prevCopy.tooltip}
           >
             {"<"}
           </button>
@@ -505,14 +562,10 @@ export function TutorialPlayerShell({
           <button
             type="button"
             className={styles.stepBtn}
-            onClick={() => postNav("next")}
-            disabled={!meta.canNext}
-            aria-label={`Next slide (${slideLabel})`}
-            data-tooltip={
-              meta.canNext
-                ? `Next slide · ${slideLabel} (→)`
-                : "End of deck"
-            }
+            onClick={() => goTransport("next")}
+            disabled={nextCopy.disabled}
+            aria-label={nextCopy.aria}
+            data-tooltip={nextCopy.tooltip}
           >
             {">"}
           </button>
@@ -520,7 +573,7 @@ export function TutorialPlayerShell({
           {next ? (
             <a
               className={styles.jump}
-              href={sitePath(`/tutorials/${next.slug}/`)}
+              href={tutorialLessonHref(next.slug)}
               aria-label={`Next lesson: ${next.title}`}
               data-tooltip={`Next lesson · ${next.title} (Shift+→)`}
             >
@@ -539,6 +592,9 @@ export function TutorialPlayerShell({
       </header>
 
       <div className={styles.frame}>
+        {nextLessonHref ? (
+          <link rel="prefetch" href={nextLessonHref} />
+        ) : null}
         <iframe
           ref={iframeRef}
           className={styles.iframe}
@@ -548,6 +604,15 @@ export function TutorialPlayerShell({
           allow="fullscreen"
           allowFullScreen
         />
+        {currentReady && next && nextPlayerSrc ? (
+          <iframe
+            className={styles.preloadFrame}
+            src={nextPlayerSrc}
+            title={`Preload ${next.title}`}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -29,15 +29,7 @@ export const nav = [
       { id: "mcp", label: "MCP" },
     ],
   },
-  {
-    id: "tutorials",
-    label: "Tutorials",
-    href: "/tutorials",
-    children: [
-      // rq:["../../../reqlan rq/marketing_and_media/first-steps.rq".first_steps_page]
-      { id: "first-steps", label: "First steps", href: "/tutorials/first-steps" },
-    ],
-  },
+  { id: "tutorials", label: "Tutorials", href: "/tutorials" },
   { id: "showcase", label: "Showcases", href: "/showcase" },
   {
     id: "faq",

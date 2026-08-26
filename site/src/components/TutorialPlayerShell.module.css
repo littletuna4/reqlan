@@ -583,6 +583,19 @@
   background: #120e0c;
 }
 
+.preloadFrame {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+}
+
 @media (max-width: 720px) {
   .crumb {
     max-width: 100%;
