@@ -1,0 +1,66 @@
+from "./indexer.rq" import index_diagnostics_timing, indexer_rust
+from "../extension/module/index.rq" import application_memory, index_diagnostics_store
+from "../extension/features-index-diagnostics.rq" import index_diagnostics, index_diagnostics_metrics, index_diagnostics_webview
+import "../../packages/analytical/src/index-store/index-diagnostics-store.ts" as diagnostics_store_ts
+import "../../crates/reqlan-index/src/diagnostics.rs" as diagnostics_rust
+import "./sqlite-schema.rq" as ideas_schema
+import "./sidecars.rq" as sidecars
+import "./consumers.rq" as consumers
+
+diagnostics_sqlite {
+    Per-base timing and index-issue store at `<base>/.reqlan/index-diagnostics.sqlite`
+    ([index_diagnostics_store] / [application_memory]).
+    Sibling of [ideas_schema.ideas_index_sqlite]; Clear & rebuild of the ideas index must not delete it.
+    Authoritative schema lives in Rust ([diagnostics_rust], `DIAGNOSTICS_SCHEMA_VERSION = 2`).
+    The TypeScript facade ([diagnostics_store_ts]) is thinner and focuses on timing rows.
+    Related: [index_diagnostics_timing], [index_diagnostics], [index_diagnostics_metrics],
+    [index_diagnostics_webview], [sidecars.sqlite_wal_sidecars], [consumers.diagnostics_consumers].
+
+    @status done
+    @implementation (
+        [diagnostics_rust]
+        [diagnostics_store_ts]
+    )
+    @tests (
+        ["../../packages/analytical/test/index-diagnostics.test.ts"]
+    )
+}
+
+diagnostics_meta_table {
+    Table `meta` — `key TEXT PRIMARY KEY`, `value TEXT NOT NULL`.
+    Stores `schema_version` for [diagnostics_sqlite].
+}
+
+sync_runs_table {
+    Table `sync_runs` records one soft/hard/idle indexing pass.
+    Columns include: `id`, `started_at`, `finished_at`, `duration_ms`, `trigger`,
+    `total_files`, `skipped_mtime`, `indexed_files`, `error_files`, `cancelled`,
+    `sum_file_duration_ms`, `avg_path_depth`.
+    Retention keeps the latest 50 runs ([diagnostics_rust] `MAX_RETAINED_RUNS`).
+    Feeds [index_diagnostics_metrics] and [index_diagnostics_webview].
+    [diagnostics_sqlite]
+    ["./sequencing.rq".index_triggers]
+}
+
+file_timings_table {
+    Table `file_timings` stores per-file duration rows for a sync run.
+    Columns: `id`, `run_id` (FK → `sync_runs`), `file_uri`, `duration_ms`, `outcome`, `path_depth`.
+    Indexes: `idx_file_timings_run`, `idx_file_timings_duration`.
+    [diagnostics_sqlite]
+    [index_diagnostics_timing]
+}
+
+file_index_issues_table {
+    Table `file_index_issues` (Rust diagnostics schema v2) persists parse/extract/persist problems.
+    Columns: `file_uri`, `line`, `column`, `message`, `phase`, `idea_names`, `cause`, `at`.
+    Cap: 500 rows. Survives editor restart for Ideas Summary problem lists.
+    [diagnostics_sqlite]
+}
+
+activity_ring_tables {
+    Rust diagnostics schema v2 also keeps activity rings:
+    - `document_updates` — Ideas Summary timeline “index” events (`file_uri`, `idea_count`, `ideas`, `at`)
+    - `workspace_changes` — watcher create/change/delete activity (`file_uri`, `change`, `at`)
+    Cap: 50 rows each ([diagnostics_rust] `MAX_ACTIVITY`).
+    [diagnostics_sqlite]
+}

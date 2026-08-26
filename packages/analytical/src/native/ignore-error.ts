@@ -1,6 +1,6 @@
 /**
  * `//rq-ignore-error` target lines via the core Rust scanner.
- * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { loadNativeEngine } from './load-native.js';
 

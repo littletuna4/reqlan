@@ -1,0 +1,125 @@
+from "./indexer.rq" import index, indexer_rust, ownership
+from "../extension/module/index.rq" import application_memory, index_diagnostics_store
+from "../bases/base.rq" import base_ownership
+import "../../packages/analytical/src/index-store/schema.ts" as schema_ts
+import "../../crates/reqlan-index/src/schema.rs" as schema_rust
+import "../../crates/reqlan-index/src/store.rs" as store_rust
+import "../../packages/analytical/src/index-store/sqlite-store.ts" as sqlite_store
+import "../../crates/reqlan-index/src/types.rs" as index_types
+import "./sidecars.rq" as sidecars
+import "./diagnostics-schema.rq" as diagnostics_schema
+import "./consumers.rq" as consumers
+
+ideas_index_sqlite {
+    The ideas graph for one [base_ownership] lives at `<base>/.reqlan/ideas-index.sqlite`
+    under [application_memory].
+    Schema version is 4 (`SCHEMA_VERSION` in [schema_ts] and [schema_rust]).
+    Runtime migrate runs in Rust ([store_rust]); TypeScript opens the store and calls
+    native migrate ([sqlite_store]).
+    Keep [schema_ts] aligned with [schema_rust].
+    Related: [index], [indexer_rust], [ownership], [sidecars.sqlite_wal_sidecars],
+    [diagnostics_schema.diagnostics_sqlite], [consumers.index_consumers].
+
+    @status done
+    @implementation (
+        [schema_ts]
+        [schema_rust]
+        [store_rust]
+        [sqlite_store]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]
+        ["../../crates/reqlan-index/tests/schema.rs:schema_v4_columns_round_trip_git_count_and_mtime"]
+        ["../../packages/analytical/test/schema-v4-roundtrip.test.ts"]
+    )
+}
+
+meta_table {
+    Table `meta` holds key/value rows (`key TEXT PRIMARY KEY`, `value TEXT NOT NULL`).
+    Known keys:
+    - `schema_version` — string form of [ideas_index_sqlite] version (`"4"`).
+    - `extract_version` — extract-rule generation from the native engine.
+      When it does not match the running engine, soft sync rebuilds so stale edges do not remain
+      (["./indexer.rq".index], ["../language/syntax.rq".inline_code]).
+    [ideas_index_sqlite]
+}
+
+ideas_table {
+    Table `ideas` stores one row per idea, one-liner, or ideaset.
+    Columns:
+    - `id` TEXT PRIMARY KEY
+    - `name` TEXT NOT NULL
+    - `kind` TEXT NOT NULL — `block` | `oneliner` | `ideaset` ([index_types])
+    - `file_uri` TEXT NOT NULL — path relative to the owning base root
+    - `line_start` / `line_end` INTEGER NOT NULL
+    - `summary` TEXT NOT NULL
+    - `attributes_json` TEXT NOT NULL DEFAULT `'{}'`
+    - `content_hash` TEXT NOT NULL
+    - `git_created_at` / `git_modified_at` TEXT nullable
+    - `git_change_count` INTEGER nullable (schema v4)
+    Indexes: `idx_ideas_file(file_uri)`, `idx_ideas_name(name)`.
+    [ideas_index_sqlite]
+    ["../extension/git-codelens.rq".git_dates_background_indexing]
+}
+
+edges_table {
+    Table `edges` stores directed links in the ideas graph.
+    Columns:
+    - `id` TEXT PRIMARY KEY
+    - `source_id` TEXT NOT NULL — FOREIGN KEY → `ideas(id)` ON DELETE CASCADE
+    - `target_id` TEXT nullable — idea target when resolved
+    - `target_file` TEXT nullable — file target (for example comment links)
+    - `kind` TEXT NOT NULL — see [edge_kinds]
+    - `label` TEXT nullable
+    - `source_line` INTEGER (schema v2)
+    - `snippet` TEXT (schema v2)
+    - `is_resolved` INTEGER NOT NULL DEFAULT 1 (schema v2)
+    Indexes: `idx_edges_source`, `idx_edges_target`, `idx_edges_target_file`.
+    [ideas_index_sqlite]
+    ["./indexer.rq".wildcard_reference_edges]
+    ["./indexer.rq".index_code_files]
+}
+
+edge_kinds {
+    Persisted edge `kind` values ([index_types] / analytical `EdgeKind`):
+    - `references` — idea → idea bracket or wiki reference
+    - `wildcard_reference` — one row per wildcard match (or one unresolved row)
+    - `file_reference` — idea → file path reference
+    - `ideaset_member` — ideaset → member idea
+    - `import` — import relationship
+    - `comment_link` — idea ← code-file `rq:` comment (["./indexer.rq".index_code_files])
+    [edges_table]
+}
+
+documents_table {
+    Table `documents` tracks which files the indexer has seen.
+    Columns:
+    - `file_uri` TEXT PRIMARY KEY — base-relative path
+    - `content_hash` TEXT NOT NULL
+    - `indexed_at` TEXT NOT NULL
+    - `mtime_ms` REAL (schema v3) — soft sync skip when FS mtime matches
+    Soft sync and idle stale checks use this table
+    (["./sequencing.rq".soft_sync], ["./sequencing.rq".idle_stale_check]).
+    [ideas_index_sqlite]
+}
+
+schema_migrations {
+    Base tables use `CREATE … IF NOT EXISTS` ([schema_ts] `BASE_MIGRATIONS` / [schema_rust]).
+    Versioned upgrades run `(current+1)..=SCHEMA_VERSION`:
+    - v2 — edge `source_line`, `snippet`, `is_resolved`
+    - v3 — document `mtime_ms`
+    - v4 — idea `git_change_count`
+    Duplicate-column errors on ALTER are ignored so re-open is safe.
+    Fresh databases create full v4 columns, then set `schema_version` to 4.
+    Open pragmas: `foreign_keys=ON`, `journal_mode=WAL` ([sidecars.sqlite_wal_sidecars]).
+    [ideas_index_sqlite]
+    @implementation (
+        [schema_ts]
+        [schema_rust]
+        [store_rust]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/schema.rs"]
+        ["../../packages/analytical/test/schema-v4-roundtrip.test.ts"]
+    )
+}

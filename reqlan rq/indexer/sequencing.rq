@@ -1,0 +1,103 @@
+from "./indexer.rq" import index, nonblocking_index, triggers, index_code_files
+from "../extension/features-graph-analysers.rq" import indexing_incrementality
+from "../extension/features-graph-analysers.rq" import indexing_trigger_filesave
+from "../extension/features-graph-analysers.rq" import indexing_trigger_manual
+from "../extension/features-graph-analysers.rq" import indexing_trigger_open
+from "../extension/features-graph-analysers.rq" import indexing_trigger_auto
+from "../extension/module/index.rq" import idea_index_triggers
+from "../extension/activation.rq" import first_paint_startup, background_startup
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
+import "./sqlite-schema.rq" as ideas_schema
+import "./diagnostics-schema.rq" as diagnostics_schema
+import "./consumers.rq" as consumers
+import "./cache-reuse.rq" as cache_reuse
+
+index_sequencing {
+    Describe when the ideas index starts, updates, and idles, and which trigger owns each pass.
+    Capability aliases live in [triggers] and [idea_index_triggers].
+    Detail ideas below; keep [nonblocking_index] and [indexing_incrementality] as the UX rules.
+    Related: [consumers.index_consumers], [cache_reuse.index_cache_reuse],
+    [ideas_schema.documents_table], [diagnostics_schema.sync_runs_table].
+
+    @status done
+    @implementation (
+        [editor_index_adapter]
+        [workspace_index]
+        [analysis_runtime]
+    )
+}
+
+index_triggers {
+    Trigger map for [index_sequencing]:
+    - [indexing_trigger_open] — one soft sync after activity-bar first paint / base activate
+    - [indexing_trigger_filesave] — watcher create/change/delete on `.rq` and allowlisted code files
+    - [indexing_trigger_manual] — Refresh (soft) or Clear & rebuild (hard)
+    - [indexing_trigger_auto] — idle mtime stale check; index only dirty paths
+    Git-dates fill is not an index trigger ([idea_index_triggers]).
+    Each sync run may record a `trigger` string in [diagnostics_schema.sync_runs_table].
+}
+
+extension_startup_sequence {
+    Extension host order ([first_paint_startup], [background_startup]):
+    1. `activate` registers UI only; it must not await index sync.
+    2. Activity bar paints → startup gate; language client may start on a short fallback.
+    3. Index adapter activates after paint (or a short fallback timer).
+    4. Rediscover bases → soft [soft_sync] per base ([indexing_trigger_open]).
+    5. Install watchers for `.rq` and code globs; watch `.reqlan` / folders for rediscovery.
+    6. Idle timer schedules [idle_stale_check] after quiet periods ([indexing_trigger_auto]).
+    [index_sequencing]
+    [editor_index_adapter]
+}
+
+soft_sync {
+    Soft full sync (`syncWorkspace` / Refresh) walks the base, skips files whose FS mtime
+    matches [ideas_schema.documents_table].`mtime_ms`, and upserts changed files only.
+    Progress and cancel follow [nonblocking_index].
+    Prefer a single walk ([cache_reuse.single_sync_walk]).
+    Triggers: [indexing_trigger_open], [indexing_trigger_manual] (Refresh).
+    [index_sequencing]
+}
+
+hard_rebuild {
+    Hard rebuild (`clearAndRebuildIndex` / Clear & rebuild) wipes ideas-index rows and
+    reindexes every file. It must not delete [diagnostics_schema.diagnostics_sqlite].
+    Trigger: [indexing_trigger_manual].
+    [index_sequencing]
+    [nonblocking_index]
+}
+
+watcher_incremental {
+    File create/change/delete indexes or deletes that one path only — never a full base walk.
+    Covers `.rq` sources and allowlisted code files for [index_code_files].
+    Trigger: [indexing_trigger_filesave].
+    [index_sequencing]
+    [indexing_incrementality]
+}
+
+idle_stale_check {
+    When the editor is idle, load document mtimes in one SQLite read, compare FS mtimes
+    in memory, and index only mismatched or new files; drop deleted docs in one batch.
+    If nothing is stale: no state transition, no progress UI, no parse.
+    Prefer unfocused windows; cancel if the user becomes active again.
+    Extension host only — see [indexing_trigger_auto].
+    [index_sequencing]
+    @tests (
+        ["../../packages/analytical/test/workspace-index.test.ts"]
+    )
+}
+
+headless_sync_on_ready {
+    CLI and MCP call [analysis_runtime] `ensure_ready`, which runs a soft [soft_sync]
+    (WalkDir) once before serving commands.
+    No watchers and no idle loop ([consumers.headless_consumers]).
+    [index_sequencing]
+}
+
+base_catch_up {
+    Activating or pinning a base schedules an open + soft sync when that base is not ready.
+    Nested child bases stay excluded from the parent walk ([index]).
+    [index_sequencing]
+    [indexing_trigger_open]
+}
