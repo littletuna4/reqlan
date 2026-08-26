@@ -8,6 +8,7 @@ import { NodeFileSystem } from 'langium/node';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { Model } from '@reqlan/language';
 import {
+    clearPathCompletionCaches,
     createReqlanServices,
     getAnonymousImportPathContext,
     getAttributeKeyContext,
@@ -38,6 +39,7 @@ afterEach(async () => {
     }
     document = undefined;
     sharedAttributeCatalog.reset();
+    clearPathCompletionCaches();
     for (const dir of tempDirs) {
         rmSync(dir, { recursive: true, force: true });
     }
@@ -639,6 +641,7 @@ describe('Completion', () => {
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
     test('anonymous file references complete code files, folders, and .rq files', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);

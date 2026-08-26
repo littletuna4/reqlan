@@ -118,6 +118,7 @@ reference_code_completion_objects {
 
     Import path completion stays limited to `.rq` files.
     Anonymous file-reference paths share ranking and alias logic with import paths, but they include every file and folder target.
+    Scanning every workspace file on each keystroke is too expensive: [reference_code_completion_performance].
 
     @status done
     @implementation (
@@ -130,6 +131,35 @@ reference_code_completion_objects {
         ["../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
         ["../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
     )
+}
+
+reference_code_completion_performance {
+    [reference_code_completion_objects] must stay interactive on large workspaces.
+    Path completion must not re-walk the filesystem on every keystroke: cache directory listings and reuse them for import and anonymous file-reference completion.
+    Ranking must precompute proximity keys rather than recomputing hop distance per comparator call.
+    Idea-graph ranking must reuse per-document adjacency across completion requests while document versions are unchanged.
+    Anonymous file-reference completion may omit distant candidates after proximity ranking so the list stays bounded.
+    Implemented by ["../../../packages/language/src/reqlan-path-completion.ts"]
+    (`clearPathCompletionCaches`, listing cache, `sortPathCompletionCandidates`),
+    ["../../../packages/language/src/reqlan-completion-provider.ts"],
+    and ["../../../packages/language/src/reqlan-completion-context.ts"].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../packages/language/src/reqlan-completion-context.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
+        ["../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
+        ["../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
+        ["../../../packages/language/test/completion-perf.test.ts"]
+        ["../../../packages/language/test/completion-perf.test.ts:cached path completion does not re-read directories"]
+        ["../../../packages/language/test/completion-perf.test.ts:large-tree anonymous completion stays under budget"]
+    )
+    [reference_code_completion]
+    [reference_code_completion_objects]
 }
 
 reference_code_completion_sequencing {

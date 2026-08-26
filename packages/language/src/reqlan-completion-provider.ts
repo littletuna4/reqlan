@@ -10,6 +10,7 @@
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, UriUtils, stream } from 'langium';
@@ -48,7 +49,6 @@ import { buildFromImportEdit, relativeRqImportPath } from './reqlan-import-edits
 import { findImportedDocument } from './reqlan-imports.js';
 import {
     collectPathCompletionCandidates,
-    comparePathCompletionCandidates,
     pathCompletionFilterText,
     pathCompletionSortText,
     type PathCompletionCandidate
@@ -220,7 +220,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         const candidates = this.collectReferenceCompletionCandidates(docs, context.prefix, document);
         const center = findContainingIdea(document, params.position)?.name;
         const distances = center
-            ? hopDistancesFromCenter(center, buildIdeaReferenceAdjacency(docs))
+            ? hopDistancesFromCenter(center, getIdeaReferenceAdjacency(docs))
             : new Map<string, number>();
         const items = candidates.map(candidate =>
             this.toReferenceCompletionItem(document, candidate, context, distances)
@@ -440,8 +440,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         if (!context) {
             return LspCompletionList.create([], true);
         }
-        const candidates = this.collectPathCandidates(document, context.prefix)
-            .sort((left, right) => comparePathCompletionCandidates(document, left, right));
+        const candidates = this.collectPathCandidates(document, context.prefix);
         const items = candidates.map(candidate => ({
             label: candidate.path,
             kind: candidate.isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
@@ -482,8 +481,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             );
             range = { start, end };
         }
-        const candidates = this.collectPathCandidates(context.document, prefix, extensionFilter)
-            .sort((left, right) => comparePathCompletionCandidates(context.document, left, right));
+        const candidates = this.collectPathCandidates(context.document, prefix, extensionFilter);
         for (const candidate of candidates) {
             const delimiter = reqlanStringDelimiter(existingText);
             const opening = delimiter ?? '"';
@@ -533,38 +531,105 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
     }
 }
 
-/** Undirected idea↔idea edges from bracket/wikilink references in the given documents. */
+type DocumentEdgeCache = {
+    version: number;
+    edges: Array<readonly [string, string]>;
+};
+
+const ideaAdjacencyParts = new Map<string, DocumentEdgeCache>();
+let cachedIdeaAdjacency: Map<string, Set<string>> | undefined;
+let cachedIdeaAdjacencyKey = '';
+
+/**
+ * Undirected idea↔idea edges from bracket/wikilink references in the given documents.
+ * Per-document edges are reused while `textDocument.version` is unchanged.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ */
 export function buildIdeaReferenceAdjacency(documents: LangiumDocument[]): Map<string, Set<string>> {
+    return getIdeaReferenceAdjacency(documents);
+}
+
+function getIdeaReferenceAdjacency(documents: LangiumDocument[]): Map<string, Set<string>> {
+    const liveKeySet = new Set<string>();
+    let partsChanged = false;
+    for (const document of documents) {
+        const key = document.uri.toString();
+        liveKeySet.add(key);
+        const version = document.textDocument.version;
+        const part = ideaAdjacencyParts.get(key);
+        if (!part || part.version !== version) {
+            ideaAdjacencyParts.set(key, { version, edges: collectDocumentIdeaEdges(document) });
+            partsChanged = true;
+        }
+    }
+    const liveKeys = [...liveKeySet].sort();
+    for (const key of [...ideaAdjacencyParts.keys()]) {
+        if (!liveKeySet.has(key)) {
+            ideaAdjacencyParts.delete(key);
+            partsChanged = true;
+        }
+    }
+    const cacheKey = liveKeys.map(key => {
+        const part = ideaAdjacencyParts.get(key);
+        return `${key}@${part?.version ?? 0}`;
+    }).join('|');
+    if (!partsChanged && cachedIdeaAdjacency && cachedIdeaAdjacencyKey === cacheKey) {
+        return cachedIdeaAdjacency;
+    }
+    const adjacency = mergeIdeaAdjacencyParts(liveKeys);
+    cachedIdeaAdjacency = adjacency;
+    cachedIdeaAdjacencyKey = cacheKey;
+    return adjacency;
+}
+
+function mergeIdeaAdjacencyParts(liveKeys: readonly string[]): Map<string, Set<string>> {
     const adjacency = new Map<string, Set<string>>();
     const addEdge = (left: string, right: string) => {
         if (!left || !right || left === right) {
             return;
         }
-        if (!adjacency.has(left)) {
-            adjacency.set(left, new Set());
+        let leftSet = adjacency.get(left);
+        if (!leftSet) {
+            leftSet = new Set();
+            adjacency.set(left, leftSet);
         }
-        if (!adjacency.has(right)) {
-            adjacency.set(right, new Set());
+        let rightSet = adjacency.get(right);
+        if (!rightSet) {
+            rightSet = new Set();
+            adjacency.set(right, rightSet);
         }
-        adjacency.get(left)!.add(right);
-        adjacency.get(right)!.add(left);
+        leftSet.add(right);
+        rightSet.add(left);
     };
-
-    for (const document of documents) {
-        for (const node of AstUtils.streamAst(document.parseResult.value)) {
-            if (!isBracketReference(node) && !isWikiLink(node)) {
-                continue;
-            }
-            const source = enclosingIdeaName(node);
-            if (!source) {
-                continue;
-            }
-            for (const target of referencedNames(node.target)) {
-                addEdge(source, target);
-            }
+    for (const key of liveKeys) {
+        const part = ideaAdjacencyParts.get(key);
+        if (!part) {
+            continue;
+        }
+        for (const [left, right] of part.edges) {
+            addEdge(left, right);
         }
     }
     return adjacency;
+}
+
+function collectDocumentIdeaEdges(document: LangiumDocument): Array<readonly [string, string]> {
+    const edges: Array<readonly [string, string]> = [];
+    for (const node of AstUtils.streamAst(document.parseResult.value)) {
+        if (!isBracketReference(node) && !isWikiLink(node)) {
+            continue;
+        }
+        const source = enclosingIdeaName(node);
+        if (!source) {
+            continue;
+        }
+        for (const target of referencedNames(node.target)) {
+            if (target && target !== source) {
+                edges.push([source, target]);
+            }
+        }
+    }
+    return edges;
 }
 
 /** BFS hop distances from `center` over an undirected adjacency map. */
@@ -572,8 +637,9 @@ export function hopDistancesFromCenter(center: string, adjacency: Map<string, Se
     const distances = new Map<string, number>();
     const queue: string[] = [center];
     distances.set(center, 0);
-    while (queue.length > 0) {
-        const current = queue.shift()!;
+    let head = 0;
+    while (head < queue.length) {
+        const current = queue[head++]!;
         const nextDist = (distances.get(current) ?? 0) + 1;
         for (const neighbour of adjacency.get(current) ?? []) {
             if (!distances.has(neighbour)) {
