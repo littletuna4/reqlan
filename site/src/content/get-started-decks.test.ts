@@ -1,5 +1,4 @@
 //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".get_started_series]
-//rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".walkthrough_absorbed]
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

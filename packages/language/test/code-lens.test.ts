@@ -23,6 +23,7 @@ import {
 } from '../src/reqlan-reference-code-lens.js';
 import { ReqlanCodeLensProvider } from '../src/reqlan-code-lens-provider.js';
 import { collectInboundReferencers } from '../src/reqlan-inbound-reference-inlay-label.js';
+import { sharedInboundSnapshot } from '../src/reqlan-inbound-snapshot.js';
 
 let services: ReturnType<typeof createReqlanServices>;
 let parse: ReturnType<typeof parseHelper<Model>>;
@@ -34,6 +35,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+    sharedInboundSnapshot.clear();
     const documents = services.shared.workspace.LangiumDocuments.all.toArray();
     if (documents.length > 0) {
         clearDocuments(services.shared, documents);
@@ -41,6 +43,19 @@ afterEach(async () => {
     document = undefined;
     services.shared.workspace.ConfigurationProvider.updateConfiguration({ settings: {} });
 });
+
+function seedInboundSnapshot(
+    doc: LangiumDocument<Model>,
+    byIdeaName: Record<string, Array<{ name: string; uri: string; line: number }>>
+): void {
+    sharedInboundSnapshot.update({
+        snapshots: [{
+            documentUri: doc.uri.toString(),
+            indexedUri: doc.uri.path.replace(/^\//, ''),
+            byIdeaName
+        }]
+    });
+}
 
 function setReferenceCodeLensEnabled(enabled: boolean): void {
     services.shared.workspace.ConfigurationProvider.updateConfiguration({
@@ -161,6 +176,12 @@ describe('Reference CodeLens', () => {
             }
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        seedInboundSnapshot(document, {
+            target: [
+                { name: 'another', uri: document.uri.toString(), line: 12 },
+                { name: 'source', uri: document.uri.toString(), line: 8 }
+            ]
+        });
 
         const target = AstUtils.streamAst(document.parseResult.value).find(node => isIdea(node) && node.name === 'target');
         expect(target && isIdea(target)).toBe(true);

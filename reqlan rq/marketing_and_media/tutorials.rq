@@ -218,42 +218,6 @@ get_started_series_brief {
     )
 }
 
-walkthrough_absorbed {
-    Day one ships as one path: the [get_started_series] decks carry everything the retired written walkthrough taught at `/tutorials/first-steps/`.
-    The former fourteen-step page merged into episodes, so readers and viewers follow the same fixture and wording:
-    - install into [gs_01_why_reqlan] (search reqlan, install, any folder works, icon joins the activity bar);
-    - first idea into [gs_02_first_idea] (hover summaries, names stay unique per file);
-    - links into [gs_03_link_ideas] (broken targets show errors at once);
-    - search into [gs_06_chat_search] (CLI parity, fuzzy matches forgive typos);
-    - code links into [gs_07_link_code] (file and symbol references, `rq:` comment references);
-    - attributes, imports, export, maps, analyse, and tracing already live in
-      [adv_02_attributes_status_plans], [adv_01_imports_ideasets], [adv_06_html_export],
-      [adv_03_ideas_summary_graph], [con_03_cli], and [adv_04_context_and_tokens] — get-started hands off there.
-    Deck demos use the shared fixture per [demo_workspace]; the separate focusflow-demo fixture is gone.
-    Learner-facing copy keeps the walkthrough virtues: one action per beat, a visible result each time.
-    @status done
-    @tags (
-        marketing
-        media
-        tutorials
-    )
-    @implementation (
-        ["../../presentations/decks/gs-01-why-reqlan.jsonc"]
-        ["../../presentations/decks/gs-02-first-idea.jsonc"]
-        ["../../presentations/decks/gs-03-link-ideas.jsonc"]
-        ["../../presentations/decks/gs-06-chat-search.jsonc"]
-        ["../../presentations/decks/gs-07-link-code.jsonc"]
-        ["../../presentations/manifest.jsonc"]
-        ["../../site/src/views/TutorialsListPage.tsx"]
-        ["../../site/src/content/nav.ts"]
-        ["../../site/src/content/quickstart.ts"]
-    )
-    @tests (
-        ["../../site/src/content/get-started-decks.test.ts"]
-        ["../../site/src/content/quickstart.test.ts"]
-    )
-}
-
 gs_01_why_reqlan {
     Audience: developers or knowledge workers who already talk to LLMs about their project and feel context drift.
     Outcome: viewer can explain reqlan in one sentence and knows where install / docs live.
@@ -291,10 +255,10 @@ gs_01_why_reqlan {
         VO: Notes apps store paragraphs. reqlan stores handles.
             You do not need a schema on day one — you need names your tools can search and link.
 
-        SCR: Browser: Visual Studio Marketplace page for the reqlan extension — or Open VSX equivalent. Click Install. Switch to VS Code: Extensions view confirms install, and the reqlan icon appears in the activity bar. File → Open Folder → create or select `reqlan-tutorials-demo`.
+        SCR: Browser: Visual Studio Marketplace page for the reqlan extension — or Open VSX equivalent. Click Install. Switch to VS Code: Extensions view confirms install. File → Open Folder → create or select `reqlan-tutorials-demo`.
 
         VO: Install the reqlan extension from the Marketplace or Open VSX.
-            The reqlan icon joins the activity bar. Open any folder — an empty one works.
+            Open a folder — even an empty one — so the editor has a workspace root.
 
         SCR: Onboarding webview appears: "Thanks for installing". Pause on docs / marketplace links in the welcome body. Do not create a base yet.
 
@@ -355,8 +319,8 @@ gs_01_why_reqlan {
             transition slide
             background brand-panel
             heading Install the extension
-            body Extensions view → search reqlan → Install. Any folder works — an empty one is fine.
-            notes The reqlan icon joins the activity bar after install. The welcome webview appears on first launch.
+            body Marketplace or Open VSX → Install → Open Folder.
+            notes Open a workspace folder even if it is empty. The welcome webview appears on first launch.
         }
         {
             id onboarding
@@ -409,11 +373,6 @@ gs_02_first_idea {
         VO: Inside the braces, the first free text is the main description.
             No required metadata yet — just a name and the thought.
 
-        SCR: Hover `product_name`, then `welcome_flow` — a tooltip shows each idea's summary text.
-
-        VO: Hover a name and the editor summarises the idea.
-            Names stay unique in the file — a duplicate shows an error at once.
-
         SCR: Status bar: language mode shows reqlan (or Reqlan). Problems panel empty. Brief hover on bracket/brace highlighting if visible.
 
         VO: Save the file. If the extension is active, language support arrives immediately —
@@ -463,14 +422,6 @@ gs_02_first_idea {
             code_lang rq
             code welcome_flow { New users land on a welcome screen with one primary action: create an account. }
             notes Inside the braces, the first free text is the main description. No required metadata yet.
-        }
-        {
-            id hover
-            transition fade
-            background brand-panel
-            heading Hover a name
-            body The editor shows its summary text.
-            notes Instant feedback, no build step. Names stay unique in the file — a duplicate shows an error at once.
         }
         {
             id language
@@ -543,11 +494,6 @@ gs_03_link_ideas {
         VO: Follow the link — you are navigating a graph, not scrolling a long document.
             Peek when you want context without losing your place.
 
-        SCR: Misspell the target once — `[onboarding_chekclist]`. Red squiggle. Fix it back.
-
-        VO: A target that does not exist marks red.
-            Broken links show errors at once — fix before you link more.
-
         SCR: In `onboarding_checklist`, add the wikilink: `Prefer [[welcome_flow|the welcome screen]] as the way back if they bail early.`
 
         VO: Double-bracket wikilinks let you show a readable label right in the prose.
@@ -589,14 +535,6 @@ gs_03_link_ideas {
             heading Go-to-definition and peek
             body F12 or Ctrl/Cmd-click to jump. Alt+F12 to peek without losing your place.
             notes Follow the link — you are navigating a graph, not scrolling a document.
-        }
-        {
-            id broken-link
-            transition none
-            background brand-panel
-            heading Typos fail loudly
-            body A target that does not exist marks red. Fix it before you link more.
-            notes Broken links show errors at once — the graph never grows silent dead ends.
         }
         {
             id wikilink
@@ -921,10 +859,6 @@ gs_06_chat_search {
         VO: Slash commands and skills use the `rq-` prefix. Search returns a short list on purpose —
             enough to pick, not enough to drown the thread.
 
-        SCR: Terminal: run `npx reqlan search checklist`. Same top hit, same ranking.
-
-        VO: The CLI searches the same index. Search forgives typos — scripts get the same short list.
-
         SCR: Sticky: "Why not paste product.rq?" Show result list vs a full-file paste thumbnail — reject the paste.
 
         VO: Search finds the handle. Add-to-context ships the slice.
@@ -978,17 +912,6 @@ gs_06_chat_search {
             heading Cursor alternate
             body Skill: /rq-search password empty — same index, same discipline.
             notes Skills mirror chat commands when recording in Cursor.
-        }
-        {
-            id cli-parity
-            transition fade
-            background brand-panel
-            heading Terminal parity
-            body Same index, same ranking — scripts included.
-            code_lang bash
-            code npx reqlan search checklist
-            code_label terminal
-            notes Search forgives typos — onboarding_checklist still comes back as the top hit.
         }
         {
             id misconception
@@ -1050,19 +973,14 @@ gs_07_link_code {
         ```
     }
     @script {
-        SCR: New file `src/login.ts` — paste the stub from the example. New file `reqs/auth.rq` — type `login_api` with the file reference `Implementation: ["./src/login.ts"]`, then tighten it to the symbol form `["./src/login.ts".login]`.
+        SCR: New file `src/login.ts` — paste the stub from the example. New file `reqs/auth.rq` — type `login_api` block with file reference `Implementation: ["./src/login.ts"]` and link to `[password_rules]`.
 
         VO: Requirements earn their keep when they touch reality.
-            Point an idea at a file, or at one symbol inside it — both live in brackets, and both resolve against real files. A missing path or name reports an error.
+            Point an idea at a file with a file reference — the path lives in brackets like any other link.
 
         SCR: Ctrl/Cmd-click `["./src/login.ts"]` inside `login_api` — land in `login.ts`. Brief pause on the opened tab.
 
         VO: Same navigation habit as idea links — the graph knows about workspace files, not only `.rq` sources.
-
-        SCR: Open `src/login.ts`. Above the empty-password guard, type the comment `// rq: login_api - the guard above enforces this idea`.
-
-        VO: Code points back too. An `rq:` comment names the idea it serves — navigation works from both directions.
-            Advanced covers comment references in depth.
 
         SCR: Sticky: "File refs only go one way?" Place caret inside `login.ts` on the empty-password guard. Open activity bar — show requirements referencing this file or neighbourhood reacting to non-`.rq` focus.
 
@@ -1104,15 +1022,11 @@ gs_07_link_code {
             id file-ref
             transition none
             background brand-panel
-            heading Files, then symbols
+            heading File references
             asset file-link
             code_lang rq
-            code_label file
             code Implementation: ["./src/login.ts"]
-            code_b_lang rq
-            code_b_label symbol
-            code_b Empty-password guard: ["./src/login.ts".login]
-            notes Both resolve against real files — a missing path or name reports an error.
+            notes The path lives in brackets like any other link. Ctrl/Cmd-click to open.
         }
         {
             id link-idea
@@ -1122,16 +1036,6 @@ gs_07_link_code {
             code_lang rq
             code Rejects empty passwords per [password_rules].
             notes Ideas and files share one graph — cross-link freely.
-        }
-        {
-            id comment-ref
-            transition none
-            background brand-panel
-            heading Code points back
-            code_lang ts
-            code // rq: login_api - the empty-password guard above enforces this idea
-            code_label src/login.ts
-            notes An rq: comment links source back at the idea — navigation works from both directions. Advanced covers the details.
         }
         {
             id reverse

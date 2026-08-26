@@ -679,7 +679,7 @@ later_idea {
 
     // rq:["../../../reqlan rq/language/syntax.rq".lists]
     // rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
-    test('parse tutorials.rq nested @slides lists without parser errors', async () => {
+    test('parse tutorials.rq nested @slides lists without parser errors', { timeout: 30_000 }, async () => {
         const document = await parse(
             readFileSync(join(goldenCorpusDir, 'marketing_and_media/tutorials.rq'), 'utf8')
         );

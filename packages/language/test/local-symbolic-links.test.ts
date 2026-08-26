@@ -19,6 +19,7 @@ describe('local symbolic document links', () => {
         parse = parseHelper<Model>(services.Reqlan);
     });
 
+    // rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
     test('same-file idea links without DocumentBuilder / workspace link', async () => {
         const document: LangiumDocument<Model> = await parse(s`
             alpha {

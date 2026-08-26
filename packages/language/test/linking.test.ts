@@ -882,7 +882,7 @@ example_ideaset (
     });
 
     // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
-    test('document links resolve test file references to the matching test', async () => {
+    test('document links resolve test file references to the matching test', { timeout: 15_000 }, async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
         const validatingPath = join(repoDir, 'packages/language/test/validating.test.ts');

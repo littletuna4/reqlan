@@ -32,6 +32,7 @@ afterEach(async () => {
 });
 
 describe('Inbound SQLite snapshot inlays', () => {
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
     test('inlay referencers come from the pushed snapshot, not findAllReferences', async () => {
         const factory = services.shared.workspace.LangiumDocumentFactory;
         const docs = services.shared.workspace.LangiumDocuments;

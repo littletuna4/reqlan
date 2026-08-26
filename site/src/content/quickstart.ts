@@ -153,7 +153,6 @@ export const quickstartContent = {
   ] satisfies QuickstartPackage[],
   nextSteps: [
     //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".gs_01_why_reqlan]
-    //rq:["../../../reqlan rq/marketing_and_media/tutorials.rq".walkthrough_absorbed]
     {
       id: "why-reqlan",
       title: "Watch: Why requirements as code",
