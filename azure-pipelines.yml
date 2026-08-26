@@ -255,7 +255,7 @@ jobs:
 
       - task: PublishBuildArtifacts@1
         displayName: Publish VSIX artifacts
-        condition: succeeded()
+        condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 8
         inputs:
           PathtoPublish: packages/extension/vsix-out
