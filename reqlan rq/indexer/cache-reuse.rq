@@ -1,0 +1,106 @@
+from "./indexer.rq" import index, nonblocking_index, triggers
+from "../extension/features-graph-analysers.rq" import indexing_incrementality, indexing_trigger_auto
+from "../extension/language-support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
+from "../extension/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
+from "../extension/module/ideas_summary/graphical_graph.rq" import graphical_graph
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
+import "../../packages/language/src/reqlan-path-completion.ts" as path_completion
+import "../../packages/language/src/reqlan-completion-provider.ts" as completion_provider
+import "./sqlite-schema.rq" as ideas_schema
+import "./consumers.rq" as consumers
+import "./sequencing.rq" as sequencing
+
+index_cache_reuse {
+    Identify where the ideas index, diagnostics store, or in-process caches already hold
+    data that other modules recompute.
+    Goal: one walk, one sync, one open store where possible; reuse SQLite edges and mtime
+    maps instead of rebuilding graphs from scratch.
+    Related: [nonblocking_index], [indexing_incrementality], [consumers.index_consumers],
+    [sequencing.index_sequencing].
+
+    @status draft
+}
+
+already_cached {
+    Mechanisms that already reuse stored state:
+    - Soft sync mtime skip on [ideas_schema.documents_table] ([nonblocking_index])
+    - Idle stale check that indexes only dirty paths ([indexing_trigger_auto])
+    - Git date columns on [ideas_schema.ideas_table] (no git walk on every UI paint)
+    - Fuzzy search and paged Ideas Summary SQL over SQLite (avoid full in-memory dumps when used)
+    [index_cache_reuse]
+}
+
+single_sync_walk {
+    Soft full sync must not walk the same base tree twice.
+    Today the extension may `findFiles` for `.rq` paths and then call native `syncWorkspace`,
+    which walks again for `.rq` and code files ([editor_index_adapter], [workspace_index]).
+    Prefer one native walk (or one shared file list) per soft sync.
+    [index_cache_reuse]
+    [sequencing.soft_sync]
+    @status draft
+}
+
+single_open_store {
+    The extension adapter owns a live [workspace_index] / SQLite connection per base.
+    `getAnalysisApi()` / [analysis_runtime] must not open a second runtime that re-runs
+    `ensure_ready` → `sync_workspace` when the adapter already synced.
+    Reuse the open store for file-context, deprecation, and semantic commands.
+    [index_cache_reuse]
+    [consumers.extension_ui_consumers]
+    @status draft
+}
+
+reuse_sqlite_edges_for_hops {
+    Activity bar and Ideas Summary already query hop neighbourhoods from SQLite edges.
+    Language-server reference ranking ([reference_code_completion_sequencing]) rebuilds
+    adjacency from open Langium documents in [completion_provider].
+    When the index is ready, completion hop ranking should prefer indexed edges
+    (or a shared hop API) over a second AST-derived graph.
+    [index_cache_reuse]
+    [consumers.extension_ui_consumers]
+    @status draft
+}
+
+path_completion_listing_cache {
+    Import and anonymous file-path completion ([import_code_completion_ranking],
+    [anonymous_reference_code_completion], [reference_code_completion_objects]) walk
+    directories via [path_completion].
+    Reuse directory listings across keystrokes (TTL cache) so each keystroke does not
+    re-walk the filesystem; clear the cache in tests and on demand.
+    [index_cache_reuse]
+    @status draft
+    @implementation (
+        [path_completion]
+    )
+}
+
+avoid_full_list_all_ideas {
+    Prefer `fuzzySearch`, paged SQL, or catalog deltas over materialising every idea.
+    Avoid:
+    - reference-search / wildcard panels calling `listAllIdeas` when search APIs suffice
+    - Ideas Summary `sendFullGraph` dumping all ideas and edges ([graphical_graph] guidance)
+    - repeated full-catalog pushes when only a few documents changed
+    [index_cache_reuse]
+    [consumers.extension_ui_consumers]
+    @status draft
+}
+
+unify_inbound_indexes {
+    Inlays and code-lens may use a Langium inverse-reference index while mutation hooks
+    read inbound edges from SQLite.
+    When the workspace index is ready, workspace-wide inbound lookups should reuse
+    [ideas_schema.edges_table] so both paths share one graph.
+    [index_cache_reuse]
+    @status draft
+}
+
+overview_coverage_reuse {
+    Overview coverage must not re-walk the base with `.rqignore` when a soft sync just
+    produced an equivalent file set.
+    Reuse the last sync document list or a cheap SQLite documents query.
+    [index_cache_reuse]
+    [sequencing.soft_sync]
+    @status draft
+}

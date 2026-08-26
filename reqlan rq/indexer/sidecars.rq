@@ -1,0 +1,56 @@
+from "../extension/module/index.rq" import application_memory, rqignore, index_diagnostics_store
+from "../bases/base.rq" import base_initialisation_ignore, base_configuration
+from "../extension/features-export.rq" import export_webview
+import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
+import "../../crates/reqlan-index/src/ignore.rs" as ignore_rust
+import "./sqlite-schema.rq" as ideas_schema
+import "./diagnostics-schema.rq" as diagnostics_schema
+
+reqlan_directory_layout {
+    Each base owns `<base>/.reqlan/` ([application_memory]).
+    Contents:
+    - `ideas-index.sqlite` — [ideas_schema.ideas_index_sqlite]
+    - `index-diagnostics.sqlite` — [diagnostics_schema.diagnostics_sqlite] / [index_diagnostics_store]
+    - SQLite WAL/SHM/journal sidecars — [sqlite_wal_sidecars]
+    - `config.json` — [json_siblings] / [base_configuration]
+    - `.rqignore` — [rqignore]
+    - `.gitignore` — [base_initialisation_ignore] / [vcs_ignore_for_stores]
+    - `export_settings.json` — [json_siblings]
+    Path helpers: [application_memory_impl]. Override: `REQLAN_INDEX_PATH` for a single store.
+    @status done
+    @implementation (
+        [application_memory_impl]
+        [ignore_rust]
+    )
+}
+
+sqlite_wal_sidecars {
+    When a SQLite file opens in WAL mode, the engine may create sibling files next to the DB:
+    - `ideas-index.sqlite-wal` / `ideas-index.sqlite-shm` / `ideas-index.sqlite-journal`
+    - `index-diagnostics.sqlite-wal` / `-shm` / `-journal`
+    These are true sidecars of the open database, not separate product stores.
+    Seeded `.reqlan/.gitignore` must keep `*.sqlite*` artifacts out of VCS
+    ([base_initialisation_ignore], [ignore_rust] `default_gitignore_file_contents`).
+    [reqlan_directory_layout]
+    [ideas_schema.schema_migrations]
+}
+
+json_siblings {
+    JSON files under `.reqlan/` are application-memory siblings, not SQLite sidecars:
+    - `config.json` — base import roots and settings ([base_configuration])
+    - `export_settings.json` — export form defaults for [export_webview]
+    They do not hold idea graph rows. Tools must not treat them as index cache.
+    [reqlan_directory_layout]
+}
+
+vcs_ignore_for_stores {
+    New bases seed `.reqlan/.gitignore` so SQLite databases and their WAL/SHM/journal
+    sidecars stay out of version control ([base_initialisation_ignore]).
+    `.rqignore` is separate: it filters discovery/index walks, not VCS ([rqignore]).
+    [sqlite_wal_sidecars]
+    [reqlan_directory_layout]
+    @implementation (
+        [ignore_rust]
+        [application_memory_impl]
+    )
+}

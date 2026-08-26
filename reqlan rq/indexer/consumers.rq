@@ -1,0 +1,71 @@
+from "./indexer.rq" import index, consumption, ownership
+from "../extension/module/index.rq" import application_memory, index_diagnostics_store
+from "../extension/features-graph-analysers.rq" import index_ideas, index_technology, local_graph_analysis
+from "../extension/features-index-diagnostics.rq" import index_diagnostics_webview
+from "../cli/cli_package.rq" import cli_package
+from "../core_analysis/search.rq" import fuzzy_search, file_search
+from "../core_analysis/check.rq" import check
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
+import "../../packages/mcp/src/server.ts" as mcp_server
+import "../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_host
+import "../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../packages/extension/src/diagnostics_module/index-diagnostics-panel.ts" as diagnostics_panel
+import "./sqlite-schema.rq" as ideas_schema
+import "./diagnostics-schema.rq" as diagnostics_schema
+import "./cache-reuse.rq" as cache_reuse
+
+index_consumers {
+    Modules that read or write [ideas_schema.ideas_index_sqlite] / [index]:
+    - Engine write/read: [workspace_index], Rust sync/store under [ownership]
+    - Extension adapter: [editor_index_adapter] (watchers, Uri conversion, multi-base)
+    - Headless: [analysis_runtime] for [cli_package] and [mcp_server]
+    - Activity bar: [activity_bar_host] (ideas-in-file, hop refs, search via fuzzy)
+    - Ideas Summary: [ideas_summary_panel] (table SQL, graph slices, overview)
+    - Search: [fuzzy_search], [file_search]
+    - Check / analyse / export: [check], analytical export APIs
+    - Local graph: [local_graph_analysis]
+    Product aliases: [index_ideas], [index_technology], [consumption].
+    Related: [cache_reuse.index_cache_reuse], ["./sequencing.rq".index_sequencing].
+
+    @status done
+    @implementation (
+        [workspace_index]
+        [editor_index_adapter]
+        [analysis_runtime]
+        [activity_bar_host]
+        [ideas_summary_panel]
+        [mcp_server]
+    )
+}
+
+extension_ui_consumers {
+    VS Code surfaces that query the live ideas store through [editor_index_adapter]:
+    - Activity bar workspace / search / minigraph / todo ([activity_bar_host])
+    - Ideas Summary panel ([ideas_summary_panel]) — prefer paged SQL and capped graph queries
+    - Reference-search and wildcard-match panels (may call `listAllIdeas`; see [cache_reuse.avoid_full_list_all_ideas])
+    - Chat / AI commands that call `getFileContext`, `getLocalGraph`, or semantic search
+    - Refactor and mutation hooks that read inbound edges from the store
+    - Name and attribute catalog sync that pushes index rows into the language server
+    The language server does not open SQLite; it uses Langium documents plus pushed catalogs.
+    [index_consumers]
+}
+
+headless_consumers {
+    CLI and MCP open the same per-base application memory via [analysis_runtime] / `openAnalysisApi`.
+    They sync on activate or command (["./sequencing.rq".headless_sync_on_ready]).
+    They have no file watchers and no idle stale loop.
+    Shared path rules: [application_memory], `REQLAN_INDEX_PATH` when set.
+    [index_consumers]
+    [cli_package]
+    [mcp_server]
+}
+
+diagnostics_consumers {
+    Readers of [diagnostics_schema.diagnostics_sqlite] / [index_diagnostics_store]:
+    - Index diagnostics webview ([diagnostics_panel] / [index_diagnostics_webview])
+    - Soft/hard sync writers that append sync_runs and file_timings
+    - Ideas Summary timeline / problem list for activity rings and file issues (Rust schema v2)
+    [index_consumers]
+}

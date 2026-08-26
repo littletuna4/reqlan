@@ -15,9 +15,20 @@ import "../../packages/analytical/test/workspace-index.test.ts" as workspace_ind
 import "../core_analysis/core.rq" as core_analysis
 from "../language/syntax.rq" import comment_reference
 from "../extension/features-graph-analysers.rq" import index_comment_reference_inclusion
+import "./sqlite-schema.rq" as sqlite_schema
+import "./diagnostics-schema.rq" as diagnostics_schema
+import "./sidecars.rq" as sidecars
+import "./consumers.rq" as consumers
+import "./cache-reuse.rq" as cache_reuse
+import "./sequencing.rq" as sequencing
 
 definition {
     The indexer should live in the [core_analysis] module.
+    On-disk schema: [sqlite_schema.ideas_index_sqlite] and [diagnostics_schema.diagnostics_sqlite].
+    Layout and WAL sidecars: [sidecars.reqlan_directory_layout].
+    Consumers: [consumers.index_consumers] (extends [consumption]).
+    Sequencing and triggers: [sequencing.index_sequencing] (extends [triggers]).
+    Cache reuse opportunities: [cache_reuse.index_cache_reuse].
 }
 
 index {
@@ -98,6 +109,7 @@ consumption {
     - [extension] — thin VS Code adapter [editor_index_adapter] (file watchers, Uri conversion, UI status)
     - CLI (`["../cli/cli_package.rq".cli_package]`) and MCP — headless [analysis_runtime]
     The extension does not own the indexing engine; it only hosts the adapter.
+    Module map: [consumers.index_consumers].
 }
 
 nonblocking_index {
@@ -127,6 +139,7 @@ triggers {
     - [graph_analysers.indexing_trigger_open] — one soft sync after the activity-bar first-paint gate
     - [graph_analysers.indexing_trigger_auto] — idle background mtime staleness check (cheap; not a full reindex)
     Editor watches + idle scheduler: [editor_index_adapter]; headless syncs on runtime activate.
+    Full sequence: [sequencing.index_sequencing].
 }
 
 capabilities {
