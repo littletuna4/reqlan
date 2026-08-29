@@ -1,0 +1,107 @@
+import "../development/build.rq" as development_build
+import "../core_analysis/rust_port.rq" as rust_port
+
+native_host_binary {
+    Select the native core-engine binary from the extension host.
+    The host is the Node process that runs the extension.
+    Read `process.platform` and `process.arch` from that process.
+    Do not use the platform of the VS Code UI client.
+    Examples:
+    - UI on Windows and host on Linux SSH: use a linux tuple.
+    - UI on Windows and host on WSL: use a linux tuple.
+    - UI and host on macOS: use a darwin tuple.
+    Map the platform and the arch to one tuple in ["./distribution.rq".native_targets].
+    Load only the binary that matches that tuple.
+    Do not load a binary for a different tuple.
+    If the platform and the arch are not in ["./distribution.rq".native_targets], fail.
+    If the binary is missing, fail. Do not use sql.js.
+    Keep the loader map the same as ["../../scripts/native-targets.mjs"].
+    Local development: [native_host_binary_development].
+    Production distribution: [native_host_binary_distributed].
+    Implementation: ["../../packages/analytical/src/native/load-native.ts"].
+    @status done
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
+}
+
+native_host_binary_development {
+    Use this procedure on a developer machine (F5 and `pnpm run build`).
+    Identify the host from `process.platform` and `process.arch` of the build process.
+    The build process and the extension host must be the same machine.
+    Copy the matching `.node` file to `packages/extension/native/reqlan_napi.node`.
+    Write `packages/extension/native/target.json` with the host tuple.
+    If the binary is not present, build it with `cargo build -p reqlan-napi --release`.
+    At run time, search in this order:
+    1. The `native/` folder of the extension, if `target.json` records the host tuple.
+    2. The resolved `main` of the host npm package (`createRequire` from `@reqlan/analytical/package.json`).
+    3. The host file in `packages/analytical-native/<napiSuffix>/` (workspace package directory, same layout as a published package).
+    4. The host npm package name.
+    5. `crates/target/<rustTarget>/release` and `crates/target/release`.
+    6. The debug folders with the same names.
+    Do not search packages for other platforms.
+    If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
+    Windows cargo emits `reqlan_napi.dll`; the loader uses `process.dlopen` for `.dll` and `.node` (Node `require` only loads `.node`).
+    Windows UI with a WSL extension host uses the linux tuple ([native_host_binary]).
+    Windows UI with a Windows extension host cannot load a `.node` staged from WSL; restage on Windows or open the folder in a WSL remote window.
+    Before tests, the workspace host package must contain the `.node` so loaders behave like production ([native_host_binary_distributed]). `scripts/ensure-host-native.mjs` uses an existing matrix binary, or cargo locally.
+    Azure compiles the ["./distribution.rq".native_targets] matrix from git and stages those artifacts; it does not fetch binaries from npm.
+    Detail: [development_build.extension_host_native_stage].
+    Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/src/analytical_submodule/index.ts"].
+    @status done
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
+}
+
+native_host_binary_distributed {
+    Use this procedure for a published VSIX and for published npm packages.
+
+    VS Code extension:
+    The registry installs the VSIX that has `targetPlatform` equal to the extension host.
+    Each VSIX contains one `.node` file for one ["./distribution.rq".native_targets] tuple.
+    The file name is `native/reqlan_napi.node`.
+    The VSIX also contains `native/target.json`.
+    At run time, read `process.platform` and `process.arch` on the extension host.
+    If `target.json` records a different tuple, do not load `native/reqlan_napi.node`.
+    Do not put binaries for other platforms in that VSIX.
+    The Azure pipeline compiles each platform binary from this git commit (`build_native` + `collect-napi-binary.mjs` + `prepare-native-packages.mjs --binary-dir`). Package versions in git are canonical. The pipeline does not wait for npm.
+    Related: ["./distribution.rq".vsix_export], ["./distribution.rq".extension_distribution], ["./distribution.rq".vsix_native_not_from_npm].
+
+    CLI and MCP:
+    npm installs the host package from `optionalDependencies` on the published `@reqlan/analytical` tarball.
+    Git does not list those entries. ["../../scripts/prepare-native-packages.mjs"] `--publish-versions` writes them at npm publish.
+    The loader resolves that package from `@reqlan/analytical/package.json` (`createRequire`), which is where the optional dependency is attached after `npm install`.
+    Published installs also run [published_host_native_install].
+    Related: ["./distribution.rq".rust_binary_distribution], [rust_port.native_bridge].
+
+    Implementation: ["../../scripts/package-extension-targets.mjs"], ["../../scripts/prepare-native-packages.mjs"], ["../../packages/analytical/src/native/load-native.ts"], ["../../packages/analytical/scripts/check-host-native.mjs"], ["../../azure-pipelines.yml"].
+    @status in-progress
+    @todo first multi-target VSIX and platform packages not yet published
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+    )
+}
+
+published_host_native_install {
+    After a published install of `@reqlan/analytical`, the host platform package must resolve.
+    The host is `process.platform` and `process.arch` of the install process ([native_host_binary]).
+    Git `@reqlan/analytical` does not list `optionalDependencies`. The check exits 0 in this workspace.
+    The published tarball lists pinned optionalDependencies (["./distribution.rq".rust_binary_distribution]).
+    That tarball runs ["../../packages/analytical/scripts/check-host-native.mjs"] as `postinstall`.
+    If the host package name is missing from `optionalDependencies`, or `createRequire` from `@reqlan/analytical/package.json` cannot resolve that package to a file, the script prints a warning and exits 0.
+    The warning text tells the user how to enable optional dependencies and how to limit pnpm to the host OS and CPU.
+    Do not use `--force`. `--force` installs every optional platform package.
+    Do not skip the script with `--ignore-scripts` on a published install.
+    CLI install documentation: ["../../packages/cli/README.template.md"].
+    Implementation: ["../../packages/analytical/scripts/check-host-native.mjs"], ["../../packages/analytical/package.json"], ["../../packages/cli/README.template.md"], ["../../packages/analytical/README.template.md"].
+    @status done
+    @todo postinstall warning is not covered by automated tests; package-manager optional install is not a reliable unit-test guarantee
+    @tests (
+        ["../../packages/analytical/test/native-packaging.test.ts"]
+        ["../../packages/cli/test/readme-native-install.test.ts"]
+    )
+}

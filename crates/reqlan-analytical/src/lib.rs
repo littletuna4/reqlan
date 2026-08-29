@@ -44,3 +44,13 @@ pub fn type_collection() -> TypeCollection {
     types.register::<ClickResult>();
     types
 }
+
+/// Specta copies Rust doc comments into `generated.ts`. Those `rq:` paths are
+/// relative to `crates/reqlan-analytical/src` (three hops). `generated.ts` lives
+/// at `packages/analytical/src/native` (four hops).
+pub fn rewrite_generated_ts_comment_paths(source: &str) -> String {
+    source.replace(
+        "rq:[\"../../../reqlan rq/",
+        "rq:[\"../../../../reqlan rq/",
+    )
+}

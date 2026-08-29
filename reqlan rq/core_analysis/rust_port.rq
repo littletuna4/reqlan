@@ -250,10 +250,16 @@ port_phases (
 
 ts_interface {
     The TS interface over the Rust functionality stays fully typed via specta (`crates/reqlan-analytical` `export-ts` → `packages/analytical/src/native/generated.ts`).
+    Specta copies Rust doc comments. `export-ts` rewrites those `rq:` paths from crate-src depth to `packages/analytical/src/native` depth.
     @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/bin/export_ts.rs"]
+        ["../../crates/reqlan-analytical/src/lib.rs"]
+    )
     @tests (
         ["../../packages/analytical/src/native/generated.ts"]
         ["../../packages/analytical/test/generated-native-types.test.ts"]
         ["../../crates/reqlan-analytical/tests/export_ts.rs:committed_generated_ts_matches_specta_export"]
+        ["../../crates/reqlan-analytical/tests/export_ts.rs:rewrite_generated_ts_comment_paths_adds_one_hop"]
     )
 }
