@@ -34,9 +34,8 @@ const REQUIRED_TYPES: &[&str] = &[
 fn committed_generated_ts_matches_specta_export() {
     let types = type_collection();
     let typescript = specta_typescript::Typescript::default().header(generated_header());
-    let actual = rewrite_generated_ts_comment_paths(
-        &typescript.export(&types).expect("specta export"),
-    );
+    let actual =
+        rewrite_generated_ts_comment_paths(&typescript.export(&types).expect("specta export"));
     let committed = std::fs::read_to_string(generated_path())
         .unwrap_or_else(|error| panic!("missing generated.ts: {error}"));
     for name in REQUIRED_TYPES {
@@ -66,8 +65,5 @@ fn committed_generated_ts_matches_specta_export() {
 fn rewrite_generated_ts_comment_paths_adds_one_hop() {
     let source = "// rq:[\"../../../reqlan rq/cli/click.rq\".click_input]\n";
     let rewritten = rewrite_generated_ts_comment_paths(source);
-    assert_eq!(
-        rewritten,
-        "// rq:[\"../../../../reqlan rq/cli/click.rq\".click_input]\n"
-    );
+    assert_eq!(rewritten, "// rq:[\"../../../../reqlan rq/cli/click.rq\".click_input]\n");
 }
