@@ -18,6 +18,9 @@ pub const CLICK_SESSIONS_FILENAME: &str = "click-sessions.sqlite";
 /// Default max click sessions retained per base.
 /// rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 pub const DEFAULT_CLICK_MAX_SESSIONS: u32 = 100;
+/// Default cap for click name lists (`maxBacklinks` / `maxSiblings` / `maxOutbound` / `maxCandidates`).
+/// rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+pub const DEFAULT_CLICK_LIST_LIMIT: u32 = 8;
 
 /// Gitignore patterns that exclude SQLite application-memory artifacts.
 /// rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]

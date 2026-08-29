@@ -54,6 +54,14 @@ describe('config schema file', () => {
                             default?: number;
                             minimum?: number;
                         };
+                        maxBacklinks?: {
+                            type?: string;
+                            default?: number;
+                            minimum?: number;
+                        };
+                        maxSiblings?: { default?: number };
+                        maxOutbound?: { default?: number };
+                        maxCandidates?: { default?: number };
                     };
                 };
             };
@@ -73,6 +81,14 @@ describe('config schema file', () => {
             default: 100,
             minimum: 1
         });
+        expect(schema.properties?.click?.properties?.maxBacklinks).toMatchObject({
+            type: 'integer',
+            default: 8,
+            minimum: 1
+        });
+        expect(schema.properties?.click?.properties?.maxSiblings?.default).toBe(8);
+        expect(schema.properties?.click?.properties?.maxOutbound?.default).toBe(8);
+        expect(schema.properties?.click?.properties?.maxCandidates?.default).toBe(8);
 
         const packageJson = JSON.parse(
             readFileSync(join(repoDir, 'packages/extension/package.json'), 'utf8')
@@ -124,6 +140,19 @@ describe('config location', () => {
         });
         const loaded = loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs);
         expect(loaded?.click?.maxSessions).toBe(12);
+    });
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+    test('loads click list caps from applying config', () => {
+        const fs = new VirtualFileSystemProvider();
+        insertConfig(fs, 'file:///workspace/pkg', {
+            click: { maxBacklinks: 2, maxSiblings: 3, maxOutbound: 4, maxCandidates: 5 }
+        });
+        const loaded = loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs);
+        expect(loaded?.click?.maxBacklinks).toBe(2);
+        expect(loaded?.click?.maxSiblings).toBe(3);
+        expect(loaded?.click?.maxOutbound).toBe(4);
+        expect(loaded?.click?.maxCandidates).toBe(5);
     });
 
     // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]

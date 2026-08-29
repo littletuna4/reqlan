@@ -124,7 +124,7 @@ fn reranks_using_graph_edges_from_context_seeds() {
             snippet: None,
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
         EdgeRecord {
             id: "e2".into(),
@@ -137,7 +137,7 @@ fn reranks_using_graph_edges_from_context_seeds() {
             snippet: None,
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
     ];
     let mut store = IndexStore::open_in_memory().unwrap();

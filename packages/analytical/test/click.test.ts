@@ -29,24 +29,24 @@ describe('click AnalysisApi', () => {
         resetNativeEngineCache();
     });
 
-    it('click API returns session key and filters repeats', async () => {
+    it('click API returns session key and unique then revisit', async () => {
         resetNativeEngineCache();
         if (!nativeEngineAvailable()) {
             return;
         }
         const root = await tempBase();
         const opened = await openAnalysisApi({ workspaceRoot: root });
-        const first = await opened.api.click('alpha', { maxDetail: 1 });
+        const first = await opened.api.click('alpha');
         expect(first.sessionKey.length).toBeGreaterThan(0);
-        expect(first.centers.some(idea => idea.name === 'alpha')).toBe(true);
-        expect(first.nodes.some(idea => idea.name === 'beta')).toBe(true);
+        expect(first.kind).toBe('unique');
+        expect(first.target?.name).toBe('alpha');
+        expect(first.outbound?.items.some(item => item.name === 'beta')).toBe(true);
         const second = await opened.api.click('alpha', {
-            sessionKey: first.sessionKey,
-            maxDetail: 1
+            sessionKey: first.sessionKey
         });
         expect(second.sessionKey).toBe(first.sessionKey);
-        expect(second.nodes.some(idea => idea.name === 'beta')).toBe(false);
-        expect(second.suppressedCount).toBeGreaterThan(0);
+        expect(second.kind).toBe('revisit');
+        expect(second.connected?.some(item => item.name === 'beta')).toBe(true);
         await opened.dispose();
     });
 });

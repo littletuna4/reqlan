@@ -34,7 +34,7 @@
     },
     "click": {
       "type": "object",
-      "description": "Optional click-session defaults for CLI and MCP click. Controls how many click sessions are kept per base under .reqlan/click-sessions.sqlite.",
+      "description": "Optional click defaults for CLI and MCP click. Controls session cache size and unique-output list caps.",
       "additionalProperties": false,
       "properties": {
         "maxSessions": {
@@ -42,6 +42,30 @@
           "minimum": 1,
           "default": 100,
           "description": "Maximum click sessions retained per base. Eviction drops the least recently touched sessions first. Default 100."
+        },
+        "maxBacklinks": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8,
+          "description": "Maximum backlink names listed on a unique click. Further names are summarised as + m more. Default 8."
+        },
+        "maxSiblings": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8,
+          "description": "Maximum sibling names listed on a unique click. Further names are summarised as + m more. Default 8."
+        },
+        "maxOutbound": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8,
+          "description": "Maximum outbound names or paths listed on a unique click. Further names are summarised as + m more. Default 8."
+        },
+        "maxCandidates": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 8,
+          "description": "Maximum search hits and ranked ambiguous matches returned by click. Default 8."
         }
       }
     },

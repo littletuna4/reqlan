@@ -117,8 +117,8 @@ pub fn comment_link_edges(
                 source_line: Some(reference.line),
                 snippet: Some(reference.snippet.clone()),
                 is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None
+                source_offset_start: None,
+                source_offset_end: None,
             });
         }
     }

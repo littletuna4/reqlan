@@ -26,7 +26,7 @@ special_attributes {
 
 cli {
     Headless twin of extension/MCP analysis: [cli_package] (`reqlan` / `rq`), same `<base>/.reqlan` index.
-    [commands]: `init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `export`/`export html`.
+    [commands]: `init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `click <target>` · `export`/`export html`.
     `--json` for machines; `--cwd` / `REQLAN_WORKSPACE`; `REQLAN_INDEX_PATH` overrides index dir.
     @status done
 }

@@ -2,7 +2,8 @@ use crate::click::{self, ClickOptions};
 use crate::types::{
     from_index_summary, BrokenReferenceDto, ClickResult, CompletionSummary, DeprecationImpact,
     EdgeDto, ExportRequestDto, ExportResultDto, FileReferenceMatch, FileRelatedRequirements,
-    GraphSlice, IdeaSummary, InteractionDescriptor, RequirementMatch, SearchRequirementsOptions,
+    GraphSlice, IdeaSummary, InteractionDescriptor, NameAmbiguity, RequirementMatch,
+    SearchRequirementsOptions,
 };
 use reqlan_export::{
     build_export_snapshot, write_csv_export, write_html_export, write_json_export,
@@ -201,21 +202,18 @@ impl AnalysisRuntime {
         Ok(Some(self.local_graph(&center.idea.id, depth)?))
     }
 
-    /// Local graph slice with session-filtered resurfacing.
+    /// Compact local context with session-aware unique / ambiguous / search / revisit paths.
     /// rq:["../../../reqlan rq/cli/click.rq".click]
-    pub fn click(
-        &mut self,
-        target: &str,
-        session_key: Option<&str>,
-        max_detail: Option<u32>,
-    ) -> Result<ClickResult, AnalysisError> {
+    pub fn click(&mut self, options: ClickOptions<'_>) -> Result<ClickResult, AnalysisError> {
         self.ensure_ready()?;
-        click::click(
-            &self.store,
-            &self.workspace_root,
-            &self.memory_path,
-            ClickOptions { target, session_key, max_detail },
-        )
+        click::click(&self.store, &self.workspace_root, &self.memory_path, options)
+    }
+
+    /// Classify a name or target as none, unique, or ambiguous.
+    /// rq:["../../../reqlan rq/cli/click.rq".click_ambiguity]
+    pub fn check_name_ambiguity(&mut self, name: &str) -> Result<NameAmbiguity, AnalysisError> {
+        self.ensure_ready()?;
+        click::check_name_ambiguity(&self.store, &self.workspace_root, name)
     }
 
     fn local_graph(&self, center_id: &str, depth: u32) -> Result<GraphSlice, AnalysisError> {
@@ -487,7 +485,7 @@ impl AnalysisRuntime {
             ),
             desc(
                 "click",
-                "Return closest ideas for a target with a session key that prevents resurfacing.",
+                "Return unique idea/file context, ranked ambiguous matches, or search hits. Pass sessionKey on the next click.",
             ),
             desc(
                 "list_broken_references",

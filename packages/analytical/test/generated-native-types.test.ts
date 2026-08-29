@@ -15,6 +15,7 @@ import type {
     FileReferenceMatch,
     BrokenReferenceDto,
     ClickResult,
+    NameAmbiguity,
     FileRelatedRequirements,
     GraphSlice,
     IdeaSummary,
@@ -47,7 +48,8 @@ describe('specta generated native types', () => {
         expect(source).toContain('export type BrokenReferenceDto');
         expect(source).toContain('export type ClickResult');
         expect(source).toContain('sessionKey');
-        expect(source).toContain('suppressedCount');
+        expect(source).toContain('commentRefs');
+        expect(source).toContain('export type NameAmbiguity');
         expect(source).toContain('fileUri');
         expect(source).toContain('lineStart');
     });
@@ -60,6 +62,7 @@ describe('specta generated native types', () => {
             FileReferenceMatch,
             BrokenReferenceDto,
             ClickResult,
+            NameAmbiguity,
             FileRelatedRequirements,
             GraphSlice,
             CompletionSummary,

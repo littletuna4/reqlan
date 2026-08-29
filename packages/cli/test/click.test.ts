@@ -1,6 +1,7 @@
 /**
  * rq:["../../../reqlan rq/cli/click.rq".click]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
+ * rq:["../../../reqlan rq/cli/click.rq".agent_advisory]
  */
 import { describe, expect, test } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -28,7 +29,7 @@ function runClick(cwd: string, args: string[]): { status: number | null; stdout:
 }
 
 describe('click command', () => {
-    test('click command emits session and neighbours', () => {
+    test('click command emits session and unique context', () => {
         resetNativeEngineCache();
         if (!nativeEngineAvailable()) {
             return;
@@ -44,19 +45,21 @@ describe('click command', () => {
         expect(first.status).toBe(0);
         const payload = JSON.parse(first.stdout) as {
             sessionKey: string;
-            nodes: Array<{ name: string }>;
+            kind: string;
+            outbound?: { items: Array<{ name: string }> };
         };
         expect(payload.sessionKey.length).toBeGreaterThan(0);
-        expect(payload.nodes.some(idea => idea.name === 'beta')).toBe(true);
+        expect(payload.kind).toBe('unique');
+        expect(payload.outbound?.items.some(item => item.name === 'beta')).toBe(true);
         const second = runClick(root, ['alpha', '--session', payload.sessionKey, '--json']);
         expect(second.status).toBe(0);
         const again = JSON.parse(second.stdout) as {
             sessionKey: string;
-            nodes: Array<{ name: string }>;
-            suppressedCount: number;
+            kind: string;
+            connected?: Array<{ name: string }>;
         };
         expect(again.sessionKey).toBe(payload.sessionKey);
-        expect(again.nodes.some(idea => idea.name === 'beta')).toBe(false);
-        expect(again.suppressedCount).toBeGreaterThan(0);
+        expect(again.kind).toBe('revisit');
+        expect(again.connected?.some(item => item.name === 'beta')).toBe(true);
     });
 });

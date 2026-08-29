@@ -47,7 +47,7 @@ fn persist_pair(store: &mut IndexStore) -> (IdeaRecord, IdeaRecord) {
             snippet: Some("[beta]".into()),
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
         EdgeRecord {
             id: "edge-file".into(),
@@ -60,7 +60,7 @@ fn persist_pair(store: &mut IndexStore) -> (IdeaRecord, IdeaRecord) {
             snippet: None,
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
     ];
     store.upsert_document(file_a, "hash-a", &[alpha.clone()], &edges, None).unwrap();
@@ -384,8 +384,8 @@ fn workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count() {
                 source_line: None,
                 snippet: None,
                 is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None
+                source_offset_start: None,
+                source_offset_end: None,
             }],
             None,
         )
@@ -443,7 +443,7 @@ fn html_export_workspace_graph_includes_wildcard_refs_chip_and_edges() {
             snippet: Some("[exact_friend]".into()),
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
         EdgeRecord {
             id: "edge-wild".into(),
@@ -456,7 +456,7 @@ fn html_export_workspace_graph_includes_wildcard_refs_chip_and_edges() {
             snippet: Some("[./mods/*.rq.widget_*]".into()),
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         },
     ];
     store

@@ -22,6 +22,7 @@ import type {
     IdeaSummary as NativeIdeaSummary,
     BrokenReferenceDto as NativeBrokenReference,
     ClickResult as NativeClickResult,
+    NameAmbiguity as NativeNameAmbiguity,
     RequirementMatch as NativeRequirementMatch
 } from './generated.js';
 
@@ -44,18 +45,20 @@ export interface SearchRequirementsOptions {
 export interface ClickOptions {
     /** Existing click session key; omit to start a new session. */
     sessionKey?: string;
-    /** Hop depth for the local graph slice (default 1). */
+    /** Deprecated hop-depth flag; ignored on the unique path. */
     maxDetail?: number;
+    /** Max backlink names listed (default 8). */
+    maxBacklinks?: number;
+    /** Max sibling names listed (default 8). */
+    maxSiblings?: number;
+    /** Max outbound names listed (default 8). */
+    maxOutbound?: number;
+    /** Max search hits and ranked ambiguous matches (default 8). */
+    maxCandidates?: number;
 }
 
-export interface ClickResult {
-    sessionKey: string;
-    centers: IdeaSummary[];
-    depth: number;
-    nodes: IdeaSummary[];
-    edges: GraphSlice['edges'];
-    suppressedCount: number;
-}
+export type ClickResult = NativeClickResult;
+export type NameAmbiguity = NativeNameAmbiguity;
 
 export interface InteractionDescriptor {
     name: string;
@@ -118,26 +121,22 @@ export class NativeAnalysisApi {
      * rq:["../../../../reqlan rq/cli/click.rq".click_session]
      */
     async click(target: string, options?: ClickOptions): Promise<ClickResult> {
-        const result = this.native.click(
+        return this.native.click(
             target,
             options?.sessionKey,
-            options?.maxDetail
+            options?.maxDetail,
+            options?.maxBacklinks,
+            options?.maxSiblings,
+            options?.maxOutbound,
+            options?.maxCandidates
         ) as NativeClickResult;
-        return {
-            sessionKey: result.sessionKey,
-            centers: result.centers.map(toIdea),
-            depth: result.depth,
-            nodes: result.nodes.map(toIdea),
-            edges: result.edges.map(edge => ({
-                id: edge.id,
-                sourceId: edge.sourceId,
-                targetId: edge.targetId ?? undefined,
-                targetFile: edge.targetFile ?? undefined,
-                kind: edge.kind as GraphSlice['edges'][number]['kind'],
-                label: edge.label ?? undefined
-            })),
-            suppressedCount: result.suppressedCount
-        };
+    }
+
+    /**
+     * rq:["../../../../reqlan rq/cli/click.rq".click_ambiguity]
+     */
+    async checkNameAmbiguity(name: string): Promise<NameAmbiguity> {
+        return this.native.checkNameAmbiguity(name) as NativeNameAmbiguity;
     }
 
     async getCompletionStatus(): Promise<CompletionSummary> {
@@ -323,6 +322,50 @@ export class NativeAnalysisApi {
         return `### ${idea.name} (${location})\n${idea.summary || '(no summary)'}${status}${tags}`;
     }
 
+    /**
+     * rq:["../../../../reqlan rq/cli/click.rq".click_output]
+     * rq:["../../../../reqlan rq/cli/click.rq".agent_advisory]
+     */
+    formatClickResult(result: ClickResult): string {
+        const lines = [`sessionKey: ${result.sessionKey}`, `kind: ${result.kind}`, ''];
+        if (result.target) {
+            const target = result.target;
+            const label = target.kind === 'file' ? 'file' : 'idea';
+            lines.push(`${label}: ${target.name} (${target.fileUri})`);
+            if (target.content) {
+                lines.push(`content: ${target.content}`);
+            }
+            if (target.status) {
+                lines.push(`status: ${target.status}`);
+            }
+            lines.push('');
+        }
+        pushNameList(lines, 'outbound', result.outbound);
+        pushNameList(lines, 'backlinks', result.backlinks);
+        pushNameList(lines, 'commentRefs', result.commentRefs);
+        pushNameList(lines, 'siblings', result.siblings);
+        if (result.connected && result.connected.length > 0) {
+            lines.push('connected:');
+            for (const item of result.connected) {
+                lines.push(`- ${item.name} (${item.fileUri})`);
+                if (item.content) {
+                    lines.push(`  ${item.content}`);
+                }
+            }
+            lines.push('');
+        }
+        if (result.candidates && result.candidates.length > 0) {
+            lines.push('candidates:');
+            for (const item of result.candidates) {
+                const hops = item.hops !== undefined && item.hops !== null ? ` hops=${item.hops}` : '';
+                lines.push(`- ${item.name} (${item.fileUri})${hops}`);
+            }
+            lines.push('');
+        }
+        lines.push('Pass sessionKey on the next click.');
+        return lines.join('\n');
+    }
+
     private exportFormat(
         format: string,
         request: Omit<ExportRequest, 'workspaceRoot'> & { workspaceRoot?: string }
@@ -401,4 +444,23 @@ function toGraph(graph: NativeGraphSlice): GraphSlice {
             label: edge.label ?? undefined
         }))
     };
+}
+
+function pushNameList(
+    lines: string[],
+    title: string,
+    list: ClickResult['outbound'] | undefined
+): void {
+    if (!list) {
+        return;
+    }
+    lines.push(`${title} (${list.total}):`);
+    for (const item of list.items) {
+        const file = item.fileUri ? ` (${item.fileUri})` : '';
+        lines.push(`- ${item.name}${file}`);
+    }
+    if (list.omitted > 0) {
+        lines.push(`+ ${list.omitted} more`);
+    }
+    lines.push('');
 }

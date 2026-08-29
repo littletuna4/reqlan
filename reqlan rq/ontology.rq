@@ -175,6 +175,7 @@ referenced_files {
     Inbound comment refs: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
     via [comment_resolver] / [comment_grammar].
     Full non-`.rq` file indexing of comment-bearing sources: ["./indexer/indexer.rq".index_code_files].
+    Click treats those files as centres: ["./cli/click.rq".click_code_file].
     @status done
     @implementation (
         [file_reference_resolve]
@@ -308,8 +309,10 @@ reference_types {
 }
 
 click {
-    A CLI/MCP function that dumps local context for a given idea, file, or path.
-    Uses a SQLite ["./cli/click.rq".click_session] so agents do not get the same ideas again.
-    Optional max detail sets hop depth. Session cache size is configurable.
+    A CLI/MCP function that returns compact local context for a given idea, file, or path.
+    No match uses search. More than one match is ranked by distance from the session.
+    One match returns idea content plus outbound, backlink, and sibling counts (no edges).
+    Indexed code files are click targets. Uses a SQLite ["./cli/click.rq".click_session].
+    Count caps and session cache size are configurable.
     see ["./cli/click.rq".click]
 }

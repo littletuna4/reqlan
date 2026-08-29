@@ -1,7 +1,13 @@
-from "../ontology.rq" import click as click_ontology
+from "../ontology.rq" import click as click_ontology, ideaset, referenced_files
 from "../extension/module/index.rq" import application_memory
 from "../extension/configuration.rq" import configuration_schema_file, configuration_location
 from "./cli_package.rq" import commands, function_parity
+from "../core_analysis/search.rq" import fuzzy_search, contextual_search, file_search
+from "../modelling/advanced_analysis.rq" import idea_graph_distance
+from "../indexer/indexer.rq" import index_code_files
+from "../extension/features-graph-analysers.rq" import file_related_requirements
+from "../reference_types.rq" import comment_reference, file_reference, wildcard_reference
+from "../language/syntax.rq" import idea_name
 import "../../packages/analytical/src/native/native-analysis-api.ts" as native_analysis_api
 import "../../packages/cli/src/commands/click.ts" as click_cli
 import "../../packages/mcp/src/server.ts" as mcp_server
@@ -9,10 +15,11 @@ import "../../crates/reqlan-analytical/src/click.rs" as click_rust
 import "../../crates/reqlan-analytical/src/click_sessions.rs" as click_sessions_rust
 
 click {
-    The [click_ontology] function returns a local slice of the requirement graph.
-    Input is one target: an idea name, a `path#idea` ref, a `.rq` file path, or another indexed path.
-    Optional `maxDetail` sets hop depth for the slice (default 1).
-    Optional `sessionKey` continues a [click_session] so the same ideas are not returned again.
+    The [click_ontology] function returns compact local context for one target.
+    Input: an idea name, a `path#idea` ref, a `.rq` file path, or an indexed code file ([click_input], [click_code_file]).
+    Resolution uses [click_ambiguity]: no match uses search; more than one match is ranked; one match uses [click_output].
+    Optional [click_max_detail] flags cap how many names and bodies are listed.
+    Optional `sessionKey` continues a [click_session]. A second click on a centre already clicked in that session returns the connected content ([click_session]).
     Surfaces: CLI `reqlan click` ([click_cli]), MCP `click` ([mcp_server]), and [native_analysis_api] `click`.
     Engine: [click_rust] on ["./cli_package.rq".architecture] / ["../core_analysis/rust_port.rq".analytical_rust_port].
     Related: [function_parity], [commands], [agent_advisory], [click_session], [click_input], [click_max_detail], [click_output].
@@ -26,62 +33,103 @@ click {
         ["../../crates/reqlan-napi/src/lib.rs"]
     )
     @tests (
-        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
-        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_and_path_hash_idea"]
-        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
-        ["../../crates/reqlan-analytical/tests/click.rs:content_hash_change_allows_resurface"]
-        ["../../crates/reqlan-analytical/tests/click.rs:session_cache_evicts_by_count_and_last_touched"]
-        ["../../crates/reqlan-analytical/tests/click.rs:max_sessions_reads_base_config"]
-        ["../../packages/analytical/test/click.test.ts:click API returns session key and filters repeats"]
-        ["../../packages/cli/test/click.test.ts:click command emits session and neighbours"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_as_one_file_node"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_ranks_ambiguous_names_by_session_distance"]
+        ["../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
+        ["../../packages/cli/test/click.test.ts:click command emits session and unique context"]
     )
 }
 
 click_input {
     Accept any of:
-    - idea name (exact match in the index)
-    - `path#idea` (indexed file URI + idea name)
-    - `.rq` file path (all ideas in that file are centres)
-    - other indexed path that resolves to ideas in a file
-    Trim optional surrounding brackets (`[name]`).
-    Resolution reuses search context ref rules
+    - idea name (trimmed optional surrounding brackets `[name]`)
+    - `path#idea` (indexed file URI + idea name) — this form is unique
+    - `.rq` file path — the file is one centre, not every idea in the file
+    - indexed code file path ([click_code_file])
+    Resolution uses [click_ambiguity] after the same ref normalisation as
     (["../core_analysis/search.rq".contextual_search] / `resolve_search_context_refs`).
-    When no centre resolves, return an empty slice and still return or create a [click_session] key.
+    When no centre matches, click uses [fuzzy_search] (and [file_search]) with the target as the query and returns those hits. Do not return an empty slice.
+    When more than one centre matches, and the [click_session] already has ideas, rank the matches by undirected hop distance from those ideas ([idea_graph_distance] / [contextual_search]). Nearer ranks first. Put the hop count on each candidate.
+    When there is no session key, or the session has no ideas yet, do not calculate hop distance. Do not print hops. Rank by name and file path. On the search path, rank by [fuzzy_search] score only.
+    When exactly one centre matches, return [click_output].
+    Always return or create a [click_session] key.
     @status done
     @implementation (
         [click_rust]
         ["../../crates/reqlan-search/src/contextual.rs"]
+        ["../../crates/reqlan-search/src/fuzzy.rs"]
     )
     @tests (
-        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
-        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_and_path_hash_idea"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_as_one_file_node"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_ranks_ambiguous_names_by_session_distance"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_omits_hops_when_session_has_no_ideas"]
+    )
+}
+
+click_ambiguity {
+    Engine function that classifies a name or target as none, unique, or ambiguous.
+    A name is ambiguous when more than one indexed idea or indexed file shares that exact name.
+    Names are unique inside one file ([idea_name]); ambiguity is across files.
+    `path#idea` and a full indexed path are unique when that record exists.
+    Click uses this function to choose the [click_input] path and to decide when [click_output] prints a file path next to a name.
+    Outbound [wildcard_reference] targets are ambiguous: print their matching paths.
+    Surfaces: AnalysisApi `checkNameAmbiguity` (engine). Click must call it. CLI/MCP exposure is not required.
+    @status done
+    @implementation (
+        [click_rust]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        [native_analysis_api]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:check_name_ambiguity_classifies_none_unique_and_ambiguous"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_prints_file_when_name_is_ambiguous"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_ambiguous_code_file_basename"]
     )
 }
 
 click_max_detail {
-    Optional `maxDetail` is the undirected hop depth for the local graph around the centres.
-    Default is 1. Values less than 1 are treated as 1.
-    Higher depth returns a larger neighbourhood of closest ideas.
+    Flags that cap how many names and bodies click lists. Invalid or missing values use the default. Values less than 1 use 1.
+    Defaults live in `.reqlan/config.json` under `click` ([configuration_location], [configuration_schema_file]). CLI and MCP flags override config.
+    - `maxBacklinks` / `--max-backlinks` / `click.maxBacklinks` — first n backlink names in [click_output], then "+ m more". Default 8.
+    - `maxSiblings` / `--max-siblings` / `click.maxSiblings` — first n sibling names, then "+ m more". Default 8.
+    - `maxOutbound` / `--max-outbound` / `click.maxOutbound` — first n outbound names or paths, then "+ m more". Default 8.
+    - `maxCandidates` / `--max-candidates` / `click.maxCandidates` — search hits and ranked ambiguous matches. Default 8.
+    `maxDetail` / `--max-detail` is the old hop-depth for a neighbourhood dump. Unique [click_output] does not use hop depth. The flag is still accepted and ignored on the unique path.
     @status done
     @implementation (
         [click_rust]
         [click_cli]
         [mcp_server]
+        ["../../packages/extension/schemas/config.schema.json"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
     )
     @tests (
-        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_local_neighbours_for_idea_target"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_caps_lists_and_reports_omitted"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:click_list_limits_read_config"]
+        ["../../packages/language/test/config.test.ts:loads click list caps from applying config"]
+        ["../../packages/language/test/config.test.ts:schema file documents click maxSessions"]
     )
 }
 
 click_output {
-    A click result includes:
-    - `sessionKey` — pass on the next click in the same agent or CLI flow ([agent_advisory])
-    - `centers` — resolved seed ideas for the target
-    - `depth` — effective hop depth
-    - `nodes` — newly surfaced closest ideas (session-filtered)
-    - `edges` — graph edges among centres and returned nodes
-    - `suppressedCount` — ideas held back because the session already saw them at the same content hash
-    Centres are not listed again in `nodes` unless they would otherwise appear as neighbours of another centre.
+    The result always includes `sessionKey` ([agent_advisory]).
+    The result does not include an `edges` list. Links are implied by the lists below.
+    Shape depends on [click_input]:
+    Unique (one centre):
+    - the idea (or file) and its content (indexed body / summary)
+    - count of outbound links; list names; when [click_ambiguity] says the name is ambiguous, print the file path with the name
+    - count of backlinks and the first n names ([click_max_detail]); print the file when the name is ambiguous or shared; then "+ m more" for the remainder
+    - count of siblings (same [ideaset] / file) and the first n names, with file when the name is ambiguous or shared
+    - for a code-file centre, see [click_code_file]
+    Ambiguous (more than one match): ranked candidate names with file paths. Include hop distance only when the session has prior ideas. No idea bodies. Cap with `maxCandidates`.
+    Search (no exact match): [fuzzy_search] / [file_search] hits. Cap with `maxCandidates`.
+    Revisit: see [click_session]. Show content of the connected nodes, not the centre body again.
     @status done
     @implementation (
         [click_rust]
@@ -89,22 +137,47 @@ click_output {
         [native_analysis_api]
     )
     @tests (
-        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
-        ["../../packages/analytical/test/click.test.ts:click API returns session key and filters repeats"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_prints_file_when_name_is_ambiguous"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_caps_lists_and_reports_omitted"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
+        ["../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_omits_hops_when_session_has_no_ideas"]
+    )
+}
+
+click_code_file {
+    An indexed code file is a first-class click target ([index_code_files], [referenced_files]).
+    Click accepts the same path forms as [file_search] (relative path, basename when unique).
+    Unique output for a code file:
+    - the file path (no idea body)
+    - count and names of backlinks: ideas with a [file_reference] to this file; print the idea file when the name is ambiguous
+    - count and names of [comment_reference] targets (`comment_link` from this file); print the idea file when the name is ambiguous
+    - siblings do not apply
+    Data is the same indexed edges as [file_related_requirements].
+    @status done
+    @implementation (
+        [click_rust]
+        [index_code_files]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/click.rs:click_code_file_returns_backlinks_and_comment_refs"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_ambiguous_code_file_basename"]
     )
 }
 
 agent_advisory {
     Agents must pass the [click_session] ID (`sessionKey`) to the next click action.
-    This avoids regurgitation of the same context in one agent thread.
-    MCP tool text states this rule clearly ([mcp_server] `click`).
+    This keeps one agent thread on the same session so a revisit can expand connected content and so ranking can use session distance.
+    MCP tool text states this rule and the unique / ambiguous / search paths clearly ([mcp_server] `click`).
     @status done
     @implementation (
         [mcp_server]
         [click_cli]
+        [native_analysis_api]
     )
     @tests (
-        ["../../packages/cli/test/click.test.ts:click command emits session and neighbours"]
+        ["../../packages/cli/test/click.test.ts:click command emits session and unique context"]
     )
 }
 
@@ -115,6 +188,11 @@ click_session {
     Sessions are keyed against ideas. Each surfaced idea stores a fingerprint of its
     name, summary, status, and tags. When that fingerprint changes, the idea may
     resurface on the next click.
+    Record clicked centres (unique or revisit targets) separately from names that were only listed.
+    When the target is a centre already clicked in this session, return the content of the connected nodes
+    (outbound, backlinks, and siblings that the first click listed), capped by [click_max_detail].
+    Do not repeat the centre body. Do not return an empty suppressed slice.
+    Skip a connected body that this session already showed as content, unless its fingerprint changed.
     Session cache size is [click_session_limit].
     Eviction uses last-touched order: when the store exceeds the limit, drop the least recently touched sessions first.
     Touch the active session on every successful click.
@@ -128,7 +206,7 @@ click_session {
         ["../../crates/reqlan-index/src/ignore.rs"]
     )
     @tests (
-        ["../../crates/reqlan-analytical/tests/click.rs:same_session_suppresses_already_surfaced_ideas"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
         ["../../crates/reqlan-analytical/tests/click.rs:content_hash_change_allows_resurface"]
         ["../../crates/reqlan-analytical/tests/click.rs:session_cache_evicts_by_count_and_last_touched"]
     )
@@ -139,6 +217,7 @@ click_session_limit {
     Configure with `click.maxSessions` in `.reqlan/config.json` ([configuration_location], [configuration_schema_file]).
     Invalid or missing values use 100. Values less than 1 use 1.
     Eviction is by session count and last-touched time ([click_session]).
+    Count caps for one click result are [click_max_detail], not this limit.
     @status done
     @implementation (
         ["../../packages/extension/schemas/config.schema.json"]

@@ -26,6 +26,7 @@ const REQUIRED_TYPES: &[&str] = &[
     "ExportResultDto",
     "InteractionDescriptor",
     "ClickResult",
+    "NameAmbiguity",
 ];
 
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]

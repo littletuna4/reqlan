@@ -180,6 +180,7 @@ export type {
     AnalysisRuntimeOptions,
     ClickOptions,
     ClickResult,
+    NameAmbiguity,
     InteractionDescriptor,
     RequirementMatch,
     SearchRequirementsOptions

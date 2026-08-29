@@ -38,7 +38,7 @@ pub use ids::{edge_id, idea_id};
 pub use ignore::{
     click_sessions_path, create_base, default_gitignore_file_contents,
     default_rqignore_file_contents, CreateBaseResult, WorkspaceGitignore, CLICK_SESSIONS_FILENAME,
-    DEFAULT_CLICK_MAX_SESSIONS, GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME,
+    DEFAULT_CLICK_LIST_LIMIT, DEFAULT_CLICK_MAX_SESSIONS, GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME,
     INDEX_DIAGNOSTICS_FILENAME,
 };
 pub use overview::{compute_overview_coverage, OverviewCoverageScores};

@@ -87,9 +87,30 @@ impl NativeAnalysisRuntime {
         target: String,
         session_key: Option<String>,
         max_detail: Option<u32>,
+        max_backlinks: Option<u32>,
+        max_siblings: Option<u32>,
+        max_outbound: Option<u32>,
+        max_candidates: Option<u32>,
     ) -> Result<serde_json::Value> {
-        let result =
-            self.lock()?.click(&target, session_key.as_deref(), max_detail).map_err(map_err)?;
+        let result = self
+            .lock()?
+            .click(reqlan_analytical::ClickOptions {
+                target: &target,
+                session_key: session_key.as_deref(),
+                max_detail,
+                max_backlinks,
+                max_siblings,
+                max_outbound,
+                max_candidates,
+            })
+            .map_err(map_err)?;
+        serde_json::to_value(result).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// rq:["../../../reqlan rq/cli/click.rq".click_ambiguity]
+    #[napi]
+    pub fn check_name_ambiguity(&self, name: String) -> Result<serde_json::Value> {
+        let result = self.lock()?.check_name_ambiguity(&name).map_err(map_err)?;
         serde_json::to_value(result).map_err(|error| Error::from_reason(error.to_string()))
     }
 

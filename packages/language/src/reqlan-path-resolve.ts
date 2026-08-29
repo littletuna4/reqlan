@@ -76,6 +76,14 @@ export interface RqExportConfig {
 export interface RqClickConfig {
     /** Max sessions retained per base (default 100). */
     maxSessions?: number;
+    /** Max backlink names listed on a unique click (default 8). */
+    maxBacklinks?: number;
+    /** Max sibling names listed on a unique click (default 8). */
+    maxSiblings?: number;
+    /** Max outbound names listed on a unique click (default 8). */
+    maxOutbound?: number;
+    /** Max search / ambiguous candidates (default 8). */
+    maxCandidates?: number;
 }
 
 export interface RqConfig {
@@ -228,11 +236,25 @@ function parseClickConfig(raw: unknown): RqClickConfig | undefined {
     }
     const record = raw as Record<string, unknown>;
     const result: RqClickConfig = {};
-    if (typeof record.maxSessions === 'number' && Number.isFinite(record.maxSessions)) {
-        const value = Math.trunc(record.maxSessions);
-        result.maxSessions = value < 1 ? 1 : value;
-    }
+    assignClickLimit(record, 'maxSessions', result, 'maxSessions');
+    assignClickLimit(record, 'maxBacklinks', result, 'maxBacklinks');
+    assignClickLimit(record, 'maxSiblings', result, 'maxSiblings');
+    assignClickLimit(record, 'maxOutbound', result, 'maxOutbound');
+    assignClickLimit(record, 'maxCandidates', result, 'maxCandidates');
     return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function assignClickLimit(
+    record: Record<string, unknown>,
+    key: keyof RqClickConfig,
+    result: RqClickConfig,
+    field: keyof RqClickConfig
+): void {
+    const raw = record[key];
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+        const value = Math.trunc(raw);
+        result[field] = value < 1 ? 1 : value;
+    }
 }
 
 function parseImportRootEntry(entry: unknown, baseRootUri: URI): ImportRootMapping | undefined {

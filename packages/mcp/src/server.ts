@@ -170,11 +170,11 @@ export async function startMcpServer(): Promise<void> {
     "click",
     {
       description:
-        "Return the closest ideas for an idea name, path#idea, .rq file, or indexed path. Always pass sessionKey from the prior click on the next call so the same ideas are not resurfaced in this agent session.",
+        "Return compact context for an idea name, path#idea, .rq file, or indexed code file. No match uses search. More than one match is ranked by distance from ideas already in the session. A unique match returns idea content plus outbound, backlink, and sibling names (no edges). A second click on the same centre in this session returns connected content. Always pass sessionKey from the prior click on the next call.",
       inputSchema: {
         target: z
           .string()
-          .describe("Idea name, path#idea, .rq file, or indexed path"),
+          .describe("Idea name, path#idea, .rq file, or indexed code file"),
         sessionKey: z
           .string()
           .optional()
@@ -185,50 +185,51 @@ export async function startMcpServer(): Promise<void> {
           .positive()
           .max(8)
           .optional()
-          .describe("Hop depth for closest ideas (default 1)"),
+          .describe("Deprecated hop-depth flag; ignored on the unique path"),
+        maxBacklinks: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Max backlink names (default 8)"),
+        maxSiblings: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Max sibling names (default 8)"),
+        maxOutbound: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Max outbound names (default 8)"),
+        maxCandidates: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Max search hits and ranked ambiguous matches (default 8)"),
       },
     },
-    async ({ target, sessionKey, maxDetail }) => {
+    async ({
+      target,
+      sessionKey,
+      maxDetail,
+      maxBacklinks,
+      maxSiblings,
+      maxOutbound,
+      maxCandidates,
+    }) => {
       const result = await api.click(target, {
         sessionKey,
-        maxDetail: maxDetail ?? 1,
+        maxDetail,
+        maxBacklinks,
+        maxSiblings,
+        maxOutbound,
+        maxCandidates,
       });
-      const centers =
-        result.centers.length > 0
-          ? result.centers.map((idea) => api.formatIdea(idea)).join("\n\n")
-          : "(none)";
-      const nodes =
-        result.nodes.length > 0
-          ? result.nodes.map((idea) => api.formatIdea(idea)).join("\n\n")
-          : "(none)";
-      const edges =
-        result.edges.length > 0
-          ? result.edges
-              .slice(0, 40)
-              .map(
-                (edge) =>
-                  `- ${edge.kind}: ${edge.sourceId} -> ${edge.targetId ?? edge.targetFile ?? "?"}`,
-              )
-              .join("\n")
-          : "(none)";
-      return textContent(
-        [
-          `sessionKey: ${result.sessionKey}`,
-          `depth: ${result.depth}`,
-          `suppressedCount: ${result.suppressedCount}`,
-          "",
-          "Pass sessionKey on the next click to avoid resurfacing.",
-          "",
-          "## Centers",
-          centers,
-          "",
-          "## Closest ideas",
-          nodes,
-          "",
-          "## Edges",
-          edges,
-        ].join("\n"),
-      );
+      return textContent(api.formatClickResult(result));
     },
   );
 

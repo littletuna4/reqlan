@@ -80,8 +80,8 @@ fn scores_reference_labels_and_query_tokens() {
         source_line: None,
         snippet: None,
         is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None
+        source_offset_start: None,
+        source_offset_end: None,
     };
     let mut store = IndexStore::open_in_memory().unwrap();
     persist(&mut store, &[source, target], &[edge]);

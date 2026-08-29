@@ -212,7 +212,7 @@ index_code_files {
     Watcher + idle stale check cover code documents as well as `.rq` files ([triggers], [nonblocking_index]).
     Consumers: [graph_analysers.file_related_requirements], ["../core_analysis/search.rq".file_search],
     ["../core_analysis/html_export.rq".html_export_code_reference_pages], Ideas Summary comment-reference rows,
-    local graph (idea → external file node).
+    local graph (idea → external file node), ["../cli/click.rq".click_code_file].
     See [graph_analysers.index_comment_reference_inclusion], ["../ontology.rq".referenced_files].
     @status done
     @implementation (

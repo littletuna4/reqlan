@@ -77,11 +77,7 @@ pub fn analyze_local_symbolic(
     extract_indexed_document(
         file_uri,
         source,
-        &ExtractOptions {
-            idea_candidates: Vec::new(),
-            import_roots: roots,
-            local_symbolic: true,
-        },
+        &ExtractOptions { idea_candidates: Vec::new(), import_roots: roots, local_symbolic: true },
     )
 }
 
@@ -152,8 +148,8 @@ pub fn extract_from_parse(
                         source_line: None,
                         snippet: None,
                         is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None
+                        source_offset_start: None,
+                        source_offset_end: None,
                     });
                 }
             }
@@ -634,7 +630,7 @@ fn wildcard_edges(
             snippet,
             is_resolved: Some(false),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         }];
     }
     matches
@@ -651,8 +647,8 @@ fn wildcard_edges(
                 source_line: Some(source_line),
                 snippet: snippet.clone(),
                 is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None
+                source_offset_start: None,
+                source_offset_end: None,
             }
         })
         .collect()
@@ -914,7 +910,7 @@ fn collect_file_reference_edges(
             snippet: None,
             is_resolved: Some(true),
             source_offset_start: None,
-            source_offset_end: None
+            source_offset_end: None,
         });
     }
 }

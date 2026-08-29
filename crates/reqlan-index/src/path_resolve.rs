@@ -4,7 +4,9 @@
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 
-use crate::ignore::{APPLICATION_MEMORY_DIR, CONFIG_FILENAME, DEFAULT_CLICK_MAX_SESSIONS};
+use crate::ignore::{
+    APPLICATION_MEMORY_DIR, CONFIG_FILENAME, DEFAULT_CLICK_LIST_LIMIT, DEFAULT_CLICK_MAX_SESSIONS,
+};
 use reqlan_parse::{default_import_roots, ImportRootMapping};
 use serde_json::Value;
 use std::path::Path;
@@ -14,12 +16,21 @@ pub struct RqConfig {
     pub import_roots: Vec<ImportRootMapping>,
     /// Max click sessions retained per base (`click.maxSessions`, default 100).
     pub click_max_sessions: u32,
+    /// rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+    pub click_max_backlinks: u32,
+    pub click_max_siblings: u32,
+    pub click_max_outbound: u32,
+    pub click_max_candidates: u32,
 }
 
 pub fn default_rq_config() -> RqConfig {
     RqConfig {
         import_roots: default_import_roots(),
         click_max_sessions: DEFAULT_CLICK_MAX_SESSIONS,
+        click_max_backlinks: DEFAULT_CLICK_LIST_LIMIT,
+        click_max_siblings: DEFAULT_CLICK_LIST_LIMIT,
+        click_max_outbound: DEFAULT_CLICK_LIST_LIMIT,
+        click_max_candidates: DEFAULT_CLICK_LIST_LIMIT,
     }
 }
 
@@ -78,11 +89,30 @@ fn parse_rq_config_json(text: &str, base_root: &Path) -> Option<RqConfig> {
     }
     if let Some(click) = object.get("click").and_then(Value::as_object) {
         if let Some(max) = click.get("maxSessions").and_then(Value::as_u64) {
-            config.click_max_sessions =
-                if max == 0 { 1 } else { max.min(u64::from(u32::MAX)) as u32 };
+            config.click_max_sessions = normalize_click_u32(max);
+        }
+        if let Some(max) = click.get("maxBacklinks").and_then(Value::as_u64) {
+            config.click_max_backlinks = normalize_click_u32(max);
+        }
+        if let Some(max) = click.get("maxSiblings").and_then(Value::as_u64) {
+            config.click_max_siblings = normalize_click_u32(max);
+        }
+        if let Some(max) = click.get("maxOutbound").and_then(Value::as_u64) {
+            config.click_max_outbound = normalize_click_u32(max);
+        }
+        if let Some(max) = click.get("maxCandidates").and_then(Value::as_u64) {
+            config.click_max_candidates = normalize_click_u32(max);
         }
     }
     Some(config)
+}
+
+fn normalize_click_u32(max: u64) -> u32 {
+    if max == 0 {
+        1
+    } else {
+        max.min(u64::from(u32::MAX)) as u32
+    }
 }
 
 fn parse_import_roots(raw: &Value, base_root: &Path) -> Option<Vec<ImportRootMapping>> {
@@ -178,6 +208,23 @@ mod tests {
         std::fs::write(root.join(".reqlan/config.json"), r#"{"click":{"maxSessions":3}}"#).unwrap();
         let config = load_applying_rq_config(&root, None);
         assert_eq!(config.click_max_sessions, 3);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+    #[test]
+    fn click_list_limits_read_config() {
+        let root = scratch("click-lists");
+        std::fs::write(
+            root.join(".reqlan/config.json"),
+            r#"{"click":{"maxBacklinks":2,"maxSiblings":3,"maxOutbound":4,"maxCandidates":5}}"#,
+        )
+        .unwrap();
+        let config = load_applying_rq_config(&root, None);
+        assert_eq!(config.click_max_backlinks, 2);
+        assert_eq!(config.click_max_siblings, 3);
+        assert_eq!(config.click_max_outbound, 4);
+        assert_eq!(config.click_max_candidates, 5);
         std::fs::remove_dir_all(&root).ok();
     }
 }

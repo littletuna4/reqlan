@@ -10,7 +10,7 @@ mod types;
 mod workspace_index;
 
 pub use api::{AnalysisError, AnalysisRuntime};
-pub use click::{click_memory_path, ClickOptions};
+pub use click::{check_name_ambiguity, click_memory_path, ClickOptions};
 pub use reqlan_index::FileIssueDraft;
 pub use types::*;
 pub use workspace_index::{
@@ -36,6 +36,11 @@ pub fn type_collection() -> TypeCollection {
     types.register::<InteractionDescriptor>();
     types.register::<FileReferenceMatch>();
     types.register::<BrokenReferenceDto>();
+    types.register::<ClickNameItem>();
+    types.register::<ClickNameList>();
+    types.register::<ClickTarget>();
+    types.register::<ClickCandidate>();
+    types.register::<NameAmbiguity>();
     types.register::<ClickResult>();
     types
 }

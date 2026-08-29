@@ -26,11 +26,8 @@ local_idea {
     assert!(kinds.contains(&EdgeKind::FileReference));
     assert!(kinds.contains(&EdgeKind::WildcardReference));
 
-    let wildcards: Vec<_> = doc
-        .edges
-        .iter()
-        .filter(|edge| edge.kind == EdgeKind::WildcardReference)
-        .collect();
+    let wildcards: Vec<_> =
+        doc.edges.iter().filter(|edge| edge.kind == EdgeKind::WildcardReference).collect();
     assert_eq!(wildcards.len(), 1);
     assert_eq!(wildcards[0].is_resolved, Some(false));
     assert!(wildcards[0].target_id.is_none());
@@ -62,11 +59,8 @@ host {
         idea_name: "widget_alpha".into(),
     }];
     let doc = analyze_local_symbolic("demo/host.rq", source, &roots);
-    let wildcards: Vec<_> = doc
-        .edges
-        .iter()
-        .filter(|edge| edge.kind == EdgeKind::WildcardReference)
-        .collect();
+    let wildcards: Vec<_> =
+        doc.edges.iter().filter(|edge| edge.kind == EdgeKind::WildcardReference).collect();
     assert_eq!(wildcards.len(), 1, "local symbolic must not fan out against a catalog");
     assert_eq!(wildcards[0].is_resolved, Some(false));
 }

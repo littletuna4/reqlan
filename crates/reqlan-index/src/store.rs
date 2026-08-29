@@ -491,7 +491,7 @@ fn map_edge(row: &rusqlite::Row<'_>) -> rusqlite::Result<EdgeRecord> {
         source_line: row.get("source_line").ok(),
         snippet: row.get("snippet").ok(),
         is_resolved: is_resolved.map(|value| value != 0),
-            source_offset_start: None,
-            source_offset_end: None
+        source_offset_start: None,
+        source_offset_end: None,
     })
 }

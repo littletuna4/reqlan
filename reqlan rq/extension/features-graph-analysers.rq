@@ -59,6 +59,7 @@ file_related_requirements {
     The extension should provide a view or command to get requirements relating to the currently open file.
     File-related lookup should follow both explicit file references and comment rq: links in that file.
     Comment links are read from indexed `comment_link` edges (["../indexer/indexer.rq".index_code_files]), not only the open buffer.
+    ["../cli/click.rq".click_code_file] uses the same indexed backlinks and comment links when the click target is a code file.
     @tests (
         ["../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]

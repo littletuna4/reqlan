@@ -6,10 +6,34 @@
 export type BrokenReferenceDto = { fileUri: string; sourceId?: string | null; sourceName?: string | null; kind: string; label: string; sourceLine?: number | null; snippet?: string | null; severity?: string; matchCount?: number | null }
 
 /**
- * Result of a click: session-filtered local graph slice.
+ * Ranked ambiguous or search hit.
+ * rq:["../../../reqlan rq/cli/click.rq".click_input]
+ */
+export type ClickCandidate = { name: string; id: string; kind: string; fileUri: string; score?: number | null; hops?: number | null }
+
+/**
+ * Named neighbour or candidate in a click result.
  * rq:["../../../reqlan rq/cli/click.rq".click_output]
  */
-export type ClickResult = { sessionKey: string; centers: IdeaSummary[]; depth: number; nodes: IdeaSummary[]; edges: EdgeDto[]; suppressedCount: number }
+export type ClickNameItem = { name: string; id: string; kind: string; fileUri?: string | null }
+
+/**
+ * Counted, capped name list (`+ m more` is `omitted`).
+ * rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+ */
+export type ClickNameList = { total: number; items: ClickNameItem[]; omitted: number }
+
+/**
+ * Kinded click result. No edges list; links are implied by the name lists.
+ * rq:["../../../reqlan rq/cli/click.rq".click_output]
+ */
+export type ClickResult = { sessionKey: string; kind: string; target?: ClickTarget | null; outbound?: ClickNameList | null; backlinks?: ClickNameList | null; commentRefs?: ClickNameList | null; siblings?: ClickNameList | null; connected?: ClickTarget[] | null; candidates?: ClickCandidate[] | null }
+
+/**
+ * Centre or connected idea/file with optional body.
+ * rq:["../../../reqlan rq/cli/click.rq".click_output]
+ */
+export type ClickTarget = { kind: string; id: string; name: string; fileUri: string; lineStart: number; content?: string | null; status?: string | null }
 
 export type CompletionSummary = { total: number; byStatus: Partial<{ [key in string]: number }>; byTag: Partial<{ [key in string]: number }>; outstanding: IdeaSummary[]; deprecated: IdeaSummary[] }
 
@@ -32,6 +56,12 @@ export type GraphSlice = { centerId: string; depth: number; nodes: IdeaSummary[]
 export type IdeaSummary = { id: string; name: string; kind: string; fileUri: string; lineStart: number; summary: string; status?: string | null; statusKey: string; tags: string[]; tagsKeys: string[] }
 
 export type InteractionDescriptor = { name: string; description: string; parameters: Partial<{ [key in string]: string }> }
+
+/**
+ * Name/target uniqueness: none, unique, or ambiguous.
+ * rq:["../../../reqlan rq/cli/click.rq".click_ambiguity]
+ */
+export type NameAmbiguity = { kind: string; matches: ClickCandidate[] }
 
 export type RequirementMatch = { idea: IdeaSummary; score?: number | null; reasons?: string[] | null }
 

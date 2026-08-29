@@ -235,17 +235,89 @@ pub struct BrokenReferenceDto {
     pub match_count: Option<u32>,
 }
 
-/// Result of a click: session-filtered local graph slice.
+/// Named neighbour or candidate in a click result.
+/// rq:["../../../reqlan rq/cli/click.rq".click_output]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickNameItem {
+    pub name: String,
+    pub id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_uri: Option<String>,
+}
+
+/// Counted, capped name list (`+ m more` is `omitted`).
+/// rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickNameList {
+    pub total: u32,
+    pub items: Vec<ClickNameItem>,
+    pub omitted: u32,
+}
+
+/// Centre or connected idea/file with optional body.
+/// rq:["../../../reqlan rq/cli/click.rq".click_output]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickTarget {
+    pub kind: String,
+    pub id: String,
+    pub name: String,
+    pub file_uri: String,
+    pub line_start: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+/// Ranked ambiguous or search hit.
+/// rq:["../../../reqlan rq/cli/click.rq".click_input]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ClickCandidate {
+    pub name: String,
+    pub id: String,
+    pub kind: String,
+    pub file_uri: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hops: Option<u32>,
+}
+
+/// Name/target uniqueness: none, unique, or ambiguous.
+/// rq:["../../../reqlan rq/cli/click.rq".click_ambiguity]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NameAmbiguity {
+    pub kind: String,
+    pub matches: Vec<ClickCandidate>,
+}
+
+/// Kinded click result. No edges list; links are implied by the name lists.
 /// rq:["../../../reqlan rq/cli/click.rq".click_output]
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ClickResult {
     pub session_key: String,
-    pub centers: Vec<IdeaSummary>,
-    pub depth: u32,
-    pub nodes: Vec<IdeaSummary>,
-    pub edges: Vec<EdgeDto>,
-    pub suppressed_count: u32,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<ClickTarget>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outbound: Option<ClickNameList>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backlinks: Option<ClickNameList>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment_refs: Option<ClickNameList>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub siblings: Option<ClickNameList>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connected: Option<Vec<ClickTarget>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub candidates: Option<Vec<ClickCandidate>>,
 }
 
 fn error_severity() -> String {

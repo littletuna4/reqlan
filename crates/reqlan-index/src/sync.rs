@@ -410,11 +410,7 @@ pub fn index_one_file(
         &file_uri,
         &source,
         &parsed,
-        &ExtractOptions {
-            idea_candidates: catalog,
-            import_roots,
-            local_symbolic: false,
-        },
+        &ExtractOptions { idea_candidates: catalog, import_roots, local_symbolic: false },
     );
     store.persist_extracted(extracted, mtime_ms)?;
     refresh_indexed_code_documents(store, workspace_root)?;
