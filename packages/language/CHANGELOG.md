@@ -1,5 +1,27 @@
 # @reqlan/language
 
+## 1.11.0
+
+### Minor Changes
+
+- f3fd1ae: add click
+- 3b978db: update code completion, comment fencing, add install warning
+- 315d4b1: improve caching and lessons.
+
+### Patch Changes
+
+- f505b95: Add click: local graph slice with SQLite session keys so CLI/MCP agents do not resurface the same ideas. Configurable `click.maxSessions` (default 100) evicts by last touch.
+- 082ee6a: fix reference issues
+- fc827cf: fmt
+- Updated dependencies [f505b95]
+- Updated dependencies [f3fd1ae]
+- Updated dependencies [3b978db]
+- Updated dependencies [3b978db]
+- Updated dependencies [082ee6a]
+- Updated dependencies [315d4b1]
+- Updated dependencies [fc827cf]
+  - @reqlan/analytical@1.14.0
+
 ## 1.10.5
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # site
 
+## 0.19.0
+
+### Minor Changes
+
+- f3fd1ae: add click
+- 3b978db: update code completion, comment fencing, add install warning
+- 315d4b1: improve caching and lessons.
+
+### Patch Changes
+
+- fc827cf: fmt
+
 ## 0.18.3
 
 ### Patch Changes

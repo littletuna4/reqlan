@@ -1,5 +1,20 @@
 # @reqlan/analytical
 
+## 1.14.0
+
+### Minor Changes
+
+- f505b95: Add click: local graph slice with SQLite session keys so CLI/MCP agents do not resurface the same ideas. Configurable `click.maxSessions` (default 100) evicts by last touch.
+- f3fd1ae: add click
+- 3b978db: update code completion, comment fencing, add install warning
+- 315d4b1: improve caching and lessons.
+
+### Patch Changes
+
+- 3b978db: Warn on a published install when the host native optionalDependency is missing, and document how to go from every-platform or no-native pnpm installs to the host arch only.
+- 082ee6a: fix reference issues
+- fc827cf: fmt
+
 ## 1.13.4
 
 ### Patch Changes
