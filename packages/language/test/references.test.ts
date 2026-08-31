@@ -210,6 +210,22 @@ describe("Comment and file reference utilities", () => {
     expect(spans).toHaveLength(2);
   });
 
+  // rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
+  test("skips rq tokens inside Rust raw strings", () => {
+    const source = [
+      "std::fs::write(",
+      '    root.join("graph.rq"),',
+      '    r#"hub {',
+      '    impl ["./src/app.ts"]',
+      "}",
+      '"#,',
+      ")",
+      ".unwrap();",
+      'std::fs::write(root.join("src").join("app.ts"), "// rq:[hub]\\nexport const n = 1;\\n").unwrap();',
+    ].join("\n");
+    expect(findCommentReferencesInText(source)).toEqual([]);
+  });
+
   // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
   test("parses L# line suffix from file reference strings", () => {
     expect(parseFileReferenceString("./apythonfile.pyL#1-2")).toEqual({

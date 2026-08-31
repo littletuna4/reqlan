@@ -3,6 +3,7 @@
  * rq:["../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../reqlan rq/ontology.rq".reference_types]
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
@@ -148,6 +149,12 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
 
+        const rawString = rawStringOpener(text, index);
+        if (rawString !== undefined) {
+            index = skipRawStringClose(text, rawString.contentStart, rawString.hashes);
+            continue;
+        }
+
         if (char === '"') {
             if (next === '"' && next2 === '"') {
                 blockComment = 'triple-double';
@@ -219,6 +226,55 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
     }
 
     return spans;
+}
+
+function isIdentContinue(char: string | undefined): boolean {
+    return char !== undefined && /[A-Za-z0-9_]/.test(char);
+}
+
+/** Rust raw string `r#"…"#` / `r##"…"##` / `br#"…"#`. Hash count is at least 1. */
+function rawStringOpener(
+    text: string,
+    index: number,
+): { contentStart: number; hashes: number } | undefined {
+    if (index > 0 && isIdentContinue(text[index - 1])) {
+        return undefined;
+    }
+    let cursor = index;
+    const first = text[cursor];
+    if (first === 'b' || first === 'c') {
+        cursor++;
+    }
+    if (text[cursor] !== 'r') {
+        return undefined;
+    }
+    cursor++;
+    let hashes = 0;
+    while (text[cursor] === '#') {
+        hashes++;
+        cursor++;
+    }
+    if (hashes === 0 || text[cursor] !== '"') {
+        return undefined;
+    }
+    return { contentStart: cursor + 1, hashes };
+}
+
+function skipRawStringClose(text: string, index: number, hashes: number): number {
+    let cursor = index;
+    while (cursor < text.length) {
+        if (text[cursor] === '"') {
+            let count = 0;
+            while (count < hashes && text[cursor + 1 + count] === '#') {
+                count++;
+            }
+            if (count === hashes) {
+                return cursor + 1 + hashes;
+            }
+        }
+        cursor++;
+    }
+    return text.length;
 }
 
 export function parseCommentReferenceTarget(target: string): { path?: string; idea: string } | undefined {

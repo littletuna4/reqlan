@@ -389,6 +389,11 @@ fn find_comment_spans(text: &str) -> Vec<(usize, usize)> {
             continue;
         }
 
+        if let Some((content_start, hashes)) = raw_string_opener(bytes, index) {
+            index = skip_raw_string_close(bytes, content_start, hashes);
+            continue;
+        }
+
         if char == b'"' {
             if next == Some(b'"') && next2 == Some(b'"') {
                 block = Some(BlockKind::TripleDouble);
@@ -446,6 +451,49 @@ fn find_comment_spans(text: &str) -> Vec<(usize, usize)> {
     spans
 }
 
+/// Rust raw string `r#"…"#` / `r##"…"##` / `br#"…"#`. Hash count is at least 1.
+fn raw_string_opener(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
+    if index > 0 {
+        let prev = bytes[index - 1];
+        if prev.is_ascii_alphanumeric() || prev == b'_' {
+            return None;
+        }
+    }
+    let mut cursor = index;
+    if matches!(bytes.get(cursor), Some(&b'b' | &b'c')) {
+        cursor += 1;
+    }
+    if bytes.get(cursor) != Some(&b'r') {
+        return None;
+    }
+    cursor += 1;
+    let mut hashes = 0usize;
+    while bytes.get(cursor) == Some(&b'#') {
+        hashes += 1;
+        cursor += 1;
+    }
+    if hashes == 0 || bytes.get(cursor) != Some(&b'"') {
+        return None;
+    }
+    Some((cursor + 1, hashes))
+}
+
+fn skip_raw_string_close(bytes: &[u8], mut index: usize, hashes: usize) -> usize {
+    while index < bytes.len() {
+        if bytes[index] == b'"' {
+            let mut count = 0usize;
+            while count < hashes && bytes.get(index + 1 + count) == Some(&b'#') {
+                count += 1;
+            }
+            if count == hashes {
+                return index + 1 + hashes;
+            }
+        }
+        index += 1;
+    }
+    bytes.len()
+}
+
 fn preceded_by_colon_or_slash(bytes: &[u8], index: usize) -> bool {
     let mut previous = index;
     while previous > 0 {
@@ -487,6 +535,46 @@ mod tests {
     fn ignores_rq_inside_strings() {
         let refs = find_comment_references_in_text("const x = \"rq:[missing]\";\n");
         assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn ignores_rq_inside_rust_raw_strings() {
+        // rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
+        let source = concat!(
+            "std::fs::write(\n",
+            "    root.join(\"graph.rq\"),\n",
+            "    r#\"hub {\n",
+            "    impl [\"./src/app.ts\"]\n",
+            "}\n",
+            "\"#,\n",
+            ")\n",
+            ".unwrap();\n",
+            "std::fs::write(root.join(\"src\").join(\"app.ts\"), \"// rq:[hub]\\nexport const n = 1;\\n\").unwrap();\n",
+        );
+        let refs = find_comment_references_in_text(source);
+        assert!(refs.is_empty(), "{refs:?}");
+    }
+
+    #[test]
+    fn click_rs_fixture_string_is_not_a_comment_ref() {
+        // rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../reqlan-analytical/tests/click.rs");
+        let source = std::fs::read_to_string(&path).expect("click.rs");
+        let hubs: Vec<_> = find_comment_references_in_text(&source)
+            .into_iter()
+            .filter(|reference| reference.idea == "hub")
+            .collect();
+        assert!(hubs.is_empty(), "{hubs:?}");
+    }
+
+    #[test]
+    fn still_finds_line_comment_after_a_raw_string() {
+        // rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
+        let source = concat!("let x = r#\"body\"#;\n", "// rq:[hub]\n");
+        let refs = find_comment_references_in_text(source);
+        assert_eq!(refs.len(), 1, "{refs:?}");
+        assert_eq!(refs[0].idea, "hub");
     }
 
     #[test]

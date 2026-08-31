@@ -104,6 +104,7 @@ other {
 "#,
     )
     .unwrap();
+    //rq-ignore-error
     std::fs::write(root.join("src").join("app.ts"), "// rq:[hub]\nexport const n = 1;\n").unwrap();
     std::fs::write(root.join("src").join("hub.test.ts"), "export const t = 1;\n").unwrap();
     std::fs::write(root.join("src").join("other.ts"), "export const o = 1;\n").unwrap();
