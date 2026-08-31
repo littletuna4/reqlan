@@ -7,7 +7,7 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
-    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/features-skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -16,6 +16,7 @@ check {
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../packages/cli/src/format-broken-refs.ts"]
+        ["../../packages/mcp/src/server.ts"]
     )
     @tests (
         ["../../crates/reqlan-index/tests/broken_references.rs:skips_idea_and_comment_refs_on_rq_ignore_error_lines"]
@@ -32,6 +33,7 @@ check {
         ["../../packages/cli/test/format-broken-refs.test.ts:quotes paths that contain spaces"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_orders_issues_by_missing_target"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
+        ["../../packages/mcp/test/server.test.ts:check returns JSON issue rows"]
     )
 }
 

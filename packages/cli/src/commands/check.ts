@@ -10,16 +10,20 @@
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { Command, Option } from 'clipanion';
+import type { SparseWildcardHandling } from '@reqlan/analytical/core';
 import { withAnalysisApi } from '../runtime.js';
 import { emit } from '../output.js';
 import { formatCheckIssues, formatCheckPipe } from '../format-broken-refs.js';
 
 const HANDLING_VALUES = 'warn, error, or off';
 
-function parseHandling(flag: string, value: string): string | undefined {
+function parseHandling(value: string): SparseWildcardHandling | undefined {
     const normalised = value.trim().toLowerCase();
-    if (normalised === 'warn' || normalised === 'warning' || normalised === 'error' || normalised === 'off') {
-        return normalised === 'warning' ? 'warn' : normalised;
+    if (normalised === 'warn' || normalised === 'warning') {
+        return 'warn';
+    }
+    if (normalised === 'error' || normalised === 'off') {
+        return normalised;
     }
     return undefined;
 }
@@ -83,12 +87,12 @@ export class CheckCommand extends Command {
             this.context.stderr.write('Specify only one of --json or --pipe.\n');
             return 1;
         }
-        const wildcardZero = parseHandling('--wildcard-zero', this.wildcardZero);
+        const wildcardZero = parseHandling(this.wildcardZero);
         if (!wildcardZero) {
             this.context.stderr.write(`--wildcard-zero must be ${HANDLING_VALUES}.\n`);
             return 1;
         }
-        const wildcardOne = parseHandling('--wildcard-one', this.wildcardOne);
+        const wildcardOne = parseHandling(this.wildcardOne);
         if (!wildcardOne) {
             this.context.stderr.write(`--wildcard-one must be ${HANDLING_VALUES}.\n`);
             return 1;

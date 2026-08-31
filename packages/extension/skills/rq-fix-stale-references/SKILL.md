@@ -11,14 +11,14 @@ argument-hint: "[optional path glob or file]"
 
 Find unresolved reqlan references and repair them.
 
-If the user named a path glob or file, pass it as `--glob`. If they did not, check the whole base.
+If the user named a path glob or file, pass it as `glob` (MCP) or `--glob` (CLI). If they did not, check the whole base.
 
 ## Steps
 
-1. Get the issue list. Run `reqlan check --json` (or `rq check --json`). Add `--glob` when the user gave a path subset. MCP has no check tool. Do not use `analyse --broken-refs` unless `check` is unavailable (`analyse --broken-refs` omits comment refs unless you pass `--include-comments`). Exit status 1 means issues exist. That result is expected.
+1. Get the issue list. Prefer MCP `check` (JSON rows). If MCP is not available, run `reqlan check --json` (or `rq check --json`). Add `glob` / `--glob` when the user gave a path subset. Do not use `analyse --broken-refs` unless `check` is unavailable (`analyse --broken-refs` omits comment refs unless you pass `--include-comments`). Exit status 1 from the CLI means issues exist. That result is expected.
 2. Group rows by `label` (the missing target). `check` already orders rows by target.
 3. Choose one repair for each group. Apply that repair at every site in the group.
-4. Run `reqlan check --json` again. Repeat until the scoped list is empty, or only intentional leftovers remain.
+4. Call MCP `check` again (or `reqlan check --json`). Repeat until the scoped list is empty, or only intentional leftovers remain.
 5. Report what you changed and what you left.
 
 ## JSON fields

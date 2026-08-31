@@ -11,6 +11,7 @@ chat_participant_completion {
 mcp {
     Cursor and other non-VS-Code clients use the MCP server (`@reqlan/mcp`).
     Search and retrieval on that server use ["../features-skills-and-mcp.rq".mcp_click_retrieval] only.
+    Reference checks use ["../features-skills-and-mcp.rq".mcp_check].
     The MCP tool set is not a 1:1 wrap of every @reqlan chat slash command.
     Published to npm per ["../../distribution/distribution.rq".npm_distribution].
     Cursor project config lives in ["../../../.cursor/mcp.json"] and skills sync to ["../../../.cursor/skills"] via scripts/sync-cursor-ai.mjs.

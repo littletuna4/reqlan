@@ -1,4 +1,5 @@
 from "../cli/click.rq" import click, agent_advisory
+from "../core_analysis/check.rq" import check, check_order_by_target
 from "./module/index.rq" import application_memory
 import "../../packages/mcp/src/server.ts" as mcp_server
 import "../../packages/mcp/test/server.test.ts" as mcp_server_test
@@ -6,6 +7,7 @@ import "../../packages/mcp/test/server.test.ts" as mcp_server_test
 mcp_tools {
     The MCP server (`@reqlan/mcp`, [mcp_server]) exposes a small tool set for AI clients.
     Search and retrieval use [mcp_click_retrieval] only.
+    Reference checks use [mcp_check].
     Do not expose parse, search, list, file context, local graph, summarise subtree,
     requirement_reference, file_reference, or list_interactions as MCP tools.
     Those operations stay on AnalysisApi and CLI when they exist.
@@ -16,7 +18,23 @@ mcp_tools {
     )
     @tests (
         [mcp_server_test]
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+    )
+}
+
+mcp_check {
+    MCP `check` wraps [check] for AI clients ([mcp_server]).
+    The tool returns JSON issue rows in [check_order_by_target] order.
+    An empty list means that there are no issues.
+    Optional arguments match the CLI [check] flags: glob, wildcard-zero, wildcard-one, skip-targets, and skip-gitignored-targets.
+    Related: [mcp_tools] [check]
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:check returns JSON issue rows"]
     )
 }
 
@@ -34,7 +52,7 @@ mcp_click_retrieval {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
         ["../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
     )
 }
@@ -47,7 +65,7 @@ mcp_tools_prompt {
         [mcp_server]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
     )
 }
 
@@ -60,7 +78,7 @@ mcp_keyword_search {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
     )
 }
@@ -74,7 +92,7 @@ mcp_tree_interrogation {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_code_file_returns_backlinks_and_comment_refs"]
     )
@@ -89,7 +107,7 @@ mcp_tree_summarisation {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
     )
 }
@@ -102,7 +120,7 @@ mcp_interaction_discovery {
         [mcp_server]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
     )
 }
 

@@ -32,7 +32,7 @@ Do not bury these in body prose.
 
 Same analytical index as extension/MCP (`<base>/.reqlan`).
 
-`init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `click <target>` · `export`/`export html`
+`init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `click <target>` · `check` · `export`/`export html`
 
 `--json` · `--cwd` / `REQLAN_WORKSPACE` · `REQLAN_INDEX_PATH`
 
@@ -45,7 +45,7 @@ Same analytical index as extension/MCP (`<base>/.reqlan`).
 ## Surfaces
 
 - Skills: `/rq-requirements`, `/rq-search`, `/rq-fix-stale-references`, `/rq-build-requirement`, …
-- MCP retrieval: `click` only. Pass `sessionKey` on the next click. Status: `completion_status`. Prompt wrapper: `prompt` (uses `click`).
+- MCP retrieval: `click` only. Pass `sessionKey` on the next click. Status: `completion_status`. Prompt wrapper: `prompt` (uses `click`). Reference check: `check`.
 - `@reqlan` chat: `/rq-search`, `/rq-context`, `/rq-graph`, `/rq-related`
 - Palette: Semantic Search, File Related Requirements, Ideas Summary
 - LM tools: `#requirement`, `#file`

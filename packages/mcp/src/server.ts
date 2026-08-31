@@ -4,17 +4,21 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   openAnalysisApi,
+  type BrokenReferenceDto,
+  type CheckOptions,
   type ClickOptions,
   type ClickResult,
   type CompletionSummary,
   type HeadlessAnalysisApi,
   type OpenedAnalysisApi,
+  type SparseWildcardHandling,
 } from "@reqlan/analytical/core";
 
 export type McpAnalysisApi = {
   click(target: string, options?: ClickOptions): Promise<ClickResult>;
   formatClickResult(result: ClickResult): string;
   getCompletionStatus(): Promise<CompletionSummary>;
+  check(options?: CheckOptions): Promise<BrokenReferenceDto[]>;
 };
 
 export type ClickToolInput = {
@@ -31,6 +35,14 @@ export type PromptToolInput = {
   intent: string;
   filePath?: string;
   requirementName?: string;
+};
+
+export type CheckToolInput = {
+  glob?: string;
+  wildcardZero?: SparseWildcardHandling;
+  wildcardOne?: SparseWildcardHandling;
+  skipTargets?: string[];
+  skipGitignoredTargets?: boolean;
 };
 
 function resolveWorkspaceRoot(): string {
@@ -106,8 +118,34 @@ export async function handlePromptTool(
 }
 
 /**
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+ * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ */
+export async function handleCheckTool(
+  api: McpAnalysisApi,
+  input: CheckToolInput,
+) {
+  const glob = input.glob?.trim();
+  const rows = await api.check({
+    pathGlob: glob !== undefined && glob.length > 0 ? glob : undefined,
+    wildcardZero: input.wildcardZero,
+    wildcardOne: input.wildcardOne,
+    skipTargets: input.skipTargets,
+    skipGitignoredTargets: input.skipGitignoredTargets,
+  });
+  return textContent(JSON.stringify(rows, null, 2));
+}
+
+/**
  * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
  * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_check]
  */
 export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
   const server = new McpServer({
@@ -162,6 +200,37 @@ export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
       },
     },
     async (input) => handleClickTool(api, input),
+  );
+
+  server.registerTool(
+    "check",
+    {
+      description:
+        "Check that idea, comment, and file references resolve. Returns JSON issue rows ordered by missing target. Empty array means no issues. Optional glob limits to a path subset. wildcardZero and wildcardOne are warn (default), error, or off. skipTargets omits issues whose missing target matches a glob. skipGitignoredTargets omits missing file targets that Git ignore rules ignore. Lines after //rq-ignore-error are skipped.",
+      inputSchema: {
+        glob: z
+          .string()
+          .optional()
+          .describe("Optional path glob that limits the check to a subset of the base"),
+        wildcardZero: z
+          .enum(["warn", "error", "off"])
+          .optional()
+          .describe("How to handle a wildcard that matches 0 ideas (default warn)"),
+        wildcardOne: z
+          .enum(["warn", "error", "off"])
+          .optional()
+          .describe("How to handle a wildcard that matches 1 idea (default warn)"),
+        skipTargets: z
+          .array(z.string())
+          .optional()
+          .describe("Omit issues whose missing target matches one of these globs"),
+        skipGitignoredTargets: z
+          .boolean()
+          .optional()
+          .describe("Omit file-reference issues whose missing target is gitignored"),
+      },
+    },
+    async (input) => handleCheckTool(api, input),
   );
 
   server.registerTool(

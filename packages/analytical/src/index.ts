@@ -178,12 +178,14 @@ export {
 export { NativeAnalysisApi } from './native/native-analysis-api.js';
 export type {
     AnalysisRuntimeOptions,
+    CheckOptions,
     ClickOptions,
     ClickResult,
     NameAmbiguity,
     InteractionDescriptor,
     RequirementMatch,
-    SearchRequirementsOptions
+    SearchRequirementsOptions,
+    SparseWildcardHandling
 } from './native/native-analysis-api.js';
 export {
     openAnalysisApi,

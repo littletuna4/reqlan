@@ -110,7 +110,7 @@ mcp_package {
     Windows ESM entry uses `pathToFileURL` like ["./cli/cli_package.rq".windows_esm_entry].
     @tests (
         ["../packages/cli/test/windows-esm-entry.test.ts:MCP bin converts the compiled entry with pathToFileURL"]
-        ["../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
+        ["../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
     )
 }
 

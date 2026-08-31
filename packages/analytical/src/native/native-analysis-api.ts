@@ -57,6 +57,29 @@ export interface ClickOptions {
     maxCandidates?: number;
 }
 
+/** `warn` (default), `error`, or `off`. */
+export type SparseWildcardHandling = 'warn' | 'error' | 'off';
+
+/**
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+ */
+export interface CheckOptions {
+    /** Optional path glob that limits the check to a subset of the base. */
+    pathGlob?: string;
+    /** How to handle a wildcard that matches 0 ideas. */
+    wildcardZero?: SparseWildcardHandling;
+    /** How to handle a wildcard that matches 1 idea. */
+    wildcardOne?: SparseWildcardHandling;
+    /** Omit issues whose missing target matches one of these globs. */
+    skipTargets?: string[];
+    /** Omit file-reference issues whose missing target is gitignored. */
+    skipGitignoredTargets?: boolean;
+}
+
 export type ClickResult = NativeClickResult;
 export type NameAmbiguity = NativeNameAmbiguity;
 
@@ -175,13 +198,7 @@ export class NativeAnalysisApi {
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
      */
-    async check(options?: {
-        pathGlob?: string;
-        wildcardZero?: string;
-        wildcardOne?: string;
-        skipTargets?: string[];
-        skipGitignoredTargets?: boolean;
-    }): Promise<NativeBrokenReference[]> {
+    async check(options?: CheckOptions): Promise<NativeBrokenReference[]> {
         return this.native.checkReferences(
             options?.pathGlob,
             options?.wildcardZero,
@@ -294,7 +311,11 @@ export class NativeAnalysisApi {
                     'Check idea, comment, and file references. Skip lines after //rq-ignore-error.',
                 // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
                 parameters: {
-                    pathGlob: 'Optional path glob over a subset of the base'
+                    pathGlob: 'Optional path glob over a subset of the base',
+                    wildcardZero: 'warn (default), error, or off for 0-match wildcards',
+                    wildcardOne: 'warn (default), error, or off for 1-match wildcards',
+                    skipTargets: 'Optional globs; omit issues whose missing target matches',
+                    skipGitignoredTargets: 'Optional: omit missing file targets that gitignore ignores'
                 }
             },
             {

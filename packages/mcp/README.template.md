@@ -10,6 +10,7 @@
 
 - Stdio MCP server over `AnalysisApi` — no VS Code host required
 - `click` is the canonical search and retrieval tool (compact unique context, ranked matches, or search hits)
+- `check` reports unresolved idea, comment, and file references as JSON
 - `completion_status` summarises graph completion; `prompt` routes retrieval through `click`
 - Shared ideas index at `<workspace>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and CLI)
 
