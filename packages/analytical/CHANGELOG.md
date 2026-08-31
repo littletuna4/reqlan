@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.14.1
+
+### Patch Changes
+
+- 2229655: Add an MCP `check` tool that wraps AnalysisApi.check and returns JSON issue rows.
+
 ## 1.14.0
 
 ### Minor Changes

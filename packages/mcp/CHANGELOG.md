@@ -1,5 +1,17 @@
 # @reqlan/mcp
 
+## 0.5.0
+
+### Minor Changes
+
+- 2229655: Add an MCP `check` tool that wraps AnalysisApi.check and returns JSON issue rows.
+- a9d6b94: Make `click` the only MCP search and retrieval tool. Remove parse, search, list, file_context, local_graph, summarize_subtree, requirement_reference, file_reference, and list_interactions from the MCP surface.
+
+### Patch Changes
+
+- Updated dependencies [2229655]
+  - @reqlan/analytical@1.14.1
+
 ## 0.4.0
 
 ### Minor Changes

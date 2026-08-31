@@ -1,7 +1,7 @@
 {
     "name": "@reqlan/mcp",
     "description": "MCP server exposing reqlan requirement graph tools",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "mcpName": "io.github.littletuna4/reqlan",
     "type": "module",
     "license": "AGPL-3.0-only",

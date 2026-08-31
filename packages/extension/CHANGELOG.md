@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.14.1
+
+### Patch Changes
+
+- Updated dependencies [2229655]
+  - @reqlan/analytical@1.14.1
+  - @reqlan/language@1.11.1
+
 ## 1.14.0
 
 ### Minor Changes
