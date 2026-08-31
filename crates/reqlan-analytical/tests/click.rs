@@ -79,6 +79,56 @@ fn click_returns_unique_idea_without_edges() {
 }
 
 #[test]
+fn click_outbound_lists_content_refs_only() {
+    let root = scratch("outbound-scope");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("graph.rq"),
+        r#"hub {
+    centre
+    see [spoke]
+    impl ["./src/app.ts"]
+    @tests (
+        ["./src/hub.test.ts:covers hub"]
+    )
+}
+
+spoke {
+    leaf
+}
+
+other {
+    later
+    ["./src/other.ts"]
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(root.join("src").join("app.ts"), "// rq:[hub]\nexport const n = 1;\n").unwrap();
+    std::fs::write(root.join("src").join("hub.test.ts"), "export const t = 1;\n").unwrap();
+    std::fs::write(root.join("src").join("other.ts"), "export const o = 1;\n").unwrap();
+    let storage = root.join(".reqlan");
+    let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+    let result = click(&mut runtime, "hub", None);
+    assert_eq!(result.kind, "unique");
+    let outbound = result.outbound.expect("outbound");
+    let names: Vec<_> = outbound.items.iter().map(|item| item.name.as_str()).collect();
+    assert!(names.contains(&"spoke"), "content idea ref missing: {names:?}");
+    assert!(names.contains(&"app.ts"), "content file ref missing: {names:?}");
+    assert!(!names.contains(&"hub.test.ts"), "tests must not be outbound: {names:?}");
+    assert!(!names.iter().any(|name| name.contains("covers hub")), "{names:?}");
+    assert!(!names.contains(&"other.ts"), "sibling-file refs must not be outbound: {names:?}");
+    assert!(!names.contains(&"other"), "{names:?}");
+    assert!(names.iter().all(|name| !name.contains('"')), "quoted names: {names:?}");
+    assert_eq!(outbound.total, 2, "outbound {names:?}");
+    let siblings = result.siblings.expect("siblings");
+    let sibling_names: Vec<_> = siblings.items.iter().map(|item| item.name.as_str()).collect();
+    assert!(sibling_names.contains(&"spoke"));
+    assert!(sibling_names.contains(&"other"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn click_accepts_file_path_as_one_file_node() {
     let root = scratch("path");
     write_graph(&root);

@@ -13,7 +13,10 @@ use crate::types::{
     IdeaSummary, NameAmbiguity,
 };
 use crate::AnalysisError;
-use reqlan_index::{click_sessions_path, load_applying_rq_config, EdgeKind, IndexStore};
+use reqlan_index::{
+    click_sessions_path, load_applying_rq_config, EdgeKind, EdgeRecord, IndexStore,
+};
+use reqlan_parse::{parse_file_reference_string, unquote_path};
 use reqlan_search::{
     file_basename, fuzzy_search, hop_distances_from_centers, normalize_context_ref,
     SearchIdeasOptions, CONTEXT_UNREACHABLE_HOP,
@@ -386,10 +389,11 @@ fn collect_idea_neighbours(
     store: &IndexStore,
     idea: &IdeaSummary,
 ) -> Result<Neighbours, AnalysisError> {
+    let content = idea.summary.as_str();
     let mut outbound = Vec::new();
     let mut seen_out = HashSet::new();
     for edge in store.get_edges_from(&idea.id)? {
-        if matches!(edge.kind, EdgeKind::IdeasetMember | EdgeKind::Import) {
+        if !outbound_edge_in_content(&edge, content) {
             continue;
         }
         if edge.kind == EdgeKind::WildcardReference {
@@ -400,15 +404,7 @@ fn collect_idea_neighbours(
                     }
                 }
             } else if let Some(path) = edge.target_file.or(edge.label) {
-                let id = file_entry_id(&path);
-                if seen_out.insert(id.clone()) {
-                    outbound.push(ClickNameItem {
-                        name: file_basename(&path).to_string(),
-                        id,
-                        kind: "file".into(),
-                        file_uri: Some(path),
-                    });
-                }
+                push_file_item(&mut outbound, &mut seen_out, &path);
             }
             continue;
         }
@@ -418,16 +414,8 @@ fn collect_idea_neighbours(
                     outbound.push(item);
                 }
             }
-        } else if let Some(path) = edge.target_file {
-            let id = file_entry_id(&path);
-            if seen_out.insert(id.clone()) {
-                outbound.push(ClickNameItem {
-                    name: file_basename(&path).to_string(),
-                    id,
-                    kind: "file".into(),
-                    file_uri: Some(path),
-                });
-            }
+        } else if let Some(path) = edge.target_file.or(edge.label) {
+            push_file_item(&mut outbound, &mut seen_out, &path);
         }
     }
 
@@ -535,6 +523,64 @@ fn file_idea_siblings(
         });
     }
     Ok(siblings)
+}
+
+/// Outbound lists refs that appear in the idea body (indexed summary), not attributes
+/// or comment_link rows stored as idea → code file.
+/// rq:["../../../reqlan rq/cli/click.rq".click_output]
+fn outbound_edge_in_content(edge: &EdgeRecord, content: &str) -> bool {
+    match edge.kind {
+        EdgeKind::IdeasetMember | EdgeKind::Import | EdgeKind::CommentLink => false,
+        EdgeKind::FileReference => {
+            snippet_in_content(content, edge.snippet.as_deref())
+                || path_in_content(content, edge.target_file.as_deref().or(edge.label.as_deref()))
+        }
+        EdgeKind::References | EdgeKind::WildcardReference => {
+            snippet_in_content(content, edge.snippet.as_deref())
+                || edge.label.as_deref().is_some_and(|label| idea_name_in_content(content, label))
+        }
+    }
+}
+
+fn snippet_in_content(content: &str, snippet: Option<&str>) -> bool {
+    snippet.is_some_and(|snippet| !snippet.is_empty() && content.contains(snippet))
+}
+
+fn path_in_content(content: &str, path: Option<&str>) -> bool {
+    path.is_some_and(|path| {
+        let path = unquote_path(path);
+        !path.is_empty() && content.contains(&path)
+    })
+}
+
+fn idea_name_in_content(content: &str, name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    content.contains(&format!("[{name}]"))
+        || content.contains(&format!("[{name}."))
+        || content.contains(&format!("\".{name}]"))
+        || content.contains(&format!(".{name}]"))
+        || content.contains(&format!("[[{name}]]"))
+}
+
+fn push_file_item(outbound: &mut Vec<ClickNameItem>, seen: &mut HashSet<String>, raw_path: &str) {
+    let item = file_name_item(raw_path);
+    if seen.insert(item.id.clone()) {
+        outbound.push(item);
+    }
+}
+
+fn file_name_item(raw_path: &str) -> ClickNameItem {
+    let unquoted = unquote_path(raw_path);
+    let parsed = parse_file_reference_string(&unquoted);
+    let path = if parsed.file_path.is_empty() { unquoted } else { parsed.file_path };
+    ClickNameItem {
+        name: file_basename(&path).to_string(),
+        id: file_entry_id(&path),
+        kind: "file".into(),
+        file_uri: Some(path),
+    }
 }
 
 fn idea_name_item(store: &IndexStore, id: &str) -> Result<Option<ClickNameItem>, AnalysisError> {

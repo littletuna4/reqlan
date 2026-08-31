@@ -34,6 +34,7 @@ click {
     )
     @tests (
         ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_outbound_lists_content_refs_only"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_accepts_file_path_as_one_file_node"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
@@ -122,10 +123,10 @@ click_output {
     The result does not include an `edges` list. Links are implied by the lists below.
     Shape depends on [click_input]:
     Unique (one centre):
-    - the idea (or file) and its content (indexed body / summary)
-    - count of outbound links; list names; when [click_ambiguity] says the name is ambiguous, print the file path with the name
+    - the idea (or file) and its content (indexed unmarked body / summary)
+    - count of outbound links from that content only: idea refs and [file_reference] that occur in the unmarked body. Do not list refs that occur only in `@tests`, `@implementation`, or `@todo`. Do not list [comment_reference] code files as outbound. List names. When [click_ambiguity] says the name is ambiguous, print the file path with the name. File names are unquoted basenames.
     - count of backlinks and the first n names ([click_max_detail]); print the file when the name is ambiguous or shared; then "+ m more" for the remainder
-    - count of siblings (same [ideaset] / file) and the first n names, with file when the name is ambiguous or shared
+    - count of siblings (same [ideaset] / file), not the ideas named in the content, and the first n names, with file when the name is ambiguous or shared
     - for a code-file centre, see [click_code_file]
     Ambiguous (more than one match): ranked candidate names with file paths. Include hop distance only when the session has prior ideas. No idea bodies. Cap with `maxCandidates`.
     Search (no exact match): [fuzzy_search] / [file_search] hits. Cap with `maxCandidates`.
@@ -138,6 +139,7 @@ click_output {
     )
     @tests (
         ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_outbound_lists_content_refs_only"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_prints_file_when_name_is_ambiguous"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_caps_lists_and_reports_omitted"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
