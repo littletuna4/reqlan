@@ -1,7 +1,7 @@
 // rq:["../../../../reqlan rq/site/site.rq".agent_context_showcase]
 // rq:["../../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
-// rq:["../../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tree_interrogation]
-// rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".local_graph_analysis]
+// rq:["../../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+// rq:["../../../../reqlan rq/cli/click.rq".click]
 import type { Showcase } from "./types";
 
 export const agentContextShowcase = {
@@ -66,12 +66,12 @@ token cost: ~18k  ·  signal: low`,
     },
     {
       kind: "exchange",
-      label: "mcp file_context",
-      query: `file_context({ filePath: "src/auth/session.ts" })`,
-      response: `→ session_expiry   status=done
-→ session_refresh  status=pending
-→ logout           status=done
-  edges: file_reference, references, comment_link
+      label: "mcp click",
+      query: `click({ target: "src/auth/session.ts" })`,
+      response: `sessionKey: clk-1  kind: unique
+file: src/auth/session.ts
+backlinks (3): session_expiry, session_refresh, logout
+commentRefs (1): validateSession
   slice: 3 ideas · ~400 tokens`,
     },
     {

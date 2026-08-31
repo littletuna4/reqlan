@@ -129,7 +129,7 @@ export const quickstartContent = {
       steps: [
         "Add the server to your MCP client, or in Cursor run Reqlan: Install Cursor Skills after you install the extension.",
         "Set `REQLAN_WORKSPACE` to the workspace root (or start the process from that directory).",
-        "Ask the agent to search, load file context, or summarise a neighbourhood.",
+        "Ask the agent to click an idea, file, or search phrase. Pass the returned sessionKey on the next click.",
       ],
       snippet: {
         label: ".cursor/mcp.json",
@@ -146,7 +146,7 @@ export const quickstartContent = {
 }`,
       },
       tips: [
-        "Tools include `search_requirements`, `file_context`, `local_graph`, and `summarize_subtree`.",
+        "The retrieval tool is `click`. Status is `completion_status`. Do not expect search, list, file_context, or local_graph MCP tools.",
         "Override index storage with `REQLAN_INDEX_PATH` when needed.",
       ],
     },

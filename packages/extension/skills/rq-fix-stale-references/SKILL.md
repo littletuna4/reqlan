@@ -35,7 +35,7 @@ If the user named a path glob or file, pass it as `--glob`. If they did not, che
 
 ### `references` (idea brackets)
 
-Search the graph for the missing name (`search_requirements` / `requirement_reference`).
+Search the graph for the missing name (MCP `click`, or CLI `reqlan search`).
 
 - Renamed idea: replace `[old]` with `[new]` at every site.
 - Moved idea: add `from "rel-path.rq" import name`, or rewrite to `["rel-path.rq".name]`. Match the import style already used in that file.

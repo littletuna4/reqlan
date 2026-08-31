@@ -4,10 +4,63 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   openAnalysisApi,
+  type ClickOptions,
+  type ClickResult,
+  type CompletionSummary,
   type HeadlessAnalysisApi,
-  type IdeaSummary,
   type OpenedAnalysisApi,
 } from "@reqlan/analytical/core";
+
+/**
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ */
+export const MCP_TOOL_NAMES = [
+  "click",
+  "completion_status",
+  "prompt",
+] as const;
+
+export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
+
+/**
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
+ */
+export const MCP_REMOVED_RETRIEVAL_TOOLS = [
+  "parse",
+  "search",
+  "search_requirements",
+  "list",
+  "list_requirements",
+  "file_context",
+  "local_graph",
+  "summarize_subtree",
+  "requirement_reference",
+  "file_reference",
+  "list_interactions",
+] as const;
+
+export type McpAnalysisApi = {
+  click(target: string, options?: ClickOptions): Promise<ClickResult>;
+  formatClickResult(result: ClickResult): string;
+  getCompletionStatus(): Promise<CompletionSummary>;
+};
+
+export type ClickToolInput = {
+  target: string;
+  sessionKey?: string;
+  maxDetail?: number;
+  maxBacklinks?: number;
+  maxSiblings?: number;
+  maxOutbound?: number;
+  maxCandidates?: number;
+};
+
+export type PromptToolInput = {
+  intent: string;
+  filePath?: string;
+  requirementName?: string;
+};
 
 function resolveWorkspaceRoot(): string {
   const fromEnv = process.env.REQLAN_WORKSPACE?.trim();
@@ -21,156 +74,81 @@ function textContent(text: string) {
   return { content: [{ type: "text" as const, text }] };
 }
 
-export async function startMcpServer(): Promise<void> {
-  const workspaceRoot = resolveWorkspaceRoot();
-  const opened: OpenedAnalysisApi = await openAnalysisApi({
-    workspaceRoot,
-    storagePath: process.env.REQLAN_INDEX_PATH,
-  });
-  const api: HeadlessAnalysisApi = opened.api;
+export function promptClickTarget(input: PromptToolInput): string {
+  const requirementName = input.requirementName?.trim();
+  if (requirementName !== undefined && requirementName.length > 0) {
+    return requirementName;
+  }
+  const filePath = input.filePath?.trim();
+  if (filePath !== undefined && filePath.length > 0) {
+    return filePath;
+  }
+  return input.intent;
+}
 
+/**
+ * rq:["../../../reqlan rq/cli/click.rq".click]
+ * rq:["../../../reqlan rq/cli/click.rq".agent_advisory]
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ */
+export async function handleClickTool(
+  api: McpAnalysisApi,
+  input: ClickToolInput,
+) {
+  const result = await api.click(input.target, {
+    sessionKey: input.sessionKey,
+    maxDetail: input.maxDetail,
+    maxBacklinks: input.maxBacklinks,
+    maxSiblings: input.maxSiblings,
+    maxOutbound: input.maxOutbound,
+    maxCandidates: input.maxCandidates,
+  });
+  return textContent(api.formatClickResult(result));
+}
+
+export async function handleCompletionStatusTool(api: McpAnalysisApi) {
+  const summary = await api.getCompletionStatus();
+  return textContent(
+    [
+      `Total ideas: ${summary.total}`,
+      `Outstanding: ${summary.outstanding.length}`,
+      `Deprecated: ${summary.deprecated.length}`,
+      `Statuses: ${Object.entries(summary.byStatus)
+        .map(([key, value]) => `${key}=${value}`)
+        .join(", ")}`,
+    ].join("\n"),
+  );
+}
+
+/**
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools_prompt]
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ */
+export async function handlePromptTool(
+  api: McpAnalysisApi,
+  input: PromptToolInput,
+) {
+  const result = await api.click(promptClickTarget(input));
+  return textContent(
+    [`Intent: ${input.intent}`, api.formatClickResult(result)].join("\n\n"),
+  );
+}
+
+/**
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
+ * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ */
+export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
   const server = new McpServer({
     name: "reqlan",
     version: "0.0.1",
   });
 
   server.registerTool(
-    "search_requirements",
-    {
-      description:
-        "Search requirements by keyword across names, summaries, tags, and references. Optional context paths/ideas bias ranking by graph hop distance.",
-      inputSchema: {
-        query: z.string().describe("Search text"),
-        limit: z
-          .number()
-          .int()
-          .positive()
-          .max(50)
-          .optional()
-          .describe("Maximum number of matches"),
-        context: z
-          .array(z.string())
-          .optional()
-          .describe(
-            "Relative .rq paths, path#idea refs, or idea names that bias ranking by hop distance",
-          ),
-      },
-    },
-    async ({ query, limit, context }) => {
-      const matches = await api.searchRequirements(
-        query,
-        limit ?? 8,
-        context?.length ? { context } : undefined,
-      );
-      if (matches.length === 0) {
-        return textContent(`No requirements matched "${query}".`);
-      }
-      const body = matches
-        .map((match) => {
-          const reasons = match.reasons?.length
-            ? `\nReasons: ${match.reasons.join(", ")}`
-            : "";
-          const score =
-            match.score !== undefined ? `\nScore: ${match.score}` : "";
-          return `${api.formatIdea(match.idea)}${score}${reasons}`;
-        })
-        .join("\n\n");
-      return textContent(body);
-    },
-  );
-
-  server.registerTool(
-    "list_requirements",
-    {
-      description: "List indexed requirements in the workspace.",
-      inputSchema: {
-        limit: z
-          .number()
-          .int()
-          .positive()
-          .max(100)
-          .optional()
-          .describe("Maximum number of requirements"),
-      },
-    },
-    async ({ limit }) => {
-      const ideas = await api.listRequirements(limit ?? 50);
-      if (ideas.length === 0) {
-        return textContent("No requirements indexed in the workspace.");
-      }
-      return textContent(
-        ideas.map((idea) => api.formatIdea(idea)).join("\n\n"),
-      );
-    },
-  );
-
-  server.registerTool(
-    "file_context",
-    {
-      description:
-        "Get requirements in, referencing, or comment-linked to a file.",
-      inputSchema: {
-        filePath: z
-          .string()
-          .describe("Relative or absolute path to a .rq file"),
-      },
-    },
-    async ({ filePath }) => {
-      const related = await api.getFileContext(filePath);
-      const sections = [
-        `File: ${filePath}`,
-        formatGroup("In file", related.ideasInFile, api),
-        formatGroup("Referencing", related.referencingIdeas, api),
-        formatGroup("Comment-linked", related.commentLinkedIdeas, api),
-      ];
-      return textContent(sections.join("\n\n"));
-    },
-  );
-
-  server.registerTool(
-    "local_graph",
-    {
-      description:
-        "Get the local requirement graph around the first requirement in a file.",
-      inputSchema: {
-        filePath: z
-          .string()
-          .describe("Relative or absolute path to a .rq file"),
-        depth: z
-          .number()
-          .int()
-          .positive()
-          .max(5)
-          .optional()
-          .describe("Graph hop depth"),
-      },
-    },
-    async ({ filePath, depth }) => {
-      const graph = await api.getLocalGraph(filePath, depth ?? 1);
-      if (!graph) {
-        return textContent(`No requirements found in ${filePath}.`);
-      }
-      const nodes = graph.nodes
-        .map((node) => api.formatIdea(node))
-        .join("\n\n");
-      const edges = graph.edges
-        .slice(0, 30)
-        .map(
-          (edge) =>
-            `- ${edge.kind}: ${edge.sourceId} -> ${edge.targetId ?? edge.label ?? "?"}`,
-        )
-        .join("\n");
-      return textContent(
-        `Graph around ${graph.centerId} (${graph.nodes.length} nodes, ${graph.edges.length} edges)\n\n${nodes}\n\nEdges:\n${edges || "(none)"}`,
-      );
-    },
-  );
-
-  server.registerTool(
     "click",
     {
       description:
-        "Return compact context for an idea name, path#idea, .rq file, or indexed code file. No match uses search. More than one match is ranked by distance from ideas already in the session. A unique match returns idea content plus outbound, backlink, and sibling names (no edges). A second click on the same centre in this session returns connected content. Always pass sessionKey from the prior click on the next call.",
+        "Canonical search and retrieval. Return compact context for an idea name, path#idea, .rq file, or indexed code file. No match uses search. More than one match is ranked by distance from ideas already in the session. A unique match returns idea content plus outbound, backlink, and sibling names (no edges). A second click on the same centre in this session returns connected content. Always pass sessionKey from the prior click on the next call. Use this tool instead of search, list, file context, local graph, or subtree dumps.",
       inputSchema: {
         target: z
           .string()
@@ -212,104 +190,7 @@ export async function startMcpServer(): Promise<void> {
           .describe("Max search hits and ranked ambiguous matches (default 8)"),
       },
     },
-    async ({
-      target,
-      sessionKey,
-      maxDetail,
-      maxBacklinks,
-      maxSiblings,
-      maxOutbound,
-      maxCandidates,
-    }) => {
-      const result = await api.click(target, {
-        sessionKey,
-        maxDetail,
-        maxBacklinks,
-        maxSiblings,
-        maxOutbound,
-        maxCandidates,
-      });
-      return textContent(api.formatClickResult(result));
-    },
-  );
-
-  server.registerTool(
-    "summarize_subtree",
-    {
-      description:
-        "Summarise a requirement subtree rooted at a named requirement.",
-      inputSchema: {
-        requirementName: z
-          .string()
-          .describe("Requirement name or search text"),
-        depth: z
-          .number()
-          .int()
-          .positive()
-          .max(5)
-          .optional()
-          .describe("Graph hop depth"),
-      },
-    },
-    async ({ requirementName, depth }) => {
-      const graph = await api.summarizeSubtree(requirementName, depth ?? 2);
-      if (!graph) {
-        return textContent(`No requirement matched "${requirementName}".`);
-      }
-      const nodes = graph.nodes
-        .map((node) => api.formatIdea(node))
-        .join("\n\n");
-      return textContent(
-        `Subtree summary for ${requirementName} (${graph.nodes.length} nodes, depth ${graph.depth})\n\n${nodes}`,
-      );
-    },
-  );
-
-  server.registerTool(
-    "requirement_reference",
-    {
-      description: "Resolve a requirement by name for compact AI context.",
-      inputSchema: {
-        name: z
-          .string()
-          .optional()
-          .describe("Requirement name or search text"),
-      },
-    },
-    async ({ name }) => {
-      const ideas = await api.resolveRequirementReference(name);
-      if (ideas.length === 0) {
-        return textContent("No matching requirements found.");
-      }
-      return textContent(
-        ideas.map((idea) => api.formatIdea(idea)).join("\n\n"),
-      );
-    },
-  );
-
-  server.registerTool(
-    "file_reference",
-    {
-      description: "Resolve requirements indexed in matching .rq files.",
-      inputSchema: {
-        path: z.string().optional().describe("Optional path fragment filter"),
-      },
-    },
-    async ({ path }) => {
-      const files = await api.resolveFileReference(path);
-      if (files.length === 0) {
-        return textContent("No matching .rq files found.");
-      }
-      const body = files
-        .map((file) => {
-          const ideas = file.ideas
-            .map((idea) => `- ${idea.name}: ${idea.summary || "(no summary)"}`)
-            .join("\n");
-          return `## ${file.path}\n${ideas || "- (no requirements indexed)"}`;
-        })
-        .join("\n\n");
-      return textContent(body);
-    },
+    async (input) => handleClickTool(api, input),
   );
 
   server.registerTool(
@@ -318,46 +199,14 @@ export async function startMcpServer(): Promise<void> {
       description:
         "Summarise completion and deprecation status across the workspace graph.",
     },
-    async () => {
-      const summary = await api.getCompletionStatus();
-      return textContent(
-        [
-          `Total ideas: ${summary.total}`,
-          `Outstanding: ${summary.outstanding.length}`,
-          `Deprecated: ${summary.deprecated.length}`,
-          `Statuses: ${Object.entries(summary.byStatus)
-            .map(([key, value]) => `${key}=${value}`)
-            .join(", ")}`,
-        ].join("\n"),
-      );
-    },
-  );
-
-  server.registerTool(
-    "list_interactions",
-    {
-      description:
-        "Discover available requirement graph interactions and parameters.",
-    },
-    async () => {
-      const interactions = api.listInteractions();
-      const body = interactions
-        .map((item) => {
-          const params = Object.entries(item.parameters)
-            .map(([key, value]) => `  - ${key}: ${value}`)
-            .join("\n");
-          return `## ${item.name}\n${item.description}\nParameters:\n${params || "  (none)"}`;
-        })
-        .join("\n\n");
-      return textContent(body);
-    },
+    async () => handleCompletionStatusTool(api),
   );
 
   server.registerTool(
     "prompt",
     {
       description:
-        "Prompt-oriented entry point for working with the requirement graph.",
+        "Prompt-oriented entry point. Resolves search and retrieval through click.",
       inputSchema: {
         intent: z
           .string()
@@ -365,46 +214,28 @@ export async function startMcpServer(): Promise<void> {
         filePath: z
           .string()
           .optional()
-          .describe("Optional .rq file to scope the prompt"),
+          .describe("Optional .rq file or indexed path to click"),
         requirementName: z
           .string()
           .optional()
-          .describe("Optional requirement name to scope the prompt"),
+          .describe("Optional requirement name to click"),
       },
     },
-    async ({ intent, filePath, requirementName }) => {
-      const sections: string[] = [`Intent: ${intent}`];
-
-      if (requirementName) {
-        const ideas = await api.resolveRequirementReference(requirementName);
-        sections.push(
-          "Requirement scope:",
-          ideas.length > 0
-            ? ideas.map((idea) => api.formatIdea(idea)).join("\n\n")
-            : `No requirement matched "${requirementName}".`,
-        );
-      }
-
-      if (filePath) {
-        const related = await api.getFileContext(filePath);
-        sections.push(
-          `File scope: ${filePath}`,
-          formatGroup("In file", related.ideasInFile, api),
-          formatGroup("Referencing", related.referencingIdeas, api),
-        );
-      }
-
-      const matches = await api.searchRequirements(intent, 5);
-      sections.push(
-        "Relevant requirements:",
-        matches.length > 0
-          ? matches.map((match) => api.formatIdea(match.idea)).join("\n\n")
-          : "No direct matches found.",
-      );
-
-      return textContent(sections.join("\n\n"));
-    },
+    async (input) => handlePromptTool(api, input),
   );
+
+  return server;
+}
+
+export async function startMcpServer(): Promise<void> {
+  const workspaceRoot = resolveWorkspaceRoot();
+  const opened: OpenedAnalysisApi = await openAnalysisApi({
+    workspaceRoot,
+    storagePath: process.env.REQLAN_INDEX_PATH,
+  });
+  const api: HeadlessAnalysisApi = opened.api;
+
+  const server = createReqlanMcpServer(api);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -419,15 +250,4 @@ export async function startMcpServer(): Promise<void> {
   process.on("SIGTERM", () => {
     void shutdown().finally(() => process.exit(0));
   });
-}
-
-function formatGroup(
-  title: string,
-  ideas: IdeaSummary[],
-  api: HeadlessAnalysisApi,
-): string {
-  if (ideas.length === 0) {
-    return `${title} (0)\nNone`;
-  }
-  return `${title} (${ideas.length})\n${ideas.map((idea) => api.formatIdea(idea)).join("\n\n")}`;
 }

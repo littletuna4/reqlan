@@ -13,7 +13,7 @@ Create a new reqlan requirement from the user's intent.
 ## Steps
 
 1. Clarify the intent if it is ambiguous.
-2. Search existing requirements to avoid duplicates (`search_requirements` MCP tool or `@reqlan /rq-search`).
+2. Search existing requirements to avoid duplicates (MCP `click` or `@reqlan /rq-search`).
 3. Choose the most specific existing `.rq` file, or propose a new file path if none fits.
 4. Draft a requirement block with:
    - a concise name

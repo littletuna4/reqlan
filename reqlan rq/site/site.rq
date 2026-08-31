@@ -803,8 +803,9 @@ features_tier_1 {
             so CI can reject rot. Demonstrated by [broken_links_showcase].
         }
         mcp_as_shaped_context {
-            search_requirements, file_context, local_graph, summarize_subtree.
-            Hand an agent six ideas and their edges instead of forty files.
+            MCP `click` is the search and retrieval tool
+            (["../extension/features-skills-and-mcp.rq".mcp_click_retrieval]).
+            Hand an agent compact unique context, ranked matches, or search hits — not forty files.
         }
     )
     @tags (
@@ -862,8 +863,8 @@ features_not_demonstrated {
 agent_context_showcase {
     Flagship. Context for the agent, not the repo.
     An agent answers a question about session expiry.
-    Show the repo-dump cost, then MCP file_context returning six ideas and their
-    edges, then the plan the agent writes.
+    Show the repo-dump cost, then MCP click returning compact file context,
+    then the plan the agent writes.
     Absorbs former agentic-planning and feature-tracking pages.
 
     @domain ai-tooling

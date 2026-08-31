@@ -1,26 +1,113 @@
+from "../cli/click.rq" import click, agent_advisory
+from "./module/index.rq" import application_memory
+import "../../packages/mcp/src/server.ts" as mcp_server
+import "../../packages/mcp/test/server.test.ts" as mcp_server_test
+
 mcp_tools {
-    The extension or companion server should expose mcp tools for ai and automation clients.
-    Headless index storage follows ["./module/index.rq".application_memory] (`<base>/.reqlan`), shared with the extension and CLI.
+    The MCP server (`@reqlan/mcp`, [mcp_server]) exposes a small tool set for AI clients.
+    Search and retrieval use [mcp_click_retrieval] only.
+    Do not expose parse, search, list, file context, local graph, summarise subtree,
+    requirement_reference, file_reference, or list_interactions as MCP tools.
+    Those operations stay on AnalysisApi and CLI when they exist.
+    Headless index storage follows [application_memory] (`<base>/.reqlan`), shared with the extension and CLI.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        [mcp_server_test]
+        ["../../packages/mcp/test/server.test.ts:registers only click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../packages/extension/test/mcp-skills.test.ts:skills prefer MCP click and do not recommend removed retrieval tools"]
+    )
+}
+
+mcp_click_retrieval {
+    MCP `click` is the canonical search and retrieval tool ([click], [mcp_server]).
+    One tool returns compact unique context, ranked ambiguous matches, or search hits.
+    A second click on the same centre in the session returns connected content ([agent_advisory]).
+    This surface maximises the token-to-insight ratio: names, short bodies, and caps — not edge dumps or full-graph lists.
+    Keyword search, file context, local graph, and subtree expansion are click paths, not extra MCP tools.
+    Agents must pass `sessionKey` on the next click.
+    Related: [mcp_keyword_search], [mcp_tree_interrogation], [mcp_tree_summarisation].
+    @status done
+    @implementation (
+        [mcp_server]
+        [click]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:click is the retrieval tool and calls AnalysisApi.click"]
+        ["../../packages/mcp/test/server.test.ts:prompt retrieval uses click"]
+        ["../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
+    )
 }
 
 mcp_tools_prompt {
-    An mcp tool should provide a prompt-oriented entry point for working with the requirement graph.
+    An mcp tool may provide a prompt-oriented entry point for working with the requirement graph.
+    That tool must call [mcp_click_retrieval] for search and retrieval. It must not call the removed tools.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:prompt retrieval uses click"]
+    )
 }
 
 mcp_keyword_search {
-    An mcp tool should search requirements by keyword across idea names, bodies, and attributes.
+    Keyword search across idea names, bodies, and attributes is a [click] path when no centre matches.
+    Do not expose a separate MCP search tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
+    )
 }
 
 mcp_tree_interrogation {
-    An mcp tool should describe and interrogate the requirement tree for a given root idea or file.
+    File and idea neighbourhoods are a [click] unique result (outbound, backlinks, siblings).
+    Do not expose a separate MCP file-context or local-graph tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_code_file_returns_backlinks_and_comment_refs"]
+    )
 }
 
 mcp_tree_summarisation {
-    An mcp tool should summarise a requirement subtree for compact ai context.
+    Compact subtree context is a [click] revisit: connected content for a centre already clicked in the session.
+    Do not expose a separate MCP summarise-subtree tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
+    )
 }
 
 mcp_interaction_discovery {
-    An mcp tool should discover available interactions, commands, and query patterns for the requirement graph.
+    MCP clients discover tools through the MCP protocol tool list.
+    Do not expose a list_interactions MCP tool.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../packages/mcp/test/server.test.ts:registers only click, completion_status, and prompt"]
+    )
 }
 
 skill_namespace_references {

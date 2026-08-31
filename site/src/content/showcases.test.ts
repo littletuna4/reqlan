@@ -47,6 +47,26 @@ describe("broken-links showcase", () => {
   });
 });
 
+describe("agent-context showcase", () => {
+  // rq:["../../../reqlan rq/site/site.rq".agent_context_showcase]
+  // rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+
+  it("shows MCP click as the shaped context tool", () => {
+    const showcase = showcases.find((item) => item.id === "agent-context");
+    assert.ok(showcase);
+    const click = showcase.blocks.find(
+      (block) =>
+        "kind" in block &&
+        block.kind === "exchange" &&
+        block.query.includes("click("),
+    );
+    assert.ok(click && "query" in click);
+    assert.match(click.query, /click\(/);
+    assert.doesNotMatch(click.query, /file_context/);
+    assert.match(click.response, /sessionKey/);
+  });
+});
+
 describe("showcase files", () => {
   // rq:["../../../reqlan rq/site/site.rq".showcase_module]
   // rq:["../../../reqlan rq/site/site.rq".showcase_set]

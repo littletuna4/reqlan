@@ -21,6 +21,7 @@ click {
     Optional [click_max_detail] flags cap how many names and bodies are listed.
     Optional `sessionKey` continues a [click_session]. A second click on a centre already clicked in that session returns the connected content ([click_session]).
     Surfaces: CLI `reqlan click` ([click_cli]), MCP `click` ([mcp_server]), and [native_analysis_api] `click`.
+    MCP search and retrieval use this tool only (["../extension/features-skills-and-mcp.rq".mcp_click_retrieval]).
     Engine: [click_rust] on ["./cli_package.rq".architecture] / ["../core_analysis/rust_port.rq".analytical_rust_port].
     Related: [function_parity], [commands], [agent_advisory], [click_session], [click_input], [click_max_detail], [click_output].
     @status done
