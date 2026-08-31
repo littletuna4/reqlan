@@ -1,0 +1,4 @@
+{
+  "name": "reqlan",
+  "install": "rustup toolchain install stable --profile minimal && rustup component add rustfmt clippy && rustup default stable && pnpm install --frozen-lockfile && node scripts/ensure-host-native.mjs && pnpm run build:tsc"
+}

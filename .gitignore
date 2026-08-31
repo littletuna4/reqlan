@@ -50,7 +50,8 @@ packages/extension/vsix-out/
 
 
 
-.cursor/
+.cursor/*
+!.cursor/environment.json
 .pnpm-store/
 
 # Workspace-local reqlan application memory (ideas index, etc.)
