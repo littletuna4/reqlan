@@ -9,7 +9,8 @@ MCP server exposing reqlan requirement graph tools
 ## Features
 
 - Stdio MCP server over `AnalysisApi` — no VS Code host required
-- Tools for search, file context, local graph, subtree summary, and completion status
+- `click` is the canonical search and retrieval tool (compact unique context, ranked matches, or search hits)
+- `completion_status` summarises graph completion; `prompt` routes retrieval through `click`
 - Shared ideas index at `<workspace>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and CLI)
 
 ## Install

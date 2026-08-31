@@ -18,3 +18,5 @@ Include:
 - comment-linked requirements
 
 Keep the response compact and cite paths.
+
+Prefer MCP `click` with the file path as `target`. Pass `sessionKey` if you already clicked in this session. Do not call MCP `file_context`.

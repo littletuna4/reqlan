@@ -11,7 +11,7 @@ Attach compact requirement context to this conversation.
 
 ## Steps
 
-1. Resolve the named requirement(s) with `search_requirements` or `#requirement`.
+1. Resolve the named requirement(s) with MCP `click` or `#requirement`.
 2. For each match, include only:
    - name and file path
    - status / main attributes

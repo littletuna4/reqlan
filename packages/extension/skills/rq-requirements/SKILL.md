@@ -32,7 +32,7 @@ Do not bury these in body prose.
 
 Same analytical index as extension/MCP (`<base>/.reqlan`).
 
-`init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `export`/`export html`
+`init` · `parse <file>` · `analyse`/`analyze` · `search <query>` · `click <target>` · `export`/`export html`
 
 `--json` · `--cwd` / `REQLAN_WORKSPACE` · `REQLAN_INDEX_PATH`
 
@@ -45,14 +45,14 @@ Same analytical index as extension/MCP (`<base>/.reqlan`).
 ## Surfaces
 
 - Skills: `/rq-requirements`, `/rq-search`, `/rq-fix-stale-references`, `/rq-build-requirement`, …
-- MCP: `search_requirements`, `file_context`, `local_graph`, `requirement_reference`, `file_reference`
+- MCP retrieval: `click` only. Pass `sessionKey` on the next click. Status: `completion_status`. Prompt wrapper: `prompt` (uses `click`).
 - `@reqlan` chat: `/rq-search`, `/rq-context`, `/rq-graph`, `/rq-related`
 - Palette: Semantic Search, File Related Requirements, Ideas Summary
 - LM tools: `#requirement`, `#file`
 
 ## Token discipline
 
-Compact: name, path, status, one-line summary, key refs. Limit ~5–8 matches. Full graph only on explicit request.
+Compact: name, path, status, one-line summary, key refs. Limit ~5–8 matches. Full graph only on explicit request. Use MCP `click` caps instead of listing the workspace.
 
 ## Writing
 

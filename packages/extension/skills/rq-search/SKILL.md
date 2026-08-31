@@ -13,18 +13,20 @@ Find requirements efficiently without loading the entire graph.
 
 ## Search order
 
-1. If the user names a file, scope to that file first.
-2. If they name a requirement, resolve it directly.
-3. Otherwise run semantic search across names, summaries, tags, and references.
+1. If the user names a file, click that file.
+2. If they name a requirement, click that name.
+3. Otherwise click the search text. No exact match uses fuzzy search.
 
 ## Preferred tools
 
-| Goal                   | Tool / command                                                                                                                       |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Keyword search         | MCP `search_requirements` or `/rq-search-requirements` or `@reqlan /rq-search`. This is on a fuzzy text match basis - not embedding. |
-| Active file context    | MCP `file_context` or `/rq-file-context` or `@reqlan /rq-context`                                                                    |
-| Local neighbourhood    | MCP `local_graph` or `@reqlan /rq-graph`                                                                                             |
-| Attach compact context | MCP `requirement_reference` / `file_reference` or `#requirement` / `#file` (VS Code)                                                 |
+| Goal                   | Tool / command                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| Search and retrieval   | MCP `click`. Pass `sessionKey` from the prior click. No exact match uses fuzzy text search, not embeddings. |
+| Continue a session     | MCP `click` with the same `sessionKey`. A second click on the same centre returns connected content.     |
+| VS Code chat           | `/rq-search-requirements` or `@reqlan /rq-search`. File neighbourhood: `/rq-file-context` or `@reqlan /rq-context`. |
+| Attach compact context | MCP `click`, or `#requirement` / `#file` (VS Code)                                                      |
+
+Do not call MCP `search_requirements`, `file_context`, `local_graph`, `summarize_subtree`, `requirement_reference`, `file_reference`, or `list_interactions`. Those tools are not on the MCP server.
 
 ## Response format
 
@@ -36,4 +38,4 @@ For each match include:
 - **One-line summary**
 - **Why it matched** (only when non-obvious)
 
-Limit to the smallest set that answers the question. Offer to expand if the user needs more.
+Limit to the smallest set that answers the question. Offer to expand if the user needs more. A later `click` with the same `sessionKey` expands connected content.

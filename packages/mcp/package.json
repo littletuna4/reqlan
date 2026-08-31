@@ -2,6 +2,7 @@
     "name": "@reqlan/mcp",
     "description": "MCP server exposing reqlan requirement graph tools",
     "version": "0.4.0",
+    "mcpName": "io.github.littletuna4/reqlan",
     "type": "module",
     "license": "AGPL-3.0-only",
     "repository": {
@@ -27,6 +28,8 @@
         "clean": "shx rm -fr *.tsbuildinfo out",
         "build": "tsc -b tsconfig.json",
         "build:clean": "pnpm run clean && pnpm run build",
+        "pretest": "tsc -b tsconfig.json",
+        "test": "vitest run",
         "start": "node ./bin/mcp.js"
     },
     "dependencies": {
@@ -36,6 +39,7 @@
     },
     "devDependencies": {
         "@types/node": "^26.2.0",
-        "shx": "~0.4.0"
+        "shx": "~0.4.0",
+        "vitest": "~3.1.3"
     }
 }
