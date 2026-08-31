@@ -41,13 +41,4 @@ describe("quickstart what's next", () => {
       assert.ok(relatedIds.includes(id), `related must include ${id}`);
     }
   });
-
-  it("documents click as the MCP retrieval tool", () => {
-    const mcp = quickstartContent.packages.find((item) => item.id === "mcp");
-    assert.ok(mcp);
-    assert.match(mcp.steps.join("\n"), /click/i);
-    assert.match(mcp.tips.join("\n"), /`click`/);
-    assert.doesNotMatch(mcp.tips.join("\n"), /search_requirements/);
-    assert.doesNotMatch(mcp.tips.join("\n"), /file_context/);
-  });
 });

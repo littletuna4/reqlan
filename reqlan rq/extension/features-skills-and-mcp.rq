@@ -16,9 +16,7 @@ mcp_tools {
     )
     @tests (
         [mcp_server_test]
-        ["../../packages/mcp/test/server.test.ts:registers only click, completion_status, and prompt"]
-        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
-        ["../../packages/extension/test/mcp-skills.test.ts:skills prefer MCP click and do not recommend removed retrieval tools"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
     )
 }
 
@@ -36,8 +34,7 @@ mcp_click_retrieval {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:click is the retrieval tool and calls AnalysisApi.click"]
-        ["../../packages/mcp/test/server.test.ts:prompt retrieval uses click"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
         ["../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
     )
 }
@@ -50,7 +47,7 @@ mcp_tools_prompt {
         [mcp_server]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:prompt retrieval uses click"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
     )
 }
 
@@ -63,7 +60,7 @@ mcp_keyword_search {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
     )
 }
@@ -77,7 +74,7 @@ mcp_tree_interrogation {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_code_file_returns_backlinks_and_comment_refs"]
     )
@@ -92,7 +89,7 @@ mcp_tree_summarisation {
         [click]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
         ["../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
     )
 }
@@ -105,8 +102,7 @@ mcp_interaction_discovery {
         [mcp_server]
     )
     @tests (
-        ["../../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
-        ["../../packages/mcp/test/server.test.ts:registers only click, completion_status, and prompt"]
+        ["../../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
     )
 }
 

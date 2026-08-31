@@ -11,35 +11,6 @@ import {
   type OpenedAnalysisApi,
 } from "@reqlan/analytical/core";
 
-/**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
- */
-export const MCP_TOOL_NAMES = [
-  "click",
-  "completion_status",
-  "prompt",
-] as const;
-
-export type McpToolName = (typeof MCP_TOOL_NAMES)[number];
-
-/**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
- */
-export const MCP_REMOVED_RETRIEVAL_TOOLS = [
-  "parse",
-  "search",
-  "search_requirements",
-  "list",
-  "list_requirements",
-  "file_context",
-  "local_graph",
-  "summarize_subtree",
-  "requirement_reference",
-  "file_reference",
-  "list_interactions",
-] as const;
-
 export type McpAnalysisApi = {
   click(target: string, options?: ClickOptions): Promise<ClickResult>;
   formatClickResult(result: ClickResult): string;
@@ -74,7 +45,7 @@ function textContent(text: string) {
   return { content: [{ type: "text" as const, text }] };
 }
 
-export function promptClickTarget(input: PromptToolInput): string {
+function promptClickTarget(input: PromptToolInput): string {
   const requirementName = input.requirementName?.trim();
   if (requirementName !== undefined && requirementName.length > 0) {
     return requirementName;
@@ -106,7 +77,7 @@ export async function handleClickTool(
   return textContent(api.formatClickResult(result));
 }
 
-export async function handleCompletionStatusTool(api: McpAnalysisApi) {
+async function handleCompletionStatusTool(api: McpAnalysisApi) {
   const summary = await api.getCompletionStatus();
   return textContent(
     [

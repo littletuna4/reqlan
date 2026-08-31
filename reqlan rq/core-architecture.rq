@@ -105,12 +105,12 @@ mcp_package {
     `packages/mcp` (`@reqlan/mcp`) is a stdio MCP server over the analytical analysis API — no VS Code host required.
     Entry: [mcp_main] via ["../packages/mcp/bin/mcp.js"]. Binary name `reqlan-mcp`. Used by Cursor and other MCP clients per [chat_participant_doc.mcp] and [skills_and_mcp.mcp_tools].
     Search and retrieval use ["../extension/features-skills-and-mcp.rq".mcp_click_retrieval] (`click`) only.
+    npm `mcpName` is `io.github.littletuna4/reqlan` for MCP Registry ownership checks (["../packages/mcp/package.json"]).
     Published to npm with language, analytical, and CLI per [package_versioning] and [distribution.version_management] (`mcp/v*`).
     Windows ESM entry uses `pathToFileURL` like ["./cli/cli_package.rq".windows_esm_entry].
     @tests (
         ["../packages/cli/test/windows-esm-entry.test.ts:MCP bin converts the compiled entry with pathToFileURL"]
-        ["../packages/mcp/test/server.test.ts:registers only click, completion_status, and prompt"]
-        ["../packages/mcp/test/server.test.ts:does not register removed retrieval tools"]
+        ["../packages/mcp/test/server.test.ts:MCP surface is click, completion_status, and prompt"]
     )
 }
 
