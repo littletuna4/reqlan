@@ -146,7 +146,7 @@ export const quickstartContent = {
 }`,
       },
       tips: [
-        "The retrieval tool is `click`. Status is `completion_status`. Do not expect search, list, file_context, or local_graph MCP tools.",
+        "The retrieval tool is `click`. Status is `completion_status`.",
         "Override index storage with `REQLAN_INDEX_PATH` when needed.",
       ],
     },
