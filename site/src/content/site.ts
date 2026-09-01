@@ -4,6 +4,7 @@ export type {
   FaqItem,
   FaqPageLink,
   FaqSupportLink,
+  FeaturedItem,
   LinkItem,
   MotivationFeature,
   MotivationSlide,
