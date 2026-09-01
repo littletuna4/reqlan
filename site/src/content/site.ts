@@ -20,6 +20,7 @@ export type {
 import { contact } from "@/content/contact";
 import { example } from "@/content/example";
 import { faq } from "@/content/faq";
+import { featured } from "@/content/featured";
 import { cta, hero } from "@/content/hero";
 import { brand, footer, meta } from "@/content/meta";
 import { motivation } from "@/content/motivation";
@@ -36,6 +37,7 @@ export const siteContent = {
   navGraph,
   hero,
   cta,
+  featured,
   motivation,
   syntax,
   example,

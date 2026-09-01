@@ -102,3 +102,9 @@ export type RoadmapItem = {
   label: string;
   detail: string;
 };
+
+export type FeaturedItem = {
+  id: string;
+  label: string;
+  href: string;
+};

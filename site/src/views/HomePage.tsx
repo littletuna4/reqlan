@@ -1,6 +1,7 @@
 import { Contact } from "@/components/Contact";
 import { ElevatorPitch } from "@/components/ElevatorPitch";
 import { Example } from "@/components/Example";
+import { FeaturedIn } from "@/components/FeaturedIn";
 import { Hero } from "@/components/Hero";
 import { Motivation } from "@/components/Motivation";
 import { NavGraph } from "@/components/NavGraph";
@@ -14,6 +15,7 @@ export function HomePage() {
   // rq:["../../../reqlan rq/site/site.rq".copy]
   // rq:["../../../reqlan rq/site/site.rq".hero_section]
   // rq:["../../../reqlan rq/site/site.rq".elevator_pitch_section]
+  // rq:["../../../reqlan rq/site/site.rq".featured_in_section]
   // rq:["../../../reqlan rq/site/site.rq".motivation_section]
   // rq:["../../../reqlan rq/site/site.rq".syntax_section]
   // rq:["../../../reqlan rq/site/site.rq".example_section]
@@ -25,6 +27,7 @@ export function HomePage() {
         <div className={styles.column}>
           <Hero />
           <ElevatorPitch />
+          <FeaturedIn />
           <Motivation />
           <Syntax />
           <Example />
