@@ -1,0 +1,22 @@
+import "../phonebook.rq" as phonebook_reqs
+
+repo_license {
+  The repository root must declare the same licence as the publishable packages and crates.
+  SPDX id: `AGPL-3.0-only`.
+  The root must hold a `LICENSE` file with the GNU Affero General Public License version 3 text.
+  The extension package `LICENSE` must use the same text as the root `LICENSE`.
+  Package metadata must set `"license": "AGPL-3.0-only"` for the workspace root and for every publishable package under `packages/`.
+  The Rust workspace must set `license = "AGPL-3.0-only"` in ["../../crates/Cargo.toml"].
+  @implementation (
+    ["../../LICENSE"]
+    ["../../package.json"]
+    ["../../packages/extension/LICENSE"]
+    ["../../crates/Cargo.toml"]
+  )
+  @status done
+  @tests (
+    ["../../packages/analytical/test/repo-license.test.ts"]
+    ["../../packages/analytical/test/repo-license.test.ts:root LICENSE is AGPL-3.0 and matches extension LICENSE"]
+    ["../../packages/analytical/test/repo-license.test.ts:publishable packages and crates declare AGPL-3.0-only"]
+  )
+}
