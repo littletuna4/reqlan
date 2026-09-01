@@ -140,10 +140,10 @@ open_file_reference_sequencing {
     When the editor opens a `.rq` buffer, reference UI must follow this order:
     1. Fast file pass on this buffer only — resolve path-shaped refs with filesystem checks
        ([reference_file], document links for imports and file targets).
-    2. Local Rust symbolic outbound for this buffer — ["../indexer/indexer.rq".local_symbolic_analysis]
-       (path + source → outbound edges with spans). Do not wait for workspace Linked or
-       `workspaceManager.ready`.
-    3. Inbound from SQLite — ["../indexer/cache-reuse.rq".unify_inbound_indexes] pushes a
+    2. Local Rust symbolic analysis for this buffer — ["../indexer/indexer.rq".local_symbolic_analysis]
+       (path + source → outbound edges with spans and same-file inbound backlinks). Do not wait for
+       workspace Linked or `workspaceManager.ready`.
+    3. Cross-file inbound from SQLite — ["../indexer/cache-reuse.rq".unify_inbound_indexes] pushes a
        per-file inbound snapshot when the index is ready. Empty until then; never freeze
        on Langium IndexManager.
     Background Langium workspace parse may continue for completion and rename. It must not

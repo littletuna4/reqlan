@@ -17,6 +17,10 @@ import {
     type FileRelatedRequirements
 } from '@reqlan/analytical';
 import {
+    mergeLocalSymbolicNeighborIdeas,
+    mergeLocalSymbolicReferenceRows
+} from './local-symbolic-context.js';
+import {
     buildAiReadiness,
     buildContextFingerprint,
     buildFocusSignals,
@@ -207,14 +211,27 @@ export class ContextModelBuilder {
         const currentFileHop = effectiveHopDepth(session, 'current_file');
         let references: ContextReferencesSlice | undefined;
         if (centerId) {
-            const rows = await this.store.listReferencesWithinHopDepth(centerId, currentFileHop);
+            const indexedRows = await this.store.listReferencesWithinHopDepth(centerId, currentFileHop);
+            const fileUri = currentFile?.fileUri ?? input.fileUri;
+            const rows = fileUri
+                ? mergeLocalSymbolicReferenceRows(indexedRows, fileUri, input.fileText, centerId)
+                : indexedRows;
             references = { ideaId: centerId, rows };
             const related = await resolveBidirectionalIdeaReferences(this.store, centerId);
+            const mergedNeighbors = fileUri
+                ? mergeLocalSymbolicNeighborIdeas(
+                      related.inbound,
+                      related.outbound,
+                      fileUri,
+                      input.fileText,
+                      centerId
+                  )
+                : { inbound: related.inbound, outbound: related.outbound };
             if (currentFile) {
                 currentFile = {
                     ...currentFile,
-                    inboundReferencingIdeas: related.inbound,
-                    referencedIdeas: related.outbound,
+                    inboundReferencingIdeas: mergedNeighbors.inbound,
+                    referencedIdeas: mergedNeighbors.outbound,
                     unresolvedCount: await this.store.countUnresolvedForIdea(centerId)
                 };
             }
@@ -324,8 +341,15 @@ export class ContextModelBuilder {
 
         if (focusIdea) {
             const related = await resolveBidirectionalIdeaReferences(this.store, focusIdea.id);
-            inboundReferencingIdeas = related.inbound;
-            referencedIdeas = related.outbound;
+            const merged = mergeLocalSymbolicNeighborIdeas(
+                related.inbound,
+                related.outbound,
+                fileUri,
+                options?.fileText,
+                focusIdea.id
+            );
+            inboundReferencingIdeas = merged.inbound;
+            referencedIdeas = merged.outbound;
         }
 
         const centerId =
@@ -647,11 +671,19 @@ export class ActivityBarDataService extends ContextModelBuilder {
 
     async loadReferences(
         ideaId: string,
-        options?: { search?: string; brokenOnly?: boolean; hopDepth?: number }
+        options?: {
+            search?: string;
+            brokenOnly?: boolean;
+            hopDepth?: number;
+            fileUri?: string;
+            fileText?: string;
+        }
     ): Promise<ReferenceListsPayload> {
         const hopDepth = options?.hopDepth ?? CONTEXT_MIN_HOP_DEPTH;
+        const indexed = await this.store.listReferencesWithinHopDepth(ideaId, hopDepth);
+        const fileUri = options?.fileUri ?? ideaId.split('#')[0] ?? '';
         const rows = filterReferences(
-            await this.store.listReferencesWithinHopDepth(ideaId, hopDepth),
+            mergeLocalSymbolicReferenceRows(indexed, fileUri, options?.fileText, ideaId),
             options
         );
         return { ideaId, rows, grouped: groupReferences(rows) };

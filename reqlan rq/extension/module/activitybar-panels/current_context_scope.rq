@@ -55,6 +55,8 @@ reference_lists_pane {
     Actionable inbound and outbound reference lists for the focused idea.
     - Inbound: ideas that reference the focus (edges to the focus).
     - Outbound: ideas and files the focus references (edges from the focus).
+    - Live same-file inbound/outbound from ["../../indexer/indexer.rq".local_symbolic_analysis]
+      merged with indexed refs per ["../../indexer/indexer.rq".local_symbolic_sidebar].
     - Group entries by edge kind (dependency, related to, file ref, incompatible, etc.) in collapsible sections.
     - Show a short snippet or source line explaining why each edge exists where available.
     - Text filter scoped to this pane only (not the full ui-sql layer).
@@ -64,6 +66,8 @@ reference_lists_pane {
     Implemented by [ReferenceListsPane].
     @tests (
         ["../../../../packages/extension/webviews/activity-bar/components/ReferenceListsPane.svelte"]
+        ["../../../../packages/extension/src/activity_bar_module/local-symbolic-context.ts"]
+        ["../../../../packages/extension/test/local-symbolic-context.test.ts"]
         ["../../../../crates/reqlan-index/src/extract.rs"]
         ["../../../../crates/reqlan-index/tests/extract_parity.rs"]
     )

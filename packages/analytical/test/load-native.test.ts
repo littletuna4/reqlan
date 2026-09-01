@@ -97,11 +97,17 @@ describe('load-native', () => {
                 sourceOffsetStart?: number;
                 sourceOffsetEnd?: number;
             }>;
+            inbound: Array<{ sourceId: string; targetId?: string }>;
         };
         const local = doc.edges.find(edge => edge.label === 'local');
         expect(local?.kind).toBe('references');
         expect(local?.sourceOffsetStart).toBeTypeOf('number');
         expect(local?.sourceOffsetEnd).toBeTypeOf('number');
+        expect(
+            doc.inbound.some(
+                edge => edge.targetId === 'demo/host.rq#local' && edge.sourceId === 'demo/host.rq#host'
+            )
+        ).toBe(true);
     });
 
     it('accepts extra search dirs without throwing', () => {

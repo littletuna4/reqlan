@@ -197,6 +197,37 @@ describe('ContextModelBuilder', () => {
         expect(markdown).toContain('## AI readiness');
     });
 
+    // rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_sidebar]
+    test('merges live local-symbolic same-file inbound into context references', async () => {
+        const store = createMockStore();
+        store.seed(mockIdea('demo/host.rq#host', 'demo/host.rq', 0, { name: 'host' }));
+        store.seed(mockIdea('demo/host.rq#local_idea', 'demo/host.rq', 4, { name: 'local_idea' }));
+        // Index has no edges yet — live buffer must supply same-file inbound.
+        const source = `
+host {
+    See [local_idea].
+}
+local_idea {
+    body
+}
+`;
+        const builder = new ContextModelBuilder(store as never, uri => uri);
+        const model = await builder.build({
+            session: createContextSession(),
+            fileUri: 'demo/host.rq',
+            line: 4,
+            openFileUris: [],
+            fileText: source,
+            workspace: { ready: true, ideaCount: 2, edgeCount: 0 }
+        });
+
+        expect(model.currentFile?.focusIdea?.name).toBe('local_idea');
+        expect(model.currentFile?.inboundReferencingIdeas.map(idea => idea.name)).toContain('host');
+        expect(model.references?.rows.some(row => row.direction === 'inbound' && row.label === 'host')).toBe(
+            true
+        );
+    });
+
     test('prefers git focus stats over indexed git dates', async () => {
         const store = createMockStore();
         store.seed(

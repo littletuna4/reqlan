@@ -46,7 +46,10 @@ windows_esm_entry {
 commands {
     Minimal commands:
     - `parse <file>` — parse one `.rq` file via the core engine `parseReqlanSource` (Rust `reqlan-parse`); print diagnostics or an AST summary (`--json` for machine output).
-    - `analyse` / `analyze` — file (`--file`), idea (`--idea`), workspace completion (default), or broken references (`--broken-refs`) via `AnalysisApi`.
+    - `analyse` / `analyze` — file (`--file`), idea (`--idea`), workspace completion (default),
+      local symbolic (`--local-symbolic <file>`: outbound + same-file inbound, no index —
+      ["../indexer/indexer.rq".local_symbolic_analysis]),
+      or broken references (`--broken-refs`) via `AnalysisApi`.
       `--glob` limits `--broken-refs` to a path subset of the base.
       `--include-comments` adds unresolved ["../language/syntax.rq".comment_reference] sites (["../core_analysis/core.rq".test_references]).
     - `search <query>` — semantic search via `AnalysisApi.searchRequirements`.

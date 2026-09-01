@@ -143,6 +143,52 @@ pub struct IndexedDocument {
     pub edges: Vec<EdgeRecord>,
 }
 
+/// File-local symbolic analysis: outbound edges plus same-file inbound backlinks.
+/// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalSymbolicDocument {
+    pub file_uri: String,
+    pub content_hash: String,
+    pub ideas: Vec<IdeaRecord>,
+    /// Outbound edges from ideas in this file.
+    pub edges: Vec<EdgeRecord>,
+    /// Same-file backlinks: edges whose `target_id` is an idea declared in this file.
+    /// For idea T, inbound referencers are rows with `target_id == T` (source = referencer).
+    pub inbound: Vec<EdgeRecord>,
+}
+
+impl LocalSymbolicDocument {
+    pub fn from_indexed(doc: IndexedDocument) -> Self {
+        let local_ids: std::collections::HashSet<&str> =
+            doc.ideas.iter().map(|idea| idea.id.as_str()).collect();
+        let inbound: Vec<EdgeRecord> = doc
+            .edges
+            .iter()
+            .filter(|edge| {
+                edge.target_id.as_deref().is_some_and(|target| local_ids.contains(target))
+            })
+            .cloned()
+            .collect();
+        Self {
+            file_uri: doc.file_uri,
+            content_hash: doc.content_hash,
+            ideas: doc.ideas,
+            edges: doc.edges,
+            inbound,
+        }
+    }
+
+    /// Outbound edges from `idea_id` and same-file inbound edges targeting it.
+    pub fn references_for_idea(&self, idea_id: &str) -> (Vec<&EdgeRecord>, Vec<&EdgeRecord>) {
+        let outbound: Vec<&EdgeRecord> =
+            self.edges.iter().filter(|edge| edge.source_id == idea_id).collect();
+        let inbound: Vec<&EdgeRecord> =
+            self.inbound.iter().filter(|edge| edge.target_id.as_deref() == Some(idea_id)).collect();
+        (outbound, inbound)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdeaSummary {

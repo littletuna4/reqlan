@@ -115,11 +115,18 @@ export interface LocalSymbolicDocument {
     fileUri: string;
     contentHash: string;
     ideas: LocalSymbolicIdea[];
+    /** Outbound edges from ideas in this file. */
     edges: LocalSymbolicEdge[];
+    /**
+     * Same-file backlinks: edges whose target is an idea declared in this file.
+     * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
+     */
+    inbound: LocalSymbolicEdge[];
 }
 
 /**
- * File-local outbound symbolic extract (path + source). No workspace catalog.
+ * File-local symbolic extract (path + source): outbound edges and same-file inbound backlinks.
+ * No workspace catalog.
  * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
@@ -138,5 +145,12 @@ export function analyzeLocalSymbolic(
         alias: root.alias,
         ...(root.root !== undefined ? { root: root.root } : {})
     }));
-    return engine.analyzeLocalSymbolic(fileUri, source, roots) as LocalSymbolicDocument;
+    const raw = engine.analyzeLocalSymbolic(fileUri, source, roots) as LocalSymbolicDocument;
+    return {
+        fileUri: raw.fileUri,
+        contentHash: raw.contentHash,
+        ideas: raw.ideas ?? [],
+        edges: raw.edges ?? [],
+        inbound: raw.inbound ?? []
+    };
 }

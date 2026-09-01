@@ -122,7 +122,7 @@ export interface NativeModule {
     /** Top-level idea names in a document (git-context historical extract). */
     extractIdeaNames?(source: string): string[];
     /**
-     * File-local outbound symbolic extract (no catalog / ensure_ready).
+     * File-local symbolic extract: outbound + same-file inbound (no catalog / ensure_ready).
      * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
      */
     analyzeLocalSymbolic?(
