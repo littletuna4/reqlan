@@ -463,12 +463,20 @@ export class AppState {
         postToExtension({ type: 'selectBase', baseId });
     }
 
+    openSelectBaseDialog(): void {
+        postToExtension({ type: 'openSelectBaseDialog' });
+    }
+
     createBase(): void {
         postToExtension({ type: 'createBase' });
     }
 
     refreshIndex(): void {
         postToExtension({ type: 'refreshIndex' });
+    }
+
+    refreshBases(): void {
+        postToExtension({ type: 'refreshBases' });
     }
 
     cancelIndexSync(): void {

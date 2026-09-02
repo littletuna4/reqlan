@@ -48,7 +48,7 @@ async function handleSearch(
     }
 
     stream.progress('Searching requirements…');
-    const matches = await (await deps.index.getAnalysisApi()).searchRequirements(query, 8);
+    const matches = await deps.index.withAnalysisApi(api => api.searchRequirements(query, 8));
 
     if (matches.length === 0) {
         stream.markdown(`No requirements matched **${query}**.`);
@@ -74,7 +74,7 @@ async function handleContext(
 
     stream.progress('Gathering file context…');
     deps.index.activateBaseForPath(editor.document.uri.fsPath);
-    const related = await (await deps.index.getAnalysisApi()).getFileContext(editor.document.uri.fsPath);
+    const related = await deps.index.withAnalysisApi(api => api.getFileContext(editor.document.uri.fsPath));
     const fileUri = related.fileUri;
 
     stream.markdown(`**${vscode.workspace.asRelativePath(fileUri)}**\n\n`);
@@ -97,7 +97,7 @@ async function handleGraph(
 
     stream.progress('Building local graph…');
     deps.index.activateBaseForPath(editor.document.uri.fsPath);
-    const graph = await (await deps.index.getAnalysisApi()).getLocalGraph(editor.document.uri.fsPath, 1);
+    const graph = await deps.index.withAnalysisApi(api => api.getLocalGraph(editor.document.uri.fsPath, 1));
     if (!graph) {
         stream.markdown('No requirements found in the current file.');
         return { metadata: { command: 'rq-graph' } };
@@ -140,7 +140,7 @@ async function handleDefault(
     }
 
     stream.progress('Finding relevant requirements…');
-    const matches = await (await deps.index.getAnalysisApi()).searchRequirements(query, 5);
+    const matches = await deps.index.withAnalysisApi(api => api.searchRequirements(query, 5));
 
     if (matches.length === 0) {
         stream.markdown(`I could not find requirements related to **${query}**. Try \`/rq-search ${query}\`.`);
@@ -185,9 +185,7 @@ async function describeFileReference(
     line?: number
 ): Promise<string> {
     deps.index.activateBaseForPath(uri.fsPath);
-    const related = await (await deps.index.getAnalysisApi())
-        .getFileContext(uri.fsPath)
-        .catch(() => undefined);
+    const related = await deps.index.withAnalysisApi(api => api.getFileContext(uri.fsPath)).catch(() => undefined);
 
     const header = line !== undefined
         ? `**${vscode.workspace.asRelativePath(uri)}:${line + 1}**`

@@ -88,6 +88,8 @@ export class AppState {
     indexStatus = $state<IndexStatusView | undefined>(undefined);
     /** Base id the user requested; cleared when indexHealth confirms activeBaseId. */
     pendingBaseId = $state<string | undefined>(undefined);
+    /** True while a refresh-bases pass is in flight from the picker header. */
+    basesRefreshing = $state(false);
     tray = $state<IdeaSummary[]>([]);
     siteLink = $state<PhonebookLinkView | undefined>(undefined);
     statusText = $state('Connecting…');
@@ -366,6 +368,7 @@ export class AppState {
                 break;
             case 'indexHealth':
                 this.indexStatus = message.status;
+                this.basesRefreshing = false;
                 if (
                     this.pendingBaseId !== undefined &&
                     message.status.activeBaseId === this.pendingBaseId
@@ -720,6 +723,15 @@ export class AppState {
 
     refreshIndex(): void {
         postToExtension({ type: 'refreshIndex' });
+    }
+
+    refreshBases(): void {
+        this.basesRefreshing = true;
+        postToExtension({ type: 'refreshBases' });
+    }
+
+    openSelectBaseDialog(): void {
+        postToExtension({ type: 'openSelectBaseDialog' });
     }
 
     cancelIndexSync(): void {

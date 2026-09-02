@@ -4,8 +4,10 @@
  */
 import {
     baseForPath,
+    basesFromMarkerPaths,
     discoverBases,
     filesOwnedByBase,
+    isBaseMarkerPresent,
     selectDefaultBase,
     type BaseDescriptor
 } from '../core/base-discovery.js';
@@ -22,6 +24,16 @@ export interface RegisteredBase {
 export interface BaseStatusEntry {
     base: BaseDescriptor;
     status: IndexStatusSnapshot;
+}
+
+/**
+ * Result of a bases refresh pass ({@link BaseRegistry.refreshBases}) or full
+ * tree rediscover ({@link BaseRegistry.rediscover}).
+ */
+export interface BaseRegistryRefreshResult {
+    bases: BaseDescriptor[];
+    activeId: string | undefined;
+    synced: boolean;
 }
 
 export class BaseRegistry {
@@ -77,13 +89,108 @@ export class BaseRegistry {
     }
 
     /**
-     * Discover bases under `roots` and register them.
+     * Discover bases under `roots` via a full tree walk and register them.
+     * Prefer {@link refreshBases} in the editor host (marker paths from `findFiles`).
      * Returns the discovered descriptors (may be empty).
      */
     rediscover(roots: string[]): BaseDescriptor[] {
         const bases = discoverBases(roots);
         this.replaceDescriptors(bases);
         return bases;
+    }
+
+    /**
+     * Drop registered bases whose `.reqlan` marker is gone (cheap O(known) probe).
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+     */
+    pruneMissingBases(): BaseDescriptor[] {
+        for (const id of [...this.entries.keys()]) {
+            const entry = this.entries.get(id);
+            if (!entry) {
+                continue;
+            }
+            if (!isBaseMarkerPresent(entry.descriptor.root)) {
+                void entry.index.deactivate();
+                this.entries.delete(id);
+            }
+        }
+        return this.list();
+    }
+
+    /**
+     * Bases refresh: prune missing markers, then merge descriptors built from
+     * host-supplied `.reqlan` marker paths. Does **not** walk the workspace tree.
+     * Optional soft-sync of the preferred / default active base when `allRqFiles`
+     * is provided and `syncActive` is not false.
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+     */
+    async refreshBases(
+        markerPaths: readonly string[],
+        options?: {
+            preferredActiveId?: string;
+            cwd?: string;
+            labelRoot?: string;
+            allRqFiles?: string[];
+            /** Soft-sync preferred/default active after merge (default true when allRqFiles set). */
+            syncActive?: boolean;
+        }
+    ): Promise<BaseRegistryRefreshResult> {
+        this.pruneMissingBases();
+        const fromMarkers = basesFromMarkerPaths(markerPaths, options?.labelRoot);
+        const byId = new Map<string, BaseDescriptor>();
+        for (const descriptor of this.list()) {
+            byId.set(descriptor.id, descriptor);
+        }
+        for (const descriptor of fromMarkers) {
+            byId.set(descriptor.id, descriptor);
+        }
+        this.replaceDescriptors([...byId.values()]);
+        return this.finishRefresh(options);
+    }
+
+    /**
+     * Full-tree rediscover then optional active soft-sync.
+     * Headless / tests without a host `findFiles` may use this; the editor host
+     * uses {@link refreshBases} instead.
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+     */
+    async refresh(
+        roots: string[],
+        options?: {
+            preferredActiveId?: string;
+            cwd?: string;
+            allRqFiles?: string[];
+            syncActive?: boolean;
+        }
+    ): Promise<BaseRegistryRefreshResult> {
+        this.rediscover(roots);
+        return this.finishRefresh(options);
+    }
+
+    private async finishRefresh(options?: {
+        preferredActiveId?: string;
+        cwd?: string;
+        allRqFiles?: string[];
+        syncActive?: boolean;
+    }): Promise<BaseRegistryRefreshResult> {
+        const bases = this.list();
+        if (bases.length === 0) {
+            return { bases, activeId: undefined, synced: false };
+        }
+
+        const preferred = options?.preferredActiveId;
+        const preferredStillPresent = preferred ? this.entries.has(preferred) : false;
+        const selected =
+            (preferredStillPresent ? preferred : undefined) ??
+            selectDefaultBase(bases, options?.cwd)?.id;
+        const activeId = selected ?? bases[0]?.id;
+
+        let synced = false;
+        if (options?.syncActive !== false && activeId && options?.allRqFiles) {
+            synced = await this.ensureBaseReady(activeId, options.allRqFiles);
+        }
+
+        return { bases, activeId, synced };
     }
 
     /**
@@ -118,6 +225,17 @@ export class BaseRegistry {
             await entry.index.deactivate();
         }
         this.entries.clear();
+    }
+
+    /**
+     * Close every open SQLite handle while keeping base descriptors registered.
+     * The next ensureBaseReady / open event can reopen the same entries.
+     * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
+     */
+    async releaseArtifacts(): Promise<void> {
+        for (const entry of this.entries.values()) {
+            await entry.index.deactivate();
+        }
     }
 
     async syncBase(baseId: string, allRqFiles: string[]): Promise<boolean> {

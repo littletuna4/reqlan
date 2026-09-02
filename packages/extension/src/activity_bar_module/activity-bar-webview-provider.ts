@@ -7,6 +7,7 @@ import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri, resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { showSelectBaseDialog } from '../analytical_submodule/commands/select-base-dialog.js';
 import { toIndexStatusView } from '../webview_module/ideas-summary-panel.js';
 import { IdeasSummaryPanel } from '../webview_module/ideas-summary-panel.js';
 import { getPhonebookLink, type PhonebookLinkId } from '../shared/phonebook.js';
@@ -385,7 +386,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 : { startLine: selection.start.line, endLine: selection.end.line },
             activeGitChange: gitChangeForFile(fileUri, git),
             resolveFileRelated: async (targetUri: string) =>
-                (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
+                this.submodule.index.withAnalysisApi(api => api.getFileContext(targetUri))
         };
     }
 
@@ -610,6 +611,20 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                     });
                     await this.postIndexHealth();
                     break;
+                case 'refreshBases':
+                    void this.submodule.index.refreshBases().then(async () => {
+                        await this.postIndexHealth();
+                    });
+                    await this.postIndexHealth();
+                    break;
+                case 'openSelectBaseDialog': {
+                    const picked = await showSelectBaseDialog(this.submodule.index);
+                    await this.postIndexHealth();
+                    if (picked) {
+                        void this.refreshFromEditor({ followEditorBase: false });
+                    }
+                    break;
+                }
                 case 'cancelIndexSync':
                     this.submodule.index.cancelSync();
                     await this.postIndexHealth();
@@ -702,7 +717,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         fileText: document.getText(),
                         workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
                         resolveFileRelated: async (targetUri: string) =>
-                            (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
+                            this.submodule.index.withAnalysisApi(api => api.getFileContext(targetUri))
                     });
                     this.post({ type: 'fileLensDetail', detail, requestId });
                     break;
@@ -1166,6 +1181,8 @@ function scopeForMessage(
         case 'copyContextMarkdown':
             return 'context';
         case 'refreshIndex':
+        case 'refreshBases':
+        case 'openSelectBaseDialog':
         case 'cancelIndexSync':
         case 'clearAndRebuildIndex':
         case 'loadIndexHealth':

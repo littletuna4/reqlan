@@ -237,6 +237,16 @@
         "category": "reqlan"
       },
       {
+        "command": "reqlan.refreshBases",
+        "title": "Refresh Bases",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.selectBase",
+        "title": "Select Base…",
+        "category": "reqlan"
+      },
+      {
         "command": "reqlan.createBase",
         "title": "Create Base",
         "category": "reqlan"

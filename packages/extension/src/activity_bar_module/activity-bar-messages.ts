@@ -97,6 +97,8 @@ export type ActivityBarToExtensionMessage =
       }
     | { type: 'loadIndexHealth' }
     | { type: 'refreshIndex' }
+    | { type: 'refreshBases' }
+    | { type: 'openSelectBaseDialog' }
     | { type: 'cancelIndexSync' }
     | { type: 'clearAndRebuildIndex' }
     | { type: 'createBase' }
