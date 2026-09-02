@@ -163,13 +163,16 @@ elevator_pitch_section {
 
 featured_in_section {
     Landing `#featured-in` after [elevator_pitch_section] and before [motivation_section].
-    Social-proof strip: short "Featured in" label plus outbound links to catalogues that list reqlan.
+    Rolling social-proof banner: label "As featured in:" plus catalogue cards that scroll slowly in a continuous loop.
+    Each card shows an icon and an outbound link label.
     Required listings (labels match the catalogue names):
     - agentlanguages.dev → https://agentlanguages.dev/languages/reqlan/
     - awesome-spec-driven-development → https://github.com/Engineering4AI/awesome-spec-driven-development
     - awesome-docs → https://github.com/testthedocs/awesome-docs
-    Copy lives in ["../../site/src/content/featured.ts"] per [copy].
+    Copy and icons live in ["../../site/src/content/featured.ts"] per [copy].
+    Icons resolve through [phonebook_icon_component] / [icon_registry].
     Links open in a new tab with `rel="noopener noreferrer"`.
+    Pause the scroll on hover or focus. When the visitor prefers reduced motion, show a static row of the same cards with no scroll.
     Do not put these URLs in the phonebook footer/contact list.
     Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
     @status done

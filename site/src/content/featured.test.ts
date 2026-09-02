@@ -2,11 +2,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { resolvePhonebookIcon } from "../lib/phonebook-icons.js";
 import { featured } from "./featured.js";
 
 describe("featured in", () => {
   it("lists the three social-proof catalogues", () => {
-    assert.equal(featured.title, "Featured in");
+    assert.equal(featured.title, "As featured in:");
     assert.equal(featured.items.length, 3);
 
     const byId = Object.fromEntries(
@@ -35,9 +36,13 @@ describe("featured in", () => {
     assert.equal(byId["awesome-docs"]?.label, "awesome-docs");
   });
 
-  it("keeps every listing as an absolute https URL", () => {
+  it("keeps every listing as an absolute https URL with a resolvable icon", () => {
     for (const item of featured.items) {
       assert.match(item.href, /^https:\/\//);
+      assert.ok(
+        resolvePhonebookIcon(item.icon),
+        `${item.id} icon should resolve in the phonebook registry`,
+      );
     }
   });
 });

@@ -1,5 +1,6 @@
 // rq:["../../../reqlan rq/site/site.rq".copy]
 import type {
+  PhonebookIconRef,
   PhonebookLink,
   PhonebookLinkId,
   PhonebookPackage,
@@ -107,4 +108,5 @@ export type FeaturedItem = {
   id: string;
   label: string;
   href: string;
+  icon: PhonebookIconRef;
 };
