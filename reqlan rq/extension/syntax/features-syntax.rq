@@ -13,6 +13,8 @@ syntax_highlighting {
     Semantic token highlighting should distinguish ideas, attributes, references, imports, and keywords.
     Path + wildcard idea refs (`["…/*.rq".idea_*]`) must highlight as links/strings — not comment-grey —
     see ["./features-syntax-highlighting.rq".wildcard_reference_highlighting].
+    Import lines must colour path and keywords after `import` / `from` —
+    see ["./features-syntax-highlighting.rq".import_statement_highlighting].
 
     @status done
     @implementation (
@@ -22,6 +24,7 @@ syntax_highlighting {
     )
     @tests (
         ["../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../../packages/language/test/textmate-import-highlight.test.ts"]
         ["../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
     )
 }

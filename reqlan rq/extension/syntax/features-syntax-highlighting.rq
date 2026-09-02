@@ -12,6 +12,78 @@ reference_rendering {
     Resolved references should be visually distinguishable from unresolved or broken references.
     Indirect references inferred by graph traversal should be showable via a user toggle.
     Reference kinds (dependency, incompatible with, applies to, related to) should be surfaced where declared or inferred.
+    Unresolved idea and file references must keep a linking / missing-file diagnostic (error underline).
+    They must not receive a document-link underline that makes them look like happy, navigable references.
+    See [import_statement_highlighting], [non_web_reference_navigation], [unresolved_reference_diagnostics].
+}
+
+import_statement_highlighting {
+    TextMate highlighting for import lines must colour the whole statement, not only the leading
+    `from` / `import` keyword. After `import` (and after `from` … `import`), the quoted path,
+    the `import` / `as` keywords, and idea / alias names must receive scopes — they must not stay
+    default-white while still looking interactive from a path document link alone.
+    Root cause: a short `^\\b(from|import)\\b` match ran before the path patterns and consumed the
+    keyword so the path never scoped.
+    Fix: line-scoped `meta.import.reqlan` begin/end rules that paint path, keywords, and names.
+    Semantic tokens still paint import AST nodes (and must `return` after handling them).
+
+    @status done
+    @implementation (
+        ["../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/textmate-import-highlight.test.ts"]
+        ["../../../packages/language/test/textmate-import-highlight.test.ts:e2e: from-import line scopes path and import keyword"]
+        ["../../../packages/language/test/textmate-import-highlight.test.ts:e2e: namespace import line scopes path and as"]
+    )
+}
+
+non_web_reference_navigation {
+    Non-web references (idea brackets/wikilinks, local file paths, import paths) must be Ctrl+click
+    navigable via document links and/or go-to-definition. Built-in http(s) link detection is not enough.
+    Idea underlines come from path-local Rust extract (["../../indexer/indexer.rq".local_symbolic_analysis])
+    with a Langium fallback when native extract throws so file/idea links are not lost.
+    Go-to-definition uses Langium when the idea ref is already linked, then falls back to the same
+    local-symbolic target so navigation works before workspace Linked completes.
+    Related: [reference_document_links], [reference_goto_definition_speed],
+    ["../../language/syntax.rq".open_file_reference_sequencing].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../packages/language/src/reqlan-definition-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+        ["../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+    )
+}
+
+unresolved_reference_diagnostics {
+    Unresolved idea references must report a linking error diagnostic.
+    Local-symbolic outbound must not emit document links for `isResolved: false` edges or for
+    cross-file targets that do not exist on disk / are not loaded — those false links looked like
+    happy references while Ctrl+click could not navigate.
+    Missing file references stay on ["./features-syntax.rq".file_references] /
+    ["../language-support/language-server-errors.rq".file_reference_errors] (error, no document link).
+    Related: [reference_rendering], [non_web_reference_navigation].
+
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../packages/language/src/reqlan-validator.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
+        ["../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../packages/language/test/ignore-error.test.ts:reports unresolved reference without ignore directive"]
+    )
 }
 
 reference_document_links {

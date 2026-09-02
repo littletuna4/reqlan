@@ -48,6 +48,8 @@ export function analyzeDocumentLocalSymbolic(
 
 /**
  * Idea outbound links for the open buffer. File / wildcard refs stay on the FS / AST pass.
+ * Unresolved edges and missing cross-file targets must not become document links — those
+ * look like happy references while Ctrl+click cannot navigate.
  */
 export function collectLocalSymbolicOutboundLinks(
     document: LangiumDocument,
@@ -57,7 +59,7 @@ export function collectLocalSymbolicOutboundLinks(
     const extracted = analyzeDocumentLocalSymbolic(document, context);
     const links: ResolvedFileLink[] = [];
     for (const edge of extracted.edges) {
-        if (edge.kind !== 'references') {
+        if (edge.kind !== 'references' || edge.isResolved === false) {
             continue;
         }
         const link = ideaLinkFromEdge(document, extracted, edge, context, documents);
@@ -76,7 +78,7 @@ export function findLocalSymbolicDefinition(
 ): { targetUri: string; targetRange?: Range; sourceRange: Range } | undefined {
     const extracted = analyzeDocumentLocalSymbolic(document, context);
     for (const edge of extracted.edges) {
-        if (edge.kind !== 'references') {
+        if (edge.kind !== 'references' || edge.isResolved === false) {
             continue;
         }
         const sourceRange = ideaNameRangeFromEdge(document, edge);
@@ -132,7 +134,7 @@ function resolveIdeaTarget(
     documents?: LangiumDocuments
 ): { targetUri: string; targetRange?: Range } | undefined {
     const targetId = edge.targetId;
-    if (!targetId) {
+    if (!targetId || edge.isResolved === false) {
         return undefined;
     }
     const hash = targetId.lastIndexOf('#');
@@ -146,6 +148,10 @@ function resolveIdeaTarget(
         const idea = ideaName
             ? extracted.ideas.find(entry => entry.name === ideaName)
             : undefined;
+        // Same-file symbolic extract lists local ideas; missing name → not navigable.
+        if (ideaName && !idea) {
+            return undefined;
+        }
         return {
             targetUri: document.uri.toString(),
             targetRange: idea
@@ -157,11 +163,35 @@ function resolveIdeaTarget(
         };
     }
 
-    const targetUri = resolveDocumentPathUri(filePart, document, context).toString();
+    const targetUri = resolveDocumentPathUri(filePart, document, context);
+    if (!crossFileTargetExists(targetUri, documents, context)) {
+        return undefined;
+    }
+    const targetUriString = targetUri.toString();
     const targetRange = ideaName
-        ? ideaRangeFromLoadedDocument(documents, targetUri, ideaName)
+        ? ideaRangeFromLoadedDocument(documents, targetUriString, ideaName)
         : undefined;
-    return { targetUri, targetRange };
+    return { targetUri: targetUriString, targetRange };
+}
+
+/** Prefer loaded docs; otherwise require a real filesystem hit so missing files stay unlinked. */
+function crossFileTargetExists(
+    targetUri: URI,
+    documents: LangiumDocuments | undefined,
+    context?: PathResolveContext
+): boolean {
+    if (documents && findLoadedDocument(documents, targetUri.toString())) {
+        return true;
+    }
+    const fileSystem = context?.fileSystem;
+    if (!fileSystem) {
+        return false;
+    }
+    try {
+        return fileSystem.existsSync(targetUri);
+    } catch {
+        return false;
+    }
 }
 
 function ideaRangeFromLoadedDocument(

@@ -57,34 +57,47 @@ for (const pattern of rootPatterns) {
     }
 }
 
+// Line-scoped begin/end so the short `from|import` keyword match cannot steal the
+// path / second keyword / alias from the rest of the import statement (white + link-only).
 grammar.repository['import-keywords'] = {
     patterns: [
         {
-            match: '^(\\s*)\\b(from|import)\\b',
-            captures: {
+            name: 'meta.import.reqlan',
+            begin: '^(\\s*)\\b(from)\\b',
+            beginCaptures: {
                 '2': { name: 'keyword.control.reqlan' }
-            }
+            },
+            end: '$',
+            patterns: [
+                { match: importPath, name: 'string.quoted.reqlan' },
+                {
+                    match: '\\b(import|as)\\b',
+                    name: 'keyword.control.reqlan'
+                },
+                {
+                    match: `\\b(${id})\\b`,
+                    name: 'variable.other.import.reqlan'
+                }
+            ]
         },
         {
-            match: `^(\\s*from\\b\\s+)(${importPath})(\\s+)\\b(import)\\b`,
-            captures: {
-                '2': { name: 'string.quoted.reqlan' },
-                '4': { name: 'keyword.control.reqlan' }
-            }
-        },
-        {
-            match: `^(\\s*import\\b\\s+)(${importPath})(\\s+\\b(as)\\b)`,
-            captures: {
-                '2': { name: 'string.quoted.reqlan' },
-                '3': { name: 'keyword.control.reqlan' }
-            }
-        },
-        {
-            // Alias after from-import specifier(s): `… import idea as alias` or `… import a as b, c as d`
-            match: `^(\\s*from\\b\\s+${importPath}\\s+\\bimport\\b\\s+(?:\\w+\\s*,\\s*)*\\w+\\s+)\\b(as)\\b`,
-            captures: {
+            name: 'meta.import.reqlan',
+            begin: '^(\\s*)\\b(import)\\b',
+            beginCaptures: {
                 '2': { name: 'keyword.control.reqlan' }
-            }
+            },
+            end: '$',
+            patterns: [
+                { match: importPath, name: 'string.quoted.reqlan' },
+                {
+                    match: '\\b(as)\\b',
+                    name: 'keyword.control.reqlan'
+                },
+                {
+                    match: `\\b(${id})\\b`,
+                    name: 'variable.other.import.reqlan'
+                }
+            ]
         }
     ]
 };
