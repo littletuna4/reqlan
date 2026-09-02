@@ -91,10 +91,26 @@ export interface InteractionDescriptor {
 
 export class NativeAnalysisApi {
     private readonly native: NativeAnalysisRuntimeHandle;
+    private closed = false;
 
     constructor(options: AnalysisRuntimeOptions) {
         const engine = loadNativeEngine();
         this.native = engine.NativeAnalysisRuntime.open(options.workspaceRoot, options.storagePath);
+    }
+
+    /**
+     * Release SQLite artifacts held by this runtime.
+     * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
+     */
+    close(): void {
+        if (this.closed) {
+            return;
+        }
+        this.closed = true;
+        const close = this.native.close;
+        if (typeof close === 'function') {
+            close.call(this.native);
+        }
     }
 
     async ensureReady(): Promise<void> {

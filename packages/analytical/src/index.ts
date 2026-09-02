@@ -69,7 +69,11 @@ export {
 } from './core/base-discovery.js';
 export type { BaseDescriptor } from './core/base-discovery.js';
 export { BaseRegistry } from './index-store/base-registry.js';
-export type { BaseStatusEntry, RegisteredBase } from './index-store/base-registry.js';
+export type {
+    BaseRegistryRefreshResult,
+    BaseStatusEntry,
+    RegisteredBase
+} from './index-store/base-registry.js';
 export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
 export { SqliteIndexStore, type InboundForFileRow } from './index-store/sqlite-store.js';
 export type {

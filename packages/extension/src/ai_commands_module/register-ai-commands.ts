@@ -377,8 +377,8 @@ async function pickIdea(
         (idea) => idea.kind !== "ideaset",
       );
     } else {
-      const related = await (await index.getAnalysisApi()).getFileContext(
-        editor.document.uri.fsPath,
+      const related = await index.withAnalysisApi(api =>
+        api.getFileContext(editor.document.uri.fsPath),
       );
       ideas = [
         ...related.referencingIdeas,
@@ -391,7 +391,7 @@ async function pickIdea(
     }
   }
   if (ideas.length === 0) {
-    ideas = (await (await index.getAnalysisApi()).listRequirements(0xffff_ffff)).filter(
+    ideas = (await index.withAnalysisApi(api => api.listRequirements(0xffff_ffff))).filter(
       (idea) => idea.kind !== "ideaset",
     );
   }
@@ -407,9 +407,8 @@ async function pickIdea(
   });
   let filtered = ideas;
   if (query?.trim()) {
-    const matches = await (await index.getAnalysisApi()).searchRequirements(
-      query.trim(),
-      20,
+    const matches = await index.withAnalysisApi(api =>
+      api.searchRequirements(query.trim(), 20),
     );
     filtered = matches
       .map((match) => match.idea)
