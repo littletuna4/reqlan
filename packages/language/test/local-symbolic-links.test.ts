@@ -10,7 +10,8 @@ import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { parseHelper } from 'langium/test';
-import { createReqlanServices, type Model } from '../src/reqlan-module.js';
+import { createReqlanServices } from '../src/reqlan-module.js';
+import type { Model } from '../src/generated/ast.js';
 
 describe('local symbolic document links', () => {
     let services: ReturnType<typeof createReqlanServices>;
