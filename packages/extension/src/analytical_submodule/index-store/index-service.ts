@@ -341,39 +341,57 @@ export class IndexService {
     }
 
     async syncWorkspace(baseId?: string): Promise<boolean> {
-        if (this.discoveryEmpty) {
-            await this.rediscoverAndSync(false);
-            if (this.discoveryEmpty) {
-                this.notifyStatus();
-                return false;
-            }
-        }
+        const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
         const files = await this.collectRqFiles();
         try {
-            if (baseId) {
-                return await this.registry.syncBase(baseId, files);
-            }
-            const active = this.getActiveBaseId();
-            if (!active) {
+            // Refresh always rediscovers via the analytical registry so new `.reqlan`
+            // markers appear even when bases were already registered.
+            // rq:["../../../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
+            const result = await this.registry.refresh(roots, {
+                preferredActiveId: baseId ?? this.activeBaseId,
+                cwd: this.activeEditorPath(),
+                allRqFiles: files,
+                syncActive: true
+            });
+            this.rewireRegistryListeners();
+            this.activeBaseId = result.activeId;
+            this.notifyStatus();
+            this.notifyCatalog();
+            if (result.bases.length === 0) {
                 return false;
             }
-            return await this.registry.syncBase(active, files);
+            if (baseId && baseId !== result.activeId) {
+                return this.registry.syncBase(baseId, files);
+            }
+            return result.synced;
         } finally {
             this.scheduleIdleRelease(IDLE_QUIET_MS);
         }
     }
 
     async clearAndRebuildIndex(baseId?: string): Promise<boolean> {
-        if (this.discoveryEmpty) {
-            return false;
-        }
+        const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
         const files = await this.collectRqFiles();
-        const id = baseId ?? this.getActiveBaseId();
-        if (!id) {
-            return false;
-        }
         try {
-            return await this.registry.clearAndRebuildBase(id, files);
+            const result = await this.registry.refresh(roots, {
+                preferredActiveId: baseId ?? this.activeBaseId,
+                cwd: this.activeEditorPath(),
+                allRqFiles: files,
+                // Rediscover first; rebuild replaces soft-sync for the chosen base.
+                syncActive: false
+            });
+            this.rewireRegistryListeners();
+            this.activeBaseId = result.activeId;
+            const id = baseId ?? result.activeId;
+            if (!id) {
+                this.notifyStatus();
+                this.notifyCatalog();
+                return false;
+            }
+            const ok = await this.registry.clearAndRebuildBase(id, files);
+            this.notifyStatus();
+            this.notifyCatalog();
+            return ok;
         } finally {
             this.scheduleIdleRelease(IDLE_QUIET_MS);
         }
@@ -465,6 +483,10 @@ export class IndexService {
     /**
      * Create `<folder>/.reqlan/` (empty dir marker), rediscover, and sync.
      * Defaults to the first workspace folder.
+     * Uses analytical `createBase` + `BaseRegistry.refresh` so the new marker is
+     * always registered and the returned descriptor matches discovery.
+     * rq:["../../../../../reqlan rq/bases/base.rq".create_base_onboarding]
+     * rq:["../../../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
      */
     async createBase(folderUri?: vscode.Uri): Promise<BaseDescriptor | undefined> {
         const folder =
@@ -474,15 +496,21 @@ export class IndexService {
             void vscode.window.showWarningMessage('Open a workspace folder to create a reqlan base.');
             return undefined;
         }
-        await createBaseMarker(folder.fsPath);
-        await this.rediscoverAndSync(true);
-        const created = this.registry.list().find(b => b.root === folder.fsPath);
-        if (created) {
-            this.activeBaseId = created.id;
-            this.notifyStatus();
-            this.notifyCatalog();
-        }
-        return created;
+        const created = await createBaseMarker(folder.fsPath);
+        const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
+        const files = await this.collectRqFiles();
+        const result = await this.registry.refresh(roots, {
+            preferredActiveId: created.base.id,
+            cwd: folder.fsPath,
+            allRqFiles: files,
+            syncActive: true
+        });
+        this.rewireRegistryListeners();
+        this.activeBaseId = result.activeId ?? created.base.id;
+        this.notifyStatus();
+        this.notifyCatalog();
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
+        return this.registry.get(created.base.id)?.descriptor ?? created.base;
     }
 
     async promptCreateBaseIfNeeded(): Promise<void> {
@@ -508,31 +536,16 @@ export class IndexService {
 
     private async rediscoverAndSync(_resync: boolean): Promise<void> {
         const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-        const previousActive = this.activeBaseId;
-        const bases = this.registry.rediscover(roots);
-        this.rewireRegistryListeners();
-
-        if (bases.length === 0) {
-            this.activeBaseId = undefined;
-            this.notifyStatus();
-            return;
-        }
-
-        if (previousActive && this.registry.get(previousActive)) {
-            this.activeBaseId = previousActive;
-        } else {
-            const fromEditor = this.activeEditorPath();
-            const selected = fromEditor
-                ? baseForPath(bases, fromEditor)
-                : undefined;
-            this.activeBaseId = (selected ?? this.registry.selectDefault()?.descriptor)?.id;
-        }
-
-        // Event-driven: open/sync only the active base — do not lock every discovered base.
         const files = await this.collectRqFiles();
-        if (this.activeBaseId) {
-            await this.registry.ensureBaseReady(this.activeBaseId, files);
-        }
+        // Shared analytical refresh path (same as Refresh buttons).
+        const result = await this.registry.refresh(roots, {
+            preferredActiveId: this.activeBaseId,
+            cwd: this.activeEditorPath(),
+            allRqFiles: files,
+            syncActive: true
+        });
+        this.rewireRegistryListeners();
+        this.activeBaseId = result.activeId;
         this.notifyStatus();
         this.notifyCatalog();
         this.scheduleIdleRelease(IDLE_QUIET_MS);

@@ -213,18 +213,56 @@ create_base_onboarding {
     When discovery finds **zero** bases under any VS Code workspace folder (root or child),
     the extension prompts the user to create a reqlan base at the workspace-folder root.
     Do not auto-create `.reqlan`. Command `reqlan.createBase` creates `<folder>/.reqlan/`
-    (empty directory is a valid marker), rediscovers, and activates indexing for that base.
-    With multiple workspace folders and no bases, prompt against the first folder.
+    (empty directory is a valid marker) via [create_base_impl], then calls [base_registry] `refresh`
+    so the new marker is registered and the returned [base] descriptor matches discovery
+    ([refresh_rediscovers_bases]). With multiple workspace folders and no bases, prompt against the first folder.
     Headless create-base helper: [create_base_impl] (also used by CLI `init`).
     @implementation (
         [create_base_impl]
         [editor_index_adapter]
+        [base_registry]
         [register_commands]
         ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
         ["../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
     )
+    @tests (
+        ["../../packages/analytical/test/create-base.test.ts:creates .reqlan marker and reports created"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
+    )
 }
 
+refresh_rediscovers_bases {
+    Manual Refresh (command `reqlan.refreshIndex`, activity-bar / Ideas Summary Refresh buttons)
+    and Clear & rebuild must **always rediscover** `.reqlan` markers under workspace roots before
+    soft-sync or rebuild. Do not skip discovery when bases are already registered — a new nested
+    or sibling base created on disk must appear after Refresh.
+    Discovery and registration live in [base_registry] (`refresh` → `rediscover` → optional
+    `ensureBaseReady` for the active base). The extension adapter ([editor_index_adapter]) calls
+    that analytical API; it must not invent a parallel discovery walk.
+    Create Base follows the same refresh path after [create_base_impl] so the new marker is visible
+    immediately ([create_base_onboarding]).
+    Related: [multi_base_environment], ["../extension/features-graph-analysers.rq".indexing_trigger_manual],
+    ["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access].
+
+    @status done
+    @implementation (
+        [base_registry]
+        [editor_index_adapter]
+        [register_commands]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
+        ["../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte"]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.syncWorkspace calls registry.refresh"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.createBase calls createBase then registry.refresh"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:reqlan.refreshIndex command uses syncWorkspace"]
+    )
+}
 
 no_base_behaviour {
     When no base is found, the extension should prompt the user to create a base at the workspace-folder root.

@@ -24,6 +24,13 @@ export interface BaseStatusEntry {
     status: IndexStatusSnapshot;
 }
 
+/** Result of {@link BaseRegistry.refresh}: rediscover then optional active soft-sync. */
+export interface BaseRegistryRefreshResult {
+    bases: BaseDescriptor[];
+    activeId: string | undefined;
+    synced: boolean;
+}
+
 export class BaseRegistry {
     private readonly entries = new Map<string, RegisteredBase>();
 
@@ -84,6 +91,43 @@ export class BaseRegistry {
         const bases = discoverBases(roots);
         this.replaceDescriptors(bases);
         return bases;
+    }
+
+    /**
+     * Refresh path used by editor Refresh buttons and create-base follow-up:
+     * always rediscover `.reqlan` markers under `roots`, then soft-sync the
+     * preferred / default active base when `allRqFiles` is provided.
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
+     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
+     */
+    async refresh(
+        roots: string[],
+        options?: {
+            preferredActiveId?: string;
+            cwd?: string;
+            allRqFiles?: string[];
+            /** When set, soft-sync this base after rediscovery (defaults to preferred/default). */
+            syncActive?: boolean;
+        }
+    ): Promise<BaseRegistryRefreshResult> {
+        const bases = this.rediscover(roots);
+        if (bases.length === 0) {
+            return { bases, activeId: undefined, synced: false };
+        }
+
+        const preferred = options?.preferredActiveId;
+        const preferredStillPresent = preferred ? this.entries.has(preferred) : false;
+        const selected =
+            (preferredStillPresent ? preferred : undefined) ??
+            selectDefaultBase(bases, options?.cwd)?.id;
+        const activeId = selected ?? bases[0]?.id;
+
+        let synced = false;
+        if (options?.syncActive !== false && activeId && options?.allRqFiles) {
+            synced = await this.ensureBaseReady(activeId, options.allRqFiles);
+        }
+
+        return { bases, activeId, synced };
     }
 
     /**
