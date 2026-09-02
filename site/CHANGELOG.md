@@ -1,5 +1,11 @@
 # site
 
+## 0.19.1
+
+### Patch Changes
+
+- 1c639d8: update site; update root license; update textmate support.
+
 ## 0.19.0
 
 ### Minor Changes
