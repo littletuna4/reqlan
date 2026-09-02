@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.11.2
+
+### Patch Changes
+
+- d62b31d: Fix MS11 VS Code language-server reference UX: import TextMate scopes after `import`, no happy document links for unresolved/missing targets, and Ctrl+click fallback via local-symbolic definition.
+
 ## 1.11.1
 
 ### Patch Changes
