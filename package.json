@@ -2,6 +2,7 @@
     "name": "reqlan-workspace",
     "description": "Base workspace package",
     "version": "0.0.1",
+    "license": "AGPL-3.0-only",
     "type": "module",
     "private": true,
     "packageManager": "pnpm@11.24.0",
