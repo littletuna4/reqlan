@@ -213,9 +213,9 @@ create_base_onboarding {
     When discovery finds **zero** bases under any VS Code workspace folder (root or child),
     the extension prompts the user to create a reqlan base at the workspace-folder root.
     Do not auto-create `.reqlan`. Command `reqlan.createBase` creates `<folder>/.reqlan/`
-    (empty directory is a valid marker) via [create_base_impl], then calls [base_registry] `refresh`
-    so the new marker is registered and the returned [base] descriptor matches discovery
-    ([refresh_rediscovers_bases]). With multiple workspace folders and no bases, prompt against the first folder.
+    (empty directory is a valid marker) via [create_base_impl], then calls [refresh_bases_pass]
+    so the new marker is registered and the returned [base] descriptor matches discovery.
+    With multiple workspace folders and no bases, prompt against the first folder.
     Headless create-base helper: [create_base_impl] (also used by CLI `init`).
     @implementation (
         [create_base_impl]
@@ -227,41 +227,96 @@ create_base_onboarding {
     )
     @tests (
         ["../../packages/analytical/test/create-base.test.ts:creates .reqlan marker and reports created"]
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refreshBases after createBase registers the new base"]
     )
 }
 
-refresh_rediscovers_bases {
-    Manual Refresh (command `reqlan.refreshIndex`, activity-bar / Ideas Summary Refresh buttons)
-    and Clear & rebuild must **always rediscover** `.reqlan` markers under workspace roots before
-    soft-sync or rebuild. Do not skip discovery when bases are already registered — a new nested
-    or sibling base created on disk must appear after Refresh.
-    Discovery and registration live in [base_registry] (`refresh` → `rediscover` → optional
-    `ensureBaseReady` for the active base). The extension adapter ([editor_index_adapter]) calls
-    that analytical API; it must not invent a parallel discovery walk.
-    Create Base follows the same refresh path after [create_base_impl] so the new marker is visible
-    immediately ([create_base_onboarding]).
-    Related: [multi_base_environment], ["../extension/features-graph-analysers.rq".indexing_trigger_manual],
-    ["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access].
+refresh_bases_pass {
+    **Refresh bases** is separate from **Refresh index**.
+    A bases pass must: (1) prune registered bases whose `.reqlan` marker is gone
+    (`existsSync` probe — O(known bases)); (2) register bases from host-supplied marker
+    paths (VS Code `findFiles` under `**/.reqlan/**` plus workspace-root probes for empty
+    markers). Do **not** walk the workspace tree with `readdir` on Refresh bases.
+    Analytical API: [base_registry] `refreshBases` / `pruneMissingBases` /
+    `basesFromMarkerPaths`. Editor adapter [editor_index_adapter] `refreshBases` collects
+    markers and calls that API without soft-syncing the idea index.
+    Triggers: command `reqlan.refreshBases`, Base picker header button, marker create/delete
+    watcher, workspace-folder change, and [refresh_bases_on_load].
+    Related: [refresh_index_separate], [select_base_dialog], [multi_base_environment],
+    ["../extension/features-graph-analysers.rq".indexing_trigger_manual].
 
     @status done
     @implementation (
         [base_registry]
+        [base_discovery]
         [editor_index_adapter]
         [register_commands]
+        ["../../packages/extension/webviews/activity-bar/components/BasePicker.svelte"]
+        ["../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
         ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
         ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refreshBases registers markers and prunes missing"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refreshBases rediscovers a nested base from marker paths"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refreshBases after createBase registers the new base"]
+        ["../../packages/analytical/test/base-discovery.test.ts:basesFromMarkerPaths builds descriptors without a tree walk"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:IndexService.refreshBases calls registry.refreshBases"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:IndexService.syncWorkspace does not call registry.refreshBases"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:reqlan.refreshBases command is registered"]
+    )
+}
+
+refresh_bases_on_load {
+    On extension index activate, run one [refresh_bases_pass] in the **background** (do not
+    block watcher setup on a tree walk). After the pass settles, soft-sync the active base
+    via [refresh_index_separate] when at least one base exists; otherwise prompt
+    [create_base_onboarding].
+    @implementation (
+        [editor_index_adapter]
+    )
+    @tests (
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:IndexService.activate schedules refreshBases"]
+    )
+    @status done
+}
+
+refresh_index_separate {
+    Manual **Refresh index** (command `reqlan.refreshIndex`, Workspace / Ideas Summary
+    Refresh index buttons) soft-syncs the active base only. It must **not** rediscover
+    bases or walk the tree. Clear & rebuild likewise rebuilds the active base without a
+    bases rediscovery pass. Use [refresh_bases_pass] when the set of bases may have changed.
+    Related: ["../extension/features-graph-analysers.rq".indexing_trigger_manual].
+
+    @status done
+    @implementation (
+        [editor_index_adapter]
+        [register_commands]
         ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
         ["../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte"]
     )
     @tests (
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
-        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.syncWorkspace calls registry.refresh"]
-        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.createBase calls createBase then registry.refresh"]
-        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:reqlan.refreshIndex command uses syncWorkspace"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:IndexService.syncWorkspace does not call registry.refreshBases"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:reqlan.refreshIndex command uses syncWorkspace"]
     )
+}
+
+select_base_dialog {
+    Users choose the active base via a VS Code QuickPick dialog (command `reqlan.selectBase`,
+    Base picker trigger, Ideas Summary base control). The dialog lists discovered bases by
+    label/path; picking one pins the active base ([active_base_switch]) without kicking a sync.
+    The Base picker header hosts the [refresh_bases_pass] button beside the Base label.
+    @implementation (
+        ["../../packages/extension/src/analytical_submodule/commands/select-base-dialog.ts"]
+        [register_commands]
+        ["../../packages/extension/webviews/activity-bar/components/BasePicker.svelte"]
+        ["../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
+    )
+    @tests (
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:reqlan.selectBase command is registered"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:BasePicker posts openSelectBaseDialog and refreshBases"]
+    )
+    @status done
 }
 
 no_base_behaviour {

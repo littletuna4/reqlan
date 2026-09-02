@@ -111,6 +111,59 @@ export function toBaseDescriptor(baseRoot: string, labelRoot?: string): BaseDesc
 }
 
 /**
+ * True when `<root>/.reqlan` exists and is a directory (cheap marker probe).
+ * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+ */
+export function isBaseMarkerPresent(baseRoot: string): boolean {
+    const marker = join(resolve(baseRoot), APPLICATION_MEMORY_DIR);
+    try {
+        return existsSync(marker) && statSync(marker).isDirectory();
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Build base descriptors from absolute `.reqlan` marker directory paths (or any path
+ * under a marker). Deduplicates by base root. No workspace tree walk.
+ * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+ */
+export function basesFromMarkerPaths(
+    markerPaths: readonly string[],
+    labelRoot?: string
+): BaseDescriptor[] {
+    const byId = new Map<string, BaseDescriptor>();
+    for (const raw of markerPaths) {
+        const baseRoot = baseRootFromMarkerPath(raw);
+        if (!baseRoot) {
+            continue;
+        }
+        if (!isBaseMarkerPresent(baseRoot)) {
+            continue;
+        }
+        const descriptor = toBaseDescriptor(baseRoot, labelRoot);
+        byId.set(descriptor.id, descriptor);
+    }
+    return [...byId.values()].sort((a, b) => a.root.localeCompare(b.root));
+}
+
+/**
+ * Resolve the base root from a `.reqlan` directory path or a file under it.
+ * Returns undefined when the path does not contain a `.reqlan` segment.
+ */
+export function baseRootFromMarkerPath(pathInput: string): string | undefined {
+    const abs = resolve(pathInput).replace(/\\/g, '/');
+    const parts = abs.split('/');
+    const idx = parts.lastIndexOf(APPLICATION_MEMORY_DIR);
+    if (idx <= 0) {
+        // Path might already be the base root (no .reqlan in it) — reject.
+        // Or Windows drive-only — reject.
+        return undefined;
+    }
+    return resolve(parts.slice(0, idx).join('/') || '/');
+}
+
+/**
  * Nearest ancestor directory that owns `.reqlan` (O(depth) `existsSync`).
  * Use this on click / selection / open paths — never `discoverBases`, which walks the tree.
  * When `stopAt` is set, do not walk above those roots (typically workspace folders).

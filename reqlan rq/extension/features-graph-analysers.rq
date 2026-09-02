@@ -1,5 +1,6 @@
 from "./features-graph.rq" import graph_design
 from "./module/index.rq" import application_memory
+from "../bases/base.rq" import refresh_bases_pass, refresh_index_separate
 import "../../packages/language/src/reqlan-comment.langium" as comment_grammar
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
 import "../../packages/analytical/src/native/native-analysis-api.ts" as analysis_runtime
@@ -26,19 +27,18 @@ indexing_incrementality {
 
 indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers, and by allowlisted source files that may contain comment references.
 indexing_trigger_manual {
-    Indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
-    Refresh and Clear & rebuild always rediscover bases first via
-    ["../bases/base.rq".refresh_rediscovers_bases] /
-    ["../../packages/analytical/src/index-store/base-registry.ts"] `refresh`, then soft-sync or
-    rebuild the active base.
+    Indexing should be triggered by manual indexing commands (Refresh index / Clear & rebuild).
+    Refresh index and Clear & rebuild soft-sync or rebuild the **active base only** — they do
+    **not** rediscover bases ([refresh_index_separate]).
+    To pick up new or removed `.reqlan` markers, use Refresh bases ([refresh_bases_pass]).
     @implementation (
         ["../../packages/analytical/src/index-store/base-registry.ts"]
         ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
         ["../../packages/extension/src/analytical_submodule/commands/register-commands.ts"]
     )
     @tests (
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
-        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:IndexService.syncWorkspace does not call registry.refreshBases"]
+        ["../../packages/extension/test/refresh-bases-wiring.test.ts:reqlan.refreshIndex command uses syncWorkspace"]
     )
 }
 

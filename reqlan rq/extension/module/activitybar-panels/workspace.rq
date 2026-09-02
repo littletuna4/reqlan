@@ -20,19 +20,23 @@ workspace_pane {
 }
 
 workspace_base_picker {
-    Bases in the Workspace pane are chosen via a **searchable dropdown**, not a stacked list of base rows.
-    - Closed: shows the active base label (and compact ready/issue hint when useful).
-    - Open: type-to-filter over discovered bases by label and path; selecting a match **pins** the active base ([bases.active_base_switch]) — a pointer swap, not a sync.
-    - Options surface label/path plus ready state and idea/edge/issue counts so the user can distinguish bases before committing.
-    - Single-base workspaces still use the same control (no special flat list); empty discovery stays on the Create Base CTA.
+    Bases in the Workspace pane are chosen via a **host QuickPick dialog**, not a stacked list of base rows.
+    - Closed: shows the active base label (and compact ready/issue hint when useful); the header hosts a
+      **Refresh bases** button ([bases.refresh_bases_pass]).
+    - Opening the control posts `openSelectBaseDialog` so the extension shows [bases.select_base_dialog]
+      (filter by label/path); selecting a match **pins** the active base ([bases.active_base_switch]) —
+      a pointer swap, not a sync.
+    - Single-base workspaces still use the same control; empty discovery stays on the Create Base CTA.
     - Prefer VS Code dropdown tokens for chrome; keep the control compact so health/stats/actions remain the focus of the pane.
     Switch UX:
     - Selecting a base posts immediately; the picker may flash **Switching…** until `indexHealth` confirms `activeBaseId` (should be near-instant).
     - Never kick soft/hard sync on switch; readiness/progress for a not-yet-ready base is whatever the index already reports.
     - Editor-follow must not overwrite a user-selected base on the same refresh that applies the selection.
-    Implemented by [BasePicker] in [WorkspacePane]; filter helpers in [filter_bases].
+    Index actions in the pane use **Refresh index** ([bases.refresh_index_separate]), separate from Refresh bases.
+    Implemented by [BasePicker] in [WorkspacePane]; filter helpers in [filter_bases] remain for Ideas Summary tables.
     @tests (
         ["../../../../packages/extension/test/filter-bases.test.ts"]
+        ["../../../../packages/extension/test/refresh-bases-wiring.test.ts:BasePicker posts openSelectBaseDialog and refreshBases"]
         ["../../../../packages/extension/webviews/activity-bar/components/BasePicker.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
         ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]

@@ -1,8 +1,7 @@
 /**
- * Refresh always rediscovers bases via BaseRegistry.refresh.
- * rq:["../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
+ * Bases refresh: marker paths + prune — no tree walk required for the pass itself.
+ * rq:["../../../reqlan rq/bases/base.rq".refresh_bases_pass]
  * rq:["../../../reqlan rq/bases/base.rq".create_base_onboarding]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
  */
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -23,8 +22,10 @@ async function tempRoot(): Promise<string> {
     return root;
 }
 
-async function markBase(dir: string): Promise<void> {
-    await mkdir(join(dir, APPLICATION_MEMORY_DIR), { recursive: true });
+async function markBase(dir: string): Promise<string> {
+    const marker = join(dir, APPLICATION_MEMORY_DIR);
+    await mkdir(marker, { recursive: true });
+    return marker;
 }
 
 afterEach(async () => {
@@ -34,49 +35,43 @@ afterEach(async () => {
     }
 });
 
-describe('BaseRegistry.refresh', () => {
-    test('refresh rediscovers a base created after an empty discovery', async () => {
+describe('BaseRegistry.refreshBases', () => {
+    test('refreshBases registers markers and prunes missing', async () => {
         if (!nativeEngineAvailable()) {
             return;
         }
         const root = await tempRoot();
         await writeFile(join(root, 'demo.rq'), 'alpha this is alpha\n', 'utf8');
+        const marker = await markBase(root);
 
         const registry = new BaseRegistry();
-        const empty = await registry.refresh([root], {
+        const first = await registry.refreshBases([marker], {
             allRqFiles: [join(root, 'demo.rq')],
             syncActive: true
         });
-        expect(empty.bases).toEqual([]);
-        expect(empty.activeId).toBeUndefined();
-        expect(empty.synced).toBe(false);
+        expect(first.bases).toHaveLength(1);
+        expect(first.activeId).toBe(first.bases[0]!.id);
+        expect(first.synced).toBe(true);
+
+        await rm(marker, { recursive: true, force: true });
+        const pruned = await registry.refreshBases([], { syncActive: false });
+        expect(pruned.bases).toEqual([]);
+        expect(pruned.activeId).toBeUndefined();
         expect(registry.size).toBe(0);
-
-        await markBase(root);
-
-        const refreshed = await registry.refresh([root], {
-            allRqFiles: [join(root, 'demo.rq')],
-            syncActive: true
-        });
-        expect(refreshed.bases).toHaveLength(1);
-        expect(refreshed.bases[0]!.root).toBe(root);
-        expect(refreshed.activeId).toBe(refreshed.bases[0]!.id);
-        expect(refreshed.synced).toBe(true);
-        expect(registry.get(refreshed.activeId!)?.index.isReady).toBe(true);
 
         await registry.deactivateAll();
     });
 
-    test('refresh rediscovers a nested base added after first discovery', async () => {
+    test('refreshBases rediscovers a nested base from marker paths', async () => {
         if (!nativeEngineAvailable()) {
             return;
         }
         const root = await tempRoot();
-        await markBase(root);
+        const rootMarker = await markBase(root);
         await writeFile(join(root, 'root.rq'), 'root_idea this is root\n', 'utf8');
 
         const registry = new BaseRegistry();
-        const first = await registry.refresh([root], {
+        const first = await registry.refreshBases([rootMarker], {
             allRqFiles: [join(root, 'root.rq')],
             syncActive: true
         });
@@ -84,10 +79,10 @@ describe('BaseRegistry.refresh', () => {
 
         const child = join(root, 'pkg');
         await mkdir(child, { recursive: true });
-        await markBase(child);
+        const childMarker = await markBase(child);
         await writeFile(join(child, 'child.rq'), 'child_idea this is child\n', 'utf8');
 
-        const second = await registry.refresh([root], {
+        const second = await registry.refreshBases([rootMarker, childMarker], {
             preferredActiveId: first.activeId,
             allRqFiles: [join(root, 'root.rq'), join(child, 'child.rq')],
             syncActive: true
@@ -100,7 +95,7 @@ describe('BaseRegistry.refresh', () => {
         await registry.deactivateAll();
     });
 
-    test('refresh after createBase registers the new base', async () => {
+    test('refreshBases after createBase registers the new base', async () => {
         if (!nativeEngineAvailable()) {
             return;
         }
@@ -108,13 +103,13 @@ describe('BaseRegistry.refresh', () => {
         await writeFile(join(root, 'demo.rq'), 'alpha this is alpha\n', 'utf8');
 
         const registry = new BaseRegistry();
-        expect((await registry.refresh([root])).bases).toEqual([]);
+        expect((await registry.refreshBases([])).bases).toEqual([]);
 
         const created = await createBase(root);
         expect(created.created).toBe(true);
         expect(created.base.root).toBe(root);
 
-        const refreshed = await registry.refresh([root], {
+        const refreshed = await registry.refreshBases([created.base.memoryPath], {
             preferredActiveId: created.base.id,
             allRqFiles: [join(root, 'demo.rq')],
             syncActive: true

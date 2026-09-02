@@ -4,8 +4,10 @@ import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
     baseForPath,
+    basesFromMarkerPaths,
     discoverBases,
     filesOwnedByBase,
+    isBaseMarkerPresent,
     isPathInsideOrEqual,
     nearestBaseRoot,
     selectDefaultBase,
@@ -161,5 +163,22 @@ describe('base discovery', () => {
         ).toBe(true);
         expect(isPathInsideOrEqual('C:\\Users\\tony\\reqlan', 'C:\\Users\\tony\\reqlan')).toBe(true);
         expect(isPathInsideOrEqual('C:\\Users\\tony\\other\\file.rq', 'C:\\Users\\tony\\reqlan')).toBe(false);
+    });
+
+    test('basesFromMarkerPaths builds descriptors without a tree walk', () => {
+        const root = tempDir();
+        markBase(root);
+        const child = join(root, 'pkg');
+        mkdirSync(child, { recursive: true });
+        markBase(child);
+        const markers = [
+            join(root, APPLICATION_MEMORY_DIR),
+            join(child, APPLICATION_MEMORY_DIR, 'ideas-index.sqlite')
+        ];
+        const bases = basesFromMarkerPaths(markers, root);
+        expect(bases).toHaveLength(2);
+        expect(bases.map(b => b.root).sort()).toEqual([resolve(child), resolve(root)].sort());
+        expect(isBaseMarkerPresent(root)).toBe(true);
+        expect(isBaseMarkerPresent(join(root, 'missing'))).toBe(false);
     });
 });

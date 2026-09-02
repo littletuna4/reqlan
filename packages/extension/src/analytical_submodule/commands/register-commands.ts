@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { AnalyticalSubmodule } from '../index.js';
 import { openIndexFile } from '../index-store/open-index-file.js';
 import { registerExportCommands } from '../export/register-export-commands.js';
+import { showSelectBaseDialog } from './select-base-dialog.js';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
@@ -20,6 +21,19 @@ export function registerAnalyticalCommands(
             if (created) {
                 void vscode.window.showInformationMessage(`Created reqlan base at ${created.label}`);
             }
+        }),
+
+        vscode.commands.registerCommand('reqlan.selectBase', async () => {
+            await showSelectBaseDialog(index);
+        }),
+
+        vscode.commands.registerCommand('reqlan.refreshBases', async () => {
+            const bases = await index.refreshBases();
+            void vscode.window.showInformationMessage(
+                bases.length === 0
+                    ? 'No reqlan bases found.'
+                    : `Found ${bases.length} reqlan base${bases.length === 1 ? '' : 's'}.`
+            );
         }),
 
         vscode.commands.registerCommand('reqlan.listAllIdeas', async () => {

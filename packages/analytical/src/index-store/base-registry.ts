@@ -4,8 +4,10 @@
  */
 import {
     baseForPath,
+    basesFromMarkerPaths,
     discoverBases,
     filesOwnedByBase,
+    isBaseMarkerPresent,
     selectDefaultBase,
     type BaseDescriptor
 } from '../core/base-discovery.js';
@@ -24,7 +26,10 @@ export interface BaseStatusEntry {
     status: IndexStatusSnapshot;
 }
 
-/** Result of {@link BaseRegistry.refresh}: rediscover then optional active soft-sync. */
+/**
+ * Result of a bases refresh pass ({@link BaseRegistry.refreshBases}) or full
+ * tree rediscover ({@link BaseRegistry.rediscover}).
+ */
 export interface BaseRegistryRefreshResult {
     bases: BaseDescriptor[];
     activeId: string | undefined;
@@ -84,7 +89,8 @@ export class BaseRegistry {
     }
 
     /**
-     * Discover bases under `roots` and register them.
+     * Discover bases under `roots` via a full tree walk and register them.
+     * Prefer {@link refreshBases} in the editor host (marker paths from `findFiles`).
      * Returns the discovered descriptors (may be empty).
      */
     rediscover(roots: string[]): BaseDescriptor[] {
@@ -94,11 +100,59 @@ export class BaseRegistry {
     }
 
     /**
-     * Refresh path used by editor Refresh buttons and create-base follow-up:
-     * always rediscover `.reqlan` markers under `roots`, then soft-sync the
-     * preferred / default active base when `allRqFiles` is provided.
-     * rq:["../../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
-     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
+     * Drop registered bases whose `.reqlan` marker is gone (cheap O(known) probe).
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+     */
+    pruneMissingBases(): BaseDescriptor[] {
+        for (const id of [...this.entries.keys()]) {
+            const entry = this.entries.get(id);
+            if (!entry) {
+                continue;
+            }
+            if (!isBaseMarkerPresent(entry.descriptor.root)) {
+                void entry.index.deactivate();
+                this.entries.delete(id);
+            }
+        }
+        return this.list();
+    }
+
+    /**
+     * Bases refresh: prune missing markers, then merge descriptors built from
+     * host-supplied `.reqlan` marker paths. Does **not** walk the workspace tree.
+     * Optional soft-sync of the preferred / default active base when `allRqFiles`
+     * is provided and `syncActive` is not false.
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
+     */
+    async refreshBases(
+        markerPaths: readonly string[],
+        options?: {
+            preferredActiveId?: string;
+            cwd?: string;
+            labelRoot?: string;
+            allRqFiles?: string[];
+            /** Soft-sync preferred/default active after merge (default true when allRqFiles set). */
+            syncActive?: boolean;
+        }
+    ): Promise<BaseRegistryRefreshResult> {
+        this.pruneMissingBases();
+        const fromMarkers = basesFromMarkerPaths(markerPaths, options?.labelRoot);
+        const byId = new Map<string, BaseDescriptor>();
+        for (const descriptor of this.list()) {
+            byId.set(descriptor.id, descriptor);
+        }
+        for (const descriptor of fromMarkers) {
+            byId.set(descriptor.id, descriptor);
+        }
+        this.replaceDescriptors([...byId.values()]);
+        return this.finishRefresh(options);
+    }
+
+    /**
+     * Full-tree rediscover then optional active soft-sync.
+     * Headless / tests without a host `findFiles` may use this; the editor host
+     * uses {@link refreshBases} instead.
+     * rq:["../../../../reqlan rq/bases/base.rq".refresh_bases_pass]
      */
     async refresh(
         roots: string[],
@@ -106,11 +160,20 @@ export class BaseRegistry {
             preferredActiveId?: string;
             cwd?: string;
             allRqFiles?: string[];
-            /** When set, soft-sync this base after rediscovery (defaults to preferred/default). */
             syncActive?: boolean;
         }
     ): Promise<BaseRegistryRefreshResult> {
-        const bases = this.rediscover(roots);
+        this.rediscover(roots);
+        return this.finishRefresh(options);
+    }
+
+    private async finishRefresh(options?: {
+        preferredActiveId?: string;
+        cwd?: string;
+        allRqFiles?: string[];
+        syncActive?: boolean;
+    }): Promise<BaseRegistryRefreshResult> {
+        const bases = this.list();
         if (bases.length === 0) {
             return { bases, activeId: undefined, synced: false };
         }

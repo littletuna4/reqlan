@@ -7,6 +7,7 @@
 import * as vscode from "vscode";
 import { join } from "node:path";
 import type { AnalyticalSubmodule } from "../analytical_submodule/index.js";
+import { showSelectBaseDialog } from "../analytical_submodule/commands/select-base-dialog.js";
 import type { IndexStatusSnapshot } from "@reqlan/analytical";
 import {
   ATTRIBUTES_PAGE_SIZE,
@@ -303,6 +304,19 @@ export class IdeasSummaryPanel {
         case "refreshIndex":
           await this.refreshIndexData();
           break;
+        case "refreshBases":
+          await this.submodule.index.refreshBases();
+          await this.sendIndexStatus();
+          break;
+        case "openSelectBaseDialog": {
+          const picked = await showSelectBaseDialog(this.submodule.index);
+          this.reloadGraphUiForActiveBase();
+          await this.rebindActiveBaseViews();
+          if (picked) {
+            await this.sendIndexStatus();
+          }
+          break;
+        }
         case "cancelIndexSync":
           this.submodule.index.cancelSync();
           await this.sendIndexStatus();

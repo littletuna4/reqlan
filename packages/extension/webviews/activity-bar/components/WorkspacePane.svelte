@@ -72,7 +72,9 @@
                 {pendingBaseId}
                 syncing={baseSyncing}
                 syncLabel={baseSyncLabel}
-                onSelect={(baseId) => app.selectBase(baseId)}
+                basesRefreshing={app.basesRefreshing}
+                onOpenDialog={() => app.openSelectBaseDialog()}
+                onRefreshBases={() => app.refreshBases()}
             />
         {/if}
 
@@ -205,7 +207,7 @@
         </NestedSection>
 
         <div class="section-actions">
-            <button class="action-button" onclick={() => app.refreshIndex()}>Refresh</button>
+            <button class="action-button" onclick={() => app.refreshIndex()}>Refresh index</button>
             {#if status.syncProgress && status.syncProgress.total > 0}
                 <button class="action-button" onclick={() => app.cancelIndexSync()}>Cancel sync</button>
             {/if}

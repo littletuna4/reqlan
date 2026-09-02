@@ -398,6 +398,8 @@ export type WebviewToExtensionMessage =
     | { type: 'ready' }
     | { type: 'loadIndexStatus' }
     | { type: 'refreshIndex' }
+    | { type: 'refreshBases' }
+    | { type: 'openSelectBaseDialog' }
     | { type: 'cancelIndexSync' }
     | { type: 'clearAndRebuildIndex' }
     | { type: 'selectBase'; baseId: string }

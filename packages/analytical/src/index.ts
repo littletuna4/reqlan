@@ -57,10 +57,13 @@ export type {
 
 export {
     baseForPath,
+    baseRootFromMarkerPath,
+    basesFromMarkerPaths,
     childBasesOf,
     discoverBases,
     discoverBasesUnder,
     filesOwnedByBase,
+    isBaseMarkerPresent,
     isPathInsideOrEqual,
     nearestBaseRoot,
     selectDefaultBase,
