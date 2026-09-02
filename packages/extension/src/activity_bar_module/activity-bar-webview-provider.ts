@@ -385,7 +385,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                 : { startLine: selection.start.line, endLine: selection.end.line },
             activeGitChange: gitChangeForFile(fileUri, git),
             resolveFileRelated: async (targetUri: string) =>
-                (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
+                this.submodule.index.withAnalysisApi(api => api.getFileContext(targetUri))
         };
     }
 
@@ -702,7 +702,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
                         fileText: document.getText(),
                         workspaceRoot: activeRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
                         resolveFileRelated: async (targetUri: string) =>
-                            (await this.submodule.index.getAnalysisApi()).getFileContext(targetUri)
+                            this.submodule.index.withAnalysisApi(api => api.getFileContext(targetUri))
                     });
                     this.post({ type: 'fileLensDetail', detail, requestId });
                     break;

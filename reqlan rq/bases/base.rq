@@ -163,11 +163,14 @@ active_base_switch {
     - If the selected base is not yet ready, show its readiness/progress and **schedule** the normal activate catch-up
       (open if needed, then one soft sync) fire-and-forget — same path as ["../indexer/indexer.rq".triggers] /
       ["../extension/features-graph-analysers.rq".indexing_trigger_open], not a special switcher rebuild.
-    - Idle staleness checks also heal unopened / never-synced bases (they cannot mtime-diff without a store).
-    - `activateAll` isolates open failures so one bad base cannot leave siblings stranded in `uninitialized`.
+    - Idle staleness checks only touch bases that are already open; they must not reopen every discovered base
+      (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+    - Open failures stay isolated per base so one bad base cannot leave siblings stranded in `uninitialized`.
     - Editor-follow must not overwrite a user pin on the same refresh that applies the selection.
+    - Inactive bases release SQLite artifacts when the active pointer moves away
+      (["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]).
     Surfaces: activity bar ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker], Ideas Summary ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope].
-    Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady`, [workspace_index] `ensureReady`.
+    Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady` / `releaseArtifacts`, [workspace_index] `ensureReady` / `deactivate`.
     @implementation (
         [editor_index_adapter]
         [base_registry]
@@ -176,11 +179,13 @@ active_base_switch {
         ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
         ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker]
         ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope]
+        ["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
     )
     @tests (
         ["../../packages/analytical/test/base-registry-catchup.test.ts:ensureBaseReady opens and soft-syncs an uninitialized base"]
         ["../../packages/analytical/test/base-registry-catchup.test.ts:checkStaleAll heals an uninitialized base"]
         ["../../packages/analytical/test/base-registry-catchup.test.ts:deactivate returns to uninitialized so a base can be reopened"]
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
     )
     @status done
 }

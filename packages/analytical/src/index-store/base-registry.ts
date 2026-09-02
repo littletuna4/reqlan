@@ -120,6 +120,17 @@ export class BaseRegistry {
         this.entries.clear();
     }
 
+    /**
+     * Close every open SQLite handle while keeping base descriptors registered.
+     * The next ensureBaseReady / open event can reopen the same entries.
+     * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
+     */
+    async releaseArtifacts(): Promise<void> {
+        for (const entry of this.entries.values()) {
+            await entry.index.deactivate();
+        }
+    }
+
     async syncBase(baseId: string, allRqFiles: string[]): Promise<boolean> {
         const entry = this.entries.get(baseId);
         if (!entry) {

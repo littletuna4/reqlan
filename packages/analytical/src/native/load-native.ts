@@ -77,6 +77,8 @@ let loadFailures: string[] = [];
 
 export interface NativeAnalysisRuntimeHandle {
     ensureReady(): void;
+    /** Release SQLite locks held by this runtime. */
+    close?: () => void;
     searchRequirements(query: string, limit: number, context?: string[]): unknown;
     listRequirements(limit: number): unknown;
     getFileContext(filePath: string): unknown;

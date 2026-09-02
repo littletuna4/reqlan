@@ -44,9 +44,12 @@ extension_startup_sequence {
     1. `activate` registers UI only; it must not await index sync.
     2. Activity bar paints → startup gate; language client may start on a short fallback.
     3. Index adapter activates after paint (or a short fallback timer).
-    4. Rediscover bases → soft [soft_sync] per base ([indexing_trigger_open]).
-    5. Install watchers for `.rq` and code globs; watch `.reqlan` / folders for rediscovery.
-    6. Idle timer schedules [idle_stale_check] after quiet periods ([indexing_trigger_auto]).
+    4. Rediscover bases → soft [soft_sync] for the **active** base only ([indexing_trigger_open]);
+       other bases stay closed until pin/focus/file events (["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access]).
+    5. Install watchers for `.rq` and code globs; watch `.reqlan` marker create/delete for rediscovery
+       (not SQLite child writes).
+    6. Idle timer runs [idle_stale_check] on already-open bases, then releases unused SQLite artifacts
+       (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
     [index_sequencing]
     [editor_index_adapter]
 }
@@ -81,10 +84,14 @@ idle_stale_check {
     in memory, and index only mismatched or new files; drop deleted docs in one batch.
     If nothing is stale: no state transition, no progress UI, no parse.
     Prefer unfocused windows; cancel if the user becomes active again.
+    Only bases that are already open participate — idle must not reopen every discovered base
+    (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+    After the check, release unused SQLite artifacts (inactive bases always; all bases when unfocused).
     Extension host only — see [indexing_trigger_auto].
     [index_sequencing]
     @tests (
         ["../../packages/analytical/test/workspace-index.test.ts"]
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
     )
 }
 

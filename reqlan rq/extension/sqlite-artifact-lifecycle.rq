@@ -1,0 +1,94 @@
+from "./architecture.rq" import event_driven
+from "../bases/base.rq" import base, base_ownership, multi_base_environment, active_base_switch
+from "../indexer/sequencing.rq" import index_sequencing, idle_stale_check, headless_sync_on_ready
+from "../indexer/consumers.rq" import index_consumers, extension_ui_consumers, headless_consumers
+import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+import "../../packages/analytical/src/index-store/base-registry.ts" as base_registry
+import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
+import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
+import "../../packages/analytical/src/native/native-analysis-api.ts" as analysis_api
+
+sqlite_artifact_lifecycle {
+    Base SQLite artifacts under `<base>/.reqlan/` ([base_ownership]) must not stay locked for the
+    whole extension session. The host opens them only while work runs, then releases file handles
+    so users can delete or replace the files.
+    Aligns with [event_driven]: open and close are reactions to index or analysis events, not a
+    permanent connection or a reconnect loop.
+    Mediation: only [workspace_index] / [analysis_runtime] own SQLite connections. The extension
+    adapter ([editor_index_adapter]) must not keep a second long-lived analysis runtime beside the
+    index, and must not call native open without a matching dispose/release.
+    Related: [index_sequencing], [idle_stale_check], [headless_consumers], [multi_base_environment].
+
+    @status done
+    @implementation (
+        [editor_index_adapter]
+        [base_registry]
+        [workspace_index]
+        [analysis_runtime]
+        [analysis_api]
+    )
+    @tests (
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:dispose releases ideas-index so the file can be unlinked"]
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:WorkspaceIndex deactivate releases sqlite artifacts"]
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
+        ["../../packages/analytical/test/open-analysis-api.test.ts:opens the native engine when the host .node is available"]
+    )
+}
+
+release_when_idle {
+    After an index or analysis pass finishes, and after the idle quiet period
+    ([idle_stale_check] / indexing_trigger_auto), [editor_index_adapter] must release every open
+    base SQLite handle via [base_registry] `releaseArtifacts` → [workspace_index] `deactivate`.
+    Descriptors stay registered so the next event can reopen the same base.
+    Idle must not leave connections open after a heal/sync, and must not schedule another open
+    unless a real host event arrives (file change, pin/switch, focus reopen, command, UI query).
+
+    @status done
+    @implementation (
+        [editor_index_adapter]
+        [base_registry]
+        [workspace_index]
+    )
+    @tests (
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
+        ["../../packages/analytical/test/base-registry-catchup.test.ts:deactivate returns to uninitialized so a base can be reopened"]
+    )
+}
+
+analysis_api_dispose {
+    [analysis_runtime] `openAnalysisApi` dispose must close the native analysis runtime and drop
+    its SQLite connection (ideas index and click-sessions). A no-op dispose is a defect.
+    Extension commands use a short-lived `withAnalysisApi` (open → run → dispose) mediated by
+    [analysis_runtime]; they must not cache `NativeAnalysisApi` for the session.
+
+    @status done
+    @implementation (
+        [analysis_runtime]
+        [analysis_api]
+        [editor_index_adapter]
+    )
+    @tests (
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:dispose releases ideas-index so the file can be unlinked"]
+        ["../../packages/cli/test/runtime-engine.test.ts:CLI runtime opens AnalysisApi through the core engine"]
+    )
+}
+
+event_driven_base_access {
+    Extension interaction with bases is event-driven and goes through the analytical package:
+    - Discover / pin / focus / file watch / command / UI query → open or `ensureBaseReady`
+    - Sync, stale check, or analysis work runs
+    - Quiet idle → [release_when_idle]
+    No always-on connection and no continuous reconnect loop.
+    Headless CLI/MCP already open per command via [analysis_runtime] ([headless_sync_on_ready]).
+
+    @status done
+    @implementation (
+        [editor_index_adapter]
+        [base_registry]
+        [analysis_runtime]
+    )
+    @tests (
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
+        ["../../packages/analytical/test/base-registry-catchup.test.ts:ensureBaseReady opens and soft-syncs an uninitialized base"]
+    )
+}

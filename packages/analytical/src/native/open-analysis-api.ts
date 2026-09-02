@@ -2,6 +2,7 @@
  * Headless AnalysisApi over the core native engine.
  * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".cutover]
  * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
+ * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
  */
 import {
     NativeAnalysisApi,
@@ -19,6 +20,7 @@ export interface OpenedAnalysisApi {
 
 /**
  * Open a headless AnalysisApi via the required core native engine.
+ * Dispose releases SQLite file locks — callers must always dispose.
  */
 export async function openAnalysisApi(options: AnalysisRuntimeOptions): Promise<OpenedAnalysisApi> {
     loadNativeEngine();
@@ -27,6 +29,8 @@ export async function openAnalysisApi(options: AnalysisRuntimeOptions): Promise<
     return {
         api,
         engine: 'native',
-        dispose: async () => undefined
+        dispose: async () => {
+            api.close();
+        }
     };
 }

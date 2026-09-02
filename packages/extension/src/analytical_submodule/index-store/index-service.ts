@@ -1,19 +1,27 @@
 /**
  * VS Code host adapter over multi-base {@link BaseRegistry} / {@link WorkspaceIndex}.
  * Owns file watching, Uri conversion, and create-base onboarding; indexing lives in `@reqlan/analytical`.
+ *
+ * SQLite artifacts are opened for event-driven work and released when idle — the adapter does not
+ * keep permanent connections or a second long-lived AnalysisApi cache.
+ * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+ * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
+ * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".event_driven_base_access]
+ * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
  */
 import * as vscode from 'vscode';
 import {
     BaseRegistry,
-    NativeAnalysisApi,
     baseForPath,
     createBase as createBaseMarker,
     isIgnoredPath,
     loadRqIgnore,
+    openAnalysisApi,
     resolveApplicationMemoryPath,
     type BaseDescriptor,
     type BaseStatusEntry,
     type IndexStatusSnapshot,
+    type NativeAnalysisApi,
     type RegisteredBase
 } from '@reqlan/analytical';
 import { toIndexFileUri } from './resolve-index-file-uri.js';
@@ -32,14 +40,13 @@ const EMPTY_STATUS: IndexStatusSnapshot = {
     recentWorkspaceChanges: []
 };
 
-/** Quiet period after index activity before an idle staleness check. */
+/** Quiet period after index activity before idle stale check + artifact release. */
 const IDLE_QUIET_MS = 45_000;
-/** Sooner check when the window loses focus. */
+/** Sooner release when the window loses focus. */
 const IDLE_UNFOCUSED_MS = 10_000;
 
 export class IndexService {
     private readonly registry = new BaseRegistry();
-    private readonly analysisApis = new Map<string, NativeAnalysisApi>();
     private watcher?: vscode.FileSystemWatcher;
     private codeWatcher?: vscode.FileSystemWatcher;
     private markerWatcher?: vscode.FileSystemWatcher;
@@ -86,9 +93,13 @@ export class IndexService {
         if (baseId && !this.registry.get(baseId)) {
             return;
         }
+        const previous = this.activeBaseId;
         this.activeBaseId = baseId;
         this.notifyStatus();
         this.notifyCatalog();
+        if (previous && previous !== baseId) {
+            void this.releaseBase(previous);
+        }
         if (baseId) {
             this.scheduleBaseCatchUp(baseId);
         }
@@ -98,7 +109,11 @@ export class IndexService {
     activateBaseForPath(absPath: string, pin = true): RegisteredBase | undefined {
         const match = baseForPath(this.listBases(), absPath);
         if (match && pin) {
+            const previous = this.activeBaseId;
             this.activeBaseId = match.id;
+            if (previous && previous !== match.id) {
+                void this.releaseBase(previous);
+            }
             this.scheduleBaseCatchUp(match.id);
         }
         return match ? this.registry.get(match.id) : undefined;
@@ -150,6 +165,7 @@ export class IndexService {
         if (!entry?.index.isReady) {
             throw new Error('Index is not ready yet.');
         }
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
         return entry.index.fuzzySearch(query, options);
     }
 
@@ -162,6 +178,7 @@ export class IndexService {
         if (!entry?.index.isReady) {
             return 0;
         }
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
         return entry.index.fillGitDates(ideaIds);
     }
 
@@ -174,25 +191,32 @@ export class IndexService {
         if (!entry?.index.isReady) {
             throw new Error('Index is not ready yet.');
         }
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
         return entry.index.computeOverviewCoverage();
     }
 
-    /** Native graph-analysis facade for the selected base. */
-    async getAnalysisApi(baseId?: string): Promise<NativeAnalysisApi> {
+    /**
+     * Run analysis against a base via the analytical package, then dispose.
+     * Does not cache a long-lived AnalysisApi connection.
+     */
+    async withAnalysisApi<T>(
+        run: (api: NativeAnalysisApi) => Promise<T>,
+        baseId?: string
+    ): Promise<T> {
         const entry = baseId ? this.registry.get(baseId) : this.getActiveBase();
         if (!entry) {
             throw new Error('No reqlan base is active. Create a .reqlan folder to initialize a base.');
         }
-        let api = this.analysisApis.get(entry.descriptor.id);
-        if (!api) {
-            api = new NativeAnalysisApi({
-                workspaceRoot: entry.descriptor.root,
-                storagePath: resolveApplicationMemoryPath(entry.descriptor.root)
-            });
-            this.analysisApis.set(entry.descriptor.id, api);
+        const opened = await openAnalysisApi({
+            workspaceRoot: entry.descriptor.root,
+            storagePath: resolveApplicationMemoryPath(entry.descriptor.root)
+        });
+        try {
+            return await run(opened.api);
+        } finally {
+            await opened.dispose();
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
         }
-        await api.ensureReady();
-        return api;
     }
 
     getStatusSnapshot(baseId?: string): IndexStatusSnapshot {
@@ -256,6 +280,7 @@ export class IndexService {
             this.codeWatcher.onDidDelete(uri => this.enqueueDelete(uri));
             context.subscriptions.push(this.codeWatcher);
 
+            // Watch the marker directory itself — not children — so SQLite writes do not rediscover.
             this.markerWatcher = vscode.workspace.createFileSystemWatcher('**/.reqlan');
             this.markerWatcher.onDidCreate(() => {
                 void this.rediscoverAndSync(true);
@@ -274,13 +299,17 @@ export class IndexService {
             context.subscriptions.push(
                 vscode.window.onDidChangeWindowState(state => {
                     if (!state.focused) {
-                        this.scheduleIdleCheck(IDLE_UNFOCUSED_MS);
+                        this.scheduleIdleRelease(IDLE_UNFOCUSED_MS);
                         return;
                     }
                     if (this.idleSyncActive) {
                         this.cancelSync();
                     }
-                    this.scheduleIdleCheck(IDLE_QUIET_MS);
+                    const activeId = this.getActiveBaseId();
+                    if (activeId) {
+                        this.scheduleBaseCatchUp(activeId);
+                    }
+                    this.scheduleIdleRelease(IDLE_QUIET_MS);
                 })
             );
 
@@ -288,7 +317,7 @@ export class IndexService {
                 dispose: () => this.clearIdleTimer()
             });
 
-            this.scheduleIdleCheck(IDLE_QUIET_MS);
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
 
             if (this.discoveryEmpty) {
                 void this.promptCreateBaseIfNeeded();
@@ -301,7 +330,6 @@ export class IndexService {
     deactivate(): void {
         this.clearIdleTimer();
         void this.registry.deactivateAll();
-        this.analysisApis.clear();
         this.rewireRegistryListeners();
         this.watcher?.dispose();
         this.watcher = undefined;
@@ -321,10 +349,18 @@ export class IndexService {
             }
         }
         const files = await this.collectRqFiles();
-        if (baseId) {
-            return this.registry.syncBase(baseId, files);
+        try {
+            if (baseId) {
+                return await this.registry.syncBase(baseId, files);
+            }
+            const active = this.getActiveBaseId();
+            if (!active) {
+                return false;
+            }
+            return await this.registry.syncBase(active, files);
+        } finally {
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
         }
-        return this.registry.syncAll(files);
     }
 
     async clearAndRebuildIndex(baseId?: string): Promise<boolean> {
@@ -336,14 +372,39 @@ export class IndexService {
         if (!id) {
             return false;
         }
-        return this.registry.clearAndRebuildBase(id, files);
+        try {
+            return await this.registry.clearAndRebuildBase(id, files);
+        } finally {
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
+        }
     }
 
     cancelSync(baseId?: string): void {
         this.registry.cancelSync(baseId);
     }
 
-    /** Background mtime staleness check — cheap when nothing changed. */
+    /**
+     * Open the active (or given) base for UI/command use, then schedule idle release.
+     */
+    async ensureOpenForUse(baseId?: string): Promise<boolean> {
+        const id = baseId ?? this.getActiveBaseId();
+        if (!id) {
+            return false;
+        }
+        const entry = this.registry.get(id);
+        if (entry?.index.isReady) {
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
+            return true;
+        }
+        const files = await this.collectRqFiles();
+        const ok = await this.registry.ensureBaseReady(id, files);
+        this.notifyStatus();
+        this.notifyCatalog();
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
+        return ok;
+    }
+
+    /** Background mtime staleness check on bases that are already open; then release unused handles. */
     async checkStaleFiles(): Promise<void> {
         if (this.discoveryEmpty || this.idleCheckInFlight) {
             return;
@@ -352,12 +413,24 @@ export class IndexService {
         this.idleSyncActive = true;
         try {
             const files = await this.collectIndexFiles();
-            await this.registry.checkStaleAll(files);
+            for (const base of this.registry.list()) {
+                const entry = this.registry.get(base.id);
+                // Idle must not open closed bases (no reconnect loop) — only diff already-open stores.
+                if (!entry?.index.isReady) {
+                    continue;
+                }
+                const owned = files.filter(filePath => {
+                    const match = this.registry.baseForFilePath(filePath);
+                    return match?.descriptor.id === base.id;
+                });
+                await entry.index.checkStaleFiles(owned);
+            }
             this.notifyStatus();
             this.notifyCatalog();
         } finally {
             this.idleSyncActive = false;
             this.idleCheckInFlight = false;
+            await this.releaseUnusedArtifacts();
         }
     }
 
@@ -366,7 +439,9 @@ export class IndexService {
         if (!entry) {
             return;
         }
+        await this.ensureBaseOpen(entry.descriptor.id);
         await entry.index.indexFilePath(uri.fsPath);
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
     }
 
     /**
@@ -379,10 +454,12 @@ export class IndexService {
         if (!entry) {
             return;
         }
+        await this.ensureBaseOpen(entry.descriptor.id);
         await entry.index.migrateRenamedFile(
             toIndexFileUri(oldUri, entry.descriptor.root),
             newUri.fsPath.endsWith('.rq') ? newUri.fsPath : undefined
         );
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
     }
 
     /**
@@ -451,12 +528,14 @@ export class IndexService {
             this.activeBaseId = (selected ?? this.registry.selectDefault()?.descriptor)?.id;
         }
 
-        await this.registry.activateAll();
+        // Event-driven: open/sync only the active base — do not lock every discovered base.
         const files = await this.collectRqFiles();
-        await this.registry.syncAll(files);
+        if (this.activeBaseId) {
+            await this.registry.ensureBaseReady(this.activeBaseId, files);
+        }
         this.notifyStatus();
         this.notifyCatalog();
-        this.scheduleIdleCheck(IDLE_QUIET_MS);
+        this.scheduleIdleRelease(IDLE_QUIET_MS);
     }
 
     private rewireRegistryListeners(): void {
@@ -517,26 +596,35 @@ export class IndexService {
         if (isIgnoredPath(filter, entry.descriptor.root, uri.fsPath, false)) {
             return;
         }
-        entry.index.enqueueIndex(uri.fsPath, change);
-        this.scheduleIdleCheck(IDLE_QUIET_MS);
+        void (async () => {
+            await this.ensureBaseOpen(entry.descriptor.id);
+            entry.index.enqueueIndex(uri.fsPath, change);
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
+        })();
     }
 
     private enqueueDelete(uri: vscode.Uri): void {
         const entry = this.registry.baseForFilePath(uri.fsPath);
         if (!entry) {
-            // Try each base with indexed uri form
             for (const b of this.registry.list()) {
                 const registered = this.registry.get(b.id);
-                registered?.index.enqueueDelete(toIndexFileUri(uri, b.root));
+                if (!registered?.index.isReady) {
+                    continue;
+                }
+                registered.index.enqueueDelete(toIndexFileUri(uri, b.root));
             }
-            this.scheduleIdleCheck(IDLE_QUIET_MS);
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
             return;
         }
-        entry.index.enqueueDelete(toIndexFileUri(uri, entry.descriptor.root));
-        this.scheduleIdleCheck(IDLE_QUIET_MS);
+        void (async () => {
+            await this.ensureBaseOpen(entry.descriptor.id);
+            entry.index.enqueueDelete(toIndexFileUri(uri, entry.descriptor.root));
+            this.scheduleIdleRelease(IDLE_QUIET_MS);
+        })();
     }
 
-    private scheduleIdleCheck(delayMs: number): void {
+    /** Idle: optional stale check on already-open bases, then release all SQLite handles. */
+    private scheduleIdleRelease(delayMs: number): void {
         this.clearIdleTimer();
         if (this.discoveryEmpty) {
             return;
@@ -579,12 +667,58 @@ export class IndexService {
             } finally {
                 this.notifyStatus();
                 this.notifyCatalog();
-                this.scheduleIdleCheck(IDLE_QUIET_MS);
+                this.scheduleIdleRelease(IDLE_QUIET_MS);
             }
         })().finally(() => {
             this.catchUpInFlight.delete(baseId);
         });
         this.catchUpInFlight.set(baseId, work);
+    }
+
+    private async ensureBaseOpen(baseId: string): Promise<void> {
+        const entry = this.registry.get(baseId);
+        if (!entry) {
+            return;
+        }
+        try {
+            // Idempotent when already open; does not soft-sync.
+            await entry.index.open();
+        } catch {
+            // recorded on the store
+        }
+    }
+
+    private async releaseBase(baseId: string): Promise<void> {
+        const entry = this.registry.get(baseId);
+        if (!entry) {
+            return;
+        }
+        await entry.index.deactivate();
+        this.notifyStatus();
+    }
+
+    /**
+     * Release SQLite handles that are not needed right now.
+     * While the window is focused, keep the active base open for UI; always release inactive bases.
+     * When unfocused, release every base so artifacts can be deleted.
+     */
+    private async releaseUnusedArtifacts(): Promise<void> {
+        const keepId = vscode.window.state.focused ? this.getActiveBaseId() : undefined;
+        for (const base of this.registry.list()) {
+            if (keepId && base.id === keepId) {
+                continue;
+            }
+            const entry = this.registry.get(base.id);
+            if (!entry) {
+                continue;
+            }
+            if (entry.index.state === 'uninitialized') {
+                continue;
+            }
+            await entry.index.deactivate();
+        }
+        this.notifyStatus();
+        this.notifyCatalog();
     }
 
     private notifyCatalog(): void {
