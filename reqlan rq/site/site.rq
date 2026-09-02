@@ -81,7 +81,6 @@ components {
     - support per [support_page_reqs.support_page]
     - content per [copy]
         - elevator pitch per [elevator_pitch_section]
-        - featured-in social proof per [featured_in_section]
         - motivation per [motivation_section]
         - syntax per [syntax_section]
         - example per [example_section]
@@ -146,7 +145,7 @@ hero_github_star {
 }
 
 elevator_pitch_section {
-    Landing `#elevator-pitch` after [hero_section] and before [featured_in_section].
+    Landing `#elevator-pitch` after [hero_section] and before [motivation_section].
     One-line thesis plus rotating claims.
     Copy lives in ["../../site/src/content/meta.ts"] per [copy].
     Thesis follows ["../constitution.rq".elevator_pitch].
@@ -158,33 +157,6 @@ elevator_pitch_section {
         ["../../site/src/components/ElevatorPitch.tsx"]
         ["../../site/src/components/ElevatorPitch.module.css"]
         ["../../site/src/views/HomePage.tsx"]
-    )
-}
-
-featured_in_section {
-    Landing `#featured-in` after [elevator_pitch_section] and before [motivation_section].
-    Rolling social-proof banner: label "As featured in:" plus catalogue cards that scroll slowly in a continuous loop.
-    Each card shows an icon and an outbound link label.
-    Required listings (labels match the catalogue names):
-    - agentlanguages.dev → https://agentlanguages.dev/languages/reqlan/
-    - awesome-spec-driven-development → https://github.com/Engineering4AI/awesome-spec-driven-development
-    - awesome-docs → https://github.com/testthedocs/awesome-docs
-    Copy and icons live in ["../../site/src/content/featured.ts"] per [copy].
-    Icons resolve through [phonebook_icon_component] / [icon_registry].
-    Links open in a new tab with `rel="noopener noreferrer"`.
-    Pause the scroll on hover or focus. When the visitor prefers reduced motion, show a static row of the same cards with no scroll.
-    Do not put these URLs in the phonebook footer/contact list.
-    Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
-    @status done
-    @implementation (
-        ["../../site/src/content/featured.ts"]
-        ["../../site/src/components/FeaturedIn.tsx"]
-        ["../../site/src/components/FeaturedIn.module.css"]
-        ["../../site/src/views/HomePage.tsx"]
-        ["../../site/src/content/site.ts"]
-    )
-    @tests (
-        ["../../site/src/content/featured.test.ts"]
     )
 }
 
@@ -219,7 +191,7 @@ claim_reduced_motion {
 }
 
 motivation_section {
-    Landing `#motivation` after [featured_in_section]: what/why slides for language, extension, CLI, and MCP.
+    Landing `#motivation`: what/why slides for language, extension, CLI, and MCP.
     Copy lives in ["../../site/src/content/motivation.ts"] per [copy].
     @status done
     @implementation (
@@ -523,7 +495,7 @@ copy {
     Copy stays decoupled from layout/styling.
     Copy should be really super minimal and concise if at all. (show don't tell)
     Copy should be user facing; not simply a description of the feature requirements. Production code doesn't have latent dev notes in visible components.
-    Landing modules: [hero_section], [elevator_pitch_section], [featured_in_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node].
+    Landing modules: [hero_section], [elevator_pitch_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node].
     @status done
     @implementation (
         ["../../site/src/content/types.ts"]
@@ -531,7 +503,6 @@ copy {
         ["../../site/src/content/meta.ts"]
         ["../../site/src/content/nav.ts"]
         ["../../site/src/content/hero.ts"]
-        ["../../site/src/content/featured.ts"]
         ["../../site/src/content/motivation.ts"]
         ["../../site/src/content/syntax.ts"]
         ["../../site/src/content/example.ts"]
