@@ -27,7 +27,7 @@
 .track {
   display: flex;
   width: max-content;
-  animation: featured-marquee 28s linear infinite;
+  animation: featured-marquee 18s linear infinite;
 }
 
 .paused .track {
