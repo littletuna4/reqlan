@@ -62,17 +62,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             }
             return [LspDocumentLink.create(link.sourceRange, target)];
         });
-        const ideaLinks = collectLocalSymbolicOutboundLinks(
-            document,
-            pathContext,
-            this.documents
-        ).flatMap(link => {
-            const target = resolvedFileLinkTargetUri(link);
-            if (!target) {
-                return [];
-            }
-            return [LspDocumentLink.create(link.sourceRange, target)];
-        });
+        const ideaLinks = this.collectIdeaDocumentLinks(document, pathContext);
         const commentLinks = presentCommentReferencesForDocument(
             document,
             this.documents,
@@ -83,5 +73,52 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             link.targetUri ?? URI.file(link.targetPath).toString()
         ));
         return [...fileLinks, ...ideaLinks, ...commentLinks];
+    }
+
+    /**
+     * Prefer path-local symbolic extract; if native extract throws, fall back to Langium
+     * idea links so Ctrl+click still works for non-web references.
+     */
+    private collectIdeaDocumentLinks(
+        document: LangiumDocument,
+        pathContext: ReturnType<typeof pathResolveContextFromServices>
+    ): DocumentLink[] {
+        try {
+            return collectLocalSymbolicOutboundLinks(
+                document,
+                pathContext,
+                this.documents
+            ).flatMap(link => {
+                const target = resolvedFileLinkTargetUri(link);
+                if (!target) {
+                    return [];
+                }
+                return [LspDocumentLink.create(link.sourceRange, target)];
+            });
+        } catch {
+            return collectFileLinks(
+                document,
+                this.documents,
+                this.fileSystem,
+                pathContext,
+                { includeIdeaReferences: true }
+            ).flatMap(link => {
+                if (link.resolution === 'missing' || link.resolution === 'folder' || link.resolution === 'wildcard') {
+                    return [];
+                }
+                const target = resolvedFileLinkTargetUri(link);
+                if (!target) {
+                    return [];
+                }
+                // Skip import/file path ranges already covered by the FS pass above — only idea tokens.
+                // collectFileLinks with includeIdeaReferences also returns file/import links; those
+                // duplicate fileLinks. Filter to idea-name ranges by excluding string-quoted paths.
+                const text = document.textDocument.getText(link.sourceRange);
+                if (text.includes('"') || text.includes("'")) {
+                    return [];
+                }
+                return [LspDocumentLink.create(link.sourceRange, target)];
+            });
+        }
     }
 }

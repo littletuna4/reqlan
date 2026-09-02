@@ -62,21 +62,17 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         return pathResolveContextFromServices(this.services);
     }
 
-    override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
-        // Fast path: when the cursor is on an idea token inside a bracket/wiki reference the
-        // answer is just the cached Langium ref target — no text scans, no file-system calls.
-        // Same-file and cross-file idea refs both take this path, so neither is slower than the other.
-        if (this.isIdeaReferencePosition(document, params.position)) {
-            return super.getDefinition(document, params);
-        }
-        // Path-local symbolic extract: works before the workspace is Linked.
-        const symbolic = findLocalSymbolicDefinition(
-            document,
-            document.textDocument.offsetAt(params.position),
-            this.pathContext(),
-            this.documents
-        );
-        if (symbolic) {
+    private symbolicDefinitionAt(document: LangiumDocument, position: Position): LocationLink[] | undefined {
+        try {
+            const symbolic = findLocalSymbolicDefinition(
+                document,
+                document.textDocument.offsetAt(position),
+                this.pathContext(),
+                this.documents
+            );
+            if (!symbolic) {
+                return undefined;
+            }
             const targetRange = symbolic.targetRange ?? {
                 start: { line: 0, character: 0 },
                 end: { line: 0, character: 0 }
@@ -87,6 +83,28 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
                 targetRange,
                 symbolic.sourceRange
             )];
+        } catch {
+            return undefined;
+        }
+    }
+
+    override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
+        // Fast path: when the cursor is on an idea token inside a bracket/wiki reference the
+        // answer is just the cached Langium ref target — no text scans, no file-system calls.
+        // Same-file and cross-file idea refs both take this path, so neither is slower than the other.
+        if (this.isIdeaReferencePosition(document, params.position)) {
+            const langiumDefinition = super.getDefinition(document, params);
+            return Promise.resolve(langiumDefinition).then(links => {
+                if (links && links.length > 0) {
+                    return links;
+                }
+                return this.symbolicDefinitionAt(document, params.position);
+            });
+        }
+        // Path-local symbolic extract: works before the workspace is Linked.
+        const symbolic = this.symbolicDefinitionAt(document, params.position);
+        if (symbolic) {
+            return symbolic;
         }
         if (isMarkdownLinkLabelPosition(document, params.position)) {
             return undefined;

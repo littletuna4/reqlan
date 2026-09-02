@@ -100,6 +100,7 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             } else if (!isFromImport(node) && !isInvalidFromImport(node) && node.alias) {
                 acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
             }
+            return;
         }
         if (isFromImportSpecifier(node)) {
             acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
@@ -107,9 +108,11 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
                 acceptor({ node, property: 'alias', type: SemanticTokenTypes.namespace, modifier: SemanticTokenModifiers.declaration });
                 acceptor({ node, keyword: 'as', type: SemanticTokenTypes.keyword });
             }
+            return;
         }
         if (isQualifiedImport(node)) {
             acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+            return;
         }
     }
 }
