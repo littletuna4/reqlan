@@ -2,7 +2,9 @@
  * Per-file parse budget via Langium's worker-thread async parser.
  * Happy path is in-process sync parse; workers enforce a killable wall-clock budget
  * for large files, sticky timeout escalation, or explicit force.
+ * This is the parse that populates or replaces the Langium AST.
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
  */
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';

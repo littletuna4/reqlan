@@ -1,5 +1,6 @@
 export * from './reqlan-module.js';
 export * from './reqlan-parse-budget.js';
+export { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
 export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser.js';
 export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 export { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
@@ -57,6 +58,16 @@ export * from './reqlan-import-bindings.js';
 export * from './reqlan-namespace-import-links.js';
 export * from './reqlan-name-catalog.js';
 export * from './reqlan-inbound-snapshot.js';
+export * from './reqlan-neighbor-parse.js';
+export {
+    analyzeDocumentLocalSymbolic,
+    clearLocalSymbolicExtractCache,
+    collectLocalSymbolicOutboundLinks,
+    documentOutboundTouchesChangedUris,
+    findLocalSymbolicDefinition,
+    localSymbolicExtractCount
+} from './reqlan-local-symbolic-links.js';
+export * from './reqlan-outbound-presentation.js';
 export * from './reqlan-workspace-attribute-catalog.js';
 export * from './reqlan-inlay-hint-settings.js';
 export * from './reqlan-code-lens-settings.js';

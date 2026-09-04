@@ -1,5 +1,8 @@
 /**
  * Semantic highlighting for requirement graph syntax: attributes, ideas, and references.
+ * Token colour runs from the Parsed AST and does not wait for workspace Linked or SQLite.
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".token_colour_sequence]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_highlighting]
  */
 import type { AstNode } from 'langium';
 import { AbstractSemanticTokenProvider, type SemanticTokenAcceptor } from 'langium/lsp';

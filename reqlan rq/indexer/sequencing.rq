@@ -52,6 +52,8 @@ extension_startup_sequence {
        (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
     [index_sequencing]
     [editor_index_adapter]
+    Open-file editor links follow ["../extension/language-support/open-file-sequencing.rq".open_file_algorithm]
+    and must not wait for this crawl.
 }
 
 soft_sync {

@@ -21,6 +21,8 @@ parse_budget_timeout {
     Surface both a warning (budget exceeded; semantic features may be incomplete) and an error (file left unloaded) on that document, then continue with other files.
     Happy path stays in-process (sync) for typical file sizes so edits and workspace load stay fast.
     Killable worker enforcement is used when the input is large, a file previously hit the budget (sticky escalate), or a caller forces the worker path; sync throws still become the same incomplete result shape.
+    The document factory stores that result as the Langium AST
+    (["../extension/language-support/open-file-sequencing.rq".ast_lifecycle]).
 
     @status done
     @tests (
@@ -30,6 +32,7 @@ parse_budget_timeout {
         ["../../packages/language/test/parse-budget.test.ts:parses small files on the calling thread without a worker"]
         ["../../packages/language/test/parse-budget.test.ts:escalates large files to the worker path"]
         ["../../packages/language/test/parse-budget.test.ts:forceWorker escalates a small file"]
+        ["../../packages/language/test/ast-lifecycle.test.ts:incomplete parse stores an empty model"]
         ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
     )
     @implementation (

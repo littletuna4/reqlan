@@ -1,7 +1,9 @@
 /**
  * Per-file parse/lex budget: if a document cannot finish within the budget,
  * return an empty model plus warning + error diagnostics instead of hanging the host.
+ * That empty model is the Langium AST until a later successful parse.
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
  */
 import type { AstNode, LangiumParser, ParseResult } from 'langium';
 
@@ -74,8 +76,10 @@ export interface ReqlanParseResult<T extends AstNode = AstNode> extends Omit<Par
 
 export function isReqlanIncompleteParseResult(
     result: ParseResult
-): result is ReqlanParseResult {
-    return Boolean((result as ReqlanParseResult).reqlanIncomplete);
+): result is ReqlanParseResult & {
+    reqlanIncomplete: NonNullable<ReqlanParseResult['reqlanIncomplete']>
+} {
+    return 'reqlanIncomplete' in result && result.reqlanIncomplete !== undefined;
 }
 
 interface PlaceholderToken {

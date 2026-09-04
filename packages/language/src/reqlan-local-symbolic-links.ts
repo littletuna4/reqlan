@@ -1,11 +1,17 @@
 /**
- * Outbound idea document links from path-local Rust extract.
+ * Outbound idea document links from path-local Rust extract plus a depth-1 neighbor parse.
  * Does not wait on Langium workspace linking.
+ * Host native extract is cached by URI plus text fingerprint so links and diagnostics
+ * share one parse of this buffer.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
-import { AstUtils, GrammarUtils, URI } from 'langium';
+import { URI } from 'langium';
 import type { Range } from 'vscode-languageserver';
 import {
     analyzeLocalSymbolic,
@@ -13,13 +19,55 @@ import {
     type LocalSymbolicEdge,
     type LocalSymbolicImportRoot
 } from '@reqlan/analytical/core';
-import { isIdea, isIdeaSet, isOneLinerIdea } from './generated/ast.js';
 import type { ResolvedFileLink } from './reqlan-file-link-resolver.js';
 import {
-    resolveDocumentPathUri,
+    ideaRangeFromNeighbor,
+    neighborIdea,
+    parseNeighborDocument,
+    fingerprintText
+} from './reqlan-neighbor-parse.js';
+import { importPathOf } from './reqlan-import-bindings.js';
+import {
+    neighborTargetCandidateUris,
+    resolveImportCandidateUris,
+    resolveNeighborTargetUri
+} from './reqlan-imports.js';
+import {
+    isModel
+} from './generated/ast.js';
+import { unquoteReqlanString } from './reqlan-quoted-strings.js';
+import {
     resolveRqConfig,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
+
+interface HostExtractCacheEntry {
+    readonly fingerprint: string;
+    readonly extracted: LocalSymbolicDocument;
+}
+
+const hostExtractCache = new Map<string, HostExtractCacheEntry>();
+let extractCount = 0;
+
+export function clearLocalSymbolicExtractCache(): void {
+    hostExtractCache.clear();
+    extractCount = 0;
+}
+
+export function localSymbolicExtractCount(): number {
+    return extractCount;
+}
+
+function importRootsKey(roots: readonly LocalSymbolicImportRoot[]): string {
+    return roots.map(root => `${root.alias}=${root.root ?? ''}`).join('|');
+}
+
+function hostExtractFingerprint(
+    text: string,
+    roots: readonly LocalSymbolicImportRoot[]
+): string {
+    return `${fingerprintText(text)}:${importRootsKey(roots)}`;
+}
 
 export function importRootsForLocalSymbolic(
     document: LangiumDocument,
@@ -39,11 +87,115 @@ export function analyzeDocumentLocalSymbolic(
     document: LangiumDocument,
     context?: PathResolveContext
 ): LocalSymbolicDocument {
-    return analyzeLocalSymbolic(
-        document.uri.toString(),
-        document.textDocument.getText(),
-        importRootsForLocalSymbolic(document, context)
-    );
+    const roots = importRootsForLocalSymbolic(document, context);
+    const text = document.textDocument.getText();
+    const uriKey = document.uri.toString();
+    const fingerprint = hostExtractFingerprint(text, roots);
+    const cached = hostExtractCache.get(uriKey);
+    if (cached && cached.fingerprint === fingerprint) {
+        return cached.extracted;
+    }
+    const extracted = analyzeLocalSymbolic(uriKey, text, roots);
+    extractCount += 1;
+    hostExtractCache.set(uriKey, { fingerprint, extracted });
+    return extracted;
+}
+
+/** Cached extract only. Does not parse. Used by relink to avoid a workspace-wide native walk. */
+export function peekLocalSymbolicExtract(
+    document: LangiumDocument
+): LocalSymbolicDocument | undefined {
+    return hostExtractCache.get(document.uri.toString())?.extracted;
+}
+
+/**
+ * True when this document's outbound paths include a changed URI.
+ * Uses cached extract edges plus import specifiers. Does not parse.
+ */
+export function documentOutboundTouchesChangedUris(
+    document: LangiumDocument,
+    changedUris: Set<string>,
+    context?: PathResolveContext
+): boolean {
+    if (changedUris.size === 0) {
+        return false;
+    }
+    const extracted = peekLocalSymbolicExtract(document);
+    if (extracted) {
+        for (const edge of extracted.edges) {
+            const filePart = edge.targetFile ?? filePartFromTargetId(edge.targetId);
+            if (!filePart || isSameIndexedUri(filePart, document.uri)) {
+                continue;
+            }
+            if (filePartTouchesChangedUris(filePart, document, changedUris, context)) {
+                return true;
+            }
+        }
+    }
+    const model = document.parseResult.value;
+    if (!isModel(model)) {
+        return false;
+    }
+    for (const importDecl of model.imports) {
+        const rawPath = importPathOf(importDecl);
+        const path = rawPath ? unquoteReqlanString(rawPath) : undefined;
+        if (!path) {
+            continue;
+        }
+        for (const uri of resolveImportCandidateUris(path, document, context)) {
+            if (changedSetHasUri(changedUris, uri)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function filePartFromTargetId(targetId: string | undefined): string | undefined {
+    if (!targetId) {
+        return undefined;
+    }
+    const hash = targetId.lastIndexOf('#');
+    return hash >= 0 ? targetId.slice(0, hash) : targetId;
+}
+
+function filePartTouchesChangedUris(
+    filePart: string,
+    document: LangiumDocument,
+    changedUris: Set<string>,
+    context?: PathResolveContext
+): boolean {
+    if (changedUris.has(filePart)) {
+        return true;
+    }
+    try {
+        for (const uri of neighborTargetCandidateUris(filePart, document, context)) {
+            if (changedSetHasUri(changedUris, uri)) {
+                return true;
+            }
+        }
+    } catch {
+        // filePart may already be a URI
+    }
+    try {
+        return changedSetHasUri(changedUris, URI.parse(filePart));
+    } catch {
+        return false;
+    }
+}
+
+function changedSetHasUri(changedUris: Set<string>, uri: URI): boolean {
+    if (changedUris.has(uri.toString())) {
+        return true;
+    }
+    if (uri.scheme !== 'file' || uri.fsPath.length === 0) {
+        return false;
+    }
+    try {
+        return changedUris.has(URI.file(uri.fsPath).toString());
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -144,11 +296,10 @@ function resolveIdeaTarget(
         return undefined;
     }
 
-    if (filePart === document.uri.toString() || sameIndexedUri(filePart, document.uri)) {
+    if (filePart === document.uri.toString() || isSameIndexedUri(filePart, document.uri)) {
         const idea = ideaName
             ? extracted.ideas.find(entry => entry.name === ideaName)
             : undefined;
-        // Same-file symbolic extract lists local ideas; missing name → not navigable.
         if (ideaName && !idea) {
             return undefined;
         }
@@ -163,84 +314,25 @@ function resolveIdeaTarget(
         };
     }
 
-    const targetUri = resolveDocumentPathUri(filePart, document, context);
-    if (!crossFileTargetExists(targetUri, documents, context)) {
+    const targetUri = resolveNeighborTargetUri(
+        filePart,
+        document,
+        documents,
+        context?.fileSystem,
+        context
+    );
+    if (!ideaName) {
         return undefined;
     }
-    const targetUriString = targetUri.toString();
-    const targetRange = ideaName
-        ? ideaRangeFromLoadedDocument(documents, targetUriString, ideaName)
-        : undefined;
-    return { targetUri: targetUriString, targetRange };
-}
-
-/** Prefer loaded docs; otherwise require a real filesystem hit so missing files stay unlinked. */
-function crossFileTargetExists(
-    targetUri: URI,
-    documents: LangiumDocuments | undefined,
-    context?: PathResolveContext
-): boolean {
-    if (documents && findLoadedDocument(documents, targetUri.toString())) {
-        return true;
-    }
-    const fileSystem = context?.fileSystem;
-    if (!fileSystem) {
-        return false;
-    }
-    try {
-        return fileSystem.existsSync(targetUri);
-    } catch {
-        return false;
-    }
-}
-
-function ideaRangeFromLoadedDocument(
-    documents: LangiumDocuments | undefined,
-    targetUri: string,
-    ideaName: string
-): Range | undefined {
-    if (!documents) {
+    const neighbor = parseNeighborDocument(targetUri, documents, context?.fileSystem);
+    const idea = neighbor ? neighborIdea(neighbor, ideaName) : undefined;
+    if (!idea) {
         return undefined;
     }
-    const targetDocument = findLoadedDocument(documents, targetUri);
-    if (!targetDocument) {
-        return undefined;
-    }
-    for (const node of AstUtils.streamAst(targetDocument.parseResult.value)) {
-        if ((isIdea(node) || isOneLinerIdea(node) || isIdeaSet(node)) && node.name === ideaName) {
-            const nameNode = GrammarUtils.findNodeForProperty(node.$cstNode, 'name') ?? node.$cstNode;
-            if (nameNode?.range) {
-                return nameNode.range;
-            }
-        }
-    }
-    return undefined;
+    return { targetUri: targetUri.toString(), targetRange: ideaRangeFromNeighbor(idea) };
 }
 
-function findLoadedDocument(
-    documents: LangiumDocuments,
-    targetUri: string
-): LangiumDocument | undefined {
-    try {
-        const direct = documents.getDocument(URI.parse(targetUri));
-        if (direct) {
-            return direct;
-        }
-    } catch {
-        // fall through
-    }
-    const normalized = targetUri.replace(/\\/g, '/');
-    const basename = normalized.split('/').pop() ?? normalized;
-    for (const document of documents.all.toArray()) {
-        const path = document.uri.path.replace(/\\/g, '/');
-        if (path === normalized || path.endsWith(`/${basename}`) || document.uri.toString() === targetUri) {
-            return document;
-        }
-    }
-    return undefined;
-}
-
-function sameIndexedUri(filePart: string, documentUri: URI): boolean {
+export function isSameIndexedUri(filePart: string, documentUri: URI): boolean {
     if (filePart === documentUri.toString()) {
         return true;
     }
@@ -271,7 +363,7 @@ function rangeFromEdgeOffsets(
 }
 
 /** Prefer the idea-name token inside `[…]` / `[[…]]`, matching Langium `$refNode` ranges. */
-function ideaNameRangeFromEdge(
+export function ideaNameRangeFromEdge(
     document: LangiumDocument,
     edge: LocalSymbolicEdge
 ): Range | undefined {

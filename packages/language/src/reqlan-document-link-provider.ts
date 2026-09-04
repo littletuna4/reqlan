@@ -1,11 +1,13 @@
 /**
  * Clickable document links for idea references, file references, import paths, and comment references.
- * Idea underlines come from path-local Rust extract (no wait on workspace Linked).
+ * Idea underlines come from path-local Rust extract plus a depth-1 neighbor parse.
  * Missing file refs get an error underline and no document link.
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
  */
 import type { LangiumDocument } from 'langium';
 import { URI } from 'langium';

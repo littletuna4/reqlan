@@ -18,6 +18,7 @@ import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
 import { registerRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
+import { registerOutboundDiagnosticAuthority } from './reqlan-outbound-presentation.js';
 import { ReqlanWorkspaceManager } from './reqlan-workspace-manager.js';
 import { ReqlanAsyncParser } from './reqlan-async-parser.js';
 import { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
@@ -114,6 +115,7 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
     );
     shared.ServiceRegistry.register(Reqlan);
     registerValidationChecks(Reqlan);
+    registerOutboundDiagnosticAuthority(Reqlan);
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     registerRqIgnoreErrorFiltering(shared);
     if (!context.connection) {

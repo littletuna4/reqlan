@@ -1,7 +1,9 @@
 /**
  * Push SQLite inbound edges for visible `.rq` editors to the language server.
+ * Lazy: must not block open-file outbound links.
  * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".lazy_features_after_outbound]
  */
 import {
     REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,

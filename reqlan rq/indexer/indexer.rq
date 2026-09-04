@@ -104,6 +104,14 @@ local_symbolic_analysis {
     inbound backlinks (edges whose target is an idea declared in this file).
     Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
     Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
+    This extract is not the Langium AST
+    (["../extension/language-support/open-file-sequencing.rq".ast_lifecycle]).
+    The language server confirms cross-file idea names with a separate depth-1 neighbor parse
+    (["../extension/language-support/open-file-sequencing.rq".outbound_one_hop]).
+    That hop is not part of this native extract. The LSP caches this file's extract by URI
+    plus text fingerprint
+    (["../extension/language-support/open-file-sequencing.rq".open_file_hot_path]).
+    That hop is not part of this native extract.
     Wildcard forms stay one `wildcard_reference` pattern edge (unresolved); sync still expands
     them later via [wildcard_reference_edges].
     Flag: `ExtractOptions.local_symbolic` forces an empty candidate list.
