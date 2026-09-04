@@ -258,6 +258,15 @@ fn unclosed_quote_then_slash_slash_is_a_comment() {
     assert!(joined.contains("keep"), "{joined}");
 }
 
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".lexer_rust]
+#[test]
+fn middle_dot_before_brace_does_not_panic() {
+    let source = "host {\n    Get started · 01 {\n        body\n    }\n}";
+    let tokens = visible_kinds(source);
+    assert!(tokens.contains(&TokenKind::LBrace));
+    assert!(tokens.contains(&TokenKind::Id));
+}
+
 fn visible_text(source: &str) -> String {
     lex(source, ParseBudget::unlimited())
         .tokens

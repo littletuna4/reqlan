@@ -148,6 +148,7 @@ lexer_rust {
         ["../../crates/reqlan-parse/tests/lexer.rs:url_slashes_are_not_line_comments"]
         ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_triple_backticks_are_not_a_code_fence"]
         ["../../crates/reqlan-parse/tests/lexer.rs:line_start_triple_backticks_are_a_code_fence"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:middle_dot_before_brace_does_not_panic"]
     )
 }
 
