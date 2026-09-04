@@ -51,6 +51,13 @@ describe('Langium AST lifecycle', () => {
         }
     });
 
+    function populateAst(text: string, fileName: string): LangiumDocument {
+        const uri = URI.parse(`file:///inmemory/${fileName}`);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(text, uri);
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        return document;
+    }
+
     function ideaNames(model: Model): string[] {
         const names: string[] = [];
         for (const element of model.elements) {
@@ -70,12 +77,12 @@ describe('Langium AST lifecycle', () => {
     }
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
-    test('populates the Langium AST at Parsed without DocumentBuilder', async () => {
-        const document = await parse(s`
+    test('populates the Langium AST at Parsed without DocumentBuilder', () => {
+        const document = populateAst(s`
             first_idea {
                 body
             }
-        `);
+        `, 'parsed-only.rq');
         expect(document.state).toBe(DocumentState.Parsed);
         expect(document.parseResult.parserErrors).toHaveLength(0);
         expect(ideaNames(modelOf(document))).toEqual(['first_idea']);
@@ -116,15 +123,16 @@ describe('Langium AST lifecycle', () => {
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
     test('linking and validation do not replace the AST', async () => {
-        const document = await parse(s`
+        const document = populateAst(s`
             alpha {
                 see [beta]
             }
             beta {
                 body
             }
-        `);
+        `, 'keep-ast.rq');
         const ast = modelOf(document);
+        expect(document.state).toBe(DocumentState.Parsed);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
         expect(modelOf(document)).toBe(ast);
         expect(document.state).toBe(DocumentState.Validated);
