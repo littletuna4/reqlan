@@ -1,5 +1,13 @@
 # @reqlan/language
 
+## 1.11.3
+
+### Patch Changes
+
+- 1c639d8: update site; update root license; update textmate support.
+- Updated dependencies [1c639d8]
+  - @reqlan/analytical@1.14.2
+
 ## 1.11.2
 
 ### Patch Changes

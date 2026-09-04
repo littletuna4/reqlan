@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.14.2
+
+### Patch Changes
+
+- 1c639d8: update site; update root license; update textmate support.
+
 ## 1.14.1
 
 ### Patch Changes
