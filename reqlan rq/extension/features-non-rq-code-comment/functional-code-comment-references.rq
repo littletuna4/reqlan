@@ -40,7 +40,7 @@ comment_reference_resolution_error_state {
         ["../../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:publishes a missing-idea diagnostic and no document link until the idea exists"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:clears the underline and creates a link after a matching idea is added"]
-        ["../../../packages/language/test/comment-reference-resolution.test.ts:relinks documents that still show a missing comment-reference idea"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:relinks comment references only when the target file changes"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
         ["../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
     )

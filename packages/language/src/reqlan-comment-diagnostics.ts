@@ -143,33 +143,69 @@ export function collectCommentReferenceIssues(
 /**
  * Relink this document when a changed `.rq` file can change comment-reference
  * resolution (missing idea becomes present, or a targeted file changes).
+ * Do not relink every document that still shows a comment-reference error.
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
  */
 export function shouldRelinkCommentReferences(
     document: LangiumDocument,
     changedUris: Set<string>,
     context?: PathResolveContext
 ): boolean {
+    if (changedUris.size === 0) {
+        return false;
+    }
     const text = document.textDocument.getText();
     if (!text.includes('rq:[')) {
         return false;
-    }
-    if (document.diagnostics?.some(diagnostic => isCommentReferenceDiagnosticCode(diagnostic.code))) {
-        return true;
     }
     for (const reference of findCommentReferencesInText(text)) {
         if (!isSlashOrBlockCommentReference(text, reference.range)) {
             continue;
         }
         if (!reference.path) {
-            return true;
+            if (changedSetHasRqUri(changedUris)) {
+                return true;
+            }
+            continue;
         }
         for (const uri of resolveImportCandidateUris(reference.path, document, context)) {
-            if (changedUris.has(uri.toString())) {
+            if (changedSetHasUri(changedUris, uri)) {
                 return true;
             }
         }
     }
     return false;
+}
+
+function changedSetHasRqUri(changedUris: Set<string>): boolean {
+    for (const uri of changedUris) {
+        if (isRqUriString(uri)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function isRqUriString(uri: string): boolean {
+    try {
+        return URI.parse(uri).path.toLowerCase().endsWith('.rq');
+    } catch {
+        return uri.toLowerCase().replace(/\\/g, '/').endsWith('.rq');
+    }
+}
+
+function changedSetHasUri(changedUris: Set<string>, uri: URI): boolean {
+    if (changedUris.has(uri.toString())) {
+        return true;
+    }
+    if (uri.scheme !== 'file' || uri.fsPath.length === 0) {
+        return false;
+    }
+    try {
+        return changedUris.has(URI.file(uri.fsPath).toString());
+    } catch {
+        return false;
+    }
 }
 
 function isSlashOrBlockCommentReference(text: string, range: Range): boolean {

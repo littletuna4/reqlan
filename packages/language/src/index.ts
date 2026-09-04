@@ -1,5 +1,6 @@
 export * from './reqlan-module.js';
 export * from './reqlan-parse-budget.js';
+export { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
 export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser.js';
 export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 export { ReqlanDocumentBuilder } from './reqlan-document-builder.js';

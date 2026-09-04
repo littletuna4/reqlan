@@ -2,6 +2,7 @@
  * Open-file outbound presentation: 1-hop idea confirmation, links vs error underlines.
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { LangiumDocument } from 'langium';
@@ -32,6 +33,8 @@ import {
 } from './reqlan-neighbor-parse.js';
 import { pathResolveContextFromServices, resolveDocumentPathUri } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
+import { applyRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
+import { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
 
 export const OUTBOUND_IDEA_MISSING = 'unresolved-idea-reference';
 
@@ -116,7 +119,8 @@ export function applyOutboundDiagnosticAuthority(document: LangiumDocument, serv
     const decisions = collectOutboundIdeaDecisions(document, services);
     const confirmed = decisions.filter(decision => decision.confirmed);
     const existing = document.diagnostics ?? [];
-    const kept = existing.filter(diagnostic => !isConfirmedUnresolved(diagnostic, confirmed));
+    const seed = existing.length > 0 ? existing : collectLexParseDiagnostics(document);
+    const kept = seed.filter(diagnostic => !isConfirmedUnresolved(diagnostic, confirmed));
     const seen = new Set(kept.map(diagnostic => `${rangeKey(diagnostic.range)}:${diagnostic.message}`));
     for (const decision of decisions) {
         if (decision.confirmed) {
@@ -131,6 +135,7 @@ export function applyOutboundDiagnosticAuthority(document: LangiumDocument, serv
         kept.push(outboundIdeaDiagnostic(decision.range, decision.name));
     }
     document.diagnostics = kept;
+    applyRqIgnoreErrorFiltering(document);
 }
 
 export function registerOutboundDiagnosticAuthority(services: ReqlanServices): void {
@@ -145,10 +150,7 @@ function isConfirmedUnresolved(diagnostic: Diagnostic, confirmed: OutboundIdeaDe
     }
     return confirmed.some(decision =>
         diagnostic.message.includes(`'${decision.name}'`)
-        && (
-            rangeKey(diagnostic.range) === rangeKey(decision.range)
-            || diagnostic.range.start.line === decision.range.start.line
-        )
+        && rangesOverlap(diagnostic.range, decision.range)
     );
 }
 
@@ -159,10 +161,7 @@ function alreadyReportedUnresolved(
 ): boolean {
     return diagnostics.some(diagnostic =>
         diagnostic.message === message
-        && (
-            rangeKey(diagnostic.range) === rangeKey(decision.range)
-            || diagnostic.range.start.line === decision.range.start.line
-        )
+        && rangesOverlap(diagnostic.range, decision.range)
     );
 }
 
@@ -226,4 +225,17 @@ function outboundIdeaDiagnostic(range: Range, name: string): Diagnostic {
 
 function rangeKey(range: Range): string {
     return `${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
+}
+
+function rangesOverlap(left: Range, right: Range): boolean {
+    if (left.end.line < right.start.line || right.end.line < left.start.line) {
+        return false;
+    }
+    if (left.end.line === right.start.line && left.end.character < right.start.character) {
+        return false;
+    }
+    if (right.end.line === left.start.line && right.end.character < left.start.character) {
+        return false;
+    }
+    return true;
 }

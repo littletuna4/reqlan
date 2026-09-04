@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
-import { type LangiumDocument } from 'langium';
+import { URI, type LangiumDocument } from 'langium';
 import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
@@ -28,7 +28,12 @@ import {
 import {
     clearLocalSymbolicExtractCache
 } from '../src/reqlan-local-symbolic-links.js';
-import { isUnresolvedIdeaMessage } from '../src/reqlan-outbound-presentation.js';
+import { isUnresolvedIdeaMessage, applyOutboundDiagnosticAuthority } from '../src/reqlan-outbound-presentation.js';
+import { collectLexParseDiagnostics } from '../src/reqlan-parse-diagnostics.js';
+import {
+    createIncompleteParseResult,
+    PARSE_TIMEOUT_WARNING
+} from '../src/reqlan-parse-budget.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -219,6 +224,50 @@ describe('outbound one-hop sequencing', () => {
         expect(unresolved).toHaveLength(0);
         const labels = await documentLinks(document);
         expect(labels).toContain('present_idea');
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    test('keeps a missing idea error on the same line as a confirmed neighbor idea', async () => {
+        const dir = writeWorkspace({
+            'lib.rq': s`
+                present_idea {
+                    body
+                }
+            `
+        });
+        const document = await parseHost(dir, s`
+            host {
+                see ["./lib.rq".present_idea] and ["./lib.rq".gone]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && isUnresolvedIdeaMessage(diagnostic.message)
+        );
+        expect(unresolved.some(diagnostic => diagnostic.message.includes('present_idea'))).toBe(false);
+        expect(unresolved.some(diagnostic => diagnostic.message.includes('gone'))).toBe(true);
+        const labels = await documentLinks(document);
+        expect(labels).toContain('present_idea');
+        expect(labels).not.toContain('gone');
+    });
+
+    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    test('Parsed outbound publish includes lex parse diagnostics', () => {
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+            'ok_idea { body }\n',
+            URI.parse(pathToFileURL(join(tmpdir(), 'parsed-diag.rq')).href)
+        );
+        document.parseResult = createIncompleteParseResult(services.Reqlan.parser.LangiumParser, {
+            reason: 'timeout',
+            timeoutMs: 8_000
+        });
+        const parseDiagnostics = collectLexParseDiagnostics(document);
+        expect(parseDiagnostics.some(diagnostic => diagnostic.message === PARSE_TIMEOUT_WARNING)).toBe(true);
+        applyOutboundDiagnosticAuthority(document, services.Reqlan);
+        expect(
+            (document.diagnostics ?? []).some(diagnostic => diagnostic.message === PARSE_TIMEOUT_WARNING)
+        ).toBe(true);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]

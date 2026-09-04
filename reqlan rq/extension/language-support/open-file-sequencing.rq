@@ -321,8 +321,12 @@ open_file_hot_path {
     ([neighbor_parse]).
     When another `.rq` file changes, do not relink every document that still has a
     Langium linker error. Relink this document when the index says it is affected,
-    when comment references need that file, or when this document's outbound targets
+    when comment references name that file, or when this document's outbound targets
     include the changed URI ([document_builder]).
+    Drop a false unresolved diagnostic only for the overlapping idea-name range.
+    Do not drop a different missing name on the same line ([outbound_presentation]).
+    At `DocumentState.Parsed`, publish lex/parse diagnostics with outbound idea errors
+    so the editor does not wait for Validated to see a broken parse.
     Related: [open_file_algorithm], [outbound_one_hop], [ast_lifecycle],
     [comment_backlink_sequence].
 
@@ -332,6 +336,8 @@ open_file_hot_path {
         [neighbor_parse]
         [document_builder]
         [outbound_presentation]
+        [comment_diagnostics]
+        ["../../../packages/language/src/reqlan-parse-diagnostics.ts"]
     )
     @tests (
         ["../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
@@ -339,7 +345,10 @@ open_file_hot_path {
         ["../../../packages/language/test/open-file-hot-path.test.ts:does not treat a same-name file as the loaded neighbor"]
         ["../../../packages/language/test/open-file-hot-path.test.ts:does not relink an unrelated file that still has linker errors"]
         ["../../../packages/language/test/open-file-hot-path.test.ts:relinks a host when its neighbor file changes"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:relinks comment references only when the target file changes"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
+        ["../../../packages/language/test/outbound-hop.test.ts:keeps a missing idea error on the same line as a confirmed neighbor idea"]
+        ["../../../packages/language/test/outbound-hop.test.ts:Parsed outbound publish includes lex parse diagnostics"]
     )
 }
 
@@ -354,6 +363,7 @@ missing_reference_colour_sequence {
     - Neighbor file exists and the named idea is missing: error underline, no document link.
     - Same-file idea missing: error underline, no document link.
     One-hop that confirms an idea must drop a false Langium linking error for that range.
+    Do not drop a different missing name that only shares the line.
     Related: [unresolved_reference_diagnostics], [reference_rendering].
 
     ```mermaid
@@ -395,6 +405,7 @@ missing_reference_colour_sequence {
         ["../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
         ["../../../packages/language/test/outbound-hop.test.ts:keeps URL and wildcard document links"]
         ["../../../packages/language/test/outbound-hop.test.ts:drops a false unresolved diagnostic when the neighbor idea exists"]
+        ["../../../packages/language/test/outbound-hop.test.ts:keeps a missing idea error on the same line as a confirmed neighbor idea"]
         ["../../../packages/language/test/outbound-hop.test.ts:reports an unresolved import path"]
         ["../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
         ["../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]

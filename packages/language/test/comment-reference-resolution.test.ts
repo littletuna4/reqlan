@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
-import { URI, type LangiumDocument } from "langium";
+import { URI, EmptyFileSystem, type LangiumDocument } from "langium";
 import { NodeFileSystem } from "langium/node";
 import { expandToString as s } from "langium/generate";
 import { clearDocuments } from "langium/test";
@@ -364,23 +364,41 @@ describe("comment reference resolution in .rq documents", () => {
     expect(presented.links[0]?.idea).toBe("elevator_pitch");
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
-  test("relinks documents that still show a missing comment-reference idea", () => {
-    const document = {
-      textDocument: {
-        getText: () => 'host {}\n// rq:["./syntax.rq".elevator_pitch]\n',
-      },
-      diagnostics: [{ code: COMMENT_REFERENCE_MISSING_IDEA }],
-    } as unknown as LangiumDocument;
-    expect(shouldRelinkCommentReferences(document, new Set())).toBe(true);
+  // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+  test("relinks comment references only when the target file changes", () => {
+    const services = createReqlanServices(EmptyFileSystem);
+    const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+      'host {}\n// rq:["./syntax.rq".elevator_pitch]\n',
+      URI.parse("file:///ws/host.rq"),
+    );
+    const syntaxUri = URI.parse("file:///ws/syntax.rq").toString();
+    expect(shouldRelinkCommentReferences(document, new Set([syntaxUri]))).toBe(
+      true,
+    );
     expect(
       shouldRelinkCommentReferences(
-        {
-          textDocument: { getText: () => "host {}\n" },
-          diagnostics: [{ code: COMMENT_REFERENCE_MISSING_IDEA }],
-        } as unknown as LangiumDocument,
-        new Set(),
+        document,
+        new Set(["file:///ws/other.rq"]),
       ),
+    ).toBe(false);
+    expect(shouldRelinkCommentReferences(document, new Set())).toBe(false);
+    const unqualified = services.shared.workspace.LangiumDocumentFactory.fromString(
+      "host {}\n// rq:[elevator_pitch]\n",
+      URI.parse("file:///ws/unqualified.rq"),
+    );
+    expect(
+      shouldRelinkCommentReferences(
+        unqualified,
+        new Set(["file:///ws/other.rq"]),
+      ),
+    ).toBe(true);
+    expect(shouldRelinkCommentReferences(unqualified, new Set())).toBe(false);
+    const plain = services.shared.workspace.LangiumDocumentFactory.fromString(
+      "host {}\n",
+      URI.parse("file:///ws/plain.rq"),
+    );
+    expect(
+      shouldRelinkCommentReferences(plain, new Set([syntaxUri])),
     ).toBe(false);
   });
 });
