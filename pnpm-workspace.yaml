@@ -3,6 +3,9 @@ packages:
   - packages/analytical-native/*
   - packages/extension/webviews/*
   - site
+# rq:["reqlan rq/development/build.rq".typescript_compile]
+overrides:
+  langium-cli>jsonschema: 1.4.1
 allowBuilds:
   sqlite3: true
   esbuild: true

@@ -99,9 +99,14 @@ typescript_compile {
     Root script `build:tsc` is `langium:generate` then that `tsc -b`. Full `pnpm run build` starts with `build:tsc`.
     GitHub CI, Azure package build, and npm deploy use `build:tsc` so compile matches a clean local build ([distribution.prerelease_tests], [distribution.ci_gate], [distribution.npm_distribution]).
     GitHub CI compiles the TypeScript workspace once in the sequential job, then reuses that emit for [check.check] and package tests ([check.check_meta_implementation]).
+    `langium generate` validates ["../../packages/language/langium-config.json"] against the langium-cli schema.
+    langium-cli 4.3.0 does not set schema `$id`. jsonschema 1.5.0 then throws `ERR_INVALID_URL` for `#/$defs/languageItem` on Node 24.
+    The workspace pins jsonschema 1.4.1 for langium-cli in ["../../pnpm-workspace.yaml"] until a langium-cli release includes that `$id`.
     @status done
     @implementation (
         ["../../package.json"]
+        ["../../pnpm-workspace.yaml"]
+        ["../../packages/language/langium-config.json"]
         ["../../.github/workflows/ci.yml"]
         ["../../.github/workflows/deploy-npm.yml"]
         ["../../azure-pipelines.yml"]
@@ -110,6 +115,8 @@ typescript_compile {
     @tests (
         ["../../packages/analytical/test/release-ci-gate.test.ts"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:TypeScript compile generates Langium sources first"]
+        ["../../packages/language/test/langium-generate-config.test.ts"]
+        ["../../packages/language/test/langium-generate-config.test.ts:langium-cli schema validates langium-config.json"]
     )
 }
 

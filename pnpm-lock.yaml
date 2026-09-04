@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  langium-cli>jsonschema: 1.4.1
+
 packageExtensionsChecksum: sha256-d9jc9dExVu1elF5XfKZTnUlXQal+YTS/+CX5RMFRio4=
 
 importers:
@@ -2914,8 +2917,8 @@ packages:
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
 
-  jsonschema@1.5.0:
-    resolution: {integrity: sha512-K+A9hhqbn0f3pJX17Q/7H6yQfD/5OXgdrR5UE12gMXCiN9D5Xq2o5mddV2QEcX/bjla99ASsAAQUyMCCRWAEhw==}
+  jsonschema@1.4.1:
+    resolution: {integrity: sha512-S6cATIPVv1z0IlxdN+zUk5EPjkGCdnhN4wVSBlvoUO1tOLJootbo9CquNJmbIh4yikWHiUedhRYrNPn1arpEmQ==}
 
   jsonwebtoken@9.0.3:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
@@ -7044,7 +7047,7 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  jsonschema@1.5.0: {}
+  jsonschema@1.4.1: {}
 
   jsonwebtoken@9.0.3:
     dependencies:
@@ -7094,7 +7097,7 @@ snapshots:
       chalk: 5.6.2
       commander: 15.0.0
       fs-extra: 11.3.5
-      jsonschema: 1.5.0
+      jsonschema: 1.4.1
       langium: 4.3.0
       langium-railroad: 4.3.0
       lodash: 4.18.1

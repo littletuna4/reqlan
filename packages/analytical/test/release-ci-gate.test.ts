@@ -174,6 +174,9 @@ describe('release CI gate', () => {
         expect(npm).toContain(
             'rq:["../../reqlan rq/development/build.rq".typescript_compile]'
         );
+
+        const workspace = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8');
+        expect(workspace).toContain('langium-cli>jsonschema: 1.4.1');
     });
 
     // rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
