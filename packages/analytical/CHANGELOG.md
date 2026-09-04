@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.15.1
+
+### Patch Changes
+
+- 218e41b: up
+
 ## 1.15.0
 
 ### Minor Changes

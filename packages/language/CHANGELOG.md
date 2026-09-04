@@ -1,5 +1,13 @@
 # @reqlan/language
 
+## 1.12.1
+
+### Patch Changes
+
+- 218e41b: up
+- Updated dependencies [218e41b]
+  - @reqlan/analytical@1.15.1
+
 ## 1.12.0
 
 ### Minor Changes
