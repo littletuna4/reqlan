@@ -223,11 +223,7 @@ fn mid_line_triple_backticks_are_not_a_code_fence() {
         !kinds.contains(&TokenKind::CodeFence),
         "mid-line ``` must not lex as CODE_FENCE: {kinds:?}"
     );
-    assert_eq!(
-        kinds.iter().filter(|kind| **kind == TokenKind::Backtick).count(),
-        3,
-        "{kinds:?}"
-    );
+    assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::Backtick).count(), 3, "{kinds:?}");
     assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::LBrace).count(), 2);
     assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::RBrace).count(), 2);
 }
@@ -237,11 +233,7 @@ fn mid_line_triple_backticks_are_not_a_code_fence() {
 fn line_start_triple_backticks_are_a_code_fence() {
     let source = "demo {\n```\nbody\n```\n}\n";
     let kinds = visible_kinds(source);
-    assert_eq!(
-        kinds.iter().filter(|kind| **kind == TokenKind::CodeFence).count(),
-        1,
-        "{kinds:?}"
-    );
+    assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::CodeFence).count(), 1, "{kinds:?}");
 }
 
 // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
