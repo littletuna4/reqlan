@@ -1,5 +1,17 @@
 # @reqlan/mcp
 
+## 0.6.0
+
+### Minor Changes
+
+- 2db2890: update to text mate syntax, ext performance & site.
+
+### Patch Changes
+
+- Updated dependencies [9943897]
+- Updated dependencies [2db2890]
+  - @reqlan/analytical@1.15.0
+
 ## 0.5.1
 
 ### Patch Changes
