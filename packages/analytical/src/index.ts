@@ -129,6 +129,23 @@ export {
 } from './core/types.js';
 export { resolveBidirectionalIdeaReferences } from './core/idea-references.js';
 export type { IdeaReferenceStore } from './core/idea-references.js';
+export {
+    dedupeIdeaSummaries,
+    localSymbolicIdeaById,
+    localSymbolicIdeaSummary,
+    localSymbolicNeighborIdeas,
+    localSymbolicReferenceRowsForIdea,
+    localSymbolicReferencesForIdea,
+    mergeReferenceRows
+} from './core/local-symbolic-references.js';
+export type { LocalSymbolicIdeaReferences } from './core/local-symbolic-references.js';
+export { analyzeLocalSymbolic, extractIdeaNames, parseAlignSnapshot, parseReqlanSource } from './native/parse-source.js';
+export type {
+    LocalSymbolicDocument,
+    LocalSymbolicEdge,
+    LocalSymbolicIdea,
+    LocalSymbolicImportRoot
+} from './native/parse-source.js';
 export * from './core/types.js';
 export {
     FILTER_EMPTY,

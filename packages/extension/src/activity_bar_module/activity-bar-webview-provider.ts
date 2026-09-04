@@ -809,7 +809,10 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         this.post({ type: 'scope', scope: model.currentFile, requestId });
         const focusId = model.footprint.effectiveCenterId;
         if (focusId) {
-            const payload = await data.loadReferences(focusId);
+            const payload = await data.loadReferences(focusId, {
+                fileUri: toIndexFileUri(editor.document.uri, this.activeBaseRoot()),
+                fileText: editor.document.getText()
+            });
             this.post({ type: 'references', payload, requestId });
         }
         void this.enrichContextGitHistory(editor, data, requestId, epoch);
@@ -901,7 +904,17 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
             return;
         }
         const hopDepth = effectiveHopDepth(this.contextSession, 'current_file');
-        const payload = await data.loadReferences(ideaId, { ...options, hopDepth });
+        const editor = vscode.window.activeTextEditor;
+        const fileUri = editor
+            ? toIndexFileUri(editor.document.uri, this.activeBaseRoot())
+            : ideaId.split('#')[0];
+        const fileText = editor?.document.getText();
+        const payload = await data.loadReferences(ideaId, {
+            ...options,
+            hopDepth,
+            fileUri,
+            fileText
+        });
         this.post({ type: 'references', payload, requestId });
     }
 

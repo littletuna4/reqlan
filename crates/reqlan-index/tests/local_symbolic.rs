@@ -64,3 +64,30 @@ host {
     assert_eq!(wildcards.len(), 1, "local symbolic must not fan out against a catalog");
     assert_eq!(wildcards[0].is_resolved, Some(false));
 }
+
+#[test]
+fn analyze_local_symbolic_includes_same_file_inbound_backlinks() {
+    let source = r#"
+host {
+    See [local_idea] and [other].
+}
+local_idea {
+    body
+}
+other {
+    also [local_idea]
+}
+"#;
+    let doc = analyze_local_symbolic("demo/host.rq", source, &[]);
+    assert!(!doc.inbound.is_empty(), "same-file idea targets must appear as inbound backlinks");
+    let (outbound, inbound) = doc.references_for_idea("demo/host.rq#local_idea");
+    assert!(outbound.is_empty(), "local_idea has no outbound refs in this fixture");
+    assert_eq!(inbound.len(), 2, "host and other both reference local_idea");
+    let sources: Vec<&str> = inbound.iter().map(|edge| edge.source_id.as_str()).collect();
+    assert!(sources.contains(&"demo/host.rq#host"));
+    assert!(sources.contains(&"demo/host.rq#other"));
+
+    let (host_out, host_in) = doc.references_for_idea("demo/host.rq#host");
+    assert!(host_out.len() >= 2);
+    assert!(host_in.is_empty());
+}

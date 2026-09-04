@@ -1428,7 +1428,8 @@ pub fn extract_idea_names(source: String) -> Vec<String> {
         .collect()
 }
 
-/// Path + source only: outbound edges with spans. No workspace catalog, no SQLite.
+/// Path + source only: outbound edges with spans and same-file inbound backlinks.
+/// No workspace catalog, no SQLite.
 /// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 /// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
 #[napi]

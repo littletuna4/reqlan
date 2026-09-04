@@ -932,14 +932,16 @@ function toOutboundReferenceListRow(row: ReferenceListSqlRow): ReferenceListRow 
 }
 
 function toInboundReferenceListRow(row: ReferenceListSqlRow): ReferenceListRow {
-    const targetName = row.source_name ?? 'unknown';
+    // Prefer the referencer name for inbound display — edge.label is usually the target.
+    // rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_sidebar]
+    const referencerName = row.source_name ?? 'unknown';
     const targetPath = row.source_uri ?? '';
     return {
         edgeId: row.edge_id,
         direction: 'inbound',
         kind: row.kind as EdgeKind,
-        label: row.label ?? targetName,
-        targetName,
+        label: referencerName,
+        targetName: referencerName,
         targetPath,
         targetLine: row.source_line_idea ?? undefined,
         sourceLine: row.source_line ?? undefined,

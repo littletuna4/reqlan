@@ -55,6 +55,16 @@ export type {
     NativeParseElement,
     NativeParseResult
 } from './parse-source.js';
+export {
+    dedupeIdeaSummaries,
+    localSymbolicIdeaById,
+    localSymbolicIdeaSummary,
+    localSymbolicNeighborIdeas,
+    localSymbolicReferenceRowsForIdea,
+    localSymbolicReferencesForIdea,
+    mergeReferenceRows
+} from '../core/local-symbolic-references.js';
+export type { LocalSymbolicIdeaReferences } from '../core/local-symbolic-references.js';
 /** rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore] */
 export { findRqIgnoreErrorTargetLines } from './ignore-error.js';
 export {

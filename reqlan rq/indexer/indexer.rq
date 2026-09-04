@@ -98,48 +98,64 @@ wildcard_reference_edges {
 }
 
 local_symbolic_analysis {
-    Open-file symbolic outbound analysis must run in Rust on one file only.
+    Open-file symbolic analysis must run in Rust on one file only.
     Input: file URI plus source text (and optional import-root mappings).
-    Output: ideas in that file and outbound edges with source byte spans.
+    Output: ideas in that file, outbound edges with source byte spans, and same-file
+    inbound backlinks (edges whose target is an idea declared in this file).
+    Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
     Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
     Wildcard forms stay one `wildcard_reference` pattern edge (unresolved); sync still expands
     them later via [wildcard_reference_edges].
     Flag: `ExtractOptions.local_symbolic` forces an empty candidate list.
+    CLI: ["../cli/cli_package.rq".commands] `analyse --local-symbolic <file>`.
+    Sidebar: ["../extension/module/activitybar-panels/current_context_scope.rq".reference_lists_pane]
+    merges live same-file inbound/outbound with indexed refs ([local_symbolic_sidebar]).
     Related: ["../language/syntax.rq".open_file_reference_sequencing], [index],
     ["./cache-reuse.rq".unify_inbound_indexes].
 
     @status done
-    @plan {
-        goal
-            Path-local outbound symbolic refs for the open buffer without workspace Langium link.
-
-        constraints
-            - No `ensure_ready` / sync mutex on the open-file path.
-            - Persist schema unchanged; spans are live-only.
-            - Sync catalog fan-out for wildcards stays [wildcard_reference_edges].
-
-        steps
-            1. Add `local_symbolic` extract options and `analyze_local_symbolic`.
-            2. Expose free NAPI + TypeScript wrapper.
-            3. Wire document links and definition to the open-buffer result.
-            4. Serve inbound from SQLite independently of Langium IndexManager.
-
-        open
-            - None for the first cut.
-    }
     @implementation (
         ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-index/src/types.rs"]
         ["../../crates/reqlan-napi/src/lib.rs"]
         ["../../packages/analytical/src/native/parse-source.ts"]
+        ["../../packages/analytical/src/core/local-symbolic-references.ts"]
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../packages/cli/src/commands/analyse.ts"]
+        ["../../packages/extension/src/activity_bar_module/local-symbolic-context.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-model.ts"]
     )
     @tests (
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_returns_outbound_without_catalog"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_ignores_catalog_candidates"]
+        ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_includes_same_file_inbound_backlinks"]
         ["../../packages/analytical/test/load-native.test.ts:exposes analyzeLocalSymbolic on the engine when present"]
+        ["../../packages/analytical/test/local-symbolic-references.test.ts"]
         ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../packages/cli/test/local-symbolic.test.ts"]
+        ["../../packages/extension/test/local-symbolic-context.test.ts"]
+    )
+}
+
+local_symbolic_sidebar {
+    The activity bar reference lists and current-file scope must consume [local_symbolic_analysis]
+    for the open buffer text so same-file inbound backlinks and outbound refs appear even when
+    the SQLite index is stale or not ready.
+    Merge live local rows with indexed `listReferencesForIdea` / hop-depth rows; dedupe by
+    direction plus edge id (and by idea id for scope idea chips).
+    Prefer the referencer name as the inbound label (not the edge target label).
+    @status done
+    @implementation (
+        ["../../packages/extension/src/activity_bar_module/local-symbolic-context.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-model.ts"]
+        ["../../packages/extension/src/activity_bar_module/context-helpers.ts"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/local-symbolic-context.test.ts"]
+        ["../../packages/extension/test/context-model.test.ts"]
     )
 }
 

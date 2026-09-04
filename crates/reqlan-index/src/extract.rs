@@ -62,24 +62,26 @@ impl Default for ExtractOptions {
     }
 }
 
-/// File-local symbolic outbound extract: no catalog, no SQLite, no other documents.
+/// File-local symbolic extract: outbound edges plus same-file inbound backlinks.
+/// No catalog, no SQLite, no other documents.
 /// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 /// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
 pub fn analyze_local_symbolic(
     file_uri: &str,
     source: &str,
     import_roots: &[ImportRootMapping],
-) -> IndexedDocument {
+) -> crate::types::LocalSymbolicDocument {
     let roots = if import_roots.is_empty() {
         reqlan_parse::default_import_roots()
     } else {
         import_roots.to_vec()
     };
-    extract_indexed_document(
+    let doc = extract_indexed_document(
         file_uri,
         source,
         &ExtractOptions { idea_candidates: Vec::new(), import_roots: roots, local_symbolic: true },
-    )
+    );
+    crate::types::LocalSymbolicDocument::from_indexed(doc)
 }
 
 pub fn extract_indexed_document(
