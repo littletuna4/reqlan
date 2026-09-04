@@ -57,6 +57,14 @@ export * from './reqlan-import-bindings.js';
 export * from './reqlan-namespace-import-links.js';
 export * from './reqlan-name-catalog.js';
 export * from './reqlan-neighbor-parse.js';
+export {
+    analyzeDocumentLocalSymbolic,
+    clearLocalSymbolicExtractCache,
+    collectLocalSymbolicOutboundLinks,
+    documentOutboundTouchesChangedUris,
+    findLocalSymbolicDefinition,
+    localSymbolicExtractCount
+} from './reqlan-local-symbolic-links.js';
 export * from './reqlan-outbound-presentation.js';
 export * from './reqlan-workspace-attribute-catalog.js';
 export * from './reqlan-inlay-hint-settings.js';

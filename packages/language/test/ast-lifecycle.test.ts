@@ -21,6 +21,7 @@ import {
     clearNeighborParseCache,
     parseNeighborDocument
 } from '../src/reqlan-neighbor-parse.js';
+import { clearLocalSymbolicExtractCache } from '../src/reqlan-local-symbolic-links.js';
 import {
     isIdea,
     isIdeaSet,
@@ -45,6 +46,7 @@ describe('Langium AST lifecycle', () => {
             await clearDocuments(services.shared, documents);
         }
         clearNeighborParseCache();
+        clearLocalSymbolicExtractCache();
         if (tempDir) {
             rmSync(tempDir, { recursive: true, force: true });
             tempDir = undefined;

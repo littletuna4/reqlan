@@ -25,6 +25,9 @@ import {
     clearNeighborParseCache,
     neighborParseCount
 } from '../src/reqlan-neighbor-parse.js';
+import {
+    clearLocalSymbolicExtractCache
+} from '../src/reqlan-local-symbolic-links.js';
 import { isUnresolvedIdeaMessage } from '../src/reqlan-outbound-presentation.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -45,6 +48,7 @@ describe('outbound one-hop sequencing', () => {
             await clearDocuments(services.shared, documents);
         }
         clearNeighborParseCache();
+        clearLocalSymbolicExtractCache();
         if (tempDir) {
             rmSync(tempDir, { recursive: true, force: true });
         }
@@ -274,6 +278,7 @@ describe('outbound one-hop sequencing', () => {
         expect(names.has('missing_reference_colour_sequence')).toBe(true);
         expect(names.has('comment_backlink_sequence')).toBe(true);
         expect(names.has('ast_lifecycle')).toBe(true);
+        expect(names.has('open_file_hot_path')).toBe(true);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]

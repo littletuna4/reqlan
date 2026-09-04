@@ -37,7 +37,7 @@ describe('local symbolic document links', () => {
                 see [alpha] and [[alpha]]
             }
         `);
-        // Intentionally do not call DocumentBuilder.build — no Linked state.
+        // parseHelper builds the document; idea links still come from local extract.
         const links = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
             textDocument: { uri: document.textDocument.uri }
         }) ?? [];

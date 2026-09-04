@@ -3,8 +3,10 @@
  * Does not load the neighbor into LangiumDocuments (that starts workspace linking).
  * Does not populate a Langium AST for the neighbor.
  * Does not follow the neighbor's own outbound references.
+ * Loaded-buffer lookup is by URI only (no basename fallback).
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
@@ -95,6 +97,10 @@ export function ideaRangeFromNeighbor(idea: NeighborIdea): Range {
     };
 }
 
+/**
+ * Look up a loaded document by URI only.
+ * Do not match on basename — two `lib.rq` files must not share a hit.
+ */
 export function findLoadedDocument(
     documents: LangiumDocuments | undefined,
     targetUri: string
@@ -102,23 +108,50 @@ export function findLoadedDocument(
     if (!documents) {
         return undefined;
     }
-    try {
-        const direct = documents.getDocument(URI.parse(targetUri));
-        if (direct) {
-            return direct;
-        }
-    } catch {
-        // fall through
-    }
-    const normalized = targetUri.replace(/\\/g, '/');
-    const basename = normalized.split('/').pop() ?? normalized;
-    for (const document of documents.all.toArray()) {
-        const path = document.uri.path.replace(/\\/g, '/');
-        if (path === normalized || path.endsWith(`/${basename}`) || document.uri.toString() === targetUri) {
-            return document;
+    for (const candidate of loadedDocumentUriCandidates(targetUri)) {
+        const found = documents.getDocument(candidate);
+        if (found) {
+            return found;
         }
     }
     return undefined;
+}
+
+/** URI forms that `LangiumDocuments.getDocument` may have used as the map key. */
+export function loadedDocumentUriCandidates(targetUri: string): URI[] {
+    const seen = new Set<string>();
+    const candidates: URI[] = [];
+    const add = (uri: URI): void => {
+        const key = uri.toString();
+        if (seen.has(key)) {
+            return;
+        }
+        seen.add(key);
+        candidates.push(uri);
+    };
+    try {
+        add(URI.parse(targetUri));
+    } catch {
+        // not a URI string
+    }
+    const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(targetUri);
+    if (!hasScheme) {
+        try {
+            add(URI.file(targetUri));
+        } catch {
+            // not a file path
+        }
+        return candidates;
+    }
+    try {
+        const parsed = URI.parse(targetUri);
+        if (parsed.scheme === 'file' && parsed.fsPath.length > 0) {
+            add(URI.file(parsed.fsPath));
+        }
+    } catch {
+        // keep parse candidates only
+    }
+    return candidates;
 }
 
 function readNeighborText(
@@ -146,8 +179,8 @@ function readNeighborText(
     }
 }
 
-/** FNV-1a plus length so unchanged neighbor text skips a second native parse. */
-function fingerprintText(text: string): string {
+/** FNV-1a plus length so unchanged text skips a second native parse. */
+export function fingerprintText(text: string): string {
     let hash = 2166136261;
     for (let index = 0; index < text.length; index++) {
         hash ^= text.charCodeAt(index);

@@ -34,7 +34,8 @@ open_file_algorithm {
     Do not wait for workspace Linked. Do not wait for a full SQLite crawl.
     Detail: [open_file_sequence_diagram].
     Related: [open_file_reference_sequencing], [ast_lifecycle], [outbound_one_hop],
-    [token_colour_sequence], [missing_reference_colour_sequence], [lazy_features_after_outbound].
+    [open_file_hot_path], [token_colour_sequence], [missing_reference_colour_sequence],
+    [lazy_features_after_outbound].
 
     1. Populate the Langium AST for this buffer only ([ast_lifecycle]).
        CST and AST exist at `DocumentState.Parsed`. Later builder phases do not rebuild the tree.
@@ -49,6 +50,7 @@ open_file_algorithm {
 
     Outbound links must be self-contained: one buffer parse plus one native parse per
     unique neighbor file, with a content-hash cache ([neighbor_parse]).
+    The host native extract is cached by URI plus text fingerprint ([open_file_hot_path]).
     If the workspace index can finish in less than one second, inbound pointing still
     waits for SQLite. Outbound pointing must not wait for that index.
 
@@ -60,12 +62,14 @@ open_file_algorithm {
         [document_links]
         [semantic_tokens]
         [document_factory]
+        [document_builder]
         [language_server_main]
         [native_parse]
     )
     @tests (
         ["../../../packages/language/test/outbound-hop.test.ts"]
         ["../../../packages/language/test/ast-lifecycle.test.ts"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts"]
         ["../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
@@ -287,7 +291,9 @@ outbound_one_hop {
     Do not load the neighbor into `LangiumDocuments` (that starts workspace linking).
     Do not read SQLite for outbound confirmation.
     Prefer the open buffer text when the neighbor is already open and dirty.
-    Cache by URI plus content hash ([neighbor_parse]).
+    Cache neighbor idea lists by URI plus content hash ([neighbor_parse]).
+    Cache this buffer's native extract by URI plus text fingerprint so links and
+    diagnostics share one host parse ([open_file_hot_path]).
     Native [local_symbolic_analysis] stays file-local. This hop is the LSP layer on top.
     This hop must not populate a Langium AST for the neighbor ([ast_lifecycle]).
     Related: [open_file_algorithm], [non_web_reference_navigation].
@@ -302,6 +308,38 @@ outbound_one_hop {
         ["../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
         ["../../../packages/language/test/outbound-hop.test.ts:reuses a cached neighbor parse for the same content"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
+    )
+}
+
+open_file_hot_path {
+    Open-file work must stay cheap after the first parse of this buffer.
+    Cache this buffer's native extract by URI plus text fingerprint. Document links,
+    go-to-definition, and outbound diagnostics must reuse that extract until the text
+    or import-root mapping changes ([local_symbolic_links]).
+    Look up an open neighbor buffer by URI only. Do not match on file basename
+    ([neighbor_parse]).
+    When another `.rq` file changes, do not relink every document that still has a
+    Langium linker error. Relink this document when the index says it is affected,
+    when comment references need that file, or when this document's outbound targets
+    include the changed URI ([document_builder]).
+    Related: [open_file_algorithm], [outbound_one_hop], [ast_lifecycle],
+    [comment_backlink_sequence].
+
+    @status done
+    @implementation (
+        [local_symbolic_links]
+        [neighbor_parse]
+        [document_builder]
+        [outbound_presentation]
+    )
+    @tests (
+        ["../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts:reparses the host native extract when this buffer text changes"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts:does not treat a same-name file as the loaded neighbor"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts:does not relink an unrelated file that still has linker errors"]
+        ["../../../packages/language/test/open-file-hot-path.test.ts:relinks a host when its neighbor file changes"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
     )
 }
 
