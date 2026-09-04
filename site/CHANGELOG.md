@@ -1,5 +1,11 @@
 # site
 
+## 0.20.0
+
+### Minor Changes
+
+- 2db2890: update to text mate syntax, ext performance & site.
+
 ## 0.19.1
 
 ### Patch Changes

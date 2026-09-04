@@ -1,5 +1,18 @@
 # @reqlan/cli
 
+## 0.11.0
+
+### Minor Changes
+
+- 9943897: Add same-file inbound/backlinks to local symbolic analysis, expose via `reqlan analyse --local-symbolic`, and merge live inbound into the activity bar references pane.
+- 2db2890: update to text mate syntax, ext performance & site.
+
+### Patch Changes
+
+- Updated dependencies [9943897]
+- Updated dependencies [2db2890]
+  - @reqlan/analytical@1.15.0
+
 ## 0.10.2
 
 ### Patch Changes
