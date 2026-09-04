@@ -21,7 +21,7 @@ import {
     type PathResolveContext
 } from './reqlan-path-resolve.js';
 import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
-import { codeFenceEnd, isInsideLineFence } from './reqlan-line-fences.js';
+import { codeFenceEnd, isCodeFenceOpen, isInsideLineFence } from './reqlan-line-fences.js';
 
 export interface EmbeddedCommentReference {
     path?: string;
@@ -126,7 +126,7 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
 
-        if (char === '`' && next === '`' && next2 === '`') {
+        if (isCodeFenceOpen(text, index)) {
             index = codeFenceEnd(text, index);
             continue;
         }

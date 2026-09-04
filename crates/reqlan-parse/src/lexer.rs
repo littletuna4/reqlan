@@ -455,12 +455,16 @@ fn match_url(bytes: &[u8], offset: usize) -> Option<usize> {
     Some(end - offset)
 }
 
+fn is_code_fence_open(bytes: &[u8], offset: usize) -> bool {
+    offset + 2 < bytes.len()
+        && bytes[offset] == b'`'
+        && bytes[offset + 1] == b'`'
+        && bytes[offset + 2] == b'`'
+        && is_line_start_at(bytes, offset)
+}
+
 fn match_code_fence(bytes: &[u8], offset: usize) -> Option<usize> {
-    if offset + 2 >= bytes.len()
-        || bytes[offset] != b'`'
-        || bytes[offset + 1] != b'`'
-        || bytes[offset + 2] != b'`'
-    {
+    if !is_code_fence_open(bytes, offset) {
         return None;
     }
     Some(fence_end_after(bytes, offset) - offset)
@@ -476,7 +480,7 @@ fn fence_end_after(bytes: &[u8], open_offset: usize) -> usize {
     }
     let after_open = open_offset + 3;
     if let Some(first_nl) = find_nl(bytes, after_open) {
-        if let Some(close) = find_triple_tick(bytes, first_nl + 1) {
+        if let Some(close) = find_line_start_triple_tick(bytes, first_nl + 1) {
             return close + 3;
         }
         return bytes.len();
@@ -495,6 +499,17 @@ fn find_triple_tick(bytes: &[u8], from: usize) -> Option<usize> {
     let mut index = from;
     while index + 2 < bytes.len() {
         if bytes[index] == b'`' && bytes[index + 1] == b'`' && bytes[index + 2] == b'`' {
+            return Some(index);
+        }
+        index += 1;
+    }
+    None
+}
+
+fn find_line_start_triple_tick(bytes: &[u8], from: usize) -> Option<usize> {
+    let mut index = from;
+    while index + 2 < bytes.len() {
+        if is_code_fence_open(bytes, index) {
             return Some(index);
         }
         index += 1;
@@ -950,11 +965,7 @@ fn build_brace_scan_cache(bytes: &[u8]) -> BraceScanCache {
 
     let mut index = 0usize;
     while index < bytes.len() {
-        if index + 2 < bytes.len()
-            && bytes[index] == b'`'
-            && bytes[index + 1] == b'`'
-            && bytes[index + 2] == b'`'
-        {
+        if is_code_fence_open(bytes, index) {
             index = fence_end_after(bytes, index);
             continue;
         }

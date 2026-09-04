@@ -54,6 +54,7 @@ assessment_page {
     `/certs/assessment/[id]/` is that assessment's quiz.
     Unknown ids are not found.
     Legacy `/assessment/` and `/tutorials/assessment/` redirect here and keep the query string.
+    The home ["./site.rq".quiz_sticker_tab] links here. It does not run the quiz in the tab.
     @status done
     @implementation (
         ["../../site/src/app/certs/assessment/page.tsx"]

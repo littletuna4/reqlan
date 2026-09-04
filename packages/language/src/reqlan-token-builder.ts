@@ -7,7 +7,7 @@
  */
 import type { Grammar } from 'langium';
 import { DefaultTokenBuilder, type TokenBuilderOptions } from 'langium';
-import { isInsideLineFence } from './reqlan-line-fences.js';
+import { codeFenceEnd, isCodeFenceOpen, isInsideLineFence } from './reqlan-line-fences.js';
 
 const SL_COMMENT_PATTERN = /\/\/[^\n\r]*/y;
 const ML_COMMENT_PATTERN = /\/\*[\s\S]*?\*\//y;
@@ -236,24 +236,16 @@ interface BraceScanCache {
 
 let braceScanCache: BraceScanCache | undefined;
 
-function fenceEndAfter(text: string, openOffset: number): number {
-    // Match CODE_FENCE: ```…``` including optional body; return index after closing fence.
-    if (
-        text.charCodeAt(openOffset) !== 96
-        || text.charCodeAt(openOffset + 1) !== 96
-        || text.charCodeAt(openOffset + 2) !== 96
-    ) {
-        return openOffset;
+const codeFencePattern = (text: string, offset: number): RegExpExecArray | null => {
+    if (!isCodeFenceOpen(text, offset)) {
+        return null;
     }
-    const afterOpen = openOffset + 3;
-    const firstNewline = text.indexOf('\n', afterOpen);
-    if (firstNewline < 0) {
-        const sameLineClose = text.indexOf('```', afterOpen);
-        return sameLineClose < 0 ? text.length : sameLineClose + 3;
+    const end = codeFenceEnd(text, offset);
+    if (end <= offset) {
+        return null;
     }
-    const close = text.indexOf('```', firstNewline + 1);
-    return close < 0 ? text.length : close + 3;
-}
+    return makeMatch(text, offset, end - offset);
+};
 
 function restOfLineIsBlank(text: string, offset: number): boolean {
     for (let index = offset + 1; index < text.length; index++) {
@@ -293,12 +285,8 @@ function buildBraceScanCache(text: string): BraceScanCache {
 
     for (let index = 0; index < text.length; index++) {
         // Fenced snippets are opaque to the parser; braces inside must not change depth.
-        if (
-            text.charCodeAt(index) === 96
-            && text.charCodeAt(index + 1) === 96
-            && text.charCodeAt(index + 2) === 96
-        ) {
-            index = fenceEndAfter(text, index) - 1;
+        if (isCodeFenceOpen(text, index)) {
+            index = codeFenceEnd(text, index) - 1;
             continue;
         }
         const char = text[index];
@@ -550,6 +538,29 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             const [markdown] = tokens.splice(markdownIndex, 1);
             tokens.unshift(markdown);
         }
+        const codeFence = tokens.find(token => token.name === 'CODE_FENCE');
+        if (codeFence) {
+            codeFence.PATTERN = codeFencePattern;
+            codeFence.LINE_BREAKS = true;
+            (codeFence as unknown as { START_CHARS_HINT: string[] }).START_CHARS_HINT = ['\u0060'];
+            const fenceIndex = tokens.findIndex(token => token.name === 'CODE_FENCE');
+            if (fenceIndex > 0) {
+                const [fence] = tokens.splice(fenceIndex, 1);
+                tokens.unshift(fence);
+            }
+        }
+        for (const name of ['\u0060', 'INLINE_CODE'] as const) {
+            const token = tokens.find(entry => entry.name === name);
+            if (!token || !codeFence) {
+                continue;
+            }
+            const existing = token.LONGER_ALT;
+            const alts = Array.isArray(existing) ? existing : existing ? [existing] : [];
+            if (!alts.includes(codeFence)) {
+                alts.push(codeFence);
+            }
+            token.LONGER_ALT = alts;
+        }
         const urlIndex = tokens.findIndex(token => token.name === 'URL');
         const idForUrl = tokens.findIndex(token => token.name === 'ID');
         if (urlIndex >= 0 && idForUrl >= 0 && idForUrl < urlIndex) {
@@ -665,6 +676,15 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
                 LINE_BREAKS: false,
                 PATTERN: reqlanUrl
             };
+        }
+        if (terminal.name === 'CODE_FENCE') {
+            const token = {
+                name: 'CODE_FENCE',
+                LINE_BREAKS: true,
+                PATTERN: codeFencePattern
+            } as import('chevrotain').TokenType;
+            (token as unknown as { START_CHARS_HINT: string[] }).START_CHARS_HINT = ['\u0060'];
+            return token;
         }
         return super.buildTerminalToken(terminal as Parameters<DefaultTokenBuilder['buildTerminalToken']>[0]);
     }

@@ -142,6 +142,26 @@ fn tutorials_rq_keeps_ideas_after_nested_slides_lists() {
 }
 
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+#[test]
+fn mid_line_triple_backticks_keep_later_ideas() {
+    let rel = "testdata/golden-corpus/language/mid-line-triple-backticks.rq";
+    let source = std::fs::read_to_string(repo_root().join(rel)).unwrap();
+    let ideas = rust_ideas(rel, &source);
+    let names: Vec<_> = ideas.iter().map(|idea| idea.name.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![
+            "mid_line_fence_prose",
+            "later_after_mid_line_ticks",
+            "real_line_start_fence",
+            "after_real_fence"
+        ]
+    );
+}
+
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
 // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 #[test]

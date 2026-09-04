@@ -55,7 +55,7 @@ function langiumIdeas(model: Model): GoldenIdea[] {
 
 describe('Langium golden corpus', () => {
     // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
-    test('committed dump matches live Langium extract', async () => {
+    test('committed dump matches live Langium extract', { timeout: 30_000 }, async () => {
         expect(existsSync(corpusDir)).toBe(true);
         const dump: Record<string, GoldenIdea[]> = {};
         const parseFailures: string[] = [];

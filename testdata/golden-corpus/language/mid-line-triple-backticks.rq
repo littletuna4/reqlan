@@ -1,0 +1,20 @@
+mid_line_fence_prose {
+    Same-line fences, glob `/**/`, URL `://`, and fenced ``` bodies must not open comments.
+    Example: `@reqlan/*` in inline code must not open a block comment.
+}
+
+later_after_mid_line_ticks {
+    This idea must remain visible after the mid-line triple backticks.
+}
+
+real_line_start_fence {
+    A real fence follows:
+    ```
+    // not a reqlan comment
+    ```
+    After the fence this idea still closes.
+}
+
+after_real_fence {
+    This idea must remain visible after a real line-start fence.
+}

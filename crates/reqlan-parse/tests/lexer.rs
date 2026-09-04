@@ -213,6 +213,37 @@ fn backticked_slash_star_is_not_a_comment() {
     assert!(joined.contains("@reqlan/*"), "{joined}");
 }
 
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+#[test]
+fn mid_line_triple_backticks_are_not_a_code_fence() {
+    let source = "first {\n    fenced ``` bodies stay prose\n}\nlater { ok }\n";
+    let kinds = visible_kinds(source);
+    assert!(
+        !kinds.contains(&TokenKind::CodeFence),
+        "mid-line ``` must not lex as CODE_FENCE: {kinds:?}"
+    );
+    assert_eq!(
+        kinds.iter().filter(|kind| **kind == TokenKind::Backtick).count(),
+        3,
+        "{kinds:?}"
+    );
+    assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::LBrace).count(), 2);
+    assert_eq!(kinds.iter().filter(|kind| **kind == TokenKind::RBrace).count(), 2);
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+#[test]
+fn line_start_triple_backticks_are_a_code_fence() {
+    let source = "demo {\n```\nbody\n```\n}\n";
+    let kinds = visible_kinds(source);
+    assert_eq!(
+        kinds.iter().filter(|kind| **kind == TokenKind::CodeFence).count(),
+        1,
+        "{kinds:?}"
+    );
+}
+
 // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
 #[test]
 fn unclosed_backtick_then_slash_slash_is_a_comment() {

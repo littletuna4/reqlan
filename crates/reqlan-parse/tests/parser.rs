@@ -54,6 +54,21 @@ fn parses_block_and_oneliner() {
     assert_eq!(idea_names(source), vec!["oneliner", "myidea"]);
 }
 
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+#[test]
+fn keeps_ideas_after_mid_line_triple_backticks() {
+    let source = "\
+first {
+    fenced ``` bodies must not open comments
+}
+later { ok }
+";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none());
+    assert_eq!(idea_names(source), vec!["first", "later"]);
+}
+
 // rq:["../../../reqlan rq/language/syntax.rq".block_idea]
 // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
 #[test]

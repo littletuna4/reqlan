@@ -243,6 +243,15 @@ const fixtures: Record<string, string> = {
         'live { body }',
         ''
     ].join('\n'),
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    mid_line_triple_backticks: [
+        'first {',
+        '    fenced ``` bodies must not open comments',
+        '}',
+        'later { ok }',
+        ''
+    ].join('\n'),
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
     fencing_comments: [
         'demo {',

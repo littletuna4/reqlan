@@ -62,15 +62,23 @@ async function main(): Promise<void> {
     return;
   }
 
+  const shotFilter = process.env.DOCS_IMAGES_SHOT;
+  const shots = shotFilter
+    ? DOCS_IMAGE_SHOTS.filter((shot) => shot.id === shotFilter)
+    : DOCS_IMAGE_SHOTS;
+  if (shotFilter && shots.length === 0) {
+    throw new Error(`DOCS_IMAGES_SHOT=${shotFilter} matched no shots`);
+  }
+
   const webviewIds = [
-    ...new Set(DOCS_IMAGE_SHOTS.map((shot) => shot.webview)),
+    ...new Set(shots.map((shot) => shot.webview)),
   ] as DocsWebviewId[];
 
   console.log("Building docs webviews…");
   buildDocsWebviews(webviewIds);
 
   console.log("Writing docs harness pages…");
-  await writeDocsHarnesses();
+  await writeDocsHarnesses(shots);
 
   await mkdir(presentationAssetsRoot, { recursive: true });
 
@@ -93,7 +101,7 @@ async function main(): Promise<void> {
   const server = await startStaticServer(webviewMediaRoot);
 
   try {
-    for (const shot of DOCS_IMAGE_SHOTS) {
+    for (const shot of shots) {
       const { width, height, deviceScaleFactor = 2 } = shot.viewport;
       console.log(
         `Capturing ${shot.id} (${width}×${height}@${deviceScaleFactor}x) from ${shot.webview}…`,
@@ -103,14 +111,41 @@ async function main(): Promise<void> {
         viewport: { width, height },
         deviceScaleFactor,
       });
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => {
+        pageErrors.push(error.stack ?? error.message);
+      });
+      page.on("console", (msg) => {
+        if (msg.type() === "error") {
+          pageErrors.push(`console.error: ${msg.text()}`);
+        }
+      });
 
       const harnessUrl = `${server.url}/${shot.webview}/docs-${shot.id}.html`;
-      await page.goto(harnessUrl, { waitUntil: "networkidle" });
-      await applyCaptureCss(page, shot);
+      await page.goto(harnessUrl, { waitUntil: "load", timeout: 60_000 });
 
       if (shot.readySelector) {
-        await page.waitForSelector(shot.readySelector, { timeout: 15_000 });
+        const readyTimeout = shot.readyTimeoutMs ?? 30_000;
+        try {
+          await page.waitForSelector(shot.readySelector, {
+            timeout: readyTimeout,
+          });
+        } catch (error) {
+          const appHtml = await page
+            .locator("#app")
+            .innerHTML()
+            .catch(() => "(no #app)");
+          const detail = pageErrors.length
+            ? pageErrors.join("\n")
+            : "(no page errors)";
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(
+            `${shot.id}: readySelector ${JSON.stringify(shot.readySelector)} failed.\n${reason}\nPage errors:\n${detail}\n#app HTML:\n${appHtml.slice(0, 2000)}`,
+          );
+        }
       }
+
+      await applyCaptureCss(page, shot);
 
       if (shot.afterReady) {
         await shot.afterReady(page);

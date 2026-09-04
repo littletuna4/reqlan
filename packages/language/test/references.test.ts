@@ -220,6 +220,20 @@ describe("Comment and file reference utilities", () => {
     expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe("// real");
   });
 
+  // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+  // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+  test("findCommentSpansInText does not treat mid-line ``` as a fence", () => {
+    const text = [
+      "demo {",
+      "    fenced ``` bodies",
+      "    after // real",
+      "}",
+    ].join("\n");
+    const spans = findCommentSpansInText(text);
+    expect(spans).toHaveLength(1);
+    expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe("// real");
+  });
+
   // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("ignores rq references outside comment spans", () => {
     const sample = findCommentReferencesInText(

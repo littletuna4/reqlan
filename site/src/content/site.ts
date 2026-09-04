@@ -26,6 +26,7 @@ import { cta, hero } from "@/content/hero";
 import { brand, footer, meta } from "@/content/meta";
 import { motivation } from "@/content/motivation";
 import { nav, navGraph } from "@/content/nav";
+import { quizStickerTab } from "@/content/quiz-sticker";
 import { roadmap } from "@/content/roadmap";
 import { stickyCta } from "@/content/sticky-cta";
 import { support } from "@/content/support";
@@ -47,6 +48,7 @@ export const siteContent = {
   faq,
   support,
   stickyCta,
+  quizStickerTab,
   footer,
 } as const;
 

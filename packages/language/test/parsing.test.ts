@@ -586,6 +586,53 @@ from "./other.rq" import idea as idea_alias`);
         )).toEqual(['demo']);
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    test('keeps later ideas after mid-line triple backticks', async () => {
+        const document = await parse(`first {
+    fenced \`\`\` bodies must not open comments
+}
+later {
+    still reachable
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements.filter(isIdea).map(idea => idea.name);
+        expect(names).toEqual(['first', 'later']);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
+    test('parse rust_port.rq keeps ideas after comment_span_align fence prose', async () => {
+        const document = await parse(
+            readFileSync(join(repoDir, 'reqlan rq/core_analysis/rust_port.rq'), 'utf8')
+        );
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        );
+        expect(names).toContain('comment_span_align');
+        expect(names).toContain('lexer_rust');
+        expect(names).toContain('cutover');
+        expect(names).toContain('ts_interface');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
+    test('parse mid-line triple backticks corpus without swallowing later ideas', async () => {
+        const document = await parse(
+            readFileSync(join(goldenCorpusDir, 'language/mid-line-triple-backticks.rq'), 'utf8')
+        );
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const names = document.parseResult.value.elements.filter(isIdea).map(idea => idea.name);
+        expect(names).toEqual([
+            'mid_line_fence_prose',
+            'later_after_mid_line_ticks',
+            'real_line_start_fence',
+            'after_real_fence'
+        ]);
+    });
+
     // rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
     test('parses top-level nameless braces without aborting later ideas', async () => {
         const document = await parse(`{

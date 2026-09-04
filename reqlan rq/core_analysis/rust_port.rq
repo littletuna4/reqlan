@@ -92,7 +92,9 @@ golden_corpus {
         ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
         ["../../packages/language/test/comment-span-align.test.ts:golden corpus C-style comment ranges match lexer, scanner, and TextMate"]
         ["../../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
+        ["../../packages/language/test/parsing.test.ts:parse mid-line triple backticks corpus without swallowing later ideas"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:mid_line_triple_backticks_keep_later_ideas"]
     )
 }
 
@@ -102,8 +104,9 @@ comment_span_align {
     - `findCommentSpansInText` C-style spans (host `#` / triple-quote spans are not `.rq` comments)
     - TextMate `comment.line.reqlan` and `comment.block.reqlan` scopes
     Same-line fences, glob `/**/`, URL `://`, and fenced ``` bodies must not open comments.
+    Mid-line triple backticks are prose. They must not open a fence or hide later ideas.
     Example: `@reqlan/*` in inline code must not open a block comment.
-    Related: [parser_align], ["../language/syntax.rq".comments], ["../language/syntax-edge-cases.rq".fencing_comments], ["../language/syntax.rq".inline_code].
+    Related: [parser_align], ["../language/syntax.rq".code_snippets], ["../language/syntax.rq".comments], ["../language/syntax-edge-cases.rq".fencing_comments], ["../language/syntax.rq".inline_code].
     @status done
     @implementation (
         ["../../packages/language/src/reqlan-token-builder.ts"]
@@ -117,9 +120,17 @@ comment_span_align {
         ["../../packages/language/test/comment-span-align.test.ts:golden corpus C-style comment ranges match lexer, scanner, and TextMate"]
         ["../../packages/language/test/comment-span-align.test.ts:backticked @reqlan/* is not a block comment"]
         ["../../packages/language/test/comment-span-align.test.ts:TextMate line-fences run before comments"]
+        ["../../packages/language/test/comment-span-align.test.ts:mid-line triple backticks are not a fence"]
+        ["../../packages/language/test/comment-span-align.test.ts:line-start triple backticks lex as CODE_FENCE and hide inner comments"]
+        ["../../packages/language/test/comment-span-align.test.ts:TextMate code-snippets fences are line-start only"]
         ["../../packages/language/test/comment-in-string.test.ts:backticked @reqlan/* in block body is not a block comment"]
         ["../../packages/language/test/references.test.ts:findCommentSpansInText skips /* inside complete backtick fences"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText does not treat mid-line ``` as a fence"]
+        ["../../packages/language/test/parsing.test.ts:keeps later ideas after mid-line triple backticks"]
+        ["../../packages/language/test/parsing.test.ts:parse rust_port.rq keeps ideas after comment_span_align fence prose"]
         ["../../crates/reqlan-parse/tests/lexer.rs:backticked_slash_star_is_not_a_comment"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_triple_backticks_are_not_a_code_fence"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_ideas_after_mid_line_triple_backticks"]
     )
 }
 
@@ -135,6 +146,8 @@ lexer_rust {
         ["../../crates/reqlan-parse/tests/lexer.rs:glob_star_star_is_not_a_block_comment"]
         ["../../crates/reqlan-parse/tests/lexer.rs:at_only_at_line_start"]
         ["../../crates/reqlan-parse/tests/lexer.rs:url_slashes_are_not_line_comments"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_triple_backticks_are_not_a_code_fence"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:line_start_triple_backticks_are_a_code_fence"]
     )
 }
 
@@ -151,6 +164,7 @@ parser_rust {
         ["../../crates/reqlan-parse/tests/parser.rs:recovers_nameless_block"]
         ["../../crates/reqlan-parse/tests/parser.rs:recovers_invalid_from_import_and_keeps_later_ideas"]
         ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_ideas_after_mid_line_triple_backticks"]
         ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_at_plan_brace_stays_prose"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:tutorials_rq_keeps_ideas_after_nested_slides_lists"]
@@ -180,9 +194,11 @@ parser_align {
         ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_example"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:inline_code_file_only_line_range"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:fenced_file_example"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:mid_line_triple_backticks"]
         ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_example_is_not_a_live_ref"]
         ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_only_line_range_is_not_a_live_ref"]
         ["../../crates/reqlan-parse/tests/align.rs:fence_body_is_one_code_snippet_not_inner_refs"]
+        ["../../crates/reqlan-parse/tests/align.rs:mid_line_triple_backticks_are_not_a_code_snippet"]
     )
 }
 

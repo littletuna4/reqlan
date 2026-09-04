@@ -38,6 +38,7 @@ export const demoOnboarding = {
   statusKey: FILTER_NOT_PRESENT,
   tags: [] as string[],
   tagsKeys: [FILTER_NOT_PRESENT],
+  lineStart: 40,
 };
 
 export function demoIndexStatus() {

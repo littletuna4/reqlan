@@ -38,6 +38,8 @@ docs_playwright_capture {
     Playwright loads each built webview via a harness page with a mocked `acquireVsCodeApi` host,
     posts demo index/context payloads, and writes PNGs into ["../../presentations/assets/"].
     Generated assets replace the former coloured SVG stubs (activity-bar, montage-ide, chat-search, file-link).
+    Wait for document load, then the shot ready selector. The Ideas Summary montage shot waits longer because the bundle is large.
+    On a ready-selector timeout, print page errors and `#app` HTML.
     Runs as a step in ["../../site/scripts/build-static.mts"] before presentation sync.
     CI installs Chromium via `pnpm exec playwright install --with-deps chromium`.
     @status done

@@ -5,6 +5,7 @@ import { FeaturedIn } from "@/components/FeaturedIn";
 import { Hero } from "@/components/Hero";
 import { Motivation } from "@/components/Motivation";
 import { NavGraph } from "@/components/NavGraph";
+import { QuizStickerTab } from "@/components/QuizStickerTab";
 import { Roadmap } from "@/components/Roadmap";
 import { SiteShell } from "@/components/SiteShell";
 import { Syntax } from "@/components/Syntax";
@@ -21,8 +22,10 @@ export function HomePage() {
   // rq:["../../../reqlan rq/site/site.rq".example_section]
   // rq:["../../../reqlan rq/site/site.rq".roadmap_section]
   // rq:["../../../reqlan rq/site/site.rq".nav_graph]
+  // rq:["../../../reqlan rq/site/site.rq".quiz_sticker_tab]
   return (
     <SiteShell>
+      <QuizStickerTab />
       <main className={styles.home}>
         <div className={styles.column}>
           <Hero />

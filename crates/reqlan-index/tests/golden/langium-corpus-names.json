@@ -305,6 +305,24 @@
       "kind": "block"
     }
   ],
+  "testdata/golden-corpus/language/mid-line-triple-backticks.rq": [
+    {
+      "name": "mid_line_fence_prose",
+      "kind": "block"
+    },
+    {
+      "name": "later_after_mid_line_ticks",
+      "kind": "block"
+    },
+    {
+      "name": "real_line_start_fence",
+      "kind": "block"
+    },
+    {
+      "name": "after_real_fence",
+      "kind": "block"
+    }
+  ],
   "testdata/golden-corpus/language/opaque-file-examples.rq": [
     {
       "name": "live_anchor",

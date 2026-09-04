@@ -190,6 +190,45 @@ describe('Comment span alignment', () => {
     });
 
     // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    test('mid-line triple backticks are not a fence', () => {
+        const source = [
+            'demo {',
+            '    fenced ``` bodies must not open comments',
+            '    after // real',
+            '}',
+            'later { body }',
+            ''
+        ].join('\n');
+        const lexer = lexerCommentRanges(source);
+        expect(lexer).toEqual(scannerCommentRanges(source));
+        expect(lexer).toEqual(textMateCommentRanges(source));
+        expect(source.slice(lexer[0]!.start, lexer[0]!.end)).toBe('// real');
+    });
+
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+    test('line-start triple backticks lex as CODE_FENCE and hide inner comments', () => {
+        const source = 'demo {\n```\n// not a reqlan comment\n```\n}\n';
+        const result = services.Reqlan.parser.Lexer.tokenize(source);
+        const fences = result.tokens.filter(token => token.tokenType.name === 'CODE_FENCE');
+        expect(fences).toHaveLength(1);
+        expect(fences[0]!.image).toContain('// not a reqlan comment');
+        const comments = [...result.tokens, ...result.hidden]
+            .filter(token => token.tokenType.name === 'SL_COMMENT' || token.tokenType.name === 'ML_COMMENT');
+        expect(comments).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    test('TextMate code-snippets fences are line-start only', () => {
+        const grammar = JSON.parse(readFileSync(reqlanTextMateGrammarPath, 'utf8')) as {
+            repository: Record<string, { begin?: string; end?: string }>;
+        };
+        expect(grammar.repository['code-snippets']?.begin).toMatch(/^\^/);
+        expect(grammar.repository['code-snippets']?.end).toMatch(/^\^/);
+    });
+
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
     // rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
     test('golden corpus C-style comment ranges match lexer, scanner, and TextMate', () => {
         const files = rqFiles(corpusDir);

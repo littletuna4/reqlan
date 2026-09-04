@@ -8,6 +8,7 @@ import {
 import { IDEAS_SUMMARY_CAPTURE_CSS } from "../lib/capture-css.ts";
 import { postToWebview } from "../lib/host.ts";
 import type { DocsShot } from "./types.ts";
+import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts";
 
 async function handleIdeasSummaryHost(
   page: Page,
@@ -23,6 +24,10 @@ async function handleIdeasSummaryHost(
       await postToWebview(page, {
         type: "indexStatus",
         status: demoIndexStatus(),
+      });
+      await postToWebview(page, {
+        type: "graphUiState",
+        state: DEFAULT_GRAPH_UI_STATE,
       });
       await postToWebview(page, {
         type: "overviewLinks",
@@ -91,7 +96,8 @@ export const montageIdeShot: DocsShot = {
   // Panel aspect for slides — room for chrome + graph without clipping nodes.
   viewport: { width: 720, height: 560, deviceScaleFactor: 2 },
   settleMs: 900,
-  readySelector: "h1",
+  readySelector: "#app h1",
+  readyTimeoutMs: 45_000,
   captureSelector: "#app",
   captureCss: IDEAS_SUMMARY_CAPTURE_CSS,
   initialState: { activeTab: "graph" },

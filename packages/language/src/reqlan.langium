@@ -276,4 +276,5 @@ terminal NUMBER: /\d+/;
 terminal WORD: /[A-Za-z_][\w']*/;
 terminal OTHER: /[^\s\w\[\]()`]/;
 terminal INLINE_CODE: /`[^`\n]+`/;
+// Line-start only (optional indent). Mid-line ``` is prose; ReqlanTokenBuilder enforces that.
 terminal CODE_FENCE: /```[^\n]*(?:\r?\n[\s\S]*?)?```/;

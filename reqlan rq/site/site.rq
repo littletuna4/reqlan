@@ -92,6 +92,7 @@ components {
         per [install_cli_menu]
         - GitHub star on the hero action row per [hero_github_star]
         - sticky draggable action buttons per [sticky_cta_node]
+        - home-only quiz sticker edge tab per [quiz_sticker_tab]
     - 404 page (just something silly / a redirect)
 }
 
@@ -569,7 +570,7 @@ copy {
     Copy stays decoupled from layout/styling.
     Copy should be really super minimal and concise if at all. (show don't tell)
     Copy should be user facing; not simply a description of the feature requirements. Production code doesn't have latent dev notes in visible components.
-    Landing modules: [hero_section], [elevator_pitch_section], [featured_in_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node].
+    Landing modules: [hero_section], [elevator_pitch_section], [featured_in_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node], [quiz_sticker_tab].
     @status done
     @implementation (
         ["../../site/src/content/types.ts"]
@@ -586,6 +587,7 @@ copy {
         ["../../site/src/content/faq.ts"]
         ["../../site/src/content/support.ts"]
         ["../../site/src/content/sticky-cta.ts"]
+        ["../../site/src/content/quiz-sticker.ts"]
         ["../../site/src/content/assessment.ts"]
     )
 }
@@ -743,6 +745,27 @@ sticky_cta_node {
         ["../../site/src/app/layout.tsx"]
         ["../../site/src/content/sticky-cta.ts"]
         ["../../site/src/components/StickyCtaNode.tsx"]
+    )
+}
+
+quiz_sticker_tab {
+    Home only: a right-edge tab on the home page. It does not mount in root layout or on other routes.
+    Collapsed: a vertical label and the [phonebook_reqs.phonebook] `sticker-form` icon.
+    Open: a short panel. The CTA is a link to [certs_reqs.assessment_page] through ["../../site/src/lib/certs-paths.ts"]. It is not an in-place quiz.
+    Copy lives in ["../../site/src/content/quiz-sticker.ts"] per [copy].
+    Style with CSS modules per [styling_architecture] and [brand]. Use theme colour tokens. Hide on narrow viewports so it does not cover content.
+    Keep it compatible with [simple_lightweight_and_static] and [sticky_cta_node].
+    No looping decorative motion. Open and close may change width once. When the visitor prefers reduced motion, do not animate.
+    @status done
+    @implementation (
+        ["../../site/src/content/quiz-sticker.ts"]
+        ["../../site/src/components/QuizStickerTab.tsx"]
+        ["../../site/src/components/QuizStickerTab.module.css"]
+        ["../../site/src/views/HomePage.tsx"]
+    )
+    @tests (
+        ["../../site/src/content/quiz-sticker.test.ts"]
+        ["../../site/src/components/QuizStickerTab.test.ts"]
     )
 }
 

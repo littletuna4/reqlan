@@ -21,6 +21,7 @@ import { webviewMediaRoot } from "../lib/paths.ts";
 import { VSCODE_THEME_CSS } from "../lib/vscode-theme.ts";
 import { DOCS_IMAGE_SHOTS } from "../shots/catalog.ts";
 import type { DocsShot } from "../shots/types.ts";
+import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts";
 
 function json(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
@@ -169,6 +170,7 @@ function ideasSummaryHarness(options: {
           if (!msg || typeof msg !== "object") return;
           if (msg.type === "ready") {
             reply({ type: "indexStatus", status: ${json(demoIndexStatus())} });
+            reply({ type: "graphUiState", state: ${json(DEFAULT_GRAPH_UI_STATE)} });
             reply({
               type: "overviewLinks",
               links: [{ id: "site", label: "Site", href: "https://littletuna4.github.io/reqlan/" }],
@@ -238,8 +240,10 @@ function onboardingHarness(options: {
 </html>`;
 }
 
-export async function writeDocsHarnesses(): Promise<void> {
-  for (const shot of DOCS_IMAGE_SHOTS) {
+export async function writeDocsHarnesses(
+  shots: readonly DocsShot[] = DOCS_IMAGE_SHOTS,
+): Promise<void> {
+  for (const shot of shots) {
     const styles = shellStyles(shot);
     const { width, height } = shot.viewport;
     let html: string;

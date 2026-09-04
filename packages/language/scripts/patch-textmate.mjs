@@ -220,8 +220,8 @@ grammar.repository['url-bracket-references'] = {
 
 grammar.repository['code-snippets'] = {
     name: 'markup.fenced_code.block.reqlan',
-    begin: '```(\\w*)',
-    end: '```',
+    begin: '^[ \\t]*```(\\w*)',
+    end: '^[ \\t]*```',
     beginCaptures: {
         '1': { name: 'entity.name.type.language.reqlan' }
     }

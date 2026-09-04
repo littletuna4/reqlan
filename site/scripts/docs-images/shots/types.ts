@@ -23,6 +23,8 @@ export type DocsShot = {
   settleMs?: number;
   /** Optional selector to wait for before screenshot. */
   readySelector?: string;
+  /** Override readySelector timeout (default 30s). */
+  readyTimeoutMs?: number;
   /** Host message handler: reply to webview posts. */
   onHostMessage: (page: Page, message: unknown) => void | Promise<void>;
   /** Optional post-load hook (scroll, click tab, etc.). */

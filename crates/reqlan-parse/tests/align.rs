@@ -48,3 +48,16 @@ fn fence_body_is_one_code_snippet_not_inner_refs() {
         vec!["live"]
     );
 }
+
+// rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+#[test]
+fn mid_line_triple_backticks_are_not_a_code_snippet() {
+    let source = "first {\n    fenced ``` bodies must not open comments\n}\nlater { ok }\n";
+    let snapshot = parse_align_snapshot(source);
+    assert!(snapshot.ok);
+    assert_eq!(snapshot.code_snippet_count, 0);
+    let names: Vec<_> =
+        snapshot.elements.iter().filter_map(|element| element.name.clone()).collect();
+    assert_eq!(names, vec!["first", "later"]);
+}

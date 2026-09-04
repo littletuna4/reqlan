@@ -423,12 +423,14 @@ comment_reference_ignore {
 
 code_snippets {
     Idea bodies and block attribute values may embed fenced code blocks delimited by triple backticks.
-    An opening fence is three backticks on a line, optionally followed by a language tag such as python or rq.
-    A closing fence is three backticks on a line.
+    An opening fence is three backticks as the first non-whitespace characters on a line, optionally followed by a language tag such as python or rq.
+    A closing fence is three backticks as the first non-whitespace characters on a line.
+    Three backticks in the middle of a line are prose. They do not open a fence.
     Everything between the fences is literal opaque text — it is not parsed as reqlan syntax.
     Keywords, imports, attributes, braces, and quotes inside a fence are inert for the parser and may be shown as examples without parse errors.
     Fenced blocks may span multiple lines and preserve their inner content verbatim.
     Brace-depth tracking must skip fence interiors so example braces cannot desync surrounding structure ([no_name_idea_safe_warning]).
+    Related: ["../core_analysis/rust_port.rq".comment_span_align].
 
     @example {
         ```python
@@ -436,16 +438,35 @@ code_snippets {
         ```
     }
 
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-line-fences.ts"]
+        ["../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+    )
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse code snippet in block idea"]
         ["../../packages/language/test/parsing.test.ts:parse fenced code block in attribute value"]
         ["../../packages/language/test/parsing.test.ts:treats fenced rq example as opaque text"]
         ["../../packages/language/test/parsing.test.ts:treats fenced TypeScript braces as opaque for surrounding structure"]
+        ["../../packages/language/test/parsing.test.ts:keeps later ideas after mid-line triple backticks"]
+        ["../../packages/language/test/parsing.test.ts:parse rust_port.rq keeps ideas after comment_span_align fence prose"]
+        ["../../packages/language/test/parsing.test.ts:parse mid-line triple backticks corpus without swallowing later ideas"]
         ["../../packages/language/test/references.test.ts:embedded file reference scan ignores fenced code blocks"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText does not treat mid-line ``` as a fence"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:fenced_file_example"]
+        ["../../packages/language/test/langium-rust-parse-align.test.ts:mid_line_triple_backticks"]
+        ["../../packages/language/test/comment-span-align.test.ts:mid-line triple backticks are not a fence"]
+        ["../../packages/language/test/comment-span-align.test.ts:line-start triple backticks lex as CODE_FENCE and hide inner comments"]
         ["../../crates/reqlan-parse/tests/align.rs:fence_body_is_one_code_snippet_not_inner_refs"]
+        ["../../crates/reqlan-parse/tests/align.rs:mid_line_triple_backticks_are_not_a_code_snippet"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:mid_line_triple_backticks_are_not_a_code_fence"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:line_start_triple_backticks_are_a_code_fence"]
+        ["../../crates/reqlan-parse/tests/parser.rs:keeps_ideas_after_mid_line_triple_backticks"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:mid_line_triple_backticks_keep_later_ideas"]
     )
 }
 
