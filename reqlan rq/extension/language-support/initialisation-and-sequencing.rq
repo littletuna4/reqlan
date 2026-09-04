@@ -1,11 +1,12 @@
 from "../../core-architecture.rq" import language_server
+from "./open-file-sequencing.rq" import open_file_algorithm
 
 lsp_file_watch {
     The language server must register workspace file watchers for `.rq` files only.
     It must not register a recursive all-files watcher.
     Watched-file events whose path contains a `node_modules`, `.git`, `.reqlan`, `out`, or `dist` segment must not start a document rebuild.
     Directory URIs without a trailing slash, Windows paths, and percent-encoded URIs must use the same segment rules.
-    Related: [language_server], [index_file_search_coalesce].
+    Related: [language_server], [index_file_search_coalesce], [open_file_algorithm].
     @status done
     @implementation (
         ["../../../packages/language/src/reqlan-document-update-handler.ts"]

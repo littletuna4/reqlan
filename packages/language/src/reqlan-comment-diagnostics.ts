@@ -5,6 +5,7 @@
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, URI } from 'langium';
@@ -17,10 +18,15 @@ import {
 } from './reqlan-comment-resolver.js';
 import { findRqIgnoreErrorTargetLines } from './reqlan-ignore-error.js';
 import {
-    findImportedDocument,
     isResolvableImportPath,
     resolveImportCandidateUris
 } from './reqlan-imports.js';
+import {
+    ideaRangeFromNeighbor,
+    neighborHasIdea,
+    neighborIdea,
+    parseNeighborDocument
+} from './reqlan-neighbor-parse.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
 
 export const COMMENT_REFERENCE_MISSING_FILE = 'comment-reference-missing-file';
@@ -111,7 +117,7 @@ export function presentCommentReferencesForDocument(
         }
         const issue = commentReferenceLangiumIssue(reference, document, documents, fileSystem, context);
         if (!issue) {
-            const link = commentReferenceLangiumLink(reference, document, documents, context);
+            const link = commentReferenceLangiumLink(reference, document, documents, fileSystem, context);
             if (link) {
                 links.push(link);
             }
@@ -221,11 +227,18 @@ function commentReferenceLangiumIssue(
                 code: COMMENT_REFERENCE_MISSING_FILE
             };
         }
-        if (resolveCommentReferenceIdea(reference, document, documents, context)) {
-            return undefined;
+        const neighbor = commentNeighborParse(reference.path, document, documents, fileSystem, context);
+        if (neighbor) {
+            if (neighborHasIdea(neighbor, reference.idea)) {
+                return undefined;
+            }
+            return {
+                range: reference.range,
+                message: commentReferenceMissingIdeaMessage(reference.idea),
+                code: COMMENT_REFERENCE_MISSING_IDEA
+            };
         }
-        const imported = findImportedDocument(reference.path, document, documents, context);
-        if (!imported) {
+        if (resolveCommentReferenceIdea(reference, document, documents, context)) {
             return undefined;
         }
         return {
@@ -248,15 +261,33 @@ function commentReferenceLangiumLink(
     reference: EmbeddedCommentReference,
     document: LangiumDocument,
     documents: LangiumDocuments,
+    fileSystem: FileSystemProvider | undefined,
     context?: PathResolveContext
 ): CommentReferenceLink | undefined {
-    const idea = resolveCommentReferenceIdea(reference, document, documents, context);
-    if (idea) {
-        const targetDocument = documents.getDocument(AstUtils.getDocument(idea).uri);
+    if (reference.path) {
+        const neighbor = commentNeighborParse(reference.path, document, documents, fileSystem, context);
+        const idea = neighbor ? neighborIdea(neighbor, reference.idea) : undefined;
+        if (neighbor && idea) {
+            const target = resolveFileUri(reference.path, document, context);
+            const range = ideaRangeFromNeighbor(idea);
+            return {
+                range: reference.range,
+                targetPath: target.fsPath,
+                targetUri: `${target.toString()}#L${range.start.line + 1}`,
+                idea: reference.idea
+            };
+        }
+        if (neighbor && !idea) {
+            return undefined;
+        }
+    }
+    const astIdea = resolveCommentReferenceIdea(reference, document, documents, context);
+    if (astIdea) {
+        const targetDocument = documents.getDocument(AstUtils.getDocument(astIdea).uri);
         if (!targetDocument) {
             return undefined;
         }
-        const ideaNode = idea.$cstNode;
+        const ideaNode = astIdea.$cstNode;
         const targetUri = ideaNode
             ? `${targetDocument.textDocument.uri}#L${ideaNode.range.start.line + 1}`
             : targetDocument.textDocument.uri;
@@ -267,14 +298,16 @@ function commentReferenceLangiumLink(
             idea: reference.idea
         };
     }
-    if (!reference.path) {
-        return undefined;
-    }
-    const target = resolveFileUri(reference.path, document, context);
-    return {
-        range: reference.range,
-        targetPath: target.fsPath,
-        targetUri: target.toString(),
-        idea: reference.idea
-    };
+    return undefined;
+}
+
+function commentNeighborParse(
+    path: string,
+    document: LangiumDocument,
+    documents: LangiumDocuments,
+    fileSystem: FileSystemProvider | undefined,
+    context?: PathResolveContext
+) {
+    const target = resolveFileUri(path, document, context);
+    return parseNeighborDocument(target, documents, fileSystem ?? context?.fileSystem);
 }

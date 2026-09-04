@@ -41,6 +41,7 @@ import {
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;

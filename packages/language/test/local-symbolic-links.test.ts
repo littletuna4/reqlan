@@ -1,7 +1,7 @@
 /**
  * Document links from local symbolic extract without loading imported documents.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
- * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */

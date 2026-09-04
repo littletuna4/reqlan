@@ -47,6 +47,9 @@ non_web_reference_navigation {
     with a Langium fallback when native extract throws so file/idea links are not lost.
     Go-to-definition uses Langium when the idea ref is already linked, then falls back to the same
     local-symbolic target so navigation works before workspace Linked completes.
+    Cross-file idea confirmation is a depth-1 neighbor parse
+    (["../../language/syntax.rq".open_file_reference_sequencing],
+    ["../language-support/open-file-sequencing.rq".outbound_one_hop]).
     Related: [reference_document_links], [reference_goto_definition_speed],
     ["../../language/syntax.rq".open_file_reference_sequencing].
 
@@ -54,11 +57,13 @@ non_web_reference_navigation {
     @implementation (
         ["../../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../packages/language/src/reqlan-definition-provider.ts"]
     )
     @tests (
         ["../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
         ["../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
         ["../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
     )
@@ -67,8 +72,9 @@ non_web_reference_navigation {
 unresolved_reference_diagnostics {
     Unresolved idea references must report a linking error diagnostic.
     Local-symbolic outbound must not emit document links for `isResolved: false` edges or for
-    cross-file targets that do not exist on disk / are not loaded — those false links looked like
-    happy references while Ctrl+click could not navigate.
+    cross-file targets that do not exist on disk / are not declared in the neighbor file
+    (["../language-support/open-file-sequencing.rq".outbound_one_hop]).
+    Those false links looked like happy references while Ctrl+click could not navigate.
     Missing file references stay on ["./features-syntax.rq".file_references] /
     ["../language-support/language-server-errors.rq".file_reference_errors] (error, no document link).
     Related: [reference_rendering], [non_web_reference_navigation].
@@ -76,12 +82,16 @@ unresolved_reference_diagnostics {
     @status done
     @implementation (
         ["../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../packages/language/src/reqlan-neighbor-parse.ts"]
+        ["../../../packages/language/src/reqlan-outbound-presentation.ts"]
         ["../../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../../packages/language/src/reqlan-validator.ts"]
     )
     @tests (
         ["../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
         ["../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
+        ["../../../packages/language/test/outbound-hop.test.ts:drops a false unresolved diagnostic when the neighbor idea exists"]
         ["../../../packages/language/test/ignore-error.test.ts:reports unresolved reference without ignore directive"]
     )
 }

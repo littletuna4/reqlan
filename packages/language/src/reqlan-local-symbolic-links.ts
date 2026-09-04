@@ -1,11 +1,13 @@
 /**
- * Outbound idea document links from path-local Rust extract.
+ * Outbound idea document links from path-local Rust extract plus a depth-1 neighbor parse.
  * Does not wait on Langium workspace linking.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
-import { AstUtils, GrammarUtils, URI } from 'langium';
+import { URI } from 'langium';
 import type { Range } from 'vscode-languageserver';
 import {
     analyzeLocalSymbolic,
@@ -13,8 +15,12 @@ import {
     type LocalSymbolicEdge,
     type LocalSymbolicImportRoot
 } from '@reqlan/analytical/core';
-import { isIdea, isIdeaSet, isOneLinerIdea } from './generated/ast.js';
 import type { ResolvedFileLink } from './reqlan-file-link-resolver.js';
+import {
+    ideaRangeFromNeighbor,
+    neighborIdea,
+    parseNeighborDocument
+} from './reqlan-neighbor-parse.js';
 import {
     resolveDocumentPathUri,
     resolveRqConfig,
@@ -144,11 +150,10 @@ function resolveIdeaTarget(
         return undefined;
     }
 
-    if (filePart === document.uri.toString() || sameIndexedUri(filePart, document.uri)) {
+    if (filePart === document.uri.toString() || isSameIndexedUri(filePart, document.uri)) {
         const idea = ideaName
             ? extracted.ideas.find(entry => entry.name === ideaName)
             : undefined;
-        // Same-file symbolic extract lists local ideas; missing name → not navigable.
         if (ideaName && !idea) {
             return undefined;
         }
@@ -164,83 +169,18 @@ function resolveIdeaTarget(
     }
 
     const targetUri = resolveDocumentPathUri(filePart, document, context);
-    if (!crossFileTargetExists(targetUri, documents, context)) {
+    if (!ideaName) {
         return undefined;
     }
-    const targetUriString = targetUri.toString();
-    const targetRange = ideaName
-        ? ideaRangeFromLoadedDocument(documents, targetUriString, ideaName)
-        : undefined;
-    return { targetUri: targetUriString, targetRange };
-}
-
-/** Prefer loaded docs; otherwise require a real filesystem hit so missing files stay unlinked. */
-function crossFileTargetExists(
-    targetUri: URI,
-    documents: LangiumDocuments | undefined,
-    context?: PathResolveContext
-): boolean {
-    if (documents && findLoadedDocument(documents, targetUri.toString())) {
-        return true;
-    }
-    const fileSystem = context?.fileSystem;
-    if (!fileSystem) {
-        return false;
-    }
-    try {
-        return fileSystem.existsSync(targetUri);
-    } catch {
-        return false;
-    }
-}
-
-function ideaRangeFromLoadedDocument(
-    documents: LangiumDocuments | undefined,
-    targetUri: string,
-    ideaName: string
-): Range | undefined {
-    if (!documents) {
+    const neighbor = parseNeighborDocument(targetUri, documents, context?.fileSystem);
+    const idea = neighbor ? neighborIdea(neighbor, ideaName) : undefined;
+    if (!idea) {
         return undefined;
     }
-    const targetDocument = findLoadedDocument(documents, targetUri);
-    if (!targetDocument) {
-        return undefined;
-    }
-    for (const node of AstUtils.streamAst(targetDocument.parseResult.value)) {
-        if ((isIdea(node) || isOneLinerIdea(node) || isIdeaSet(node)) && node.name === ideaName) {
-            const nameNode = GrammarUtils.findNodeForProperty(node.$cstNode, 'name') ?? node.$cstNode;
-            if (nameNode?.range) {
-                return nameNode.range;
-            }
-        }
-    }
-    return undefined;
+    return { targetUri: targetUri.toString(), targetRange: ideaRangeFromNeighbor(idea) };
 }
 
-function findLoadedDocument(
-    documents: LangiumDocuments,
-    targetUri: string
-): LangiumDocument | undefined {
-    try {
-        const direct = documents.getDocument(URI.parse(targetUri));
-        if (direct) {
-            return direct;
-        }
-    } catch {
-        // fall through
-    }
-    const normalized = targetUri.replace(/\\/g, '/');
-    const basename = normalized.split('/').pop() ?? normalized;
-    for (const document of documents.all.toArray()) {
-        const path = document.uri.path.replace(/\\/g, '/');
-        if (path === normalized || path.endsWith(`/${basename}`) || document.uri.toString() === targetUri) {
-            return document;
-        }
-    }
-    return undefined;
-}
-
-function sameIndexedUri(filePart: string, documentUri: URI): boolean {
+export function isSameIndexedUri(filePart: string, documentUri: URI): boolean {
     if (filePart === documentUri.toString()) {
         return true;
     }
@@ -271,7 +211,7 @@ function rangeFromEdgeOffsets(
 }
 
 /** Prefer the idea-name token inside `[…]` / `[[…]]`, matching Langium `$refNode` ranges. */
-function ideaNameRangeFromEdge(
+export function ideaNameRangeFromEdge(
     document: LangiumDocument,
     edge: LocalSymbolicEdge
 ): Range | undefined {

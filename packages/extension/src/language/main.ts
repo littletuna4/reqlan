@@ -8,6 +8,7 @@ import type { Position, Range } from 'vscode-languageserver';
 import { DocumentState, URI } from 'langium';
 import { addNativeEngineSearchDirs, hostNativeBindingSpec } from '@reqlan/analytical/core';
 import {
+    applyOutboundDiagnosticAuthority,
     createReqlanServices,
     createSourceTextDocument,
     fileReferenceAtRequestResult,
@@ -68,7 +69,15 @@ registerNativeEngineForLanguageServer();
 const connection = createConnection(ProposedFeatures.all);
 
 // Inject the shared services and language-specific services
-const { shared } = createReqlanServices({ connection, ...NodeFileSystem });
+const { shared, Reqlan } = createReqlanServices({ connection, ...NodeFileSystem });
+
+shared.workspace.DocumentBuilder.onDocumentPhase(DocumentState.Parsed, document => {
+    applyOutboundDiagnosticAuthority(document, Reqlan);
+    void connection.sendDiagnostics({
+        uri: document.uri.toString(),
+        diagnostics: document.diagnostics ?? []
+    });
+});
 
 connection.onRequest(
     REQLAN_FILE_REFERENCE_AT_REQUEST,
@@ -149,10 +158,11 @@ function getParsedDocument(params: { uri: string; text?: string }) {
     return shared.workspace.LangiumDocumentFactory.fromString(params.text, uri);
 }
 
-// Path-local links/hover/definition must not wait for workspace Linked — that
-// leaves VS Code document-link tooltips on "Loading...".
+// Path-local links, tokens, and outbound errors must not wait for workspace Linked.
 // rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
 // rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
+// rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
+// rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
 startLanguageServer(shared, {
     DocumentLinkProvider: DocumentState.Parsed,
     HoverProvider: DocumentState.Parsed,

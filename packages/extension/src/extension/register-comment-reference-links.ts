@@ -6,7 +6,9 @@
  * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
  */
+import { extractIdeaNames } from '@reqlan/analytical/core';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -146,7 +148,7 @@ function rqFileDeclaresIdea(absolutePath: string, idea: string): boolean {
     const open = openDocumentAt(absolutePath);
     try {
         const text = open ? open.getText() : fs.readFileSync(absolutePath, 'utf8');
-        return rqTextDeclaresIdea(text, idea);
+        return extractIdeaNames(text).includes(idea);
     } catch {
         return false;
     }
@@ -157,8 +159,12 @@ function findOpenIdeaFile(idea: string): string | undefined {
         if (!isRqDocument(document)) {
             continue;
         }
-        if (rqTextDeclaresIdea(document.getText(), idea)) {
-            return document.uri.fsPath;
+        try {
+            if (extractIdeaNames(document.getText()).includes(idea)) {
+                return document.uri.fsPath;
+            }
+        } catch {
+            continue;
         }
     }
     return undefined;
@@ -166,15 +172,6 @@ function findOpenIdeaFile(idea: string): string | undefined {
 
 function openDocumentAt(absolutePath: string): vscode.TextDocument | undefined {
     return vscode.workspace.textDocuments.find(document => document.uri.fsPath === absolutePath);
-}
-
-function rqTextDeclaresIdea(text: string, idea: string): boolean {
-    const pattern = new RegExp(`^${escapeRegExp(idea)}(?:\\s*\\{|\\s+)`, 'm');
-    return pattern.test(text);
-}
-
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function toRange(range: {

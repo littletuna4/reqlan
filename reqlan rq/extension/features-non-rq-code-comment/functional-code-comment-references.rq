@@ -30,6 +30,7 @@ comment_reference_resolution_error_state {
     @status done
     @implementation (
         ["../../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../packages/language/src/reqlan-document-builder.ts"]
         ["../../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../../packages/language/src/reqlan-validator.ts"]
@@ -41,5 +42,6 @@ comment_reference_resolution_error_state {
         ["../../../packages/language/test/comment-reference-resolution.test.ts:clears the underline and creates a link after a matching idea is added"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:relinks documents that still show a missing comment-reference idea"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
+        ["../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
     )
 }
