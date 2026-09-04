@@ -531,7 +531,7 @@ fn file_idea_siblings(
 fn outbound_edge_in_content(edge: &EdgeRecord, content: &str) -> bool {
     match edge.kind {
         EdgeKind::IdeasetMember | EdgeKind::Import | EdgeKind::CommentLink => false,
-        EdgeKind::FileReference => {
+        EdgeKind::FileReference | EdgeKind::UrlReference => {
             snippet_in_content(content, edge.snippet.as_deref())
                 || path_in_content(content, edge.target_file.as_deref().or(edge.label.as_deref()))
         }

@@ -5,6 +5,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
 //! rq:["../../../reqlan rq/reference_types.rq".wildcard_reference]
+//! rq:["../../../reqlan rq/reference_types.rq".url_reference]
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -41,6 +42,7 @@ pub enum EdgeKind {
     References,
     WildcardReference,
     FileReference,
+    UrlReference,
     IdeasetMember,
     Import,
     CommentLink,
@@ -52,6 +54,7 @@ impl EdgeKind {
             Self::References => "references",
             Self::WildcardReference => "wildcard_reference",
             Self::FileReference => "file_reference",
+            Self::UrlReference => "url_reference",
             Self::IdeasetMember => "ideaset_member",
             Self::Import => "import",
             Self::CommentLink => "comment_link",
@@ -62,6 +65,7 @@ impl EdgeKind {
         match value {
             "wildcard_reference" => Self::WildcardReference,
             "file_reference" => Self::FileReference,
+            "url_reference" => Self::UrlReference,
             "ideaset_member" => Self::IdeasetMember,
             "import" => Self::Import,
             "comment_link" => Self::CommentLink,

@@ -5,7 +5,7 @@ import { startLanguageServer } from 'langium/lsp';
 import { NodeFileSystem } from 'langium/node';
 import { createConnection, ProposedFeatures } from 'vscode-languageserver/node';
 import type { Position, Range } from 'vscode-languageserver';
-import { URI } from 'langium';
+import { DocumentState, URI } from 'langium';
 import { addNativeEngineSearchDirs, hostNativeBindingSpec } from '@reqlan/analytical/core';
 import {
     createReqlanServices,
@@ -149,5 +149,14 @@ function getParsedDocument(params: { uri: string; text?: string }) {
     return shared.workspace.LangiumDocumentFactory.fromString(params.text, uri);
 }
 
-// Start the language server with the shared services
-startLanguageServer(shared);
+// Path-local links/hover/definition must not wait for workspace Linked — that
+// leaves VS Code document-link tooltips on "Loading...".
+// rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+// rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
+startLanguageServer(shared, {
+    DocumentLinkProvider: DocumentState.Parsed,
+    HoverProvider: DocumentState.Parsed,
+    DefinitionProvider: DocumentState.Parsed,
+    DocumentHighlightProvider: DocumentState.Parsed,
+    SemanticTokenProvider: DocumentState.Parsed
+});

@@ -778,6 +778,13 @@ impl<'s> Parser<'s> {
             }
             return ReferenceTarget::File { span: Span::from_token(&file_token), file: file_raw };
         }
+        if self.at(TokenKind::Url) {
+            let token = self.bump();
+            return ReferenceTarget::Url {
+                span: Span::from_token(&token),
+                url: self.token_text(&token),
+            };
+        }
         if self.at(TokenKind::Id) {
             let first = self.bump_text();
             if self.eat(TokenKind::Dot).is_some() && self.at(TokenKind::Id) {

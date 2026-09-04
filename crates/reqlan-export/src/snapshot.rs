@@ -1006,7 +1006,9 @@ fn collect_slice(
         if !source_visible && depth <= 1 {
             continue;
         }
-        if edge.kind == EdgeKind::FileReference && edge.target_id.is_none() {
+        if matches!(edge.kind, EdgeKind::FileReference | EdgeKind::UrlReference)
+            && edge.target_id.is_none()
+        {
             if let Some(target_file) = &edge.target_file {
                 if seed_ids.contains(&edge.source_id) {
                     let external_id = format!("file:{target_file}");

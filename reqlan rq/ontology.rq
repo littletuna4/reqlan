@@ -13,7 +13,7 @@ import "../crates/reqlan-index/src/extract.rs" as rust_extract
 import "../packages/extension/src/extension/main.ts" as extension_main
 import "../packages/extension/webviews/ideas-summary/lib/tabs.ts" as ideas_summary_tabs
 import "../packages/extension/webviews/ideas-summary/components/GraphView.svelte" as graph_view
-from "./reference_types.rq" import idea_reference, ideaset_reference, comment_reference, file_reference, link_reference, wildcard_reference
+from "./reference_types.rq" import idea_reference, ideaset_reference, comment_reference, file_reference, link_reference, url_reference, wildcard_reference
 
 
 idea {
@@ -150,6 +150,7 @@ reference {
     References link ideas to other ideas, files, and symbols.
     Syntax: ["./language/syntax.rq".reference_brackets], ["./language/syntax.rq".reference_wikilink],
     ["./language/syntax.rq".reference_qualified], ["./language/syntax.rq".reference_file],
+    ["./language/syntax.rq".reference_url],
     ["./language/syntax.rq".reference_embedding]. Kinds: [reference_types].
     Grammar: [reqlan_grammar] `ReferenceTarget`; index edges: [idea_extractor], [rust_extract].
     @status done
@@ -305,6 +306,7 @@ reference_types {
     [comment_reference]
     [file_reference]
     [link_reference]
+    [url_reference]
     [wildcard_reference]
 }
 

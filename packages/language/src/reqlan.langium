@@ -10,7 +10,7 @@
  * Design:
  * - Imports and top-level declarations are line-oriented; import/from/as are keywords only there.
  * - One-liner ideas are name + body on a single line; block ideas use braces for rich content.
- * - ReferenceTarget covers local members, import-qualified, alias-qualified, and file targets.
+ * - ReferenceTarget covers local members, import-qualified, alias-qualified, file, and URL targets.
  */
 grammar Reqlan
 
@@ -89,11 +89,11 @@ CodeSnippet:
 // ---------------------------------------------------------------------------
 
 OneLinerText returns string:
-    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | URL | PlainPunctuation | '(' | ')' | '|' | 'from' | 'import' | 'as' | '`';
 
 // PlainText must not include INLINE_CODE — that terminal is its own RichTextPart/InlineTextPart alt.
 PlainText returns string:
-    WORD | ID | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | OTHER | WILDCARD_NAME | URL | PlainPunctuation | '[' | ']' | '|' | 'from' | 'import' | 'as' | '`';
 
 PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
@@ -161,7 +161,7 @@ ListItemBody:
     content+=(MarkdownLink | BracketReference | WikiLink | ListItemText)+;
 
 ListItemText returns string:
-    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | ListItemPunctuation | '(' | '|' | 'from' | 'import' | 'as' | '`';
+    WORD | ID | NUMBER | INLINE_CODE | OTHER | WILDCARD_NAME | URL | ListItemPunctuation | '(' | '|' | 'from' | 'import' | 'as' | '`';
 
 ListItemPunctuation returns string:
     '.' | ':' | ';' | '!' | '?' | '-';
@@ -173,7 +173,7 @@ AnonymousBlock:
     '{' (NL* elements+=BodyElement)* NL* '}';
 
 // ---------------------------------------------------------------------------
-// markdown_links, reference_wikilink, reference_brackets, reference_qualified, reference_file
+// markdown_links, reference_wikilink, reference_brackets, reference_qualified, reference_file, reference_url
 // ---------------------------------------------------------------------------
 
 MarkdownLink:
@@ -193,12 +193,16 @@ BracketReference:
 // - QualifiedReference covers STRING.ID / ID.ID (incl. idea.attribute surface form)
 // - FileSymbolReference only for STRING.ID.ID.ID+ (3+ symbol segments)
 // - FileReference is bare STRING
+// - UrlReference is an unquoted scheme:// target
 // - LocalReference is a bare local name
 ReferenceTarget:
-    WildcardReference | QualifiedReference | FileSymbolReference | FileReference | LocalReference;
+    WildcardReference | QualifiedReference | FileSymbolReference | FileReference | UrlReference | LocalReference;
 
 FileReference:
     file=STRING;
+
+UrlReference:
+    url=URL;
 
 FileSymbolReference:
     file=STRING '.' symbols+=ID '.' symbols+=ID '.' symbols+=ID ('.' symbols+=ID)*;
@@ -248,10 +252,10 @@ InvalidFromImport:
     'from' head=InvalidImportHeadToken tokens+=InvalidImportToken*;
 
 InvalidImportHeadToken returns string:
-    ID | WORD | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
+    ID | WORD | NUMBER | OTHER | WILDCARD_NAME | URL | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
 
 InvalidImportToken returns string:
-    ID | STRING | WORD | NUMBER | OTHER | WILDCARD_NAME | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
+    ID | STRING | WORD | NUMBER | OTHER | WILDCARD_NAME | URL | PlainPunctuation | '(' | ')' | '|' | 'as' | 'import' | 'from' | '`' | '[' | ']';
 
 // ---------------------------------------------------------------------------
 // comments, string_literals
@@ -263,6 +267,7 @@ hidden terminal ML_COMMENT: /\/\*[\s\S]*?\*\//;
 hidden terminal SL_COMMENT: /\/\/[^\n\r]*/;
 
 terminal MARKDOWN_LINK: /\[(?!\[)[^\]]+\]\([^)]+\)/;
+terminal URL: /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s\[\]]+/;
 terminal ID: /[_a-zA-Z][\w-]*/;
 // Must contain * or ? so it does not steal ordinary ID tokens.
 terminal WILDCARD_NAME: /\*[\w*?-]*|\?[\w*?-]*|[_a-zA-Z][\w-]*[*?][\w*?-]*/;

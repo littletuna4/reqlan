@@ -20,6 +20,7 @@ import {
     isQualifiedImport,
     isQualifiedReference,
     isOneLinerIdea,
+    isUrlReference,
     isWildcardReference,
     type Import
 } from './generated/ast.js';
@@ -82,6 +83,10 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
             if (isFileSymbolReference(node)) {
                 acceptor({ node, property: 'symbols', type: SemanticTokenTypes.method });
             }
+            return;
+        }
+        if (isUrlReference(node)) {
+            acceptor({ node, property: 'url', type: SemanticTokenTypes.string });
             return;
         }
         if (isCodeSnippet(node)) {

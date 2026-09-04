@@ -17,6 +17,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
+//! rq:["../../../reqlan rq/reference_types.rq".url_reference]
 
 use crate::ids::{edge_id, idea_id};
 use crate::types::{
@@ -32,7 +33,7 @@ use sha2::{Digest, Sha256};
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 3;
+pub const EXTRACT_VERSION: i64 = 4;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -440,6 +441,25 @@ fn file_edge(source_id: &str, target: &str, source_line: u32, snippet: &str) -> 
     }
 }
 
+fn url_edge(source_id: &str, url: &str, source_line: u32, snippet: &str) -> EdgeRecord {
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    EdgeRecord {
+        id: edge_id(source_id, EdgeKind::UrlReference.as_str(), url),
+        source_id: source_id.to_string(),
+        target_id: None,
+        target_file: Some(url.to_string()),
+        kind: EdgeKind::UrlReference,
+        label: Some(url.to_string()),
+        source_line: Some(source_line),
+        snippet: Some(
+            snippet.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(120).collect(),
+        ),
+        is_resolved: Some(true),
+        source_offset_start: None,
+        source_offset_end: None,
+    }
+}
+
 fn reference_to_edges(
     source_id: &str,
     file_uri: &str,
@@ -466,6 +486,9 @@ fn reference_to_edges(
         ),
         ReferenceTarget::File { file, .. } => {
             vec![file_edge(source_id, file, source_line, snippet)]
+        }
+        ReferenceTarget::Url { url, .. } => {
+            vec![url_edge(source_id, url, source_line, snippet)]
         }
         ReferenceTarget::FileSymbol { file, .. } => {
             vec![file_edge(source_id, file, source_line, snippet)]
@@ -1049,5 +1072,37 @@ mod tests {
         let source = "from \"./imports.rq\" import seed\nhost {\n    body\n}\n";
         let found = find_embedded_file_references(source);
         assert!(found.is_empty(), "{found:?}");
+    }
+
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    #[test]
+    fn indexes_bracketed_url_as_url_reference() {
+        let source = "host {\n    this is a valid url reference [https://reqlan.com/].\n}\n";
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        let urls: Vec<_> =
+            doc.edges.iter().filter(|edge| edge.kind == EdgeKind::UrlReference).collect();
+        assert_eq!(urls.len(), 1, "{:?}", doc.edges);
+        assert_eq!(urls[0].label.as_deref(), Some("https://reqlan.com/"));
+        assert_eq!(urls[0].target_file.as_deref(), Some("https://reqlan.com/"));
+        assert_eq!(urls[0].is_resolved, Some(true));
+        assert!(
+            doc.edges.iter().all(|edge| {
+                edge.kind != EdgeKind::References || edge.label.as_deref() != Some("https")
+            }),
+            "{:?}",
+            doc.edges
+        );
+    }
+
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    #[test]
+    fn unbracketed_url_is_not_a_url_reference() {
+        let source = "host {\n    see https://reqlan.com/ for details\n}\n";
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        assert!(
+            doc.edges.iter().all(|edge| edge.kind != EdgeKind::UrlReference),
+            "{:?}",
+            doc.edges
+        );
     }
 }

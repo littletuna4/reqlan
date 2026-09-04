@@ -195,6 +195,31 @@ describe("Comment and file reference utilities", () => {
     expect(text.slice(0, spans[0]!.start)).toContain("/**/");
   });
 
+  // rq:["../../../reqlan rq/language/syntax.rq".comments]
+  // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+  // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+  test("findCommentSpansInText skips /* inside complete backtick fences", () => {
+    const text = "CI uses `@reqlan/*` packages // real";
+    const spans = findCommentSpansInText(text);
+    expect(spans).toHaveLength(1);
+    expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe("// real");
+  });
+
+  // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
+  // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+  test("findCommentSpansInText skips // inside fenced code blocks", () => {
+    const text = [
+      "before",
+      "```ts",
+      "// not a reqlan comment",
+      "```",
+      "after // real",
+    ].join("\n");
+    const spans = findCommentSpansInText(text);
+    expect(spans).toHaveLength(1);
+    expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe("// real");
+  });
+
   // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("ignores rq references outside comment spans", () => {
     const sample = findCommentReferencesInText(

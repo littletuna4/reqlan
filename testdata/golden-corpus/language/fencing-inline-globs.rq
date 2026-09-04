@@ -1,0 +1,10 @@
+inline_glob_in_backticks {
+    Package filters use `@reqlan/*` in CI. The slash-star stays inline code, not a block comment.
+    Recursive globs use `/**/` in paths such as `../mod/**/*.rq`.
+    A real line comment may follow. // this is a real line comment
+    After that, [live_after_inline_glob] must still parse.
+}
+
+live_after_inline_glob {
+    This idea must remain visible after the inline glob examples.
+}

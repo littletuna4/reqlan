@@ -245,6 +245,16 @@
       "kind": "block"
     }
   ],
+  "testdata/golden-corpus/language/fencing-inline-globs.rq": [
+    {
+      "name": "inline_glob_in_backticks",
+      "kind": "block"
+    },
+    {
+      "name": "live_after_inline_glob",
+      "kind": "block"
+    }
+  ],
   "testdata/golden-corpus/language/imports.rq": [
     {
       "name": "import_keywords",

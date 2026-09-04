@@ -123,6 +123,25 @@ describe('comments in string context', () => {
     });
 
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+    test('backticked @reqlan/* in block body is not a block comment', async () => {
+        const input = 'demo { CI uses `@reqlan/*` packages }';
+        const tokens = services.Reqlan.parser.Lexer.tokenize(input);
+        const comments = [...tokens.tokens, ...tokens.hidden]
+            .filter(token => token.tokenType.name === 'SL_COMMENT' || token.tokenType.name === 'ML_COMMENT');
+        expect(comments).toHaveLength(0);
+        expect(
+            tokens.tokens.some(token => token.tokenType.name === 'INLINE_CODE' && token.image === '`@reqlan/*`')
+        ).toBe(true);
+        const document = await expectValid(input);
+        const bodyLine = [...AstUtils.streamAst(document.parseResult.value)]
+            .find(node => node.$type === 'BodyLine');
+        expect(bodyLine?.$cstNode?.text).toContain('`@reqlan/*`');
+        expect(bodyLine?.$cstNode?.text).toContain('packages');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
     test('unclosed backtick then // is a line comment', async () => {
         const input = 'demo {\n    this line `// finishes " with a comment\n    keep visible\n}';
         const comments = slComments(input);

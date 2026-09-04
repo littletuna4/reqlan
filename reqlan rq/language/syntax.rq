@@ -44,22 +44,34 @@ idea_name {
 simple_idea {
     A one-liner idea is written as a name followed by unstructured body text on the same line.
     A name-only idea is a one-liner with just the name and no body text.
-    One-liner ideas do not use curly braces and do not continue onto subsequent lines.
+    One-liner ideas do not continue onto subsequent lines.
+    A `{` that is not immediately after the name is body text, not a block opener —
+    see ["./syntax-edge-cases.rq".one_liner_curly_brace_context].
+    `name {}` and `name {hello}` are [block_idea] forms, not one-liners.
 
     @tests (
         ["../../packages/language/test/parsing.test.ts:parse name-only ideas without a body"]
+        ["../../packages/language/test/parsing.test.ts:same-line braces after a name parse as a block"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:one_liner_idea_body_populates_summary"]
         ["../../crates/reqlan-parse/tests/parser.rs:one_liner_body_does_not_continue_on_the_next_line"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parses_same_line_blocks_without_swallowing_later_ideas"]
     )
 }
 
 block_idea {
-    A block idea is written as a name followed by curly braces containing a body and optional attributes.
+    A block idea is a name followed by curly braces that contain a body and optional attributes.
+    The opening `{` may share the line with the closing `}` (`name {}`, `name {hello}`).
+    The opening `{` may also sit at the end of the name line, with the closer on a later line.
+    `{` starts a block only when it is immediately after the name (optional spaces).
+    If other text is between the name and `{`, the line is a [simple_idea] and the braces are body text.
     The first unstructured text in an idea body is the main description when no other body attribute is marked.
     @tests (
         ["../../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../../crates/reqlan-index/tests/extract_parity.rs:block_idea_body_populates_summary_from_rich_text_parts"]
         ["../../crates/reqlan-parse/tests/parser.rs:parses_block_and_oneliner"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parses_same_line_blocks_without_swallowing_later_ideas"]
+        ["../../packages/language/test/parsing.test.ts:same-line braces after a name parse as a block"]
+        ["../../packages/language/test/textmate-idea-highlight.test.ts"]
     )
 }
 
@@ -219,6 +231,30 @@ reference_file {
     )
 }
 
+reference_url {
+    A bracket reference may target an unquoted absolute URL (`scheme://…`).
+    Example: `[https://reqlan.com/]`.
+    The URL is one token; `://` is not a line comment.
+    Unbracketed URLs in body prose stay text.
+    Quoted remote paths stay [reference_file] (`["https://example.com/file.ts"]`).
+    Index and check: ["../reference_types.rq".url_reference].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../packages/language/src/reqlan-file-link-resolver.ts"]
+    )
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses bracketed url references"]
+        ["../../packages/language/test/parsing.test.ts:does not parse unbracketed urls as url references"]
+        ["../../packages/language/test/linking.test.ts:url references produce document links and no missing diagnostics"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:bracketed_url_is_one_url_token"]
+        ["../../crates/reqlan-parse/tests/parser.rs:bracketed_url_is_a_url_reference"]
+    )
+}
+
 string_and_reference_apostrophes {
     strings should use double or single apostrophes interchangeably and support backslash escapes.
 
@@ -322,13 +358,14 @@ comments {
       Example: a file reference whose path text contains slash-slash,
       `["../extension/module/**/*.rq".*webview*]`.
     - URL / path-segment guard: `//` immediately after `:` or `/` is not a line comment.
-    Same-line fences: ["./syntax-edge-cases.rq".fencing_comments] — complete `"…"`, `'…'`, and `` `…` `` spans keep `//` as prose.
+    Same-line fences: ["./syntax-edge-cases.rq".fencing_comments] — complete `"…"`, `'…'`, and `` `…` `` spans keep `//` and `/*` as prose.
     Unclosed quote or backtick openers are not fences, so `//` after them is a comment.
+    Comment-range identity across lexer, scanner, and TextMate: ["../core_analysis/rust_port.rq".comment_span_align].
     Multiline / glob clash: the empty block form `/**/` is **not** a comment — it is the recursive
     glob segment used in paths such as `../mod/**/*.rq`. A real block comment needs a non-empty body
     (`/* note */`, `/*\n  note\n*/`). The token builder rejects length-4 `/**/` matches; comment-span
     scanners skip the same sequence so embedded `rq:[…]` discovery stays aligned.
-    Related: [comment_reference_ignore], [string_literals], ["./imports.rq".wildcard_references].
+    Related: [comment_reference_ignore], [string_literals], ["./imports.rq".wildcard_references], ["../core_analysis/rust_port.rq".comment_span_align].
 
     @status done
     @implementation (
@@ -336,6 +373,8 @@ comments {
         ["../../packages/language/src/reqlan.langium"]
         ["../../packages/language/src/reqlan-comment-resolver.ts"]
         ["../../packages/language/src/reqlan-line-fences.ts"]
+        ["../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../packages/language/syntaxes/reqlan.tmLanguage.json"]
     )
     @tests (
         ["../../packages/language/test/comment-in-string.test.ts"]
@@ -345,6 +384,9 @@ comments {
         ["../../packages/language/test/references.test.ts:ignores // inside string literals when locating line comments"]
         ["../../packages/language/test/references.test.ts:ignores // inside complete backtick fences when locating line comments"]
         ["../../packages/language/test/references.test.ts:e2e: findCommentSpansInText skips empty /**/ glob segments"]
+        ["../../packages/language/test/comment-span-align.test.ts:golden corpus C-style comment ranges match lexer, scanner, and TextMate"]
+        ["../../packages/language/test/comment-in-string.test.ts:backticked @reqlan/* in block body is not a block comment"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText skips /* inside complete backtick fences"]
         ["../../packages/language/test/ignore-error.test.ts"]
         ["../../packages/language/test/wildcard-references.test.ts:e2e: ** path glob matches nested fixture files"]
         ["../../crates/reqlan-parse/tests/lexer.rs:url_slashes_are_not_line_comments"]
@@ -411,16 +453,18 @@ inline_code {
     Single-backtick spans (`…`) are opaque `INLINE_CODE`. They may show example syntax such as a quoted path plus idea.
     The grammar does not parse bracket or file references inside the span.
     Check and the language server must not report those examples as unresolved ["../reference_types.rq".file_reference] or idea refs.
-    Related: [code_snippets].
+    Related: [code_snippets], ["../core_analysis/rust_port.rq".comment_span_align].
     @status done
     @implementation (
         ["../../packages/language/src/reqlan.langium"]
         ["../../packages/language/src/reqlan-embedded-file-references.ts"]
+        ["../../packages/language/scripts/patch-textmate.mjs"]
         ["../../crates/reqlan-parse/src/lexer.rs"]
         ["../../crates/reqlan-index/src/extract.rs"]
     )
     @tests (
         ["../../packages/language/test/references.test.ts:embedded file reference scan ignores inline code examples"]
+        ["../../packages/language/test/comment-span-align.test.ts:backticked @reqlan/* is not a block comment"]
         ["../../packages/language/test/references.test.ts:embedded file reference scan ignores site showcase interlock inline example"]
         ["../../packages/language/test/ignore-error.test.ts:does not report file references inside inline code"]
         ["../../packages/language/test/parsing.test.ts:does not parse a backticked file-only line range as a bracket reference"]

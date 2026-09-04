@@ -198,6 +198,7 @@ export function edgeKindsForReferenceViewTypes(types: string[]): string[] {
         switch (type) {
             case 'file':
                 kinds.add('file_reference');
+                kinds.add('url_reference');
                 break;
             case 'comment':
                 kinds.add('comment_link');

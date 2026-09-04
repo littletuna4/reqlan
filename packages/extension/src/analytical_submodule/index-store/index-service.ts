@@ -25,6 +25,7 @@ import {
     type RegisteredBase
 } from '@reqlan/analytical';
 import { toIndexFileUri } from './resolve-index-file-uri.js';
+import { shareInFlight, type InFlightSlot } from '../../shared/share-in-flight.js';
 
 export type { IndexStatusSnapshot, IndexSyncProgress } from '@reqlan/analytical';
 export type { BaseDescriptor, BaseStatusEntry, RegisteredBase };
@@ -61,6 +62,8 @@ export class IndexService {
     private idleSyncActive = false;
     /** Coalesced open+soft-sync nudges keyed by base id (pin / path activate). */
     private readonly catchUpInFlight = new Map<string, Promise<void>>();
+    /** One in-flight `findFiles` so overlapping rediscover/sync do not stack ripgrep. */
+    private readonly collectRqFilesSlot: InFlightSlot<string[]> = {};
 
     get discoveryEmpty(): boolean {
         return this.registry.size === 0;
@@ -558,7 +561,14 @@ export class IndexService {
         this.registryStatusUnsub = this.registry.subscribeStatusUpdates(() => this.notifyStatus());
     }
 
+    /**
+     * rq:["../../../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".index_file_search_coalesce]
+     */
     private async collectRqFiles(): Promise<string[]> {
+        return shareInFlight(this.collectRqFilesSlot, () => this.runCollectRqFiles());
+    }
+
+    private async runCollectRqFiles(): Promise<string[]> {
         const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**');
         const filterCache = new Map<string, ReturnType<typeof loadRqIgnore>>();
         return files

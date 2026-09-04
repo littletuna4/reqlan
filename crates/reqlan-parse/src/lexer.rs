@@ -5,6 +5,7 @@
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".context_sensitive_lexer_scaling]
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+//! rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
 
 use crate::budget::ParseBudget;
 use crate::token::{Token, TokenKind};
@@ -125,6 +126,9 @@ fn match_token(bytes: &[u8], offset: usize, cache: &BraceScanCache) -> Option<(T
     }
     if let Some(len) = match_markdown_link(bytes, offset) {
         return Some((TokenKind::MarkdownLink, len));
+    }
+    if let Some(len) = match_url(bytes, offset) {
+        return Some((TokenKind::Url, len));
     }
     if let Some(len) = match_code_fence(bytes, offset) {
         return Some((TokenKind::CodeFence, len));
@@ -408,6 +412,47 @@ fn match_markdown_link(bytes: &[u8], offset: usize) -> Option<usize> {
         index += 1;
     }
     None
+}
+
+fn match_url(bytes: &[u8], offset: usize) -> Option<usize> {
+    if offset >= bytes.len() || !bytes[offset].is_ascii_alphabetic() {
+        return None;
+    }
+    let mut end = offset + 1;
+    while end < bytes.len() {
+        let byte = bytes[end];
+        if byte.is_ascii_alphanumeric() || byte == b'+' || byte == b'.' || byte == b'-' {
+            end += 1;
+            continue;
+        }
+        break;
+    }
+    if end + 2 >= bytes.len()
+        || bytes[end] != b':'
+        || bytes[end + 1] != b'/'
+        || bytes[end + 2] != b'/'
+    {
+        return None;
+    }
+    end += 3;
+    let rest_start = end;
+    while end < bytes.len() {
+        let byte = bytes[end];
+        if byte == b' '
+            || byte == b'\t'
+            || byte == b'\n'
+            || byte == b'\r'
+            || byte == b'['
+            || byte == b']'
+        {
+            break;
+        }
+        end += 1;
+    }
+    if end == rest_start {
+        return None;
+    }
+    Some(end - offset)
 }
 
 fn match_code_fence(bytes: &[u8], offset: usize) -> Option<usize> {

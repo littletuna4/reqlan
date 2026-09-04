@@ -4,6 +4,7 @@
  * Missing file refs stay in this result so the validator can underline them without creating a link.
  * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+ * rq:["../../../reqlan rq/reference_types.rq".url_reference]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
  */
 import type { AstNode, CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, Reference, URI } from 'langium';
@@ -28,6 +29,7 @@ import {
     isLocalReference,
     isMarkdownLink,
     isQualifiedReference,
+    isUrlReference,
     isWildcardReference,
     type FileReference,
     type FileSymbolReference,
@@ -35,6 +37,7 @@ import {
     type LocalReference,
     type MarkdownLink,
     type QualifiedReference,
+    type UrlReference,
     type WildcardReference
 } from './generated/ast.js';
 import { parseMarkdownLink } from './reqlan-references.js';
@@ -115,6 +118,19 @@ export function resolveFileReferenceLink(
         return undefined;
     }
     return resolveParsedFileLink(document, documents, fileSystem, parsed, pathNode, context);
+}
+
+export function resolveUrlReferenceLink(reference: UrlReference): ResolvedFileLink | undefined {
+    const pathNode = GrammarUtils.findNodeForProperty(reference.$cstNode, 'url') ?? reference.$cstNode;
+    if (!pathNode || !reference.url) {
+        return undefined;
+    }
+    return {
+        sourceRange: pathNode.range,
+        targetUri: reference.url,
+        resolution: 'file',
+        authoredPath: reference.url
+    };
 }
 
 export function resolveImportPathLink(
@@ -525,6 +541,12 @@ export function collectFileLinks(
     for (const node of AstUtils.streamAst(document.parseResult.value)) {
         if (isFileReference(node) || isFileSymbolReference(node)) {
             const link = resolveFileReferenceLink(node, documents, fileSystem, pathContext);
+            if (link) {
+                pushLink(link);
+            }
+        }
+        if (isUrlReference(node)) {
+            const link = resolveUrlReferenceLink(node);
             if (link) {
                 pushLink(link);
             }

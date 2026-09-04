@@ -5,6 +5,7 @@ import "../crates/reqlan-index/src/types.rs" as rust_index_types
 import "../crates/reqlan-index/src/extract.rs" as rust_extract
 import "../packages/language/src/reqlan-comment-resolver.ts" as comment_resolver
 import "../packages/analytical/src/core/file-reference-resolve.ts" as file_reference_resolve
+from "./core_analysis/check.rq" import check
 
 idea_reference {
     Idea-to-idea ["./ontology.rq".reference]: bracket `[name]` / `[ideaset.name]` targets a local, imported, or same-file idea.
@@ -115,6 +116,38 @@ link_reference {
         ["../packages/language/test/parsing.test.ts:keeps pipe characters in body prose as text"]
         ["../packages/language/test/references.test.ts:parses markdown link label and target from raw link text"]
         ["../packages/language/test/references.test.ts:embedded file reference scan ignores markdown link labels"]
+    )
+}
+
+url_reference {
+    A bracket reference whose target is an absolute URL with a scheme and `://`.
+    Example: [https://reqlan.com/].
+    Syntax: ["./language/syntax.rq".reference_url].
+    Index edge kind `url_reference` on [analytical_types] / [rust_index_types]. Extract: [idea_extractor], [rust_extract].
+    [check] does not treat a URL reference as a missing idea or a missing file.
+    Unbracketed URLs in body prose stay text, not this kind.
+    Related: [file_reference], [link_reference].
+    @status done
+    @implementation (
+        [reqlan_grammar]
+        [analytical_types]
+        [idea_extractor]
+        [rust_extract]
+        [rust_index_types]
+        ["../packages/language/src/reqlan-token-builder.ts"]
+        ["../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../crates/reqlan-parse/src/lexer.rs"]
+        ["../crates/reqlan-parse/src/parser.rs"]
+    )
+    @tests (
+        ["../packages/language/test/parsing.test.ts:parses bracketed url references"]
+        ["../packages/language/test/parsing.test.ts:does not parse unbracketed urls as url references"]
+        ["../packages/language/test/linking.test.ts:url references produce document links and no missing diagnostics"]
+        ["../crates/reqlan-parse/tests/lexer.rs:bracketed_url_is_one_url_token"]
+        ["../crates/reqlan-parse/tests/parser.rs:bracketed_url_is_a_url_reference"]
+        ["../crates/reqlan-index/src/extract.rs:indexes_bracketed_url_as_url_reference"]
+        ["../crates/reqlan-index/src/extract.rs:unbracketed_url_is_not_a_url_reference"]
+        ["../crates/reqlan-index/tests/broken_references.rs:check_accepts_url_references"]
     )
 }
 

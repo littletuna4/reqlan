@@ -8,7 +8,7 @@ import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from '@reqlan/language';
 import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
-import { ReqlanDocumentLinkProvider } from '../src/reqlan-document-link-provider.js';
+import { ReqlanDocumentLinkProvider, navigableDocumentLink } from '../src/reqlan-document-link-provider.js';
 import {
     classifyReferenceUri,
     collectFileLinks,
@@ -72,6 +72,17 @@ function resolvedReferenceIdeaName(target: QualifiedReference | LocalReference):
 }
 
 describe('Linking tests', () => {
+
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    test('navigable document links include target and tooltip', () => {
+        const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } };
+        const fileLink = navigableDocumentLink(range, 'file:///tmp/a.rq#L1');
+        expect(fileLink.target).toBe('file:///tmp/a.rq#L1');
+        expect(fileLink.tooltip).toBe('file:///tmp/a.rq#L1');
+        const commandLink = navigableDocumentLink(range, 'command:reqlan.openMatches?%7B%7D');
+        expect(commandLink.target).toBe('command:reqlan.openMatches?%7B%7D');
+        expect(commandLink.tooltip).toBe('reqlan.openMatches');
+    });
 
     // rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
     test('resolve same-file bracket reference to local idea', async () => {
@@ -158,6 +169,7 @@ describe('Linking tests', () => {
         for (const link of alphaLinks) {
             expect(link.target).toContain(document.textDocument.uri);
             expect(link.target).toMatch(/#L\d+/);
+            expect(link.tooltip).toBeTruthy();
         }
     });
 
@@ -1194,6 +1206,34 @@ example_ideaset (
             diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
         );
         expect(missing).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    test('url references produce document links and no missing diagnostics', async () => {
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const sourcePath = join(repoDir, 'reqlan rq/reference_types.rq');
+        const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
+            s`
+                url_reference {
+                    this is a valid url reference [https://reqlan.com/].
+                }
+            `,
+            URI.parse(pathToFileURL(sourcePath).href)
+        ) as LangiumDocument<Model>;
+        fileServices.shared.workspace.LangiumDocuments.addDocument(document);
+        await fileServices.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const missing = (document.diagnostics ?? []).filter(
+            diagnostic => diagnostic.code === FILE_REFERENCE_MISSING
+                || (typeof diagnostic.message === 'string'
+                    && diagnostic.message.includes('Could not resolve reference'))
+        );
+        expect(missing).toHaveLength(0);
+
+        const links = await fileServices.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        expect(links?.some(link => link.target === 'https://reqlan.com/')).toBe(true);
     });
 
     // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]

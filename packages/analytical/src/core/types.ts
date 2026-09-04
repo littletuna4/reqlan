@@ -12,6 +12,7 @@ export type EdgeKind =
     | 'references'
     | 'wildcard_reference'
     | 'file_reference'
+    | 'url_reference'
     | 'ideaset_member'
     | 'import'
     | 'comment_link';

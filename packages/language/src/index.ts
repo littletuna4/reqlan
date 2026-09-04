@@ -3,6 +3,13 @@ export * from './reqlan-parse-budget.js';
 export { ReqlanAsyncParser, resolveParseWorkerPath } from './reqlan-async-parser.js';
 export { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 export { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
+export {
+    classifyWatchedUri,
+    filterWatchedFileChanges,
+    isNoisyWatchedUri,
+    REQLAN_WATCHED_FILE_GLOBS,
+    watchedUriPath
+} from './reqlan-document-update-handler.js';
 export * from './reqlan-validator.js';
 export * from './reqlan-comment-resolver.js';
 export * from './reqlan-comment-diagnostics.js';
@@ -14,6 +21,7 @@ export {
     fileLinkMissingMessage,
     fileLinkTargetIssueMessage
 } from './reqlan-file-link-resolver.js';
+export { documentLinkTooltip, navigableDocumentLink } from './reqlan-document-link-provider.js';
 export * from './reqlan-embedded-file-references.js';
 export * from './file-path-rewrite.js';
 export * from './reqlan-path-references.js';

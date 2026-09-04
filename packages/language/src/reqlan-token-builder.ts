@@ -3,6 +3,7 @@
  * or complete backtick fences, empty slash-star-star-slash glob segments do not steal
  * path text, and `@` only introduces attributes at the start of a line.
  * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
  */
 import type { Grammar } from 'langium';
 import { DefaultTokenBuilder, type TokenBuilderOptions } from 'langium';
@@ -76,6 +77,42 @@ const atSignAttributeMarker = (text: string, offset: number): RegExpExecArray | 
         return null;
     }
     return makeMatch(text, offset, 1);
+};
+
+/** Unquoted `scheme://…` token. Stops at whitespace or brackets so `[https://host/]` is one target. */
+const reqlanUrl = (text: string, offset: number): RegExpExecArray | null => {
+    const first = text.charCodeAt(offset);
+    if (first < 65 || (first > 90 && first < 97) || first > 122) {
+        return null;
+    }
+    let index = offset + 1;
+    while (index < text.length) {
+        const code = text.charCodeAt(index);
+        const isAlphaNum = (code >= 48 && code <= 57)
+            || (code >= 65 && code <= 90)
+            || (code >= 97 && code <= 122);
+        if (isAlphaNum || code === 43 || code === 46 || code === 45) {
+            index++;
+            continue;
+        }
+        break;
+    }
+    if (text[index] !== ':' || text[index + 1] !== '/' || text[index + 2] !== '/') {
+        return null;
+    }
+    index += 3;
+    const restStart = index;
+    while (index < text.length) {
+        const char = text[index]!;
+        if (char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '[' || char === ']') {
+            break;
+        }
+        index++;
+    }
+    if (index === restStart) {
+        return null;
+    }
+    return makeMatch(text, offset, index - offset);
 };
 
 const markdownLink = (text: string, offset: number): RegExpExecArray | null => {
@@ -513,6 +550,12 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             const [markdown] = tokens.splice(markdownIndex, 1);
             tokens.unshift(markdown);
         }
+        const urlIndex = tokens.findIndex(token => token.name === 'URL');
+        const idForUrl = tokens.findIndex(token => token.name === 'ID');
+        if (urlIndex >= 0 && idForUrl >= 0 && idForUrl < urlIndex) {
+            const [urlToken] = tokens.splice(urlIndex, 1);
+            tokens.splice(idForUrl, 0, urlToken);
+        }
         const wordIndex = tokens.findIndex(token => token.name === 'WORD');
         const idIndex = tokens.findIndex(token => token.name === 'ID');
         if (wordIndex >= 0 && idIndex >= 0 && idIndex < wordIndex) {
@@ -561,15 +604,19 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             };
             other.LINE_BREAKS = false;
         }
-        // ID is a prefix of WILDCARD_NAME (e.g. import_ vs import_*) — require longer-alt check.
+        // ID is a prefix of WILDCARD_NAME (e.g. import_ vs import_*) and of URL (`https` vs `https://…`).
         const idToken = tokens.find(entry => entry.name === 'ID');
         const wildcardToken = tokens.find(entry => entry.name === 'WILDCARD_NAME');
-        if (idToken && wildcardToken) {
+        const urlToken = tokens.find(entry => entry.name === 'URL');
+        if (idToken) {
             const existing = idToken.LONGER_ALT;
             const alts = Array.isArray(existing) ? existing : existing ? [existing] : [];
-            if (!alts.includes(wildcardToken)) {
-                idToken.LONGER_ALT = [...alts, wildcardToken];
+            for (const extra of [wildcardToken, urlToken]) {
+                if (extra && !alts.includes(extra)) {
+                    alts.push(extra);
+                }
             }
+            idToken.LONGER_ALT = alts;
         }
         return tokens;
     }
@@ -610,6 +657,13 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
                 name: 'WORD',
                 LINE_BREAKS: false,
                 PATTERN: reqlanWord
+            };
+        }
+        if (terminal.name === 'URL') {
+            return {
+                name: 'URL',
+                LINE_BREAKS: false,
+                PATTERN: reqlanUrl
             };
         }
         return super.buildTerminalToken(terminal as Parameters<DefaultTokenBuilder['buildTerminalToken']>[0]);

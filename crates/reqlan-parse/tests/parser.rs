@@ -54,6 +54,42 @@ fn parses_block_and_oneliner() {
     assert_eq!(idea_names(source), vec!["oneliner", "myidea"]);
 }
 
+// rq:["../../../reqlan rq/language/syntax.rq".block_idea]
+// rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
+#[test]
+fn parses_same_line_blocks_without_swallowing_later_ideas() {
+    let source = "\
+mybadidea1 {}\n\
+mybadidea2 {hello}\n\
+mybadidea4 hello again\n\
+myokidea1 {\n\
+  this is ok to text mate\n\
+}\n\
+mybadidea3\n";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none());
+    let kinds: Vec<(&str, &str)> = result
+        .model
+        .elements
+        .iter()
+        .map(|element| match element {
+            TopLevelElement::Idea(idea) => ("block", idea.name.as_str()),
+            TopLevelElement::OneLiner(idea) => ("oneliner", idea.name.as_str()),
+            other => panic!("unexpected element {other:?}"),
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        vec![
+            ("block", "mybadidea1"),
+            ("block", "mybadidea2"),
+            ("oneliner", "mybadidea4"),
+            ("block", "myokidea1"),
+            ("oneliner", "mybadidea3"),
+        ]
+    );
+}
+
 // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
 #[test]
 fn keeps_inline_prose_braces() {
@@ -208,6 +244,24 @@ fn unquoted_url_in_one_liner_preserves_text() {
     let text = source.get(idea.span.start..idea.span.end).unwrap_or("");
     assert!(text.contains("https://"));
     assert!(text.contains("comment.com"));
+}
+
+// rq:["../../../reqlan rq/reference_types.rq".url_reference]
+#[test]
+fn bracketed_url_is_a_url_reference() {
+    let source = "host {\n    see [https://reqlan.com/]\n}\n";
+    let snapshot = parse_align_snapshot(source);
+    let urls: Vec<&str> = snapshot
+        .refs
+        .iter()
+        .filter(|reference| reference.kind == "url")
+        .map(|reference| reference.label.as_str())
+        .collect();
+    assert_eq!(urls, vec!["https://reqlan.com/"], "{:?}", snapshot.refs);
+    assert!(snapshot
+        .refs
+        .iter()
+        .all(|reference| reference.kind != "local" || reference.label != "https"));
 }
 
 // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]

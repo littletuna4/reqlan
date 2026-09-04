@@ -20,6 +20,30 @@ import { wildcardReferenceCommandTarget } from './reqlan-wildcard-resolve.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 
+/**
+ * VS Code shows "Loading..." for a document link with no target (and for some
+ * `command:` targets after URI conversion). Always send target + tooltip.
+ * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+ */
+export function navigableDocumentLink(range: DocumentLink['range'], target: string): DocumentLink {
+    const link = LspDocumentLink.create(range, target);
+    link.tooltip = documentLinkTooltip(target);
+    return link;
+}
+
+export function documentLinkTooltip(target: string): string {
+    if (target.startsWith('command:')) {
+        const query = target.indexOf('?');
+        const command = query >= 0 ? target.slice('command:'.length, query) : target.slice('command:'.length);
+        return command;
+    }
+    try {
+        return decodeURIComponent(target);
+    } catch {
+        return target;
+    }
+}
+
 export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
 
     private readonly documents: ReqlanServices['shared']['workspace']['LangiumDocuments'];
@@ -42,7 +66,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             { includeIdeaReferences: false }
         ).flatMap(link => {
             if (link.resolution === 'folder') {
-                return [LspDocumentLink.create(
+                return [navigableDocumentLink(
                     link.sourceRange,
                     folderReferenceCommandTarget(link.targetUri)
                 )];
@@ -51,7 +75,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
                 return [];
             }
             if (link.resolution === 'wildcard' && link.wildcardArgs) {
-                return [LspDocumentLink.create(
+                return [navigableDocumentLink(
                     link.sourceRange,
                     wildcardReferenceCommandTarget(link.wildcardArgs)
                 )];
@@ -60,7 +84,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             if (!target) {
                 return [];
             }
-            return [LspDocumentLink.create(link.sourceRange, target)];
+            return [navigableDocumentLink(link.sourceRange, target)];
         });
         const ideaLinks = this.collectIdeaDocumentLinks(document, pathContext);
         const commentLinks = presentCommentReferencesForDocument(
@@ -68,10 +92,13 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             this.documents,
             this.fileSystem,
             pathContext
-        ).links.map(link => LspDocumentLink.create(
-            link.range,
-            link.targetUri ?? URI.file(link.targetPath).toString()
-        ));
+        ).links.flatMap(link => {
+            const target = link.targetUri ?? (link.targetPath ? URI.file(link.targetPath).toString() : undefined);
+            if (!target) {
+                return [];
+            }
+            return [navigableDocumentLink(link.range, target)];
+        });
         return [...fileLinks, ...ideaLinks, ...commentLinks];
     }
 
@@ -93,7 +120,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
                 if (!target) {
                     return [];
                 }
-                return [LspDocumentLink.create(link.sourceRange, target)];
+                return [navigableDocumentLink(link.sourceRange, target)];
             });
         } catch {
             return collectFileLinks(
@@ -117,7 +144,7 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
                 if (text.includes('"') || text.includes("'")) {
                     return [];
                 }
-                return [LspDocumentLink.create(link.sourceRange, target)];
+                return [navigableDocumentLink(link.sourceRange, target)];
             });
         }
     }

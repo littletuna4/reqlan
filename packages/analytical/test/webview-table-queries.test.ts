@@ -93,6 +93,7 @@ describe('references table column filters', () => {
     test('maps view types to edge kinds', () => {
         expect(edgeKindsForReferenceViewTypes(['file', 'comment'])).toEqual([
             'file_reference',
+            'url_reference',
             'comment_link'
         ]);
         expect(edgeKindsForReferenceViewTypes(['sub-idea'])).toEqual([
@@ -113,8 +114,8 @@ describe('references table column filters', () => {
             ]
         });
         expect(sql).toContain('e.target_id IS NOT NULL');
-        expect(sql).toContain('e.kind IN (?)');
-        expect(params).toEqual(['file_reference']);
+        expect(sql).toContain('e.kind IN (?, ?)');
+        expect(params).toEqual(['file_reference', 'url_reference']);
     });
 
     test('global search filters source, target, and labels', () => {

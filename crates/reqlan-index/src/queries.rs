@@ -189,7 +189,10 @@ pub fn edge_kinds_for_reference_view_types(types: &[String]) -> Vec<String> {
     };
     for view_type in types {
         match view_type.as_str() {
-            "file" => push(&mut kinds, "file_reference"),
+            "file" => {
+                push(&mut kinds, "file_reference");
+                push(&mut kinds, "url_reference");
+            }
             "comment" => push(&mut kinds, "comment_link"),
             "sub-idea" => {
                 push(&mut kinds, "references");

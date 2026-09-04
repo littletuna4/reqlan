@@ -15,6 +15,8 @@ syntax_highlighting {
     see ["./features-syntax-highlighting.rq".wildcard_reference_highlighting].
     Import lines must colour path and keywords after `import` / `from` —
     see ["./features-syntax-highlighting.rq".import_statement_highlighting].
+    Same-line named braces (`name {}`, `name {hello}`) must close in TextMate so later
+    one-liners stay visible — see ["./features-syntax-highlighting.rq".same_line_named_block_highlighting].
 
     @status done
     @implementation (
@@ -25,6 +27,7 @@ syntax_highlighting {
     @tests (
         ["../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
         ["../../../packages/language/test/textmate-import-highlight.test.ts"]
+        ["../../../packages/language/test/textmate-idea-highlight.test.ts"]
         ["../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
     )
 }

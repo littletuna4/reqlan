@@ -2,7 +2,23 @@
  * Same-line fences that hide `//` / `/*` so quoted and backticked examples stay prose.
  * Unclosed openers are not fences.
  * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
  */
+
+/** Offset after a ` ```…``` ` fence that starts at `openOffset`, or `text.length` if the fence has no close. */
+export function codeFenceEnd(text: string, openOffset: number): number {
+    if (!text.startsWith('```', openOffset)) {
+        return openOffset;
+    }
+    const afterOpen = openOffset + 3;
+    const firstNewline = text.indexOf('\n', afterOpen);
+    if (firstNewline < 0) {
+        const sameLineClose = text.indexOf('```', afterOpen);
+        return sameLineClose < 0 ? text.length : sameLineClose + 3;
+    }
+    const close = text.indexOf('```', firstNewline + 1);
+    return close < 0 ? text.length : close + 3;
+}
 
 export function isInsideLineFence(text: string, offset: number): boolean {
     const lineStart = text.lastIndexOf('\n', offset - 1) + 1;

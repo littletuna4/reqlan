@@ -32,6 +32,7 @@ import {
     isQualifiedImport,
     isQualifiedReference,
     isRichTextPart,
+    isUrlReference,
     isWikiLink,
     isWildcardReference,
     unquoteReqlanString
@@ -152,6 +153,9 @@ function targetMeta(target: ReferenceTarget): { kind: string; label: string } {
     if (isFileReference(target)) {
         return { kind: 'file', label: unquoteReqlanString(target.file) };
     }
+    if (isUrlReference(target)) {
+        return { kind: 'url', label: target.url };
+    }
     if (isFileSymbolReference(target)) {
         return {
             kind: 'file_symbol',
@@ -251,7 +255,9 @@ const fixtures: Record<string, string> = {
         ''
     ].join('\n'),
     live_qualified_file_ref: 'see ["./syntax.rq".inline_code]\n',
-    invalid_from_keeps_later: 'from not-a-string import foo\nlater_idea still here\n'
+    invalid_from_keeps_later: 'from not-a-string import foo\nlater_idea still here\n',
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    url_reference: 'host {\n    this is a valid url reference [https://reqlan.com/].\n}\n'
 };
 
 describe('Langium and Rust parse alignment', () => {

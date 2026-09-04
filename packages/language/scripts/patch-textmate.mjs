@@ -1,6 +1,8 @@
 /**
  * Merges Reqlan-specific TextMate patterns into the Langium-generated grammar.
  * Interacts with extension contributes.grammars and attribute label highlighting.
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+ * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -21,6 +23,7 @@ const quotedPath = '(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')';
 // Path + optional .ID / .WILDCARD_NAME segments (qualified + wildcard refs).
 const bracketPathRef = `\\[(${quotedPath})(?:\\.(?:${id}|${wildcardName}))*\\]`;
 const wikiPathRef = `\\[\\[(${quotedPath})(?:\\.(?:${id}|${wildcardName}))(\\|[^\\]]+)?\\]\\]`;
+const bracketUrlRef = '\\[([A-Za-z][A-Za-z0-9+.-]*://[^\\]]+)\\]';
 
 const removedRootIncludes = new Set([
     '#import-keywords',
@@ -29,6 +32,7 @@ const removedRootIncludes = new Set([
     '#bracket-references',
     '#code-snippets',
     '#idea-definitions',
+    '#top-level-same-line-idea-block',
     '#top-level-idea-block',
     '#top-level-one-liner-idea',
     '#top-level-ideaset'
@@ -46,6 +50,7 @@ grammar.patterns = (grammar.patterns ?? []).filter(pattern => {
 
 const rootPatterns = [
     { include: '#import-keywords' },
+    { include: '#top-level-same-line-idea-block' },
     { include: '#top-level-idea-block' },
     { include: '#top-level-one-liner-idea' },
     { include: '#top-level-ideaset' }
@@ -147,6 +152,7 @@ grammar.patterns = (grammar.patterns ?? []).filter(pattern => {
     return true;
 });
 grammar.patterns.unshift({ include: '#comments' });
+grammar.patterns.unshift({ include: '#line-fences' });
 
 grammar.repository.attributes = {
     name: 'meta.attribute.reqlan',
@@ -204,6 +210,14 @@ grammar.repository['bracket-references'] = {
     }
 };
 
+grammar.repository['url-bracket-references'] = {
+    name: 'markup.underline.link.reqlan',
+    match: bracketUrlRef,
+    captures: {
+        '1': { name: 'string.other.link.reqlan' }
+    }
+};
+
 grammar.repository['code-snippets'] = {
     name: 'markup.fenced_code.block.reqlan',
     begin: '```(\\w*)',
@@ -213,51 +227,106 @@ grammar.repository['code-snippets'] = {
     }
 };
 
-grammar.repository['one-liner-body'] = {
+// Consume complete same-line backticks and quotes before `#comments` so
+// `/*` inside `@reqlan/*` or `"//…"` cannot open a comment (same as the lexer).
+grammar.repository['inline-code'] = {
+    name: 'markup.inline.raw.reqlan',
+    match: '`[^`\\n]+`'
+};
+
+grammar.repository['line-fences'] = {
     patterns: [
-        { include: '#wikilinks' },
-        { include: '#markdown-links' },
-        { include: '#bracket-references' },
-        { include: '#idea-bracket-references' },
-        { include: '#code-snippets' },
-        { include: '#comments' }
+        { include: '#inline-code' },
+        { match: '"(?:[^"\\\\]|\\\\.)*"' },
+        { match: '\'(?:[^\'\\\\]|\\\\.)*\'' }
     ]
 };
 
+function withLineFencesBeforeComments(patterns) {
+    const next = (patterns ?? []).filter(pattern => (
+        pattern.include !== '#inline-code' && pattern.include !== '#line-fences'
+    ));
+    const commentsAt = next.findIndex(pattern => pattern.include === '#comments');
+    const fence = { include: '#line-fences' };
+    if (commentsAt < 0) {
+        return [fence, ...next];
+    }
+    return [
+        ...next.slice(0, commentsAt),
+        fence,
+        ...next.slice(commentsAt)
+    ];
+}
+
+grammar.repository['one-liner-body'] = {
+    patterns: withLineFencesBeforeComments([
+        { include: '#wikilinks' },
+        { include: '#markdown-links' },
+        { include: '#bracket-references' },
+        { include: '#url-bracket-references' },
+        { include: '#idea-bracket-references' },
+        { include: '#code-snippets' },
+        { include: '#comments' }
+    ])
+};
+
 grammar.repository['block-inner'] = {
-    patterns: [
+    patterns: withLineFencesBeforeComments([
         { include: '#attributes' },
         { include: '#wikilinks' },
         { include: '#markdown-links' },
         { include: '#bracket-references' },
+        { include: '#url-bracket-references' },
         { include: '#idea-bracket-references' },
         { include: '#code-snippets' },
         { include: '#comments' },
+        { include: '#named-same-line-block-item' },
         { include: '#named-block-item' },
         { include: '#named-list' },
         { include: '#nested-list' },
         { include: '#anonymous-block' }
+    ])
+};
+
+const ideaNameCaptures = {
+    '1': { name: 'entity.name.type.idea.reqlan' },
+    '2': { name: 'entity.name.type.idea.reqlan' }
+};
+
+// Same-line closed named block (`name {}` / `name {hello}`).
+// Lookahead requires `}` at end of this line so the rule cannot stay open and
+// swallow later one-liners. Canonical: `{` immediately after a name is structural,
+// and `}` at EOL with no unmatched prose `{` closes the block.
+grammar.repository['top-level-same-line-idea-block'] = {
+    begin: `^${ideaName}\\s*\\{(?=[^\\n]*\\}\\s*$)`,
+    beginCaptures: ideaNameCaptures,
+    end: '\\}(?=\\s*$)',
+    patterns: [
+        { include: '#block-inner' }
     ]
 };
 
 grammar.repository['top-level-idea-block'] = {
     begin: `^${ideaName}\\s*\\{`,
-    beginCaptures: {
-        '1': { name: 'entity.name.type.idea.reqlan' },
-        '2': { name: 'entity.name.type.idea.reqlan' }
-    },
+    beginCaptures: ideaNameCaptures,
     end: '^\\s*\\}',
     patterns: [
         { include: '#block-inner' }
     ]
 };
 
+grammar.repository['named-same-line-block-item'] = {
+    begin: `^\\s+${ideaName}\\s*\\{(?=[^\\n]*\\}\\s*$)`,
+    beginCaptures: ideaNameCaptures,
+    end: '\\}(?=\\s*$)',
+    patterns: [
+        { include: '#block-inner' }
+    ]
+};
+
 grammar.repository['named-block-item'] = {
-    begin: `^\\s+${ideaName}\\s*\\{`,
-    beginCaptures: {
-        '1': { name: 'entity.name.type.idea.reqlan' },
-        '2': { name: 'entity.name.type.idea.reqlan' }
-    },
+    begin: `^\\s+${ideaName}\\s*\\{\\s*$`,
+    beginCaptures: ideaNameCaptures,
     end: '^\\s*\\}',
     patterns: [
         { include: '#block-inner' }

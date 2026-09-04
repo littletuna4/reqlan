@@ -6,7 +6,7 @@ import { EmptyFileSystem, AstUtils, type LangiumDocument } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { parseHelper } from 'langium/test';
 import type { Model, OneLinerIdea } from '@reqlan/language';
-import { createReqlanServices, isAttribute, isBracketReference, isCodeSnippet, isFileReference, isFromImport, isBodyLine, isIdea, isModel, isOneLinerIdea, isScalarValue } from '@reqlan/language';
+import { createReqlanServices, isAttribute, isBracketReference, isCodeSnippet, isFileReference, isFromImport, isBodyLine, isIdea, isModel, isOneLinerIdea, isScalarValue, isUrlReference } from '@reqlan/language';
 import { getReferencePrefixContext } from '../src/reqlan-completion-context.js';
 import { isMarkdownLinkLabelPosition } from '../src/reqlan-markdown-links.js';
 
@@ -435,6 +435,36 @@ second_idea line two`);
         expect(isIdea(idea) && idea.name).toBe('myidea');
     });
 
+    // rq:["../../../reqlan rq/language/syntax.rq".block_idea]
+    // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
+    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+    test('same-line braces after a name parse as a block', async () => {
+        const document = await parse(`mybadidea1 {}
+mybadidea2 {hello}
+myokidea1 {
+  this is ok to text mate
+}
+mybadidea3
+`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const elements = document.parseResult.value.elements;
+        expect(elements.map(element => ({
+            name: 'name' in element ? element.name : undefined,
+            type: element.$type
+        }))).toEqual([
+            { name: 'mybadidea1', type: 'Idea' },
+            { name: 'mybadidea2', type: 'Idea' },
+            { name: 'myokidea1', type: 'Idea' },
+            { name: 'mybadidea3', type: 'OneLinerIdea' }
+        ]);
+        const hello = elements.find(element => isIdea(element) && element.name === 'mybadidea2');
+        expect(hello && isIdea(hello)).toBe(true);
+        if (hello && isIdea(hello)) {
+            const body = hello.elements.find(isBodyLine);
+            expect(body?.$cstNode?.text).toContain('hello');
+        }
+    });
+
     // rq:["../../../reqlan rq/language/imports.rq".import_from]
     test('parses from-import example line inside an attribute block value', async () => {
         const document = await parse(`import_from {
@@ -801,6 +831,35 @@ later_idea {
             .join('\n');
         expect(bodyText).toContain('"this is not a reference.rq"');
         expect(bodyText).toContain("'./also-not-a-reference.ts'");
+    });
+
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    test('parses bracketed url references', async () => {
+        const document = await parse(`url_reference {
+    this is a valid url reference [https://reqlan.com/].
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const urls = [...AstUtils.streamAst(document.parseResult.value)].filter(isUrlReference);
+        expect(urls).toHaveLength(1);
+        expect(urls[0]?.url).toBe('https://reqlan.com/');
+        const brackets = [...AstUtils.streamAst(document.parseResult.value)].filter(isBracketReference);
+        expect(brackets).toHaveLength(1);
+        expect(isUrlReference(brackets[0]?.target)).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/reference_types.rq".url_reference]
+    test('does not parse unbracketed urls as url references', async () => {
+        const document = await parse(`demo {
+    see https://reqlan.com/ for details
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const urls = [...AstUtils.streamAst(document.parseResult.value)].filter(isUrlReference);
+        expect(urls).toHaveLength(0);
+        const bodyText = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text ?? '')
+            .join('\n');
+        expect(bodyText).toContain('https://reqlan.com/');
     });
 
     // rq:["../../../reqlan rq/language/syntax.rq".naked_strings_in_body]

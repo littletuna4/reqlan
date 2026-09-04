@@ -8,6 +8,7 @@ pub enum TokenKind {
     SlComment,
     MlComment,
     MarkdownLink,
+    Url,
     Id,
     WildcardName,
     String,

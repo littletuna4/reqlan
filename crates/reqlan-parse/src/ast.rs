@@ -203,6 +203,10 @@ pub enum ReferenceTarget {
         span: Span,
         file: String,
     },
+    Url {
+        span: Span,
+        url: String,
+    },
     FileSymbol {
         span: Span,
         file: String,
@@ -298,6 +302,7 @@ impl ReferenceTarget {
             Self::Local { span, .. }
             | Self::Qualified { span, .. }
             | Self::File { span, .. }
+            | Self::Url { span, .. }
             | Self::FileSymbol { span, .. }
             | Self::Wildcard { span, .. } => *span,
         }
@@ -314,6 +319,7 @@ impl ReferenceTarget {
                 }
             }
             Self::File { file, .. } => file.clone(),
+            Self::Url { url, .. } => url.clone(),
             Self::FileSymbol { file, symbols, .. } => format!("{file}.{}", symbols.join(".")),
             Self::Wildcard { path_pattern, idea_pattern, .. } => {
                 format!("{path_pattern}.{idea_pattern}")

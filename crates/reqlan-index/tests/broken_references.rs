@@ -193,6 +193,17 @@ fn check_reports_missing_file_refs_and_skips_existing() {
     std::fs::remove_dir_all(&root).ok();
 }
 
+// rq:["../../../reqlan rq/reference_types.rq".url_reference]
+#[test]
+fn check_accepts_url_references() {
+    let root = scratch("url-ref");
+    std::fs::write(root.join("host.rq"), "host {\n    [https://reqlan.com/]\n}\n").unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.is_empty(), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
 #[test]
 fn check_strips_test_name_and_line_suffix_before_file_exists() {
     let root = scratch("suffix");

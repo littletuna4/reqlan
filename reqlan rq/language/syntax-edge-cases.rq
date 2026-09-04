@@ -33,18 +33,21 @@ context_sensitive_lexer_scaling {
 }
 
 fencing_comments {
-    A complete same-line fence keeps `//` as prose, not a line comment.
+    A complete same-line fence keeps `//` and `/*` as prose, not comments.
     Closed double quotes: "//this line" contains no comment.
     Closed backticks: `//this line` contains no comment.
+    Closed backticks with a glob: `@reqlan/*` does not open a block comment.
     An unclosed backtick is not a fence, so this line `// finishes with a comment.
     An unclosed quote is not a fence, so as does "//this one
-    The Langium lexer, the Rust lexer, and comment scanners must use this rule.
-    Related: ["./syntax.rq".comments], ["./syntax.rq".inline_code], ["./syntax.rq".naked_strings_in_body].
+    The Langium lexer, the Rust lexer, comment scanners, and TextMate must use this rule.
+    Related: ["./syntax.rq".comments], ["./syntax.rq".inline_code], ["./syntax.rq".naked_strings_in_body], ["../core_analysis/rust_port.rq".comment_span_align].
     @status done
     @implementation (
         ["../../packages/language/src/reqlan-line-fences.ts"]
         ["../../packages/language/src/reqlan-token-builder.ts"]
         ["../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         ["../../crates/reqlan-parse/src/lexer.rs"]
         ["../../crates/reqlan-index/src/rq_ignore.rs"]
     )
@@ -57,7 +60,11 @@ fencing_comments {
         ["../../packages/language/test/comment-in-string.test.ts:unclosed quote then // is a line comment"]
         ["../../packages/language/test/references.test.ts:ignores // inside complete backtick fences when locating line comments"]
         ["../../packages/language/test/references.test.ts:findCommentSpansInText treats unclosed fences as comments and closed fences as prose"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText skips /* inside complete backtick fences"]
+        ["../../packages/language/test/comment-in-string.test.ts:backticked @reqlan/* in block body is not a block comment"]
+        ["../../packages/language/test/comment-span-align.test.ts:backticked @reqlan/* is not a block comment"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:fencing_comments"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:backticked_slash_star_is_not_a_comment"]
         ["../../crates/reqlan-parse/tests/lexer.rs:quoted_slash_slash_in_body_is_not_a_comment"]
         ["../../crates/reqlan-parse/tests/lexer.rs:backticked_slash_slash_in_body_is_not_a_comment"]
         ["../../crates/reqlan-parse/tests/lexer.rs:unclosed_backtick_then_slash_slash_is_a_comment"]

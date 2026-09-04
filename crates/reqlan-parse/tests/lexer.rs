@@ -118,6 +118,28 @@ fn url_slashes_are_not_line_comments() {
     assert!(joined.contains("comment.com"), "{joined}");
 }
 
+// rq:["../../../reqlan rq/reference_types.rq".url_reference]
+#[test]
+fn bracketed_url_is_one_url_token() {
+    let source = "host { see [https://reqlan.com/] }";
+    let kinds: Vec<TokenKind> = lex(source, ParseBudget::unlimited())
+        .tokens
+        .into_iter()
+        .filter(|token| {
+            !token.kind.is_hidden() && token.kind != TokenKind::Eof && token.kind != TokenKind::Nl
+        })
+        .map(|token| token.kind)
+        .collect();
+    assert!(kinds.contains(&TokenKind::Url), "{kinds:?}");
+    let texts: Vec<String> = lex(source, ParseBudget::unlimited())
+        .tokens
+        .into_iter()
+        .filter(|token| token.kind == TokenKind::Url)
+        .map(|token| token.text(source).to_string())
+        .collect();
+    assert_eq!(texts, vec!["https://reqlan.com/"]);
+}
+
 // rq:["../../../reqlan rq/language/syntax.rq".comments]
 #[test]
 fn quoted_body_slashes_are_not_comments() {
@@ -177,6 +199,18 @@ fn backticked_slash_slash_in_body_is_not_a_comment() {
     assert!(kinds.contains(&TokenKind::InlineCode), "{kinds:?}");
     let joined = visible_text(source);
     assert!(joined.contains("//this line"), "{joined}");
+}
+
+// rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+#[test]
+fn backticked_slash_star_is_not_a_comment() {
+    let source = "demo { CI uses `@reqlan/*` packages }";
+    assert!(!has_comment(source), "{source}");
+    let kinds = visible_kinds(source);
+    assert!(kinds.contains(&TokenKind::InlineCode), "{kinds:?}");
+    let joined = visible_text(source);
+    assert!(joined.contains("@reqlan/*"), "{joined}");
 }
 
 // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]

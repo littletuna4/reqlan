@@ -92,6 +92,7 @@ reference_document_links {
     All resolved `LocalReference` and `QualifiedReference` idea/ideaset tokens should emit links targeting the
     declaration name, regardless of whether the target lives in the same file or an imported one.
     Namespace-import alias tokens (`[alias]` → file) keep their existing file-target link.
+    Each link must include a `target` and a `tooltip` so VS Code does not show "Loading...".
     Implemented by ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
     (`resolveIdeaReferenceLinks`, `collectFileLinks`) and
     ["../../../packages/language/src/reqlan-document-link-provider.ts"].
@@ -99,8 +100,35 @@ reference_document_links {
         ["../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
         ["../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
         ["../../../packages/language/test/linking.test.ts:qualified reference idea token produces document link"]
+        ["../../../packages/language/test/linking.test.ts:navigable document links include target and tooltip"]
     )
     @status done
+}
+
+same_line_named_block_highlighting {
+    TextMate-only highlighting (no semantic tokens) must follow the canonical lexer for
+    named `{` / `}`: a top-level `name {}` or `name {hello}` is a complete
+    ["../../language/syntax.rq".block_idea] on that line. The grammar must close on the same line. It must not leave a block
+    open until a later own-line `}`. An open block swallows later one-liners such as
+    a name-only idea.
+    `name {` at end of line is a multiline block. Close it only on an own-line `}` so
+    matching prose pairs at end of line (`{{SITE_URL}}`) stay in the body per
+    ["../../language/syntax-edge-cases.rq".nested_curly_braces].
+    `name text {braces}` is a ["../../language/syntax.rq".simple_idea]. `{` after other body text must not start a block.
+    TextMate idea-name scopes on a file must match the Langium parse of that file.
+
+    @status done
+    @implementation (
+        ["../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+    )
+    @tests (
+        ["../../../packages/language/test/textmate-idea-highlight.test.ts"]
+        ["../../../packages/language/test/textmate-idea-highlight.test.ts:same-line named block rule closes on the opening line"]
+        ["../../../packages/language/test/textmate-idea-highlight.test.ts:e2e: same-line named braces do not swallow later ideas"]
+        ["../../../packages/language/test/textmate-idea-highlight.test.ts:e2e: TextMate idea names match the Langium parse"]
+        ["../../../packages/language/test/parsing.test.ts:same-line braces after a name parse as a block"]
+    )
 }
 
 wildcard_reference_highlighting {

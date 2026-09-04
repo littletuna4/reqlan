@@ -1,3 +1,34 @@
-todo {
-    
+from "../../core-architecture.rq" import language_server
+
+lsp_file_watch {
+    The language server must register workspace file watchers for `.rq` files only.
+    It must not register a recursive all-files watcher.
+    Watched-file events whose path contains a `node_modules`, `.git`, `.reqlan`, `out`, or `dist` segment must not start a document rebuild.
+    Directory URIs without a trailing slash, Windows paths, and percent-encoded URIs must use the same segment rules.
+    Related: [language_server], [index_file_search_coalesce].
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-document-update-handler.ts"]
+        ["../../../packages/language/src/reqlan-module.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/document-update-watch.test.ts"]
+        ["../../../packages/language/test/document-update-watch.test.ts:registers .rq globs only"]
+        ["../../../packages/language/test/document-update-watch.test.ts:classifies Windows and directory URIs by path segment"]
+        ["../../../packages/language/test/document-update-watch.test.ts:drops noisy events and keeps .rq files"]
+    )
+}
+
+index_file_search_coalesce {
+    Extension-host `findFiles` for `**/*.rq` must share one in-flight search.
+    Overlapping rediscover and sync callers must not start a second ripgrep / `searchtext.exe` process.
+    Related: [lsp_file_watch], ["../module/index.rq".rqignore].
+    @status done
+    @implementation (
+        ["../../../packages/extension/src/shared/share-in-flight.ts"]
+        ["../../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+    )
+    @tests (
+        ["../../../packages/extension/test/share-in-flight.test.ts"]
+    )
 }

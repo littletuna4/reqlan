@@ -84,13 +84,42 @@ golden_corpus {
     Production idea lists may change without regenerating the dump. Copy a representative file into the corpus and refresh `crates/reqlan-index/tests/golden/langium-corpus-names.json` only when grammar or extract behaviour needs a new sample.
     Langium and Rust both extract name+kind from that tree and must match the committed dump.
     Live parse alignment (elements and refs, both engines in one test): [parser_align].
+    Comment character ranges on the same tree: [comment_span_align].
     @status done
     @tests (
         ["../../packages/language/test/langium-corpus-golden.test.ts:committed dump matches live Langium extract"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:corpus_idea_names_match_langium_extract"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts:golden corpus matches live Langium and Rust snapshots"]
+        ["../../packages/language/test/comment-span-align.test.ts:golden corpus C-style comment ranges match lexer, scanner, and TextMate"]
         ["../../packages/language/test/parsing.test.ts:parse ontology.rq ideas"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
+    )
+}
+
+comment_span_align {
+    On every frozen [golden_corpus] `.rq` file, `//` and `/* … */` comment character ranges must be identical across:
+    - the Langium lexer (hidden `SL_COMMENT` / `ML_COMMENT`)
+    - `findCommentSpansInText` C-style spans (host `#` / triple-quote spans are not `.rq` comments)
+    - TextMate `comment.line.reqlan` and `comment.block.reqlan` scopes
+    Same-line fences, glob `/**/`, URL `://`, and fenced ``` bodies must not open comments.
+    Example: `@reqlan/*` in inline code must not open a block comment.
+    Related: [parser_align], ["../language/syntax.rq".comments], ["../language/syntax-edge-cases.rq".fencing_comments], ["../language/syntax.rq".inline_code].
+    @status done
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../packages/language/src/reqlan-line-fences.ts"]
+        ["../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/comment-span-align.test.ts:golden corpus C-style comment ranges match lexer, scanner, and TextMate"]
+        ["../../packages/language/test/comment-span-align.test.ts:backticked @reqlan/* is not a block comment"]
+        ["../../packages/language/test/comment-span-align.test.ts:TextMate line-fences run before comments"]
+        ["../../packages/language/test/comment-in-string.test.ts:backticked @reqlan/* in block body is not a block comment"]
+        ["../../packages/language/test/references.test.ts:findCommentSpansInText skips /* inside complete backtick fences"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:backticked_slash_star_is_not_a_comment"]
     )
 }
 
@@ -138,7 +167,7 @@ parser_align {
     Grammar truth is [syntax] / ["../../packages/language/src/reqlan.langium"].
     The same source must yield the same parse snapshot: top-level elements, live bracket and wiki refs, inline-code count, and fence count.
     One Node test runs Langium and native `parseReqlanSource` (`parseAlignSnapshot`) together. A committed name dump is not the only check.
-    Related: [golden_corpus], [parser_rust].
+    Related: [golden_corpus], [parser_rust], [comment_span_align].
     @status done
     @implementation (
         ["../../crates/reqlan-parse/src/align.rs"]

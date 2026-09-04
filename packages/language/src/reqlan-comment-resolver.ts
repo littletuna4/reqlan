@@ -5,6 +5,9 @@
  * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../reqlan rq/language/syntax.rq".comments]
+ * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
+ * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, URI } from 'langium';
@@ -18,7 +21,7 @@ import {
     type PathResolveContext
 } from './reqlan-path-resolve.js';
 import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
-import { isInsideLineFence } from './reqlan-line-fences.js';
+import { codeFenceEnd, isInsideLineFence } from './reqlan-line-fences.js';
 
 export interface EmbeddedCommentReference {
     path?: string;
@@ -123,6 +126,11 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             continue;
         }
 
+        if (char === '`' && next === '`' && next2 === '`') {
+            index = codeFenceEnd(text, index);
+            continue;
+        }
+
         if (inDouble || inSingle) {
             if (char === '\\') {
                 index += 2;
@@ -131,6 +139,22 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             if (char === '/' && next === '/') {
                 if (!isInsideLineFence(text, index)) {
                     inLineComment = true;
+                    lineCommentStart = index;
+                    inDouble = false;
+                    inSingle = false;
+                    index += 2;
+                    continue;
+                }
+                index += 2;
+                continue;
+            }
+            if (char === '/' && next === '*') {
+                if (text[index + 2] === '*' && text[index + 3] === '/') {
+                    index += 4;
+                    continue;
+                }
+                if (!isInsideLineFence(text, index)) {
+                    blockComment = 'slash';
                     lineCommentStart = index;
                     inDouble = false;
                     inSingle = false;
@@ -181,6 +205,10 @@ export function findCommentSpansInText(text: string): CommentSpan[] {
             // Empty slash-star-star-slash is a glob segment, not a block comment (same as .rq lexer).
             if (text[index + 2] === '*' && text[index + 3] === '/') {
                 index += 4;
+                continue;
+            }
+            if (isInsideLineFence(text, index)) {
+                index += 2;
                 continue;
             }
             blockComment = 'slash';

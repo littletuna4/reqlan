@@ -158,6 +158,7 @@ fn align_ref(form: &str, target: &ReferenceTarget) -> AlignRef {
             ("qualified", label)
         }
         ReferenceTarget::File { file, .. } => ("file", unquote_path(file)),
+        ReferenceTarget::Url { url, .. } => ("url", url.clone()),
         ReferenceTarget::FileSymbol { file, symbols, .. } => {
             ("file_symbol", format!("{}.{}", unquote_path(file), symbols.join(".")))
         }

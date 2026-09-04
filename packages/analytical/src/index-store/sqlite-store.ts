@@ -878,6 +878,7 @@ function toReferenceTableRow(row: ReferencePageRow): ReferenceTableRow {
 function toReferenceViewType(kind: EdgeKind): ReferenceViewType {
     switch (kind) {
         case 'file_reference':
+        case 'url_reference':
             return 'file';
         case 'comment_link':
             return 'comment';

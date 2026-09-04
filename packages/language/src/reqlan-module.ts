@@ -1,5 +1,5 @@
-import { type Module, inject, type PartialLangiumSharedCoreServices } from 'langium';
-import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices } from 'langium/lsp';
+import { type Module, inject } from 'langium';
+import { createDefaultModule, createDefaultSharedModule, type DefaultSharedModuleContext, type LangiumServices, type LangiumSharedServices, type PartialLangiumServices, type PartialLangiumSharedServices } from 'langium/lsp';
 import { ReqlanGeneratedModule, reqlanGeneratedSharedModule } from './generated/module.js';
 import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
 import { ReqlanDocumentHighlightProvider } from './reqlan-document-highlight-provider.js';
@@ -22,6 +22,7 @@ import { ReqlanWorkspaceManager } from './reqlan-workspace-manager.js';
 import { ReqlanAsyncParser } from './reqlan-async-parser.js';
 import { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 import { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
+import { ReqlanDocumentUpdateHandler } from './reqlan-document-update-handler.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -43,11 +44,14 @@ export type ReqlanServices = LangiumServices & ReqlanAddedServices
  * declared custom services. The Langium defaults can be partially specified to override only
  * selected services, while the custom services must be fully specified.
  */
-export const ReqlanSharedModule: Module<LangiumSharedServices, PartialLangiumSharedCoreServices> = {
+export const ReqlanSharedModule: Module<LangiumSharedServices, PartialLangiumSharedServices> = {
     workspace: {
         WorkspaceManager: services => new ReqlanWorkspaceManager(services),
         LangiumDocumentFactory: services => new ReqlanLangiumDocumentFactory(services),
         DocumentBuilder: services => new ReqlanDocumentBuilder(services)
+    },
+    lsp: {
+        DocumentUpdateHandler: services => new ReqlanDocumentUpdateHandler(services)
     }
 };
 
