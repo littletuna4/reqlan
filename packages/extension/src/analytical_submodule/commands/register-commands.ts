@@ -24,7 +24,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.listAllIdeas', async () => {
             await waitForIndex(index);
-            const ideas = await (await index.getAnalysisApi()).listRequirements(0xffff_ffff);
+            const ideas = await index.withAnalysisApi(api => api.listRequirements(0xffff_ffff));
             const items = ideas.map(idea => ({
                 label: idea.name,
                 description: vscode.workspace.asRelativePath(idea.fileUri),
@@ -49,7 +49,7 @@ export function registerAnalyticalCommands(
                 return;
             }
             index.activateBaseForPath(editor.document.uri.fsPath);
-            const result = await (await index.getAnalysisApi()).getFileContext(editor.document.uri.fsPath);
+            const result = await index.withAnalysisApi(api => api.getFileContext(editor.document.uri.fsPath));
             const items = [
                 ...result.ideasInFile.map(idea => ({ label: `[in file] ${idea.name}`, idea })),
                 ...result.referencingIdeas.map(idea => ({ label: `[references] ${idea.name}`, idea })),
@@ -65,7 +65,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.deprecationImpact', async () => {
             await waitForIndex(index);
-            const impacts = await (await index.getAnalysisApi()).getDeprecationImpact();
+            const impacts = await index.withAnalysisApi(api => api.getDeprecationImpact());
             if (impacts.length === 0) {
                 void vscode.window.showInformationMessage('No deprecated ideas found.');
                 return;
@@ -87,7 +87,7 @@ export function registerAnalyticalCommands(
 
         vscode.commands.registerCommand('reqlan.completionStatus', async () => {
             await waitForIndex(index);
-            const summary = await (await index.getAnalysisApi()).getCompletionStatus();
+            const summary = await index.withAnalysisApi(api => api.getCompletionStatus());
             const message = [
                 `Total ideas: ${summary.total}`,
                 `Outstanding: ${summary.outstanding.length}`,
@@ -105,7 +105,7 @@ export function registerAnalyticalCommands(
                 return;
             }
             index.activateBaseForPath(editor.document.uri.fsPath);
-            const graph = await (await index.getAnalysisApi()).getLocalGraph(editor.document.uri.fsPath, 1);
+            const graph = await index.withAnalysisApi(api => api.getLocalGraph(editor.document.uri.fsPath, 1));
             if (!graph) {
                 void vscode.window.showInformationMessage('No ideas found in the current file.');
                 return;
@@ -128,7 +128,7 @@ export function registerAnalyticalCommands(
             if (!query) {
                 return;
             }
-            const matches = await (await index.getAnalysisApi()).searchRequirements(query, 8);
+            const matches = await index.withAnalysisApi(api => api.searchRequirements(query, 8));
             const items = matches.map(match => ({
                 label: match.idea.name,
                 description: `score ${match.score ?? 0}`,

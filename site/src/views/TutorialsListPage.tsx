@@ -28,7 +28,7 @@ type TutorialsListPageProps = {
 function assessmentMatchesQuery(query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return ["assessment", "certificate", "certification", "quiz", "cert"].some(
+  return ["assessment", "certificate", "certification", "quiz", "cert", "ontology"].some(
     (term) => term.includes(q) || q.includes(term),
   );
 }
@@ -173,7 +173,7 @@ export function TutorialsListPage({ decks }: TutorialsListPageProps) {
           <Link className={styles.assessmentLink} href={"/certs/assessment" as Route}>
             <span className={styles.assessmentTitle}>Certification</span>
             <span className={styles.assessmentBlurb}>
-              Pass the assessment, get a certificate
+            Pass the assessment, get a certificate
             </span>
           </Link>
         ) : null}

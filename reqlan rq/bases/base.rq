@@ -163,11 +163,14 @@ active_base_switch {
     - If the selected base is not yet ready, show its readiness/progress and **schedule** the normal activate catch-up
       (open if needed, then one soft sync) fire-and-forget — same path as ["../indexer/indexer.rq".triggers] /
       ["../extension/features-graph-analysers.rq".indexing_trigger_open], not a special switcher rebuild.
-    - Idle staleness checks also heal unopened / never-synced bases (they cannot mtime-diff without a store).
-    - `activateAll` isolates open failures so one bad base cannot leave siblings stranded in `uninitialized`.
+    - Idle staleness checks only touch bases that are already open; they must not reopen every discovered base
+      (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+    - Open failures stay isolated per base so one bad base cannot leave siblings stranded in `uninitialized`.
     - Editor-follow must not overwrite a user pin on the same refresh that applies the selection.
+    - Inactive bases release SQLite artifacts when the active pointer moves away
+      (["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]).
     Surfaces: activity bar ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker], Ideas Summary ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope].
-    Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady`, [workspace_index] `ensureReady`.
+    Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady` / `releaseArtifacts`, [workspace_index] `ensureReady` / `deactivate`.
     @implementation (
         [editor_index_adapter]
         [base_registry]
@@ -176,11 +179,13 @@ active_base_switch {
         ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
         ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker]
         ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope]
+        ["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
     )
     @tests (
         ["../../packages/analytical/test/base-registry-catchup.test.ts:ensureBaseReady opens and soft-syncs an uninitialized base"]
         ["../../packages/analytical/test/base-registry-catchup.test.ts:checkStaleAll heals an uninitialized base"]
         ["../../packages/analytical/test/base-registry-catchup.test.ts:deactivate returns to uninitialized so a base can be reopened"]
+        ["../../packages/analytical/test/sqlite-artifact-release.test.ts:BaseRegistry releaseArtifacts closes handles but keeps descriptors"]
     )
     @status done
 }
@@ -208,18 +213,56 @@ create_base_onboarding {
     When discovery finds **zero** bases under any VS Code workspace folder (root or child),
     the extension prompts the user to create a reqlan base at the workspace-folder root.
     Do not auto-create `.reqlan`. Command `reqlan.createBase` creates `<folder>/.reqlan/`
-    (empty directory is a valid marker), rediscovers, and activates indexing for that base.
-    With multiple workspace folders and no bases, prompt against the first folder.
+    (empty directory is a valid marker) via [create_base_impl], then calls [base_registry] `refresh`
+    so the new marker is registered and the returned [base] descriptor matches discovery
+    ([refresh_rediscovers_bases]). With multiple workspace folders and no bases, prompt against the first folder.
     Headless create-base helper: [create_base_impl] (also used by CLI `init`).
     @implementation (
         [create_base_impl]
         [editor_index_adapter]
+        [base_registry]
         [register_commands]
         ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
         ["../../packages/extension/webviews/ideas-summary/components/StatusBar.svelte"]
     )
+    @tests (
+        ["../../packages/analytical/test/create-base.test.ts:creates .reqlan marker and reports created"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
+    )
 }
 
+refresh_rediscovers_bases {
+    Manual Refresh (command `reqlan.refreshIndex`, activity-bar / Ideas Summary Refresh buttons)
+    and Clear & rebuild must **always rediscover** `.reqlan` markers under workspace roots before
+    soft-sync or rebuild. Do not skip discovery when bases are already registered — a new nested
+    or sibling base created on disk must appear after Refresh.
+    Discovery and registration live in [base_registry] (`refresh` → `rediscover` → optional
+    `ensureBaseReady` for the active base). The extension adapter ([editor_index_adapter]) calls
+    that analytical API; it must not invent a parallel discovery walk.
+    Create Base follows the same refresh path after [create_base_impl] so the new marker is visible
+    immediately ([create_base_onboarding]).
+    Related: [multi_base_environment], ["../extension/features-graph-analysers.rq".indexing_trigger_manual],
+    ["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access].
+
+    @status done
+    @implementation (
+        [base_registry]
+        [editor_index_adapter]
+        [register_commands]
+        ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
+        ["../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte"]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh after createBase registers the new base"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.syncWorkspace calls registry.refresh"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:IndexService.createBase calls createBase then registry.refresh"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:reqlan.refreshIndex command uses syncWorkspace"]
+    )
+}
 
 no_base_behaviour {
     When no base is found, the extension should prompt the user to create a base at the workspace-folder root.

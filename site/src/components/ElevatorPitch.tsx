@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { elevator_pitch } from "@/content/meta";
 import { cn } from "@/lib/utils";
+import shared from "./shared.module.css";
 import styles from "./ElevatorPitch.module.css";
 
 const HOLD_MS = 4500;
@@ -13,6 +14,7 @@ export function ElevatorPitch() {
   // rq:["../../../reqlan rq/site/site.rq".claim_cycle]
   // rq:["../../../reqlan rq/site/site.rq".claim_progress]
   // rq:["../../../reqlan rq/site/site.rq".claim_reduced_motion]
+  // rq:["../../../reqlan rq/site/site.rq".claim_expand]
 
   const claims = elevator_pitch.claims;
   const reduceMotion = useReducedMotion();
@@ -20,7 +22,9 @@ export function ElevatorPitch() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const elapsedRef = useRef(0);
+  const showList = Boolean(reduceMotion) || expanded;
 
   useEffect(() => {
     elapsedRef.current = 0;
@@ -28,7 +32,7 @@ export function ElevatorPitch() {
   }, [index]);
 
   useEffect(() => {
-    if (reduceMotion || paused || claims.length < 2) {
+    if (showList || paused || claims.length < 2) {
       return;
     }
 
@@ -52,26 +56,47 @@ export function ElevatorPitch() {
 
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [claims.length, paused, reduceMotion]);
+  }, [claims.length, paused, showList]);
 
   const activeClaim = claims[index] ?? claims[0];
+  const claimsId = `${baseId}-claims`;
 
   return (
     <section
       id="elevator-pitch"
       className={styles.pitch}
-      aria-label="Elevator pitch"
+      aria-labelledby="elevator-pitch-title"
     >
+      <div className={styles.headingRow}>
+        <h2
+          id="elevator-pitch-title"
+          className={cn(shared.sectionTitle, styles.heading)}
+        >
+          {elevator_pitch.title}
+        </h2>
+        {reduceMotion ? null : (
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-pressed={expanded}
+            aria-controls={claimsId}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? "show one" : "show all"}
+          </button>
+        )}
+      </div>
       <p className={styles.lead}>{elevator_pitch.pitch}</p>
 
-      {reduceMotion ? (
-        <ul className={styles.staticList}>
+      {showList ? (
+        <ul id={claimsId} className={styles.staticList}>
           {claims.map((claim) => (
             <li key={claim}>{claim}</li>
           ))}
         </ul>
       ) : (
         <div
+          id={claimsId}
           className={styles.cycle}
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}

@@ -2,8 +2,20 @@
  * Honor-system certificate tokens for tutorial certification.
  */
 // rq:["../../../reqlan rq/site/certs.rq".certs]
+// rq:["../../../reqlan rq/site/certs.rq".assessment]
+import {
+  CORE_ASSESSMENT_ID,
+  isAssessmentId,
+} from "@/content/assessment";
+
 export const CERTIFICATE_PASSPHRASE =
   "You better not spoof this cert.";
+
+/** Display id for tokens minted before the sole `core` quiz. */
+export const LEGACY_ASSESSMENT_ID = CORE_ASSESSMENT_ID;
+
+/** Earlier catalog ids that now resolve to the sole quiz. */
+const LEGACY_ASSESSMENT_IDS = new Set(["ontology", "references"]);
 
 const SALT = new TextEncoder().encode("reqlan-tutorial-cert-v1");
 const PBKDF2_ITERATIONS = 100_000;
@@ -14,6 +26,8 @@ export type CertificateClaims = {
   n: string;
   /** ISO-8601 completion date (UTC) */
   d: string;
+  /** Assessment id */
+  a: string;
 };
 
 function getCrypto(): Crypto {
@@ -96,6 +110,7 @@ function base64UrlToBytes(token: string): Uint8Array {
 
 export async function mintCertificateToken(input: {
   name: string;
+  assessmentId: string;
   completedAt?: Date;
   passphrase?: string;
 }): Promise<string> {
@@ -103,9 +118,17 @@ export async function mintCertificateToken(input: {
   if (!name) {
     throw new Error("Name is required");
   }
+  const assessmentId = input.assessmentId.trim();
+  if (!assessmentId) {
+    throw new Error("Assessment is required");
+  }
+  if (!isAssessmentId(assessmentId)) {
+    throw new Error("Unknown assessment");
+  }
 
   const claims: CertificateClaims = {
     n: name,
+    a: assessmentId,
     d: (input.completedAt ?? new Date()).toISOString(),
   };
 
@@ -163,15 +186,27 @@ export async function parseCertificateToken(
     const claims = JSON.parse(
       new TextDecoder().decode(inflated),
     ) as Partial<CertificateClaims>;
-
-    if (typeof claims.n !== "string" || typeof claims.d !== "string") {
-      return null;
-    }
-    if (!claims.n.trim() || Number.isNaN(Date.parse(claims.d))) {
-      return null;
-    }
-    return { n: claims.n, d: claims.d };
+    return normalizeCertificateClaims(claims);
   } catch {
     return null;
   }
+}
+
+export function normalizeCertificateClaims(
+  claims: Partial<CertificateClaims>,
+): CertificateClaims | null {
+  if (typeof claims.n !== "string" || typeof claims.d !== "string") {
+    return null;
+  }
+  if (!claims.n.trim() || Number.isNaN(Date.parse(claims.d))) {
+    return null;
+  }
+  const raw =
+    typeof claims.a === "string" && claims.a.trim()
+      ? claims.a.trim()
+      : LEGACY_ASSESSMENT_ID;
+  const assessmentId = LEGACY_ASSESSMENT_IDS.has(raw)
+    ? LEGACY_ASSESSMENT_ID
+    : raw;
+  return { n: claims.n, d: claims.d, a: assessmentId };
 }

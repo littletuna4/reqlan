@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { SiteShell } from "@/components/SiteShell";
+import { assessments, getAssessment } from "@/content/assessment";
 import {
   parseCertificateToken,
   type CertificateClaims,
@@ -11,7 +12,8 @@ import {
 import {
   CERTIFICATE_JUST_COMPLETED_PARAM,
   CERTIFICATE_TOKEN_PARAM,
-  CERTS_ASSESSMENT_PATH,
+  assessmentPath,
+  assessmentsEntryPath,
   certificatePath,
   isJustCompletedParam,
 } from "@/lib/certs-paths";
@@ -120,7 +122,10 @@ function CertificateFromQuery() {
             The link is missing or damaged. Retake the assessment to mint a new
             one.
           </p>
-          <a className={styles.backLink} href={sitePath(`${CERTS_ASSESSMENT_PATH}/`)}>
+          <a
+            className={styles.backLink}
+            href={sitePath(assessmentsEntryPath(assessments))}
+          >
             Back to assessment
           </a>
         </div>
@@ -136,10 +141,15 @@ function CertificateFromQuery() {
         month: "long",
         day: "numeric",
       });
+  const assessment = getAssessment(claims.a);
+  const assessmentTitle = assessment?.title ?? "reqlan";
+  const quizHref = assessment
+    ? assessmentPath(assessment.id)
+    : assessmentsEntryPath(assessments);
 
   return (
     <main className={styles.page}>
-      <article className={styles.cert} aria-label="reqlan tutorial certificate">
+      <article className={styles.cert} aria-label="reqlan certificate">
         <img
           className={styles.logo}
           src={sitePath("/logo.svg")}
@@ -152,13 +162,11 @@ function CertificateFromQuery() {
         <p className={styles.line}>This certifies that</p>
         <p className={styles.name}>{claims.n}</p>
         <p className={styles.line}>
-          completed the reqlan tutorial{" "}
-          <a
-            className={styles.assessmentLink}
-            href={sitePath(`${CERTS_ASSESSMENT_PATH}/`)}
-          >
-            assessment
-          </a>
+          completed the{" "}
+          <a className={styles.assessmentLink} href={sitePath(quizHref)}>
+            {assessmentTitle}
+          </a>{" "}
+          assessment
         </p>
         <p className={styles.date}>{completedLabel}</p>
         <p className={styles.footnote}>semantic engineering with reqlan</p>

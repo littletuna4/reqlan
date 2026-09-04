@@ -1,37 +1,67 @@
 from "../phonebook.rq" import phonebook
+from "../ontology.rq" import idea, ideaset, file, base, reference, attribute, attribute_body
 
 certs {
-    Tutorial certification lives under `/certs/`.
-    Two pages:
-    - [assessment_page] at `/certs/assessment/`
+    Certification lives under `/certs/`.
+    Pages:
+    - [assessment_page] at `/certs/assessment/` (sole quiz when one [assessment]; catalog when more)
+    - one quiz per [assessment] at `/certs/assessment/[id]/`
     - [certificate_page] at `/certs/certificate/`
     The tutorials catalog and ["./support-page.rq".support_page] advocacy link send the user to [assessment_page].
     Tokens are honor-system claims in ["../../site/src/lib/certificate-token.ts"].
+    Claim `a` is the [assessment] id (not a section id).
     @status done
     @implementation (
         ["../../site/src/app/certs/assessment/page.tsx"]
+        ["../../site/src/app/certs/assessment/[id]/page.tsx"]
         ["../../site/src/app/certs/certificate/page.tsx"]
         ["../../site/src/lib/certs-paths.ts"]
         ["../../site/src/lib/certificate-token.ts"]
+        ["../../site/src/content/assessment.ts"]
     )
     @tests (
         ["../../site/src/lib/certs-paths.test.ts"]
+        ["../../site/src/lib/certificate-token.test.ts"]
+        ["../../site/src/content/assessment.test.ts"]
+    )
+}
+
+assessment {
+    A named quiz with a stable id, a title, a blurb, and sections of questions.
+    Questions live in ["../../site/src/content/assessment.ts"] per ["./site.rq".copy].
+    Current sole quiz id `core`. Sections: ontology, installation, syntax, graph, cli.
+    Ontology covers [idea], [ideaset], [file], [base], [attribute], [attribute_body], [reference].
+    Advanced syntax covers imports, file refs, wildcards, and comment refs.
+    CLI covers click and `reqlan check` for reference integrity in CI/CD.
+    Pass at 80%. Then collect a display name and mint a certificate token.
+    The token claim `a` identifies this assessment.
+    After mint, go to [certificate_page] with the token and the just-completed query param.
+    @status done
+    @implementation (
+        ["../../site/src/content/assessment.ts"]
+        ["../../site/src/lib/certificate-token.ts"]
+        ["../../site/src/views/AssessmentPage.tsx"]
+    )
+    @tests (
+        ["../../site/src/content/assessment.test.ts"]
         ["../../site/src/lib/certificate-token.test.ts"]
     )
 }
 
 assessment_page {
-    `/certs/assessment/` is the tutorial quiz.
-    Questions live in ["../../site/src/content/assessment.ts"].
-    Pass at 80%. Then collect a display name and mint a certificate token.
-    After mint, go to [certificate_page] with the token and the just-completed query param.
+    `/certs/assessment/` shows the sole [assessment] quiz when there is one.
+    When there is more than one [assessment], it lists them.
+    `/certs/assessment/[id]/` is that assessment's quiz.
+    Unknown ids are not found.
     Legacy `/assessment/` and `/tutorials/assessment/` redirect here and keep the query string.
     @status done
     @implementation (
         ["../../site/src/app/certs/assessment/page.tsx"]
+        ["../../site/src/app/certs/assessment/[id]/page.tsx"]
         ["../../site/src/app/assessment/page.tsx"]
         ["../../site/src/app/tutorials/assessment/page.tsx"]
         ["../../site/src/views/AssessmentPage.tsx"]
+        ["../../site/src/views/AssessmentListPage.tsx"]
         ["../../site/src/content/assessment.ts"]
         ["../../site/src/lib/certs-paths.ts"]
     )
@@ -42,15 +72,15 @@ assessment_page {
 }
 
 certificate_page {
-    `/certs/certificate/` shows a minted tutorial certificate.
-    Token query param `c` holds the packed claims.
+    `/certs/certificate/` shows a minted certificate.
+    Token query param `c` holds the packed claims, including [assessment] id `a`.
     Query param `just=1` marks the just-completed view:
     - show the certificate
     - show a shareable link that omits `just`
     - embed the sticker form per [sticker_form_embed]
     Without `just`, the page is the shareable certificate only. Do not embed the form.
     Invalid or missing tokens send the user back to [assessment_page].
-    The completion line on a valid certificate links to [assessment_page].
+    The completion line on a valid certificate names the [assessment] and links to that quiz.
     Legacy `/tutorials/certificate/` redirects here and keeps the query string.
     @status done
     @implementation (
@@ -59,6 +89,7 @@ certificate_page {
         ["../../site/src/views/CertificatePage.tsx"]
         ["../../site/src/lib/certs-paths.ts"]
         ["../../site/src/lib/certificate-token.ts"]
+        ["../../site/src/content/assessment.ts"]
     )
     @tests (
         ["../../site/src/lib/certs-paths.test.ts"]

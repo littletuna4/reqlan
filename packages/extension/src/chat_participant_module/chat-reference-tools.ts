@@ -18,10 +18,9 @@ export class RequirementReferenceTool implements vscode.LanguageModelTool<Requir
     ): Promise<vscode.LanguageModelToolResult> {
         await waitForIndex(this.index);
         const query = options.input.name?.trim() ?? '';
-        const api = await this.index.getAnalysisApi();
-        const ideas = query
-            ? await api.resolveRequirementReference(query)
-            : await api.listRequirements(12);
+        const ideas = await this.index.withAnalysisApi(async api =>
+            query ? api.resolveRequirementReference(query) : api.listRequirements(12)
+        );
 
         const filtered = query
             ? ideas
@@ -48,7 +47,7 @@ export class FileReferenceTool implements vscode.LanguageModelTool<FileReference
     ): Promise<vscode.LanguageModelToolResult> {
         await waitForIndex(this.index);
         const prefix = options.input.path?.trim() ?? '';
-        const matches = (await (await this.index.getAnalysisApi()).resolveFileReference(prefix)).slice(0, 12);
+        const matches = (await this.index.withAnalysisApi(api => api.resolveFileReference(prefix))).slice(0, 12);
 
         if (matches.length === 0) {
             return new vscode.LanguageModelToolResult([

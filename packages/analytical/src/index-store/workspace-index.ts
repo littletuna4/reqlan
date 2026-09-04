@@ -292,6 +292,8 @@ export class WorkspaceIndex {
         await this.diagnostics?.close();
         this.diagnostics = undefined;
         // Return the FSM to `uninitialized` before dropping the runtime handle.
+        // shutdown checkpoints WAL so `.sqlite` / sidecars can be deleted.
+        // rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
         if (native?.canDispatchIndex('closed')) {
             native.dispatchIndex('closed');
         }

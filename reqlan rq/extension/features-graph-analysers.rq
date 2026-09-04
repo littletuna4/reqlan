@@ -25,7 +25,22 @@ indexing_incrementality {
 }
 
 indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers, and by allowlisted source files that may contain comment references.
-indexing_trigger_manual indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
+indexing_trigger_manual {
+    Indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
+    Refresh and Clear & rebuild always rediscover bases first via
+    ["../bases/base.rq".refresh_rediscovers_bases] /
+    ["../../packages/analytical/src/index-store/base-registry.ts"] `refresh`, then soft-sync or
+    rebuild the active base.
+    @implementation (
+        ["../../packages/analytical/src/index-store/base-registry.ts"]
+        ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+        ["../../packages/extension/src/analytical_submodule/commands/register-commands.ts"]
+    )
+    @tests (
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
+        ["../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
+    )
+}
 
 indexing_trigger_open {
     After the activity bar's first painted frame / base activate, run one soft sync (mtime-skipped) so the index is warm without delaying the sidebar shell.

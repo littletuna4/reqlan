@@ -6,7 +6,7 @@ import { CERTS_ASSESSMENT_PATH } from "@/lib/certs-paths";
 export const metadata: Metadata = {
   title: "Assessment · reqlan",
   description:
-    "Short quiz on reqlan get-started and concepts. Pass to claim a certificate.",
+    "Pass the reqlan assessment to claim a certificate of completion.",
 };
 
 export default function Page() {
