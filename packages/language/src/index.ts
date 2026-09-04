@@ -57,6 +57,7 @@ export * from './reqlan-import-edits.js';
 export * from './reqlan-import-bindings.js';
 export * from './reqlan-namespace-import-links.js';
 export * from './reqlan-name-catalog.js';
+export * from './reqlan-inbound-snapshot.js';
 export * from './reqlan-neighbor-parse.js';
 export {
     analyzeDocumentLocalSymbolic,

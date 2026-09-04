@@ -17,7 +17,13 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import { CancellationToken } from 'vscode-languageserver';
-import { createReqlanServices, type Model } from '../src/reqlan-module.js';
+import { createReqlanServices } from '../src/reqlan-module.js';
+import {
+    isIdea,
+    isIdeaSet,
+    isOneLinerIdea,
+    type Model
+} from '../src/generated/ast.js';
 import {
     presentCommentReferencesForDocument
 } from '../src/reqlan-comment-diagnostics.js';
@@ -28,7 +34,11 @@ import {
 import {
     clearLocalSymbolicExtractCache
 } from '../src/reqlan-local-symbolic-links.js';
-import { isUnresolvedIdeaMessage, applyOutboundDiagnosticAuthority } from '../src/reqlan-outbound-presentation.js';
+import {
+    applyOutboundDiagnosticAuthority,
+    diagnosticMessageText,
+    isUnresolvedIdeaMessage
+} from '../src/reqlan-outbound-presentation.js';
 import { collectLexParseDiagnostics } from '../src/reqlan-parse-diagnostics.js';
 import {
     createIncompleteParseResult,
@@ -36,6 +46,18 @@ import {
 } from '../src/reqlan-parse-budget.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
+
+function diagnosticText(diagnostic: { message: Parameters<typeof diagnosticMessageText>[0] }): string | undefined {
+    return diagnosticMessageText(diagnostic.message);
+}
+
+function isUnresolvedNamed(
+    diagnostic: { message: Parameters<typeof diagnosticMessageText>[0] },
+    name: string
+): boolean {
+    const text = diagnosticText(diagnostic);
+    return text !== undefined && isUnresolvedIdeaMessage(text) && text.includes(name);
+}
 
 describe('outbound one-hop sequencing', () => {
     let services: ReturnType<typeof createReqlanServices>;
@@ -128,9 +150,7 @@ describe('outbound one-hop sequencing', () => {
         const labels = await documentLinks(document);
         expect(labels).not.toContain('absent_idea');
         const unresolved = (document.diagnostics ?? []).filter(
-            diagnostic => typeof diagnostic.message === 'string'
-                && isUnresolvedIdeaMessage(diagnostic.message)
-                && diagnostic.message.includes('absent_idea')
+            diagnostic => isUnresolvedNamed(diagnostic, 'absent_idea')
         );
         expect(unresolved.length).toBeGreaterThanOrEqual(1);
     });
@@ -217,9 +237,7 @@ describe('outbound one-hop sequencing', () => {
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
         const unresolved = (document.diagnostics ?? []).filter(
-            diagnostic => typeof diagnostic.message === 'string'
-                && isUnresolvedIdeaMessage(diagnostic.message)
-                && diagnostic.message.includes('present_idea')
+            diagnostic => isUnresolvedNamed(diagnostic, 'present_idea')
         );
         expect(unresolved).toHaveLength(0);
         const labels = await documentLinks(document);
@@ -242,11 +260,10 @@ describe('outbound one-hop sequencing', () => {
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
         const unresolved = (document.diagnostics ?? []).filter(
-            diagnostic => typeof diagnostic.message === 'string'
-                && isUnresolvedIdeaMessage(diagnostic.message)
+            diagnostic => isUnresolvedIdeaMessage(diagnostic.message)
         );
-        expect(unresolved.some(diagnostic => diagnostic.message.includes('present_idea'))).toBe(false);
-        expect(unresolved.some(diagnostic => diagnostic.message.includes('gone'))).toBe(true);
+        expect(unresolved.some(diagnostic => isUnresolvedNamed(diagnostic, 'present_idea'))).toBe(false);
+        expect(unresolved.some(diagnostic => isUnresolvedNamed(diagnostic, 'gone'))).toBe(true);
         const labels = await documentLinks(document);
         expect(labels).toContain('present_idea');
         expect(labels).not.toContain('gone');
@@ -263,10 +280,10 @@ describe('outbound one-hop sequencing', () => {
             timeoutMs: 8_000
         });
         const parseDiagnostics = collectLexParseDiagnostics(document);
-        expect(parseDiagnostics.some(diagnostic => diagnostic.message === PARSE_TIMEOUT_WARNING)).toBe(true);
+        expect(parseDiagnostics.some(diagnostic => diagnosticText(diagnostic) === PARSE_TIMEOUT_WARNING)).toBe(true);
         applyOutboundDiagnosticAuthority(document, services.Reqlan);
         expect(
-            (document.diagnostics ?? []).some(diagnostic => diagnostic.message === PARSE_TIMEOUT_WARNING)
+            (document.diagnostics ?? []).some(diagnostic => diagnosticText(diagnostic) === PARSE_TIMEOUT_WARNING)
         ).toBe(true);
     });
 
@@ -280,10 +297,10 @@ describe('outbound one-hop sequencing', () => {
             }
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
-        const imports = (document.diagnostics ?? []).filter(
-            diagnostic => typeof diagnostic.message === 'string'
-                && diagnostic.message.includes("Could not resolve import './does-not-exist.rq'")
-        );
+        const imports = (document.diagnostics ?? []).filter(diagnostic => {
+            const text = diagnosticText(diagnostic);
+            return text !== undefined && text.includes("Could not resolve import './does-not-exist.rq'");
+        });
         expect(imports.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -315,11 +332,12 @@ describe('outbound one-hop sequencing', () => {
         });
         expect(document.parseResult.parserErrors).toHaveLength(0);
         expect(document.parseResult.lexerErrors).toHaveLength(0);
-        const names = new Set(
-            (document.parseResult.value.elements ?? [])
-                .map(element => 'name' in element ? element.name : undefined)
-                .filter((name): name is string => typeof name === 'string')
-        );
+        const names = new Set<string>();
+        for (const element of document.parseResult.value.elements ?? []) {
+            if (isIdea(element) || isIdeaSet(element) || isOneLinerIdea(element)) {
+                names.add(element.name);
+            }
+        }
         expect(names.has('open_file_algorithm')).toBe(true);
         expect(names.has('open_file_sequence_diagram')).toBe(true);
         expect(names.has('token_colour_sequence')).toBe(true);

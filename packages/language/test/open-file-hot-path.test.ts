@@ -13,9 +13,11 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import { DiagnosticSeverity, CancellationToken } from 'vscode-languageserver';
-import { createReqlanServices, type Model } from '../src/reqlan-module.js';
+import { createReqlanServices } from '../src/reqlan-module.js';
+import { type Model } from '../src/generated/ast.js';
 import {
     applyOutboundDiagnosticAuthority,
+    diagnosticMessageText,
     isUnresolvedIdeaMessage
 } from '../src/reqlan-outbound-presentation.js';
 import {
@@ -28,6 +30,18 @@ import { findLoadedDocument } from '../src/reqlan-neighbor-parse.js';
 import { pathResolveContextFromServices } from '../src/reqlan-path-resolve.js';
 
 const RELINK_MARKER = 'RELINK_MARKER';
+
+function diagnosticText(diagnostic: { message: Parameters<typeof diagnosticMessageText>[0] }): string | undefined {
+    return diagnosticMessageText(diagnostic.message);
+}
+
+function isUnresolvedNamed(
+    diagnostic: { message: Parameters<typeof diagnosticMessageText>[0] },
+    name: string
+): boolean {
+    const text = diagnosticText(diagnostic);
+    return text !== undefined && isUnresolvedIdeaMessage(text) && text.includes(name);
+}
 
 describe('open-file hot path', () => {
     let services: ReturnType<typeof createReqlanServices>;
@@ -78,7 +92,7 @@ describe('open-file hot path', () => {
     }
 
     function hasRelinkMarker(document: LangiumDocument): boolean {
-        return (document.diagnostics ?? []).some(diagnostic => diagnostic.message === RELINK_MARKER);
+        return (document.diagnostics ?? []).some(diagnostic => diagnosticText(diagnostic) === RELINK_MARKER);
     }
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
@@ -152,8 +166,7 @@ describe('open-file hot path', () => {
         const other = await services.shared.workspace.LangiumDocuments.getOrCreateDocument(otherUri);
         await services.shared.workspace.DocumentBuilder.build([lonely, other], { validation: true });
         const unresolved = (lonely.diagnostics ?? []).filter(
-            diagnostic => typeof diagnostic.message === 'string'
-                && isUnresolvedIdeaMessage(diagnostic.message)
+            diagnostic => isUnresolvedIdeaMessage(diagnostic.message)
         );
         expect(unresolved.length).toBeGreaterThanOrEqual(1);
         addRelinkMarker(lonely);
@@ -183,22 +196,14 @@ describe('open-file hot path', () => {
         });
         await services.shared.workspace.DocumentBuilder.build([host], { validation: true });
         expect(
-            (host.diagnostics ?? []).some(
-                diagnostic => typeof diagnostic.message === 'string'
-                    && isUnresolvedIdeaMessage(diagnostic.message)
-                    && diagnostic.message.includes('present_idea')
-            )
+            (host.diagnostics ?? []).some(diagnostic => isUnresolvedNamed(diagnostic, 'present_idea'))
         ).toBe(true);
         addRelinkMarker(host);
         writeFileSync(join(dir, 'lib.rq'), 'present_idea { body }\n');
         await services.shared.workspace.DocumentBuilder.update([libUri], []);
         expect(hasRelinkMarker(host)).toBe(false);
         expect(
-            (host.diagnostics ?? []).some(
-                diagnostic => typeof diagnostic.message === 'string'
-                    && isUnresolvedIdeaMessage(diagnostic.message)
-                    && diagnostic.message.includes('present_idea')
-            )
+            (host.diagnostics ?? []).some(diagnostic => isUnresolvedNamed(diagnostic, 'present_idea'))
         ).toBe(false);
     });
 });

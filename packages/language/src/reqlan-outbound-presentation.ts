@@ -38,12 +38,17 @@ import { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
 
 export const OUTBOUND_IDEA_MISSING = 'unresolved-idea-reference';
 
+export function diagnosticMessageText(message: Diagnostic['message']): string | undefined {
+    return typeof message === 'string' ? message : undefined;
+}
+
 export function unresolvedIdeaMessage(name: string): string {
     return `Could not resolve reference to IdeaDeclaration named '${name}'.`;
 }
 
-export function isUnresolvedIdeaMessage(message: string): boolean {
-    return message.includes('Could not resolve reference to IdeaDeclaration named ');
+export function isUnresolvedIdeaMessage(message: Diagnostic['message']): boolean {
+    const text = diagnosticMessageText(message);
+    return text !== undefined && text.includes('Could not resolve reference to IdeaDeclaration named ');
 }
 
 interface OutboundIdeaDecision {
@@ -121,7 +126,9 @@ export function applyOutboundDiagnosticAuthority(document: LangiumDocument, serv
     const existing = document.diagnostics ?? [];
     const seed = existing.length > 0 ? existing : collectLexParseDiagnostics(document);
     const kept = seed.filter(diagnostic => !isConfirmedUnresolved(diagnostic, confirmed));
-    const seen = new Set(kept.map(diagnostic => `${rangeKey(diagnostic.range)}:${diagnostic.message}`));
+    const seen = new Set(
+        kept.map(diagnostic => `${rangeKey(diagnostic.range)}:${diagnosticMessageText(diagnostic.message) ?? ''}`)
+    );
     for (const decision of decisions) {
         if (decision.confirmed) {
             continue;
@@ -145,11 +152,12 @@ export function registerOutboundDiagnosticAuthority(services: ReqlanServices): v
 }
 
 function isConfirmedUnresolved(diagnostic: Diagnostic, confirmed: OutboundIdeaDecision[]): boolean {
-    if (!isUnresolvedIdeaMessage(diagnostic.message)) {
+    const text = diagnosticMessageText(diagnostic.message);
+    if (text === undefined || !isUnresolvedIdeaMessage(text)) {
         return false;
     }
     return confirmed.some(decision =>
-        diagnostic.message.includes(`'${decision.name}'`)
+        text.includes(`'${decision.name}'`)
         && rangesOverlap(diagnostic.range, decision.range)
     );
 }
@@ -160,7 +168,7 @@ function alreadyReportedUnresolved(
     message: string
 ): boolean {
     return diagnostics.some(diagnostic =>
-        diagnostic.message === message
+        diagnosticMessageText(diagnostic.message) === message
         && rangesOverlap(diagnostic.range, decision.range)
     );
 }
