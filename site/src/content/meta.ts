@@ -6,6 +6,7 @@
 export const elevator_pitch = {
   // rq:["../../../reqlan rq/constitution.rq".elevator_pitch]
   // rq:["../../../reqlan rq/site/site.rq".elevator_pitch_section]
+  title: "Why reqlan",
   pitch:
     "Build high-quality, verifiable systems quickly by describing the parts that matter and how they relate",
   claims: [

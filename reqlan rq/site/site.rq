@@ -146,17 +146,23 @@ hero_github_star {
 
 elevator_pitch_section {
     Landing `#elevator-pitch` after [hero_section] and before [motivation_section].
+    This is the home "Why reqlan" destination: [sidebar_nav] child and [nav_graph] Why node use this id.
     One-line thesis plus rotating claims.
     Copy lives in ["../../site/src/content/meta.ts"] per [copy].
     Thesis follows ["../constitution.rq".elevator_pitch].
-    Behaviours: [claim_cycle], [claim_progress], [claim_reduced_motion].
+    Behaviours: [claim_cycle], [claim_progress], [claim_reduced_motion], [claim_expand].
     Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
     @status done
     @implementation (
         ["../../site/src/content/meta.ts"]
+        ["../../site/src/content/nav.ts"]
         ["../../site/src/components/ElevatorPitch.tsx"]
         ["../../site/src/components/ElevatorPitch.module.css"]
+        ["../../site/src/components/NavGraph.tsx"]
         ["../../site/src/views/HomePage.tsx"]
+    )
+    @tests (
+        ["../../site/src/content/nav.test.ts"]
     )
 }
 
@@ -183,6 +189,18 @@ claim_progress {
 
 claim_reduced_motion {
     When the visitor prefers reduced motion, show the full claim list with no cycle and no progress animation.
+    @status done
+    @implementation (
+        ["../../site/src/components/ElevatorPitch.tsx"]
+        ["../../site/src/components/ElevatorPitch.module.css"]
+    )
+}
+
+claim_expand {
+    A toggle expands every [elevator_pitch_section] claim into one list.
+    The rotating cycle stays the default.
+    Expanding pauses the cycle. Collapsing returns to the cycle.
+    Reduced motion still starts on the list per [claim_reduced_motion].
     @status done
     @implementation (
         ["../../site/src/components/ElevatorPitch.tsx"]
@@ -378,7 +396,7 @@ tutorials_section {
     Blurb and try-this live on the catalog and inside the slides, not as page chrome.
     The player is an App Router page ([presentation_player_route]) so it static-exports under `trailingSlash` without colliding with `public/` HTML.
     Sync ([sync_presentations]) converts authored deck/catalog JSONC under ["../../presentations/"] into runtime JSON under `public/presentations/`, and copies assets plus vendored Reveal.js (player shell excluded).
-    The catalog links to [certs_reqs.assessment_page] for tutorial certification.
+    The catalog links to [certs_reqs.assessment_page] for certification.
     @status done
     @implementation (
         ["../../site/src/app/tutorials/page.tsx"]
@@ -511,6 +529,7 @@ copy {
         ["../../site/src/content/faq.ts"]
         ["../../site/src/content/support.ts"]
         ["../../site/src/content/sticky-cta.ts"]
+        ["../../site/src/content/assessment.ts"]
     )
 }
 

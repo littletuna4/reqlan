@@ -5,6 +5,7 @@
 // rq:["../../../reqlan rq/site/site.rq".faq_page]
 // rq:["../../../reqlan rq/site/site.rq".faq_drift]
 // rq:["../../../reqlan rq/site/support-page.rq".support_page]
+import { elevator_pitch } from "./meta";
 import type { NavGraphEdge, NavGraphNode, NavItem } from "@/content/types";
 
 export const nav = [
@@ -12,7 +13,7 @@ export const nav = [
     id: "home",
     label: "Home",
     children: [
-      { id: "motivation", label: "Why reqlan" },
+      { id: "elevator-pitch", label: elevator_pitch.title },
       { id: "syntax", label: "Syntax" },
       { id: "example", label: "Example" },
       { id: "roadmap", label: "Roadmap" },
@@ -63,10 +64,10 @@ export const navGraph = {
       y: 42,
     },
     {
-      id: "motivation",
+      id: "elevator-pitch",
       label: "Why",
       kind: "section",
-      target: "motivation",
+      target: "elevator-pitch",
       x: 22,
       y: 26,
     },
@@ -137,8 +138,8 @@ export const navGraph = {
     },
   ] satisfies NavGraphNode[],
   edges: [
-    { from: "hero", to: "motivation" },
-    { from: "motivation", to: "syntax" },
+    { from: "hero", to: "elevator-pitch" },
+    { from: "elevator-pitch", to: "syntax" },
     { from: "syntax", to: "example" },
     { from: "example", to: "roadmap" },
     { from: "roadmap", to: "contact" },
