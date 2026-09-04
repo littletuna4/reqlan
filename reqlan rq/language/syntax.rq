@@ -151,10 +151,13 @@ reference_resolution_order {
 open_file_reference_sequencing {
     When the editor opens a `.rq` buffer, reference UI must follow
     ["../extension/language-support/open-file-sequencing.rq".open_file_algorithm]:
-    parse this file, colour tokens, identify outbound targets, parse each neighbor
+    populate the Langium AST for this file
+    (["../extension/language-support/open-file-sequencing.rq".ast_lifecycle]),
+    colour tokens, identify outbound targets, parse each neighbor
     file at depth 1, then paint resolvable links and unresolved errors.
     Native extract for this buffer stays ["../indexer/indexer.rq".local_symbolic_analysis]
-    (no catalog, no SQLite). The LSP layer confirms cross-file ideas with one neighbor parse.
+    (no catalog, no SQLite). That extract is not the Langium AST.
+    The LSP layer confirms cross-file ideas with one neighbor parse.
     Do not wait for workspace Linked or `workspaceManager.ready`.
     Cross-file inbound from SQLite is lazy
     (["../indexer/cache-reuse.rq".unify_inbound_indexes],
@@ -166,6 +169,7 @@ open_file_reference_sequencing {
     @implementation (
         ["../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../packages/language/src/reqlan-document-factory.ts"]
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../packages/language/src/reqlan-inlay-hint-provider.ts"]
@@ -176,6 +180,7 @@ open_file_reference_sequencing {
     )
     @tests (
         ["../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
+        ["../../packages/language/test/ast-lifecycle.test.ts:populates the Langium AST at Parsed without DocumentBuilder"]
         ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
         ["../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
     )

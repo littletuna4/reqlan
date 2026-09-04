@@ -1,11 +1,13 @@
 from "../../core-architecture.rq" import language_server
-from "./open-file-sequencing.rq" import open_file_algorithm
+from "./open-file-sequencing.rq" import open_file_algorithm, ast_lifecycle
 
 lsp_file_watch {
     The language server must register workspace file watchers for `.rq` files only.
     It must not register a recursive all-files watcher.
     Watched-file events whose path contains a `node_modules`, `.git`, `.reqlan`, `out`, or `dist` segment must not start a document rebuild.
     Directory URIs without a trailing slash, Windows paths, and percent-encoded URIs must use the same segment rules.
+    A kept `.rq` change marks that document Changed. The factory then replaces the Langium AST
+    if the text changed ([ast_lifecycle]).
     Related: [language_server], [index_file_search_coalesce], [open_file_algorithm].
     @status done
     @implementation (
@@ -17,6 +19,7 @@ lsp_file_watch {
         ["../../../packages/language/test/document-update-watch.test.ts:registers .rq globs only"]
         ["../../../packages/language/test/document-update-watch.test.ts:classifies Windows and directory URIs by path segment"]
         ["../../../packages/language/test/document-update-watch.test.ts:drops noisy events and keeps .rq files"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:replaces the AST when this buffer text changes"]
     )
 }
 

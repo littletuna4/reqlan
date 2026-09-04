@@ -1,5 +1,6 @@
 from "../../core-architecture.rq" import language_server
 from "../../language/syntax.rq" import open_file_reference_sequencing
+from "../../language/parser_lexer.rq" import parse_budget_timeout
 from "../../indexer/indexer.rq" import local_symbolic_analysis, index
 from "../../indexer/sequencing.rq" import index_sequencing, extension_startup_sequence
 from "../../indexer/cache-reuse.rq" import unify_inbound_indexes
@@ -17,6 +18,12 @@ import "../../../packages/language/src/reqlan-local-symbolic-links.ts" as local_
 import "../../../packages/language/src/reqlan-document-link-provider.ts" as document_links
 import "../../../packages/language/src/reqlan-semantic-token-provider.ts" as semantic_tokens
 import "../../../packages/language/src/reqlan-comment-diagnostics.ts" as comment_diagnostics
+import "../../../packages/language/src/reqlan-document-factory.ts" as document_factory
+import "../../../packages/language/src/reqlan-async-parser.ts" as async_parser
+import "../../../packages/language/src/reqlan-parse-budget.ts" as parse_budget
+import "../../../packages/language/src/reqlan-workspace-manager.ts" as workspace_manager
+import "../../../packages/language/src/reqlan-document-update-handler.ts" as document_update_handler
+import "../../../packages/language/src/reqlan-document-builder.ts" as document_builder
 import "../../../packages/extension/src/language/main.ts" as language_server_main
 import "../../../packages/extension/src/extension/register-comment-reference-links.ts" as comment_links_host
 import "../../../packages/extension/src/extension/register-inbound-sqlite-sync.ts" as inbound_sync
@@ -26,10 +33,11 @@ open_file_algorithm {
     When the editor opens or changes a `.rq` buffer, the language server must run this sequence.
     Do not wait for workspace Linked. Do not wait for a full SQLite crawl.
     Detail: [open_file_sequence_diagram].
-    Related: [open_file_reference_sequencing], [outbound_one_hop], [token_colour_sequence],
-    [missing_reference_colour_sequence], [lazy_features_after_outbound].
+    Related: [open_file_reference_sequencing], [ast_lifecycle], [outbound_one_hop],
+    [token_colour_sequence], [missing_reference_colour_sequence], [lazy_features_after_outbound].
 
-    1. Parse this buffer only (Langium CST and AST at `DocumentState.Parsed`).
+    1. Populate the Langium AST for this buffer only ([ast_lifecycle]).
+       CST and AST exist at `DocumentState.Parsed`. Later builder phases do not rebuild the tree.
     2. Colour tokens in this buffer ([token_colour_sequence]).
     3. Identify outbound reference targets from native local extract plus this AST
        ([local_symbolic_analysis]).
@@ -51,11 +59,13 @@ open_file_algorithm {
         [local_symbolic_links]
         [document_links]
         [semantic_tokens]
+        [document_factory]
         [language_server_main]
         [native_parse]
     )
     @tests (
         ["../../../packages/language/test/outbound-hop.test.ts"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts"]
         ["../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
@@ -86,9 +96,10 @@ open_file_sequence_diagram {
         Editor->>TextMate: Tokenise buffer
         TextMate-->>Editor: Immediate syntax colour
         Editor->>ExtHost: didOpen / didChange
-        ExtHost->>VscLsp: textDocument/didOpen
-        VscLsp->>Langium: Parse this buffer only
-        Langium-->>VscLsp: CST and AST (Parsed)
+        ExtHost->>VscLsp: textDocument/didOpen or didChange
+        VscLsp->>Langium: Parse this buffer (factory populate or replace)
+        Langium-->>VscLsp: CST and AST on parseResult (Parsed)
+        Note over Langium: Linked and Validated do not rebuild this AST
         VscLsp-->>Editor: Semantic tokens from this AST
         VscLsp->>Native: analyzeLocalSymbolic(this file)
         Native-->>VscLsp: Ideas, outbound edges, same-file inbound
@@ -96,6 +107,7 @@ open_file_sequence_diagram {
             VscLsp->>Fs: Read neighbor text
             VscLsp->>Native: Parse neighbor ideas only
             Native-->>VscLsp: Neighbor idea names and lines
+            Note over Langium: Do not populate a Langium AST for the neighbor
         end
         VscLsp-->>Editor: Resolvable links, URL links, wildcard links
         VscLsp-->>Editor: Error for unresolved ideas and imports
@@ -106,10 +118,97 @@ open_file_sequence_diagram {
     ```
 }
 
+ast_lifecycle {
+    The Langium AST is the Chevrotain tree on `document.parseResult`.
+    Native [local_symbolic_analysis] is a separate idea list. It is not this AST.
+    Related: [open_file_algorithm], [open_file_sequence_diagram], [outbound_one_hop],
+    [token_colour_sequence], [parse_budget_timeout],
+    ["./initialisation-and-sequencing.rq".lsp_file_watch].
+
+    Populate. The document factory parses this buffer when the editor opens it,
+    when workspace load first reads that URI, or when a caller uses `fromString`.
+    After parse, the document is at `DocumentState.Parsed`. The CST and the AST exist then.
+    Semantic tokens and outbound identification may run.
+
+    Replace. When this buffer text changes, the factory parses again and replaces
+    `parseResult`. It does not patch the old tree. Then the open-file sequence runs again
+    from colour tokens. A watched `.rq` change uses the same replace path
+    ([document_update_handler]). If the text is unchanged, keep the current tree.
+
+    Do not rebuild. DocumentBuilder phases after Parsed (`IndexedContent`, `ComputedScopes`,
+    `Linked`, `IndexedReferences`, `Validated`) attach scopes, links, and diagnostics.
+    They must not replace the AST ([document_builder]).
+
+    Do not populate a Langium AST for a neighbor during [outbound_one_hop].
+    A change to a neighbor file does not replace this buffer's AST.
+    Outbound confirmation reads neighbor text again (cache by fingerprint).
+    Background workspace parse may populate ASTs for other files ([workspace_manager]).
+    That work must not gate outbound links. Open buffers parse first.
+
+    Incomplete parse. If the budget fails, the factory stores an empty model plus
+    diagnostics ([parse_budget_timeout]). Idea lists on that AST stay empty until a
+    later successful parse.
+
+    ```mermaid
+    sequenceDiagram
+        autonumber
+        participant Editor as VS Code editor
+        participant Factory as Document factory
+        participant Parser as Langium parser
+        participant Builder as DocumentBuilder
+        participant Native as Native extract
+        participant Neighbor as Neighbor 1-hop
+
+        alt Open this buffer or first workspace load of this URI
+            Editor->>Factory: didOpen / getOrCreateDocument
+            Factory->>Parser: parse or parseAsync (this text)
+            Parser-->>Factory: CST and AST
+            Factory-->>Editor: parseResult populated (Parsed)
+        else Change this buffer text
+            Editor->>Factory: didChange / factory.update
+            Factory->>Parser: parseAsync (new text)
+            Parser-->>Factory: New CST and AST
+            Factory-->>Editor: parseResult replaced (Parsed)
+            Note over Factory: Do not patch the old tree
+        else Text unchanged
+            Factory-->>Editor: Keep current parseResult
+        else Parse budget fails
+            Parser-->>Factory: Empty model plus diagnostics
+            Factory-->>Editor: Incomplete AST (no idea names)
+        end
+        Builder->>Builder: Index, scopes, link, validate
+        Note over Builder: Same AST. Do not rebuild the tree.
+        Native-->>Editor: Separate idea list for this file
+        Note over Neighbor: Native parse only. No Langium AST for the neighbor.
+    ```
+
+    @status done
+    @implementation (
+        [document_factory]
+        [async_parser]
+        [parse_budget]
+        [workspace_manager]
+        [document_update_handler]
+        [document_builder]
+        [neighbor_parse]
+        [language_server_main]
+    )
+    @tests (
+        ["../../../packages/language/test/ast-lifecycle.test.ts:populates the Langium AST at Parsed without DocumentBuilder"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:replaces the AST when this buffer text changes"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:keeps the AST when the text is unchanged"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:linking and validation do not replace the AST"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:neighbor hop does not populate a Langium AST"]
+        ["../../../packages/language/test/ast-lifecycle.test.ts:incomplete parse stores an empty model"]
+        ["../../../packages/language/test/parse-budget.test.ts:times out a hung parse worker with warning and error"]
+        ["../../../packages/language/test/outbound-hop.test.ts:open-file-sequencing.rq parses mermaid sequence diagrams"]
+    )
+}
+
 token_colour_sequence {
     Token colour has two layers. They must not wait for SQLite or for workspace Linked.
-    TextMate paints first from the buffer text. Semantic tokens paint after Langium parse.
-    Native extract does not paint tokens.
+    TextMate paints first from the buffer text. Semantic tokens paint after the Langium AST
+    is populated ([ast_lifecycle]). Native extract does not paint tokens.
     Missing references keep the same token colour. The error underline is a diagnostic,
     not a different semantic token ([missing_reference_colour_sequence], [reference_rendering]).
     Related: [syntax_highlighting].
@@ -190,6 +289,7 @@ outbound_one_hop {
     Prefer the open buffer text when the neighbor is already open and dirty.
     Cache by URI plus content hash ([neighbor_parse]).
     Native [local_symbolic_analysis] stays file-local. This hop is the LSP layer on top.
+    This hop must not populate a Langium AST for the neighbor ([ast_lifecycle]).
     Related: [open_file_algorithm], [non_web_reference_navigation].
 
     @status done

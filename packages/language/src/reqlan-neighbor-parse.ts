@@ -1,8 +1,10 @@
 /**
  * Depth-1 native parse of a neighbor `.rq` file for outbound idea confirmation.
  * Does not load the neighbor into LangiumDocuments (that starts workspace linking).
+ * Does not populate a Langium AST for the neighbor.
  * Does not follow the neighbor's own outbound references.
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';

@@ -1,7 +1,10 @@
 /**
  * Document factory that never lets a sync lex/parse throw escape into workspace init.
  * Async path uses [ReqlanAsyncParser]: sync fast path by default, killable worker when escalated.
+ * First parse populates `document.parseResult` (CST and AST) at Parsed.
+ * `update` replaces that tree when the buffer text changes; it does not patch nodes.
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
  */
 import {
     DefaultLangiumDocumentFactory,
@@ -17,7 +20,7 @@ import { CancellationToken as CancelToken } from 'vscode-languageserver';
 import { ReqlanAsyncParser } from './reqlan-async-parser.js';
 import {
     createIncompleteParseResult,
-    type ReqlanParseResult
+    isReqlanIncompleteParseResult
 } from './reqlan-parse-budget.js';
 
 export class ReqlanLangiumDocumentFactory extends DefaultLangiumDocumentFactory {
@@ -58,10 +61,9 @@ export class ReqlanLangiumDocumentFactory extends DefaultLangiumDocumentFactory 
             ? await asyncParser.parse<T>(text, cancellationToken, { forceWorker })
             : await asyncParser.parse<T>(text, cancellationToken);
 
-        const reqlanResult = result as ReqlanParseResult<T>;
-        if (reqlanResult.reqlanIncomplete?.reason === 'timeout') {
+        if (isReqlanIncompleteParseResult(result) && result.reqlanIncomplete.reason === 'timeout') {
             this.workerEscalateUris.add(uriKey);
-        } else if (!reqlanResult.reqlanIncomplete) {
+        } else if (!isReqlanIncompleteParseResult(result)) {
             this.workerEscalateUris.delete(uriKey);
         }
 
@@ -70,6 +72,6 @@ export class ReqlanLangiumDocumentFactory extends DefaultLangiumDocumentFactory 
 
     /** Test helper: expose incomplete marker after async parse. */
     static isIncompleteDocument(document: LangiumDocument): boolean {
-        return Boolean((document.parseResult as ReqlanParseResult).reqlanIncomplete);
+        return isReqlanIncompleteParseResult(document.parseResult);
     }
 }

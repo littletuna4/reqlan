@@ -71,6 +71,8 @@ const connection = createConnection(ProposedFeatures.all);
 // Inject the shared services and language-specific services
 const { shared, Reqlan } = createReqlanServices({ connection, ...NodeFileSystem });
 
+// After this buffer's Langium AST is populated or replaced (not after Linked).
+// rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
 shared.workspace.DocumentBuilder.onDocumentPhase(DocumentState.Parsed, document => {
     applyOutboundDiagnosticAuthority(document, Reqlan);
     void connection.sendDiagnostics({

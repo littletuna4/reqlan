@@ -273,6 +273,7 @@ describe('outbound one-hop sequencing', () => {
         expect(names.has('file_crawl_sequence')).toBe(true);
         expect(names.has('missing_reference_colour_sequence')).toBe(true);
         expect(names.has('comment_backlink_sequence')).toBe(true);
+        expect(names.has('ast_lifecycle')).toBe(true);
     });
 
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
