@@ -132,6 +132,30 @@ describe('outbound one-hop sequencing', () => {
         expect(ideaLink?.target).toMatch(/#L\d+/);
     });
 
+    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+    test('confirms a neighbor idea when the authored path has no .rq extension', async () => {
+        const dir = writeWorkspace({
+            'lib.rq': s`
+                present_idea {
+                    body
+                }
+            `
+        });
+        const document = await parseHost(dir, s`
+            host {
+                see ["./lib".present_idea]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        expect(services.shared.workspace.LangiumDocuments.all.toArray()).toHaveLength(1);
+        const labels = await documentLinks(document);
+        expect(labels).toContain('present_idea');
+        expect(
+            (document.diagnostics ?? []).some(diagnostic => isUnresolvedNamed(diagnostic, 'present_idea'))
+        ).toBe(false);
+    });
+
     // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('does not link when the neighbor file exists but the idea is missing', async () => {
         const dir = writeWorkspace({

@@ -6,7 +6,8 @@
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
  */
-import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
+import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
+import { URI } from 'langium';
 import {
     resolveDocumentPathUri,
     type PathResolveContext
@@ -93,12 +94,46 @@ export function resolveExistingImportUri(
     return uris.find(uri => isImportTarget(uri, documents, fileSystem)) ?? uris[uris.length - 1]!;
 }
 
+/**
+ * Neighbor file for 1-hop confirmation: implicit `.rq` first, then the path as written.
+ * Native extract may keep an extensionless path; do not miss the loaded `.rq` buffer.
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ */
+export function neighborTargetCandidateUris(
+    filePart: string,
+    document: LangiumDocument,
+    context?: PathResolveContext
+): URI[] {
+    if (filePart.includes('://')) {
+        try {
+            const uri = URI.parse(filePart);
+            const implicitPath = importPathWithImplicitExtension(uri.path);
+            return implicitPath === undefined ? [uri] : [uri.with({ path: implicitPath }), uri];
+        } catch {
+            return resolveImportCandidateUris(filePart, document, context);
+        }
+    }
+    return resolveImportCandidateUris(filePart, document, context);
+}
+
+export function resolveNeighborTargetUri(
+    filePart: string,
+    document: LangiumDocument,
+    documents: LangiumDocuments | undefined,
+    fileSystem?: FileSystemProvider,
+    context?: PathResolveContext
+): URI {
+    const uris = neighborTargetCandidateUris(filePart, document, withFileSystem(context, fileSystem));
+    return uris.find(uri => isImportTarget(uri, documents, fileSystem)) ?? uris[uris.length - 1]!;
+}
+
 function isImportTarget(
     uri: URI,
-    documents: LangiumDocuments,
+    documents: LangiumDocuments | undefined,
     fileSystem: FileSystemProvider | undefined
 ): boolean {
-    if (documents.getDocument(uri)) {
+    if (documents?.getDocument(uri)) {
         return true;
     }
     return fileSystem?.existsSync(uri) === true;

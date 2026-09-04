@@ -3,6 +3,8 @@
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { LangiumDocument } from 'langium';
@@ -20,7 +22,11 @@ import {
     importPathOf,
     isWellFormedFromImport
 } from './reqlan-import-bindings.js';
-import { isResolvableImportPath, resolveExistingImportUri } from './reqlan-imports.js';
+import {
+    isResolvableImportPath,
+    resolveExistingImportUri,
+    resolveNeighborTargetUri
+} from './reqlan-imports.js';
 import {
     analyzeDocumentLocalSymbolic,
     ideaNameRangeFromEdge,
@@ -31,7 +37,7 @@ import {
     neighborHasIdea,
     parseNeighborDocument
 } from './reqlan-neighbor-parse.js';
-import { pathResolveContextFromServices, resolveDocumentPathUri } from './reqlan-path-resolve.js';
+import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 import { applyRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
 import { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
@@ -100,7 +106,13 @@ export function collectOutboundIdeaDecisions(
             }
             let targetUri: URI;
             try {
-                targetUri = resolveDocumentPathUri(filePart, document, pathContext);
+                targetUri = resolveNeighborTargetUri(
+                    filePart,
+                    document,
+                    documents,
+                    fileSystem,
+                    pathContext
+                );
             } catch {
                 decisions.push({ range, name: ideaName, confirmed: false });
                 continue;

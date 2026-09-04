@@ -7,6 +7,7 @@
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
@@ -26,13 +27,16 @@ import {
     fingerprintText
 } from './reqlan-neighbor-parse.js';
 import { importPathOf } from './reqlan-import-bindings.js';
-import { resolveImportCandidateUris } from './reqlan-imports.js';
+import {
+    neighborTargetCandidateUris,
+    resolveImportCandidateUris,
+    resolveNeighborTargetUri
+} from './reqlan-imports.js';
 import {
     isModel
 } from './generated/ast.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 import {
-    resolveDocumentPathUri,
     resolveRqConfig,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
@@ -165,9 +169,10 @@ function filePartTouchesChangedUris(
         return true;
     }
     try {
-        const uri = resolveDocumentPathUri(filePart, document, context);
-        if (changedSetHasUri(changedUris, uri)) {
-            return true;
+        for (const uri of neighborTargetCandidateUris(filePart, document, context)) {
+            if (changedSetHasUri(changedUris, uri)) {
+                return true;
+            }
         }
     } catch {
         // filePart may already be a URI
@@ -309,7 +314,13 @@ function resolveIdeaTarget(
         };
     }
 
-    const targetUri = resolveDocumentPathUri(filePart, document, context);
+    const targetUri = resolveNeighborTargetUri(
+        filePart,
+        document,
+        documents,
+        context?.fileSystem,
+        context
+    );
     if (!ideaName) {
         return undefined;
     }

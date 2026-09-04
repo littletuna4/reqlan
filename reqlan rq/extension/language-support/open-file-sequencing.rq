@@ -9,7 +9,7 @@ from "../syntax/features-syntax-highlighting.rq" import reference_rendering
 from "../syntax/features-syntax-highlighting.rq" import non_web_reference_navigation, unresolved_reference_diagnostics
 from "../features-non-rq-code-comment/functional-code-comment-references.rq" import comment_reference_resolution_error_state
 from "./language-server-errors.rq" import file_reference_errors
-from "./features-imports.rq" import import_does_not_exist_error
+from "./features-imports.rq" import import_does_not_exist_error, implicit_file_extension
 from "../activation.rq" import background_startup
 from "../vsc-primitives.rq" import inlay_hints, codelens
 import "../../../packages/language/src/reqlan-neighbor-parse.ts" as neighbor_parse
@@ -296,6 +296,8 @@ outbound_one_hop {
     diagnostics share one host parse ([open_file_hot_path]).
     Native [local_symbolic_analysis] stays file-local. This hop is the LSP layer on top.
     This hop must not populate a Langium AST for the neighbor ([ast_lifecycle]).
+    An extensionless neighbor path prefers `.rq`, then the path as written
+    ([implicit_file_extension]).
     Related: [open_file_algorithm], [non_web_reference_navigation].
 
     @status done
@@ -303,12 +305,14 @@ outbound_one_hop {
         [neighbor_parse]
         [local_symbolic_links]
         [native_parse]
+        ["../../../packages/language/src/reqlan-imports.ts"]
     )
     @tests (
         ["../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
         ["../../../packages/language/test/outbound-hop.test.ts:reuses a cached neighbor parse for the same content"]
         ["../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
+        ["../../../packages/language/test/outbound-hop.test.ts:confirms a neighbor idea when the authored path has no .rq extension"]
     )
 }
 

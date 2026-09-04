@@ -42,9 +42,12 @@ implicit_file_extension {
     @implementation (
         ["../../../packages/language/src/reqlan-imports.ts"]
         ["../../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../../packages/language/src/reqlan-local-symbolic-links.ts"]
     )
     @tests (
         ["../../../packages/language/test/implicit-import-extension.test.ts"]
+        ["../../../packages/language/test/outbound-hop.test.ts:confirms a neighbor idea when the authored path has no .rq extension"]
     )
 }
 
