@@ -4,7 +4,7 @@
  * First parse populates `document.parseResult` (CST and AST) at Parsed.
  * `update` replaces that tree when the buffer text changes; it does not patch nodes.
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  */
 import {
     DefaultLangiumDocumentFactory,

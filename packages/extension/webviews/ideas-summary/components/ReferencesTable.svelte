@@ -1,9 +1,9 @@
 <script lang="ts">
     /**
      * References table — filters, group-by type, column options.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".group_by_type]
      */
-    import type { ColumnFilter, ReferencesTableQuery } from '../../../src/webview_module/shared/messages.js';
+    import type { ColumnFilter, ReferencesTableQuery } from '../../../src/ideas_summary_module/shared/messages.js';
     import { buildGroupHeaders, isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';
     import ColumnFilterRow from './ColumnFilterRow.svelte';

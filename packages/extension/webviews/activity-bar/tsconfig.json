@@ -13,7 +13,7 @@
         "./**/*.svelte.ts",
         "./**/*.svelte",
         "../../src/activity_bar_module/**/*.ts",
-        "../../src/webview_module/shared/**/*.ts",
+        "../../src/ideas_summary_module/shared/**/*.ts",
         "../shared/graph/**/*.ts"
     ]
 }

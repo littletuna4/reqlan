@@ -1,7 +1,7 @@
 /**
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references_webview]
  * rq:["../../../reqlan rq/language/imports.rq".idea_path_filter]
- * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_seed]
+ * rq:["../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_seed]
  */
 import { describe, expect, test } from 'vitest';
 import type { IdeaSummary } from '@reqlan/analytical';
@@ -93,13 +93,13 @@ describe('wildcard reference open search helpers', () => {
         const hits = [
             {
                 name: 'search_pane',
-                relativePath: 'reqlan rq/extension/module/activitybar-panels/search.rq',
-                fileUri: 'file:///workspace/reqlan%20rq/extension/module/activitybar-panels/search.rq'
+                relativePath: 'reqlan rq/extension/local-context/activitybar-panels/search.rq',
+                fileUri: 'file:///workspace/reqlan%20rq/extension/activitybar-panels/search.rq'
             },
             {
                 name: 'workspace_pane',
-                relativePath: 'reqlan rq/extension/module/activitybar-panels/workspace.rq',
-                fileUri: 'file:///workspace/reqlan%20rq/extension/module/activitybar-panels/workspace.rq'
+                relativePath: 'reqlan rq/extension/local-context/activitybar-panels/workspace.rq',
+                fileUri: 'file:///workspace/reqlan%20rq/extension/activitybar-panels/workspace.rq'
             },
             {
                 name: 'import_pane_like',
@@ -121,14 +121,14 @@ describe('wildcard reference open search helpers', () => {
         const catalog = [
             idea({
                 name: 'search_pane',
-                fileUri: 'file:///ws/reqlan rq/extension/module/activitybar-panels/search.rq',
+                fileUri: 'file:///ws/reqlan rq/extension/local-context/activitybar-panels/search.rq',
                 summary: 'Search pane',
                 status: 'done',
                 lineStart: 13
             }),
             idea({
                 name: 'workspace_pane',
-                fileUri: 'file:///ws/reqlan rq/extension/module/activitybar-panels/workspace.rq',
+                fileUri: 'file:///ws/reqlan rq/extension/local-context/activitybar-panels/workspace.rq',
                 summary: 'Workspace pane',
                 status: 'done',
                 lineStart: 4

@@ -1,10 +1,10 @@
 /**
  * Depth-1 outbound hop: neighbor parse, links, errors, comment backlinks.
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".token_colour_sequence]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".token_colour_sequence]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -102,7 +102,7 @@ describe('outbound one-hop sequencing', () => {
         return links.map(link => document.textDocument.getText(link.range));
     }
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
     test('links a neighbor idea after a depth-1 parse without loading the target document', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -132,8 +132,8 @@ describe('outbound one-hop sequencing', () => {
         expect(ideaLink?.target).toMatch(/#L\d+/);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
     test('confirms a neighbor idea when the authored path has no .rq extension', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -156,7 +156,7 @@ describe('outbound one-hop sequencing', () => {
         ).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('does not link when the neighbor file exists but the idea is missing', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -179,7 +179,7 @@ describe('outbound one-hop sequencing', () => {
         expect(unresolved.length).toBeGreaterThanOrEqual(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
     test('does not parse a neighbor of the neighbor', async () => {
         const dir = writeWorkspace({
             'deeper.rq': s`
@@ -205,7 +205,7 @@ describe('outbound one-hop sequencing', () => {
         expect(neighborParseCount()).toBe(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
     test('reuses a cached neighbor parse for the same content', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -227,7 +227,7 @@ describe('outbound one-hop sequencing', () => {
         expect(neighborParseCount()).toBe(first);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('keeps URL and wildcard document links', async () => {
         const dir = writeWorkspace({
             'lib.rq': 'present_idea { body }\n'
@@ -245,7 +245,7 @@ describe('outbound one-hop sequencing', () => {
         expect(targets.some(target => target.startsWith('command:'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('drops a false unresolved diagnostic when the neighbor idea exists', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -268,7 +268,7 @@ describe('outbound one-hop sequencing', () => {
         expect(labels).toContain('present_idea');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('keeps a missing idea error on the same line as a confirmed neighbor idea', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`
@@ -293,7 +293,7 @@ describe('outbound one-hop sequencing', () => {
         expect(labels).not.toContain('gone');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('Parsed outbound publish includes lex parse diagnostics', () => {
         const document = services.shared.workspace.LangiumDocumentFactory.fromString(
             'ok_idea { body }\n',
@@ -311,7 +311,7 @@ describe('outbound one-hop sequencing', () => {
         ).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
     test('reports an unresolved import path', async () => {
         const dir = writeWorkspace({});
         const document = await parseHost(dir, s`
@@ -328,7 +328,7 @@ describe('outbound one-hop sequencing', () => {
         expect(imports.length).toBeGreaterThanOrEqual(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".token_colour_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".token_colour_sequence]
     test('semantic tokens are available from Parsed AST without workspace link', async () => {
         const dir = writeWorkspace({
             'lib.rq': 'present_idea { body }\n'
@@ -348,9 +348,9 @@ describe('outbound one-hop sequencing', () => {
         expect(services.shared.workspace.LangiumDocuments.all.toArray()).toHaveLength(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
     test('open-file-sequencing.rq parses mermaid sequence diagrams', async () => {
-        const path = join(repoDir, 'reqlan rq/extension/language-support/open-file-sequencing.rq');
+        const path = join(repoDir, 'reqlan rq/extension/language/support/open-file-sequencing.rq');
         const document = await parse(readFileSync(path, 'utf8'), {
             documentUri: pathToFileURL(path).href
         });
@@ -372,7 +372,7 @@ describe('outbound one-hop sequencing', () => {
         expect(names.has('open_file_hot_path')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
     test('comment references confirm the neighbor idea without loading Langium', async () => {
         const dir = writeWorkspace({
             'lib.rq': s`

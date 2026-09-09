@@ -1,5 +1,5 @@
 /**
- * rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".lsp_file_watch]
+ * rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
  */
 import { describe, expect, test } from 'vitest';
 import { FileChangeType } from 'vscode-languageserver';
@@ -11,13 +11,13 @@ import {
 } from '../src/reqlan-document-update-handler.js';
 
 describe('LSP file watch', () => {
-    // rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".lsp_file_watch]
+    // rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
     test('registers .rq globs only', () => {
         expect([...REQLAN_WATCHED_FILE_GLOBS]).toEqual(['**/*.rq']);
         expect(REQLAN_WATCHED_FILE_GLOBS).not.toContain('**/*');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".lsp_file_watch]
+    // rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
     test('classifies Windows and directory URIs by path segment', () => {
         expect(classifyWatchedUri('file:///C:/proj/src/foo.rq')).toBe('rq');
         expect(classifyWatchedUri('file:///C:/proj/node_modules')).toBe('node_modules');
@@ -31,7 +31,7 @@ describe('LSP file watch', () => {
         expect(classifyWatchedUri('file:///C:/proj/src\\nested\\bar.rq')).toBe('rq');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".lsp_file_watch]
+    // rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
     test('drops noisy events and keeps .rq files', () => {
         const kept = filterWatchedFileChanges([
             { uri: 'file:///ws/src/a.rq', type: FileChangeType.Changed },

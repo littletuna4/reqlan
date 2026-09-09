@@ -1,5 +1,5 @@
 from "./indexer.rq" import index, indexer_rust, ownership
-from "../extension/module/index.rq" import application_memory, index_diagnostics_store
+from "../extension/index-host/index.rq" import application_memory, index_diagnostics_store
 from "../bases/base.rq" import base_ownership
 import "../../packages/analytical/src/index-store/schema.ts" as schema_ts
 import "../../crates/reqlan-index/src/schema.rs" as schema_rust
@@ -59,7 +59,7 @@ ideas_table {
     - `git_change_count` INTEGER nullable (schema v4)
     Indexes: `idx_ideas_file(file_uri)`, `idx_ideas_name(name)`.
     [ideas_index_sqlite]
-    ["../extension/git-codelens.rq".git_dates_background_indexing]
+    ["../extension/index-host/git-codelens.rq".git_dates_background_indexing]
 }
 
 edges_table {

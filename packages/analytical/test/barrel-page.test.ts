@@ -40,7 +40,7 @@ describe('rewriteSiblingRefs', () => {
 });
 
 describe('planBarrelPage', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
     test('creates one child file per idea and a container defaulting to file basename', async () => {
         const plan = await planBarrelPage(
             `alpha {
@@ -125,7 +125,7 @@ bundle_set (
 });
 
 describe('barrelPage', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
     test('writes child files and replaces the source with a container', async () => {
         const root = tempRoot();
         const sourcePath = join(root, 'demo.rq');

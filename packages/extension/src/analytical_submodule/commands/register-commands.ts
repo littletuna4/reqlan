@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import type { AnalyticalSubmodule } from '../index.js';
 import { openIndexFile } from '../index-store/open-index-file.js';
-import { registerExportCommands } from '../export/register-export-commands.js';
 
 export function registerAnalyticalCommands(
     context: vscode.ExtensionContext,
@@ -9,8 +8,7 @@ export function registerAnalyticalCommands(
 ): void {
     const { index } = submodule;
 
-    registerExportCommands(context, submodule);
-
+    // Export is registered from the composition root; keep analytical commands focused on index ops.
     const openIdeaHit = (fileUri: string, line: number) =>
         openIndexFile(fileUri, line, 0, index.getActiveBase()?.descriptor.root);
 

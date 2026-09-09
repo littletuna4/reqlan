@@ -72,7 +72,7 @@ function promptClickTarget(input: PromptToolInput): string {
 /**
  * rq:["../../../reqlan rq/cli/click.rq".click]
  * rq:["../../../reqlan rq/cli/click.rq".agent_advisory]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
  */
 export async function handleClickTool(
   api: McpAnalysisApi,
@@ -104,8 +104,8 @@ async function handleCompletionStatusTool(api: McpAnalysisApi) {
 }
 
 /**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools_prompt]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools_prompt]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
  */
 export async function handlePromptTool(
   api: McpAnalysisApi,
@@ -118,7 +118,7 @@ export async function handlePromptTool(
 }
 
 /**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
@@ -143,9 +143,9 @@ export async function handleCheckTool(
 }
 
 /**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
  */
 export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
   const server = new McpServer({

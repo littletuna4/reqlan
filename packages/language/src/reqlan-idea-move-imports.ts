@@ -1,7 +1,7 @@
 /**
  * Import rewrites for moving an idea between `.rq` files: drop unused source
  * imports and copy required imports onto the destination.
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
  */
 import { AstUtils, type AstNode, type LangiumDocument } from 'langium';
 import type { Position, Range, TextEdit } from 'vscode-languageserver';

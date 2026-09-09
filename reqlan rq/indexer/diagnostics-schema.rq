@@ -1,6 +1,6 @@
 from "./indexer.rq" import index_diagnostics_timing, indexer_rust
-from "../extension/module/index.rq" import application_memory, index_diagnostics_store
-from "../extension/features-index-diagnostics.rq" import index_diagnostics, index_diagnostics_metrics, index_diagnostics_webview
+from "../extension/index-host/index.rq" import application_memory, index_diagnostics_store
+from "../extension/index-host/index-diagnostics.rq" import index_diagnostics, index_diagnostics_metrics, index_diagnostics_webview
 import "../../packages/analytical/src/index-store/index-diagnostics-store.ts" as diagnostics_store_ts
 import "../../crates/reqlan-index/src/diagnostics.rs" as diagnostics_rust
 import "./sqlite-schema.rq" as ideas_schema

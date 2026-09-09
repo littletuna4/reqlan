@@ -1,13 +1,13 @@
 /**
  * Inbound referencer collection for file-move path rewrites.
- * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
  */
 import { describe, expect, test } from 'vitest';
 import {
     collectInboundReferencerFileUris,
     type InboundReferencerIndex
-} from '../src/mutation_hooks_module/collect-inbound-referencers-core.js';
+} from '../src/mutation_module/collect-inbound-referencers-core.js';
 
 function memoryIndex(init: {
     ideasInFile?: Array<{ id: string; name: string }>;
@@ -36,7 +36,7 @@ function memoryIndex(init: {
 }
 
 describe('collectInboundReferencerFileUris', () => {
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
     test('includes comment_link target files when an rq file moves', async () => {
         const uris = await collectInboundReferencerFileUris(
             'reqs/alpha.rq',
@@ -55,7 +55,7 @@ describe('collectInboundReferencerFileUris', () => {
         expect(uris).toEqual(['src/app.ts']);
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
     test('includes idea files that reference the moved path', async () => {
         const uris = await collectInboundReferencerFileUris(
             'reqs/alpha.rq',

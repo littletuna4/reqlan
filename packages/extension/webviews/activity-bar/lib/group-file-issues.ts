@@ -1,4 +1,4 @@
-import type { FileIndexIssueView } from '../../../src/webview_module/shared/messages.js';
+import type { FileIndexIssueView } from '../../../src/ideas_summary_module/shared/messages.js';
 
 export interface FileIssueGroup {
     fileUri: string;

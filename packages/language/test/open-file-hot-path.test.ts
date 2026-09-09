@@ -1,7 +1,7 @@
 /**
  * Cheap open-file hot path: host extract cache, URI-only neighbor lookup, targeted relink.
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -95,7 +95,7 @@ describe('open-file hot path', () => {
         return (document.diagnostics ?? []).some(diagnostic => diagnosticText(diagnostic) === RELINK_MARKER);
     }
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('reuses the host native extract for links and diagnostics', async () => {
         const dir = writeDir({
             'lib.rq': 'present_idea { body }\n'
@@ -123,7 +123,7 @@ describe('open-file hot path', () => {
         expect(localSymbolicExtractCount()).toBe(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('reparses the host native extract when this buffer text changes', async () => {
         const dir = writeDir({
             'life.rq': 'first_idea { body }\n'
@@ -140,7 +140,7 @@ describe('open-file hot path', () => {
         expect(localSymbolicExtractCount()).toBe(2);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('does not treat a same-name file as the loaded neighbor', () => {
         const lookup = createReqlanServices(EmptyFileSystem);
         const factory = lookup.shared.workspace.LangiumDocumentFactory;
@@ -154,7 +154,7 @@ describe('open-file hot path', () => {
         expect(findLoadedDocument(documents, 'file:///ws/c/lib.rq')).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('does not relink an unrelated file that still has linker errors', async () => {
         const dir = writeDir({
             'lonely.rq': 'broken { see [nope] }\n',
@@ -175,7 +175,7 @@ describe('open-file hot path', () => {
         expect(hasRelinkMarker(lonely)).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('relinks a host when its neighbor file changes', async () => {
         const dir = writeDir({
             'lib.rq': 'other {}\n',

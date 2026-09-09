@@ -12,6 +12,6 @@
         "./**/*.ts",
         "./**/*.svelte.ts",
         "./**/*.svelte",
-        "../../src/diagnostics_module/index-diagnostics-messages.ts"
+        "../../src/index_host_module/diagnostics/index-diagnostics-messages.ts"
     ]
 }

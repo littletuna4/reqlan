@@ -1,6 +1,6 @@
 //! Load applying `.reqlan/config.json` importRoots for native path resolve.
-//! rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
-//! rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+//! rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
+//! rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 

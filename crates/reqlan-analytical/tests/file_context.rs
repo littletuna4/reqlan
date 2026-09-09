@@ -1,5 +1,5 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
-//! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".file_related_requirements]
+//! rq:["../../../reqlan rq/extension/index-host/graph-analysers.rq".file_related_requirements]
 
 use reqlan_analytical::AnalysisRuntime;
 use std::path::PathBuf;

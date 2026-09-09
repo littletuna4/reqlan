@@ -3,8 +3,8 @@
  * Interacts with scope linking and go-to-definition for import paths.
  * A path that exists as a folder is a valid import target (same as a file).
  * rq:["../../../reqlan rq/ontology.rq".import_statement]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
@@ -97,8 +97,8 @@ export function resolveExistingImportUri(
 /**
  * Neighbor file for 1-hop confirmation: implicit `.rq` first, then the path as written.
  * Native extract may keep an extensionless path; do not miss the loaded `.rq` buffer.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  */
 export function neighborTargetCandidateUris(
     filePart: string,

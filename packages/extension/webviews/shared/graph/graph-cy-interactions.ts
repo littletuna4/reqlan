@@ -4,7 +4,7 @@
  * Kept separate from the controller so the controller owns lifecycle/physics only.
  * Leaf handlers receive non-compound node ids; compound grab/drag/free and title
  * open are reported separately so file containers can move with pinned children.
- * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cy_controller
+ * per ["../../../../../reqlan rq/extension/presentation/graph.rq"] graph_cy_controller
  */
 import type cytoscape from 'cytoscape';
 

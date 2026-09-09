@@ -5,7 +5,7 @@
         DiagnosticsOverviewView,
         DiagnosticsRunView,
         ExtensionToIndexDiagnosticsMessage,
-    } from '../../src/diagnostics_module/index-diagnostics-messages.js';
+    } from '../../src/index_host_module/diagnostics/index-diagnostics-messages.js';
     import { postToExtension } from './lib/vscode.js';
 
     let baseLabel = $state('');

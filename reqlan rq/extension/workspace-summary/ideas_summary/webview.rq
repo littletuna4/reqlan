@@ -1,0 +1,374 @@
+import "../../export/export.rq" as features_export
+import "../../../core_analysis/html_export.rq" as html_export
+import "../../index-host/index.rq" as index_reqs
+import "./graphical_graph.rq" as graphical_graph_doc
+import "./base-scope.rq" as ideas_summary_base
+import "../../../development/core.rq" as development_core
+import "../../../ontology.rq" as ontology
+import "../../../../packages/extension/webviews/ideas-summary" as ideas_summary_webview
+import "../../../../packages/analytical/src/index-store/webview-table-queries.ts" as webview_table_queries
+import "../../../../packages/extension/src/ideas_summary_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../../../packages/extension/src/ideas_summary_module/shared/table-ui-state.ts" as table_ui_state
+import "../../../../packages/extension/webviews/ideas-summary/components/OverviewPanel.svelte" as OverviewPanel
+import "../../../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte" as IndexPanel
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeasTable.svelte" as IdeasTable
+import "../../../../packages/extension/webviews/ideas-summary/components/TableToolbar.svelte" as TableToolbar
+import "../../../../packages/extension/webviews/ideas-summary/components/ColumnFilterRow.svelte" as ColumnFilterRow
+import "../../../../packages/extension/webviews/ideas-summary/components/TableOptionsMenu.svelte" as TableOptionsMenu
+import "../../../../packages/extension/webviews/ideas-summary/components/SortableTh.svelte" as SortableTh
+import "../../../../packages/extension/webviews/ideas-summary/components/ChipList.svelte" as ChipList
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeaBodyCell.svelte" as IdeaBodyCell
+import "../../../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte" as IdeasetsTable
+import "../../../../packages/extension/webviews/ideas-summary/components/ReferencesTable.svelte" as ReferencesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/BasesTable.svelte" as BasesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/AttributesTable.svelte" as AttributesTable
+import "../../../../packages/extension/webviews/ideas-summary/components/TimelinePanel.svelte" as TimelinePanel
+import "../../presentation/webview.rq" as webview_doc
+from "../../index-host/git-codelens.rq" import git_idea_timeline_analysis
+
+simple_views {
+    Ideas Summary tables cover ideas (title, path/namespace, main and other attributes, reference counts)
+    and references (source and target path/namespace, whether in `.rq`, reference type).
+}
+
+graph_view {
+    Ideas Summary provides a requirements graph view showing ideas and their references as nodes and edges.
+    The graph view should support navigation from a node to its source definition in the editor.
+    Users should be able to filter or focus the graph by file, ideaset, tag, or status.
+}
+
+status_table {
+    Ideas Summary should render a status table summarising ideas by lifecycle state, priority, and completion.
+    The status table should support sorting and filtering by tags and attributes.
+}
+
+ide_page_reports {
+    Ideas Summary provides dedicated report pages inside the IDE (graph page and status table at minimum).
+    Report pages may render computed information that is not present as literal text in source files.
+}
+
+ideas_summary {
+    The Ideas Summary webview is a workspace-wide page for tables (and graph) summarising ideas
+    per [simple_views] and [webview_doc.webview].
+    Tabs align with salient [ontology] data and HTML export list views ([html_export.html_export_list_views]):
+    [ontology_aligned_tabs].
+    It should be performance conscious and avoid full-graph dumps unless requested by the user.
+    It should be paginated.
+    It should be filterable and sortable via a ui-sql layer per [table_column_filters] and [table_column_options].
+    Webview UI is implemented with Svelte per [development_core]
+    the extension host loads compiled assets from `packages/extension/media/webviews/ideas-summary` (Vite output of [ideas_summary_webview])
+    table queries are built in [webview_table_queries]
+    the extension host forwards query state through [ideas_summary_panel]
+    Ideas Summary chrome should include a link that opens [features_export.export_webview].
+    Multi-base scope and switcher: [ideas_summary_base.ideas_summary_base_scope].
+}
+
+ontology_aligned_tabs {
+    Tab order: Overview, Bases, Ideas, Ideasets, Attributes, References, Graph, Timeline, Index.
+    Index is last — workspace index health and maintenance, not the primary browsing surface.
+    Covers [ontology.base], [ontology.idea], [ontology.ideaset], [ontology.attribute], [ontology.reference],
+    the graph cartography tab, and [timeline_page]; Overview mirrors HTML export home metrics lightly.
+    Files / clusters / print families stay export-only for now.
+    @implementation (
+        ["../../../../packages/extension/webviews/ideas-summary/lib/tabs.ts"]
+        ["../../../../packages/extension/webviews/ideas-summary/components/TabPanels.svelte"]
+    )
+}
+
+pages {
+    - ideas summary [ideas_summary_panel]
+       - header / status chrome with base switcher and link to [features_export.export_webview];
+         error state of the status chrome per ["../../local-context/activitybar.rq".error_status_bar]
+       - [overview_page] [OverviewPanel]
+       - [bases_tab] [BasesTable]
+       - [ideas_list]
+       - ideasets [IdeasetsTable] / [idea_sets_tab]
+          - filterable and sortable via ui-sql layer; column filters and options
+       - [attributes_tab] [AttributesTable]
+       - references [ReferencesTable]
+          - filterable and sortable via ui-sql layer; groupable by reference type per [group_by_type]
+       - Graph view: see [graphical_graph_doc.graphical_graph]
+       - [timeline_page] [TimelinePanel]
+       - [index_panel] [IndexPanel] (last tab — index health)
+}
+
+ideas_list {
+    -  [IdeasTable]
+    - filterable and sortable via [TableToolbar], [ColumnFilterRow], and [SortableTh]
+    - column show/hide via [TableOptionsMenu] / [table_column_options]
+    - wide tables scroll horizontally in a `.table-scroll` viewport (columns keep min widths; no crush-to-fit)
+    - groupable by idea kind (block / oneliner) per [group_by_type]
+    - other attributes shown as expandable chips per [ChipList]
+    - clicking an attribute chip adds a column, filters to ideas with a non-null value for that attribute, and sorts by it (combinable with other filters)
+    - references split into outbound and inbound chip columns with counts
+    - clicking a reference chip filters ideas that share that edge (combinable with other filters)
+    - block idea bodies shown in a scrollable cell per [IdeaBodyCell]
+    - columns for [git_idea_timeline_analysis]: first committed, last modified, and change count
+        - read from indexed `git_created_at` / `git_modified_at` / `git_change_count` only
+        - empty cells until ["../../index-host/git-codelens.rq".git_dates_background_indexing] fills them;
+          main table load never runs git
+    @implementation (
+        [IdeasTable]
+        [webview_table_queries]
+        ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:upsert preserves analyser git dates and change count across reindex"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates includes ideas missing change count"]
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts:orders by git date and change count columns"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
+        ["../../../../packages/extension/test/format-git-date.test.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
+    )
+    @status done
+    @tags (ideas, git, table)
+    [ideas_list_git_columns_performance]
+    [ideas_list_git_date_format]
+}
+
+ideas_list_git_columns_performance {
+    Ideas table pages that show [git_idea_timeline_analysis] columns must read indexed
+    `git_created_at` / `git_modified_at` / `git_change_count` only — never invoke git or the
+    `git_dates` analyser on the UI query path.
+    At ~2k ideas, a 50-row page (including sorts by git modified / change count) must stay
+    interactive: absolute budgets plus relative guards vs path sort and vs a simulated
+    per-row git walk. Missing-id backlog queries for background fill must also stay fast
+    once the index is filled.
+    Implemented by ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+    (`listIdeasPage`, `listIdeaIdsMissingGitDates`).
+    @status done
+    @tags (ideas, git, performance)
+    @tests (
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:listIdeasPage reads indexed git columns without running the analyser"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:indexed git page load stays interactive and under simulated git-per-row cost"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:listIdeaIdsMissingGitDates stays fast on a large filled index"]
+        ["../../../../packages/analytical/test/ideas-git-columns-perf.test.ts:git change-count sort page stays within absolute budget"]
+    )
+    [ideas_list]
+    [git_idea_timeline_analysis]
+}
+
+ideas_list_git_date_format {
+    First committed / last modified cells in [ideas_list] must display a stable `YYYY-MM-DD`
+    authored calendar date from indexed git `%aI` timestamps (not locale-dependent
+    `toLocaleDateString`, and not raw ISO / patch junk).
+    Invalid, empty, or non-date values render as an em dash (`—`).
+    The `git_dates` analyser must only persist ISO author-date lines so patch hunks never
+    become stored "dates".
+    Implemented by ["../../../../packages/extension/webviews/ideas-summary/lib/format-git-date.ts"]
+    and ["../../../../crates/reqlan-index/src/git_dates.rs"] (`parseGitAuthorDates`).
+    @status done
+    @tags (ideas, git, formatting)
+    @tests (
+        ["../../../../packages/extension/test/format-git-date.test.ts"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:formats git %aI timestamps as YYYY-MM-DD"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:keeps authored calendar day (does not shift across timezone)"]
+        ["../../../../packages/extension/test/format-git-date.test.ts:renders empty and invalid values as an em dash"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs:parses_iso_author_dates_and_ignores_patch_noise"]
+    )
+    [ideas_list]
+    [git_idea_timeline_analysis]
+}
+
+overview_page {
+    First tab: a workspace overview for the active base — product-facing copy (not index/debug jargon).
+    - At a glance: idea count, reference count, issues, bases, and a friendly readiness status.
+    - Coverage: collapsible [overview_coverage_scores] (lazy, non-blocking).
+    - Search: live cross-surface search over ideas, ideasets, attributes, and references for the active base;
+      results group by surface with sample hits and actions to open the matching tab with the query applied ([overview_search]).
+    - Export: buttons that open [features_export.export_webview] with HTML, Markdown, JSON, CSV, or PDF pre-selected (or the form without a format override).
+    - Links: project site, support/email, GitHub.
+    - Recent index / analyse activity preview (idea names when available) with a link to [timeline_page]
+      for idea git history — this preview is not a git surface.
+    @todo outstanding-by-status / todos rollup
+    @todo deep links into HTML export pages when an export exists
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+    )
+}
+
+overview_coverage_scores {
+    Collapsible "Coverage" section on [overview_page] / [OverviewPanel].
+    Product-facing metrics for how thoroughly ideas map into the active base's project files
+    (respecting ["../../host/configuration.rq".configuration_rqignore]):
+    - Linked files: percent of project files (non-requirement, non-ignored) that ideas reference —
+      exact path match after resolve, or under a referenced folder. Show "N of M project files".
+    - Requirement density: ideas per thousand lines of eligible project code; also show idea count and line count.
+    - Linked paths: distinct files or folders referenced from ideas.
+    - Requirement files: count of requirement documents in the base.
+    Collapsed by default. Calculate only when the user expands the section (not on Overview open / tab switch).
+    Non-blocking: host work must not stall Overview chrome or other tabs; show a loading state until the result arrives.
+    When the index is not ready or calculation fails, show a clear message — never fake zero scores.
+    Recalculate on expand when the active base changes or when the user refreshes; otherwise reuse the last result for the session.
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+        ["../../../../crates/reqlan-index/src/overview.rs"]
+    )
+    @test (
+        ["../../../../crates/reqlan-index/src/overview.rs"]
+    )
+    @status done
+    @tags (overview, coverage, metrics)
+}
+
+overview_search {
+    Overview search fans out across Ideas, Ideasets, Attributes, and References using the same ui-sql filters as those tabs.
+    Debounced; returns counts plus a short sample of hits per surface; clicking a hit opens the idea (or the attribute → Ideas handoff);
+    "Open in …" applies the search string on that tab.
+    @implementation (
+        [OverviewPanel]
+        [ideas_summary_panel]
+        [webview_table_queries]
+    )
+}
+
+timeline_page {
+    Timeline tab shows the evolution of ideas for the active base — not raw file-index noise.
+    Sources:
+    - Git idea lifecycle from indexed `git_created_at` / `git_modified_at` (created + last edited as separate events when they differ)
+    - Session idea reindex activity (one event per idea persisted, with name / status / summary when available)
+    Missing git dates are filled by the silent background indexer
+    (["../../index-host/indexer.rq".git_dates] / ["../../index-host/git-codelens.rq".git_dates_background_indexing]) —
+    opening Timeline must not run git log on the UI path.
+    Reindex must preserve existing git dates across upsert.
+    Entries are reverse-chronological, filterable by source (git / reindexed), and clickable to open the idea.
+    Each event surfaces idea-centric info: name, short summary, status, kind/tags, and path.
+    Full live multi-commit git log browsing remains out of scope; this surfaces indexed idea history first.
+    @implementation (
+        [TimelinePanel]
+        [ideas_summary_panel]
+        ["../../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../../../packages/extension/src/index_host_module/register-git-dates-background.ts"]
+        ["../../../../packages/extension/src/index_host_module/git-dates-background.ts"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
+        ["../../../../packages/extension/test/git-dates-background.test.ts"]
+        ["../../../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
+    )
+    @status done
+    @tags (timeline, ideas, git)
+}
+
+bases_tab {
+    Table of discovered [ontology.base] entries in the workspace (label, path, ready, idea/edge/issue counts, state).
+    Selecting a row pins that base (pointer swap) per [ideas_summary_base.ideas_summary_base_scope].
+    Filterable / sortable / column options like other tables; data comes from index status, not a merged cross-base SQLite dump.
+    Client-side search and column filters via [BasesTable] / bases-filter matcher.
+    @implementation (
+        [BasesTable]
+        ["../../../../packages/extension/webviews/ideas-summary/lib/bases-filter.ts"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/bases-table-filter.test.ts"]
+    )
+    @status done
+}
+
+attributes_tab {
+    Attributes index for the active base, aligned with [html_export.html_export_attributes_index]:
+    attribute key, idea count, distinct value count, sample values.
+    Searchable and filterable; clicking a key opens Ideas with that attribute column enabled.
+    Aggregated in [webview_table_queries] / sqlite store.
+    @implementation (
+        [AttributesTable]
+        [webview_table_queries]
+        [ideas_summary_panel]
+    )
+}
+
+idea_sets_tab {
+    The idea sets page should list the ideasets
+    unlike the ideas page, it should not directly to the ideaset, but should have a dropdown to it's items.
+    the path column should link to the ideaset source.
+    members should appear as chips with a … control to expand and show all member chips when needed.
+    per [IdeasetsTable]
+}
+
+table_column_filters {
+    Every data table supports a global search and a per-column filter row ([ColumnFilterRow]),
+    matching the usability of [html_export.html_export_list_views].
+    Text / path / body columns use searchable inputs; closed sets (idea kind, reference type, ideaset kind, base ready)
+    use select / multi-select from a fixed option list.
+    Typed filter/search text must keep spaces through the host round-trip (do not trim the echoed query —
+    SQL matchers may trim only when building LIKE patterns).
+    Select filters must support deselect / clear back to "All" (controlled select value + clear control for multi-select).
+    Column filters are applied in the ui-sql layer ([webview_table_queries]) together with existing chip filters.
+    Table panels must bind AppState query/rows via Svelte 5 `$derived` (not legacy `$:`) so filtered results from
+    the extension message listener re-render — same pattern as [graphical_graph_doc.graphical_graph] / GraphView.
+    Bases table filters client-side in the webview; other tables round-trip search through [ideas_summary_panel].
+    @implementation (
+        [ColumnFilterRow]
+        [TableToolbar]
+        [webview_table_queries]
+        [IdeasTable]
+        [IdeasetsTable]
+        [ReferencesTable]
+        [AttributesTable]
+        [BasesTable]
+        [ideas_summary_panel]
+        ["../../../../packages/extension/src/ideas_summary_module/shared/table-query-normalize.ts"]
+    )
+    @tests (
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts"]
+        ["../../../../packages/extension/test/bases-table-filter.test.ts"]
+        ["../../../../packages/extension/test/table-column-filters-normalize.test.ts"]
+    )
+    @status done
+}
+
+table_column_options {
+    Each table has an Options control ([TableOptionsMenu]) to show or hide columns.
+    Visibility persists per tab in workspaceState via [table_ui_state].
+    @implementation (
+        [TableOptionsMenu]
+        [table_ui_state]
+        [ideas_summary_panel]
+    )
+}
+
+group_by_type {
+    Ideas table can group by idea kind (block / oneliner).
+    References table can group by reference type (file / comment / sub-idea).
+    Grouping is a toolbar toggle; rows are ordered by group then the active sort; UI shows collapsible group headers.
+    @implementation (
+        [IdeasTable]
+        [ReferencesTable]
+        [webview_table_queries]
+    )
+}
+
+index_panel {
+    Last tab: workspace index health — readiness, summary stats, sync progress, errors, refresh / cancel / clear-and-rebuild.
+    per [index_reqs.idea_index_triggers] and ["../../../indexer/indexer.rq".nonblocking_index]
+    Implemented by [IndexPanel].
+}
+
+index_panel_base_support {
+    The [index_panel] / Ideas Summary chrome supports switching between bases in the workspace.
+    Switch is a pointer swap per ["../../../bases/base.rq".active_base_switch] and ["./base-scope.rq".ideas_summary_base_scope] — rebind views, do not sync.
+    @status done
+}
+
+ideas_table_filters {
+    the ideas table should support text search, column sorting, and attribute-column filters driven by chip clicks.
+    attribute filters require a non-null attribute value in sqlite json per [webview_table_queries]
+    reference chip filters match outbound/inbound edges by target or source id per [webview_table_queries]
+    chips are right-aligned so truncated labels keep the informative suffix visible.
+    active attribute and reference filters appear as removable chips in the table toolbar.
+    Also [table_column_filters], [table_column_options], and [group_by_type].
+    @tests (
+        ["../../../../packages/analytical/test/webview-table-queries.test.ts"]
+    )
+    @status done
+}
+
+graphical_graph_tab see [graphical_graph_doc.graphical_graph]

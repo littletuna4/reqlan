@@ -30,7 +30,7 @@ npm_package_readme_links {
 }
 
 activity_bar_site_link {
-    The activity bar Context webview header info control opens phonebook link id `site` per ["./extension/module/activitybar.rq".info_site_link].
+    The activity bar Context webview header info control opens phonebook link id `site` per ["./extension/local-context/activitybar.rq".info_site_link].
 }
 
 root_readme_links {

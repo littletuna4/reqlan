@@ -49,7 +49,7 @@ describe("broken-links showcase", () => {
 
 describe("agent-context showcase", () => {
   // rq:["../../../reqlan rq/site/site.rq".agent_context_showcase]
-  // rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+  // rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
 
   it("shows MCP click as the shaped context tool", () => {
     const showcase = showcases.find((item) => item.id === "agent-context");

@@ -117,7 +117,7 @@ next_idea still here`);
     });
 
     // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
-    // rq:["../../../reqlan rq/extension/onboarding/page-thanks-for-installing.rq".installation_event]
+    // rq:["../../../reqlan rq/extension/host/onboarding/page-thanks-for-installing.rq".installation_event]
     test('parse thanks-for-installing template', async () => {
         const templatePath = join(repoDir, 'packages/extension/templates/thanks-for-installing.template.rq');
         const document = await parse(readFileSync(templatePath, 'utf8'));
@@ -216,7 +216,7 @@ next_idea still here`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
     test('parse extension context-scope.rq module', async () => {
-        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/module/context-scope.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/context-scope.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.some(
             element => isIdea(element) && element.name === 'context_scope'
@@ -239,7 +239,7 @@ next_idea still here`);
         expect(oneLinerText(oneLiners[1]!)).toBe('this is a blob of text');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".from_import_syntax]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".from_import_syntax]
     test('parse from import with multiple symbols', async () => {
         const document = await parse('from "./example.rq" import symbol1, symbol2, symbol3');
         expect(checkDocumentValid(document)).toBeUndefined();
@@ -437,7 +437,7 @@ second_idea line two`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".block_idea]
     // rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
     test('same-line braces after a name parse as a block', async () => {
         const document = await parse(`mybadidea1 {}
 mybadidea2 {hello}
@@ -1026,7 +1026,7 @@ label { body }`);
         expect(isMarkdownLinkLabelPosition(document, position)).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/module/graphical_graph.rq".graphical_graph]
+    // rq:["../../../reqlan rq/extension/graphical_graph.rq".graphical_graph]
     test('parse bare numbers in body text', async () => {
         const document = await parse(s`
             graphical_graph {

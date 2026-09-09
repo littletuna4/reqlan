@@ -4,10 +4,10 @@
  *
  * SQLite artifacts are opened for event-driven work and released when idle — the adapter does not
  * keep permanent connections or a second long-lived AnalysisApi cache.
- * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
- * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
- * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".event_driven_base_access]
- * rq:["../../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
+ * rq:["../../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+ * rq:["../../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]
+ * rq:["../../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".event_driven_base_access]
+ * rq:["../../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
  */
 import * as vscode from 'vscode';
 import {
@@ -174,7 +174,7 @@ export class IndexService {
 
     /**
      * Native git-dates fill for the active base (all missing when `ideaIds` omitted).
-     * rq:["../../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     * rq:["../../../../../reqlan rq/indexer/indexer.rq".git_dates]
      */
     fillGitDates(ideaIds?: string[]): number {
         const entry = this.getActiveBase();
@@ -187,7 +187,7 @@ export class IndexService {
 
     /**
      * Native Ideas Summary overview coverage for the active base.
-     * rq:["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     * rq:["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
      */
     computeOverviewCoverage() {
         const entry = this.getActiveBase();
@@ -562,7 +562,7 @@ export class IndexService {
     }
 
     /**
-     * rq:["../../../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".index_file_search_coalesce]
+     * rq:["../../../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".index_file_search_coalesce]
      */
     private async collectRqFiles(): Promise<string[]> {
         return shareInFlight(this.collectRqFilesSlot, () => this.runCollectRqFiles());

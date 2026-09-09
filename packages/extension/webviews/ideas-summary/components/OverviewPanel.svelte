@@ -1,11 +1,11 @@
 <script lang="ts">
     /**
      * Overview tab — stats, cross-surface search, export buttons, timeline preview.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_page]
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_search]
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_page]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_search]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
      */
-    import type { IndexState } from '../../../src/webview_module/shared/messages.js';
+    import type { IndexState } from '../../../src/ideas_summary_module/shared/messages.js';
     import { getApp } from '../state/context.js';
 
     const app = getApp();

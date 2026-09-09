@@ -1,0 +1,106 @@
+import "../local-context/context-scope.rq" as context_scope
+import "./graph-analysers.rq" as graph_analysers
+import "../../indexer/indexer.rq" as indexer
+import "../workspace-summary/ideas_summary/webview.rq" as ideas_summary_webview
+
+git_idea_timeline_analysis {
+    Idea creation and last-modified dates, plus change count, are derived from git history by the
+    `git_dates` analyser and stored on the ideas index
+    (`git_created_at` / `git_modified_at` / `git_change_count`).
+    Calculation is owned by [git_dates_background_indexing] / [indexer.git_dates] — not by
+    on-the-fly editor, Activity Bar focus, Timeline open, or Ideas table load.
+    Active-editor queue priority for fill-in is specified on [git_dates_background_indexing].
+    Implemented by ["../../../crates/reqlan-index/src/git_dates.rs"] and
+    ["../../../packages/analytical/src/index-store/sqlite-store.ts"].
+    @status done
+    @tests (
+        ["../../../packages/analytical/test/idea-timeline.test.ts"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:upsert preserves analyser git dates and change count across reindex"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates returns ideas without dates"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates includes ideas missing change count"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
+        ["../../../packages/analytical/test/ideas-git-columns-perf.test.ts"]
+    )
+    [git_dates_background_indexing]
+    [git_dates_rate_cap]
+    [indexer.git_dates]
+    [ideas_summary_webview.ideas_list]
+}
+
+
+git_dates_background_indexing {
+    Host wiring for [git_idea_timeline_analysis] / [indexer.git_dates]: after the ideas index is
+    ready (and when the catalog updates), missing idea git dates must be filled by a mostly silent
+    background process:
+    - small batches
+    - yields between batches so the extension host stays interactive
+    - no progress UI / no blocking of Activity Bar context load or Timeline tab open
+    - session-scoped attempted set so failed lookups are not hammered repeatedly
+    - queue priority: ideas in the active `.rq` editor file are attempted before the global backlog;
+      switching the active editor re-prioritises (in-flight wave may stop and reschedule)
+    - catalog/save scheduling follows [git_dates_rate_cap]
+    - git / node helper processes stay hidden per ["../../core_analysis/core.rq".consumption_silence]
+    Consumers only read indexed columns; they must not invoke `git_dates` on the UI path.
+    @status done
+    @implementation (
+        ["../../../packages/extension/src/index_host_module/git-dates-background.ts"]
+        ["../../../packages/extension/src/index_host_module/register-git-dates-background.ts"]
+        ["../../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../../crates/reqlan-index/src/git_dates.rs"]
+    )
+    @tests (
+        ["../../../packages/extension/test/git-dates-background.test.ts"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:processes missing ids in small batches and yields between them"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:does nothing when the index is not ready"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:marks ids attempted even when the analyser fails"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:processes active-file priority ids before the global backlog"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:stops early when shouldStop flips so a new file can be prioritised"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:catalog events debounce and do not follow the short editor delay"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates returns ideas without dates"]
+        ["../../../packages/analytical/test/idea-timeline.test.ts:listIdeaIdsMissingGitDates can filter or prefer a file"]
+    )
+    [git_idea_timeline_analysis]
+    [indexer.git_dates]
+    [git_dates_rate_cap]
+    [ideas_summary_webview.timeline_page]
+}
+
+git_dates_rate_cap {
+    Git history analysis is expensive (`git log -L` and follow logs per idea).
+    Do not start a git_dates wave on every `.rq` save or catalog notify.
+    Catalog and index-status events must debounce (quiet period after the last notify)
+    and must wait a minimum gap after a wave that actually filled dates.
+    Editor-switch priority and draining a capped wave may use the short idle delay.
+    Distinct from ["./graph-analysers.rq".indexing_trigger_filesave]: the ideas
+    index still updates on save; only git analysis is rate-capped.
+    Related: [git_dates_background_indexing], [indexer.git_dates],
+    ["./index.rq".idea_index_triggers], ["./index.rq".git_information_capture],
+    ["../../core_analysis/core.rq".consumption_silence].
+    @status done
+    @implementation (
+        ["../../../packages/extension/src/index_host_module/git-dates-background.ts"]
+        ["../../../packages/extension/src/index_host_module/register-git-dates-background.ts"]
+    )
+    @tests (
+        ["../../../packages/extension/test/git-dates-background.test.ts:catalog events debounce and do not follow the short editor delay"]
+        ["../../../packages/extension/test/git-dates-background.test.ts:catalog waves wait for the min gap after a fill"]
+    )
+}
+
+
+git_based_history {
+    there should be a code lens button for viewing an idea history through git.
+    Should accept close matches and likeley file moves
+    should consume the same state as the [context_scope]
+    Dates come from indexed [git_idea_timeline_analysis] state filled by [git_dates_background_indexing].
+    @idea
+    @todo CodeLens button to open idea git history
+}
+
+git_date_inlayhints {
+    Should show references and date created per [git_based_history].
+    Creation dates must come from already-indexed git dates via [git_dates_background_indexing],
+    not a synchronous git walk on inlay render.
+    @todo
+}

@@ -66,7 +66,7 @@ describe('extension VSIX packaging', () => {
 });
 
 describe('search code action host wiring', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('extension main passes language client getter to import-error commands', () => {
         const mainSource = readFileSync(
             join(extensionRoot, 'src/extension/main.ts'),
@@ -77,7 +77,7 @@ describe('search code action host wiring', () => {
         );
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('language server registers reqlan/referenceSearchSite', () => {
         const languageMain = readFileSync(
             join(extensionRoot, 'src/language/main.ts'),
@@ -90,7 +90,7 @@ describe('search code action host wiring', () => {
 });
 
 describe('ignore-error code action host wiring', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('extension main registers ignore-error code actions for comment files', () => {
         const mainSource = readFileSync(
             join(extensionRoot, 'src/extension/main.ts'),
@@ -101,7 +101,7 @@ describe('ignore-error code action host wiring', () => {
 });
 
 describe('idea move palette commands', () => {
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('package.json contributes move idea and move idea content commands', () => {
         const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
             contributes: { commands: Array<{ command: string; title: string }> };
@@ -120,7 +120,7 @@ describe('idea move palette commands', () => {
             ])
         );
         const registerSource = readFileSync(
-            join(extensionRoot, 'src/refactor_module/register-idea-refactor-commands.ts'),
+            join(extensionRoot, 'src/mutation_module/refactor/register-idea-refactor-commands.ts'),
             'utf8'
         );
         expect(registerSource).toContain('REQLAN_REFACTOR_MOVE_IDEA_CONTENT_COMMAND');
@@ -129,7 +129,7 @@ describe('idea move palette commands', () => {
 });
 
 describe('extension host esbuild CJS import.meta', () => {
-    // rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+    // rq:["../../../reqlan rq/extension/host/startup-performance.rq".invalid_url_activation_failure]
     test('rewrites import.meta.url instead of emptying it for ES2017 CJS', async () => {
         const esbuildScript = readFileSync(join(extensionRoot, 'esbuild.mjs'), 'utf8');
         expect(esbuildScript).toContain("'import.meta.url': 'import_meta_url'");

@@ -2,7 +2,7 @@
  * Formats inbound reference lists for idea declaration inlay hints.
  * Inbound lists come from the SQLite snapshot pushed by the extension host.
  * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
  */
 import { AstUtils } from 'langium';
 import {

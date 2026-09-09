@@ -1,10 +1,10 @@
 <script lang="ts">
     /**
      * Timeline tab — idea evolution from git dates + idea-level reindex activity.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".timeline_page]
      */
     import { onMount } from 'svelte';
-    import type { TimelineEventSource, TimelineEventView } from '../../../src/webview_module/shared/messages.js';
+    import type { TimelineEventSource, TimelineEventView } from '../../../src/ideas_summary_module/shared/messages.js';
     import { getApp } from '../state/context.js';
 
     const app = getApp();

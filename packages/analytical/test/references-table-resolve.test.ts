@@ -11,7 +11,7 @@ async function openTestStore(): Promise<SqliteIndexStore> {
 
 describe('listReferencesPage file target resolution', () => {
     test('resolves authored relative file targets against the defining file', async () => {
-        const fileUri = 'reqlan rq/extension/module/activitybar.rq';
+        const fileUri = 'reqlan rq/extension/local-context/activitybar.rq';
         const sourceId = ideaId(fileUri, 'loading_state');
         const idea: IdeaRecord = {
             id: sourceId,

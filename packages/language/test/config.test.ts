@@ -31,7 +31,7 @@ function insertBaseMarker(fs: VirtualFileSystemProvider, baseUri: string): void 
 }
 
 describe('config schema file', () => {
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_schema_file]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
     // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
     test('schema file documents importRoots mappings', () => {
         const schemaPath = join(repoDir, 'packages/extension/schemas/config.schema.json');
@@ -115,14 +115,14 @@ describe('config schema file', () => {
 });
 
 describe('config location', () => {
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('returns undefined when no config exists', () => {
         const fs = new VirtualFileSystemProvider();
         fs.insert('file:///workspace/pkg/a.rq', 'idea body');
         expect(loadApplyingRqConfig(URI.parse('file:///workspace/pkg'), fs)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('loads config from the owning base .reqlan', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/pkg', {
@@ -155,7 +155,7 @@ describe('config location', () => {
         expect(loaded?.click?.maxCandidates).toBe(5);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('loads config from an ancestor base', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -166,7 +166,7 @@ describe('config location', () => {
         expect(loaded?.importRoots[0]?.alias).toBe('#');
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('nearest base config wins over farther ones', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -179,7 +179,7 @@ describe('config location', () => {
         expect(loaded?.importRoots[0]?.alias).toBe('~');
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('owning base without config does not inherit parent', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -192,7 +192,7 @@ describe('config location', () => {
 });
 
 describe('config schema edges', () => {
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('empty object uses default alias mapping', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {});
@@ -202,7 +202,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots[0]?.rootUri).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('importRoots alias only overrides the alias', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -212,7 +212,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots).toEqual([{ alias: '~' }]);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('relative root resolves against the base root', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/pkg', {
@@ -223,7 +223,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots[0]?.rootUri?.toString()).toBe(URI.parse('file:///workspace/pkg/lib').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('absolute filesystem root is used directly', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -233,7 +233,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots[0]?.rootUri?.toString()).toBe(URI.file('/abs/lib').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('Windows drive-letter root is used as a file URI not scheme c:', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -245,7 +245,7 @@ describe('config schema edges', () => {
         expect(decodeURIComponent(rootUri?.toString() ?? '').toLowerCase()).toContain('/c:/libs');
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('file URI root is used directly', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -255,7 +255,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots[0]?.rootUri?.toString()).toBe(URI.parse('file:///elsewhere/lib').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('multiple importRoots map aliases to different roots', () => {
         const fs = new VirtualFileSystemProvider();
@@ -283,7 +283,7 @@ describe('config schema edges', () => {
         }).toString()).toBe(URI.parse('file:///workspace/lib/b.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('longest alias wins when mappings overlap', () => {
         expect(matchImportRootMapping('@pkg/x.rq', [
@@ -305,7 +305,7 @@ describe('config schema edges', () => {
         }).toString()).toBe(URI.parse('file:///workspace/packages/util.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('empty string alias entries are skipped', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -315,7 +315,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots).toEqual([{ alias: '~' }]);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('empty string root is ignored on a mapping', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -325,7 +325,7 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots).toEqual([{ alias: '~' }]);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('invalid importRoots entries are skipped', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -342,8 +342,8 @@ describe('config schema edges', () => {
         expect(loaded?.importRoots).toEqual([{ alias: '~' }, { alias: '#' }]);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_schema_file]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
     test('unknown properties are ignored while known keys still apply', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', {
@@ -356,14 +356,14 @@ describe('config schema edges', () => {
         expect(loaded?.export?.outputFolder).toBe(URI.parse('file:///workspace/exports').fsPath);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('invalid JSON falls back to undefined load', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', '{ not json');
         expect(loadApplyingRqConfig(URI.parse('file:///workspace'), fs)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('non-object JSON falls back to undefined load', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/array', ['~']);
@@ -374,21 +374,21 @@ describe('config schema edges', () => {
         expect(loadApplyingRqConfig(URI.parse('file:///workspace/null'), fs)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('non-array importRoots falls back to undefined load', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', { importRoots: { alias: '~' } });
         expect(loadApplyingRqConfig(URI.parse('file:///workspace'), fs)).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('empty importRoots array uses default alias mapping', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', { importRoots: [] });
         expect(loadApplyingRqConfig(URI.parse('file:///workspace'), fs)).toEqual(defaultRqConfig());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('export config resolves relative outputFolder and html defaults', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace/pkg', {
@@ -434,15 +434,15 @@ describe('config schema edges', () => {
 });
 
 describe('config applied to path resolution', () => {
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('resolveRqConfig uses defaults when no applying file exists', () => {
         const fs = new VirtualFileSystemProvider();
         const document = createSourceTextDocument('file:///workspace/pkg/a.rq', 'idea body');
         expect(resolveRqConfig(document, { fileSystem: fs })).toEqual(defaultRqConfig());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('resolveRqConfig falls back to defaults when applying JSON is invalid', () => {
         const fs = new VirtualFileSystemProvider();
         insertConfig(fs, 'file:///workspace', '{ broken');
@@ -450,7 +450,7 @@ describe('config applied to path resolution', () => {
         expect(resolveRqConfig(document, { fileSystem: fs })).toEqual(defaultRqConfig());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('aliased path uses relative root from applying config', () => {
         const fs = new VirtualFileSystemProvider();
@@ -465,7 +465,7 @@ describe('config applied to path resolution', () => {
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/lib/target.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('aliased path uses workspace folder when root is omitted', () => {
         const fs = new VirtualFileSystemProvider();

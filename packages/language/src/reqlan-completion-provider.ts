@@ -1,16 +1,16 @@
 /**
  * Code completion for references, import paths, file paths, and attributes.
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+ * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_ranking]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_rendering]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_auto_file_import]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, UriUtils, stream } from 'langium';
@@ -361,8 +361,8 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
 
     /**
      * Cross-file idea completions show their import path and may insert a from-import.
-     * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
-     * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+     * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_rendering]
+     * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_auto_file_import]
      */
     private toReferenceCompletionItem(
         document: LangiumDocument,
@@ -400,7 +400,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
 
     /**
      * Ideas and ideasets in the file named by a quoted path: `["./lib.rq".`.
-     * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+     * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
      */
     private completeQualifiedFileIdeas(document: LangiumDocument, params: CompletionParams): CompletionList {
         const context = getQualifiedFileIdeaContext(document, params.position);
@@ -502,7 +502,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
 
     /**
      * Import statements keep the `.rq` filter. Anonymous file references omit the filter.
-     * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+     * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
      */
     private collectPathCandidates(
         document: LangiumDocument,
@@ -543,7 +543,7 @@ let cachedIdeaAdjacencyKey = '';
 /**
  * Undirected idea↔idea edges from bracket/wikilink references in the given documents.
  * Per-document edges are reused while `textDocument.version` is unchanged.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 export function buildIdeaReferenceAdjacency(documents: LangiumDocument[]): Map<string, Set<string>> {
     return getIdeaReferenceAdjacency(documents);

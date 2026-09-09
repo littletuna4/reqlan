@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-/** Svelte onboarding webview shell per ["../../../../reqlan rq/extension/onboarding/page-thanks-for-installing.rq"] */
+/** Svelte onboarding webview shell per ["../../../../reqlan rq/extension/host/onboarding/page-thanks-for-installing.rq"] */
 export function getOnboardingHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const nonce = getNonce();
     const baseUri = vscode.Uri.joinPath(extensionUri, 'media', 'webviews', 'onboarding');

@@ -1,4 +1,4 @@
-import type { ExtensionToWebviewMessage } from '../../../src/webview_module/shared/messages.js';
+import type { ExtensionToWebviewMessage } from '../../../src/ideas_summary_module/shared/messages.js';
 import type {
     AttributesTableQuery,
     AttributeTableRow,
@@ -17,15 +17,15 @@ import type {
     ReferencesTableQuery,
     TableUiPersistedState,
     TimelineEventView
-} from '../../../src/webview_module/shared/messages.js';
+} from '../../../src/ideas_summary_module/shared/messages.js';
 import {
     DEFAULT_GRAPH_UI_STATE,
     normalizeGraphUiState
-} from '../../../src/webview_module/shared/graph-ui-state.js';
+} from '../../../src/ideas_summary_module/shared/graph-ui-state.js';
 import {
     DEFAULT_TABLE_UI_STATE,
     normalizeTableUiState
-} from '../../../src/webview_module/shared/table-ui-state.js';
+} from '../../../src/ideas_summary_module/shared/table-ui-state.js';
 import { createDebounced } from '../lib/debounce.js';
 import {
     defaultAttributesQuery,

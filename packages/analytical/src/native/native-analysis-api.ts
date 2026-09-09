@@ -100,7 +100,7 @@ export class NativeAnalysisApi {
 
     /**
      * Release SQLite artifacts held by this runtime.
-     * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
+     * rq:["../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
      */
     close(): void {
         if (this.closed) {

@@ -2,7 +2,7 @@
 //! Ported from `overview-coverage.ts`; walks the base with the shared `.rqignore`
 //! filter, counts eligible non-`.rq` files, resolves file-reference coverage, and
 //! tallies LOC with the same size caps.
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
 
 use crate::ignore::RqIgnoreFilter;
 use crate::queries;

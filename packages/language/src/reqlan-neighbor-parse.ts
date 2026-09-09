@@ -4,9 +4,9 @@
  * Does not populate a Langium AST for the neighbor.
  * Does not follow the neighbor's own outbound references.
  * Loaded-buffer lookup is by URI only (no basename fallback).
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';

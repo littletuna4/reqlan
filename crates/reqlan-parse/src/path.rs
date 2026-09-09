@@ -1,7 +1,7 @@
 //! Authored path forms: import-root aliases (`@/…`), file-ref suffixes, posix join.
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/language/imports.rq".import_paths]
-//! rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+//! rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
 
 /// Default import-root alias string. Written as `@/` plus a path under the import root.
@@ -93,7 +93,7 @@ pub fn parse_file_reference_string(file: &str) -> ParsedFileReference {
 /// Aliased paths join the mapping root (or the workspace folder when `root` is omitted).
 /// Other relative paths join the directory of `from_file`.
 /// Import paths with no extension mean `.rq`. Keep the authored path as a fallback.
-/// rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+/// rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
 pub fn import_path_with_implicit_extension(path: &str) -> Option<String> {
     let basename = match path.rsplit_once('/') {
         Some((_, name)) => name,
@@ -371,7 +371,7 @@ mod tests {
         assert_eq!(resolved, "packages/language/test/comment-in-string.test.ts");
     }
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     #[test]
     fn implicit_rq_extension_skips_paths_that_already_have_one() {
         assert_eq!(import_path_with_implicit_extension("reqs/style"), Some("reqs/style.rq".into()));

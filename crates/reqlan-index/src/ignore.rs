@@ -1,8 +1,8 @@
 //! .rqignore matching via the mature `ignore` crate.
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
-//! rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
-//! rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
-//! rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+//! rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
+//! rq:["../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
+//! rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::path::{Path, PathBuf};
@@ -218,8 +218,8 @@ fn nested_gitignore_matches(workspace_root: &Path, relative_path: &str) -> bool 
 pub const CONFIG_FILENAME: &str = "config.json";
 
 /// Text seeded into a new base's `.reqlan/.rqignore` (comments + built-in defaults).
-/// rq:["../../../reqlan rq/extension/configuration.rq".configuration_rqignore]
-/// rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
+/// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 pub fn default_rqignore_file_contents() -> String {
     let mut lines = vec![
         "# reqlan path ignore".to_string(),
@@ -304,8 +304,8 @@ pub struct CreateBaseResult {
 
 /// Ensure `<base_root>/.reqlan/` exists and seed `config.json`, `.rqignore`, and `.gitignore` when new.
 /// Idempotent: existing markers are left untouched and reported as `created: false`.
-/// rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
-/// rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+/// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
+/// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 /// rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
 pub fn create_base(base_root: &Path) -> std::io::Result<CreateBaseResult> {
     let memory_path = base_root.join(APPLICATION_MEMORY_DIR);
@@ -369,7 +369,7 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
-    // rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
+    // rq:["../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
     #[test]
     fn default_rqignore_skips_binary_files_until_negated() {
         let root = scratch("binary-ignore");
@@ -387,7 +387,7 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
-    // rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+    // rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
     #[test]
     fn seeded_rqignore_explains_features() {
         let text = default_rqignore_file_contents();

@@ -1,8 +1,8 @@
 /**
  * UI-SQL helpers for Ideas Summary table queries.
- * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
- * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
- * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+ * per ["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".group_by_type]
+ * per ["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
  */
 import type { IdeaAttributeMap } from '../core/types.js';
 import { parseAttributes } from '../core/types.js';

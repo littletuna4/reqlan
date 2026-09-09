@@ -1,6 +1,6 @@
 /**
  * Quick Fix that creates a missing idea below the idea that contains the unresolved reference.
- * rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
  */
 import { AstUtils, DocumentValidator, type LangiumDocument } from 'langium';
 import type { CodeAction, Diagnostic, Position, Range, TextEdit } from 'vscode-languageserver';

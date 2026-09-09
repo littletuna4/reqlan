@@ -1,8 +1,8 @@
 from "./indexer.rq" import index, nonblocking_index, triggers
-from "../extension/features-graph-analysers.rq" import indexing_incrementality, indexing_trigger_auto
-from "../extension/language-support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
-from "../extension/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
-from "../extension/module/ideas_summary/graphical_graph.rq" import graphical_graph
+from "../extension/index-host/graph-analysers.rq" import indexing_incrementality, indexing_trigger_auto
+from "../extension/language/support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
+from "../extension/language/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
+from "../extension/workspace-summary/ideas_summary/graphical_graph.rq" import graphical_graph
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
@@ -98,7 +98,7 @@ unify_inbound_indexes {
     (["../language/syntax.rq".open_file_reference_sequencing]).
     Mutation hooks already use the same store. Share one graph.
     Related: [index_cache_reuse], ["../indexer/indexer.rq".local_symbolic_analysis],
-    ["../extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance].
+    ["../extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance].
 
     @status done
     @implementation (

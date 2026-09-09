@@ -1,4 +1,4 @@
-import type { BaseStatusView } from '../../../src/webview_module/shared/messages.js';
+import type { BaseStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
 
 /** Case-insensitive match on base label or root path. Empty query returns all. */
 export function filterBases(bases: BaseStatusView[], query: string): BaseStatusView[] {

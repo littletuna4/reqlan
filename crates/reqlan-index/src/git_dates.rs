@@ -1,9 +1,9 @@
 //! Surface creation / last-modified dates and change count for ideas via git history.
 //! Ported from the former `git-dates-analyser.ts`; the extension only schedules waves
 //! and calls `fill_git_dates`, so the git log + persist work stays native.
-//! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
-//! rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
-//! rq:["../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
+//! rq:["../../../reqlan rq/indexer/indexer.rq".git_dates]
+//! rq:["../../../reqlan rq/extension/index-host/git-codelens.rq".git_dates_background_indexing]
+//! rq:["../../../reqlan rq/extension/index-host/git-codelens.rq".git_idea_timeline_analysis]
 //! rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
 
 use crate::store::{IndexStore, StoreError};

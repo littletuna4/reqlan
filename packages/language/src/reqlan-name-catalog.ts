@@ -1,6 +1,6 @@
 /**
  * Compact name index pushed from the extension host for unresolved-reference quick fixes.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  */
 
 export type NameCatalogKind = 'idea' | 'oneliner' | 'ideaset' | 'file';

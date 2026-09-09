@@ -1,8 +1,8 @@
 //! Barrel a large `.rq` page into a container that imports one file per top-level idea.
 //! Ported from the former Langium-backed `barrel-page.ts`; the plan is pure text so
 //! CLI `barrel`, the extension code action, and other headless tools share one engine.
-//! rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
-//! rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+//! rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+//! rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 
 use crate::ast::{Import, Model, TopLevelElement};

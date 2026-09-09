@@ -1,7 +1,7 @@
 /**
  * Refresh / create-base host wiring must call analytical BaseRegistry.refresh.
  * rq:["../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
+ * rq:["../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_manual]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

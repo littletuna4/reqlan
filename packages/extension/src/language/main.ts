@@ -72,7 +72,7 @@ const connection = createConnection(ProposedFeatures.all);
 const { shared, Reqlan } = createReqlanServices({ connection, ...NodeFileSystem });
 
 // After this buffer's Langium AST is populated or replaced (not after Linked).
-// rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
+// rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
 shared.workspace.DocumentBuilder.onDocumentPhase(DocumentState.Parsed, document => {
     applyOutboundDiagnosticAuthority(document, Reqlan);
     void connection.sendDiagnostics({
@@ -161,9 +161,9 @@ function getParsedDocument(params: { uri: string; text?: string }) {
 }
 
 // Path-local links, tokens, and outbound errors must not wait for workspace Linked.
-// rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
-// rq:["../../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
-// rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
+// rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
+// rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
+// rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
 // rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
 startLanguageServer(shared, {
     DocumentLinkProvider: DocumentState.Parsed,

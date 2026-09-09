@@ -1,6 +1,6 @@
 /**
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_highlighting]
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
  * rq:["../../../reqlan rq/language/syntax.rq".comments]
  */
@@ -36,7 +36,7 @@ function firstMatch(repositoryKey: string): string {
 }
 
 describe('TextMate wildcard reference highlighting', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
     test('e2e: bracket wildcard path ref matches link scope and not block comment', () => {
         const grammar = loadGrammar();
         const bracket = firstMatch('bracket-references');
@@ -66,7 +66,7 @@ describe('TextMate wildcard reference highlighting', () => {
         expect(beginRe.test('/* note */')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
     test('wikilink path + wildcard idea is a dedicated link pattern', () => {
         const grammar = loadGrammar();
         const wikiPatterns = grammar.repository.wikilinks?.patterns ?? [];

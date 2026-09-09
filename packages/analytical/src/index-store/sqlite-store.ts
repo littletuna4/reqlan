@@ -555,7 +555,7 @@ export class SqliteIndexStore {
 
     /**
      * Aggregate attribute keys for the Ideas Summary attributes tab.
-     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+     * per ["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
      */
     async countAttributes(query: AttributesTableQuery): Promise<number> {
         const { total } = await this.queryAttributesPage(query);
@@ -579,11 +579,11 @@ export class SqliteIndexStore {
      * Missing when both dates are null, or when change count has not been indexed yet.
      * - `fileUri`: only ideas in that file (active-editor priority queue)
      * - `preferFileUri`: list that file's ideas first, then the rest of the backlog
-     * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
-     * rq:["../../../../reqlan rq/extension/git-codelens.rq".git_idea_timeline_analysis]
-     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
-     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
-     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+     * rq:["../../../../reqlan rq/extension/index-host/git-codelens.rq".git_dates_background_indexing]
+     * rq:["../../../../reqlan rq/extension/index-host/git-codelens.rq".git_idea_timeline_analysis]
+     * rq:["../../../../reqlan rq/indexer/indexer.rq".git_dates]
+     * rq:["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".timeline_page]
+     * rq:["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_list]
      */
     async listIdeaIdsMissingGitDates(
         limit = 40,
@@ -599,7 +599,7 @@ export class SqliteIndexStore {
     /**
      * Recent idea evolution events from indexed git dates for the Timeline tab.
      * Emits separate created / modified entries when both timestamps exist and differ.
-     * per ["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".timeline_page]
+     * per ["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".timeline_page]
      */
     async listRecentGitIdeaEvents(limit = 50): Promise<GitIdeaTimelineEvent[]> {
         const rows = this.db.conn.listRecentGitIdeaRows(limit) as Array<{

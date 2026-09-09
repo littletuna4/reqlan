@@ -1,7 +1,7 @@
 /**
  * Convert Chevrotain lex/parse errors on `parseResult` into LSP diagnostics.
  * Used at Parsed so the editor does not wait for Validated to see parse failures.
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
  */
 import { CstUtils, toDiagnosticSeverity, type LangiumDocument, type ParseResult } from 'langium';

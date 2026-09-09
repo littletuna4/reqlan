@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { BaseStatusView } from '../../../src/webview_module/shared/messages.js';
+    import type { BaseStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
     import { baseOptionMeta, baseStatusHint, filterBases } from '../lib/filter-bases.js';
 
     interface Props {

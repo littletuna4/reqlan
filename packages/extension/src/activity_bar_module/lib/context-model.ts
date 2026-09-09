@@ -1,6 +1,6 @@
 /**
  * Composed reqlan context model — dimensions, focus, and merged footprint.
- * per ["../../../../../reqlan rq/extension/module/context-scope.rq"]
+ * per ["../../../../../reqlan rq/extension/local-context/context-scope.rq"]
  */
 import type {
     IdeaSummary,

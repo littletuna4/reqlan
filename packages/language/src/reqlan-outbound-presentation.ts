@@ -1,10 +1,10 @@
 /**
  * Open-file outbound presentation: 1-hop idea confirmation, links vs error underlines.
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_algorithm]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".missing_reference_colour_sequence]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { LangiumDocument } from 'langium';

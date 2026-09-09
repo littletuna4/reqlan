@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
+    import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
     import { getApp } from '../state/context.js';
     import { groupFileIssuesByFile } from '../lib/group-file-issues.js';
     import CollapsiblePane from './CollapsiblePane.svelte';

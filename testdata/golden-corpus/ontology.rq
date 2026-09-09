@@ -21,7 +21,7 @@ idea {
     Syntax: ["./language/syntax.rq".simple_idea], ["./language/syntax.rq".block_idea].
     Grammar: [reqlan_grammar] `Idea` / `OneLinerIdea`; index records: [analytical_types] `IdeaRecord`.
     Extract: [idea_extractor], [rust_extract]; AST: [rust_ast].
-    Product surface: [ideas_summary_tabs] Ideas tab per ["./extension/module/ideas_summary/webview.rq".ontology_aligned_tabs].
+    Product surface: [ideas_summary_tabs] Ideas tab per ["./extension/workspace-summary/ideas_summary/webview.rq".ontology_aligned_tabs].
     @status done
     @implementation (
         [reqlan_grammar]
@@ -113,7 +113,7 @@ base {
 
 configuration {
     There are multiple scopes for configuration: at the [base] level and at the [extension] level.
-    Base config: ["./extension/configuration.rq".configuration_location] (`<base>/.reqlan/config.json`).
+    Base config: ["./extension/host/configuration.rq".configuration_location] (`<base>/.reqlan/config.json`).
     Base vs extension split: ["./bases/base.rq".base_configuration].
     @status done
     @implementation (
@@ -171,7 +171,7 @@ referenced_files {
     They should be captured in the ["./indexer/indexer.rq".index].
     Outbound file refs: ["./language/syntax.rq".reference_file], [file_reference_resolve],
     edge kind `file_reference` in [analytical_types].
-    Inbound comment refs: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    Inbound comment refs: ["./extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     via [comment_resolver] / [comment_grammar].
     Full non-`.rq` file indexing of comment-bearing sources: ["./indexer/indexer.rq".index_code_files].
     @status done
@@ -193,7 +193,7 @@ referenced_files {
 
 cartographic_map {
     A cartographic map is a visual representation of a graph, optimised/curated by the user for context.
-    Product: ["./extension/module/ideas_summary/graphical_graph.rq".graphical_graph] ([graph_view]).
+    Product: ["./extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph] ([graph_view]).
     Distinct from a full-graph dump; [atlas] is a further curated overlay, not yet implemented.
     @status done
     @implementation (
@@ -205,8 +205,8 @@ cartographic_map {
 
 extension {
     The extension contains the editor product features.
-    Host: [extension_main]; scope: ["./extension/scope.rq".vscode_extension], ["./extension/scope.rq".lsp_support].
-    Architecture: ["./extension/architecture.rq".event_driven]; packages: ["./core-architecture.rq".extension_package].
+    Host: [extension_main]; scope: ["./extension/host/scope.rq".vscode_extension], ["./extension/host/scope.rq".lsp_support].
+    Architecture: ["./extension/host/architecture.rq".event_driven]; packages: ["./core-architecture.rq".extension_package].
     @status done
     @implementation (
         [extension_main]
@@ -291,7 +291,7 @@ atlas {
     One extension to the product is to have atlases — named, reusable cartographic cuts beyond the live [cartographic_map].
     @idea
     @status draft
-    @todo specify atlas persistence and UI relative to ["./extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+    @todo specify atlas persistence and UI relative to ["./extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph]
 }
 
 reference_types {

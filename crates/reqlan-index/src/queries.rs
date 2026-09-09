@@ -2,10 +2,10 @@
 //! Ported from packages/analytical/src/index-store/{webview-table-queries,webview-graph-queries}.ts
 //! and the page/count query bodies of sqlite-store.ts. Presentation mapping of the returned
 //! raw rows (attribute formatting, reference-chip path resolution) stays in TS.
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".group_by_type]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph]
 
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{EdgeRecord, IdeaRecord, FILTER_EMPTY, FILTER_NOT_PRESENT};

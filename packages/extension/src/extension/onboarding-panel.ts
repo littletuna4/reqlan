@@ -1,6 +1,6 @@
 /**
  * First-run / Show Onboarding webview panel.
- * per ["../../../../reqlan rq/extension/onboarding/page-thanks-for-installing.rq"]
+ * per ["../../../../reqlan rq/extension/host/onboarding/page-thanks-for-installing.rq"]
  */
 import * as vscode from 'vscode';
 import { getPhonebookLink } from '../shared/phonebook.js';

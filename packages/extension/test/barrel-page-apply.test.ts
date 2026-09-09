@@ -1,7 +1,7 @@
 /**
  * Barrel page WorkspaceEdit helpers.
- * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
- * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
  */
 import { describe, expect, test } from 'vitest';
 import type { BarrelPagePlan } from '@reqlan/analytical';
@@ -9,7 +9,7 @@ import {
     defaultBarrelContainerName,
     findBarrelOverwriteConflicts,
     toBarrelApplyPlan
-} from '../src/refactor_module/barrel-page-apply.js';
+} from '../src/mutation_module/refactor/barrel-page-apply.js';
 
 function samplePlan(): BarrelPagePlan {
     return {
@@ -24,7 +24,7 @@ function samplePlan(): BarrelPagePlan {
 }
 
 describe('barrel-page-apply', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
     test('maps child file names next to the source path', () => {
         const apply = toBarrelApplyPlan('/tmp/page/demo.rq', samplePlan());
         expect(apply.containerName).toBe('demo');
@@ -35,7 +35,7 @@ describe('barrel-page-apply', () => {
         expect(apply.children[0]!.content).toContain('one {');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
     test('detects overwrite conflicts and source-self collision', () => {
         const apply = toBarrelApplyPlan('/tmp/page/demo.rq', samplePlan());
         expect(findBarrelOverwriteConflicts('/tmp/page/demo.rq', apply, () => false)).toEqual([]);
@@ -52,7 +52,7 @@ describe('barrel-page-apply', () => {
         ).toEqual(['/tmp/page/one.rq']);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
     test('defaults container name from sanitized basename', () => {
         expect(defaultBarrelContainerName('/tmp/features-page.rq')).toBe('features_page');
     });

@@ -1,13 +1,13 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
-    import type { GraphNodeView } from '../../../src/webview_module/shared/messages.js';
+    import type { GraphNodeView } from '../../../src/ideas_summary_module/shared/messages.js';
     import { GraphCyController } from '../../shared/graph/graph-cy-controller.js';
     import { folderPathCompoundBasis } from '../../shared/graph/graph-cytoscape.js';
     import { graphLog } from '../../shared/graph/graph-debug.js';
     import { getApp } from '../state/context.js';
 
     interface Props {
-        slice: import('../../../src/webview_module/shared/messages.js').GraphViewSlice | undefined;
+        slice: import('../../../src/ideas_summary_module/shared/messages.js').GraphViewSlice | undefined;
         loading: boolean;
         error?: string;
         rendering: boolean;

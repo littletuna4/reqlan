@@ -106,7 +106,7 @@ describe("comment reference resolution", () => {
     expect(presented.links).toHaveLength(0);
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("shares one presentation so a matching idea clears the underline and adds a link", () => {
     const declared = new Set<string>();
     const host = {
@@ -253,7 +253,7 @@ describe("comment reference resolution in .rq documents", () => {
     expect(issues).toHaveLength(0);
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("publishes a missing-idea diagnostic and no document link until the idea exists", async () => {
     const targetPath = join(repoDir, "reqlan rq/language/syntax.rq");
     const sourcePath = join(repoDir, "reqlan rq/language/imports.rq");
@@ -302,7 +302,7 @@ describe("comment reference resolution in .rq documents", () => {
     ).toBeFalsy();
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("clears the underline and creates a link after a matching idea is added", async () => {
     const targetPath = join(repoDir, "reqlan rq/language/syntax.rq");
     const sourcePath = join(repoDir, "reqlan rq/language/imports.rq");
@@ -364,7 +364,7 @@ describe("comment reference resolution in .rq documents", () => {
     expect(presented.links[0]?.idea).toBe("elevator_pitch");
   });
 
-  // rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+  // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
   test("relinks comment references only when the target file changes", () => {
     const services = createReqlanServices(EmptyFileSystem);
     const document = services.shared.workspace.LangiumDocumentFactory.fromString(
@@ -412,7 +412,7 @@ describe("comment reference resolution after workspace updates", () => {
     }
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("revalidates comment-reference underlines when a matching idea is created on disk", async () => {
     const services = createReqlanServices(NodeFileSystem);
     expect(services.shared.workspace.DocumentBuilder).toBeInstanceOf(

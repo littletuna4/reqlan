@@ -17,8 +17,8 @@ const NOISY_PATH_SEGMENTS: Readonly<Record<string, string>> = {
  * events under dependency, VCS, build, and index-artifact trees.
  * A kept `.rq` event marks that document Changed. The factory then replaces the AST
  * if the text changed.
- * rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".lsp_file_watch]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  */
 export class ReqlanDocumentUpdateHandler extends DefaultDocumentUpdateHandler {
     protected override getWatchers(): FileSystemWatcher[] {

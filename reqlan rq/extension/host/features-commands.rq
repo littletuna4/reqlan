@@ -1,0 +1,191 @@
+import "../../export/export.rq" as export_functions
+from "../../indexer/indexer.rq" import local_graph_analysis
+import "@/reqlan rq/core_analysis/search.rq" as search_analysis
+import "../../cli/cli_package.rq" as cli
+from "../language/vsc-primitives.rq" import code_actions
+from "../../language/syntax.rq" import comment_reference_ignore
+import "../agent/features-ai.rq" as agent_ai
+import "../index-host/index-diagnostics.rq" as index_diagnostics
+import "../mutation/refactor_support.rq" as refactor_support
+
+command_palette {
+    Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
+    Command titles should not repeat the category prefix; use category "reqlan" with plain titles so the palette shows "Reqlan: List All Ideas", not "Reqlan: Reqlan: ..." or "RQ: RQ: ...".
+    Commands belong to product domains; this file is the palette naming hub under host lifecycle.
+    Agent: [agent_ai.add_to_chat]. Index host: [index_diagnostics.open_index_diagnostics].
+    Export: [export_functions.export_html] and siblings. Mutation: [refactor_support], [barrel_page], [decompose].
+    Language: [search_code_actions], [code_actions_ignore_error], [create_idea_below_idea_containing_unresolved_reference_under_cursor].
+    @status done
+}
+
+view_all_requirements {
+    A command palette action should open a browsable view of all requirements in the workspace
+    (["../workspace-summary/ideas_summary/webview.rq".ideas_summary]).
+}
+
+toggle_indirect_references {
+    A command palette action should toggle display of indirect references in complementary rendering and graph views.
+}
+
+get_local_graph {
+    A command palette action should get the local graph for the current file or selected idea ([local_graph_analysis]).
+}
+
+decompose {
+    A command pallete action for decomposition. Should replace an idea with a reference to a new file that holds the old contents.
+    Should accept multiple inputs and put them in a list.
+    @todo
+}
+
+exports {
+    graph should be exportable via the [export_functions.export_webview] and format entry ideas
+    ([export_functions.export_html], [export_functions.export_markdown], [export_functions.export_JSON],
+    [export_functions.export_csv], [export_functions.export_pdf]).
+}
+
+divide_and_conquer {
+    A command palette action should divide and conquer the current file or selected ideaset. (an llm prompt that takes all the context and fires off subagents)
+}
+
+pallete_function_create_todo {
+    A function that opens up a modal webview form allowing the user to write a rq-idea, search for references etc, and writes it to a specified output file.
+    default folder is next to current file, but should be selectable in form.
+    This behaviour should be configurable via ["./configuration.rq"]
+    @todo
+}
+
+open_a_random_requirement {
+    as it sounds
+    @todo
+}
+
+search_code_actions {
+    when cursor is in a `[reference]`, there shouls be a code action to search for references to that idea.
+    it should also allow wrapping a selected string, or the word at the cursor when in idea-body prose, as a new `[reference]`.
+    it should open up a webview modal that shows a search dialog that allows the user to search for potential references.
+    the search menu should preserve/show the context of the would-be reference: the rest of the containing idea, with styling, and with the selected text pulsing / styled prominently.
+    it should support fuzzy/partial searching via [search_analysis.fuzzy_search]. it should list the closest matches in a paginated view.
+    selecting the idea should fill/replace the reference (or wrap the selection as `[name]`) and an import (if required) appropiately
+    The lightbulb command (`reqlan.searchReference`) is arg-less because VS Code caches arg-bearing code-action commands and may dispose them on refresh (error text like Actual command not found).
+    At invoke time the extension resolves the site via LSP `reqlan/referenceSearchSite`, or a local parse of the active editor when the language client is not yet running — it must not fail with a false "language server is not ready" when a local site can be resolved.
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-idea-reference-site.ts"]
+        ["../../../packages/language/src/reqlan-reference-search-site.ts"]
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/extension/reference-search-panel.ts"]
+        ["../../../packages/extension/src/extension/reference-search-import-path.ts"]
+        ["../../../packages/extension/src/shared/fuzzy-search.ts"]
+        ["../../../packages/analytical/src/native/native-workspace-index.ts"]
+        ["../../../packages/extension/src/extension/register-import-error-commands.ts"]
+        ["../../../packages/extension/src/extension/main.ts"]
+        ["../../../packages/extension/src/language/main.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts"]
+        ["../../../packages/extension/test/reference-search.test.ts"]
+        ["../../../packages/extension/test/extension-package.test.ts"]
+        ["../../../crates/reqlan-search/tests/fuzzy.rs"]
+    )
+}
+
+format_page {
+    - set the whitespace etc appropriate for the page.
+    @todo
+    @ideating
+}
+
+barrel_page {
+    When a `.rq` page grows large, barrel it into a container: create one sibling file per top-level idea, import those files into the current page, and replace the page body with a single container idea whose name the user chooses (default: the sanitized file basename).
+    Same-file sibling refs are rewritten to qualified imports in the child files. Existing page imports are copied into each child. Top-level ideasets are preserved in the container file.
+    Behaviour lives in ["../../core-architecture.rq".analytical_package] and is exposed via [cli] / ["../../cli/cli_package.rq".commands] (`reqlan barrel`).
+    Extension: file-level source code action **Barrel page into container…** and command palette **Barrel Page** (`reqlan.barrelPage`) prompt for the container name, confirm, then create child files and rewrite the active page via WorkspaceEdit.
+    Related: [file_based_code_actions] [decompose]
+    @status done
+    @implementation (
+        ["../../../packages/analytical/src/core/barrel-page.ts"]
+        ["../../../packages/cli/src/commands/barrel.ts"]
+        ["../../../packages/cli/src/main.ts"]
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/register-barrel-page-command.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/barrel-page-apply.ts"]
+        ["../../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/barrel-page.test.ts:creates one child file per idea and a container defaulting to file basename"]
+        ["../../../packages/analytical/test/barrel-page.test.ts:writes child files and replaces the source with a container"]
+        ["../../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
+        ["../../../packages/language/test/code-actions.test.ts:omits barrel page when only quickfix is requested or there are no ideas"]
+        ["../../../packages/extension/test/barrel-page-apply.test.ts:maps child file names next to the source path"]
+        ["../../../packages/extension/test/barrel-page-apply.test.ts:detects overwrite conflicts and source-self collision"]
+    )
+}
+
+file_based_code_actions {
+    Code actions should be available for the whole file. The should include:
+    (regardless of cursor positions)
+    - barrel page — done via [barrel_page] (`source.barrelPage` / `reqlan.barrelPage`)
+        - barrel idea
+    - decompose idea
+    - search for references.
+    - create idea
+    [code_actions]
+    @todo
+    @ideating.
+    @implementation (
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/register-barrel-page-command.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
+    )
+}
+
+code_actions_ignore_error {
+    A Quick Fix [code_actions] on a line with diagnostics inserts [comment_reference_ignore] (`//rq-ignore-error`) on the line before the error.
+    The inserted comment uses the same indent as the error line.
+    One action is offered per line when that line has one or more diagnostics.
+    The action is omitted when that line is already suppressed, and when the client asks only for non-quickfix kinds.
+    Available in `.rq` files and in a comment context in a code file (["../language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]).
+    In `#` comments the action inserts `# //rq-ignore-error` so the line stays a comment.
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-ignore-error-action.ts"]
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
+        ["../../../packages/extension/src/extension/ignore-error-comment-filter.ts"]
+        ["../../../packages/extension/src/extension/main.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts:offers ignore-error quick fix on a line with a linking error"]
+        ["../../../packages/language/test/code-actions.test.ts:omits ignore-error when only refactor is requested"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:inserts indented ignore comment before the error line"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:uses tab indent and CRLF when the error line uses them"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:wraps the ignore comment for a hash-comment error line"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:inserts at the start of the file for a first-line error"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:offers one action per diagnostic line"]
+        ["../../../packages/language/test/ignore-error-action.test.ts:omits the action when //rq-ignore-error already suppresses the line"]
+        ["../../../packages/extension/test/ignore-error-code-action.test.ts:accepts reqlan source and comment-reference codes"]
+        ["../../../packages/extension/test/extension-package.test.ts:extension main registers ignore-error code actions for comment files"]
+    )
+}
+
+create_idea_below_idea_containing_unresolved_reference_under_cursor {
+    If a local idea reference does not resolve, a Quick Fix [code_actions] creates a new idea below the idea that contains the reference.
+    The action uses the unresolved local idea names in the idea that contains the caret:
+    - one unresolved name: apply `Create '<name>' below` directly
+    - several unresolved names: offer `Create all unresolved ideas below` and one action per name
+    Qualified file/import references are omitted. The new idea is an empty block inserted after the containing idea.
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-create-idea-below.ts"]
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts:creates the missing idea below the containing idea when only one is unresolved"]
+        ["../../../packages/language/test/code-actions.test.ts:offers all or a specific unresolved idea when the caret idea has several"]
+        ["../../../packages/language/test/code-actions.test.ts:omits create-below when the caret idea has no unresolved local references"]
+        ["../../../packages/language/test/code-actions.test.ts:omits create-below for a qualified unresolved reference"]
+        ["../../../packages/language/test/code-actions.test.ts:omits create-below when only refactor is requested"]
+    )
+}

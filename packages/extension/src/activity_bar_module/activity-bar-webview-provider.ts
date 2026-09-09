@@ -7,8 +7,8 @@ import { REQLAN_IMPORT_ERROR_CREATE_COMMAND } from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { openIndexFile } from '../analytical_submodule/index-store/open-index-file.js';
 import { toIndexFileUri, resolveIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
-import { toIndexStatusView } from '../webview_module/ideas-summary-panel.js';
-import { IdeasSummaryPanel } from '../webview_module/ideas-summary-panel.js';
+import { toIndexStatusView } from '../ideas_summary_module/ideas-summary-panel.js';
+import { IdeasSummaryPanel } from '../ideas_summary_module/ideas-summary-panel.js';
 import { getPhonebookLink, type PhonebookLinkId } from '../shared/phonebook.js';
 import { ActivityBarDataService, formatIdeaMarkdown } from './activity-bar-data-service.js';
 import { collectGitContext, gitChangeForFile } from './git-context.js';
@@ -34,7 +34,7 @@ import type {
 } from './activity-bar-messages.js';
 import { matchesIdeaPathFilter } from './idea-path-filter.js';
 import { insertIdeaReferenceAtCursor } from '../extension/insert-idea-reference.js';
-import { openChatWithText } from '../ai_commands_module/open-chat.js';
+import { openChatWithText } from '../agent_module/ai_commands/open-chat.js';
 import {
     assignWebviewHtmlWithRetry,
     safeAssignWebviewHtml,
@@ -979,7 +979,7 @@ export class ActivityBarWebviewProvider implements vscode.WebviewViewProvider {
         pathFilter?: string,
         offset = 0
     ): Promise<void> {
-        // rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_load_more]
         // rq:["../../../../reqlan rq/core_analysis/search.rq".file_search]
         if (!this.submodule.index.isReady) {
             this.post({

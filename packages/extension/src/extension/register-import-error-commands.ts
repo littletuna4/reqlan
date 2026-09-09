@@ -1,7 +1,7 @@
 /**
  * Extension-host commands for unresolved-reference quick fixes and reference search.
- * rq:["../../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
- * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import * as path from 'node:path';
 import {

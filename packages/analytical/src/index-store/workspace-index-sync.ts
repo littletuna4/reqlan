@@ -5,10 +5,10 @@
  * unchanged files in memory — not one SQLite round-trip per file.
  *
  * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_incrementality]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_auto]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_open]
- * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".indexing_incrementality]
+ * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_auto]
+ * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_open]
+ * rq:["../../../../reqlan rq/extension/index-host/index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
 import { errorCauseMessage } from '../core/index-error.js';

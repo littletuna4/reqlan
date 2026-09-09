@@ -60,7 +60,7 @@ function unresolvedDiagnostics(document: LangiumDocument<Model>): unknown[] {
 
 describe('implicit import file extension', () => {
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('candidates assume .rq only when no extension is written', () => {
         expect(importPathCandidates('./target')).toEqual(['./target.rq', './target']);
         expect(importPathCandidates('@/nested/target')).toEqual(['@/nested/target.rq', '@/nested/target']);
@@ -73,14 +73,14 @@ describe('implicit import file extension', () => {
         ]);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('candidates leave paths without a file name untouched', () => {
         expect(importPathCandidates('./nested/')).toEqual(['./nested/']);
         expect(importPathCandidates('.')).toEqual(['.']);
         expect(importPathCandidates('..')).toEqual(['..']);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('from-import without an extension resolves the imported idea', async () => {
         const target = addDocument('file:///ws/target.rq', s`
             target_idea {
@@ -100,7 +100,7 @@ describe('implicit import file extension', () => {
         expect(unresolvedDiagnostics(source)).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('namespace import without an extension resolves qualified references', async () => {
         const target = addDocument('file:///ws/target.rq', s`
             target_idea {
@@ -121,7 +121,7 @@ describe('implicit import file extension', () => {
         expect(unresolvedDiagnostics(source)).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('anonymous qualified references resolve without an extension', async () => {
         const target = addDocument('file:///ws/target.rq', s`
             target_idea {
@@ -140,7 +140,7 @@ describe('implicit import file extension', () => {
         expect(unresolvedDiagnostics(source)).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('an explicit non-rq extension is taken literally', async () => {
         const target = addDocument('file:///ws/notes.md.rq', s`
             note_idea {
@@ -156,7 +156,7 @@ describe('implicit import file extension', () => {
         expect(unresolvedDiagnostics(source).length).toBeGreaterThan(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('the .rq file wins over a same-named extensionless file', () => {
         const fileSystem = new VirtualFileSystemProvider();
         fileSystem.insert('file:///ws/dual.rq', 'rq_idea { body }');
@@ -168,7 +168,7 @@ describe('implicit import file extension', () => {
             .toBe(URI.parse('file:///ws/dual.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('an extensionless file still resolves when no .rq sibling exists', () => {
         const fileSystem = new VirtualFileSystemProvider();
         fileSystem.insert('file:///ws/plain', 'extensionless body');
@@ -180,7 +180,7 @@ describe('implicit import file extension', () => {
             .toBe(URI.parse('file:///ws/plain').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('go-to-definition on an extensionless import path opens the .rq file', async () => {
         const target = addDocument('file:///ws/target.rq', s`
             target_idea {
@@ -199,7 +199,7 @@ describe('implicit import file extension', () => {
         expect(definitions?.[0]?.targetUri).toBe(target.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('import-root aliased paths also assume .rq', async () => {
         services.shared.workspace.WorkspaceManager.initialize({
@@ -221,8 +221,8 @@ describe('implicit import file extension', () => {
         expect(firstFromImport(source)?.specifiers[0]?.idea.ref?.name).toBe('target_idea');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
     test('filesystem lookups append .rq then accept an existing directory', () => {
         const fileSystem = new VirtualFileSystemProvider();
         fileSystem.insert('file:///ws/target.rq', 'target_idea { body }');
@@ -243,7 +243,7 @@ describe('implicit import file extension', () => {
             .toBe(URI.parse('file:///ws/dual.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
     test('unresolvable paths keep the written form as the reported target', () => {
         const fileSystem = new VirtualFileSystemProvider();
         const documents = services.shared.workspace.LangiumDocuments;

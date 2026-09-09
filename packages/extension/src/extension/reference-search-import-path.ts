@@ -1,6 +1,6 @@
 /**
  * Build relative import paths from index file URIs (often workspace-relative).
- * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import * as path from 'node:path';
 import { URI } from 'langium';

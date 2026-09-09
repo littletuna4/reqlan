@@ -1,4 +1,4 @@
-import type { ExportFormToExtensionMessage } from '../../../src/analytical_submodule/export/export-form-messages.js';
+import type { ExportFormToExtensionMessage } from '../../../src/export_module/export-form-messages.js';
 
 interface VsCodeApi {
     postMessage(message: ExportFormToExtensionMessage): void;

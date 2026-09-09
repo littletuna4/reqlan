@@ -3,7 +3,7 @@
         ColumnFilter,
         IdeasetsTableQuery,
         IdeasetTableRow
-    } from '../../../src/webview_module/shared/messages.js';
+    } from '../../../src/ideas_summary_module/shared/messages.js';
     import { isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';

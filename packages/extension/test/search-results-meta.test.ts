@@ -1,6 +1,6 @@
 /**
  * Activity-bar search match-count copy.
- * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+ * rq:["../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_load_more]
  * rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]
  */
 import { describe, expect, test } from 'vitest';

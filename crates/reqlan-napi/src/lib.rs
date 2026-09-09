@@ -33,7 +33,7 @@ impl NativeAnalysisRuntime {
     }
 
     /// Drop the runtime and release SQLite file locks (ideas index + click sessions).
-    /// rq:["../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
+    /// rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
     #[napi]
     pub fn close(&self) -> Result<()> {
         let mut guard = self.lock_slot()?;
@@ -1085,7 +1085,7 @@ impl NativeWorkspaceIndex {
 
     /// Fill git dates for the given idea ids (all non-ideaset ideas when omitted).
     /// Returns the number of ideas whose dates were persisted.
-    /// rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    /// rq:["../../../reqlan rq/extension/index-host/git-codelens.rq".git_dates_background_indexing]
     #[napi]
     pub fn fill_git_dates(&self, idea_ids: Option<Vec<String>>) -> Result<u32> {
         self.with_mut(|inner| {
@@ -1095,7 +1095,7 @@ impl NativeWorkspaceIndex {
     }
 
     /// Coverage metrics for the Ideas Summary Overview over the base root.
-    /// rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+    /// rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
     #[napi]
     pub fn compute_overview_coverage(&self) -> Result<serde_json::Value> {
         self.with_mut(|inner| inner.compute_overview_coverage().map_err(map_workspace_err))
@@ -1368,7 +1368,7 @@ impl NativeWorkspaceIndex {
     }
 
     /// Drop the runtime and release SQLite file locks (ideas + diagnostics).
-    /// rq:["../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+    /// rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
     #[napi]
     pub fn shutdown(&self) -> Result<()> {
         let mut guard = self.lock()?;
@@ -1414,7 +1414,7 @@ pub fn find_rq_ignore_error_target_lines(source: String) -> Vec<i64> {
 }
 
 /// Top-level idea names in a document — used by git-context historical extract.
-/// rq:["../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+/// rq:["../../../reqlan rq/indexer/indexer.rq".git_dates]
 #[napi]
 pub fn extract_idea_names(source: String) -> Vec<String> {
     let parsed = parse_document(&source);
@@ -1463,7 +1463,7 @@ fn parse_import_root_dtos(entries: &[serde_json::Value]) -> Vec<reqlan_parse::Im
 
 /// Plan a barrel transform from source text (no filesystem writes).
 /// The TS wrapper performs the writes; this keeps the plan engine native.
-/// rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
+/// rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
 #[napi]
 pub fn barrel_page_plan(
     source: String,
@@ -1490,7 +1490,7 @@ pub fn barrel_page_plan(
 }
 
 /// Seed a reqlan base marker (`.reqlan/` + `config.json` + `.rqignore`).
-/// rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
+/// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
 #[napi]
 pub fn create_base(base_root: String) -> Result<serde_json::Value> {
     let result = reqlan_index::create_base(std::path::Path::new(&base_root))

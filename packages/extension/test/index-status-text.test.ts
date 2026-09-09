@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { IndexStatusView } from '../src/webview_module/shared/messages.js';
+import type { IndexStatusView } from '../src/ideas_summary_module/shared/messages.js';
 import { indexStatusText } from '../webviews/ideas-summary/lib/index-status-text.js';
 
 function status(partial: Partial<IndexStatusView>): IndexStatusView {

@@ -4,8 +4,8 @@
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
- * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, URI } from 'langium';
@@ -144,7 +144,7 @@ export function collectCommentReferenceIssues(
  * Relink this document when a changed `.rq` file can change comment-reference
  * resolution (missing idea becomes present, or a targeted file changes).
  * Do not relink every document that still shows a comment-reference error.
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
  */
 export function shouldRelinkCommentReferences(
     document: LangiumDocument,

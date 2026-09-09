@@ -1,7 +1,7 @@
 // rq:["../../../../reqlan rq/site/site.rq".broken_links_showcase]
 // rq:["../../../../reqlan rq/core_analysis/check.rq".check]
 // rq:["../../../../reqlan rq/core_analysis/check.rq".check_meta_implementation]
-// rq:["../../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+// rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
 import type { Showcase } from "./types";
 
 export const brokenLinksShowcase = {

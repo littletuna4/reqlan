@@ -1,9 +1,9 @@
 /**
  * Document links from local symbolic extract without loading imported documents.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */
 import { beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
@@ -27,7 +27,7 @@ describe('local symbolic document links', () => {
     });
 
     // rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
     test('same-file idea links without DocumentBuilder / workspace link', async () => {
         const document: LangiumDocument<Model> = await parse(s`
             alpha {
@@ -51,7 +51,7 @@ describe('local symbolic document links', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
     test('unresolved same-file ideas get no document link', async () => {
         const document: LangiumDocument<Model> = await parse(s`
             beta {
@@ -73,8 +73,8 @@ describe('local symbolic document links', () => {
         expect(unresolved).toHaveLength(1);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".non_web_reference_navigation]
     test('missing cross-file targets do not get document links', async () => {
         const document: LangiumDocument<Model> = await fileParse(s`
             demo {

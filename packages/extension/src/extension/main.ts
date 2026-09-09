@@ -25,6 +25,7 @@ import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js
 import { registerOnboardingCommands } from './register-onboarding-commands.js';
 import { StartupGate } from './startup-gate.js';
 import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analytical_submodule/index.js';
+import { registerExtensionContributions } from './register-contributions.js';
 
 let client: LanguageClient | undefined;
 const LANGUAGE_CLIENT_FALLBACK_DELAY_MS = 1_000;
@@ -56,7 +57,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const activityBarPainted = new StartupGate();
     let submodule: AnalyticalSubmodule | undefined;
     runStep('analytical submodule', () => {
-        submodule = activateAnalyticalSubmodule(context, () => activityBarPainted.signal());
+        submodule = activateAnalyticalSubmodule(context);
+        registerExtensionContributions(context, submodule, () => activityBarPainted.signal());
         registerImportErrorCommands(context, submodule.index, () => client);
         registerWildcardReferenceCommand(
             context,

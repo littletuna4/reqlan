@@ -1,6 +1,6 @@
 /**
  * Insert-edit for the ignore-error Quick Fix.
- * rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { describe, expect, test } from 'vitest';
@@ -35,7 +35,7 @@ function diagnosticOnLine(line: number): Diagnostic {
 }
 
 describe('Ignore-error insert edit', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('inserts indented ignore comment before the error line', () => {
         const textDocument = document('host {\n    [missing]\n}\n');
         const edit = buildRqIgnoreErrorLineInsert(textDocument, 1);
@@ -51,14 +51,14 @@ describe('Ignore-error insert edit', () => {
         expect(updated).toBe('host {\n    //rq-ignore-error\n    [missing]\n}\n');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('uses tab indent and CRLF when the error line uses them', () => {
         const textDocument = document('host {\r\n\t[missing]\r\n}\r\n');
         const edit = buildRqIgnoreErrorLineInsert(textDocument, 1);
         expect(edit?.newText).toBe('\t//rq-ignore-error\r\n');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('wraps the ignore comment for a hash-comment error line', () => {
         const textDocument = document('def demo():\n    # rq:[missing]\n    pass\n');
         const edit = buildRqIgnoreErrorLineInsert(textDocument, 1);
@@ -71,7 +71,7 @@ describe('Ignore-error insert edit', () => {
         expect(updated).toBe('def demo():\n    # //rq-ignore-error\n    # rq:[missing]\n    pass\n');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('inserts at the start of the file for a first-line error', () => {
         const textDocument = document('from "./gone.rq" import missing\n');
         const edit = buildRqIgnoreErrorLineInsert(textDocument, 0);
@@ -81,7 +81,7 @@ describe('Ignore-error insert edit', () => {
         });
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('returns undefined for an out-of-range line', () => {
         const textDocument = document('host {\n}\n');
         expect(buildRqIgnoreErrorLineInsert(textDocument, -1)).toBeUndefined();
@@ -90,7 +90,7 @@ describe('Ignore-error insert edit', () => {
 });
 
 describe('Ignore-error code actions', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('offers one action per diagnostic line', () => {
         const textDocument = document('host {\n    [alpha]\n    [beta]\n}\n');
         const actions = createIgnoreErrorCodeActions(textDocument, [
@@ -106,7 +106,7 @@ describe('Ignore-error code actions', () => {
             .toBe('    //rq-ignore-error\n');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('omits the action when //rq-ignore-error already suppresses the line', () => {
         const textDocument = document('host {\n    //rq-ignore-error\n    [missing]\n}\n');
         const actions = createIgnoreErrorCodeActions(textDocument, [diagnosticOnLine(2)]);

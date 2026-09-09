@@ -1,6 +1,6 @@
 /**
  * Import path helpers for the reference search modal.
- * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import { describe, expect, test } from 'vitest';
 import {
@@ -9,19 +9,19 @@ import {
 } from '../src/extension/reference-search-import-path.js';
 
 describe('relativeImportPathForIndexedFile', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('resolves workspace-relative index paths against the document', () => {
-        const documentUri = 'file:///home/tony/reqlan/reqlan%20rq/extension/features-commands.rq';
+        const documentUri = 'file:///home/tony/reqlan/reqlan%20rq/extension/host/features-commands.rq';
         const workspaceRoot = '/home/tony/reqlan';
 
         expect(
             relativeImportPathForIndexedFile(documentUri, 'reqlan rq/site/site.rq', workspaceRoot)
-        ).toBe('../site/site.rq');
+        ).toBe('../../site/site.rq');
 
         expect(
             relativeImportPathForIndexedFile(
                 documentUri,
-                'reqlan rq/extension/configuration.rq',
+                'reqlan rq/extension/host/configuration.rq',
                 workspaceRoot
             )
         ).toBe('./configuration.rq');
@@ -29,13 +29,13 @@ describe('relativeImportPathForIndexedFile', () => {
         expect(
             isSameIndexedFile(
                 documentUri,
-                'reqlan rq/extension/features-commands.rq',
+                'reqlan rq/extension/host/features-commands.rq',
                 workspaceRoot
             )
         ).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('accepts absolute file:// index URIs', () => {
         expect(
             relativeImportPathForIndexedFile(

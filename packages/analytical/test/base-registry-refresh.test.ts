@@ -2,7 +2,7 @@
  * Refresh always rediscovers bases via BaseRegistry.refresh.
  * rq:["../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
  * rq:["../../../reqlan rq/bases/base.rq".create_base_onboarding]
- * rq:["../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
+ * rq:["../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_manual]
  */
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';

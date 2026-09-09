@@ -12,7 +12,7 @@
         "./**/*.ts",
         "./**/*.svelte.ts",
         "./**/*.svelte",
-        "../../src/analytical_submodule/export/export-form-messages.ts",
-        "../../src/analytical_submodule/export/export-form-settings-types.ts"
+        "../../src/export_module/export-form-messages.ts",
+        "../../src/export_module/export-form-settings-types.ts"
     ]
 }

@@ -3,7 +3,7 @@
  * return an empty model plus warning + error diagnostics instead of hanging the host.
  * That empty model is the Langium AST until a later successful parse.
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  */
 import type { AstNode, LangiumParser, ParseResult } from 'langium';
 

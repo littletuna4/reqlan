@@ -1,7 +1,7 @@
 from "./ontology.rq" import idea, ideaset, file, base, reference, attribute, attribute_body
 from "./cli/cli_package.rq" import cli_package, commands
-from "./extension/features-skills-and-mcp.rq" import chat_skill_naming, cursor_skills_install
-from "./extension/agents/features-ai.rq" import ai_integration
+from "./extension/agent/skills-and-mcp.rq" import chat_skill_naming, cursor_skills_install
+from "./extension/agent/features-ai.rq" import ai_integration
 
 skills {
     rq-* skills ([chat_skill_naming], [cursor_skills_install]) teach the graph, not the whole repo.

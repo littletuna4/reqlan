@@ -73,7 +73,7 @@ function resolvedReferenceIdeaName(target: QualifiedReference | LocalReference):
 
 describe('Linking tests', () => {
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
     test('navigable document links include target and tooltip', () => {
         const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } };
         const fileLink = navigableDocumentLink(range, 'file:///tmp/a.rq#L1');
@@ -147,7 +147,7 @@ describe('Linking tests', () => {
         expect(ideaLink?.target).toMatch(/#L\d+/);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('same-file idea references produce document links', async () => {
         document = await parse(s`
             alpha {
@@ -173,7 +173,7 @@ describe('Linking tests', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
     test('cross-file imported idea references produce document links', async () => {
         const docs = await parseDocumentsTogether(['exampleimport.rq', 'exampleimport2.rq', 'sub idea.rq']);
         const subDoc = docs.find(d => d.uri.path.includes('sub'))!;
@@ -192,7 +192,7 @@ describe('Linking tests', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_document_links]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
     test('qualified reference idea token produces document link', async () => {
         const docs = await parseDocumentsTogether(['exampleimport.rq', 'exampleimport2.rq', 'sub idea.rq']);
         const subDoc = docs.find(d => d.uri.path.includes('sub'))!;
@@ -279,7 +279,7 @@ describe('Linking tests', () => {
         expect(pathLink.target.path?.error).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_features]
     test('go to definition on import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -314,7 +314,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_features]
     test('go to definition on wikilink import path opens source file', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -345,7 +345,7 @@ describe('Linking tests', () => {
         expect(links?.[0].targetUri).toBe(importedDocument.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_features]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_features]
     test('go to definition on wikilink idea still opens idea declaration', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         const subDocument = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -377,8 +377,8 @@ describe('Linking tests', () => {
         expect(importedDocument.textDocument.getText(links![0].targetSelectionRange!)).toBe('myimportableIdea');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
     test('rename finds import path declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['main.rq', 'exampleimport.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -405,8 +405,8 @@ describe('Linking tests', () => {
         expect(pathTexts.length).toBeGreaterThanOrEqual(2);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
     test('rename finds import alias declaration and qualified wikilink references', async () => {
         const documents = await parseDocumentsTogether(['exampleimport2.rq', 'sub idea.rq']);
         document = documents.find(entry => entry.uri.path.endsWith('sub idea.rq'));
@@ -431,7 +431,7 @@ describe('Linking tests', () => {
         expect(texts.filter(text => text === 'exampleimport2').length).toBeGreaterThanOrEqual(2);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".sensible_alias_support]
     test('import idea reference resolves to imported file when local idea shares name', async () => {
         const subreqs = services.shared.workspace.LangiumDocumentFactory.fromString(
             'myidea imported body',
@@ -459,8 +459,8 @@ describe('Linking tests', () => {
         expect(fromImport?.specifiers[0]?.idea.ref).not.toBe(localIdea);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
     test('rename finds all idea references including wikilinks', async () => {
         document = await parse(`alpha {
     see [[beta]]
@@ -893,10 +893,10 @@ example_ideaset (
         expect(ontology.textDocument.getText(links![0].targetSelectionRange!)).toBe('attribute');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('document links resolve test file references to the matching test', { timeout: 15_000 }, async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
+        const featuresPath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax.rq');
         const validatingPath = join(repoDir, 'packages/language/test/validating.test.ts');
         const testName = 'reports duplicate when local idea shares unaliased import binding';
         const testLine = findTestLineInText(readFileSync(validatingPath, 'utf8'), testName);
@@ -933,7 +933,7 @@ example_ideaset (
         expect(definitions?.[0].targetSelectionRange?.start.line).toBe(testLine);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('classifyReferenceUri treats existing directories as folders', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -957,7 +957,7 @@ example_ideaset (
         expect(resolution).toBe('folder');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('folder file references resolve without reading the directory as a file', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);  
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -986,7 +986,7 @@ example_ideaset (
         expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
     test('folder import paths produce folder document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const fixturesDir = join(repoDir, 'packages/language/test/fixtures/folder-import');
@@ -1018,7 +1018,7 @@ example_ideaset (
         expect(links?.some(link => link.target?.includes('reqlan.openFolderReference'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('empty file references produce document links and warning diagnostics', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const fixturesDir = join(repoDir, 'packages/language/test/fixtures/file-ref-targets');
@@ -1061,7 +1061,7 @@ example_ideaset (
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('parse-error file references produce document links and warning diagnostics', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const fixturesDir = join(repoDir, 'packages/language/test/fixtures/file-ref-targets');
@@ -1104,8 +1104,8 @@ example_ideaset (
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     test('missing file references do not produce document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -1164,7 +1164,7 @@ example_ideaset (
         expect(missing.every(diagnostic => !String(diagnostic.message).includes('also-not-a-reference.ts'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     test('missing file reference errors are suppressed after //rq-ignore-error', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
@@ -1187,7 +1187,7 @@ example_ideaset (
         expect(missing).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     test('remote file references are not reported as missing', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
@@ -1236,7 +1236,7 @@ example_ideaset (
         expect(links?.some(link => link.target === 'https://reqlan.com/')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('comment references in source files resolve to rq ideas', async () => {
         const demoDir = join(repoDir, 'reqlan rq/extension/features-non-rq-code-comment');
         const rqPath = join(demoDir, 'functional-code-comment-references.rq');
@@ -1265,11 +1265,11 @@ example_ideaset (
         expect(links?.[0]?.targetUri).toBe(rqDoc.textDocument.uri);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('resolve namespace import references to files', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const targetPath = join(repoDir, 'packages/extension/webviews/ideas-summary/components/IndexPanel.svelte');
-        const sourcePath = join(repoDir, 'reqlan rq/extension/module/webview.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/presentation/webview.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 import "${targetPath.replace(/\\/g, '/')}" as IndexPanel
@@ -1307,7 +1307,7 @@ example_ideaset (
     test('namespace import bracket reference links only the alias name', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
         const targetPath = join(repoDir, 'packages/extension/src/activity_bar_module/context-model.ts');
-        const sourcePath = join(repoDir, 'reqlan rq/extension/module/context-scope.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/local-context/context-scope.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 import "${targetPath.replace(/\\/g, '/')}" as context_model
@@ -1465,7 +1465,7 @@ example_ideaset (
                     Nested lists use [NestedSection] per [brand].
                 }
             `,
-            URI.parse(pathToFileURL(join(repoDir, 'reqlan rq/extension/module/namespace-alias.rq')).href)
+            URI.parse(pathToFileURL(join(repoDir, 'reqlan rq/extension/namespace-alias.rq')).href)
         ) as LangiumDocument<Model>;
         fileServices.shared.workspace.LangiumDocuments.addDocument(brand);
         fileServices.shared.workspace.LangiumDocuments.addDocument(document);
@@ -1478,10 +1478,10 @@ example_ideaset (
         expect(unresolvedErrors).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".sensible_alias_support]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".sensible_alias_support]
     test('does not report linking error for @tests file references with test name suffix', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const featuresPath = join(repoDir, 'reqlan rq/extension/syntax/features-syntax.rq');
+        const featuresPath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             readFileSync(featuresPath, 'utf8'),
             URI.parse(pathToFileURL(featuresPath).href)

@@ -1,9 +1,9 @@
 /**
  * Plan workspace edits for moving or deleting idea declarations and their references.
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_changes]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_changes]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
  */
 import { AstUtils, URI, type AstNode, type LangiumDocument, type ReferenceDescription } from 'langium';
 import type { Range, TextEdit } from 'vscode-languageserver';

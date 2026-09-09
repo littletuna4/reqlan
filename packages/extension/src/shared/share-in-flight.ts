@@ -1,6 +1,6 @@
 /**
  * Share one in-flight promise so overlapping callers do not start a second job.
- * rq:["../../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".index_file_search_coalesce]
+ * rq:["../../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".index_file_search_coalesce]
  */
 export type InFlightSlot<T> = {
     current?: Promise<T>;

@@ -64,7 +64,7 @@ describe("Comment and file reference utilities", () => {
     expect(unquoteReqlanString("./ontology.rq")).toBe("./ontology.rq");
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("parses qualified and local rq: bracket comment reference targets", () => {
     expect(parseCommentReferenceTarget('"./main.rq".myidea')).toMatchObject({
       path: "./main.rq",
@@ -75,7 +75,7 @@ describe("Comment and file reference utilities", () => {
     });
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("finds rq: bracket comment references in line comments", () => {
     const sample = findCommentReferencesInText(
       // rq-ignore-error
@@ -85,7 +85,7 @@ describe("Comment and file reference utilities", () => {
     expect(sample[0]).toMatchObject({ path: "./main.rq", idea: "myidea" });
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("finds rq: local comment references in line comments", () => {
     const sample = findCommentReferencesInText(
       // rq-ignore-error
@@ -96,7 +96,7 @@ describe("Comment and file reference utilities", () => {
     expect(sample[0]?.path).toBeUndefined();
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("finds rq: comment references in block comments", () => {
     const sample = findCommentReferencesInText(
       `/**` +
@@ -108,19 +108,19 @@ describe("Comment and file reference utilities", () => {
     expect(sample[0]).toMatchObject({ path: "../file.rq", idea: "ideaname" });
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("finds rq: comment references in python triple-quoted comments", () => {
     const sample = findCommentReferencesInText(`'''
-    rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     '''`);
     expect(sample).toHaveLength(1);
     expect(sample[0]).toMatchObject({
-      path: "../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq",
+      path: "../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq",
       idea: "references_in_functional_code_comments",
     });
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("finds rq: references in feature demo source files", () => {
     const js = readFileSync(
       join(demoDir, "features-code-comment.text.js"),
@@ -234,7 +234,7 @@ describe("Comment and file reference utilities", () => {
     expect(text.slice(spans[0]!.start, spans[0]!.end)).toBe("// real");
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("ignores rq references outside comment spans", () => {
     const sample = findCommentReferencesInText(
       'const x = "https://x.com // rq:[\\"./main.rq\\".myidea]";',
@@ -242,7 +242,7 @@ describe("Comment and file reference utilities", () => {
     expect(sample).toHaveLength(0);
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
   test("findCommentSpansInText includes slash and hash line comments", () => {
     const text = "code // line\n# hash";
     const spans = findCommentSpansInText(text);

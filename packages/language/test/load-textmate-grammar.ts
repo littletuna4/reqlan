@@ -1,7 +1,7 @@
 /**
  * Shared TextMate grammar loader so tests do not call loadWASM twice in one worker.
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
  */
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

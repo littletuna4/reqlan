@@ -5,10 +5,10 @@
  * share one parse of this buffer.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".open_file_hot_path]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".implicit_file_extension]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';

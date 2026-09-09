@@ -21,7 +21,7 @@ describe('idea refactor plans', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
     test('delete plan removes declaration and bracket references', async () => {
         const document = await parse(`alpha {
     body
@@ -50,8 +50,8 @@ beta {
         expect(source?.edits.some(edit => edit.newText === '')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
     test('delete plan removes matching comment references', async () => {
         const document = await parse(`alpha {\n    body\n}\n`);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
@@ -77,7 +77,7 @@ beta {
         ]);
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('move plan cuts from source and inserts into destination', async () => {
         const source = services.shared.workspace.LangiumDocumentFactory.fromString(
             `alpha {\n    body\n}\n`,
@@ -113,8 +113,8 @@ beta {
         expect(destEdits?.edits.some(edit => edit.newText.includes('alpha'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('move plan rewrites qualified comment paths for the moved idea', async () => {
         const source = services.shared.workspace.LangiumDocumentFactory.fromString(
             `alpha {\n    body\n}\nbeta {\n    stay\n}\n`,
@@ -150,7 +150,7 @@ beta {
         expect(codeEdits?.edits[0]?.newText).toBe('"../b/dest.rq"');
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('move plan removes unused source imports and copies them to destination', async () => {
         const source = services.shared.workspace.LangiumDocumentFactory.fromString(
             `from "./lib.rq" import foo, stay\nalpha {\n    uses [foo]\n}\nbeta {\n    uses [stay]\n}\n`,
@@ -187,7 +187,7 @@ beta {
         expect(destText).toContain('uses [foo]');
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('move plan adds a sibling import on the destination', async () => {
         const source = services.shared.workspace.LangiumDocumentFactory.fromString(
             `alpha {\n    uses [beta]\n}\nbeta {\n    stay\n}\n`,
@@ -219,7 +219,7 @@ beta {
         expect(destText).toContain('uses [beta]');
     });
 
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
     test('move content plan leaves a source stub that imports the moved idea', async () => {
         const source = services.shared.workspace.LangiumDocumentFactory.fromString(
             `from "./lib.rq" import foo\nalpha {\n    uses [foo]\n}\n`,

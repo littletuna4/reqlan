@@ -1,5 +1,5 @@
 from "../ontology.rq" import extension, base
-from "../extension/module/index.rq" import application_memory
+from "../extension/index-host/index.rq" import application_memory
 import "../core_analysis/html_export.rq" as html_export
 from "../bases/base.rq" import create_base_onboarding
 
@@ -75,7 +75,7 @@ commands {
       (["../core_analysis/check.rq".check_skip_targets]).
       `--skip-gitignored-targets` omits file-reference issues whose missing target is gitignored
       (["../core_analysis/check.rq".check_skip_gitignored_targets]).
-    - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/features-commands.rq".barrel_page]).
+    - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/host/features-commands.rq".barrel_page]).
     Extra args from `pnpm run`: [pnpm_extra_args].
 }
 

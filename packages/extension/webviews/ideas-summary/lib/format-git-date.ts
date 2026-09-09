@@ -1,7 +1,7 @@
 /**
  * Format indexed idea git timestamps for Ideas Summary table cells.
- * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
- * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list_git_date_format]
+ * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_list]
+ * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_list_git_date_format]
  */
 
 /** Author-date prefix from git `%aI` (YYYY-MM-DD before T / space). */

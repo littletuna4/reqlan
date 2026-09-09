@@ -3,7 +3,7 @@
  *
  * Obsidian-style simulation: shared physics-core plus
  * group container constraints from graph-groups.ts.
- * per ["../../../../../reqlan rq/extension/library/graph.rq"] layout_physics
+ * per ["../../../../../reqlan rq/extension/presentation/graph.rq"] layout_physics
  */
 import type cytoscape from 'cytoscape';
 import {

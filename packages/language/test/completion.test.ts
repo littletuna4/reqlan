@@ -69,7 +69,7 @@ function createTempWorkspace(): string {
 }
 
 describe('Completion', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_main_descriptiption]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_main_descriptiption]
     test('suppresses completion in main description prose', async () => {
         document = await parse(`demo {
             This is main description prose.
@@ -88,7 +88,7 @@ describe('Completion', () => {
         expect(result?.items ?? []).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
     test('completes attribute keys after @ at line start', async () => {
         document = await parse(`demo {
             @ta
@@ -108,7 +108,7 @@ describe('Completion', () => {
         expect(labels).toContain('tags');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
     test('completes attribute values from workspace and index catalog', async () => {
         document = await parse(`demo {
             @status don
@@ -133,7 +133,7 @@ describe('Completion', () => {
         expect(labels).toContain('done');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion]
     test('completes idea names for bracket references', async () => {
         document = await parse(`demo {
             see [my
@@ -152,8 +152,8 @@ describe('Completion', () => {
         expect(labels).toContain('my');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_rendering]
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_rendering]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_auto_file_import]
     test('reference completions show source path and auto-import edits for other files', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -189,7 +189,7 @@ describe('Completion', () => {
         expect(local?.additionalTextEdits).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_auto_file_import]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_auto_file_import]
     test('skips auto-import edit when the idea is already imported', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -214,7 +214,7 @@ describe('Completion', () => {
         expect(remote?.additionalTextEdits).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
     test('orders reference completions by distance then alphabetically', async () => {
         document = await parse(`hub {
             see [a_near]
@@ -259,7 +259,7 @@ describe('Completion', () => {
         expect(sortTexts[3]).toBe('0002_far_idea');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_explicit_extension]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_explicit_extension]
     test('completes relative import paths with explicit .rq', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -281,8 +281,8 @@ describe('Completion', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_explicit_extension]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_explicit_extension]
     test('completes import-root alias paths with explicit .rq', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -311,7 +311,7 @@ describe('Completion', () => {
         expect(labels.some(label => label.startsWith('@/') && label.endsWith('exampleimport.rq'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_path_segments]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_path_segments]
     test('shows next path segments in a folder context', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -344,7 +344,7 @@ describe('Completion', () => {
         expect(labels.some(label => label.includes('notes.md'))).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_path_segments]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_path_segments]
     test('ranks directory segments before nested files under the same folder', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -382,7 +382,7 @@ describe('Completion', () => {
         expect(items.every(item => item.filterText === '../')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_substring_match]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_substring_match]
     test('matches import paths by substring search not only prefix', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -441,7 +441,7 @@ describe('Completion', () => {
         expect(helloLabels.some(label => label.includes('hello/inbetween/path/file.rq'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_ranking]
     test('ranks import path completions by proximity then alphabetically', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -507,8 +507,8 @@ describe('Completion', () => {
         expect(String(items[alphaIndex]!.sortText).localeCompare(String(items[zetaIndex]!.sortText))).toBeLessThan(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion]
     test('anonymous file references share import path completion with .rq', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -561,7 +561,7 @@ describe('Completion', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
     test('anonymous qualified reference paths use shared import path completion', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -585,7 +585,7 @@ describe('Completion', () => {
         expect(labels.some(label => label.includes('exampleimport.rq'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
     test('incomplete anonymous alias paths complete like import alias paths', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -640,8 +640,8 @@ describe('Completion', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
     test('anonymous file references complete code files, folders, and .rq files', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -697,7 +697,7 @@ describe('Completion', () => {
         expect(importLabels.some(label => label.endsWith('notes.md'))).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
     test('completes ideas and ideasets after a quoted file path', async () => {
         services = createReqlanServices(NodeFileSystem);
         parse = parseHelper<Model>(services.Reqlan);
@@ -738,7 +738,7 @@ bundle (
         expect(labels).toContain('bundle');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
     test('completes ideaset members after a dotted qualifier', async () => {
         document = await parse(`host {
     see [bundle.

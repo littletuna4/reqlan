@@ -1,9 +1,9 @@
 /**
  * Quick Fix on comment-reference diagnostics in non-`.rq` source files.
  * Inserts `//rq-ignore-error` (hash-prefixed in `#` comments) on the previous line.
- * rq:["../../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
- * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
  */
 import * as vscode from 'vscode';
 import { TextDocument } from 'vscode-languageserver-textdocument';

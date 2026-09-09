@@ -1,6 +1,6 @@
 /**
  * Tests for git-context history helpers and hidden git CLI spawns.
- * rq:["../../../reqlan rq/extension/module/context-scope.rq".git_context]
+ * rq:["../../../reqlan rq/extension/local-context/context-scope.rq".git_context]
  * rq:["../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import { readFileSync } from 'node:fs';

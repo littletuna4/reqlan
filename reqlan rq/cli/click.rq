@@ -1,11 +1,11 @@
 from "../ontology.rq" import click as click_ontology, ideaset, referenced_files
-from "../extension/module/index.rq" import application_memory
-from "../extension/configuration.rq" import configuration_schema_file, configuration_location
+from "../extension/index-host/index.rq" import application_memory
+from "../extension/host/configuration.rq" import configuration_schema_file, configuration_location
 from "./cli_package.rq" import commands, function_parity
 from "../core_analysis/search.rq" import fuzzy_search, contextual_search, file_search
 from "../modelling/advanced_analysis.rq" import idea_graph_distance
 from "../indexer/indexer.rq" import index_code_files
-from "../extension/features-graph-analysers.rq" import file_related_requirements
+from "../extension/index-host/graph-analysers.rq" import file_related_requirements
 from "../reference_types.rq" import comment_reference, file_reference, wildcard_reference
 from "../language/syntax.rq" import idea_name
 import "../../packages/analytical/src/native/native-analysis-api.ts" as native_analysis_api
@@ -21,7 +21,7 @@ click {
     Optional [click_max_detail] flags cap how many names and bodies are listed.
     Optional `sessionKey` continues a [click_session]. A second click on a centre already clicked in that session returns the connected content ([click_session]).
     Surfaces: CLI `reqlan click` ([click_cli]), MCP `click` ([mcp_server]), and [native_analysis_api] `click`.
-    MCP search and retrieval use this tool only (["../extension/features-skills-and-mcp.rq".mcp_click_retrieval]).
+    MCP search and retrieval use this tool only (["../extension/agent/skills-and-mcp.rq".mcp_click_retrieval]).
     Engine: [click_rust] on ["./cli_package.rq".architecture] / ["../core_analysis/rust_port.rq".analytical_rust_port].
     Related: [function_parity], [commands], [agent_advisory], [click_session], [click_input], [click_max_detail], [click_output].
     @status done

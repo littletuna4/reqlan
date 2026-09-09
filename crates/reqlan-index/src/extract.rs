@@ -67,7 +67,7 @@ impl Default for ExtractOptions {
 /// The LSP layer may parse one neighbor file to confirm outbound idea names.
 /// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 /// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
-/// rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+/// rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
 pub fn analyze_local_symbolic(
     file_uri: &str,
     source: &str,

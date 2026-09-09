@@ -1,11 +1,11 @@
 /**
  * Graph node and edge styling shared by the canvas and legend.
- * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cytoscape
+ * per ["../../../../../reqlan rq/extension/presentation/graph.rq"] graph_cytoscape
  *
  * Cytoscape (especially WebGL) cannot parse CSS `var()` — node fills and stylesheet
  * colours must be concrete hex/rgb values. HTML legend swatches may still use vars.
  */
-import type { GraphNodeView } from '../../../src/webview_module/shared/messages.js';
+import type { GraphNodeView } from '../../../src/ideas_summary_module/shared/messages.js';
 
 /** Concrete colours for cytoscape (hex). Keep in sync with VS Code chart token fallbacks. */
 export const GRAPH_NODE_COLORS = {

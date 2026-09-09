@@ -3,10 +3,10 @@
  * Links and the error underline use one cached presentation so they stay in sync.
  * rq:["../../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../../reqlan rq/ontology.rq".reference_types]
- * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
- * rq:["../../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
- * rq:["../../../../reqlan rq/extension/language-support/open-file-sequencing.rq".comment_backlink_sequence]
+ * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
  */
 import { extractIdeaNames } from '@reqlan/analytical/core';
 import * as fs from 'node:fs';

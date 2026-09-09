@@ -85,7 +85,7 @@ function hintLabelText(hint: InlayHint): string {
 }
 
 describe('Reference inlay hints', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('returns no hints when the setting is disabled', async () => {
         document = await parse(s`
             target {
@@ -104,14 +104,14 @@ describe('Reference inlay hints', () => {
         expect(hints).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('reads the workspace toggle from configuration', () => {
         expect(referenceInlayHintsEnabled(undefined)).toBe(false);
         expect(referenceInlayHintsEnabled({ enabled: false })).toBe(false);
         expect(referenceInlayHintsEnabled({ enabled: true })).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('formats inbound referencers as an inlayed attribute', () => {
         const formatted = buildInboundReferencesInlayLabel(
             [{
@@ -145,13 +145,13 @@ describe('Reference inlay hints', () => {
         });
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('omits the attribute when there are no inbound referencers', () => {
         expect(formatInboundReferencesInlayLabel([])).toBeUndefined();
         expect(buildInboundReferencesInlayLabel([], 'file:///target.rq', 'target')).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('truncates long referencer lists with a remainder suffix', () => {
         const referencers = ['a', 'b', 'c', 'd', 'e'].map((name, line) => ({
             name,
@@ -169,7 +169,7 @@ describe('Reference inlay hints', () => {
         expect(remainder?.command?.arguments).toEqual(['file:///target.rq', 'target']);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('returns inbound reference hint when the setting is enabled', async () => {
         document = await parse(s`
             target {
@@ -200,7 +200,7 @@ describe('Reference inlay hints', () => {
         expect(hints![0].paddingLeft).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
     test('renders referencer tooltips as markdown links for hover navigation', () => {
         const referencers = ['a', 'b', 'c', 'd'].map((name, line) => ({
             name,
@@ -217,7 +217,7 @@ describe('Reference inlay hints', () => {
         }
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
     test('attaches source locations to clickable referencer label parts', async () => {
         document = await parse(s`
             target {
@@ -241,7 +241,7 @@ describe('Reference inlay hints', () => {
         expect(sourcePart?.location?.range.start.line).toBeGreaterThanOrEqual(0);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('lists multiple inbound referencers in sorted order', async () => {
         document = await parse(s`
             target {
@@ -276,7 +276,7 @@ describe('Reference inlay hints', () => {
         expect(tooltip.value).toContain('[beta]');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('omits hint when an idea has no inbound referencers', async () => {
         document = await parse(s`
             lonely {
@@ -291,7 +291,7 @@ describe('Reference inlay hints', () => {
         expect(hints).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('excludes self-references from inbound referencer names', async () => {
         document = await parse(s`
             target {
@@ -312,7 +312,7 @@ describe('Reference inlay hints', () => {
         expect(hints).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
     test('includes inbound referencers from other workspace files via from-import', async () => {
         const factory = services.shared.workspace.LangiumDocumentFactory;
         const docs = services.shared.workspace.LangiumDocuments;
@@ -350,7 +350,7 @@ describe('Reference inlay hints', () => {
         expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
     test('includes inbound referencers from other workspace files via anonymous path', async () => {
         const factory = services.shared.workspace.LangiumDocumentFactory;
         const docs = services.shared.workspace.LangiumDocuments;
@@ -386,7 +386,7 @@ describe('Reference inlay hints', () => {
         expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
     test('includes same-named referencers from other files', async () => {
         const factory = services.shared.workspace.LangiumDocumentFactory;
         const docs = services.shared.workspace.LangiumDocuments;
@@ -422,7 +422,7 @@ describe('Reference inlay hints', () => {
         expect(sharedPart?.location?.uri).toBe(sourceDoc.uri.toString());
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
     test('cancelled requests throw Langium OperationCancelled (not a plain Error)', async () => {
         document = await parse(s`
             target {

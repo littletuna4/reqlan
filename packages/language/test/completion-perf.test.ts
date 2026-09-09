@@ -1,7 +1,7 @@
 /**
  * Performance guards for reference / anonymous file-path completion.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -127,7 +127,7 @@ async function completeAnonymousPaths(
 }
 
 describe('Reference completion performance', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
     test('cached path completion does not re-read directories', async () => {
         const created = createServices();
         const root = createTempWorkspace();
@@ -159,7 +159,7 @@ describe('Reference completion performance', () => {
         expect(secondLabels).toEqual(firstLabels);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
     test('large-tree anonymous completion stays under budget', async () => {
         const created = createServices();
         const root = createTempWorkspace();

@@ -1,11 +1,11 @@
 /**
  * Recompute relative file paths when a referencing file moves to a new directory,
  * or when a referenced target file moves and inbound paths must be updated.
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+ * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
- * rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_file_moves]
- * rq:["../../../reqlan rq/extension/refactor_support.rq".comment_reference_refactor_support]
+ * rq:["../../../reqlan rq/extension/mutation/mutation-hooks.rq".move_file]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
  */
 import { URI, UriUtils } from 'langium';
 import type { Range } from 'vscode-languageserver';

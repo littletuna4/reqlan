@@ -79,7 +79,7 @@ function lensTitles(lenses: CodeLens[] | undefined): string[] {
 }
 
 describe('Reference CodeLens', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('returns no lenses when the setting is disabled', async () => {
         document = await parse(s`
             target {
@@ -98,14 +98,14 @@ describe('Reference CodeLens', () => {
         expect(lenses).toEqual([]);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('reads the workspace toggle from configuration', () => {
         expect(referenceCodeLensEnabled(undefined)).toBe(false);
         expect(referenceCodeLensEnabled({ enabled: false })).toBe(false);
         expect(referenceCodeLensEnabled({ enabled: true })).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('classifies linked idea references as open idea', async () => {
         document = await parse(s`
             target {
@@ -133,7 +133,7 @@ describe('Reference CodeLens', () => {
         expect(ideaLens?.command?.tooltip).toMatch(/target/);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('formats classification titles for file kinds', () => {
         expect(fileExtension('file:///tmp/demo.rq')).toBe('rq');
         expect(fileExtension('file:///tmp/demo.ts')).toBe('ts');
@@ -156,7 +156,7 @@ describe('Reference CodeLens', () => {
         })).toBe('open folder');
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('summary stats include referencer and reference counts for ideas', async () => {
         document = await parse(s`
             target {
@@ -211,7 +211,7 @@ describe('Reference CodeLens', () => {
 });
 
 describe('Reference CodeLens file targets', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
     test('classifies folder and non-rq file references', async () => {
         const { NodeFileSystem } = await import('langium/node');
         const { join } = await import('node:path');

@@ -1,8 +1,8 @@
 /**
  * Go-to-definition for imports, file references, symbols, and embedded comment references.
  * Idea tokens use a CST-first Langium path, then the same depth-1 neighbor parse as document links.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
- * rq:["../../../reqlan rq/extension/language-support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { CstNode, FileSystemProvider, LangiumDocument, MaybePromise } from 'langium';
