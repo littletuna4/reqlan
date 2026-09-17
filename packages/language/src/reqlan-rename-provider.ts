@@ -1,7 +1,7 @@
 /**
  * LSP rename for reqlan symbols, including `rq:[...]` comment idea tokens in .rq docs.
- * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".refactor_support]
+ * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".refactor_support]
  */
 import type { AstNode, LangiumDocument } from 'langium';
 import { AstUtils, CstUtils } from 'langium';

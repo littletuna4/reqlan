@@ -2,7 +2,7 @@
  * Locates and parses `rq:[idea]` references embedded in source-file comments.
  * rq:["../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../reqlan rq/ontology.rq".reference_types]
- * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comments]

@@ -2,10 +2,10 @@
  * Resolves file references, idea references, and import paths to target URIs and editor ranges.
  * Document links use these so same-file and cross-file refs share the same underline/click affordance.
  * Missing file refs stay in this result so the validator can underline them without creating a link.
- * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".file_references]
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
  * rq:["../../../reqlan rq/reference_types.rq".url_reference]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
  */
 import type { AstNode, CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, Reference, URI } from 'langium';
 import { AstUtils, CstUtils, GrammarUtils } from 'langium';

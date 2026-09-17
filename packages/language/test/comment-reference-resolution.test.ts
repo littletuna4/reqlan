@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
-import { URI, type LangiumDocument } from "langium";
+import { URI, EmptyFileSystem, type LangiumDocument } from "langium";
 import { NodeFileSystem } from "langium/node";
 import { expandToString as s } from "langium/generate";
 import { clearDocuments } from "langium/test";
@@ -106,7 +106,7 @@ describe("comment reference resolution", () => {
     expect(presented.links).toHaveLength(0);
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("shares one presentation so a matching idea clears the underline and adds a link", () => {
     const declared = new Set<string>();
     const host = {
@@ -253,7 +253,7 @@ describe("comment reference resolution in .rq documents", () => {
     expect(issues).toHaveLength(0);
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("publishes a missing-idea diagnostic and no document link until the idea exists", async () => {
     const targetPath = join(repoDir, "reqlan rq/language/syntax.rq");
     const sourcePath = join(repoDir, "reqlan rq/language/imports.rq");
@@ -302,7 +302,7 @@ describe("comment reference resolution in .rq documents", () => {
     ).toBeFalsy();
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("clears the underline and creates a link after a matching idea is added", async () => {
     const targetPath = join(repoDir, "reqlan rq/language/syntax.rq");
     const sourcePath = join(repoDir, "reqlan rq/language/imports.rq");
@@ -364,23 +364,41 @@ describe("comment reference resolution in .rq documents", () => {
     expect(presented.links[0]?.idea).toBe("elevator_pitch");
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
-  test("relinks documents that still show a missing comment-reference idea", () => {
-    const document = {
-      textDocument: {
-        getText: () => 'host {}\n// rq:["./syntax.rq".elevator_pitch]\n',
-      },
-      diagnostics: [{ code: COMMENT_REFERENCE_MISSING_IDEA }],
-    } as unknown as LangiumDocument;
-    expect(shouldRelinkCommentReferences(document, new Set())).toBe(true);
+  // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+  test("relinks comment references only when the target file changes", () => {
+    const services = createReqlanServices(EmptyFileSystem);
+    const document = services.shared.workspace.LangiumDocumentFactory.fromString(
+      'host {}\n// rq:["./syntax.rq".elevator_pitch]\n',
+      URI.parse("file:///ws/host.rq"),
+    );
+    const syntaxUri = URI.parse("file:///ws/syntax.rq").toString();
+    expect(shouldRelinkCommentReferences(document, new Set([syntaxUri]))).toBe(
+      true,
+    );
     expect(
       shouldRelinkCommentReferences(
-        {
-          textDocument: { getText: () => "host {}\n" },
-          diagnostics: [{ code: COMMENT_REFERENCE_MISSING_IDEA }],
-        } as unknown as LangiumDocument,
-        new Set(),
+        document,
+        new Set(["file:///ws/other.rq"]),
       ),
+    ).toBe(false);
+    expect(shouldRelinkCommentReferences(document, new Set())).toBe(false);
+    const unqualified = services.shared.workspace.LangiumDocumentFactory.fromString(
+      "host {}\n// rq:[elevator_pitch]\n",
+      URI.parse("file:///ws/unqualified.rq"),
+    );
+    expect(
+      shouldRelinkCommentReferences(
+        unqualified,
+        new Set(["file:///ws/other.rq"]),
+      ),
+    ).toBe(true);
+    expect(shouldRelinkCommentReferences(unqualified, new Set())).toBe(false);
+    const plain = services.shared.workspace.LangiumDocumentFactory.fromString(
+      "host {}\n",
+      URI.parse("file:///ws/plain.rq"),
+    );
+    expect(
+      shouldRelinkCommentReferences(plain, new Set([syntaxUri])),
     ).toBe(false);
   });
 });
@@ -394,7 +412,7 @@ describe("comment reference resolution after workspace updates", () => {
     }
   });
 
-  // rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
   test("revalidates comment-reference underlines when a matching idea is created on disk", async () => {
     const services = createReqlanServices(NodeFileSystem);
     expect(services.shared.workspace.DocumentBuilder).toBeInstanceOf(

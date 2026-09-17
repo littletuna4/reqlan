@@ -1,6 +1,6 @@
 /**
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_highlighting]
  * rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
  */
 import { beforeAll, describe, expect, test } from 'vitest';
@@ -18,7 +18,7 @@ describe('semantic tokens for wildcard references', () => {
         parse = parseHelper(services.Reqlan);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
     test('e2e: WildcardReference emits string + variable tokens', async () => {
         const document = await parse([
             'host {',

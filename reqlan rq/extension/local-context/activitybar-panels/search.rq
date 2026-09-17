@@ -1,0 +1,249 @@
+import "../../host/features-commands.rq" as commands
+import "../../../core_analysis/search.rq" as core_search
+import "../../workspace-summary/ideas_summary/webview.rq" as ideas_summary_doc
+import "../../../../packages/extension/src/shared/fuzzy-search.ts" as fuzzy_search_impl
+import "../../../../packages/analytical/src/native/native-workspace-index.ts" as native_workspace_index
+import "../../../../packages/extension/src/activity_bar_module/search-results-meta.ts" as search_results_meta
+import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
+import "../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte" as SearchHighlight
+import "../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte" as AddToChatButton
+import "../../../../packages/extension/webviews/activity-bar/components/CollapsiblePane.svelte" as CollapsiblePane
+import "../../../../packages/extension/webviews/activity-bar/components/NestedSection.svelte" as NestedSection
+import "../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts" as app_state
+import "../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_webview
+import "../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts" as activity_bar_messages
+import "../../../../packages/extension/src/extension/insert-idea-reference.ts" as insert_idea_reference
+import "../../../../packages/extension/src/extension/insert-idea-reference-helpers.ts" as insert_idea_reference_helpers
+import "../../../../packages/extension/src/agent_module/ai_commands/open-chat.ts" as open_chat
+
+search_pane {
+    Workspace idea search in the activity bar — find rq ideas by name, summary, or tags without leaving the sidebar.
+    Complements the modal from [commands.search_code_actions]; this pane stays open for repeated lookups and inserts.
+    Implemented by [SearchPane] under [CollapsiblePane]; host wire in [activity_bar_webview] / [activity_bar_messages] / [app_state].
+    [search_pane_query]
+    [search_pane_layout]
+    [search_pane_results]
+    [search_pane_open_live_file]
+    [search_pane_load_more]
+    [search_pane_file_hits]
+    [search_pane_insert_reference]
+    [search_add_to_chat]
+    [search_pane_advanced]
+    [search_pane_empty_query]
+    [search_pane_scoped_status]
+    [search_progress]
+    [search_pane_seed]
+    [search_pane_match_highlighting]
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+    )
+    @status done
+}
+
+search_pane_query {
+    [search_pane] search input posts a debounced host query.
+    Ranking uses [core_search.fuzzy_search] in the native search module (`NativeWorkspaceIndex.fuzzySearch`);
+    separator-insensitive `_`/`-`/`...`/whitespace. File-name hits: [search_pane_file_hits] / [core_search.file_search].
+    Pages: [search_pane_load_more] / [core_search.fuzzy_search_pages].
+    Highlighting stays in the TS `./fuzzy-search` export.
+    @tests (
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_ranks_without_exporting_catalog"]
+    )
+    @status done
+}
+
+search_pane_layout {
+    [search_pane] results fill the pane body (100% width) and scroll inside the pane;
+    do not nest a second capped [NestedSection] scroll.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+    )
+    @status done
+}
+
+search_pane_results {
+    [search_pane] results list is paged (default page size 40) with name, path, and one-line summary;
+    click opens the idea or file ([search_pane_open_live_file]). Exceeded counts and further pages: [search_pane_load_more].
+    File hits: [search_pane_file_hits].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/src/activity_bar_module/search-results-meta.ts"]
+    )
+    @status done
+}
+
+search_pane_open_live_file {
+    A click on a [search_pane] hit must show the live workspace file at that path.
+    If that file is already open in a workspace tab, focus that tab and move the caret.
+    Do not open a second read-only tab with stale content (a detached `file://` copy that Cursor does not sync).
+    Keep the click path cheap: no extra index read, no base discovery.
+    @implementation (
+        ["../../../../packages/extension/src/analytical_submodule/index-store/open-index-file.ts"]
+        ["../../../../packages/extension/src/analytical_submodule/index-store/open-index-file-pick.ts"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/open-index-file.test.ts"]
+        ["../../../../packages/extension/test/open-index-file.test.ts:prefers the document whose URI matches the workspace target"]
+    )
+    @status done
+}
+
+search_pane_load_more {
+    When ranked hits exceed the visible page, [search_pane] shows an exceeded-count label
+    (`40+ matches`, or `{n}+ matches` after further pages) instead of a full total,
+    and a **Show more** control at the bottom of the list that fetches the next page and appends.
+    A new query resets to the first page. Uses [core_search.fuzzy_search_pages] (`offset` + `truncated`).
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/search-results-meta.ts"]
+        ["../../../../crates/reqlan-search/src/fuzzy.rs"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/search-results-meta.test.ts"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:pages_ranked_hits_with_offset_and_truncated"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+    )
+    @status done
+}
+
+search_pane_file_hits {
+    [search_pane] mixes [core_search.file_search] hits (kind `file`) into the ranked list with ideas.
+    Click opens the file at line 0. File hits do not offer Insert ref or Pin (those are idea actions).
+    Empty-state and placeholder copy mention files.
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../crates/reqlan-search/src/fuzzy.rs"]
+        [native_workspace_index]
+    )
+    @tests (
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs:ranks_file_name_hits_with_ideas"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch returns file-name hits and pages with offset"]
+        ["../../../../packages/extension/test/search-results-meta.test.ts"]
+    )
+    @status done
+}
+
+search_pane_insert_reference {
+    Each [search_pane] hit has an **Insert reference** button that inserts `[idea_name]` at the
+    active editor cursor (or replaces the selection) via [insert_idea_reference], adding an import
+    when the target is in another file — same rules as [commands.search_code_actions].
+    Helpers: [insert_idea_reference_helpers].
+    @tests (
+        ["../../../../packages/extension/test/insert-idea-reference.test.ts"]
+        ["../../../../packages/extension/src/extension/insert-idea-reference.ts"]
+        ["../../../../packages/extension/src/extension/insert-idea-reference-helpers.ts"]
+    )
+    @status done
+}
+
+search_pane_advanced {
+    [search_pane] header link **Advanced** opens [ideas_summary_doc.ideas_list] with the current query prefilled.
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_empty_query {
+    Empty query in [search_pane]: prompt to type ideas or files (do not dump the full catalog into the pane).
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_scoped_status {
+    [search_pane] soft-waits when the index is not ready; scoped errors stay in the pane.
+    Loading UX: [search_progress].
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_seed {
+    Host may seed [search_pane] via `focusIdeaSearch` (query + optional pathFilter) from the
+    wildcard-matches webview **Open in Search** action
+    (["../../../language/imports.rq".wildcard_references_webview]).
+    Path filter is a hard AND after ranking (["../../../language/imports.rq".idea_path_filter]).
+    @tests (
+        ["../../../../packages/extension/test/wildcard-reference-open-search.test.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @status done
+}
+
+search_pane_match_highlighting {
+    The [search_pane_results] list highlights the parts of name, path, and summary that matched the query
+    via [SearchHighlight].
+    Resilient to [core_search.fuzzy_search] / [core_search.fuzzy_search_whitespace]: contiguous and
+    separator-insensitive spans, token prefixes / part matches, reordered words, and character-subsequence
+    (fuzzy / acronym) marks on short fields such as the idea name — not scattered letters in long summaries.
+    @implementation (
+        ["../../../../packages/extension/src/shared/fuzzy-search.ts"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../../crates/reqlan-search/tests/fuzzy.rs"]
+    )
+    @status done
+}
+
+search_add_to_chat {
+    From each [search_pane] hit, a split **Add to chat** control:
+    - Primary button: place compact `#requirement` context into the **current** chat input without submitting.
+    - ▾ menu (visible secondary affordance): **Add to current chat** or **Add to new chat** (new session, then seed the same payload).
+    Tooltips name both behaviours; secondary is not right-click-only.
+    Same payload shape as ["../../agent/features-ai.rq".add_to_chat] (idea name, path:line, summary) via [open_chat].
+    Host: [open_chat] with `{ query, isPartialQuery: true, target: 'current' | 'new' }`.
+    Cursor note: do not use `workbench.action.chat.open` for **current** (it always opens a new tab); see ["../../agent/features-ai.rq".add_to_chat] / [open_chat].
+    Clipboard fallback when no chat command is available (same spirit as ["../../agent/features-ai.rq".add_to_chat]).
+    Wire: [AddToChatButton] / [SearchPane] → [app_state] `addToChat(hit, target)` → [activity_bar_messages] → [activity_bar_webview] → [open_chat].
+    @implementation (
+        ["../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/agent_module/ai_commands/open-chat.ts"]
+    )
+    @status done
+}
+
+search_progress {
+    Activity-bar search ranks in the native [core_search.fuzzy_search] module (rusqlite read + score in-process).
+    The host must not hydrate a JS idea catalog or worker before scoring — return only the capped hit list.
+    A static "Searching…" / "Loading…" label must not be the only signal: the pane should show **live progress** so a slow wait reads as working, not hung.
+    - Host posts progress for the in-flight search request while native scoring runs (`Scoring ideas…`).
+    - [SearchPane] displays the phase label with a continuous activity affordance (spinner / indeterminate bar) and elapsed time while loading, for both the empty initial wait and the "Updating…" refresh path.
+    - Stale progress from superseded queries must not overwrite a newer request; clear progress when results or a scoped error arrive.
+    @status done
+    @tests (
+        ["../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte"]
+        ["../../../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
+        ["../../../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
+        ["../../../../packages/analytical/test/workspace-index.test.ts:fuzzySearch ranks from the native index without listing all ideas in JS"]
+    )
+}

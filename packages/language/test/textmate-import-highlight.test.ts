@@ -1,6 +1,6 @@
 /**
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_highlighting]
  * rq:["../../../reqlan rq/language/imports.rq".import_keywords]
  */
 import { readFileSync } from 'node:fs';
@@ -31,7 +31,7 @@ function loadImportKeywords(): TmPattern {
 }
 
 describe('TextMate import statement highlighting', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
     test('e2e: from-import line scopes path and import keyword', () => {
         const entry = loadImportKeywords();
         const fromRule = entry.patterns?.find(pattern => pattern.begin?.includes('\\b(from)\\b'));
@@ -50,7 +50,7 @@ describe('TextMate import statement highlighting', () => {
         )).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".import_statement_highlighting]
     test('e2e: namespace import line scopes path and as', () => {
         const entry = loadImportKeywords();
         const importRule = entry.patterns?.find(pattern => pattern.begin?.includes('\\b(import)\\b'));

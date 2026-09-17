@@ -1,5 +1,5 @@
-import "../extension/architecture.rq" as extension_architecture
-import "../extension/module/webview.rq" as webview_doc
+import "../extension/host/architecture.rq" as extension_architecture
+import "../extension/presentation/webview.rq" as webview_doc
 import "../development/core.rq" as development_core
 import "../core-architecture.rq" as core_architecture
 
@@ -9,9 +9,9 @@ scope {
     Webview inventory: [webview_doc.webview]. Package role: [core_architecture.extension_package].
 
     @apply_to (
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
-        ["../extension/module/**/*.rq".*webview*]
-        ["../extension/module/ideas_summary/*.rq".*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
+        ["../extension/**/*.rq".*webview*]
+        ["../extension/workspace-summary/ideas_summary/*.rq".*]
     )
 }
 
@@ -26,15 +26,15 @@ ui_state_management {
 
     @status done
     @apply_to (
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
-        ["../extension/module/**/*.rq".*webview*]
-        ["../extension/library/*.rq".graph_*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
+        ["../extension/**/*.rq".*webview*]
+        ["../extension/presentation/graph.rq".graph_*]
     )
     @implementation (
         ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
         ["../../packages/extension/webviews/ideas-summary/state/app.svelte.ts"]
-        ["../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
-        ["../../packages/extension/src/webview_module/shared/table-ui-state.ts"]
+        ["../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts"]
+        ["../../packages/extension/src/ideas_summary_module/shared/table-ui-state.ts"]
         ["../../packages/extension/src/activity_bar_module/context-session.ts"]
     )
 }
@@ -47,14 +47,14 @@ webview_app_state {
     ([zustand_boundary]).
     Simple panels (export form, onboarding, index diagnostics) may keep `$state` on the root `App.svelte`
     instead of a separate AppState module when the surface is a single form/flow.
-    Related: ["../extension/module/ideas_summary/webview.rq".table_column_filters] `$derived` binding rule;
-    ["../extension/module/ideas_summary/graphical_graph.rq".graph_ui_persistence].
+    Related: ["../extension/workspace-summary/ideas_summary/webview.rq".table_column_filters] `$derived` binding rule;
+    ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".graph_ui_persistence].
 
     @status done
     @apply_to (
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
-        ["../extension/module/ideas_summary/*.rq".*]
-        ["../extension/module/webview.rq".webview]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
+        ["../extension/workspace-summary/ideas_summary/*.rq".*]
+        ["../extension/presentation/webview.rq".webview]
     )
     @implementation (
         ["../../packages/extension/webviews/activity-bar/state/app.svelte.ts"]
@@ -75,8 +75,8 @@ svelte_app_context {
 
     @status done
     @apply_to (
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
-        ["../extension/module/ideas_summary/*.rq".*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
+        ["../extension/workspace-summary/ideas_summary/*.rq".*]
     )
     @implementation (
         ["../../packages/extension/webviews/activity-bar/state/context.ts"]
@@ -92,8 +92,8 @@ derived_host_bindings {
 
     @status done
     @apply_to (
-        ["../extension/module/ideas_summary/*.rq".table_*]
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/workspace-summary/ideas_summary/*.rq".table_*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
     )
     @implementation (
         ["../../packages/extension/webviews/ideas-summary/components/IdeasetsTable.svelte"]
@@ -110,15 +110,15 @@ host_webview_ownership {
 
     @status done
     @apply_to (
-        ["../extension/module/**/*.rq".*webview*]
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/**/*.rq".*webview*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
     )
     @implementation (
         ["../../packages/extension/src/activity_bar_module/activity-bar-messages.ts"]
-        ["../../packages/extension/src/webview_module/shared/messages.ts"]
+        ["../../packages/extension/src/ideas_summary_module/shared/messages.ts"]
         ["../../packages/extension/src/activity_bar_module/context-session.ts"]
         ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
-        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../packages/extension/src/ideas_summary_module/ideas-summary-panel.ts"]
     )
 }
 
@@ -133,12 +133,12 @@ persistence_tiers {
 
     @status done
     @apply_to (
-        ["../extension/module/ideas_summary/*.rq".*ui*]
-        ["../extension/module/ideas_summary/*.rq".graph_*]
+        ["../extension/workspace-summary/ideas_summary/*.rq".*ui*]
+        ["../extension/workspace-summary/ideas_summary/*.rq".graph_*]
     )
     @implementation (
-        ["../../packages/extension/src/webview_module/shared/graph-ui-state.ts"]
-        ["../../packages/extension/src/webview_module/shared/table-ui-state.ts"]
+        ["../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts"]
+        ["../../packages/extension/src/ideas_summary_module/shared/table-ui-state.ts"]
         ["../../packages/extension/src/extension/onboarding-state.ts"]
         ["../../packages/extension/webviews/activity-bar/lib/vscode.ts"]
         ["../../packages/extension/webviews/ideas-summary/lib/vscode.ts"]
@@ -155,8 +155,8 @@ postmessage_clone_safety {
 
     @status done
     @apply_to (
-        ["../extension/module/**/*.rq".*webview*]
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/**/*.rq".*webview*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
     )
     @implementation (
         ["../../packages/extension/webviews/activity-bar/lib/vscode.ts"]
@@ -176,8 +176,8 @@ zustand_boundary {
 
     @status done
     @apply_to (
-        ["../extension/module/**/*.rq".*webview*]
-        ["../extension/module/activitybar-panels/*.rq".*_pane]
+        ["../extension/**/*.rq".*webview*]
+        ["../extension/local-context/activitybar-panels/*.rq".*_pane]
     )
     @implementation (
         ["../../crates/reqlan-analytical/src/workspace_index.rs"]
@@ -191,14 +191,14 @@ imperative_view_controllers {
     Heavy imperative widgets (Cytoscape graph) keep lifecycle state on a controller class
     (`GraphCyController`), not inside AppState `$state` fields.
     AppState holds query/slice/loading/error and persisted UI prefs; the component holds the controller instance.
-    See ["../extension/library/graph.rq".webview_threading] and
-    ["../extension/module/ideas_summary/graphical_graph.rq".graph_loading].
+    See ["../extension/presentation/graph.rq".webview_threading] and
+    ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".graph_loading].
 
     @status done
     @apply_to (
-        ["../extension/library/*.rq".graph_*]
-        ["../extension/module/ideas_summary/*.rq".graph_*]
-        ["../extension/module/activitybar-panels/*.rq".*graph*]
+        ["../extension/presentation/graph.rq".graph_*]
+        ["../extension/workspace-summary/ideas_summary/*.rq".graph_*]
+        ["../extension/local-context/activitybar-panels/*.rq".*graph*]
     )
     @implementation (
         ["../../packages/extension/webviews/shared/graph/graph-cy-controller.ts"]

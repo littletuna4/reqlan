@@ -53,8 +53,8 @@ describe('import root alias', () => {
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/pkg/shared.rq').toString());
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
     test('loads importRoots list from nearest base config', () => {
         const fs = new VirtualFileSystemProvider();
         fs.insert('file:///workspace/.reqlan/config.json', JSON.stringify({
@@ -90,8 +90,8 @@ describe('import root alias', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
-    // rq:["../../../reqlan rq/extension/features-mutation-hooks.rq".move_file]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/mutation/mutation-hooks.rq".move_file]
     test('rewrite leaves aliased paths unchanged', () => {
         const oldFile = URI.parse('file:///workspace/ext/a/foo.rq');
         const newFile = URI.parse('file:///workspace/ext/c/foo.rq');
@@ -109,7 +109,7 @@ describe('import root alias', () => {
 });
 
 describe('Windows filesystem paths vs URI schemes', () => {
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('isWindowsAbsolutePath detects drive and UNC paths', () => {
         expect(isWindowsAbsolutePath('C:\\Users\\tony\\lib')).toBe(true);
         expect(isWindowsAbsolutePath('c:/Users/tony/lib')).toBe(true);
@@ -119,7 +119,7 @@ describe('Windows filesystem paths vs URI schemes', () => {
         expect(isWindowsAbsolutePath('./relative')).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
     test('toDirectoryUri does not parse a drive letter as a URI scheme', () => {
         const uri = toDirectoryUri('C:\\libs');
         expect(uri.scheme).toBe('file');

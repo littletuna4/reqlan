@@ -2,7 +2,7 @@
  * Locates file path references at a cursor position and resolves them to files, folders, or missing paths.
  * Missing targets are omitted here so go-to-definition can still try import-path resolution
  * (for example `from "./target"` → `./target.rq`). Diagnostics still underline those refs.
- * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
  */
 import type { CstNode, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { CstUtils, GrammarUtils } from 'langium';

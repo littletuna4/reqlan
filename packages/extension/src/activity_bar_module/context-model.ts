@@ -1,6 +1,6 @@
 /**
  * Builds ReqlanContextModel from index store + VS Code session signals.
- * per ["../../../../reqlan rq/extension/module/context-scope.rq"]
+ * per ["../../../../reqlan rq/extension/local-context/context-scope.rq"]
  */
 import {
     ACTIVITY_BAR_MAX_NODES,
@@ -47,7 +47,7 @@ import {
     type ReqlanContextModel,
     type WorkspaceContextSlice
 } from './lib/context-model.js';
-import type { GraphViewQuery, GraphViewSlice } from '../webview_module/shared/messages.js';
+import type { GraphViewQuery, GraphViewSlice } from '../ideas_summary_module/shared/messages.js';
 import type { ReferenceListsPayload } from './activity-bar-messages.js';
 import type { ContextSessionState } from './context-session.js';
 import {

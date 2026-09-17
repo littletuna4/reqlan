@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-/** Svelte activity bar webview shell per ["../../../../reqlan rq/extension/module/activitybar.rq"] */
+/** Svelte activity bar webview shell per ["../../../../reqlan rq/extension/local-context/activitybar.rq"] */
 export function getActivityBarHtml(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,

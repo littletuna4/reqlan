@@ -1,6 +1,6 @@
 /**
  * Detects where completion was requested in a reqlan document.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { CstNode, LangiumDocument } from 'langium';
 import { CstUtils, GrammarUtils } from 'langium';
@@ -92,7 +92,7 @@ export function getCompletionSite(document: LangiumDocument, position: Position)
 /**
  * Quoted path inside a bracket reference, e.g. `["@/…` or `['./foo`.
  * Text-based so incomplete/unclosed strings still complete like import paths.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
  */
 export function getAnonymousImportPathContext(
     document: LangiumDocument,
@@ -121,7 +121,7 @@ export function getAnonymousImportPathContext(
 
 /**
  * Idea / ideaset name after a quoted file path, e.g. `["./lib.rq".` or `["./lib.rq".expor`.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
  */
 export function getQualifiedFileIdeaContext(
     document: LangiumDocument,
@@ -275,7 +275,7 @@ export function isFilePathCompletion(contextProperty: string | undefined, contai
 /**
  * Innermost idea / one-liner whose range covers `position` (for completion ranking).
  * Ideas are top-level declarations, so this is O(declarations) rather than a full AST walk.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 export function findContainingIdea(
     document: LangiumDocument,

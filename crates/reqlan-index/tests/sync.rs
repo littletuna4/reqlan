@@ -50,7 +50,7 @@ fn hard_rebuild_reindexes_despite_mtime() {
     std::fs::remove_dir_all(&root).ok();
 }
 
-// rq:["../../../reqlan rq/extension/module/index.rq".rqignore]
+// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
 #[test]
 fn default_rqignore_skips_node_modules() {
     let root = scratch("ignore");

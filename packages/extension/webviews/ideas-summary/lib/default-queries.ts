@@ -3,14 +3,14 @@ import type {
     IdeasTableQuery,
     IdeasetsTableQuery,
     ReferencesTableQuery
-} from '../../../src/webview_module/shared/messages.js';
+} from '../../../src/ideas_summary_module/shared/messages.js';
 import {
     ATTRIBUTES_PAGE_SIZE,
     IDEAS_PAGE_SIZE,
     IDEASETS_PAGE_SIZE,
     REFERENCES_PAGE_SIZE
-} from '../../../src/webview_module/shared/messages.js';
-import type { GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
+} from '../../../src/ideas_summary_module/shared/messages.js';
+import type { GraphViewQuery } from '../../../src/ideas_summary_module/shared/messages.js';
 
 export function defaultIdeasQuery(): IdeasTableQuery {
     return {

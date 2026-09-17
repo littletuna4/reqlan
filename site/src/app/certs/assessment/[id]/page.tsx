@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { assessments, getAssessment } from "@/content/assessment";
+import { pages } from "@/content/meta";
+import { assessmentPath } from "@/lib/certs-paths";
+import { pageMetadata } from "@/lib/site-metadata";
 import { AssessmentPage } from "@/views/AssessmentPage";
 
 type PageProps = {
@@ -22,11 +25,11 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
-    title: "Assessment · reqlan",
-    description:
-      "Pass the reqlan assessment to claim a certificate of completion.",
-  };
+  return pageMetadata({
+    title: pages.assessment.title,
+    description: pages.assessment.description,
+    path: assessmentPath(assessment.id),
+  });
 }
 
 export default async function Page({ params }: PageProps) {

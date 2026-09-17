@@ -1,7 +1,7 @@
 /**
  * Every extension export format must call the native writer.
  * rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export]
- * rq:["../../../reqlan rq/extension/features-html-export.rq".html_export_form]
+ * rq:["../../../reqlan rq/extension/export/html-export.rq".html_export_form]
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,7 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 describe('extension native export host', () => {
     test('export form runs every format through openAnalysisApi', () => {
         const source = readFileSync(
-            join(here, '../src/analytical_submodule/export/export-form-panel.ts'),
+            join(here, '../src/export_module/export-form-panel.ts'),
             'utf8'
         );
         expect(source).toContain('openAnalysisApi');

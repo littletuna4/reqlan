@@ -4,7 +4,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/language/imports.rq".wildcard_references]
 //! rq:["../../../reqlan rq/language/imports.rq".wildcard_references_webview]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
 //! rq:["../../../reqlan rq/reference_types.rq".wildcard_reference]
 
 use reqlan_index::sync::{sync_workspace, SyncOptions};
@@ -234,11 +234,12 @@ fn imports_rq_extract_includes_webview_and_path_filter_ideas() {
 }
 
 // rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
-// rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+// rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
 #[test]
 fn indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas() {
     let indexer = extract_repo_file("reqlan rq/indexer/indexer.rq");
-    let graph = extract_repo_file("reqlan rq/extension/module/ideas_summary/graphical_graph.rq");
+    let graph =
+        extract_repo_file("reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq");
 
     let edge_idea = idea_named(&indexer, "wildcard_reference_edges");
     assert_eq!(edge_idea.kind.as_str(), "block");

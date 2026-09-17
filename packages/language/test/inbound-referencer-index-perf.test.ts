@@ -1,6 +1,6 @@
 /**
  * Inbound inlay labels from the SQLite snapshot (not Langium IndexManager).
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
  * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  */
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 describe('Inbound SQLite snapshot inlays', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
     test('inlay referencers come from the pushed snapshot, not findAllReferences', async () => {
         const factory = services.shared.workspace.LangiumDocumentFactory;
         const docs = services.shared.workspace.LangiumDocuments;

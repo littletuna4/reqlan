@@ -3,11 +3,11 @@
     import type {
         ExportFormBaseOption,
         ExtensionToExportFormMessage,
-    } from '../../src/analytical_submodule/export/export-form-messages.js';
+    } from '../../src/export_module/export-form-messages.js';
     import {
         defaultExportFormSettings,
         type ExportFormSettings,
-    } from '../../src/analytical_submodule/export/export-form-settings-types.js';
+    } from '../../src/export_module/export-form-settings-types.js';
     import { postToExtension } from './lib/vscode.js';
 
     let settings = $state<ExportFormSettings | undefined>(undefined);

@@ -1,6 +1,6 @@
 /**
  * Pushes indexed idea / ideaset / file names to the language server for quick fixes.
- * rq:["../../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  */
 import {
     REQLAN_NAME_CATALOG_NOTIFICATION,

@@ -1,6 +1,6 @@
 // rq:["../../../../reqlan rq/site/site.rq".agent_context_showcase]
-// rq:["../../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
-// rq:["../../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+// rq:["../../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools]
+// rq:["../../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
 // rq:["../../../../reqlan rq/cli/click.rq".click]
 import type { Showcase } from "./types";
 

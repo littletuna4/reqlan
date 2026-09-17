@@ -1,9 +1,9 @@
 <script lang="ts">
     /**
      * Bases table — discovered workspace bases; row selects active base.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".bases_tab]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".bases_tab]
      */
-    import type { BaseStatusView, ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+    import type { BaseStatusView, ColumnFilter } from '../../../src/ideas_summary_module/shared/messages.js';
     import { matchesBase } from '../lib/bases-filter.js';
     import { isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';

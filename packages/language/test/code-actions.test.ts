@@ -1,6 +1,6 @@
 /**
  * Tests for unresolved-reference import quick fixes.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  */
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
@@ -60,7 +60,7 @@ function isCodeAction(value: unknown): value is CodeAction {
 }
 
 describe('Import error code actions', () => {
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
     test('offers add-import and rewrite when a matching idea exists elsewhere', async () => {
         const library = await parseUri(s`
             shared_idea {
@@ -96,7 +96,7 @@ describe('Import error code actions', () => {
         expect(addImport?.isPreferred).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
     test('uses name catalog matches when documents are not loaded', async () => {
         const catalog: NameCatalog = {
             entries: [{
@@ -122,7 +122,7 @@ describe('Import error code actions', () => {
             .toContain('import catalog_only');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
     test('search and create actions invoke extension commands', async () => {
         const document = await parse(s`
             consumer {
@@ -144,7 +144,7 @@ describe('Import error code actions', () => {
         expect(create?.command?.command).toBe(REQLAN_IMPORT_ERROR_CREATE_COMMAND);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('offers search code action when cursor is inside a resolved reference', async () => {
         const document = await parse(s`
             alpha {
@@ -175,7 +175,7 @@ describe('Import error code actions', () => {
         expect(search?.title).toContain('alpha');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('offers wrap code action for a prose selection', async () => {
         const document = await parse(s`
             consumer {
@@ -213,7 +213,7 @@ describe('Import error code actions', () => {
         expect(wrap?.title).toContain('showcase');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('wraps the word under the cursor when selection is empty', async () => {
         const document = await parse(s`
             consumer {
@@ -229,7 +229,7 @@ describe('Import error code actions', () => {
         expect(site?.refText).toBe('showcase');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('findIdeaReferenceAtPosition locates wiki-link targets', async () => {
         const document = await parse(s`
             alpha {
@@ -250,7 +250,7 @@ describe('Import error code actions', () => {
         expect(site?.kind).toBe('wikilink');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('resolveReferenceSearchSiteFromDocument returns replace inside a bracket reference', async () => {
         const document = await parse(s`
             alpha {
@@ -275,7 +275,7 @@ describe('Import error code actions', () => {
         expect(resolved?.context?.target).toContain('alpha');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
     test('resolveReferenceSearchSiteFromDocument returns wrap on a prose word', async () => {
         const document = await parse(s`
             consumer {
@@ -296,7 +296,7 @@ describe('Import error code actions', () => {
         expect(resolved?.context?.ideaName).toBe('consumer');
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
+    // rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
     test('appends to an existing from-import for the same path', async () => {
         const library = await parseUri(s`
             alpha {
@@ -324,9 +324,9 @@ describe('Import error code actions', () => {
 });
 
 describe('Idea refactor code actions', () => {
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
-    // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
-    // rq:["../../../reqlan rq/extension/vsc-primitives.rq".code_actions]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+    // rq:["../../../reqlan rq/extension/language/vsc-primitives.rq".code_actions]
     test('offers move and delete actions at an idea declaration', async () => {
         const document = await parse(s`
             alpha {
@@ -372,8 +372,8 @@ describe('Idea refactor code actions', () => {
 });
 
 describe('File-based barrel page code action', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
-    // rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
     test('offers barrel page source action when the file has top-level ideas', async () => {
         const document = await parse(s`
             alpha {
@@ -403,8 +403,8 @@ describe('File-based barrel page code action', () => {
         expect(barrel?.kind).toBe(REQLAN_BARREL_PAGE_KIND);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
-    // rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
     test('omits barrel page when only quickfix is requested or there are no ideas', async () => {
         const withIdeas = await parseUri(s`
             alpha {
@@ -441,7 +441,7 @@ describe('File-based barrel page code action', () => {
 });
 
 describe('Ignore-error code action', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('offers ignore-error quick fix on a line with a linking error', async () => {
         const document = await parse(s`
             consumer {
@@ -474,7 +474,7 @@ describe('Ignore-error code action', () => {
             .toBe('    //rq-ignore-error\n');
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
     test('omits ignore-error when only refactor is requested', async () => {
         const document = await parse(s`
             consumer {
@@ -497,7 +497,7 @@ describe('Ignore-error code action', () => {
 });
 
 describe('Create idea below unresolved reference', () => {
-    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
     test('creates the missing idea below the containing idea when only one is unresolved', async () => {
         const document = await parse(s`
             consumer {
@@ -531,7 +531,7 @@ describe('Create idea below unresolved reference', () => {
         });
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
     test('offers all or a specific unresolved idea when the caret idea has several', async () => {
         const document = await parse(s`
             consumer {
@@ -566,7 +566,7 @@ describe('Create idea below unresolved reference', () => {
         );
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
     test('omits create-below when the caret idea has no unresolved local references', async () => {
         const document = await parse(s`
             alpha {
@@ -591,7 +591,7 @@ describe('Create idea below unresolved reference', () => {
         expect(actions.some(action => action.title.includes('below'))).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
     test('omits create-below for a qualified unresolved reference', async () => {
         const document = await parse(s`
             consumer {
@@ -613,7 +613,7 @@ describe('Create idea below unresolved reference', () => {
         expect(actions.some(action => action.title.includes('below'))).toBe(false);
     });
 
-    // rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
     test('omits create-below when only refactor is requested', async () => {
         const document = await parse(s`
             consumer {

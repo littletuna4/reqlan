@@ -1,7 +1,7 @@
 /**
  * Tests for Ideas Summary table query builders and attribute aggregation.
- * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
- * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+ * per ["../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
  */
 import { describe, expect, test } from 'vitest';
 import {
@@ -10,6 +10,7 @@ import {
     buildIdeasWhereClause,
     buildIdeasetsWhereClause,
     buildReferencesWhereClause,
+    buildReferenceFilterClause,
     edgeKindsForReferenceViewTypes,
     filterAndPageAttributes
 } from '../src/index-store/webview-table-queries.js';
@@ -60,7 +61,7 @@ describe('ideas table column filters', () => {
         expect(order.startsWith('i.kind ASC')).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
+    // rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_list]
     test('orders by git date and change count columns', () => {
         expect(buildIdeasOrderClause({
             page: 0,
@@ -127,6 +128,23 @@ describe('references table column filters', () => {
         expect(sql).toContain('si.name LIKE ?');
         expect(sql).toContain('COALESCE(e.target_file, \'\') LIKE ?');
         expect(params).toEqual(Array(7).fill('%widget%'));
+    });
+});
+
+describe('idea reference filters', () => {
+    test('outbound file filters match indexed path, basename, and suffix', () => {
+        const { sql, params } = buildReferenceFilterClause(
+            'outbound:file:reqlan rq/extension/index-host/git-codelens.rq'
+        );
+        expect(sql).toContain('e.target_file LIKE ?');
+        expect(params).toEqual([
+            'reqlan rq/extension/index-host/git-codelens.rq',
+            'reqlan rq/extension/index-host/git-codelens.rq',
+            'git-codelens.rq',
+            'git-codelens.rq',
+            '%/git-codelens.rq',
+            '%/git-codelens.rq'
+        ]);
     });
 });
 

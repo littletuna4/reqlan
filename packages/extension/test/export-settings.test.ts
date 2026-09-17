@@ -8,7 +8,7 @@ import {
     loadExportFormSettings,
     resolveOutputDir,
     saveExportFormSettings
-} from '../src/analytical_submodule/export/export-settings.js';
+} from '../src/export_module/export-settings.js';
 
 describe('export form settings persistence', () => {
     const tempRoots: string[] = [];

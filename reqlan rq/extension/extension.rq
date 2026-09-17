@@ -1,0 +1,116 @@
+import "./host/scope.rq" as host_scope
+import "./host/architecture.rq" as host_architecture
+import "./host/activation.rq" as activation
+import "./host/installation.rq" as installation
+import "./host/configuration.rq" as configuration
+import "./host/startup-performance.rq" as startup
+import "./host/onboarding/page-thanks-for-installing.rq" as onboarding
+import "./host/features-commands.rq" as command_palette_doc
+import "./language/syntax/features-syntax.rq" as language_syntax
+import "./language/support/features-imports.rq" as language_imports
+import "./language/vsc-primitives.rq" as language_primitives
+import "./language/comment-references/functional-code-comment-references.rq" as comment_refs
+import "./index-host/index.rq" as index_host_doc
+import "./index-host/graph-analysers.rq" as graph_analysers
+import "./index-host/index-diagnostics.rq" as index_diagnostics
+import "./index-host/git-codelens.rq" as git_codelens
+import "./local-context/activitybar.rq" as activitybar
+import "./local-context/context-scope.rq" as context_scope_doc
+import "./local-context/context-scope-v2.rq" as context_scope_v2
+import "./workspace-summary/ideas_summary/webview.rq" as ideas_summary_doc
+import "./presentation/webview.rq" as webview_doc
+import "./presentation/graph.rq" as graph_lib
+import "./agent/chat-participant.rq" as chat_participant_doc
+import "./agent/features-ai.rq" as features_ai
+import "./agent/skills-and-mcp.rq" as skills_and_mcp
+import "./mutation/mutation-hooks.rq" as mutation_hooks
+import "./mutation/refactor_support.rq" as refactor_support
+import "./export/export.rq" as export_doc
+import "../core-architecture.rq" as core_architecture
+import "../../packages/extension/src/extension/main.ts" as extension_main
+
+extension_product {
+    The VS Code / Cursor extension is the editor product for the reqlan requirement graph.
+    It is not the language definition ([core_architecture.language_package]), the index engine
+    ([core_architecture.analytical_package]), or the headless MCP/CLI.
+    Host entry: [extension_main]. Product bound: [host_scope.vscode_extension], [host_scope.lsp_support].
+    Event-driven host mindset: [host_architecture.event_driven].
+    Domains nest under [extension_domains]. Surfaces for [core_architecture.extension_surfaces]
+    point at these domain hubs — not a flat bag of features-* files.
+    Composition root: [extension_main] registers domain modules after the index adapter activates.
+    @status done
+}
+
+host_lifecycle {
+    Install vs base, activation, first paint, onboarding, and configuration schema contribution.
+    [installation.installation], [activation.activation], [startup.startup_performance],
+    [onboarding.installation_event], [configuration.configuration_location],
+    [command_palette_doc.command_palette].
+    @status done
+}
+
+language_surface {
+    Edit-time intelligence in the text editor: LSP client glue, syntax, imports, comment `rq:[…]`,
+    CodeLens, inlays, and code actions.
+    [language_syntax.syntax_features], [language_imports], [language_primitives.code_actions],
+    [comment_refs.references_in_functional_code_comments].
+    @status done
+}
+
+index_host {
+    Thin VS Code adapter over `@reqlan/analytical`: watchers, Uri helpers, multi-base routing,
+    idle stale checks, git-date fill, and index diagnostics webview.
+    Engine ownership stays in the indexer; see [index_host_doc.application_memory],
+    [graph_analysers], [index_diagnostics.index_diagnostics], [git_codelens].
+    @status done
+}
+
+local_context {
+    Editor-adjacent Context sidebar and the composed context model.
+    Chrome and pane catalog: [activitybar.activity_bar].
+    Model: [context_scope_doc.context_scope]; evolution: [context_scope_v2.context_scope_v2]
+    (not a sibling product surface).
+    @status done
+}
+
+workspace_summary {
+    Ideas Summary — workspace-wide ontology tabs, graph, timeline, and index health.
+    [ideas_summary_doc.ideas_summary].
+    @status done
+}
+
+presentation {
+    Shared webview discipline and the cytoscape graph library. Not a user-facing product feature.
+    [webview_doc.webview], [graph_lib.graph_library].
+    @status done
+}
+
+agent_surface {
+    `@reqlan` chat, LM tools, Cursor skills, and MCP install/wrap (MCP package stays separate).
+    [chat_participant_doc.chat_participant], [features_ai.ai_integration], [skills_and_mcp].
+    @status done
+}
+
+graph_mutation {
+    Create / split / merge / copy, file-move hooks, and idea refactor.
+    [mutation_hooks], [refactor_support.refactor_changes].
+    @status done
+}
+
+export_surface {
+    One export webview over analytical writers (HTML, Markdown, JSON, CSV, PDF).
+    [export_doc.export_webview].
+    @status done
+}
+
+extension_domains (
+    host_lifecycle,
+    language_surface,
+    index_host,
+    local_context,
+    workspace_summary,
+    presentation,
+    agent_surface,
+    graph_mutation,
+    export_surface
+)

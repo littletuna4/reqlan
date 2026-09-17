@@ -1,16 +1,16 @@
 <script lang="ts">
     /**
      * Ideas table — filters, group-by kind, column options, indexed git columns.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_list]
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ideas_table_filters]
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_list]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ideas_table_filters]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".group_by_type]
      */
     import type {
         ColumnFilter,
         IdeaReferenceChip,
         IdeaTableRow,
         IdeasTableQuery
-    } from '../../../src/webview_module/shared/messages.js';
+    } from '../../../src/ideas_summary_module/shared/messages.js';
     import { attributeKeyFromChipItem } from '../lib/chip-labels.js';
     import { buildGroupHeaders, isColumnVisible } from '../lib/table-columns.js';
     import { formatGitDate } from '../lib/format-git-date.js';

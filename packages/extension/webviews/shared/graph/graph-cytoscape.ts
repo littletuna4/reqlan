@@ -1,10 +1,10 @@
 /**
  * Cytoscape graph helpers for the Ideas Summary graph tab.
- * per ["../../../../../reqlan rq/extension/library/graph.rq"] graph_cytoscape
+ * per ["../../../../../reqlan rq/extension/presentation/graph.rq"] graph_cytoscape
  */
 import type cytoscape from 'cytoscape';
 import type { ElementDefinition, StylesheetStyle } from 'cytoscape';
-import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from '../../../src/webview_module/shared/messages.js';
+import type { GraphEdgeView, GraphNodeView, GraphViewSlice } from '../../../src/ideas_summary_module/shared/messages.js';
 import {
     applyFileTreatment,
     DEFAULT_FILE_TREATMENT,

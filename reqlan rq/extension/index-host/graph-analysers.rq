@@ -1,0 +1,63 @@
+from "./index.rq" import application_memory
+import "../../indexer/indexer.rq" as indexer
+import "../../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
+
+indexing_trigger_filesave indexing should be triggered by .rq file create/change/delete via watchers, and by allowlisted source files that may contain comment references.
+
+indexing_trigger_manual {
+    Indexing should be triggered by manual indexing commands (Refresh / Clear & rebuild).
+    Refresh and Clear & rebuild always rediscover bases first via
+    ["../../bases/base.rq".refresh_rediscovers_bases] /
+    ["../../../packages/analytical/src/index-store/base-registry.ts"] `refresh`, then soft-sync or
+    rebuild the active base.
+    @implementation (
+        ["../../../packages/analytical/src/index-store/base-registry.ts"]
+        ["../../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+        ["../../../packages/extension/src/analytical_submodule/commands/register-commands.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a base created after an empty discovery"]
+        ["../../../packages/analytical/test/base-registry-refresh.test.ts:refresh rediscovers a nested base added after first discovery"]
+    )
+}
+
+indexing_trigger_open {
+    After the activity bar's first painted frame / base activate, run one soft sync (mtime-skipped) so the index is warm without delaying the sidebar shell.
+    This is a startup pass — not the idle checker ([indexing_trigger_auto]).
+}
+
+indexing_trigger_auto {
+    When the editor host is idle, run a **background staleness check** — not a reindex and not a soft full sync UI pass.
+    Philosophy: computationally cheap. Load document mtimes in **one** SQLite read, compare each file's FS mtime in memory, and only then index mismatched or new files; drop deleted docs in one batched delete.
+    A single MAX(mtime) watermark is not sufficient (one file can get newer while another gets older).
+    If nothing is stale: no state transition, no progress UI, no parse.
+    If some files are stale: index **only those files** under [indexer.nonblocking_index].
+    Schedule after a quiet period with no index activity; prefer running when the window is unfocused; defer or cancel if the user becomes active again.
+    Extension host only ([editor_index_adapter]); CLI/MCP have no idle loop (they sync on activate / command).
+    @tests (["../../../packages/analytical/test/workspace-index.test.ts"])
+    @status done
+}
+
+list_all_ideas {
+    The extension should provide a command to list all ideas in the workspace with file location and summary.
+}
+
+file_related_requirements {
+    The extension should provide a view or command to get requirements relating to the currently open file.
+    File-related lookup should follow both explicit file references and comment rq: links in that file.
+    Comment links are read from indexed `comment_link` edges ([indexer.index_code_files]), not only the open buffer.
+    ["../../cli/click.rq".click_code_file] uses the same indexed backlinks and comment links when the click target is a code file.
+    @tests (
+        ["../../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
+        ["../../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+    )
+}
+
+host_index_capabilities {
+    Host-facing analysers and commands over the shared index:
+    [list_all_ideas], [file_related_requirements],
+    [indexer.index_ideas], [indexer.index_technology], [indexer.local_graph_analysis],
+    [indexer.semantic_analysis], [indexer.git_dates], [indexer.completion_tracking],
+    [indexer.deprecation_impact_analysis].
+    Application memory: [application_memory].
+}

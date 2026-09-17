@@ -1,6 +1,6 @@
 // rq:["../../../../reqlan rq/site/site.rq".legacy_archaeology_showcase]
 // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference]
-// rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".deprecation_impact_analysis]
+// rq:["../../../../reqlan rq/indexer/indexer.rq".deprecation_impact_analysis]
 import type { Showcase } from "./types";
 
 export const legacyArchaeologyShowcase = {

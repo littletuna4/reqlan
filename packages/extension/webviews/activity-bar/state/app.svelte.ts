@@ -12,7 +12,7 @@ import type {
     AncestorChainResult,
     IdeaSummary
 } from '@reqlan/analytical';
-import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
+import type { GraphViewQuery, GraphViewSlice, IndexStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
 import type { PhonebookLinkView, ReferenceListsPayload, IdeaSearchHitView, IdeaSearchProgressPayload, IdeaSearchResultsPayload, TodoIdeaHitView, TodoListPayload } from '../../../src/activity_bar_module/activity-bar-messages.js';
 import { buildReferencesPayloadFromCurrentFile, groupReferences } from '../../../src/activity_bar_module/context-helpers.js';
 import { getVsCodeApi, postToExtension } from '../lib/vscode.js';
@@ -589,7 +589,7 @@ export class AppState {
     }
 
     searchIdeas(query: string, offset = 0): void {
-        // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_load_more]
         const requestId = this.nextRequestId('search');
         this.ideaSearchRequestId = requestId;
         const loadingMore = offset > 0;
@@ -613,7 +613,7 @@ export class AppState {
     }
 
     loadMoreIdeaSearch(): void {
-        // rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_load_more]
+        // rq:["../../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_load_more]
         const query = this.ideaSearchAppliedQuery.trim();
         if (
             !query

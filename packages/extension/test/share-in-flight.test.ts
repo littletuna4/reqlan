@@ -1,5 +1,5 @@
 /**
- * rq:["../../../reqlan rq/extension/language-support/initialisation-and-sequencing.rq".index_file_search_coalesce]
+ * rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".index_file_search_coalesce]
  */
 import { describe, expect, test } from 'vitest';
 import { shareInFlight, type InFlightSlot } from '../src/shared/share-in-flight.js';

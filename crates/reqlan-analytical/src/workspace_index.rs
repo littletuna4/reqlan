@@ -549,7 +549,7 @@ impl WorkspaceIndexRuntime {
 
     /// Fill git dates for the given idea ids (all non-ideaset ideas when None) via
     /// git history, persisting each result. Returns the count of ideas updated.
-    /// rq:["../../../reqlan rq/extension/git-codelens.rq".git_dates_background_indexing]
+    /// rq:["../../../reqlan rq/extension/index-host/git-codelens.rq".git_dates_background_indexing]
     pub fn fill_git_dates(
         &self,
         idea_ids: Option<Vec<String>>,
@@ -558,7 +558,7 @@ impl WorkspaceIndexRuntime {
     }
 
     /// Coverage metrics for the Ideas Summary Overview over the base root.
-    /// rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+    /// rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
     pub fn compute_overview_coverage(&self) -> Result<JsonValue, WorkspaceIndexError> {
         let scores =
             reqlan_index::compute_overview_coverage(self.store.connection(), &self.workspace_root)

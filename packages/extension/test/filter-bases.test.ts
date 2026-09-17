@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { BaseStatusView } from '../src/webview_module/shared/messages.js';
+import type { BaseStatusView } from '../src/ideas_summary_module/shared/messages.js';
 import {
     baseOptionMeta,
     baseStatusHint,

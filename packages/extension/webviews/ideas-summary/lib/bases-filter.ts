@@ -1,9 +1,9 @@
 /**
  * Client-side filter for the Bases table.
- * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".bases_tab]
- * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".bases_tab]
+ * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
  */
-import type { BaseStatusView, ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+import type { BaseStatusView, ColumnFilter } from '../../../src/ideas_summary_module/shared/messages.js';
 
 export function matchesBase(
     base: BaseStatusView,

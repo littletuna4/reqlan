@@ -12,6 +12,6 @@
         "./**/*.ts",
         "./**/*.svelte.ts",
         "./**/*.svelte",
-        "../../src/webview_module/shared/**/*.ts"
+        "../../src/ideas_summary_module/shared/**/*.ts"
     ]
 }

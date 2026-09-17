@@ -1,4 +1,4 @@
-import type { WebviewToExtensionMessage } from '../../../src/webview_module/shared/messages.js';
+import type { WebviewToExtensionMessage } from '../../../src/ideas_summary_module/shared/messages.js';
 
 interface VsCodeApi {
     postMessage(message: WebviewToExtensionMessage): void;

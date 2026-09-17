@@ -1,6 +1,6 @@
 <script lang="ts">
     /**
-     * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_match_highlighting]
+     * rq:["../../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_match_highlighting]
      */
     import { splitSearchHighlight } from '../../shared/search/fuzzy-search.js';
 

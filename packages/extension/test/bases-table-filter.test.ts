@@ -1,10 +1,10 @@
 /**
  * Bases table client-side search / column filters.
- * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".bases_tab]
- * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".bases_tab]
+ * per ["../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
  */
 import { describe, expect, test } from 'vitest';
-import type { BaseStatusView } from '../src/webview_module/shared/messages.js';
+import type { BaseStatusView } from '../src/ideas_summary_module/shared/messages.js';
 import { matchesBase } from '../webviews/ideas-summary/lib/bases-filter.js';
 
 function base(overrides: Partial<BaseStatusView> = {}): BaseStatusView {

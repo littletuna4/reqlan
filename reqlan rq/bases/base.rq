@@ -1,7 +1,7 @@
 from "../core-architecture.rq" import ideas_index
 from "../ontology.rq" import base as ontology_base, extension
-import "../extension/configuration.rq" as extension_configuration
-import "../extension/module/index.rq" as app_memory_doc
+import "../extension/host/configuration.rq" as extension_configuration
+import "../extension/index-host/index.rq" as app_memory_doc
 import "../../packages/analytical/src/core/base-discovery.ts" as base_discovery
 import "../../packages/analytical/src/index-store/base-registry.ts" as base_registry
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
@@ -118,15 +118,15 @@ base_modes {
 
 base_initialisation {
     Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see [extension_configuration.configuration_rqignore]), `.reqlan/.gitignore` ([base_initialisation_ignore]), and a sqlite ideas index under `.reqlan` ([base_ownership]).
-    [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json`, default `.rqignore` (["../extension/module/index.rq".rqignore_initialisation]), and `.gitignore` when the base is new.
-    Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/installation.rq".base_installation].
+    [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json`, default `.rqignore` (["../extension/index-host/index.rq".rqignore_initialisation]), and `.gitignore` when the base is new.
+    Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/host/installation.rq".base_installation].
 }
 
 base_initialisation_ignore {
     New bases seed `<base>/.reqlan/.gitignore` so Git does not track SQLite application-memory files.
     Patterns cover the ideas index ([base_ownership]), the diagnostics store ([app_memory_doc.index_diagnostics_store]), and SQLite sidecars (`*.sqlite`, `*.sqlite-journal`, `*.sqlite-shm`, `*.sqlite-wal`).
     This file is Git ignore for `.reqlan/`. Path filters for discovery stay in `.rqignore` ([extension_configuration.configuration_rqignore] / [app_memory_doc.rqignore]).
-    Written by [create_base_impl] as part of [base_initialisation] / ["../extension/installation.rq".base_installation].
+    Written by [create_base_impl] as part of [base_initialisation] / ["../extension/host/installation.rq".base_installation].
     @implementation (
         [create_base_impl]
         ["../../packages/analytical/src/core/application-memory.ts"]
@@ -162,24 +162,24 @@ active_base_switch {
     - Host surfaces rebind views to the newly active store (status snapshot, tables, context panes) immediately.
     - If the selected base is not yet ready, show its readiness/progress and **schedule** the normal activate catch-up
       (open if needed, then one soft sync) fire-and-forget — same path as ["../indexer/indexer.rq".triggers] /
-      ["../extension/features-graph-analysers.rq".indexing_trigger_open], not a special switcher rebuild.
+      ["../extension/index-host/graph-analysers.rq".indexing_trigger_open], not a special switcher rebuild.
     - Idle staleness checks only touch bases that are already open; they must not reopen every discovered base
-      (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+      (["../extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]).
     - Open failures stay isolated per base so one bad base cannot leave siblings stranded in `uninitialized`.
     - Editor-follow must not overwrite a user pin on the same refresh that applies the selection.
     - Inactive bases release SQLite artifacts when the active pointer moves away
-      (["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]).
-    Surfaces: activity bar ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker], Ideas Summary ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope].
+      (["../extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]).
+    Surfaces: activity bar ["../extension/local-context/activitybar-panels/workspace.rq".workspace_base_picker], Ideas Summary ["../extension/workspace-summary/ideas_summary/base-scope.rq".ideas_summary_base_scope].
     Implemented by [editor_index_adapter] (`setActiveBaseId` / `scheduleBaseCatchUp`); engine: [base_registry] `ensureBaseReady` / `releaseArtifacts`, [workspace_index] `ensureReady` / `deactivate`.
     @implementation (
         [editor_index_adapter]
         [base_registry]
         [workspace_index]
         ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
-        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
-        ["../extension/module/activitybar-panels/workspace.rq".workspace_base_picker]
-        ["../extension/module/ideas_summary/base-scope.rq".ideas_summary_base_scope]
-        ["../extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+        ["../../packages/extension/src/ideas_summary_module/ideas-summary-panel.ts"]
+        ["../extension/local-context/activitybar-panels/workspace.rq".workspace_base_picker]
+        ["../extension/workspace-summary/ideas_summary/base-scope.rq".ideas_summary_base_scope]
+        ["../extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
     )
     @tests (
         ["../../packages/analytical/test/base-registry-catchup.test.ts:ensureBaseReady opens and soft-syncs an uninitialized base"]
@@ -241,8 +241,8 @@ refresh_rediscovers_bases {
     that analytical API; it must not invent a parallel discovery walk.
     Create Base follows the same refresh path after [create_base_impl] so the new marker is visible
     immediately ([create_base_onboarding]).
-    Related: [multi_base_environment], ["../extension/features-graph-analysers.rq".indexing_trigger_manual],
-    ["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access].
+    Related: [multi_base_environment], ["../extension/index-host/graph-analysers.rq".indexing_trigger_manual],
+    ["../extension/index-host/sqlite-artifact-lifecycle.rq".event_driven_base_access].
 
     @status done
     @implementation (
@@ -250,7 +250,7 @@ refresh_rediscovers_bases {
         [editor_index_adapter]
         [register_commands]
         ["../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts"]
-        ["../../packages/extension/src/webview_module/ideas-summary-panel.ts"]
+        ["../../packages/extension/src/ideas_summary_module/ideas-summary-panel.ts"]
         ["../../packages/extension/webviews/activity-bar/components/WorkspacePane.svelte"]
         ["../../packages/extension/webviews/ideas-summary/components/IndexPanel.svelte"]
     )

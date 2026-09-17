@@ -6,8 +6,8 @@
  * get newer while another gets older and the max stays unchanged.
  *
  * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_incrementality]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_auto]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".indexing_incrementality]
+ * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_auto]
  */
 import { stat } from 'node:fs/promises';
 

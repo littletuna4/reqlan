@@ -3,7 +3,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
-//! rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+//! rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
 
 use crate::extract::{extract_indexed_document, hash_text, ExtractOptions};
 use crate::ids::edge_id;

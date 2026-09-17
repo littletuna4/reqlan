@@ -1,0 +1,86 @@
+
+import "../../core_analysis/export.rq" as analysis_export
+import "../../core_analysis/html_export.rq" as html_export
+import "./html-export.rq" as html_export_ui
+
+export_webview {
+    The extension should provide a single export webview for user configuration of graph exports.
+    Format choice is primary; format-specific options appear when that format is selected (HTML: [html_export_ui.html_export_form]; Markdown / JSON / CSV / PDF: shared filters and format fields below).
+    Shared options: base (when more than one exists), scope (entire base or current file), output folder, and export name.
+    The form is ["../../bases/base.rq".base]-aware: it lists discovered bases, defaults to the active base (["../../bases/base.rq".active_base_switch]), exports from the selected base’s index, and persists defaults to that base’s ["../index-host/index.rq".application_memory] as `export_settings.json` under `<base>/.reqlan/` (["../../bases/base.rq".multi_base_environment]).
+    Changing the base in the form pins the active base (pointer swap + catch-up) so host surfaces stay aligned with the export target.
+    While an export runs, the form should show a loading state with live progress (phase message and, when known, completed/total or percent) from [analysis_export.export_pipeline].
+    Execution is delegated to analytical writers: [html_export.html_export], [analysis_export.markdown_export], [analysis_export.json_export], [analysis_export.csv_export], [analysis_export.pdf_export].
+    The user should be able to open it from:
+      - a link/control in the main ["../workspace-summary/ideas_summary/webview.rq".ideas_summary] chrome (status bar or header)
+      - the ["../host/features-commands.rq".command_palette] (`Export HTML…` / `Export Markdown…` / `Export JSON…` / `Export CSV…` / `Export PDF…` open with that format pre-selected) via [export_html] / [export_markdown] / [export_JSON] / [export_csv] / [export_pdf]
+    @status partial
+    @implementation (
+        ["../../../packages/extension/src/export_module/export-form-panel.ts"]
+        ["../../../packages/extension/src/export_module/export-form-messages.ts"]
+        ["../../../packages/extension/src/export_module/export-form-settings-types.ts"]
+        ["../../../packages/extension/src/export_module/export-settings.ts"]
+        ["../../../packages/extension/src/export_module/register-export-commands.ts"]
+        ["../../../packages/extension/webviews/export-form/"]
+    )
+    @tests (
+        ["../../../packages/extension/test/export-settings.test.ts"]
+        ["../../../packages/extension/test/extension-package.test.ts"]
+    )
+}
+
+markdown_export {
+    Markdown export UI is hosted in [export_webview] (idea pages toggle, shared base/scope/output/name and file filters).
+    Execution: [analysis_export.markdown_export].
+    @status done
+}
+
+json_export {
+    JSON export UI is hosted in [export_webview] (shared base/scope/output/name and file filters).
+    Execution: [analysis_export.json_export].
+    @status done
+}
+
+csv_export {
+    CSV export UI is hosted in [export_webview] (shared base/scope/output/name and file filters).
+    Execution: [analysis_export.csv_export].
+    @status done
+}
+
+pdf_export {
+    PDF export UI is hosted in [export_webview] (not a separate QuickPick chain): file filters and print entry filename plus shared base/scope/output/name.
+    Execution: [analysis_export.pdf_export] (print-oriented HTML → browser Print → Save as PDF).
+    @status partial
+}
+
+export_configurability {
+    Exports should be built with a print/export menu available for user configuration.
+    The initial export should accept a user prompt input for a file name.
+    Preferred UI is [export_webview] rather than separate QuickPick chains per format.
+}
+
+export_csv {
+    A command palette action should open [export_webview] with CSV selected.
+    UI: [csv_export]. Execution: [analysis_export.csv_export].
+}
+
+export_JSON {
+    A command palette action should open [export_webview] with JSON selected.
+    UI: [json_export]. Execution: [analysis_export.json_export].
+}
+
+export_html {
+    A command palette action should open [export_webview] with HTML selected ([html_export_ui.html_export_form]).
+    Execution: [html_export.html_export].
+    Host options for embedded mounts include [html_export.html_export_header_link] and [html_export.html_export_url_base].
+}
+
+export_pdf {
+    A command palette action should open [export_webview] with PDF selected.
+    UI: [pdf_export]. Execution: [analysis_export.pdf_export].
+}
+
+export_markdown {
+    A command palette action should open [export_webview] with Markdown selected.
+    UI: [markdown_export]. Execution: [analysis_export.markdown_export].
+}

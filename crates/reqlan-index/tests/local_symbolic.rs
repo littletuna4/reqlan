@@ -91,3 +91,16 @@ other {
     assert!(host_out.len() >= 2);
     assert!(host_in.is_empty());
 }
+
+#[test]
+fn analyze_local_symbolic_source_offsets_are_utf8_bytes() {
+    let source = "alpha { x }\nbeta {\n    café [alpha]\n}";
+    let doc = analyze_local_symbolic("demo/host.rq", source, &[]);
+    let local =
+        doc.edges.iter().find(|edge| edge.label.as_deref() == Some("alpha")).expect("alpha edge");
+    let start = local.source_offset_start.unwrap() as usize;
+    let end = local.source_offset_end.unwrap() as usize;
+    assert_eq!(&source[start..end], "[alpha]");
+    assert_eq!("café".len(), 5);
+    assert_eq!("café".chars().count(), 4);
+}

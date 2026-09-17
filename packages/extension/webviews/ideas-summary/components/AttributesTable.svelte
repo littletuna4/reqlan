@@ -1,9 +1,9 @@
 <script lang="ts">
     /**
      * Attributes index table for the active base.
-     * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
+     * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
      */
-    import type { AttributesTableQuery, ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+    import type { AttributesTableQuery, ColumnFilter } from '../../../src/ideas_summary_module/shared/messages.js';
     import { isColumnVisible } from '../lib/table-columns.js';
     import { getApp } from '../state/context.js';
     import ChipList from './ChipList.svelte';

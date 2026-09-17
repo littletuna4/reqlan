@@ -1,0 +1,53 @@
+codelens {
+    Outbound classification CodeLens on references:
+    ["./syntax/features-syntax-highlighting.rq".code_lens_reference_types].
+    File-top inbound file-reference CodeLens:
+    ["./syntax/features-syntax-highlighting.rq".file_inbound_code_lens].
+    Idea inbound `@referenced-by` remains an inlay:
+    ["./syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints].
+}
+
+code_completion {
+    Editor completion for ideas, imports, and paths. Canonical requirements: ["./syntax/features-syntax.rq".code_completion].
+}
+
+inlay_hints {
+    Inbound-reference inlay hints. Detail: ["./support/open-file-sequencing.rq".open_file_hot_path].
+}
+
+code_actions {
+    Language-server code actions for `.rq` files, plus comment-file Quick Fixes for ignore-error:
+    - Quick fixes for unresolved references (add import, rewrite qualified ref, search, create file) — ["./support/features-imports.rq".import_error]
+    - Refactor: search/replace or wrap as idea reference — ["../host/features-commands.rq".search_code_actions]
+    - Refactor: move or delete an idea declaration — ["../mutation/refactor_support.rq".refactor_symbol_move] ["../mutation/refactor_support.rq".refactor_symbol_delete]
+    - File-level source action: barrel page — ["../host/features-commands.rq".barrel_page]
+    - Quick Fix: insert `//rq-ignore-error` before a line with diagnostics — ["../host/features-commands.rq".code_actions_ignore_error]
+    - Quick Fix: create a missing local idea below the idea that contains the unresolved reference — ["../host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    Command-backed search/replace and barrel actions omit LSP command arguments so VS Code does not cache disposable delegating ids; the extension resolves the active editor (or document) when the command runs.
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../packages/extension/src/extension/register-import-error-commands.ts"]
+        ["../../../packages/extension/src/extension/main.ts"]
+        ["../../../packages/extension/src/language/main.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/register-barrel-page-command.ts"]
+        ["../../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
+        ["../../../packages/language/src/reqlan-ignore-error-action.ts"]
+        ["../../../packages/language/src/reqlan-create-idea-below.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts"]
+        ["../../../packages/extension/test/extension-package.test.ts"]
+        ["../../../packages/extension/test/barrel-page-apply.test.ts"]
+        ["../../../packages/language/test/idea-refactor.test.ts"]
+        ["../../../packages/language/test/ignore-error-action.test.ts"]
+        ["../../../packages/extension/test/ignore-error-code-action.test.ts"]
+        ["../../../packages/language/test/code-actions.test.ts:creates the missing idea below the containing idea when only one is unresolved"]
+        ["../../../packages/language/test/code-actions.test.ts:offers all or a specific unresolved idea when the caret idea has several"]
+    )
+}
+
+quick_fixes {
+    Quick-fix subset of [code_actions] (import errors, ignore-error, create-below).
+}

@@ -80,7 +80,7 @@
         "reqlan.referencesCodeLens.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links."
+          "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links. File-top inbound @referenced-by CodeLens is always shown when the file has inbound file references."
         }
       }
     },
@@ -298,6 +298,11 @@
       {
         "command": "reqlan.openInboundReferencesSummary",
         "title": "Open Inbound References Summary",
+        "category": "reqlan"
+      },
+      {
+        "command": "reqlan.openInboundFileReferencesSummary",
+        "title": "Open Inbound File References Summary",
         "category": "reqlan"
       },
       {

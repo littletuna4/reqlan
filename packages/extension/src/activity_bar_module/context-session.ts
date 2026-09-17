@@ -1,6 +1,6 @@
 /**
  * Session-side context signals (history rings, dimension toggles, hop depth).
- * per ["../../../../reqlan rq/extension/module/context-scope.rq"]
+ * per ["../../../../reqlan rq/extension/local-context/context-scope.rq"]
  */
 import {
     clampGraphHopDepth,

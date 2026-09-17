@@ -1,6 +1,6 @@
 /**
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax.rq".syntax_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_highlighting]
  * rq:["../../../reqlan rq/language/syntax.rq".block_idea]
  * rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
  * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
@@ -89,7 +89,7 @@ beforeAll(async () => {
 });
 
 describe('TextMate idea highlighting', () => {
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
     test('same-line named block rule closes on the opening line', () => {
         const grammar = loadGrammarFile();
         const sameLine = grammar.repository['top-level-same-line-idea-block'];
@@ -106,7 +106,7 @@ describe('TextMate idea highlighting', () => {
             .toBeLessThan(rootIncludes.indexOf('#top-level-one-liner-idea'));
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
     test('e2e: same-line named braces do not swallow later ideas', async () => {
         const source = `mybadidea1 {}
 mybadidea2 {hello}
@@ -127,7 +127,7 @@ mybadidea3
         expect(scopedNames(source, IDEA_NAME_SCOPE)).toEqual(parsed.map(idea => idea.name));
     });
 
-    // rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".same_line_named_block_highlighting]
     test('e2e: TextMate idea names match the Langium parse', async () => {
         const source = `one_liner_curly_brace_context this should {be acceptable} as well
 empty_block {}

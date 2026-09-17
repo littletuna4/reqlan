@@ -2,7 +2,7 @@
  * Formats inbound reference lists for idea declaration inlay hints.
  * Inbound lists come from the SQLite snapshot pushed by the extension host.
  * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
  */
 import { AstUtils } from 'langium';
 import {
@@ -108,6 +108,16 @@ function referencerPartTooltip(referrer: InboundReferencer): MarkupContent {
     };
 }
 
+export function formatInboundReferencedByTitle(names: string[]): string | undefined {
+    if (names.length === 0) {
+        return undefined;
+    }
+    const inlineNames = names.slice(0, MAX_INLINE_NAMES);
+    const remainder = names.length - inlineNames.length;
+    const suffix = remainder > 0 ? `, +${remainder} more` : '';
+    return `@referenced-by: (${inlineNames.join(', ')}${suffix})`;
+}
+
 export function buildInboundReferencesInlayLabel(
     referencers: InboundReferencer[],
     targetDocumentUri: string,
@@ -161,11 +171,12 @@ export function formatInboundReferencesInlayLabel(referencers: string[]): { labe
     if (referencers.length === 0) {
         return undefined;
     }
-    const inlineNames = referencers.slice(0, MAX_INLINE_NAMES);
-    const remainder = referencers.length - inlineNames.length;
-    const suffix = remainder > 0 ? `, +${remainder} more` : '';
+    const title = formatInboundReferencedByTitle(referencers);
+    if (!title) {
+        return undefined;
+    }
     return {
-        label: `@referenced-by: (${inlineNames.join(', ')}${suffix})`,
+        label: title,
         tooltip: referencers.join('\n')
     };
 }

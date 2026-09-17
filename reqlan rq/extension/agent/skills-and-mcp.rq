@@ -1,0 +1,140 @@
+from "../../cli/click.rq" import click, agent_advisory
+from "../../core_analysis/check.rq" import check, check_order_by_target
+from "../index-host/index.rq" import application_memory
+import "../../../packages/mcp/src/server.ts" as mcp_server
+import "../../../packages/mcp/test/server.test.ts" as mcp_server_test
+
+mcp_tools {
+    The MCP server (`@reqlan/mcp`, [mcp_server]) exposes a small tool set for AI clients.
+    Search and retrieval use [mcp_click_retrieval] only.
+    Reference checks use [mcp_check].
+    Do not expose parse, search, list, file context, local graph, summarise subtree,
+    requirement_reference, file_reference, or list_interactions as MCP tools.
+    Those operations stay on AnalysisApi and CLI when they exist.
+    Headless index storage follows [application_memory] (`<base>/.reqlan`), shared with the extension and CLI.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        [mcp_server_test]
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+    )
+}
+
+mcp_check {
+    MCP `check` wraps [check] for AI clients ([mcp_server]).
+    The tool returns JSON issue rows in [check_order_by_target] order.
+    An empty list means that there are no issues.
+    Optional arguments match the CLI [check] flags: glob, wildcard-zero, wildcard-one, skip-targets, and skip-gitignored-targets.
+    Related: [mcp_tools] [check] ["../../core_analysis/check.rq".check_unresolved_imports]
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../../packages/mcp/test/server.test.ts:check returns JSON issue rows"]
+    )
+}
+
+mcp_click_retrieval {
+    MCP `click` is the canonical search and retrieval tool ([click], [mcp_server]).
+    One tool returns compact unique context, ranked ambiguous matches, or search hits.
+    A second click on the same centre in the session returns connected content ([agent_advisory]).
+    This surface maximises the token-to-insight ratio: names, short bodies, and caps — not edge dumps or full-graph lists.
+    Keyword search, file context, local graph, and subtree expansion are click paths, not extra MCP tools.
+    Agents must pass `sessionKey` on the next click.
+    Related: [mcp_keyword_search], [mcp_tree_interrogation], [mcp_tree_summarisation].
+    @status done
+    @implementation (
+        [mcp_server]
+        [click]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../../packages/analytical/test/click.test.ts:click API returns session key and unique then revisit"]
+    )
+}
+
+mcp_tools_prompt {
+    An mcp tool may provide a prompt-oriented entry point for working with the requirement graph.
+    That tool must call [mcp_click_retrieval] for search and retrieval. It must not call the removed tools.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+    )
+}
+
+mcp_keyword_search {
+    Keyword search across idea names, bodies, and attributes is a [click] path when no centre matches.
+    Do not expose a separate MCP search tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../../crates/reqlan-analytical/tests/click.rs:click_falls_through_to_search_when_nothing_matches"]
+    )
+}
+
+mcp_tree_interrogation {
+    File and idea neighbourhoods are a [click] unique result (outbound, backlinks, siblings).
+    Do not expose a separate MCP file-context or local-graph tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
+        ["../../../crates/reqlan-analytical/tests/click.rs:click_code_file_returns_backlinks_and_comment_refs"]
+    )
+}
+
+mcp_tree_summarisation {
+    Compact subtree context is a [click] revisit: connected content for a centre already clicked in the session.
+    Do not expose a separate MCP summarise-subtree tool.
+    @status done
+    @implementation (
+        [mcp_click_retrieval]
+        [click]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+        ["../../../crates/reqlan-analytical/tests/click.rs:click_revisit_returns_connected_content"]
+    )
+}
+
+mcp_interaction_discovery {
+    MCP clients discover tools through the MCP protocol tool list.
+    Do not expose a list_interactions MCP tool.
+    @status done
+    @implementation (
+        [mcp_server]
+    )
+    @tests (
+        ["../../../packages/mcp/test/server.test.ts:MCP surface is click, check, completion_status, and prompt"]
+    )
+}
+
+skill_namespace_references {
+    backslash references to skills based on the namespace should be supported.
+}
+
+cursor_skills_install {
+    A command palette action (e.g. ctrl+p: reqlan install cursor skills) should copy rq-* skills from the extension into the workspace .cursor/skills folder and update .cursor/mcp.json.
+    Prefer the workspace `packages/mcp/bin/mcp.js` when present; otherwise `npx -y @reqlan/mcp` from ["../../distribution/distribution.rq".npm_distribution].
+    Place in install sequencing (workspace agent files, not `.reqlan`): ["../host/installation.rq".workspace_agent_files].
+}
+
+chat_skill_naming {
+    Cursor and Copilot chat skills and slash commands should use the rq- prefix, e.g. rq-search and rq-build-requirement.
+    This prefix must not appear in command palette titles; palette entries use category Reqlan only.
+}

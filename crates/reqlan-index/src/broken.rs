@@ -6,9 +6,13 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+//! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_does_not_exist_error]
+//! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
+//! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
 
 use crate::comment::{unresolved_comment_references, CommentReference};
 use crate::extract::{
@@ -20,8 +24,9 @@ use crate::rq_ignore::find_rq_ignore_error_target_lines;
 use crate::store::{IndexStore, StoreError};
 use crate::types::{EdgeKind, EdgeRecord, IdeaKind};
 use reqlan_parse::{
-    file_from_idea_id, is_absolute_uri_or_path, match_import_root_mapping,
-    parse_file_reference_string, resolve_rq_path, unquote_path, ImportRootMapping,
+    file_from_idea_id, import_path_candidates, is_absolute_uri_or_path, match_import_root_mapping,
+    parse_document, parse_file_reference_string, resolve_rq_path, unquote_path, Import,
+    ImportRootMapping,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -78,6 +83,7 @@ impl SparseWildcardHandling {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 #[derive(Debug, Clone)]
 pub struct CheckReferencesOptions<'a> {
     pub path_glob: Option<&'a str>,
@@ -115,7 +121,7 @@ pub struct BrokenReference {
     pub source_line: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet: Option<String>,
-    /// `error` for unresolved idea/file/comment refs; `warning` for sparse wildcards.
+    /// `error` for unresolved idea/file/comment/import refs; `warning` for sparse wildcards.
     #[serde(default = "error_severity")]
     pub severity: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,7 +132,7 @@ fn error_severity() -> String {
     "error".to_string()
 }
 
-/// CI check: unresolved idea refs, comment refs, and missing code files.
+/// CI check: unresolved idea refs, comment refs, missing code files, and imports.
 /// Skips lines after `//rq-ignore-error`.
 /// Ordered by missing target so shared broken refs group together.
 /// rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
@@ -135,6 +141,7 @@ fn error_severity() -> String {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 pub fn check_references(
     store: &IndexStore,
     workspace_root: &Path,
@@ -151,6 +158,7 @@ pub fn check_references(
     )?;
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
     append_wildcard_sparse_rows(store, workspace_root, &options, &mut rows, &mut ignore_cache)?;
+    append_unresolved_import_rows(store, workspace_root, &options, &mut rows, &mut ignore_cache)?;
     omit_skipped_targets(&mut rows, options.skip_targets);
     if options.skip_gitignored_targets {
         omit_gitignored_file_targets(&mut rows, workspace_root);
@@ -177,9 +185,20 @@ fn omit_gitignored_file_targets(rows: &mut Vec<BrokenReference>, workspace_root:
     let gitignore = WorkspaceGitignore::load(workspace_root);
     let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
     rows.retain(|row| {
-        row.kind != EdgeKind::FileReference.as_str()
+        !is_gitignorable_missing_path(row)
             || !file_target_is_gitignored(row, &gitignore, &import_roots)
     });
+}
+
+fn is_gitignorable_missing_path(row: &BrokenReference) -> bool {
+    if row.kind == EdgeKind::FileReference.as_str() {
+        return true;
+    }
+    row.kind == EdgeKind::Import.as_str() && looks_like_import_path_label(&row.label)
+}
+
+fn looks_like_import_path_label(label: &str) -> bool {
+    label.contains('/') || label.contains('\\') || label.contains('.') || label.starts_with('@')
 }
 
 fn file_target_is_gitignored(
@@ -288,6 +307,174 @@ fn append_wildcard_sparse_rows(
         });
     }
     Ok(())
+}
+
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+/// rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_does_not_exist_error]
+fn append_unresolved_import_rows(
+    store: &IndexStore,
+    workspace_root: &Path,
+    options: &CheckReferencesOptions<'_>,
+    rows: &mut Vec<BrokenReference>,
+    ignore_cache: &mut HashMap<String, HashSet<u32>>,
+) -> Result<(), StoreError> {
+    let mut ideas_by_file: HashMap<String, HashSet<String>> = HashMap::new();
+    for idea in store.list_all_ideas()? {
+        ideas_by_file.entry(idea.file_uri).or_default().insert(idea.name);
+    }
+    let indexed_rq: HashSet<String> =
+        store.list_document_uris()?.into_iter().filter(|uri| is_rq_uri(uri)).collect();
+    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
+
+    for file_uri in store.list_document_uris()? {
+        if !is_rq_uri(&file_uri) {
+            continue;
+        }
+        if !file_matches(options.path_glob, &file_uri) {
+            continue;
+        }
+        let path = workspace_root.join(&file_uri);
+        let Ok(source) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let parsed = parse_document(&source);
+        for import in &parsed.model.imports {
+            push_unresolved_import_issues(
+                import,
+                &file_uri,
+                workspace_root,
+                &import_roots,
+                &ideas_by_file,
+                &indexed_rq,
+                ignore_cache,
+                rows,
+            );
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn push_unresolved_import_issues(
+    import: &Import,
+    source_file: &str,
+    workspace_root: &Path,
+    import_roots: &[ImportRootMapping],
+    ideas_by_file: &HashMap<String, HashSet<String>>,
+    indexed_rq: &HashSet<String>,
+    ignore_cache: &mut HashMap<String, HashSet<u32>>,
+    rows: &mut Vec<BrokenReference>,
+) {
+    let Some((path, path_line, ideas)) = well_formed_import_parts(import) else {
+        return;
+    };
+    if path.is_empty() || is_remote_import_path(path) {
+        return;
+    }
+    match resolve_existing_import_path(workspace_root, source_file, path, import_roots) {
+        None => {
+            if line_is_ignored(workspace_root, source_file, Some(path_line), ignore_cache) {
+                return;
+            }
+            rows.push(import_issue(source_file, path, path_line));
+        }
+        Some(resolved) => {
+            for (idea, line) in ideas {
+                if line_is_ignored(workspace_root, source_file, Some(line), ignore_cache) {
+                    continue;
+                }
+                if file_declares_idea(workspace_root, &resolved, &idea, ideas_by_file, indexed_rq) {
+                    continue;
+                }
+                rows.push(import_issue(source_file, &idea, line));
+            }
+        }
+    }
+}
+
+type ImportSpecifierSites = Vec<(String, u32)>;
+
+fn well_formed_import_parts(import: &Import) -> Option<(&str, u32, ImportSpecifierSites)> {
+    match import {
+        Import::InvalidFrom(_) => None,
+        Import::From(from) if from.specifiers.is_empty() => None,
+        Import::From(from) => {
+            let ideas = from
+                .specifiers
+                .iter()
+                .filter(|spec| !spec.idea.is_empty())
+                .map(|spec| (spec.idea.clone(), spec.span.line_start))
+                .collect();
+            Some((from.path.as_str(), from.span.line_start, ideas))
+        }
+        Import::Namespace(ns) => Some((ns.path.as_str(), ns.span.line_start, Vec::new())),
+        Import::Qualified(qualified) if qualified.idea.is_empty() => None,
+        Import::Qualified(qualified) => Some((
+            qualified.path.as_str(),
+            qualified.span.line_start,
+            vec![(qualified.idea.clone(), qualified.span.line_start)],
+        )),
+    }
+}
+
+fn import_issue(source_file: &str, label: &str, source_line: u32) -> BrokenReference {
+    BrokenReference {
+        file_uri: source_file.to_string(),
+        source_id: None,
+        source_name: None,
+        kind: EdgeKind::Import.as_str().to_string(),
+        label: label.to_string(),
+        source_line: Some(source_line),
+        snippet: None,
+        severity: "error".to_string(),
+        match_count: None,
+    }
+}
+
+fn is_rq_uri(file_uri: &str) -> bool {
+    file_uri.to_ascii_lowercase().ends_with(".rq")
+}
+
+fn is_remote_import_path(path: &str) -> bool {
+    path.contains("://")
+}
+
+fn resolve_existing_import_path(
+    workspace_root: &Path,
+    source_file: &str,
+    authored: &str,
+    import_roots: &[ImportRootMapping],
+) -> Option<String> {
+    for candidate in import_path_candidates(authored) {
+        let resolved = resolve_rq_path(&candidate, source_file, import_roots);
+        if file_exists(workspace_root, &resolved) {
+            return Some(resolved);
+        }
+    }
+    None
+}
+
+fn file_declares_idea(
+    workspace_root: &Path,
+    file_uri: &str,
+    name: &str,
+    ideas_by_file: &HashMap<String, HashSet<String>>,
+    indexed_rq: &HashSet<String>,
+) -> bool {
+    if let Some(names) = ideas_by_file.get(file_uri) {
+        return names.contains(name);
+    }
+    if indexed_rq.contains(file_uri) {
+        return false;
+    }
+    let path = workspace_root.join(file_uri);
+    if !path.is_file() {
+        return false;
+    }
+    let Ok(source) = std::fs::read_to_string(&path) else {
+        return false;
+    };
+    parse_document(&source).model.elements.iter().any(|element| element.name() == Some(name))
 }
 
 pub fn list_broken_references(

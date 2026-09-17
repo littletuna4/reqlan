@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import type { ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+    import type { ColumnFilter } from '../../../src/ideas_summary_module/shared/messages.js';
     import type { ColumnFilterSpec } from '../lib/column-filters.js';
 
     export let columns: ColumnFilterSpec[] = [];

@@ -7,7 +7,7 @@ describe('toWorkspaceRelativePath', () => {
     test('relativizes Windows absolute fsPath', () => {
         expect(
             toWorkspaceRelativePath('C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq', workspaceRoot)
-        ).toBe('reqlan rq/extension/scope.rq');
+        ).toBe('reqlan rq/extension/host/scope.rq');
     });
 
     test('relativizes file:// URI on Windows', () => {
@@ -16,18 +16,18 @@ describe('toWorkspaceRelativePath', () => {
                 'file:///c%3A/Users/tony/reqlan/reqlan%20rq/extension/scope.rq',
                 workspaceRoot
             )
-        ).toBe('reqlan rq/extension/scope.rq');
+        ).toBe('reqlan rq/extension/host/scope.rq');
     });
 
     test('relativizes mixed-case Windows paths', () => {
         expect(
             toWorkspaceRelativePath('c:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq', workspaceRoot)
-        ).toBe('reqlan rq/extension/scope.rq');
+        ).toBe('reqlan rq/extension/host/scope.rq');
     });
 
     test('leaves already-relative paths unchanged', () => {
-        expect(toWorkspaceRelativePath('reqlan rq/extension/scope.rq', workspaceRoot)).toBe(
-            'reqlan rq/extension/scope.rq'
+        expect(toWorkspaceRelativePath('reqlan rq/extension/host/scope.rq', workspaceRoot)).toBe(
+            'reqlan rq/extension/host/scope.rq'
         );
     });
 

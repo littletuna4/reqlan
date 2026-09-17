@@ -7,7 +7,7 @@ import { SqliteIndexStore } from '../src/index-store/sqlite-store.js';
 import { ideaId, type IdeaRecord } from '../src/core/types.js';
 
 const workspaceRoot = 'C:\\Users\\tony\\reqlan';
-const relativeFileUri = 'reqlan rq/extension/scope.rq';
+const relativeFileUri = 'reqlan rq/extension/host/scope.rq';
 const windowsAbsoluteUri = 'C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq';
 
 function mockIdea(name: string, fileUri: string): IdeaRecord {

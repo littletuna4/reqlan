@@ -8,7 +8,7 @@ import {
 import { IDEAS_SUMMARY_CAPTURE_CSS } from "../lib/capture-css.ts";
 import { postToWebview } from "../lib/host.ts";
 import type { DocsShot } from "./types.ts";
-import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts";
+import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts";
 
 async function handleIdeasSummaryHost(
   page: Page,

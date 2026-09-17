@@ -899,12 +899,17 @@ fn is_attribute_opener(before: &str) -> bool {
 }
 
 fn ident_suffix(before: &str) -> bool {
+    // Slice after the last non-ident char, not start+1 (middle-dot `·` is two UTF-8 bytes).
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".lexer_rust]
     let trimmed = before.trim_end_matches([' ', '\t']);
-    let Some(start) = trimmed.rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+    let Some((start, ch)) = trimmed
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !(c.is_ascii_alphanumeric() || *c == '_' || *c == '-'))
     else {
         return !trimmed.is_empty() && is_ident_start(trimmed.as_bytes()[0]);
     };
-    let ident = &trimmed[start + 1..];
+    let ident = &trimmed[start + ch.len_utf8()..];
     !ident.is_empty() && is_ident_start(ident.as_bytes()[0])
 }
 

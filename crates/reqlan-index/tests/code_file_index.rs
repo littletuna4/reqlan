@@ -1,7 +1,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
-//! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".index_comment_reference_inclusion]
-//! rq:["../../../reqlan rq/extension/features-graph-analysers.rq".file_related_requirements]
-//! rq:["../../../reqlan rq/extension/module/index.rq".binary_ignore]
+//! rq:["../../../reqlan rq/indexer/indexer.rq".index_comment_reference_inclusion]
+//! rq:["../../../reqlan rq/extension/index-host/graph-analysers.rq".file_related_requirements]
+//! rq:["../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
 
 use reqlan_index::sync::{index_one_file, sync_workspace, SyncOptions};
 use reqlan_index::{EdgeKind, IndexStore};

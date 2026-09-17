@@ -34,13 +34,14 @@ import {
 
 /**
  * Registers validation hooks for the requirement graph AST.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
- * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
- * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
  */
 export function registerValidationChecks(services: ReqlanServices) {
     const registry = services.validation.ValidationRegistry;
@@ -54,15 +55,15 @@ export function registerValidationChecks(services: ReqlanServices) {
 
 /**
  * Custom validations for Reqlan documents.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_does_not_exist_error]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_folder_targets]
- * rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_does_not_exist_error]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/language/imports.rq".import_error_recovery]
  * rq:["../../../reqlan rq/language/imports.rq".import_tokenisation]
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
- * rq:["../../../reqlan rq/extension/features-non-rq-code-comment/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
  */
 export class ReqlanValidator {
 

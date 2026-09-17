@@ -1,13 +1,13 @@
 /**
  * Shared import / anonymous file-path completion candidates, folder browsing, and proximity ranking.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_explicit_extension]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_path_segments]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_substring_match]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_code_completion_ranking]
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".anonymous_reference_code_completion]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_explicit_extension]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_path_segments]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_substring_match]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_ranking]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
 import { UriUtils } from 'langium';
@@ -158,7 +158,7 @@ export function comparePathCompletionCandidates(
 
 /**
  * Sort with a single proximity-key computation per candidate.
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
  */
 export function sortPathCompletionCandidates(
     document: LangiumDocument,

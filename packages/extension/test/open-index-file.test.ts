@@ -1,5 +1,5 @@
 /**
- * rq:["../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_open_live_file]
+ * rq:["../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_open_live_file]
  */
 import { describe, expect, test } from 'vitest';
 import { pickOpenWorkspaceDocument } from '../src/analytical_submodule/index-store/open-index-file-pick.js';

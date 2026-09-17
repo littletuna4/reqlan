@@ -5,7 +5,11 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { getPhonebookLink } from "../lib/phonebook.js";
-import { showcaseFeatureMailto, showcases } from "./showcases/index.js";
+import {
+  isCodeBlock,
+  showcaseFeatureMailto,
+  showcases,
+} from "./showcases/index.js";
 
 const showcasesDir = dirname(fileURLToPath(import.meta.url)) + "/showcases";
 
@@ -49,7 +53,7 @@ describe("broken-links showcase", () => {
 
 describe("agent-context showcase", () => {
   // rq:["../../../reqlan rq/site/site.rq".agent_context_showcase]
-  // rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
+  // rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
 
   it("shows MCP click as the shaped context tool", () => {
     const showcase = showcases.find((item) => item.id === "agent-context");
@@ -64,6 +68,54 @@ describe("agent-context showcase", () => {
     assert.match(click.query, /click\(/);
     assert.doesNotMatch(click.query, /file_context/);
     assert.match(click.response, /sessionKey/);
+  });
+});
+
+describe("story-codebase showcase", () => {
+  // rq:["../../../reqlan rq/site/site.rq".story_codebase_showcase]
+  // rq:["../../../reqlan rq/development/core.rq".code_comment_references]
+  // rq:["../../../reqlan rq/development/core.rq".testing]
+  // rq:["../../../reqlan rq/cli/click.rq".click]
+
+  it("story-codebase binds a story to source and tests", () => {
+    const showcase = showcases.find((item) => item.id === "story-codebase");
+    assert.ok(showcase);
+    assert.equal(showcase.tier, "flagship");
+    assert.ok(showcase.tags.includes("story"));
+    assert.match(showcase.summary, /@implementation/);
+    assert.match(showcase.summary, /@tests/);
+
+    const story = showcase.blocks.find(
+      (block) => isCodeBlock(block) && block.language === "rq",
+    );
+    assert.ok(story && "code" in story);
+    assert.match(story.code, /seat_hold/);
+    assert.match(story.code, /@implementation/);
+    assert.match(story.code, /@tests/);
+    assert.match(story.code, /hold\.ts"\.startHold/);
+    assert.match(story.code, /releases the seat after eight minutes/);
+
+    const sources = showcase.blocks.filter(
+      (block) => isCodeBlock(block) && block.language === "ts",
+    );
+    assert.equal(sources.length, 2);
+    for (const source of sources) {
+      assert.match(source.code, /rq:\[/);
+      assert.match(source.code, /seat_hold/);
+    }
+    assert.match(sources[1].code, /releases the seat after eight minutes/);
+
+    const click = showcase.blocks.find(
+      (block) =>
+        "kind" in block &&
+        block.kind === "exchange" &&
+        block.query.includes("click("),
+    );
+    assert.ok(click && "response" in click);
+    assert.match(click.query, /seat_hold/);
+    assert.match(click.response, /sessionKey/);
+    assert.match(click.response, /seat_hold/);
+    assert.match(click.response, /hold\.ts/);
   });
 });
 

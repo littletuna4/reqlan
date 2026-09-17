@@ -97,6 +97,7 @@ export interface LocalSymbolicEdge {
     sourceLine?: number;
     snippet?: string;
     isResolved?: boolean;
+    /** UTF-8 byte offset; convert to UTF-16 before LSP `positionAt`. */
     sourceOffsetStart?: number;
     sourceOffsetEnd?: number;
 }
@@ -126,9 +127,10 @@ export interface LocalSymbolicDocument {
 
 /**
  * File-local symbolic extract (path + source): outbound edges and same-file inbound backlinks.
- * No workspace catalog.
+ * No workspace catalog. Cross-file idea confirmation is an LSP depth-1 hop.
  * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  */
 export function analyzeLocalSymbolic(
     fileUri: string,

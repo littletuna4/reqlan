@@ -98,7 +98,7 @@ export class BaseRegistry {
      * always rediscover `.reqlan` markers under `roots`, then soft-sync the
      * preferred / default active base when `allRqFiles` is provided.
      * rq:["../../../../reqlan rq/bases/base.rq".refresh_rediscovers_bases]
-     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_manual]
+     * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_manual]
      */
     async refresh(
         roots: string[],
@@ -167,7 +167,7 @@ export class BaseRegistry {
     /**
      * Close every open SQLite handle while keeping base descriptors registered.
      * The next ensureBaseReady / open event can reopen the same entries.
-     * rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
+     * rq:["../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]
      */
     async releaseArtifacts(): Promise<void> {
         for (const entry of this.entries.values()) {

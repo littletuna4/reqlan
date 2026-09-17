@@ -14,6 +14,7 @@ site {
     the /site folder contains a static Next.js App Router landing page for reqlan.
     should align with [brand]
     Copy modules: [copy]
+    Document head: [meta_tags]
 }
 
 simple_lightweight_and_static {
@@ -562,6 +563,36 @@ brand {
 
 images {
     The source logo is in the /public folder. A sharp dev script is used to generate pngs and favicons etc which should be executed if the svg source logo changes.
+    The script also writes the Open Graph image `/og.png` (1200×630) per [meta_tags].
+    @implementation (
+        ["../../site/scripts/generate-images.mjs"]
+        ["../../site/public/logo.svg"]
+        ["../../site/public/og.png"]
+    )
+}
+
+meta_tags {
+    The site HTML head must include a document title, a description, a canonical URL, Open Graph tags, and Twitter card tags.
+    Canonical origin is the phonebook `site` href per [phonebook_reqs.phonebook].
+    Default title and description live in ["../../site/src/content/meta.ts"] per [copy].
+    Root layout ["../../site/src/app/layout.tsx"] sets the shared metadata: title template `%s · reqlan`, description, icons, manifest, theme colour, Open Graph image, and Twitter `summary_large_image`.
+    Each marketing page must set a title and a description. Showcase and tutorial detail pages use the item title and summary.
+    Open Graph image is 1200×630 PNG at `/og.png`, generated with favicons per [images].
+    Compatible with [simple_lightweight_and_static].
+    Do not index the presentation player route per [presentation_player_route].
+    @status done
+    @implementation (
+        ["../../site/src/content/meta.ts"]
+        ["../../site/src/lib/site-metadata.ts"]
+        ["../../site/src/app/layout.tsx"]
+        ["../../site/scripts/generate-images.mjs"]
+        ["../../site/public/og.png"]
+    )
+    @tests (
+        ["../../site/src/lib/site-metadata.test.ts"]
+        ["../../site/src/content/meta.test.ts"]
+        ["../../site/scripts/verify-static-export.mts"]
+    )
 }
 
 copy {
@@ -894,6 +925,7 @@ features_tier_1 {
         bidirectional_comment_links {
             rq-comment refs in TS, Python, C, ST, etc.
             Code points back, with working document links.
+            A product story bound this way is [story_codebase_showcase].
         }
         refs_break_loudly {
             Unresolved references are error diagnostics with quick-fix code actions.
@@ -903,7 +935,7 @@ features_tier_1 {
         }
         mcp_as_shaped_context {
             MCP `click` is the search and retrieval tool
-            (["../extension/features-skills-and-mcp.rq".mcp_click_retrieval]).
+            (["../extension/agent/skills-and-mcp.rq".mcp_click_retrieval]).
             Hand an agent compact unique context, ranked matches, or search hits — not forty files.
         }
     )
@@ -931,14 +963,14 @@ features_tier_2 {
         }
         cytoscape_graph_view {
             Status/tag filters, indirect-reference depth toggle, and Wildcard refs edge toggle
-            (["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]).
+            (["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]).
         }
         wildcard_path_idea_refs {
             Qualified path + idea-pattern references — `["../mod/**/*.rq".*_pane]` —
             fan out across files as `wildcard_reference` edges
             (["../indexer/indexer.rq".wildcard_reference_edges]); navigation opens a matches panel.
             See ["../language/imports.rq".wildcard_references],
-            ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+            ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
         }
         html_multipage_export {
             HTML multi-page export as an actual deliverable.
@@ -957,7 +989,7 @@ features_not_demonstrated {
     Keyword-scored search must not be marketed as semantic search / embeddings.
 }
 
-// --- the eleven showcases ----------------------------------------------------
+// --- the showcases -----------------------------------------------------------
 
 agent_context_showcase {
     Flagship. Context for the agent, not the repo.
@@ -1056,6 +1088,43 @@ firmware_cloud_contract_showcase {
         embedded
     )
     @implementation ["../../site/src/content/showcases/firmware-cloud.ts"]
+}
+
+story_codebase_showcase {
+    Flagship. A story that ships with the code.
+    Write the feature as one idea. Bind source with @implementation.
+    Bind proof with @tests. Point back with rq: comments.
+    Click on that name returns the bound files — not a ticket outside the repo.
+    Domain: product delivery.
+    One worked name across every block per [one_worked_example_per_page].
+    Payoff is click output per [every_showcase_ends_in_a_payoff]
+    and ["../cli/click.rq".click].
+    Uses [development_core.code_comment_references] and [development_core.testing].
+    Demonstrates [sub_file_binding] and [bidirectional_comment_links].
+
+    @domain product-delivery
+    @mechanism (
+        implementation_attribute
+        tests_attribute
+        comment_links
+        click
+    )
+    @tier flagship
+    @status done
+    @tags (
+        story
+        traceability
+        delivery
+    )
+    @implementation (
+        ["../../site/src/content/showcases/story-codebase.ts"]
+        ["../../site/src/content/showcases/index.ts"]
+    )
+    @tests (
+        ["../../site/src/content/showcases.test.ts:story-codebase binds a story to source and tests"]
+        ["../../site/src/content/showcases.test.ts:gives each showcase its own file with rq comment references"]
+        ["../../site/scripts/validate-showcase-rq.mts"]
+    )
 }
 
 audit_trail_showcase {
@@ -1214,6 +1283,7 @@ showcase_set (
     interlock_showcase,
     broken_links_showcase,
     firmware_cloud_contract_showcase,
+    story_codebase_showcase,
     audit_trail_showcase,
     module_surface_showcase,
     test_proves_showcase,

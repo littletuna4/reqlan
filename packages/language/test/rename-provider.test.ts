@@ -23,7 +23,7 @@ describe("ReqlanRenameProvider", () => {
     document = undefined;
   });
 
-  // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+  // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
   test("rename updates declaration and wikilink references", async () => {
     document = await parse(`alpha {
     see [[beta]]
@@ -59,7 +59,7 @@ beta {
     ).toBeGreaterThanOrEqual(2);
   });
 
-  // rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_rename]
+  // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
   test("rename also updates rq comment idea tokens in the same document", async () => {
     document = await parse(
       `alpha {

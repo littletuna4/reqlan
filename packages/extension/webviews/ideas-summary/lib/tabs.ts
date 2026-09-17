@@ -6,7 +6,7 @@
  * rq:["../../../../../reqlan rq/ontology.rq".reference]
  * rq:["../../../../../reqlan rq/ontology.rq".base]
  * rq:["../../../../../reqlan rq/ontology.rq".cartographic_map]
- * rq:["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".ontology_aligned_tabs]
+ * rq:["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".ontology_aligned_tabs]
  */
 export type Tab =
     | 'overview'

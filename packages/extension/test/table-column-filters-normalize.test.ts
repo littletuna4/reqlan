@@ -1,12 +1,12 @@
 /**
  * Table column filter / search text normalization for Ideas Summary.
- * per ["../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
+ * per ["../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
  */
 import { describe, expect, test } from 'vitest';
 import {
     normalizeColumnFilters,
     preserveFilterText
-} from '../src/webview_module/shared/table-query-normalize.js';
+} from '../src/ideas_summary_module/shared/table-query-normalize.js';
 
 describe('preserveFilterText', () => {
     test('keeps interior and trailing spaces', () => {

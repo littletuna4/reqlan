@@ -1,8 +1,8 @@
 /**
  * VS Code git extension + `git` CLI for Activity Bar focus history.
  * CLI spawns use a hidden Windows console.
- * rq:["../../../../reqlan rq/extension/module/context-scope.rq".git_context]
- * rq:["../../../../reqlan rq/extension/module/index.rq".git_information_capture]
+ * rq:["../../../../reqlan rq/extension/local-context/context-scope.rq".git_context]
+ * rq:["../../../../reqlan rq/extension/index-host/index.rq".git_information_capture]
  * rq:["../../../../reqlan rq/core_analysis/core.rq".consumption_silence]
  */
 import * as vscode from 'vscode';

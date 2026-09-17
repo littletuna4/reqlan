@@ -6,15 +6,14 @@ import "../../packages/analytical/src/index-store/workspace-mtime.ts" as workspa
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/analytical/src/core/application-memory.ts" as application_memory_impl
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
-import "../extension/module/index.rq" as app_memory_doc
-import "../extension/features-graph-analysers.rq" as graph_analysers
-import "../extension/module/activitybar.rq" as activity_bar_doc
-import "../extension/module/activitybar-panels/workspace.rq" as workspace_pane_doc
-import "../extension/module/ideas_summary/webview.rq" as ideas_summary_doc
+import "../extension/index-host/index.rq" as app_memory_doc
+import "../extension/index-host/graph-analysers.rq" as graph_analysers
+import "../extension/local-context/activitybar.rq" as activity_bar_doc
+import "../extension/local-context/activitybar-panels/workspace.rq" as workspace_pane_doc
+import "../extension/workspace-summary/ideas_summary/webview.rq" as ideas_summary_doc
 import "../../packages/analytical/test/workspace-index.test.ts" as workspace_index_tests
 import "../core_analysis/core.rq" as core_analysis
 from "../language/syntax.rq" import comment_reference
-from "../extension/features-graph-analysers.rq" import index_comment_reference_inclusion
 import "./sqlite-schema.rq" as sqlite_schema
 import "./diagnostics-schema.rq" as diagnostics_schema
 import "./sidecars.rq" as sidecars
@@ -37,7 +36,7 @@ index {
     Wildcard path+idea fan-out: [wildcard_reference_edges]
     (["../language/imports.rq".wildcard_references]).
     Ideas Summary graph can hide those edges via [ideas_summary_doc] /
-    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     Soft mtime sync skips unchanged files. `extract_version` in the ideas index meta is the extract-rule generation. When that number does not match the engine, sync rebuilds so stale edges do not remain (["../language/syntax.rq".inline_code]).
     Owned by [ownership]; consumed per [consumption].
     @tests (
@@ -63,14 +62,14 @@ wildcard_reference_edges {
     (["../../packages/analytical/src/index-store/sqlite-store.ts"]).
     Ideas Summary references table groups them under sub-idea with other idea-to-idea links;
     graph visibility is [ideas_summary_doc] /
-    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
+    ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
     Soft mtime sync skips unchanged files — after introducing this edge kind, reindex (or touch)
     `.rq` files that contain wildcards so stored rows leave any legacy `references` fan-out.
     Langium `idea-extractor` keeps the same kind for remaining TS extract paths.
     Open-file local extract ([local_symbolic_analysis]) does not expand wildcards against a catalog.
 
     Related: ["../language/imports.rq".wildcard_references], [index], [indexer_rust],
-    ["../extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle],
+    ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle],
     [local_symbolic_analysis].
 
     @status done
@@ -100,15 +99,25 @@ wildcard_reference_edges {
 local_symbolic_analysis {
     Open-file symbolic analysis must run in Rust on one file only.
     Input: file URI plus source text (and optional import-root mappings).
-    Output: ideas in that file, outbound edges with source byte spans, and same-file
+    Output: ideas in that file, outbound edges with UTF-8 source byte spans, and same-file
     inbound backlinks (edges whose target is an idea declared in this file).
+    LSP document-link and error underlines must convert those spans to UTF-16
+    (["../extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]).
     Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
     Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
+    This extract is not the Langium AST
+    (["../extension/language/support/open-file-sequencing.rq".ast_lifecycle]).
+    The language server confirms cross-file idea names with a separate depth-1 neighbor parse
+    (["../extension/language/support/open-file-sequencing.rq".outbound_one_hop]).
+    That hop is not part of this native extract. The LSP caches this file's extract by URI
+    plus text fingerprint
+    (["../extension/language/support/open-file-sequencing.rq".open_file_hot_path]).
+    That hop is not part of this native extract.
     Wildcard forms stay one `wildcard_reference` pattern edge (unresolved); sync still expands
     them later via [wildcard_reference_edges].
     Flag: `ExtractOptions.local_symbolic` forces an empty candidate list.
     CLI: ["../cli/cli_package.rq".commands] `analyse --local-symbolic <file>`.
-    Sidebar: ["../extension/module/activitybar-panels/current_context_scope.rq".reference_lists_pane]
+    Sidebar: ["../extension/local-context/activitybar-panels/current_context_scope.rq".reference_lists_pane]
     merges live same-file inbound/outbound with indexed refs ([local_symbolic_sidebar]).
     Related: ["../language/syntax.rq".open_file_reference_sequencing], [index],
     ["./cache-reuse.rq".unify_inbound_indexes].
@@ -123,6 +132,7 @@ local_symbolic_analysis {
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../packages/language/src/reqlan-utf8-lsp-offset.ts"]
         ["../../packages/cli/src/commands/analyse.ts"]
         ["../../packages/extension/src/activity_bar_module/local-symbolic-context.ts"]
         ["../../packages/extension/src/activity_bar_module/context-model.ts"]
@@ -131,9 +141,11 @@ local_symbolic_analysis {
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_returns_outbound_without_catalog"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_ignores_catalog_candidates"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_includes_same_file_inbound_backlinks"]
+        ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_source_offsets_are_utf8_bytes"]
         ["../../packages/analytical/test/load-native.test.ts:exposes analyzeLocalSymbolic on the engine when present"]
         ["../../packages/analytical/test/local-symbolic-references.test.ts"]
         ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
         ["../../packages/cli/test/local-symbolic.test.ts"]
         ["../../packages/extension/test/local-symbolic-context.test.ts"]
     )
@@ -178,10 +190,10 @@ consumption {
 
 nonblocking_index {
     Index sync must stay non-blocking for the host UI (notably [activity_bar_doc.activity_bar] and [workspace_pane_doc.workspace_loading]).
-    Editor startup is gated by ["../extension/activation.rq".first_paint_startup]; discovering a base must not construct Langium services, which are initialized lazily on the first parse.
+    Editor startup is gated by ["../extension/host/activation.rq".first_paint_startup]; discovering a base must not construct Langium services, which are initialized lazily on the first parse.
     While syncing, surface progress — state, processed/total, and the current file — in [workspace_pane_doc.workspace_pane] and [ideas_summary_doc.index_panel].
     In-flight sync must be cancellable from those surfaces; cancel keeps already-indexed rows and returns the index to ready.
-    Incremental behaviour (see also [graph_analysers.indexing_incrementality]):
+    Incremental behaviour (see also [indexing_incrementality]):
     - Single-file create/change/delete via watchers indexes only that file — never a full base walk.
     - Soft full sync (`syncWorkspace` / Refresh) skips parse+persist when the file's mtime matches the value stored on the documents row.
     - Hard refresh (`clearAndRebuildIndex` / Clear & rebuild) wipes the store and reindexes every file.
@@ -196,8 +208,8 @@ nonblocking_index {
 }
 
 triggers {
-    Index refresh behaviour (capability detail in [graph_analysers]):
-    - [graph_analysers.indexing_incrementality] / [nonblocking_index] — incremental where possible
+    Index refresh behaviour:
+    - [indexing_incrementality] / [nonblocking_index] — incremental where possible
     - [graph_analysers.indexing_trigger_filesave] / [app_memory_doc.idea_index_triggers] — on `.rq` or indexed code-file change
     - [graph_analysers.indexing_trigger_manual] — manual reindex commands
     - [graph_analysers.indexing_trigger_open] — one soft sync after the activity-bar first-paint gate
@@ -207,13 +219,71 @@ triggers {
 }
 
 capabilities {
-    Product capabilities over the [index]: [graph_analysers.index_ideas], [graph_analysers.index_technology], and sibling analysers in that file.
-    Indexing performance timing and diagnostic UI: ["../extension/features-index-diagnostics.rq".index_diagnostics].
+    Product capabilities over the [index]: [index_ideas], [index_technology], [local_graph_analysis],
+    [semantic_analysis], [git_dates], [completion_tracking], [deprecation_impact_analysis],
+    [index_comment_reference_inclusion], and host triggers in [graph_analysers].
+    Indexing performance timing and diagnostic UI: ["../extension/index-host/index-diagnostics.rq".index_diagnostics].
+}
+
+index_ideas {
+    Each ["../bases/base.rq".base] maintains an index of its ideas for fast lookup and navigation ([index]).
+    The index should update incrementally as .rq files change within that base (nested child bases excluded).
+    Persistence lives in [app_memory_doc.application_memory] per base, shared with CLI and MCP — not VS Code extension storage.
+    Engine ownership: [workspace_index] in `@reqlan/analytical`; multi-base via BaseRegistry; editor watches via [editor_index_adapter].
+}
+
+index_technology {
+    The [index_ideas] graph database is rusqlite via the core native engine.
+    On-disk location is [app_memory_doc.application_memory] (`<base>/.reqlan/ideas-index.sqlite`), not `context.globalStorageUri`.
+    Implementation: [application_memory_impl], [workspace_index], headless [analysis_runtime] for CLI/MCP, and [editor_index_adapter] for the VS Code host.
+}
+
+indexing_incrementality {
+    Indexing should be incremental: watcher-driven single-file updates, and soft full syncs that skip unchanged files by stored mtime.
+    Hard rebuilds reparse everything. Detail and UX (progress, cancel, non-blocking UI): [nonblocking_index].
+}
+
+index_comment_reference_inclusion {
+    Comment `rq:[…]` sites are indexed as `comment_link` edges plus first-class code-file documents, not a separate idea kind.
+    Graph surfaces them as idea → external file nodes (same file-node id as outbound ["../reference_types.rq".file_reference]).
+    Live editor links still use the comment grammar / resolver; the index path is native [index_code_files].
+    @status done
+}
+
+deprecation_impact_analysis {
+    Analyse the impact of deprecated ideas on dependent requirements.
+    Deprecation analysis should report downstream ideas that reference or depend on deprecated items.
+}
+
+git_dates {
+    Creation and last-modified dates, and change count, for ideas via git history where available.
+    Values are written into the ideas index by the `git_dates` analyser as a silent background job after
+    soft-sync / catalog updates (batched, yielded) — not triggered by Activity Bar focus, opening Timeline,
+    or Ideas table load.
+    Host queue and rate caps: ["../extension/index-host/git-codelens.rq".git_dates_background_indexing].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/git_dates.rs"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+    )
+}
+
+completion_tracking {
+    Track and surface completion, outstanding work, and open issues across the requirement graph.
+    Completion tracking should derive from @status, @tags, and other lifecycle attributes where present.
+}
+
+local_graph_analysis {
+    Provide a function to access a small slice of the graph around a given idea.
+}
+
+semantic_analysis {
+    Search the graph for ideas related to a given idea or ideaset.
 }
 
 index_diagnostics_timing {
     Soft sync and per-file index paths record durations into the diagnostic index under [app_memory_doc.index_diagnostics_store].
-    See ["../extension/features-index-diagnostics.rq".index_diagnostics_metrics].
+    See ["../extension/index-host/index-diagnostics.rq".index_diagnostics_metrics].
     Must not block [nonblocking_index]; recording failures are swallowed / logged by the store and must not fail the sync.
 }
 
@@ -229,7 +299,7 @@ index_code_files {
     Consumers: [graph_analysers.file_related_requirements], ["../core_analysis/search.rq".file_search],
     ["../core_analysis/html_export.rq".html_export_code_reference_pages], Ideas Summary comment-reference rows,
     local graph (idea → external file node), ["../cli/click.rq".click_code_file].
-    See [graph_analysers.index_comment_reference_inclusion], ["../ontology.rq".referenced_files].
+    See [index_comment_reference_inclusion], ["../ontology.rq".referenced_files].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/comment.rs"]

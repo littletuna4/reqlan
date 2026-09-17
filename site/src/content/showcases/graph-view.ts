@@ -1,5 +1,5 @@
 // rq:["../../../../reqlan rq/site/site.rq".graph_view_showcase]
-// rq:["../../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+// rq:["../../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph]
 import type { Showcase } from "./types";
 
 export const graphViewShowcase = {

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onDestroy, onMount } from 'svelte';
-    import type { GraphUiFileTreatment } from '../../../src/webview_module/shared/graph-ui-state.js';
+    import type { GraphUiFileTreatment } from '../../../src/ideas_summary_module/shared/graph-ui-state.js';
     import {
         FILE_TREATMENT_OPTIONS,
         fileTreatmentLabel,

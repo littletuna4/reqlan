@@ -81,7 +81,7 @@ webview_build {
     )
     Output lands in `packages/extension/media/webviews/` for the extension host to load.
     The onboarding webview inlines ["../../packages/extension/templates/thanks-for-installing.template.rq"] via Vite `?raw` for the in-page language example; the template source stays excluded from the VSIX.
-    Requirement: ["../extension/onboarding/page-thanks-for-installing.rq".installation_event].
+    Requirement: ["../extension/host/onboarding/page-thanks-for-installing.rq".installation_event].
     Watch mode during development: `bash scripts/watch.sh` vite `--watch` alongside tsc and esbuild.
 }
 

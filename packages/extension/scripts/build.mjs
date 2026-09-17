@@ -25,7 +25,7 @@ const sharedInputs = [
 ];
 const sharedWebviewInputs = [
     fromExtension('webviews', 'shared'),
-    fromExtension('src', 'webview_module', 'shared'),
+    fromExtension('src', 'ideas_summary_module', 'shared'),
     fromRepo('packages', 'analytical', 'out'),
 ];
 
@@ -170,7 +170,7 @@ const steps = [
         inputs: [
             ...sharedInputs,
             fromExtension('webviews', 'index-diagnostics'),
-            fromExtension('src', 'diagnostics_module', 'index-diagnostics-messages.ts'),
+            fromExtension('src', 'index_host_module', 'diagnostics', 'index-diagnostics-messages.ts'),
         ],
         outputs: [fromExtension('media', 'webviews', 'index-diagnostics')],
     },

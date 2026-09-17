@@ -1,6 +1,6 @@
 /**
  * Helpers for Ideas Summary table column visibility and grouping headers.
- * per ["../../../../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_options]
+ * per ["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_options]
  */
 
 export function isColumnVisible(visibleColumns: string[], id: string): boolean {

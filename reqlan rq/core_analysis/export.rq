@@ -26,7 +26,7 @@ markdown_export {
     When per-idea pages are disabled, idea bodies are inlined in the README.
     Shared base/scope/output/name and file filters apply; HTML-only page families (graph, clusters, attributes, print) are omitted.
     Pipeline: `exportMarkdown` / `writeMarkdownExport` using the same snapshot builder as HTML ([export_pipeline]).
-    Extension UI host: ["../extension/features-export.rq".export_webview].
+    Extension UI host: ["../extension/export/export.rq".export_webview].
     @status done
     @implementation (
         ["../../packages/analytical/src/export/export-markdown.ts"]
@@ -42,7 +42,7 @@ json_export {
     JSON export writes `export.json` for the selected base: ideas (with attributes and reference lists), files, clusters, attributes, and status/tag rollups — suitable for tooling and AI consumption.
     Shared base/scope/output/name and file filters apply.
     Pipeline: `exportJson` / `writeJsonExport` ([export_pipeline]).
-    Extension UI host: ["../extension/features-export.rq".export_webview].
+    Extension UI host: ["../extension/export/export.rq".export_webview].
     @status done
     @implementation (
         ["../../packages/analytical/src/export/export-json.ts"]
@@ -59,7 +59,7 @@ csv_export {
     CSV export writes `ideas.csv` with tags and non-status/tag attributes flattened into columns (`attr:<key>`), plus `references.csv` for inbound/outbound/unresolved edges.
     Shared base/scope/output/name and file filters apply.
     Pipeline: `exportCsv` / `writeCsvExport` ([export_pipeline]).
-    Extension UI host: ["../extension/features-export.rq".export_webview].
+    Extension UI host: ["../extension/export/export.rq".export_webview].
     @status done
     @implementation (
         ["../../packages/analytical/src/export/export-csv.ts"]
@@ -75,7 +75,7 @@ pdf_export {
     PDF export prepares a print-oriented HTML report from the selected base so the user can Print → Save as PDF in the browser.
     Direct PDF binary rendering is not required yet; preserve links in the printable HTML (["./html_export.rq".html_export_printable_pages]).
     PDF-specific options include file filters and print entry filename; shared base/scope/output/name apply.
-    Extension UI host: ["../extension/features-export.rq".export_webview] (not a separate QuickPick chain).
+    Extension UI host: ["../extension/export/export.rq".export_webview] (not a separate QuickPick chain).
     @status partial
     @implementation (
         ["../../crates/reqlan-export/src/html.rs"]

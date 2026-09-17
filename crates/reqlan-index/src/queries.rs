@@ -2,10 +2,10 @@
 //! Ported from packages/analytical/src/index-store/{webview-table-queries,webview-graph-queries}.ts
 //! and the page/count query bodies of sqlite-store.ts. Presentation mapping of the returned
 //! raw rows (attribute formatting, reference-chip path resolution) stays in TS.
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".table_column_filters]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".group_by_type]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/webview.rq".attributes_tab]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".table_column_filters]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".group_by_type]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".attributes_tab]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph]
 
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{EdgeRecord, IdeaRecord, FILTER_EMPTY, FILTER_NOT_PRESENT};
@@ -214,9 +214,19 @@ pub fn build_reference_filter_clause(filter_key: &str) -> (String, Vec<JsonValue
         );
     }
     if let Some(target_file) = filter_key.strip_prefix("outbound:file:") {
+        let target_file = target_file.replace('\\', "/");
+        let basename = target_file.rsplit('/').next().unwrap_or(target_file.as_str()).to_string();
+        let suffix = format!("%/{basename}");
         return (
-            "EXISTS (\n                SELECT 1 FROM edges e\n                WHERE e.source_id = i.id\n                AND e.target_id IS NULL\n                AND (e.target_file = ? OR e.label = ?)\n            )".to_string(),
-            vec![json!(target_file), json!(target_file)],
+            "EXISTS (\n                SELECT 1 FROM edges e\n                WHERE e.source_id = i.id\n                AND e.target_id IS NULL\n                AND (\n                    e.target_file = ? OR e.label = ?\n                    OR e.target_file = ? OR e.label = ?\n                    OR e.target_file LIKE ? OR e.label LIKE ?\n                )\n            )".to_string(),
+            vec![
+                json!(target_file),
+                json!(target_file),
+                json!(basename),
+                json!(basename),
+                json!(suffix),
+                json!(suffix),
+            ],
         );
     }
     if let Some(source_id) = filter_key.strip_prefix("inbound:idea:") {
@@ -1243,6 +1253,50 @@ mod tests {
         assert_eq!(rows[0]["source_name"], json!("alpha"));
         assert_eq!(rows[0]["target_name"], json!("gamma"));
         assert_eq!(rows[0]["kind"], json!("references"));
+    }
+
+    #[test]
+    fn inbound_for_file_returns_file_reference_targeting_file() {
+        let mut store = IndexStore::open_in_memory().unwrap();
+        let ideas = vec![
+            idea("src.rq#alpha", "alpha", "src.rq", 1, "{}"),
+            idea("g.rq#gamma", "gamma", "g.rq", 1, "{}"),
+        ];
+        let mut file_edge = edge("e-file", "src.rq#alpha", None, EdgeKind::FileReference);
+        file_edge.target_file = Some("g.rq".into());
+        file_edge.label = Some("g.rq".into());
+        store.upsert_document("src.rq", "h1", &ideas[..1], &[file_edge], None).unwrap();
+        store.upsert_document("g.rq", "h2", &ideas[1..], &[], None).unwrap();
+        let rows = get_inbound_for_file_rows(store.connection(), "g.rq").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["kind"], json!("file_reference"));
+        assert_eq!(rows[0]["source_name"], json!("alpha"));
+        assert_eq!(rows[0]["target_file"], json!("g.rq"));
+    }
+
+    #[test]
+    fn inbound_for_file_returns_file_reference_targeting_code_file() {
+        let mut store = IndexStore::open_in_memory().unwrap();
+        let ideas = vec![idea("src.rq#owner", "owner", "src.rq", 1, "{}")];
+        let edges = vec![EdgeRecord {
+            id: "e-file".to_string(),
+            source_id: "src.rq#owner".to_string(),
+            target_id: None,
+            target_file: Some("lib.ts".to_string()),
+            kind: EdgeKind::FileReference,
+            label: Some("lib.ts".to_string()),
+            source_line: Some(2),
+            snippet: None,
+            is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None,
+        }];
+        store.upsert_document("src.rq", "h1", &ideas, &edges, None).unwrap();
+        let rows = get_inbound_for_file_rows(store.connection(), "lib.ts").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["kind"], json!("file_reference"));
+        assert_eq!(rows[0]["source_name"], json!("owner"));
+        assert_eq!(rows[0]["target_file"], json!("lib.ts"));
     }
 
     #[test]

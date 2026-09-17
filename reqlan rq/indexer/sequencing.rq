@@ -1,11 +1,10 @@
-from "./indexer.rq" import index, nonblocking_index, triggers, index_code_files
-from "../extension/features-graph-analysers.rq" import indexing_incrementality
-from "../extension/features-graph-analysers.rq" import indexing_trigger_filesave
-from "../extension/features-graph-analysers.rq" import indexing_trigger_manual
-from "../extension/features-graph-analysers.rq" import indexing_trigger_open
-from "../extension/features-graph-analysers.rq" import indexing_trigger_auto
-from "../extension/module/index.rq" import idea_index_triggers
-from "../extension/activation.rq" import first_paint_startup, background_startup
+from "./indexer.rq" import index, nonblocking_index, triggers, index_code_files, indexing_incrementality
+from "../extension/index-host/graph-analysers.rq" import indexing_trigger_filesave
+from "../extension/index-host/graph-analysers.rq" import indexing_trigger_manual
+from "../extension/index-host/graph-analysers.rq" import indexing_trigger_open
+from "../extension/index-host/graph-analysers.rq" import indexing_trigger_auto
+from "../extension/index-host/index.rq" import idea_index_triggers
+from "../extension/host/activation.rq" import first_paint_startup, background_startup
 import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
@@ -45,13 +44,15 @@ extension_startup_sequence {
     2. Activity bar paints → startup gate; language client may start on a short fallback.
     3. Index adapter activates after paint (or a short fallback timer).
     4. Rediscover bases → soft [soft_sync] for the **active** base only ([indexing_trigger_open]);
-       other bases stay closed until pin/focus/file events (["../extension/sqlite-artifact-lifecycle.rq".event_driven_base_access]).
+       other bases stay closed until pin/focus/file events (["../extension/index-host/sqlite-artifact-lifecycle.rq".event_driven_base_access]).
     5. Install watchers for `.rq` and code globs; watch `.reqlan` marker create/delete for rediscovery
        (not SQLite child writes).
     6. Idle timer runs [idle_stale_check] on already-open bases, then releases unused SQLite artifacts
-       (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+       (["../extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]).
     [index_sequencing]
     [editor_index_adapter]
+    Open-file editor links follow ["../extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+    and must not wait for this crawl.
 }
 
 soft_sync {
@@ -85,7 +86,7 @@ idle_stale_check {
     If nothing is stale: no state transition, no progress UI, no parse.
     Prefer unfocused windows; cancel if the user becomes active again.
     Only bases that are already open participate — idle must not reopen every discovered base
-    (["../extension/sqlite-artifact-lifecycle.rq".release_when_idle]).
+    (["../extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]).
     After the check, release unused SQLite artifacts (inactive bases always; all bases when unfocused).
     Extension host only — see [indexing_trigger_auto].
     [index_sequencing]

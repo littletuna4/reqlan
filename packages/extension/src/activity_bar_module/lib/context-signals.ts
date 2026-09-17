@@ -1,6 +1,6 @@
 /**
  * Context signals and focus synthesis for context-scope v2.
- * per ["../../../../reqlan rq/extension/module/context-scope-v2.rq"]
+ * per ["../../../../reqlan rq/extension/local-context/context-scope-v2.rq"]
  */
 
 export type ContextRiskLevel = 'low' | 'medium' | 'high';

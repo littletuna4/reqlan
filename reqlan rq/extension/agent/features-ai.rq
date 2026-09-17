@@ -1,0 +1,60 @@
+from "./chat-participant.rq" import chat_participant, chat_participant_completion
+import "./skills-and-mcp.rq" as skills_and_mcp
+
+ai_api should use the chat participant api. which should be in a module. that consumes analysis functions from other modules. https://code.visualstudio.com/api/extension-guides/ai/chat
+
+
+ai_integration {
+    The extension should integrate with ai workflows via command palette actions and mcp tools.
+    Ai-facing features should prioritise token minimisation and focused context over full-graph dumps.
+    Command palette actions use the Reqlan category; chat slash commands and skills use the rq- prefix.
+}
+
+ai_build_requirement {
+    A command palette action (e.g. ctrl+p: build new requirement) should create a requirement from user or ai-provided intent.
+}
+
+ai_add_to_context {
+    A command palette action (e.g. ctrl+p: add to context) should add selected requirements to the ai conversation context.
+}
+
+ai_write_plan {
+    A command palette action (e.g. ctrl+p: write plan) should draft or update an @plan attribute for the selected idea.
+}
+
+ai_fix_stale_references {
+    A chat skill `/rq-fix-stale-references` finds and repairs unresolved idea, comment, file, import, and wildcard references.
+    The issue list comes from ["../../core_analysis/check.rq".check] (`reqlan check --json`).
+    Repair choices follow ["../language/support/features-imports.rq".import_error] and ["../mutation/refactor_support.rq".comment_reference_refactor_support].
+    Slash-command name uses [skills_and_mcp.chat_skill_naming].
+    @status done
+    @implementation (
+        ["../../../packages/extension/skills/rq-fix-stale-references/SKILL.md"]
+        ["../../../packages/extension/src/agent_module/ai_commands/register-agent-contributions.ts"]
+        ["../../../packages/extension/package.json"]
+    )
+}
+
+
+
+add_to_chat {
+    A set of ["../host/features-commands.rq".command_palette] functions that add the selected idea, ideaset, or file to the chat.
+    Commands: Add Idea/Ideaset/File to **Current** Chat (primary) and to **New** Chat (secondary); category Reqlan.
+    Uses the idea/ideaset under the cursor (or ideas overlapping the editor selection) when in a .rq file; otherwise QuickPick.
+    Primary: inject `#requirement` / `#file` context into the **current** chat input without submitting.
+    Secondary: open a **new** chat/agent session, then seed the same payload into its input.
+    Discoverability: editor context uses a **Reqlan: Add to Chat** submenu (current + new for idea/ideaset/file). Palette titles name Current vs New explicitly.
+    Host APIs (Cursor vs VS Code) — see open-chat helper:
+    - Cursor: `workbench.action.chat.open` always creates a **new** tab (`openInNewTab: true`); do **not** use it for current-chat.
+      Current = `composer.focusComposer` + paste; New = `composer.createNew({ openInNewTab: true, partialState: { text, richText } })`.
+    - VS Code Copilot: current = `workbench.action.chat.open` + `isPartialQuery: true`; new = `workbench.action.chat.newChat` then open.
+    Clipboard fallback when no chat command is available.
+    Host open helper: ["../../../packages/extension/src/agent_module/ai_commands/open-chat.ts"] (`target: 'current' | 'new'`).
+    Activity bar search hits: ["../local-context/activitybar-panels/search.rq".search_add_to_chat] — split button with ▾ menu.
+    @implementation (
+        ["../../../packages/extension/src/agent_module/ai_commands/register-ai-commands.ts"]
+        ["../../../packages/extension/src/agent_module/ai_commands/open-chat.ts"]
+        ["../../../packages/extension/package.json"]
+    )
+    @status done
+}

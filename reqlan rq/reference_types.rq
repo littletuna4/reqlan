@@ -55,7 +55,7 @@ ideaset_reference {
 
 comment_reference {
     Inbound ["./ontology.rq".reference] from comments in non-`.rq` source: `rq:[idea]` / `rq:["path".idea]`.
-    Spec: ["./extension/features-non-rq-code-comment/functional-code-comment-references.rq".references_in_functional_code_comments]
+    Spec: ["./extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     Syntax note: ["./language/syntax.rq".comment_reference]. Resolve: [comment_resolver].
     Unresolved: ["./language/syntax.rq".comment_reference_resolution_error].
     Index edge kind `comment_link`. Related capture of those files: ["./ontology.rq".referenced_files].
@@ -80,7 +80,9 @@ file_reference {
     Outbound ["./ontology.rq".reference] to a file, folder, or symbol — not only `.rq`.
     Syntax: ["./language/syntax.rq".reference_file] (bracketed quoted path, optional `L#` / symbol path).
     Index edge kind `file_reference`. Resolve: [file_reference_resolve]; extract: [idea_extractor].
-    Editor links: ["./extension/syntax/features-syntax.rq".file_references].
+    Editor links: ["./extension/language/syntax/features-syntax.rq".file_references].
+    Inbound file-reference CodeLens at the top of the target file:
+    ["./extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens].
     Non-`.rq` targets and inbound comment traffic: ["./ontology.rq".referenced_files].
     Markdown `[label](target)` also stores this edge kind — see [link_reference].
     Quoted body text is not this kind: [reference_edgecase].

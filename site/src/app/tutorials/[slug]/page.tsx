@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getTutorial, tutorialDecks } from "@/content/tutorials";
+import { pageMetadata } from "@/lib/site-metadata";
 import { TutorialDetailPage } from "@/views/TutorialDetailPage";
 
 type PageProps = {
@@ -22,10 +23,11 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
-    title: `${tutorial.title} · reqlan`,
+  return pageMetadata({
+    title: tutorial.title,
     description: tutorial.blurb,
-  };
+    path: `/tutorials/${tutorial.slug}/`,
+  });
 }
 
 export default async function Page({ params }: PageProps) {

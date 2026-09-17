@@ -1,9 +1,9 @@
 <script lang="ts">
     // rq:["../../../../../reqlan rq/ontology.rq".cartographic_map]
-    // rq:["../../../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".graphical_graph]
+    // rq:["../../../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".graphical_graph]
     import { onDestroy, onMount } from 'svelte';
-    import type { GraphNodeView, GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
-    import type { GraphUiFileTreatment } from '../../../src/webview_module/shared/graph-ui-state.js';
+    import type { GraphNodeView, GraphViewQuery } from '../../../src/ideas_summary_module/shared/messages.js';
+    import type { GraphUiFileTreatment } from '../../../src/ideas_summary_module/shared/graph-ui-state.js';
     import {
         applyFileTreatment,
         fileUriFromFileCompoundId,

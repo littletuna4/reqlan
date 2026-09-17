@@ -1,6 +1,6 @@
 /**
  * Quick Fix that inserts `//rq-ignore-error` before a line with diagnostics.
- * rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import type { TextDocument } from 'vscode-languageserver-textdocument';

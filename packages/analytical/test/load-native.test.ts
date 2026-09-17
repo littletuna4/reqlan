@@ -2,7 +2,7 @@
  * Unit tests for the core native engine loader.
  * rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
  * rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary]
- * rq:["../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+ * rq:["../../../reqlan rq/extension/host/startup-performance.rq".invalid_url_activation_failure]
  */
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';

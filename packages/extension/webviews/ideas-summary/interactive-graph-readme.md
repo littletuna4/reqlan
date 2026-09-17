@@ -2,7 +2,7 @@
 
 This document explains how the Ideas Summary graph tab handles layout and live physics, why the current design looks the way it does, and what to watch out for when changing it.
 
-**Requirement source:** [`reqlan rq/extension/library/graph.rq`](../../../../reqlan%20rq/extension/library/graph.rq) (`layout_physics`, `graph_cy_controller`, `physics_options`); Ideas Summary tab wiring in [`graphical_graph.rq`](../../../../reqlan%20rq/extension/module/graphical_graph.rq).
+**Requirement source:** [`reqlan rq/extension/presentation/graph.rq`](../../../../reqlan%20rq/extension/library/graph.rq) (`layout_physics`, `graph_cy_controller`, `physics_options`); Ideas Summary tab wiring in [`graphical_graph.rq`](../../../../reqlan%20rq/extension/graphical_graph.rq).
 
 ---
 

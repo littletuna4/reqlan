@@ -1,5 +1,5 @@
 // rq:["../../../../reqlan rq/site/site.rq".audit_trail_showcase]
-// rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".completion_tracking]
+// rq:["../../../../reqlan rq/indexer/indexer.rq".completion_tracking]
 // rq:["../../../../reqlan rq/core_analysis/html_export.rq".html_export]
 import type { Showcase } from "./types";
 

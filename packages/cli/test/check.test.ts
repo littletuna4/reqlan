@@ -6,6 +6,7 @@
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../reqlan rq/cli/cli_package.rq".pnpm_extra_args]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
@@ -302,6 +303,45 @@ describe('CLI check', () => {
             expect(skippedRows.some(row => row.label === 'missing_idea')).toBe(true);
             expect(skippedRows.every(row => !row.label.includes('.cursor'))).toBe(true);
             expect(skippedRows.every(row => !row.label.includes('build/'))).toBe(true);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('reports unresolved imports and exits 1', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-import-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'lib.rq'), 'seed {\n    ok\n}\n');
+            writeFileSync(
+                join(root, 'host.rq'),
+                [
+                    'from "./gone.rq" import ghost',
+                    'from "./lib.rq" import missing_idea',
+                    'from "./lib.rq" import seed',
+                    'host {',
+                    '    body',
+                    '}',
+                    ''
+                ].join('\n')
+            );
+
+            const json = runCheck(root, ['--json']);
+            expect(json.status, json.stderr).toBe(1);
+            const rows = JSON.parse(json.stdout) as Array<{ label: string; kind: string }>;
+            expect(rows.some(row => row.kind === 'import' && row.label === './gone.rq')).toBe(true);
+            expect(rows.some(row => row.kind === 'import' && row.label === 'missing_idea')).toBe(
+                true
+            );
+            expect(rows.every(row => row.label !== 'ghost')).toBe(true);
+            expect(rows.every(row => row.label !== 'seed')).toBe(true);
+
+            const pipe = runCheck(root, ['--pipe']);
+            expect(pipe.status, pipe.stderr).toBe(1);
+            expect(pipe.stdout).toContain('[import] ./gone.rq');
+            expect(pipe.stdout).toContain('[import] missing_idea');
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

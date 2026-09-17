@@ -1,4 +1,4 @@
-import type { IndexStatusView } from '../../../src/webview_module/shared/messages.js';
+import type { IndexStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
 
 export interface IndexStatusText {
     text: string;

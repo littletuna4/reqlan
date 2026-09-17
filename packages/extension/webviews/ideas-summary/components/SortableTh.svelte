@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import type { SortDirection } from '../../../src/webview_module/shared/messages.js';
+    import type { SortDirection } from '../../../src/ideas_summary_module/shared/messages.js';
 
     export let label: string;
     export let sortKey: string;

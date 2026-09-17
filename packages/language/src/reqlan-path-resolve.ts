@@ -1,8 +1,8 @@
 /**
  * Resolves document-relative and import-root-aliased paths (default `@/`).
  * rq:["../../../reqlan rq/ontology.rq".configuration]
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_location]
- * rq:["../../../reqlan rq/extension/configuration.rq".configuration_import_roots]
+ * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
+ * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  */
 import type { FileSystemProvider, LangiumDocument, URI } from 'langium';

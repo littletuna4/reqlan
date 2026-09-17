@@ -1,7 +1,7 @@
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".export_rust]
 //! rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export]
 //! rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_graph_page]
-//! rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+//! rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
 
 use reqlan_export::{
     build_export_snapshot, write_html_export, ExportFormat, ExportHeaderLink, ExportRequest,
@@ -422,7 +422,7 @@ fn workspace_graph_includes_every_idea_when_max_graph_nodes_is_below_count() {
     std::fs::remove_dir_all(&output_dir).ok();
 }
 
-// rq:["../../../reqlan rq/extension/module/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
+// rq:["../../../reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle]
 // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_graph_page]
 // rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
 #[test]

@@ -1,8 +1,8 @@
 /**
  * Inlay hints showing inbound references on idea declarations as a computed attribute.
  * Inbound lists come from the SQLite snapshot (not Langium IndexManager).
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
- * rq:["../../../reqlan rq/extension/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_index_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
  * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  */
 import { AstUtils, GrammarUtils, interruptAndCheck, type AstNode, type LangiumDocument } from 'langium';

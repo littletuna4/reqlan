@@ -1,7 +1,7 @@
 /**
  * Insert / replace idea references in .rq editors, including required imports.
- * rq:["../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_insert_reference]
- * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_insert_reference]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import {
     fileBasenameAlias,

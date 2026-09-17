@@ -5,7 +5,7 @@
  *
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
- * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../../reqlan rq/extension/index-host/index-diagnostics.rq".index_diagnostics_metrics]
  */
 import type { IndexFileOutcome } from './index-diagnostics-store.js';
 

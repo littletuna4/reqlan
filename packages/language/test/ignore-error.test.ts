@@ -100,7 +100,7 @@ describe('comment reference ignore', () => {
         expect(unresolved).toHaveLength(0);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
     test('does not report file references inside inline code', async () => {
         const document = await parse(s`
@@ -120,7 +120,7 @@ describe('comment reference ignore', () => {
         expect(missing.every(diagnostic => !String(diagnostic.message).includes('interlock.stL'))).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     test('reports a missing file reference as an error', async () => {
         const document = await parse(s`
             demo {
@@ -136,7 +136,7 @@ describe('comment reference ignore', () => {
         expect(missing[0]?.severity).toBe(1);
     });
 
-    // rq:["../../../reqlan rq/extension/language-support/language-server-errors.rq".file_reference_errors]
+    // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     test('suppresses missing file reference errors on the line after //rq-ignore-error', async () => {
         const document = await parse(s`

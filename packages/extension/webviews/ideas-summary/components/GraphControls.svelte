@@ -1,10 +1,10 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import type { GraphViewQuery } from '../../../src/webview_module/shared/messages.js';
+    import type { GraphViewQuery } from '../../../src/ideas_summary_module/shared/messages.js';
     import type {
         GraphUiFileTreatment,
         GraphUiLabelMode
-    } from '../../../src/webview_module/shared/graph-ui-state.js';
+    } from '../../../src/ideas_summary_module/shared/graph-ui-state.js';
     import SearchableCheckboxDropdown from './SearchableCheckboxDropdown.svelte';
     import FileTreatmentSelect from './FileTreatmentSelect.svelte';
 

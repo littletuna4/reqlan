@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
     DEFAULT_GRAPH_UI_STATE,
     normalizeGraphUiState
-} from '../src/webview_module/shared/graph-ui-state.js';
+} from '../src/ideas_summary_module/shared/graph-ui-state.js';
 
 describe('normalizeGraphUiState', () => {
     test('returns defaults for empty input', () => {

@@ -1,7 +1,7 @@
 ---
 name: rq-fix-stale-references
 description: >-
-  Find and repair unresolved reqlan idea, comment, file, and wildcard references.
+  Find and repair unresolved reqlan idea, comment, file, import, and wildcard references.
   Use when the user asks to fix stale, broken, or missing references, after a
   rename or move, or when reqlan check reports issues.
 argument-hint: "[optional path glob or file]"
@@ -25,7 +25,7 @@ If the user named a path glob or file, pass it as `glob` (MCP) or `--glob` (CLI)
 
 - `fileUri` — source path (relative)
 - `sourceName` — idea that holds the reference
-- `kind` — `references` | `comment_link` | `file_reference` | `wildcard_reference`
+- `kind` — `references` | `comment_link` | `file_reference` | `import` | `wildcard_reference`
 - `label` — missing target text
 - `sourceLine` — 0-based line
 - `severity` — error (default) or `warning` (sparse wildcards)
@@ -54,6 +54,11 @@ Comment form is `rq:[idea]` or `rq:["path".idea]`. The path is relative to the f
 
 - Moved file: update the quoted path. Keep it relative to the referencing file.
 - Deleted file: remove the reference, or point to a replacement.
+
+### `import`
+
+Missing path: update the quoted import path, or remove the import.
+Missing idea: the target file exists; update the imported name, or remove that specifier.
 
 ### `wildcard_reference` (warning)
 

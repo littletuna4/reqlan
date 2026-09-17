@@ -1,4 +1,4 @@
-import type { IndexDiagnosticsToExtensionMessage } from '../../../src/diagnostics_module/index-diagnostics-messages.js';
+import type { IndexDiagnosticsToExtensionMessage } from '../../../src/index_host_module/diagnostics/index-diagnostics-messages.js';
 
 interface VsCodeApi {
     postMessage(message: IndexDiagnosticsToExtensionMessage): void;

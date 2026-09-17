@@ -1,7 +1,7 @@
 /**
  * rq:["../../../reqlan rq/bases/base.rq".base_initialisation]
  * rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
- * rq:["../../../reqlan rq/extension/module/index.rq".rqignore_initialisation]
+ * rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
  */
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

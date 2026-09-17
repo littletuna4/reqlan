@@ -1,8 +1,8 @@
 /**
  * SQLite artifact open/dispose must release file locks so callers can delete bases.
- * rq:["../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
- * rq:["../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
- * rq:["../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".release_when_idle]
+ * rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+ * rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".analysis_api_dispose]
+ * rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]
  */
 import { afterEach, describe, expect, test } from 'vitest';
 import { mkdir, writeFile, unlink, access, rm } from 'node:fs/promises';

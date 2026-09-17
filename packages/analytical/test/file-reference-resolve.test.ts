@@ -6,7 +6,7 @@ describe('resolveReferencedFilePath', () => {
         expect(
             resolveReferencedFilePath(
                 '../../../packages/extension/src/foo.ts',
-                'reqlan rq/extension/module/activitybar.rq#loading_state'
+                'reqlan rq/extension/local-context/activitybar.rq#loading_state'
             )
         ).toBe('packages/extension/src/foo.ts');
     });

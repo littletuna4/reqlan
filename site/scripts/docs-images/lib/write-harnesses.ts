@@ -21,7 +21,7 @@ import { webviewMediaRoot } from "../lib/paths.ts";
 import { VSCODE_THEME_CSS } from "../lib/vscode-theme.ts";
 import { DOCS_IMAGE_SHOTS } from "../shots/catalog.ts";
 import type { DocsShot } from "../shots/types.ts";
-import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/webview_module/shared/graph-ui-state.ts";
+import { DEFAULT_GRAPH_UI_STATE } from "../../../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts";
 
 function json(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");

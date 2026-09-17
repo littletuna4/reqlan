@@ -17,7 +17,7 @@ import type { NativeWorkspaceIndexHandle } from './native-workspace-index.js';
  * Prefer `__dirname` in the extension host CJS bundle. Under Node ESM, use
  * `import.meta.url` — do not eval that expression; Node 24 treats a script eval
  * as `Cannot use 'import.meta' outside a module`.
- * rq:["../../../../reqlan rq/extension/startup-performance.rq".invalid_url_activation_failure]
+ * rq:["../../../../reqlan rq/extension/host/startup-performance.rq".invalid_url_activation_failure]
  */
 declare const __dirname: string | undefined;
 declare const __filename: string | undefined;

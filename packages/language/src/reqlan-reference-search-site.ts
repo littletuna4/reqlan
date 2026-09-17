@@ -1,7 +1,7 @@
 /**
  * Locate places where a selection or word can become a [reference],
  * and extract surrounding idea text for the search modal preview.
- * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import type { LangiumDocument } from 'langium';
 import type { Position, Range } from 'vscode-languageserver';

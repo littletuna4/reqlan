@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/webview_module/shared/messages.js';
+    import type { FileIndexIssueView, IndexErrorDetail, IndexStatusView } from '../../../src/ideas_summary_module/shared/messages.js';
     import { postToExtension } from '../lib/vscode.js';
     import { getApp } from '../state/context.js';
 

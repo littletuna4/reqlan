@@ -1,7 +1,6 @@
-from "./indexer.rq" import index, consumption, ownership
-from "../extension/module/index.rq" import application_memory, index_diagnostics_store
-from "../extension/features-graph-analysers.rq" import index_ideas, index_technology, local_graph_analysis
-from "../extension/features-index-diagnostics.rq" import index_diagnostics_webview
+from "./indexer.rq" import index, consumption, ownership, index_ideas, index_technology, local_graph_analysis
+from "../extension/index-host/index.rq" import application_memory, index_diagnostics_store
+from "../extension/index-host/index-diagnostics.rq" import index_diagnostics_webview
 from "../cli/cli_package.rq" import cli_package
 from "../core_analysis/search.rq" import fuzzy_search, file_search
 from "../core_analysis/check.rq" import check
@@ -10,8 +9,8 @@ import "../../packages/analytical/src/index-store/workspace-index.ts" as workspa
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/mcp/src/server.ts" as mcp_server
 import "../../packages/extension/src/activity_bar_module/activity-bar-webview-provider.ts" as activity_bar_host
-import "../../packages/extension/src/webview_module/ideas-summary-panel.ts" as ideas_summary_panel
-import "../../packages/extension/src/diagnostics_module/index-diagnostics-panel.ts" as diagnostics_panel
+import "../../packages/extension/src/ideas_summary_module/ideas-summary-panel.ts" as ideas_summary_panel
+import "../../packages/extension/src/index_host_module/diagnostics/index-diagnostics-panel.ts" as diagnostics_panel
 import "./sqlite-schema.rq" as ideas_schema
 import "./diagnostics-schema.rq" as diagnostics_schema
 import "./cache-reuse.rq" as cache_reuse

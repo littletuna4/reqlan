@@ -4,7 +4,7 @@ import { resolveIndexFileUri } from './resolve-index-file-uri.js';
 
 /**
  * Open an indexed file at a line/column.
- * rq:["../../../../../reqlan rq/extension/module/activitybar-panels/search.rq".search_pane_open_live_file]
+ * rq:["../../../../../reqlan rq/extension/local-context/activitybar-panels/search.rq".search_pane_open_live_file]
  *
  * Show a visible workspace tab for that path when one exists.
  * Do not open a detached `file://` copy — Cursor can show that as a

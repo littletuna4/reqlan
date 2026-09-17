@@ -78,7 +78,7 @@ export interface NativeFuzzySearchResult {
 /**
  * Coverage metrics for the Ideas Summary Overview, computed natively.
  * Shape mirrors the Rust `OverviewCoverageScores` (camelCase serde).
- * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+ * rq:["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
  */
 export interface OverviewCoverageScores {
     ideaCount: number;

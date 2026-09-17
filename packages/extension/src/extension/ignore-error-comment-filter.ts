@@ -1,6 +1,6 @@
 /**
  * Which diagnostics in a code file the ignore-error Quick Fix may target.
- * rq:["../../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
  */
 import { isCommentReferenceDiagnosticCode } from '@reqlan/language';
 

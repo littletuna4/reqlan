@@ -2,12 +2,12 @@
  * Quick fixes for unresolved references: add import, rewrite qualified ref, search, create.
  * Also offers a search code action when the cursor is inside a [reference] / [[wikilink]].
  * File-level source actions include barrel page.
- * rq:["../../../reqlan rq/extension/language-support/features-imports.rq".import_error]
- * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
- * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
- * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
- * rq:["../../../reqlan rq/extension/features-commands.rq".code_actions_ignore_error]
- * rq:["../../../reqlan rq/extension/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
@@ -115,8 +115,8 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
 
     /**
      * Whole-file source action: barrel top-level ideas into sibling files + container.
-     * rq:["../../../reqlan rq/extension/features-commands.rq".barrel_page]
-     * rq:["../../../reqlan rq/extension/features-commands.rq".file_based_code_actions]
+     * rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+     * rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
      */
     private createBarrelPageAction(
         document: LangiumDocument,
@@ -141,8 +141,8 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
     }
 
     /**
-     * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_move]
-     * rq:["../../../reqlan rq/extension/refactor_support.rq".refactor_symbol_delete]
+     * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+     * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
      */
     private createIdeaRefactorActions(
         document: LangiumDocument,

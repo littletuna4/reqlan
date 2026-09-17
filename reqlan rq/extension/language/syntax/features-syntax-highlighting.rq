@@ -1,0 +1,432 @@
+
+from "../vsc-primitives.rq" import code_completion
+
+
+complementary_information_rendering {
+    The extension should render computed information inline in the editor as complementary text.
+    Complementary rendering should include resolved references and optionally indirect references behind a toggle.
+    Complementary rendering should not mutate source files unless the user explicitly applies a change.
+}
+
+reference_rendering {
+    Resolved references should be visually distinguishable from unresolved or broken references.
+    Indirect references inferred by graph traversal should be showable via a user toggle.
+    Reference kinds (dependency, incompatible with, applies to, related to) should be surfaced where declared or inferred.
+    Unresolved idea and file references must keep a linking / missing-file diagnostic (error underline).
+    They must not receive a document-link underline that makes them look like happy, navigable references.
+    See [import_statement_highlighting], [non_web_reference_navigation], [unresolved_reference_diagnostics].
+}
+
+import_statement_highlighting {
+    TextMate highlighting for import lines must colour the whole statement, not only the leading
+    `from` / `import` keyword. After `import` (and after `from` … `import`), the quoted path,
+    the `import` / `as` keywords, and idea / alias names must receive scopes — they must not stay
+    default-white while still looking interactive from a path document link alone.
+    Root cause: a short `^\\b(from|import)\\b` match ran before the path patterns and consumed the
+    keyword so the path never scoped.
+    Fix: line-scoped `meta.import.reqlan` begin/end rules that paint path, keywords, and names.
+    Semantic tokens still paint import AST nodes (and must `return` after handling them).
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/textmate-import-highlight.test.ts"]
+        ["../../../../packages/language/test/textmate-import-highlight.test.ts:e2e: from-import line scopes path and import keyword"]
+        ["../../../../packages/language/test/textmate-import-highlight.test.ts:e2e: namespace import line scopes path and as"]
+    )
+}
+
+non_web_reference_navigation {
+    Non-web references (idea brackets/wikilinks, local file paths, import paths) must be Ctrl+click
+    navigable via document links and/or go-to-definition. Built-in http(s) link detection is not enough.
+    Idea underlines come from path-local Rust extract (["../../../indexer/indexer.rq".local_symbolic_analysis])
+    with a Langium fallback when native extract throws so file/idea links are not lost.
+    Go-to-definition uses Langium when the idea ref is already linked, then falls back to the same
+    local-symbolic target so navigation works before workspace Linked completes.
+    Cross-file idea confirmation is a depth-1 neighbor parse
+    (["../../../language/syntax.rq".open_file_reference_sequencing],
+    ["../support/open-file-sequencing.rq".outbound_one_hop]).
+    Related: [reference_document_links], [reference_goto_definition_speed],
+    [reference_underline_syntax_align],
+    ["../../../language/syntax.rq".open_file_reference_sequencing].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
+        ["../../../../packages/language/src/reqlan-definition-provider.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
+        ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
+        ["../../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+        ["../../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+    )
+}
+
+unresolved_reference_diagnostics {
+    Unresolved idea references must report a linking error diagnostic.
+    Local-symbolic outbound must not emit document links for `isResolved: false` edges or for
+    cross-file targets that do not exist on disk / are not declared in the neighbor file
+    (["../support/open-file-sequencing.rq".outbound_one_hop]).
+    Those false links looked like happy references while Ctrl+click could not navigate.
+    Missing file references stay on ["./features-syntax.rq".file_references] /
+    ["../support/language-server-errors.rq".file_reference_errors] (error, no document link).
+    Related: [reference_rendering], [non_web_reference_navigation].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
+        ["../../../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../../packages/language/src/reqlan-validator.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
+        ["../../../../packages/language/test/outbound-hop.test.ts:drops a false unresolved diagnostic when the neighbor idea exists"]
+        ["../../../../packages/language/test/ignore-error.test.ts:reports unresolved reference without ignore directive"]
+    )
+}
+
+reference_document_links {
+    Bracket and wikilink idea references — both same-file and cross-file — must receive a VS Code document-link
+    underline so the editor treats them identically to file-path references.
+    All resolved `LocalReference` and `QualifiedReference` idea/ideaset tokens should emit links targeting the
+    declaration name, regardless of whether the target lives in the same file or an imported one.
+    Namespace-import alias tokens (`[alias]` → file) keep their existing file-target link.
+    Each link must include a `target` and a `tooltip` so VS Code does not show "Loading...".
+    Implemented by ["../../../../packages/language/src/reqlan-file-link-resolver.ts"]
+    (`resolveIdeaReferenceLinks`, `collectFileLinks`) and
+    ["../../../../packages/language/src/reqlan-document-link-provider.ts"].
+    @tests (
+        ["../../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
+        ["../../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
+        ["../../../../packages/language/test/linking.test.ts:qualified reference idea token produces document link"]
+        ["../../../../packages/language/test/linking.test.ts:navigable document links include target and tooltip"]
+    )
+    @status done
+}
+
+reference_underline_syntax_align {
+    Idea document-link and error underlines must cover the same UTF-16 range as the
+    syntax token (Langium `$refNode` / semantic token), including when non-ASCII text
+    appears earlier in the file.
+    Native extract spans are UTF-8 byte offsets
+    (["../../../indexer/indexer.rq".local_symbolic_analysis]); LSP `Position.character`
+    is UTF-16. Convert before `positionAt` so the underline does not drift off the token.
+    Related: [non_web_reference_navigation], [reference_document_links],
+    [unresolved_reference_diagnostics].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-utf8-lsp-offset.ts"]
+        ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../../../crates/reqlan-index/src/types.rs"]
+    )
+    @tests (
+        ["../../../../packages/language/test/utf8-lsp-offset.test.ts"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
+        ["../../../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_source_offsets_are_utf8_bytes"]
+    )
+}
+
+same_line_named_block_highlighting {
+    TextMate-only highlighting (no semantic tokens) must follow the canonical lexer for
+    named `{` / `}`: a top-level `name {}` or `name {hello}` is a complete
+    ["../../../language/syntax.rq".block_idea] on that line. The grammar must close on the same line. It must not leave a block
+    open until a later own-line `}`. An open block swallows later one-liners such as
+    a name-only idea.
+    `name {` at end of line is a multiline block. Close it only on an own-line `}` so
+    matching prose pairs at end of line (`{{SITE_URL}}`) stay in the body per
+    ["../../../language/syntax-edge-cases.rq".nested_curly_braces].
+    `name text {braces}` is a ["../../../language/syntax.rq".simple_idea]. `{` after other body text must not start a block.
+    TextMate idea-name scopes on a file must match the Langium parse of that file.
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+    )
+    @tests (
+        ["../../../../packages/language/test/textmate-idea-highlight.test.ts"]
+        ["../../../../packages/language/test/textmate-idea-highlight.test.ts:same-line named block rule closes on the opening line"]
+        ["../../../../packages/language/test/textmate-idea-highlight.test.ts:e2e: same-line named braces do not swallow later ideas"]
+        ["../../../../packages/language/test/textmate-idea-highlight.test.ts:e2e: TextMate idea names match the Langium parse"]
+        ["../../../../packages/language/test/parsing.test.ts:same-line braces after a name parse as a block"]
+    )
+}
+
+wildcard_reference_highlighting {
+    Bracket and wikilink forms of ["../../../language/imports.rq".wildcard_references]
+    (`["path/**/*.rq".idea_*]`, `[["path/*.rq".*_pane|label]]`) must TextMate-scope as
+    `markup.underline.link.reqlan` with the path as `string.other.link.reqlan` — never as
+    `comment.block.reqlan`. The grey "comment" paint happened when `#bracket-references` only
+    allowed ID suffixes, so `/*` inside an unmatched path opened a block comment.
+    Fixes: TextMate `#bracket-references` / wiki path patterns accept `WILDCARD_NAME` suffixes;
+    `#comments` block begin rejects empty slash-star-star-slash; body rules try references before
+    comments. Semantic tokens paint `WildcardReference.pathPattern` as string and `ideaPattern`
+    as variable (["./features-syntax.rq".syntax_highlighting]).
+    Related: ["../../../language/syntax.rq".comments], ["../../../language/imports.rq".wildcard_references_webview].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
+        ["../../../../packages/language/test/textmate-wildcard-highlight.test.ts:e2e: bracket wildcard path ref matches link scope and not block comment"]
+        ["../../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+        ["../../../../packages/language/test/semantic-tokens-wildcard.test.ts:e2e: WildcardReference emits string + variable tokens"]
+        ["../../../../packages/language/test/comment-in-string.test.ts:e2e: /**/ glob survives tokenize → parse in prose, naked quotes, and reference STRING"]
+    )
+}
+
+reference_goto_definition_speed {
+    Go-to-definition on any resolved idea bracket-reference must be instant — same-file refs must not
+    be slower than cross-file ones, and neither should require a full document text scan at click time.
+    The definition provider must use cached Langium ref objects (O(1)) for idea tokens and must not
+    run character-level text scans (comment-reference scan, markdown-link regex) when the CST already
+    covers the cursor position.
+    Implemented by ["../../../../packages/language/src/reqlan-definition-provider.ts"]
+    (CST-first fast path for idea refs) and
+    ["../../../../packages/language/src/reqlan-markdown-links.ts"]
+    (no redundant text scan when CST is available).
+    @status done
+}
+
+reference_resolution_folder {
+  If the reference path is a folder, the extension should render a popup with a list of files in that folder.
+  The link should not try to resolve to a file if it doesn't exist.  
+}
+
+
+activity_bar_module {
+  the extension should provide a activity bar module for the ide.
+  the activity bar module should display the following information:
+    - the current file
+    - the current idea
+    - ideas referencing the current idea/selection
+    - a local graph
+  see ["../../local-context/activitybar.rq"] for more details.
+}
+
+
+
+reference_code_completion {
+  references should code complete the available namespace of ideas
+  this includes both ideas using hte standards idea namespace syntax, and ideas using file paths, and relative file paths.
+  Cross-file candidates show import paths and may auto-insert imports:
+  
+  ["../support/features-imports.rq".import_code_completion_rendering]
+  ["../support/features-imports.rq".import_code_completion_auto_file_import]
+  Implemented by ["../../../../packages/language/src/reqlan-completion-provider.ts"].
+  ["./features-syntax.rq".code_completion]
+
+  @tags (
+    autocompletion
+    )
+  @tests (
+    ["../../../../packages/language/test/completion.test.ts"]
+  )
+
+}
+
+reference_code_completion_objects {
+    [reference_code_completion] must offer code completion for all valid reqlan references:
+    - reqlan files (`.rq`)
+    - ideas and ideasets in a reqlan file after a quoted path (`["path".idea]`)
+    - ideasets and ideaset members (`[ideaset.member]`)
+    - code files
+    - folders, including folders that do not contain `.rq` files
+
+    Import path completion stays limited to `.rq` files.
+    Anonymous file-reference paths share ranking and alias logic with import paths, but they include every file and folder target.
+    Scanning every workspace file on each keystroke is too expensive: [reference_code_completion_performance].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../../packages/language/src/reqlan-completion-context.ts"]
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
+        ["../../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
+        ["../../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
+    )
+}
+
+reference_code_completion_performance {
+    [reference_code_completion_objects] must stay interactive on large workspaces.
+    Path completion must not re-walk the filesystem on every keystroke: cache directory listings and reuse them for import and anonymous file-reference completion.
+    Ranking must precompute proximity keys rather than recomputing hop distance per comparator call.
+    Idea-graph ranking must reuse per-document adjacency across completion requests while document versions are unchanged.
+    Anonymous file-reference completion may omit distant candidates after proximity ranking so the list stays bounded.
+    Implemented by ["../../../../packages/language/src/reqlan-path-completion.ts"]
+    (`clearPathCompletionCaches`, listing cache, `sortPathCompletionCandidates`),
+    ["../../../../packages/language/src/reqlan-completion-provider.ts"],
+    and ["../../../../packages/language/src/reqlan-completion-context.ts"].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../../packages/language/src/reqlan-completion-context.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
+        ["../../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
+        ["../../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
+        ["../../../../packages/language/test/completion-perf.test.ts"]
+        ["../../../../packages/language/test/completion-perf.test.ts:cached path completion does not re-read directories"]
+        ["../../../../packages/language/test/completion-perf.test.ts:large-tree anonymous completion stays under budget"]
+    )
+    [reference_code_completion]
+    [reference_code_completion_objects]
+}
+
+reference_code_completion_sequencing {
+  [reference_code_completion] should be offered, not alphabetically, but by distance, then alphabetically.
+  Implemented by ["../../../../packages/language/src/reqlan-completion-provider.ts"].
+  @tests (
+    ["../../../../packages/language/test/completion.test.ts"]
+  )
+  ["./features-syntax.rq".code_completion]
+}
+
+attribute_code_completion_main_descriptiption {
+the main description attribute is expected to be prose, so, the dropdown shouldn't be rendered in this context.
+}
+
+attribute_code_completion_attribute_key {
+the attribute key should complete based on endorsed keys and what is present in the index
+i.e. after the @ symbol at the start of a line, the used attributes should be completed.
+subsquently, values of the attribute key should be completed based on the values in that attribute key.
+}
+
+
+view_references_as_inlay_hints {
+  References should be shown as inlay hints in the editor.
+  This should be a toggleable setting, which should be available in the command palette.
+  N-lines (configurable setting) of hints should be shown below the idea.
+  Inbound lookup must stay interactive on large graphs via [inbound_inlay_index_performance].
+  Implemented by ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], and ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"].
+  @status incomplete
+  @tests (
+    ["../../../../packages/language/test/inlay-hints.test.ts"]
+    ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts"]
+  )
+}
+
+
+
+traceable_inlay_hints {
+  Inlay hints should be traceable, i.e. if a user clicks a specific idea reference, it should open that idea, if a user clicks the all references hint, it should open a search webview with the idea preselected/targets prefiltered
+  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], and ["../../../../packages/extension/src/ideas_summary_module/register-webview.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/inlay-hints.test.ts"]
+  )
+}
+
+inbound_inlay_hints_whole_graph {
+  Inbound references shown in [view_references_as_inlay_hints] should include referencers from the whole requirement graph across the workspace, not only ideas declared in the current file.
+  Coverage comes from SQLite ["../../../indexer/sqlite-schema.rq".edges_table] via ["../../../indexer/cache-reuse.rq".unify_inbound_indexes], not from Langium IndexManager.
+  Whole-graph coverage must not regress to per-idea full-index scans — see [inbound_inlay_index_performance].
+  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/inlay-hints.test.ts"]
+    ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
+  )
+  [view_references_as_inlay_hints]
+  [traceable_inlay_hints]
+  [inbound_inlay_index_performance]
+}
+
+inbound_inlay_index_performance {
+  Computing inbound reference inlay hints for a document with many ideas must look up a
+  pre-pushed SQLite inbound snapshot (["../../../indexer/cache-reuse.rq".unify_inbound_indexes])
+  in near-constant time per declaration.
+  Must not call Langium `findAllReferences` / equivalent full-index scans once per idea
+  (that is O(ideas × workspace refs) and freezes the editor on dense graphs).
+  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
+  and ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
+  )
+  [view_references_as_inlay_hints]
+  [inbound_inlay_hints_whole_graph]
+}
+
+code_lens_reference_types {
+  References should have a ["../vsc-primitives.rq".codelens] button.
+  The button should be togleable in settings.
+  The button should the classification of the reference. e.g. 'open reqlan file', "open {extension} file', 'open folder', 'open idea'
+  Clicking the CodeLens should open a reference card with summary stats — not navigate, because references already act as editor links.
+  The card should offer open / reveal / file-selector actions when useful.
+  Folders should be handled by focusing on the ide explorer, or by opening a file selector.
+  Some summary stats should be shown for references - e.g. last edited, count of references, count of referencers, etc.
+  File-top inbound file references are [file_inbound_code_lens], not this outbound classification lens.
+  Implemented by ["../../../../packages/language/src/reqlan-code-lens-provider.ts"], ["../../../../packages/language/src/reqlan-reference-code-lens.ts"], ["../../../../packages/language/src/reqlan-code-lens-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-code-lens.ts"], and ["../../../../packages/extension/src/extension/reference-code-lens-card.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/code-lens.test.ts"]
+  )
+  [file_inbound_code_lens]
+}
+
+file_inbound_code_lens {
+  The editor shows inbound file references in a ["../vsc-primitives.rq".codelens] at the top of the file.
+  The CodeLens uses the same `@referenced-by: (name, …)` list form as idea inlay hints
+  ([view_references_as_inlay_hints]).
+  Idea declarations keep `@referenced-by` for idea-to-idea inbound.
+  The file CodeLens lists ideas that point at this file with a
+  ["../../../reference_types.rq".file_reference] (path-only and path-with-symbol).
+  Click the CodeLens to open the inbound referencers summary for this file.
+  Hide the CodeLens when the file has no inbound file references.
+  Read referencers from the SQLite inbound snapshot
+  (["../../../indexer/cache-reuse.rq".unify_inbound_indexes]).
+  Do not scan Langium IndexManager.
+  The file CodeLens is independent of the outbound classification toggle on
+  [code_lens_reference_types].
+  Applies to `.rq` files and to other indexed files that ideas reference.
+  Implemented by ["../../../../packages/language/src/reqlan-code-lens-provider.ts"],
+  ["../../../../packages/language/src/reqlan-file-inbound-code-lens.ts"],
+  ["../../../../packages/language/src/reqlan-inbound-snapshot.ts"],
+  ["../../../../packages/analytical/src/core/inbound-file-referencers.ts"],
+  ["../../../../packages/analytical/src/index-store/sqlite-store.ts"],
+  ["../../../../packages/extension/src/extension/inbound-file-snapshot.ts"],
+  ["../../../../packages/extension/src/extension/register-inbound-sqlite-sync.ts"],
+  ["../../../../packages/extension/src/extension/register-file-inbound-code-lens.ts"],
+  ["../../../../packages/extension/src/ideas_summary_module/register-webview.ts"],
+  and ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/code-lens.test.ts:shows file inbound referenced-by CodeLens at the top of the file"]
+    ["../../../../packages/language/test/code-lens.test.ts:omits file inbound CodeLens when the snapshot has no file referencers"]
+    ["../../../../packages/language/test/code-lens.test.ts:truncates file inbound CodeLens names the same way as idea inlays"]
+    ["../../../../packages/analytical/test/inbound-file-referencers.test.ts"]
+    ["../../../../packages/analytical/test/inbound-file-referencers.test.ts:resolves relative file_reference edges onto the target file"]
+    ["../../../../packages/extension/test/inbound-file-snapshot.test.ts"]
+    ["../../../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_file_reference_targeting_file"]
+    ["../../../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_file_reference_targeting_code_file"]
+  )
+  [view_references_as_inlay_hints]
+  [code_lens_reference_types]
+  [inbound_inlay_index_performance]
+}

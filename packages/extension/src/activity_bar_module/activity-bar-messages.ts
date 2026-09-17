@@ -1,6 +1,6 @@
 /**
  * Wire protocol for the activity bar context webview.
- * per ["../../../../reqlan rq/extension/module/activitybar.rq"]
+ * per ["../../../../reqlan rq/extension/local-context/activitybar.rq"]
  */
 import type {
     AncestorChainResult,
@@ -8,7 +8,7 @@ import type {
     ReferenceListRow
 } from '@reqlan/analytical';
 import type { ReqlanContextModel } from './lib/context-model.js';
-import type { GraphViewQuery, GraphViewSlice, IdeasSummaryNavigateIntent, IndexStatusView } from '../webview_module/shared/messages.js';
+import type { GraphViewQuery, GraphViewSlice, IdeasSummaryNavigateIntent, IndexStatusView } from '../ideas_summary_module/shared/messages.js';
 
 export type IdeasSummaryIntent = IdeasSummaryNavigateIntent;
 

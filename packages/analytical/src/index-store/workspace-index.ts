@@ -10,11 +10,11 @@
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".ownership]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".index_ideas]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_incrementality]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_auto]
- * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".indexing_trigger_open]
- * rq:["../../../../reqlan rq/extension/features-index-diagnostics.rq".index_diagnostics_metrics]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".index_ideas]
+ * rq:["../../../../reqlan rq/indexer/indexer.rq".indexing_incrementality]
+ * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_auto]
+ * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_open]
+ * rq:["../../../../reqlan rq/extension/index-host/index-diagnostics.rq".index_diagnostics_metrics]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
 import { fsPathFromFileUri } from '../core/path-relative.js';
@@ -156,7 +156,7 @@ export class WorkspaceIndex {
      * Fill git creation / modified dates and change counts for ideas via native
      * git history (all missing ideas when `ideaIds` is omitted). The extension
      * only schedules background waves; the git log + persist work stays native.
-     * rq:["../../../../reqlan rq/extension/features-graph-analysers.rq".git_dates]
+     * rq:["../../../../reqlan rq/indexer/indexer.rq".git_dates]
      */
     fillGitDates(ideaIds?: string[]): number {
         if (!this.native) {
@@ -167,7 +167,7 @@ export class WorkspaceIndex {
 
     /**
      * Compute Ideas Summary overview coverage over the workspace base natively.
-     * rq:["../../../../reqlan rq/extension/module/ideas_summary/webview.rq".overview_coverage_scores]
+     * rq:["../../../../reqlan rq/extension/workspace-summary/ideas_summary/webview.rq".overview_coverage_scores]
      */
     computeOverviewCoverage(): OverviewCoverageScores {
         if (!this.native) {
@@ -293,7 +293,7 @@ export class WorkspaceIndex {
         this.diagnostics = undefined;
         // Return the FSM to `uninitialized` before dropping the runtime handle.
         // shutdown checkpoints WAL so `.sqlite` / sidecars can be deleted.
-        // rq:["../../../../reqlan rq/extension/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+        // rq:["../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
         if (native?.canDispatchIndex('closed')) {
             native.dispatchIndex('closed');
         }

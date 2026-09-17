@@ -1,8 +1,8 @@
 /**
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_click_retrieval]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_tools_prompt]
- * rq:["../../../reqlan rq/extension/features-skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools_prompt]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
  * rq:["../../../reqlan rq/core-architecture.rq".mcp_package]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
  */

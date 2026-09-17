@@ -1,6 +1,6 @@
 /**
  * Webview modal for fuzzy/paginated idea search used by reference code actions.
- * rq:["../../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import {
     type SearchReferenceCommandArgs

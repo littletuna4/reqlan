@@ -1,4 +1,4 @@
-import type { ColumnFilter } from '../../../src/webview_module/shared/messages.js';
+import type { ColumnFilter } from '../../../src/ideas_summary_module/shared/messages.js';
 
 export interface ColumnFilterSpec {
     column: string;

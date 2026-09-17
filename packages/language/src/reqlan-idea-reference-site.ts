@@ -1,6 +1,6 @@
 /**
  * Locate a bracket/wiki idea reference under the cursor for search code actions.
- * rq:["../../../reqlan rq/extension/features-commands.rq".search_code_actions]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import type { CstNode, LangiumDocument } from 'langium';
 import { CstUtils } from 'langium';
