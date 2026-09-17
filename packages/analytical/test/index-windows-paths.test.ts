@@ -8,7 +8,7 @@ import { ideaId, type IdeaRecord } from '../src/core/types.js';
 
 const workspaceRoot = 'C:\\Users\\tony\\reqlan';
 const relativeFileUri = 'reqlan rq/extension/host/scope.rq';
-const windowsAbsoluteUri = 'C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq';
+const windowsAbsoluteUri = 'C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\host\\scope.rq';
 
 function mockIdea(name: string, fileUri: string): IdeaRecord {
     return {
@@ -25,10 +25,11 @@ function mockIdea(name: string, fileUri: string): IdeaRecord {
 }
 
 describe('index upsert on Windows paths', () => {
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
     test('toIndexFileUri and normalize agree on Windows fsPath', () => {
         const fromFsPath = toWorkspaceRelativePath(windowsAbsoluteUri, workspaceRoot);
         const fromFileUri = toWorkspaceRelativePath(
-            'file:///c%3A/Users/tony/reqlan/reqlan%20rq/extension/scope.rq',
+            'file:///c%3A/Users/tony/reqlan/reqlan%20rq/extension/host/scope.rq',
             workspaceRoot
         );
         expect(fromFsPath).toBe(relativeFileUri);

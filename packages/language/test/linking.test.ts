@@ -936,7 +936,10 @@ example_ideaset (
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('classifyReferenceUri treats existing directories as folders', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/folder-reference');
+        const targetDir = join(fixturesDir, 'module');
+        mkdirSync(targetDir, { recursive: true });
+        const sourcePath = join(fixturesDir, 'source.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 folder_reference {
@@ -959,8 +962,11 @@ example_ideaset (
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
     test('folder file references resolve without reading the directory as a file', async () => {
-        const fileServices = createReqlanServices(NodeFileSystem);  
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const fileServices = createReqlanServices(NodeFileSystem);
+        const fixturesDir = join(repoDir, 'packages/language/test/fixtures/folder-reference');
+        const targetDir = join(fixturesDir, 'module');
+        mkdirSync(targetDir, { recursive: true });
+        const sourcePath = join(fixturesDir, 'source.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 folder_reference {
@@ -1108,7 +1114,7 @@ example_ideaset (
     // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     test('missing file references do not produce document links', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax-highlighting.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 missing_reference {
@@ -1136,7 +1142,7 @@ example_ideaset (
     // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
     test('unbracketed quoted paths do not produce document links or missing-file diagnostics', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax-highlighting.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 missing_prose {
@@ -1168,7 +1174,7 @@ example_ideaset (
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     test('missing file reference errors are suppressed after //rq-ignore-error', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax-highlighting.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 missing_reference {
@@ -1190,7 +1196,7 @@ example_ideaset (
     // rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
     test('remote file references are not reported as missing', async () => {
         const fileServices = createReqlanServices(NodeFileSystem);
-        const sourcePath = join(repoDir, 'reqlan rq/extension/features-syntax-highlighting.rq');
+        const sourcePath = join(repoDir, 'reqlan rq/extension/language/syntax/features-syntax-highlighting.rq');
         const document = fileServices.shared.workspace.LangiumDocumentFactory.fromString(
             s`
                 remote_reference {
@@ -1238,7 +1244,7 @@ example_ideaset (
 
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     test('comment references in source files resolve to rq ideas', async () => {
-        const demoDir = join(repoDir, 'reqlan rq/extension/features-non-rq-code-comment');
+        const demoDir = join(repoDir, 'reqlan rq/extension/language/comment-references');
         const rqPath = join(demoDir, 'functional-code-comment-references.rq');
         const jsPath = join(demoDir, 'features-code-comment.text.js');
         const fileServices = createReqlanServices(NodeFileSystem);

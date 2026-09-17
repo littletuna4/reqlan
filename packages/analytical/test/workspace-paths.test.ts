@@ -4,24 +4,27 @@ import { toWorkspaceRelativePath, resolveWorkspaceFileUri } from '../src/core/wo
 const workspaceRoot = 'C:\\Users\\tony\\reqlan';
 
 describe('toWorkspaceRelativePath', () => {
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
     test('relativizes Windows absolute fsPath', () => {
         expect(
-            toWorkspaceRelativePath('C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq', workspaceRoot)
+            toWorkspaceRelativePath('C:\\Users\\tony\\reqlan\\reqlan rq\\extension\\host\\scope.rq', workspaceRoot)
         ).toBe('reqlan rq/extension/host/scope.rq');
     });
 
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
     test('relativizes file:// URI on Windows', () => {
         expect(
             toWorkspaceRelativePath(
-                'file:///c%3A/Users/tony/reqlan/reqlan%20rq/extension/scope.rq',
+                'file:///c%3A/Users/tony/reqlan/reqlan%20rq/extension/host/scope.rq',
                 workspaceRoot
             )
         ).toBe('reqlan rq/extension/host/scope.rq');
     });
 
+    // rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
     test('relativizes mixed-case Windows paths', () => {
         expect(
-            toWorkspaceRelativePath('c:\\Users\\tony\\reqlan\\reqlan rq\\extension\\scope.rq', workspaceRoot)
+            toWorkspaceRelativePath('c:\\Users\\tony\\reqlan\\reqlan rq\\extension\\host\\scope.rq', workspaceRoot)
         ).toBe('reqlan rq/extension/host/scope.rq');
     });
 

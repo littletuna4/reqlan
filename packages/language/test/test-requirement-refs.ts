@@ -8,7 +8,7 @@ export const RQ = {
     syntax: '../../../reqlan rq/language/syntax.rq',
     featuresSyntax: '../../../reqlan rq/extension/language/syntax/features-syntax.rq',
     commentRefs: '../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq',
-    syntaxHighlighting: '../../../reqlan rq/extension/features-syntax-highlighting.rq'
+    syntaxHighlighting: '../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq'
 } as const;
 
 const TEST_DECLARATION_PATTERN = /^\s*test(?:\.(?:only|skip|todo|concurrent))?\(\s*['`]/;

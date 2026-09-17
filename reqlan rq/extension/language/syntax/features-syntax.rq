@@ -75,6 +75,7 @@ file_references {
     @tests (
         ["../../../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
         ["../../../../packages/language/test/references.test.ts:keeps colons inside the test name suffix"]
+        ["../../../../packages/language/test/linking.test.ts:classifyReferenceUri treats existing directories as folders"]
         ["../../../../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
         ["../../../../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
         ["../../../../packages/language/test/linking.test.ts:parse-error file references produce document links and warning diagnostics"]

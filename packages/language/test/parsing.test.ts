@@ -216,7 +216,7 @@ next_idea still here`);
 
     // rq:["../../../reqlan rq/language/syntax.rq".reference_wikilink]
     test('parse extension context-scope.rq module', async () => {
-        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/context-scope.rq'), 'utf8'));
+        const document = await parse(readFileSync(join(goldenCorpusDir, 'extension/module/context-scope.rq'), 'utf8'));
         expect(checkDocumentValid(document)).toBeUndefined();
         expect(document.parseResult.value.elements.some(
             element => isIdea(element) && element.name === 'context_scope'

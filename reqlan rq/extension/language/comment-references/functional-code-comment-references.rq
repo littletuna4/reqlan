@@ -14,6 +14,11 @@ references_in_functional_code_comments {
         ["./features-code-comment.text.js"]
         ["./features-code-comment.text.py"]
     )
+    @tests (
+        ["../../../../packages/language/test/linking.test.ts:comment references in source files resolve to rq ideas"]
+        ["../../../../packages/language/test/references.test.ts:finds rq: references in feature demo source files"]
+        ["../../../../packages/language/test/references.test.ts:finds rq: comment references in python triple-quoted comments"]
+    )
 
     @log:{
         textmate injection was attempted, but the specific implementation failed, this is presently partially implemented as a link.

@@ -261,6 +261,8 @@ native_bridge {
         ["../../packages/analytical/test/native-headless-entry.test.ts"]
         ["../../packages/analytical/test/open-analysis-api.test.ts"]
         ["../../packages/analytical/test/native-export-request.test.ts"]
+        ["../../packages/analytical/test/workspace-paths.test.ts"]
+        ["../../packages/analytical/test/index-windows-paths.test.ts"]
         ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }

@@ -22,7 +22,7 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const demoDir = join(
   repoRoot,
-  "reqlan rq/extension/features-non-rq-code-comment",
+  "reqlan rq/extension/language/comment-references",
 );
 
 describe("Comment and file reference utilities", () => {
