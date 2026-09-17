@@ -1,11 +1,14 @@
 from "../language/syntax.rq" import comment_reference_ignore
 from "../ontology.rq" import reference
 from "./core.rq" import index
+from "../language/imports.rq" import import_from, import_namespace, import_qualified
+from "../extension/language/support/features-imports.rq" import import_does_not_exist_error, import_folder_targets, implicit_file_extension
 
 check {
     `reqlan check` should run perform the following checks:
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
+    - report unresolved imports: [check_unresolved_imports].
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
     Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
@@ -27,6 +30,9 @@ check {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
         ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_lists_broken_refs_with_glob_and_comments"]
         ["../../packages/cli/test/check.test.ts:reports unresolved idea, comment, and file refs and exits 1"]
+        ["../../packages/cli/test/check.test.ts:reports unresolved imports and exits 1"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_import_path"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_imported_idea"]
         ["../../packages/cli/test/check.test.ts:exits 0 when there are no issues"]
         ["../../packages/cli/test/check.test.ts:quotes source paths that contain spaces"]
         ["../../packages/cli/test/check.test.ts:orders json rows by missing target"]
@@ -39,7 +45,7 @@ check {
 
 check_order_by_target {
     [check] returns issues ordered by the missing [reference] target, not by the source file.
-    Rows that share the same missing idea, comment target, or file path stay together so you can see every site that points at one missing thing.
+    Rows that share the same missing idea, comment target, file path, or import target stay together so you can see every site that points at one missing thing.
     Inside a target group, order by kind, then source file, then line.
     JSON and pipe keep a flat list in that order. Terminal output uses one heading per missing target.
     Related: [check] ["../cli/cli_package.rq".commands]
@@ -162,13 +168,14 @@ check_skip_gitignored_targets {
     The analyser function `check_references` takes `skip_gitignored_targets` (default false).
     Match uses the workspace ["../../.gitignore"] and nested `.gitignore` files on the target path.
     Match uses the resolved path from the workspace root, not the authored path in the source file.
-    Idea references and comment references stay in the issue list.
+    Idea references, comment references, and missing imported idea names stay in the issue list.
+    Missing import paths follow the same skip as file references ([check_unresolved_imports]).
     Use this when a referenced file is build output or editor config that git does not store.
     Examples: `.cursor/` for ["../extension/agent/chat-participant.rq".mcp], and `packages/extension/media/webviews/` for ["../extension/host/onboarding/page-thanks-for-installing.rq".installation_event].
     CLI: `--skip-gitignored-targets` (["../cli/cli_package.rq".commands]).
     API: `AnalysisApi.check({ skipGitignoredTargets })`.
     CI: ["../../.github/workflows/ci.yml"] and ["../../azure-pipelines.yml"] pass `--skip-gitignored-targets` because a CI checkout does not contain gitignored files ([check_meta_implementation]).
-    Related: [check] [check_skip_targets] [check_meta_implementation]
+    Related: [check] [check_skip_targets] [check_unresolved_imports] [check_meta_implementation]
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -186,6 +193,39 @@ check_skip_gitignored_targets {
         ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_skip_gitignored_targets"]
         ["../../packages/cli/test/check.test.ts:honours skip-gitignored-targets"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored targets"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_gitignored_import_paths"]
+    )
+}
+
+check_unresolved_imports {
+    [check] reports an error when an import does not resolve.
+    A missing import path is an error. A named imported idea that is not in the target file is an error.
+    Do not report imported idea names when the path is missing.
+    An existing folder is a valid import path ([import_folder_targets]).
+    A remote URL is not a missing path.
+    Import paths with no extension mean `.rq` first ([implicit_file_extension]).
+    Ignore a site with [comment_reference_ignore].
+    Issue kind is `import`. The `label` is the missing path or the missing idea name.
+    Forms: [import_from], [import_namespace], [import_qualified].
+    Editor underline: [import_does_not_exist_error].
+    [check_skip_targets] matches that label. [check_skip_gitignored_targets] omits a missing import path that Git ignore rules ignore.
+    Related: [check] [check_order_by_target] [import_does_not_exist_error]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/mcp/src/server.ts"]
+        ["../../packages/extension/skills/rq-fix-stale-references/SKILL.md"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_import_path"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_imported_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_resolved_imports"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_import_on_rq_ignore_error"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_folder_and_implicit_extension_imports"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_remote_import_urls"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_gitignored_import_paths"]
+        ["../../packages/cli/test/check.test.ts:reports unresolved imports and exits 1"]
     )
 }
 

@@ -9,6 +9,7 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
@@ -40,6 +41,7 @@ import {
     resolveRqConfig,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
+import { utf8ByteOffsetToUtf16 } from './reqlan-utf8-lsp-offset.js';
 
 interface HostExtractCacheEntry {
     readonly fingerprint: string;
@@ -351,11 +353,15 @@ function rangeFromEdgeOffsets(
     if (edge.sourceOffsetStart === undefined || edge.sourceOffsetEnd === undefined) {
         return undefined;
     }
-    const start = edge.sourceOffsetStart;
-    const end = edge.sourceOffsetEnd;
-    if (end < start) {
+    const startByte = edge.sourceOffsetStart;
+    const endByte = edge.sourceOffsetEnd;
+    if (endByte < startByte) {
         return undefined;
     }
+    const text = document.textDocument.getText();
+    // Native spans are UTF-8 bytes; TextDocument.positionAt is UTF-16.
+    const start = utf8ByteOffsetToUtf16(text, startByte);
+    const end = utf8ByteOffsetToUtf16(text, endByte);
     return {
         start: document.textDocument.positionAt(start),
         end: document.textDocument.positionAt(end)

@@ -1,5 +1,10 @@
 codelens {
-    Inbound-reference CodeLens on idea declarations. Detail: ["./syntax/features-syntax-highlighting.rq".reference_rendering].
+    Outbound classification CodeLens on references:
+    ["./syntax/features-syntax-highlighting.rq".code_lens_reference_types].
+    File-top inbound file-reference CodeLens:
+    ["./syntax/features-syntax-highlighting.rq".file_inbound_code_lens].
+    Idea inbound `@referenced-by` remains an inlay:
+    ["./syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints].
 }
 
 code_completion {

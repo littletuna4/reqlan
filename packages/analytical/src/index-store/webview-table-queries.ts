@@ -439,15 +439,28 @@ export function buildReferenceFilterClause(filterKey: string): { sql: string; pa
         };
     }
     if (filterKey.startsWith('outbound:file:')) {
-        const targetFile = filterKey.slice('outbound:file:'.length);
+        const targetFile = filterKey.slice('outbound:file:'.length).replace(/\\/g, '/');
+        const slash = targetFile.lastIndexOf('/');
+        const baseName = slash >= 0 ? targetFile.slice(slash + 1) : targetFile;
         return {
             sql: `EXISTS (
                 SELECT 1 FROM edges e
                 WHERE e.source_id = i.id
                 AND e.target_id IS NULL
-                AND (e.target_file = ? OR e.label = ?)
+                AND (
+                    e.target_file = ? OR e.label = ?
+                    OR e.target_file = ? OR e.label = ?
+                    OR e.target_file LIKE ? OR e.label LIKE ?
+                )
             )`,
-            params: [targetFile, targetFile]
+            params: [
+                targetFile,
+                targetFile,
+                baseName,
+                baseName,
+                `%/${baseName}`,
+                `%/${baseName}`
+            ]
         };
     }
     if (filterKey.startsWith('inbound:idea:')) {

@@ -75,6 +75,13 @@ export type {
     RegisteredBase
 } from './index-store/base-registry.js';
 export { resolveReferencedFilePath } from './core/file-reference-resolve.js';
+export {
+    collectInboundFileReferencers,
+    inboundFileReferencerDisplayName,
+    inboundFileTargetMatches,
+    type InboundFileReferencer,
+    type InboundFileReferencerEdge
+} from './core/inbound-file-referencers.js';
 export { SqliteIndexStore, type InboundForFileRow } from './index-store/sqlite-store.js';
 export type {
     IdeasTableQuery,

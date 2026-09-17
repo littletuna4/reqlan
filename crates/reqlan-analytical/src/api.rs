@@ -326,6 +326,7 @@ impl AnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
     pub fn check(
         &mut self,
         path_glob: Option<&str>,

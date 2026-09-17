@@ -23,7 +23,7 @@ import { example } from "@/content/example";
 import { faq } from "@/content/faq";
 import { featured } from "@/content/featured";
 import { cta, hero } from "@/content/hero";
-import { brand, footer, meta } from "@/content/meta";
+import { brand, footer, meta, pages } from "@/content/meta";
 import { motivation } from "@/content/motivation";
 import { nav, navGraph } from "@/content/nav";
 import { quizStickerTab } from "@/content/quiz-sticker";
@@ -34,6 +34,7 @@ import { syntax } from "@/content/syntax";
 
 export const siteContent = {
   meta,
+  pages,
   brand,
   nav,
   navGraph,

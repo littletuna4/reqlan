@@ -159,14 +159,18 @@ import_does_not_exist_error {
     Imports show an underline error when the target file or folder does not exist.
     Imports also show an underline error when a named imported idea does not exist in the target file.
     An existing folder is not an error: [import_folder_targets].
+    CI: ["../../../core_analysis/check.rq".check_unresolved_imports].
     [general_errors]
     @tests (
         ["../../../../packages/language/test/validating.test.ts"]
         ["../../../../packages/language/test/validating.test.ts:does not report an error when an import path is an existing folder"]
+        ["../../../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_import_path"]
+        ["../../../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_imported_idea"]
     )
     @implementation (
         ["../../../../packages/language/src/reqlan-validator.ts"]
         ["../../../../packages/language/src/reqlan-imports.ts"]
+        ["../../../../crates/reqlan-index/src/broken.rs"]
     )
 }
 

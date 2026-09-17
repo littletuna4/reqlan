@@ -1,5 +1,5 @@
-from "./indexer.rq" import index, nonblocking_index, triggers
-from "../extension/index-host/graph-analysers.rq" import indexing_incrementality, indexing_trigger_auto
+from "./indexer.rq" import index, nonblocking_index, triggers, indexing_incrementality
+from "../extension/index-host/graph-analysers.rq" import indexing_trigger_auto
 from "../extension/language/support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
 from "../extension/language/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
 from "../extension/workspace-summary/ideas_summary/graphical_graph.rq" import graphical_graph
@@ -92,6 +92,8 @@ unify_inbound_indexes {
     not Langium IndexManager.
     Query: edges whose `target_id` is an idea in the open file, plus `comment_link` /
     `file_reference` rows whose `target_file` matches that file.
+    File-top CodeLens uses the `file_reference` subset
+    (["../extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]).
     The extension host runs the query and pushes a snapshot to the language server.
     The language server does not open SQLite ([consumers.extension_ui_consumers]).
     Updates follow index sync independently of open-file parse
@@ -103,16 +105,20 @@ unify_inbound_indexes {
     @status done
     @implementation (
         ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/analytical/src/core/inbound-file-referencers.ts"]
         ["../../packages/language/src/reqlan-inlay-hint-provider.ts"]
         ["../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
         ["../../packages/language/src/reqlan-inbound-snapshot.ts"]
         ["../../packages/language/src/reqlan-reference-code-lens.ts"]
+        ["../../packages/language/src/reqlan-file-inbound-code-lens.ts"]
         ["../../packages/extension/src/extension/register-inbound-sqlite-sync.ts"]
         ["../../crates/reqlan-index/src/queries.rs"]
     )
     @tests (
         ["../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_edges_targeting_ideas_in_file"]
+        ["../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_file_reference_targeting_file"]
         ["../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
+        ["../../packages/analytical/test/inbound-file-referencers.test.ts"]
     )
 }
 

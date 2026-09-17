@@ -469,7 +469,8 @@ comment_backlink_sequence {
 lazy_features_after_outbound {
     After outbound links and errors are on screen, show extra features when their data is ready:
     - SQLite inbound snapshot ([unify_inbound_indexes]) for inlay hints ([inlay_hints])
-    - Reference CodeLens ([codelens])
+    - Reference CodeLens ([codelens]), including file-top inbound
+      (["../syntax/features-syntax-highlighting.rq".file_inbound_code_lens])
     - Attribute and name catalogs for completion and quick fixes
     - Activity-bar local symbolic merge
     These features must not delay [open_file_algorithm] steps 1–5.

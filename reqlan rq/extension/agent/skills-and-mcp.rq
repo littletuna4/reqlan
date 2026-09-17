@@ -27,7 +27,7 @@ mcp_check {
     The tool returns JSON issue rows in [check_order_by_target] order.
     An empty list means that there are no issues.
     Optional arguments match the CLI [check] flags: glob, wildcard-zero, wildcard-one, skip-targets, and skip-gitignored-targets.
-    Related: [mcp_tools] [check]
+    Related: [mcp_tools] [check] ["../../core_analysis/check.rq".check_unresolved_imports]
     @status done
     @implementation (
         [mcp_server]

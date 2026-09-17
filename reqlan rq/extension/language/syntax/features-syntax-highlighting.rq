@@ -51,6 +51,7 @@ non_web_reference_navigation {
     (["../../../language/syntax.rq".open_file_reference_sequencing],
     ["../support/open-file-sequencing.rq".outbound_one_hop]).
     Related: [reference_document_links], [reference_goto_definition_speed],
+    [reference_underline_syntax_align],
     ["../../../language/syntax.rq".open_file_reference_sequencing].
 
     @status done
@@ -63,6 +64,7 @@ non_web_reference_navigation {
     @tests (
         ["../../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
         ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
         ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
         ["../../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
@@ -113,6 +115,30 @@ reference_document_links {
         ["../../../../packages/language/test/linking.test.ts:navigable document links include target and tooltip"]
     )
     @status done
+}
+
+reference_underline_syntax_align {
+    Idea document-link and error underlines must cover the same UTF-16 range as the
+    syntax token (Langium `$refNode` / semantic token), including when non-ASCII text
+    appears earlier in the file.
+    Native extract spans are UTF-8 byte offsets
+    (["../../../indexer/indexer.rq".local_symbolic_analysis]); LSP `Position.character`
+    is UTF-16. Convert before `positionAt` so the underline does not drift off the token.
+    Related: [non_web_reference_navigation], [reference_document_links],
+    [unresolved_reference_diagnostics].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-utf8-lsp-offset.ts"]
+        ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../../../crates/reqlan-index/src/types.rs"]
+    )
+    @tests (
+        ["../../../../packages/language/test/utf8-lsp-offset.test.ts"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
+        ["../../../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_source_offsets_are_utf8_bytes"]
+    )
 }
 
 same_line_named_block_highlighting {
@@ -355,9 +381,52 @@ code_lens_reference_types {
   The card should offer open / reveal / file-selector actions when useful.
   Folders should be handled by focusing on the ide explorer, or by opening a file selector.
   Some summary stats should be shown for references - e.g. last edited, count of references, count of referencers, etc.
+  File-top inbound file references are [file_inbound_code_lens], not this outbound classification lens.
   Implemented by ["../../../../packages/language/src/reqlan-code-lens-provider.ts"], ["../../../../packages/language/src/reqlan-reference-code-lens.ts"], ["../../../../packages/language/src/reqlan-code-lens-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-code-lens.ts"], and ["../../../../packages/extension/src/extension/reference-code-lens-card.ts"].
   @status done
   @tests (
     ["../../../../packages/language/test/code-lens.test.ts"]
   )
+  [file_inbound_code_lens]
+}
+
+file_inbound_code_lens {
+  The editor shows inbound file references in a ["../vsc-primitives.rq".codelens] at the top of the file.
+  The CodeLens uses the same `@referenced-by: (name, …)` list form as idea inlay hints
+  ([view_references_as_inlay_hints]).
+  Idea declarations keep `@referenced-by` for idea-to-idea inbound.
+  The file CodeLens lists ideas that point at this file with a
+  ["../../../reference_types.rq".file_reference] (path-only and path-with-symbol).
+  Click the CodeLens to open the inbound referencers summary for this file.
+  Hide the CodeLens when the file has no inbound file references.
+  Read referencers from the SQLite inbound snapshot
+  (["../../../indexer/cache-reuse.rq".unify_inbound_indexes]).
+  Do not scan Langium IndexManager.
+  The file CodeLens is independent of the outbound classification toggle on
+  [code_lens_reference_types].
+  Applies to `.rq` files and to other indexed files that ideas reference.
+  Implemented by ["../../../../packages/language/src/reqlan-code-lens-provider.ts"],
+  ["../../../../packages/language/src/reqlan-file-inbound-code-lens.ts"],
+  ["../../../../packages/language/src/reqlan-inbound-snapshot.ts"],
+  ["../../../../packages/analytical/src/core/inbound-file-referencers.ts"],
+  ["../../../../packages/analytical/src/index-store/sqlite-store.ts"],
+  ["../../../../packages/extension/src/extension/inbound-file-snapshot.ts"],
+  ["../../../../packages/extension/src/extension/register-inbound-sqlite-sync.ts"],
+  ["../../../../packages/extension/src/extension/register-file-inbound-code-lens.ts"],
+  ["../../../../packages/extension/src/ideas_summary_module/register-webview.ts"],
+  and ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"].
+  @status done
+  @tests (
+    ["../../../../packages/language/test/code-lens.test.ts:shows file inbound referenced-by CodeLens at the top of the file"]
+    ["../../../../packages/language/test/code-lens.test.ts:omits file inbound CodeLens when the snapshot has no file referencers"]
+    ["../../../../packages/language/test/code-lens.test.ts:truncates file inbound CodeLens names the same way as idea inlays"]
+    ["../../../../packages/analytical/test/inbound-file-referencers.test.ts"]
+    ["../../../../packages/analytical/test/inbound-file-referencers.test.ts:resolves relative file_reference edges onto the target file"]
+    ["../../../../packages/extension/test/inbound-file-snapshot.test.ts"]
+    ["../../../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_file_reference_targeting_file"]
+    ["../../../../crates/reqlan-index/src/queries.rs:inbound_for_file_returns_file_reference_targeting_code_file"]
+  )
+  [view_references_as_inlay_hints]
+  [code_lens_reference_types]
+  [inbound_inlay_index_performance]
 }

@@ -3,6 +3,8 @@
  * Generate PNGs, favicons, and web manifest from public/logo.svg.
  * Re-run whenever the source SVG changes.
  */
+// rq:["../../reqlan rq/site/site.rq".images]
+// rq:["../../reqlan rq/site/site.rq".meta_tags]
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +27,16 @@ const pngOutputs = [
 ];
 
 const icoSizes = [16, 32, 48];
+
+const ogImage = {
+  name: "og.png",
+  width: 1200,
+  height: 630,
+  logoSize: 280,
+  background: { r: 0x14, g: 0x10, b: 0x0e, alpha: 1 },
+  title: "reqlan",
+  tagline: "A graph of named ideas your agents can search",
+};
 
 async function renderLogo(size) {
   return sharp(sourceLogo, { density: RENDER_DENSITY })
@@ -69,6 +81,43 @@ async function writeWebManifest() {
   console.log("wrote site.webmanifest");
 }
 
+function escapeXml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+async function writeOgImage() {
+  const { name, width, height, logoSize, background, title, tagline } = ogImage;
+  const logoLeft = Math.round((width - logoSize) / 2);
+  const logoTop = 88;
+  const textSvg = Buffer.from(`
+<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+  <text x="${width / 2}" y="450" text-anchor="middle" font-family="sans-serif" font-size="56" font-weight="600" fill="#ebe4de">${escapeXml(title)}</text>
+  <text x="${width / 2}" y="500" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#a89488">${escapeXml(tagline)}</text>
+</svg>
+`);
+
+  const outputPath = join(publicDir, name);
+  await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background,
+    },
+  })
+    .composite([
+      { input: await renderLogo(logoSize), left: logoLeft, top: logoTop },
+      { input: textSvg },
+    ])
+    .png()
+    .toFile(outputPath);
+  console.log(`wrote ${name}`);
+}
+
 async function main() {
   await readFile(sourceLogo);
 
@@ -78,6 +127,7 @@ async function main() {
 
   await writeFaviconIco();
   await writeWebManifest();
+  await writeOgImage();
 
   console.log("Image generation complete.");
 }

@@ -1,6 +1,5 @@
-from "./indexer.rq" import index, consumption, ownership
+from "./indexer.rq" import index, consumption, ownership, index_ideas, index_technology, local_graph_analysis
 from "../extension/index-host/index.rq" import application_memory, index_diagnostics_store
-from "../extension/index-host/graph-analysers.rq" import index_ideas, index_technology, local_graph_analysis
 from "../extension/index-host/index-diagnostics.rq" import index_diagnostics_webview
 from "../cli/cli_package.rq" import cli_package
 from "../core_analysis/search.rq" import fuzzy_search, file_search

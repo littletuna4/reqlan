@@ -1,4 +1,4 @@
-import "../../export/export.rq" as export_functions
+import "../export/export.rq" as export_functions
 from "../../indexer/indexer.rq" import local_graph_analysis
 import "@/reqlan rq/core_analysis/search.rq" as search_analysis
 import "../../cli/cli_package.rq" as cli

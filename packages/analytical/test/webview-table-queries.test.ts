@@ -10,6 +10,7 @@ import {
     buildIdeasWhereClause,
     buildIdeasetsWhereClause,
     buildReferencesWhereClause,
+    buildReferenceFilterClause,
     edgeKindsForReferenceViewTypes,
     filterAndPageAttributes
 } from '../src/index-store/webview-table-queries.js';
@@ -127,6 +128,23 @@ describe('references table column filters', () => {
         expect(sql).toContain('si.name LIKE ?');
         expect(sql).toContain('COALESCE(e.target_file, \'\') LIKE ?');
         expect(params).toEqual(Array(7).fill('%widget%'));
+    });
+});
+
+describe('idea reference filters', () => {
+    test('outbound file filters match indexed path, basename, and suffix', () => {
+        const { sql, params } = buildReferenceFilterClause(
+            'outbound:file:reqlan rq/extension/index-host/git-codelens.rq'
+        );
+        expect(sql).toContain('e.target_file LIKE ?');
+        expect(params).toEqual([
+            'reqlan rq/extension/index-host/git-codelens.rq',
+            'reqlan rq/extension/index-host/git-codelens.rq',
+            'git-codelens.rq',
+            'git-codelens.rq',
+            '%/git-codelens.rq',
+            '%/git-codelens.rq'
+        ]);
     });
 });
 

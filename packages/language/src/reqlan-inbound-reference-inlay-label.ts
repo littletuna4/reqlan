@@ -108,6 +108,16 @@ function referencerPartTooltip(referrer: InboundReferencer): MarkupContent {
     };
 }
 
+export function formatInboundReferencedByTitle(names: string[]): string | undefined {
+    if (names.length === 0) {
+        return undefined;
+    }
+    const inlineNames = names.slice(0, MAX_INLINE_NAMES);
+    const remainder = names.length - inlineNames.length;
+    const suffix = remainder > 0 ? `, +${remainder} more` : '';
+    return `@referenced-by: (${inlineNames.join(', ')}${suffix})`;
+}
+
 export function buildInboundReferencesInlayLabel(
     referencers: InboundReferencer[],
     targetDocumentUri: string,
@@ -161,11 +171,12 @@ export function formatInboundReferencesInlayLabel(referencers: string[]): { labe
     if (referencers.length === 0) {
         return undefined;
     }
-    const inlineNames = referencers.slice(0, MAX_INLINE_NAMES);
-    const remainder = referencers.length - inlineNames.length;
-    const suffix = remainder > 0 ? `, +${remainder} more` : '';
+    const title = formatInboundReferencedByTitle(referencers);
+    if (!title) {
+        return undefined;
+    }
     return {
-        label: `@referenced-by: (${inlineNames.join(', ')}${suffix})`,
+        label: title,
         tooltip: referencers.join('\n')
     };
 }

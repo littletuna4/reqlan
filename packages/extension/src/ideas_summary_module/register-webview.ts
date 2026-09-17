@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { ideaId } from '@reqlan/analytical';
-import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from '@reqlan/language';
+import {
+    REQLAN_INBOUND_FILE_REFERENCES_SUMMARY_COMMAND,
+    REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND
+} from '@reqlan/language';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { IdeasSummaryPanel } from './ideas-summary-panel.js';
 
@@ -31,6 +34,27 @@ export function registerWebviewModule(
                     }]
                 });
             }
+        ),
+        vscode.commands.registerCommand(
+            REQLAN_INBOUND_FILE_REFERENCES_SUMMARY_COMMAND,
+            (documentUri: string, indexedUri: string) => {
+                const target = indexedUri || documentUri;
+                const label = fileLabelFromIndexedUri(target);
+                IdeasSummaryPanel.show(context, submodule, activationGeneration, {
+                    activeTab: 'ideas',
+                    referenceFilters: [{
+                        direction: 'outbound',
+                        filterKey: `outbound:file:${target}`,
+                        label
+                    }]
+                });
+            }
         )
     );
+}
+
+function fileLabelFromIndexedUri(uri: string): string {
+    const normalized = uri.replace(/\\/g, '/');
+    const slash = Math.max(normalized.lastIndexOf('/'), normalized.lastIndexOf('\\'));
+    return slash >= 0 ? normalized.slice(slash + 1) : normalized;
 }

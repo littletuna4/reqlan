@@ -2,6 +2,7 @@
 // rq:["../../../reqlan rq/site/site.rq".site]
 // rq:["../../../reqlan rq/site/site.rq".brand]
 // rq:["../../../reqlan rq/site/site.rq".elevator_pitch_section]
+// rq:["../../../reqlan rq/site/site.rq".meta_tags]
 
 export const elevator_pitch = {
   // rq:["../../../reqlan rq/constitution.rq".elevator_pitch]
@@ -29,6 +30,39 @@ export const meta = {
   title: "reqlan",
   description:
     "A graph of named ideas your agents can search, link, and reuse. Build high-quality, verifiable systems quickly by describing the parts that matter and how they relate.",
+  locale: "en_US",
+  themeColor: "#0371c1",
+  ogImage: {
+    path: "/og.png",
+    width: 1200,
+    height: 630,
+    alt: "reqlan",
+    tagline: "A graph of named ideas your agents can search",
+  },
+} as const;
+
+export const pages = {
+  tutorials: {
+    title: "Tutorials",
+    description: "Install, write, link, and map your first ideas.",
+  },
+  showcase: {
+    title: "Showcases",
+    description: "Domains and problems reqlan is well-suited for.",
+  },
+  assessment: {
+    title: "Assessment",
+    description:
+      "Pass the reqlan assessment to claim a certificate of completion.",
+  },
+  certificate: {
+    title: "Certificate",
+    description: "reqlan tutorial certificate",
+  },
+  player: {
+    title: "tutorial deck",
+    description: "Reveal.js tutorial slide deck",
+  },
 } as const;
 
 export const brand = {

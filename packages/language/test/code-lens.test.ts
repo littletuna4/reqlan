@@ -14,6 +14,7 @@ import {
     REQLAN_REFERENCE_CODE_LENS_SETTING,
     referenceCodeLensEnabled
 } from '../src/reqlan-code-lens-settings.js';
+import { REQLAN_INBOUND_FILE_REFERENCES_SUMMARY_COMMAND } from '../src/reqlan-inlay-hint-settings.js';
 import {
     buildReferenceCodeLensTooltip,
     classifyReferenceForCodeLens,
@@ -264,5 +265,83 @@ describe('Reference CodeLens file targets', () => {
         } finally {
             rmSync(fixturesDir, { recursive: true, force: true });
         }
+    });
+});
+
+describe('File inbound CodeLens', () => {
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
+    test('shows file inbound referenced-by CodeLens at the top of the file', async () => {
+        document = await parse(s`
+            host {
+                body
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        setReferenceCodeLensEnabled(false);
+        sharedInboundSnapshot.update({
+            snapshots: [{
+                documentUri: document.uri.toString(),
+                indexedUri: 'host.rq',
+                byIdeaName: {},
+                fileReferencers: [
+                    { name: 'cli_package', uri: 'file:///tmp/cli.rq', line: 3 },
+                    { name: 'indexer', uri: 'file:///tmp/indexer.rq', line: 8 }
+                ]
+            }]
+        });
+
+        const lenses = await getCodeLensesForDocument(document);
+
+        expect(lensTitles(lenses)).toEqual(['@referenced-by: (cli_package, indexer)']);
+        expect(lenses?.[0]?.range.start).toEqual({ line: 0, character: 0 });
+        expect(lenses?.[0]?.command?.command).toBe(REQLAN_INBOUND_FILE_REFERENCES_SUMMARY_COMMAND);
+        expect(lenses?.[0]?.command?.arguments).toEqual([
+            document.uri.toString(),
+            'host.rq'
+        ]);
+    });
+
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
+    test('truncates file inbound CodeLens names the same way as idea inlays', async () => {
+        document = await parse(s`
+            host {
+                body
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        sharedInboundSnapshot.update({
+            snapshots: [{
+                documentUri: document.uri.toString(),
+                indexedUri: 'host.rq',
+                byIdeaName: {},
+                fileReferencers: [
+                    { name: 'a', uri: 'file:///a.rq', line: 1 },
+                    { name: 'b', uri: 'file:///b.rq', line: 1 },
+                    { name: 'c', uri: 'file:///c.rq', line: 1 },
+                    { name: 'd', uri: 'file:///d.rq', line: 1 },
+                    { name: 'e', uri: 'file:///e.rq', line: 1 }
+                ]
+            }]
+        });
+
+        const lenses = await getCodeLensesForDocument(document);
+
+        expect(lensTitles(lenses)).toEqual(['@referenced-by: (a, b, c, +2 more)']);
+    });
+
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
+    test('omits file inbound CodeLens when the snapshot has no file referencers', async () => {
+        document = await parse(s`
+            host {
+                body
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: false });
+        setReferenceCodeLensEnabled(false);
+        seedInboundSnapshot(document, {});
+
+        const lenses = await getCodeLensesForDocument(document);
+
+        expect(lenses).toEqual([]);
     });
 });

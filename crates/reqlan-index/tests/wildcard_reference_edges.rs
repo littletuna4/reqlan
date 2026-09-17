@@ -238,7 +238,8 @@ fn imports_rq_extract_includes_webview_and_path_filter_ideas() {
 #[test]
 fn indexer_and_graphical_graph_rq_capture_wildcard_edge_and_toggle_ideas() {
     let indexer = extract_repo_file("reqlan rq/indexer/indexer.rq");
-    let graph = extract_repo_file("reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq");
+    let graph =
+        extract_repo_file("reqlan rq/extension/workspace-summary/ideas_summary/graphical_graph.rq");
 
     let edge_idea = idea_named(&indexer, "wildcard_reference_edges");
     assert_eq!(edge_idea.kind.as_str(), "block");

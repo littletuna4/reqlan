@@ -23,7 +23,7 @@ ai_write_plan {
 }
 
 ai_fix_stale_references {
-    A chat skill `/rq-fix-stale-references` finds and repairs unresolved idea, comment, file, and wildcard references.
+    A chat skill `/rq-fix-stale-references` finds and repairs unresolved idea, comment, file, import, and wildcard references.
     The issue list comes from ["../../core_analysis/check.rq".check] (`reqlan check --json`).
     Repair choices follow ["../language/support/features-imports.rq".import_error] and ["../mutation/refactor_support.rq".comment_reference_refactor_support].
     Slash-command name uses [skills_and_mcp.chat_skill_naming].

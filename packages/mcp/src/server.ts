@@ -125,6 +125,7 @@ export async function handlePromptTool(
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 export async function handleCheckTool(
@@ -206,7 +207,7 @@ export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
     "check",
     {
       description:
-        "Check that idea, comment, and file references resolve. Returns JSON issue rows ordered by missing target. Empty array means no issues. Optional glob limits to a path subset. wildcardZero and wildcardOne are warn (default), error, or off. skipTargets omits issues whose missing target matches a glob. skipGitignoredTargets omits missing file targets that Git ignore rules ignore. Lines after //rq-ignore-error are skipped.",
+        "Check that idea, comment, file, and import references resolve. Returns JSON issue rows ordered by missing target. Empty array means no issues. Optional glob limits to a path subset. wildcardZero and wildcardOne are warn (default), error, or off. skipTargets omits issues whose missing target matches a glob. skipGitignoredTargets omits missing file targets that Git ignore rules ignore. Lines after //rq-ignore-error are skipped.",
       inputSchema: {
         glob: z
           .string()

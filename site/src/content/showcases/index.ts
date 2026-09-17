@@ -9,6 +9,7 @@ import { agentContextShowcase } from "./agent-context";
 import { interlockShowcase } from "./interlock";
 import { brokenLinksShowcase } from "./broken-links";
 import { firmwareCloudShowcase } from "./firmware-cloud";
+import { storyCodebaseShowcase } from "./story-codebase";
 import { auditTrailShowcase } from "./audit-trail";
 import { moduleSurfaceShowcase } from "./module-surface";
 import { testProvesShowcase } from "./test-proves";
@@ -40,6 +41,7 @@ export const showcases = [
   interlockShowcase,
   brokenLinksShowcase,
   firmwareCloudShowcase,
+  storyCodebaseShowcase,
   auditTrailShowcase,
   moduleSurfaceShowcase,
   testProvesShowcase,

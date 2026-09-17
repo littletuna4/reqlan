@@ -6,6 +6,7 @@
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
  * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
@@ -32,10 +33,10 @@ export class CheckCommand extends Command {
     static override paths = [['check']];
 
     static override usage = Command.Usage({
-        description: 'Check that requirement, comment, and code references resolve.',
+        description: 'Check that requirement, comment, import, and code references resolve.',
         details: `
             Wraps the ideas index and reports unresolved idea references, comment
-            references, and missing code files. Lines after //rq-ignore-error are skipped.
+            references, missing code files, and unresolved imports. Lines after //rq-ignore-error are skipped.
             Issues are ordered by the missing target so shared broken refs group together.
             Wildcard references that match 0 ideas use --wildcard-zero (default warn).
             Wildcard references that match 1 idea use --wildcard-one (default warn).

@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 import { showcases } from "../src/content/showcases/index.ts";
 
+// rq:["../../reqlan rq/site/site.rq".spec_html_export]
+// rq:["../../reqlan rq/site/site.rq".meta_tags]
+
 const rootDir = fileURLToPath(new URL("..", import.meta.url));
 const outDir = resolve(rootDir, "out");
 const configuredBase = (process.env.SITE_BASE_PATH ?? "").replace(/\/$/, "");
@@ -20,6 +23,7 @@ const requiredPaths = [
   "spec/graph.html",
   "spec/ideas.html",
   "404.html",
+  "og.png",
   "presentations/player/index.html",
   "presentations/decks/gs-01-why-reqlan.json",
   "presentations/manifest.json",

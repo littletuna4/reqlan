@@ -123,6 +123,7 @@ pub struct EdgeRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_resolved: Option<bool>,
     /// UTF-8 byte offset of the reference span (live extract only; not persisted).
+    /// LSP underlines must convert this to UTF-16 before `positionAt`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_offset_start: Option<u32>,
     /// UTF-8 byte offset end (exclusive) of the reference span (live extract only).

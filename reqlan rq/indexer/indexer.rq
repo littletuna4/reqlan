@@ -14,7 +14,6 @@ import "../extension/workspace-summary/ideas_summary/webview.rq" as ideas_summar
 import "../../packages/analytical/test/workspace-index.test.ts" as workspace_index_tests
 import "../core_analysis/core.rq" as core_analysis
 from "../language/syntax.rq" import comment_reference
-from "../extension/index-host/graph-analysers.rq" import index_comment_reference_inclusion
 import "./sqlite-schema.rq" as sqlite_schema
 import "./diagnostics-schema.rq" as diagnostics_schema
 import "./sidecars.rq" as sidecars
@@ -100,8 +99,10 @@ wildcard_reference_edges {
 local_symbolic_analysis {
     Open-file symbolic analysis must run in Rust on one file only.
     Input: file URI plus source text (and optional import-root mappings).
-    Output: ideas in that file, outbound edges with source byte spans, and same-file
+    Output: ideas in that file, outbound edges with UTF-8 source byte spans, and same-file
     inbound backlinks (edges whose target is an idea declared in this file).
+    LSP document-link and error underlines must convert those spans to UTF-16
+    (["../extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]).
     Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
     Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
     This extract is not the Langium AST
@@ -131,6 +132,7 @@ local_symbolic_analysis {
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../packages/language/src/reqlan-utf8-lsp-offset.ts"]
         ["../../packages/cli/src/commands/analyse.ts"]
         ["../../packages/extension/src/activity_bar_module/local-symbolic-context.ts"]
         ["../../packages/extension/src/activity_bar_module/context-model.ts"]
@@ -139,9 +141,11 @@ local_symbolic_analysis {
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_returns_outbound_without_catalog"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_ignores_catalog_candidates"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_includes_same_file_inbound_backlinks"]
+        ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_source_offsets_are_utf8_bytes"]
         ["../../packages/analytical/test/load-native.test.ts:exposes analyzeLocalSymbolic on the engine when present"]
         ["../../packages/analytical/test/local-symbolic-references.test.ts"]
         ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
+        ["../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
         ["../../packages/cli/test/local-symbolic.test.ts"]
         ["../../packages/extension/test/local-symbolic-context.test.ts"]
     )

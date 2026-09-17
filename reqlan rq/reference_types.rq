@@ -81,6 +81,8 @@ file_reference {
     Syntax: ["./language/syntax.rq".reference_file] (bracketed quoted path, optional `L#` / symbol path).
     Index edge kind `file_reference`. Resolve: [file_reference_resolve]; extract: [idea_extractor].
     Editor links: ["./extension/language/syntax/features-syntax.rq".file_references].
+    Inbound file-reference CodeLens at the top of the target file:
+    ["./extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens].
     Non-`.rq` targets and inbound comment traffic: ["./ontology.rq".referenced_files].
     Markdown `[label](target)` also stores this edge kind — see [link_reference].
     Quoted body text is not this kind: [reference_edgecase].

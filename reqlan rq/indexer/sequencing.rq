@@ -1,5 +1,4 @@
-from "./indexer.rq" import index, nonblocking_index, triggers, index_code_files
-from "../extension/index-host/graph-analysers.rq" import indexing_incrementality
+from "./indexer.rq" import index, nonblocking_index, triggers, index_code_files, indexing_incrementality
 from "../extension/index-host/graph-analysers.rq" import indexing_trigger_filesave
 from "../extension/index-host/graph-analysers.rq" import indexing_trigger_manual
 from "../extension/index-host/graph-analysers.rq" import indexing_trigger_open

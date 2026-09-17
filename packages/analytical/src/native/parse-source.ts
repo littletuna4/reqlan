@@ -97,6 +97,7 @@ export interface LocalSymbolicEdge {
     sourceLine?: number;
     snippet?: string;
     isResolved?: boolean;
+    /** UTF-8 byte offset; convert to UTF-16 before LSP `positionAt`. */
     sourceOffsetStart?: number;
     sourceOffsetEnd?: number;
 }

@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 
@@ -619,5 +620,132 @@ fn sync_drops_stale_inline_code_file_refs_when_extract_version_changes() {
     assert_eq!(store.extract_version().unwrap(), EXTRACT_VERSION);
     let rows = run_check(&store, &root, None);
     assert!(rows.iter().all(|row| row.label != "./gone.ts"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_reports_missing_import_path() {
+    let root = scratch("import-path");
+    std::fs::write(root.join("host.rq"), "from \"./gone.rq\" import ghost\nhost {\n    body\n}\n")
+        .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().any(|row| row.kind == "import" && row.label == "./gone.rq"), "{rows:?}");
+    assert!(rows.iter().all(|row| row.label != "ghost"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_reports_missing_imported_idea() {
+    let root = scratch("import-idea");
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "from \"./lib.rq\" import missing_idea\nhost {\n    body\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().any(|row| row.kind == "import" && row.label == "missing_idea"), "{rows:?}");
+    assert!(rows.iter().all(|row| row.label != "./lib.rq"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_accepts_resolved_imports() {
+    let root = scratch("import-ok");
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "from \"./lib.rq\" import seed\nimport \"./lib.rq\" as lib\nhost {\n    [seed]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| row.kind != "import"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_skips_import_on_rq_ignore_error() {
+    let root = scratch("import-ignore");
+    std::fs::write(
+        root.join("host.rq"),
+        "//rq-ignore-error\nfrom \"./gone.rq\" import ghost\nfrom \"./also-gone.rq\" import other\nhost {\n    body\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| row.label != "./gone.rq"), "{rows:?}");
+    assert!(
+        rows.iter().any(|row| row.kind == "import" && row.label == "./also-gone.rq"),
+        "{rows:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_accepts_folder_and_implicit_extension_imports() {
+    let root = scratch("import-folder");
+    std::fs::create_dir_all(root.join("mods")).unwrap();
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "import \"./mods\" as mods\nfrom \"./lib\" import seed\nhost {\n    body\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| row.kind != "import"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+#[test]
+fn check_skips_remote_import_urls() {
+    let root = scratch("import-remote");
+    std::fs::write(
+        root.join("host.rq"),
+        "from \"https://example.com/reqs/style.rq\" import style\nimport \"https://company.com/reqs/style.rq\" as styleguide\nhost {\n    body\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| row.kind != "import"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+#[test]
+fn check_skips_gitignored_import_paths() {
+    let root = scratch("import-gi");
+    std::fs::write(root.join(".gitignore"), "build/\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "from \"./build/out.rq\" import ghost\nfrom \"./gone.rq\" import other\nhost {\n    body\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let all = run_check(&store, &root, None);
+    assert!(all.iter().any(|row| row.kind == "import" && row.label == "./build/out.rq"), "{all:?}");
+    assert!(all.iter().any(|row| row.kind == "import" && row.label == "./gone.rq"), "{all:?}");
+
+    let skipped = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { skip_gitignored_targets: true, ..Default::default() },
+    )
+    .unwrap();
+    assert!(skipped.iter().all(|row| row.label != "./build/out.rq"), "{skipped:?}");
+    assert!(
+        skipped.iter().any(|row| row.kind == "import" && row.label == "./gone.rq"),
+        "{skipped:?}"
+    );
     std::fs::remove_dir_all(&root).ok();
 }

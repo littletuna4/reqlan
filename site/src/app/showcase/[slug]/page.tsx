@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getShowcase, showcases } from "@/content/showcases";
+import { pageMetadata } from "@/lib/site-metadata";
 import { ShowcaseDetailPage } from "@/views/ShowcaseDetailPage";
 
 type PageProps = {
@@ -22,10 +23,11 @@ export async function generateMetadata({
     return {};
   }
 
-  return {
-    title: `${showcase.title} · reqlan`,
+  return pageMetadata({
+    title: showcase.title,
     description: showcase.summary,
-  };
+    path: `/showcase/${showcase.id}/`,
+  });
 }
 
 export default async function Page({ params }: PageProps) {

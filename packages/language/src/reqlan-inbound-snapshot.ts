@@ -20,6 +20,8 @@ export interface InboundFileSnapshot {
     indexedUri: string;
     /** Target idea / ideaset name → inbound referencers. */
     byIdeaName: Record<string, InboundSnapshotReferencer[]>;
+    /** Ideas that point at this file with a `file_reference`. */
+    fileReferencers?: InboundSnapshotReferencer[];
 }
 
 export interface InboundSnapshotBatch {
@@ -34,7 +36,8 @@ export class InboundSnapshotStore {
             this.byDocumentUri.set(snapshot.documentUri, {
                 documentUri: snapshot.documentUri,
                 indexedUri: snapshot.indexedUri,
-                byIdeaName: { ...snapshot.byIdeaName }
+                byIdeaName: { ...snapshot.byIdeaName },
+                fileReferencers: [...(snapshot.fileReferencers ?? [])]
             });
         }
     }
@@ -54,6 +57,25 @@ export class InboundSnapshotStore {
         }
         const rows = snapshot.byIdeaName[ideaName] ?? [];
         return rows
+            .map(row => ({
+                name: row.name,
+                location: {
+                    uri: row.uri,
+                    range: {
+                        start: { line: row.line, character: row.character ?? 0 },
+                        end: { line: row.line, character: (row.character ?? 0) + row.name.length }
+                    }
+                } satisfies Location
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name));
+    }
+
+    referencersForFile(documentUri: string): InboundReferencer[] {
+        const snapshot = this.byDocumentUri.get(documentUri);
+        if (!snapshot) {
+            return [];
+        }
+        return (snapshot.fileReferencers ?? [])
             .map(row => ({
                 name: row.name,
                 location: {

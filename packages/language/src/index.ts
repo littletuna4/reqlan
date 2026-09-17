@@ -70,8 +70,10 @@ export {
 export * from './reqlan-outbound-presentation.js';
 export * from './reqlan-workspace-attribute-catalog.js';
 export * from './reqlan-inlay-hint-settings.js';
+export { formatInboundReferencedByTitle } from './reqlan-inbound-reference-inlay-label.js';
 export * from './reqlan-code-lens-settings.js';
 export * from './reqlan-reference-code-lens.js';
+export * from './reqlan-file-inbound-code-lens.js';
 export { ReqlanInlayHintProvider } from './reqlan-inlay-hint-provider.js';
 export { ReqlanCodeLensProvider } from './reqlan-code-lens-provider.js';
 export { summarizeIdeaDeclaration, truncateSummary } from './reqlan-idea-summary.js';

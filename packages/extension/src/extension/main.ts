@@ -20,6 +20,10 @@ import { registerReferenceCodeLens } from './register-reference-code-lens.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerInboundSqliteSync } from './register-inbound-sqlite-sync.js';
+import {
+    FileInboundCodeLensProvider,
+    registerFileInboundCodeLens
+} from './register-file-inbound-code-lens.js';
 import { registerImportErrorCommands } from './register-import-error-commands.js';
 import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js';
 import { registerOnboardingCommands } from './register-onboarding-commands.js';
@@ -52,6 +56,8 @@ export function activate(context: vscode.ExtensionContext): void {
     // commands unavailable).
     runStep('reference inlay hints', () => registerReferenceInlayHintsToggle(context));
     runStep('reference code lens', () => registerReferenceCodeLens(context));
+    const fileInboundCodeLens = new FileInboundCodeLensProvider();
+    runStep('file inbound code lens', () => registerFileInboundCodeLens(context, fileInboundCodeLens));
     runStep('onboarding commands', () => registerOnboardingCommands(context));
 
     const activityBarPainted = new StartupGate();
@@ -69,7 +75,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
     if (submodule) {
         runStep('background startup scheduling', () =>
-            scheduleBackgroundStartup(context, submodule as AnalyticalSubmodule, activityBarPainted)
+            scheduleBackgroundStartup(
+                context,
+                submodule as AnalyticalSubmodule,
+                activityBarPainted,
+                fileInboundCodeLens
+            )
         );
     }
 
@@ -109,7 +120,8 @@ let backgroundStartupStarted = false;
 function scheduleBackgroundStartup(
     context: vscode.ExtensionContext,
     submodule: AnalyticalSubmodule,
-    activityBarPainted: StartupGate
+    activityBarPainted: StartupGate,
+    fileInboundCodeLens: FileInboundCodeLensProvider
 ): void {
     if (backgroundStartupStarted) {
         return;
@@ -127,7 +139,7 @@ function scheduleBackgroundStartup(
                 // that become ready afterwards.
                 registerAttributeCatalogSync(context, submodule.index, () => client);
                 registerNameCatalogSync(context, submodule.index, () => client);
-                registerInboundSqliteSync(context, submodule.index, () => client);
+                registerInboundSqliteSync(context, submodule.index, () => client, fileInboundCodeLens);
             })
             .catch(error => {
                 console.error('[reqlan] Language client failed to start:', error);

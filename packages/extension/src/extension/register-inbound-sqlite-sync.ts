@@ -1,9 +1,10 @@
 /**
- * Push SQLite inbound edges for visible `.rq` editors to the language server.
+ * Push SQLite inbound edges for visible editors to the language server.
  * Lazy: must not block open-file outbound links.
  * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  * rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
+ * rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
  */
 import {
     REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
@@ -15,20 +16,18 @@ import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
+import { toFileReferencerSnapshotRows } from './inbound-file-snapshot.js';
+import type { FileInboundCodeLensProvider } from './register-file-inbound-code-lens.js';
 
 export function registerInboundSqliteSync(
     context: vscode.ExtensionContext,
     index: IndexService,
-    getClient: () => LanguageClient | undefined
+    getClient: () => LanguageClient | undefined,
+    fileInboundCodeLens?: FileInboundCodeLensProvider
 ): void {
     const pushSnapshots = async (): Promise<void> => {
         const client = getClient();
-        if (!client) {
-            return;
-        }
-        const editors = vscode.window.visibleTextEditors.filter(
-            editor => editor.document.languageId === 'reqlan' || editor.document.uri.path.endsWith('.rq')
-        );
+        const editors = vscode.window.visibleTextEditors;
         const snapshots: InboundFileSnapshot[] = [];
         if (!index.isReady) {
             for (const editor of editors) {
@@ -36,13 +35,17 @@ export function registerInboundSqliteSync(
                 snapshots.push({
                     documentUri,
                     indexedUri: toIndexFileUri(editor.document.uri),
-                    byIdeaName: {}
+                    byIdeaName: {},
+                    fileReferencers: []
                 });
             }
-            client.sendNotification(
-                REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
-                { snapshots } satisfies InboundSnapshotBatch
-            );
+            fileInboundCodeLens?.updateSnapshots(snapshots);
+            if (client) {
+                client.sendNotification(
+                    REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
+                    { snapshots } satisfies InboundSnapshotBatch
+                );
+            }
             return;
         }
 
@@ -76,14 +79,26 @@ export function registerInboundSqliteSync(
                 for (const name of Object.keys(byIdeaName)) {
                     byIdeaName[name] = dedupeReferencers(byIdeaName[name]!);
                 }
-                snapshots.push({ documentUri, indexedUri, byIdeaName });
+                const fileReferencers = toFileReferencerSnapshotRows(
+                    await index.indexStore.listInboundFileReferencers(indexedUri),
+                    sourceIndexedUri => resolveIndexFileUri(sourceIndexedUri).toString()
+                );
+                snapshots.push({
+                    documentUri,
+                    indexedUri,
+                    byIdeaName,
+                    fileReferencers: dedupeReferencers(fileReferencers)
+                });
             }
-            client.sendNotification(
-                REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
-                { snapshots } satisfies InboundSnapshotBatch
-            );
-            await client.sendRequest('workspace/inlayHint/refresh').catch(() => undefined);
-            await client.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+            fileInboundCodeLens?.updateSnapshots(snapshots);
+            if (client) {
+                client.sendNotification(
+                    REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
+                    { snapshots } satisfies InboundSnapshotBatch
+                );
+                await client.sendRequest('workspace/inlayHint/refresh').catch(() => undefined);
+                await client.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+            }
         } catch (error) {
             console.error('[reqlan] Failed to push inbound snapshot:', error);
         }

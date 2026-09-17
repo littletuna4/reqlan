@@ -36,6 +36,10 @@ import {
     todoNoteFromAttributes
 } from '../core/filter-specials.js';
 import { resolveReferencedFilePath } from '../core/file-reference-resolve.js';
+import {
+    collectInboundFileReferencers,
+    type InboundFileReferencer
+} from '../core/inbound-file-referencers.js';
 import type {
     AttributesTableQuery,
     AttributeTableRow,
@@ -363,6 +367,20 @@ export class SqliteIndexStore {
             filePath
         ) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
+    }
+
+    /**
+     * Ideas whose outbound `file_reference` resolves to `fileUri`.
+     * rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
+     */
+    async listInboundFileReferencers(fileUri: string): Promise<InboundFileReferencer[]> {
+        const indexed = fileUri.replace(/\\/g, '/');
+        const base = basename(indexed);
+        const edges = [
+            ...await this.getEdgesReferencingFile(indexed),
+            ...(base !== indexed ? await this.getEdgesReferencingFile(base) : [])
+        ];
+        return collectInboundFileReferencers(edges, indexed);
     }
 
     async getAllEdges(): Promise<EdgeRecord[]> {

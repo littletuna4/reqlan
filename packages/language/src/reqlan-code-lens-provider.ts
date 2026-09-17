@@ -1,5 +1,8 @@
 /**
- * CodeLens buttons classifying references (idea, reqlan/other file, folder).
+ * CodeLens buttons classifying references (idea, reqlan/other file, folder),
+ * plus file-top inbound file-reference CodeLens.
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_lens_reference_types]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
  */
 import type { LangiumDocument } from 'langium';
 import { AstUtils } from 'langium';
@@ -15,6 +18,7 @@ import {
     buildReferenceCodeLens,
     classifyReferenceForCodeLens
 } from './reqlan-reference-code-lens.js';
+import { buildFileInboundCodeLens } from './reqlan-file-inbound-code-lens.js';
 import type { ReqlanServices } from './reqlan-module.js';
 
 export class ReqlanCodeLensProvider implements CodeLensProvider {
@@ -34,11 +38,16 @@ export class ReqlanCodeLensProvider implements CodeLensProvider {
             'reqlan',
             REQLAN_REFERENCE_CODE_LENS_SETTING
         ) as ReferenceCodeLensSettings | undefined;
-        if (!referenceCodeLensEnabled(settings)) {
-            return [];
-        }
 
         const lenses: CodeLens[] = [];
+        const fileInbound = buildFileInboundCodeLens(document.uri.toString());
+        if (fileInbound) {
+            lenses.push(fileInbound);
+        }
+        if (!referenceCodeLensEnabled(settings)) {
+            return lenses;
+        }
+
         for (const node of AstUtils.streamAst(document.parseResult.value)) {
             const classification = classifyReferenceForCodeLens(this.services, node);
             if (!classification) {
