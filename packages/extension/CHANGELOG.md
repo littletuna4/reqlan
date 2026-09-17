@@ -1,5 +1,19 @@
 # reqlan-extension
 
+## 1.16.0
+
+### Minor Changes
+
+- 4c84457: update references; add site meta
+
+### Patch Changes
+
+- 2b16ef4: up
+- Updated dependencies [2b16ef4]
+- Updated dependencies [4c84457]
+  - @reqlan/analytical@1.16.0
+  - @reqlan/language@1.13.0
+
 ## 1.15.1
 
 ### Patch Changes

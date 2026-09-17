@@ -1,5 +1,15 @@
 # @reqlan/analytical
 
+## 1.16.0
+
+### Minor Changes
+
+- 4c84457: update references; add site meta
+
+### Patch Changes
+
+- 2b16ef4: up
+
 ## 1.15.1
 
 ### Patch Changes

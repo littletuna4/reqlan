@@ -1,5 +1,18 @@
 # @reqlan/cli
 
+## 0.12.0
+
+### Minor Changes
+
+- 4c84457: update references; add site meta
+
+### Patch Changes
+
+- 2b16ef4: up
+- Updated dependencies [2b16ef4]
+- Updated dependencies [4c84457]
+  - @reqlan/analytical@1.16.0
+
 ## 0.11.1
 
 ### Patch Changes
