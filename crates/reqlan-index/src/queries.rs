@@ -1277,13 +1277,7 @@ mod tests {
     #[test]
     fn inbound_for_file_returns_file_reference_targeting_code_file() {
         let mut store = IndexStore::open_in_memory().unwrap();
-        let ideas = vec![idea(
-            "src.rq#owner",
-            "owner",
-            "src.rq",
-            1,
-            "{}",
-        )];
+        let ideas = vec![idea("src.rq#owner", "owner", "src.rq", 1, "{}")];
         let edges = vec![EdgeRecord {
             id: "e-file".to_string(),
             source_id: "src.rq#owner".to_string(),
