@@ -130,9 +130,11 @@ host {
         target.starts_with("@/_charter/plant-ontology.rq#"),
         "local symbolic must keep the authored import-root path, got {target}"
     );
-    assert!(target.ends_with("#simulation"), "target idea must stay the imported name, got {target}");
+    assert!(
+        target.ends_with("#simulation"),
+        "target idea must stay the imported name, got {target}"
+    );
     let start = edge.source_offset_start.unwrap() as usize;
     let end = edge.source_offset_end.unwrap() as usize;
     assert_eq!(&source[start..end], "[ontology-simulation]");
 }
-

@@ -530,19 +530,17 @@ fn reference_to_edges(
                 }
             } else if let Some((path, imported)) = from_import_binding(imports, idea) {
                 let target_id = idea_id(
-                    &imported_idea_target_file(&path, file_uri, import_roots, keep_authored_targets),
+                    &imported_idea_target_file(
+                        &path,
+                        file_uri,
+                        import_roots,
+                        keep_authored_targets,
+                    ),
                     &imported,
                 );
                 // Label is the written binding (`ontology-simulation`), not the imported name
                 // (`simulation`). A suffix label would underline only part of the alias token.
-                vec![ref_edge(
-                    source_id,
-                    Some(target_id),
-                    idea,
-                    true,
-                    source_line,
-                    meta_snippet,
-                )]
+                vec![ref_edge(source_id, Some(target_id), idea, true, source_line, meta_snippet)]
             } else {
                 vec![ref_edge(source_id, None, idea, false, source_line, meta_snippet)]
             }
