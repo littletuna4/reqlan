@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.16.1
+
+### Patch Changes
+
+- d33b539: update
+- Updated dependencies [d33b539]
+  - @reqlan/language@1.13.1
+
 ## 1.16.0
 
 ### Minor Changes

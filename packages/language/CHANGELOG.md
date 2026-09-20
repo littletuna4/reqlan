@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.13.1
+
+### Patch Changes
+
+- d33b539: update
+
 ## 1.13.0
 
 ### Minor Changes
