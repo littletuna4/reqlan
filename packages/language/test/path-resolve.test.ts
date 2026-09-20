@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { posix } from 'node:path';
 import { EmptyFileSystem, URI } from 'langium';
 import { VirtualFileSystemProvider } from 'langium/test';
 import {
@@ -14,6 +15,10 @@ import {
     rewriteRelativePath,
     toDirectoryUri
 } from '@reqlan/language';
+import {
+    pathResolveContextFromWorkspaceFolders,
+    resolveAuthoredFsPath
+} from '../src/reqlan-path-resolve.js';
 
 describe('import root alias', () => {
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
@@ -41,6 +46,31 @@ describe('import root alias', () => {
             config: null
         });
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/shared.rq').toString());
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+    test('resolveAuthoredFsPath joins aliased remainder to the workspace folder', () => {
+        const resolved = resolveAuthoredFsPath(
+            '@/shared.rq',
+            '/workspace/pkg/src',
+            posix.resolve,
+            {
+                workspaceFolderUri: URI.parse('file:///workspace'),
+                config: null
+            }
+        );
+        expect(resolved).toBe(posix.resolve('/workspace', 'shared.rq'));
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+    test('pathResolveContextFromWorkspaceFolders picks the longest matching folder', () => {
+        const context = pathResolveContextFromWorkspaceFolders(
+            '/workspace/pkg/src/app.ts',
+            ['/workspace', '/workspace/pkg']
+        );
+        expect(context.workspaceFolderUri?.fsPath.replace(/\\/g, '/')).toBe('/workspace/pkg');
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]

@@ -38,8 +38,20 @@ syntax_hovering {
 comment_support {
     The extension should recognise reqlan references embedded in comments of arbitrary source files.
     Comment reference syntax should follow the form rq, then a quoted path, then a dotted idea name in line comments.
+    Qualified comment paths must resolve import-root aliases such as `@/` the same way imports do — ["../../../language/imports.rq".configuration_import_root_alias], ["../comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias].
     Comment references in non-.rq files should support syntax highlighting, hover, and go-to-definition.
     Arbitrary file references should be supported from both .rq files and comment references.
+
+    @implementation (
+        ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../../packages/extension/src/extension/comment-reference-path-context.ts"]
+        ["../../../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../../../packages/language/src/reqlan-path-resolve.ts"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/comment-reference-path-context.test.ts:resolves @/ against the workspace folder for extension comment links"]
+        ["../../../../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
+    )
 }
 
 code_completion {

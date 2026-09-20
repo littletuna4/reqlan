@@ -33,7 +33,7 @@ use sha2::{Digest, Sha256};
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 4;
+pub const EXTRACT_VERSION: i64 = 5;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -174,6 +174,7 @@ pub fn extract_from_parse(
                     &ideas,
                     candidates(options),
                     &options.import_roots,
+                    options.local_symbolic,
                     &mut edges,
                 );
             }
@@ -187,6 +188,7 @@ pub fn extract_from_parse(
                     &ideas,
                     candidates(options),
                     &options.import_roots,
+                    options.local_symbolic,
                     &mut edges,
                 );
             }
@@ -377,6 +379,7 @@ fn collect_parts_edges(
     ideas: &[IdeaRecord],
     candidates: &[WildcardIdeaCandidate],
     import_roots: &[ImportRootMapping],
+    keep_authored_targets: bool,
     edges: &mut Vec<EdgeRecord>,
 ) {
     let source_id = idea_id(file_uri, idea_name);
@@ -407,6 +410,7 @@ fn collect_parts_edges(
                     &local_names,
                     candidates,
                     import_roots,
+                    keep_authored_targets,
                     span.line_start + 1,
                     &snippet,
                 ) {
@@ -464,6 +468,22 @@ fn url_edge(source_id: &str, url: &str, source_line: u32, snippet: &str) -> Edge
     }
 }
 
+/// Local symbolic extract keeps the authored path so the LSP layer resolves it once.
+/// Index extract still canonicalises through `resolve_rq_path`.
+/// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".aliased_from_import_ctrl_click]
+fn imported_idea_target_file(
+    authored_path: &str,
+    file_uri: &str,
+    import_roots: &[ImportRootMapping],
+    keep_authored: bool,
+) -> String {
+    if keep_authored {
+        authored_path.to_string()
+    } else {
+        resolve_rq_path(authored_path, file_uri, import_roots)
+    }
+}
+
 fn reference_to_edges(
     source_id: &str,
     file_uri: &str,
@@ -472,6 +492,7 @@ fn reference_to_edges(
     local_names: &[&str],
     candidates: &[WildcardIdeaCandidate],
     import_roots: &[ImportRootMapping],
+    keep_authored_targets: bool,
     source_line: u32,
     snippet: &str,
 ) -> Vec<EdgeRecord> {
@@ -508,11 +529,16 @@ fn reference_to_edges(
                     Vec::new()
                 }
             } else if let Some((path, imported)) = from_import_binding(imports, idea) {
-                let target_id = idea_id(&resolve_rq_path(&path, file_uri, import_roots), &imported);
+                let target_id = idea_id(
+                    &imported_idea_target_file(&path, file_uri, import_roots, keep_authored_targets),
+                    &imported,
+                );
+                // Label is the written binding (`ontology-simulation`), not the imported name
+                // (`simulation`). A suffix label would underline only part of the alias token.
                 vec![ref_edge(
                     source_id,
                     Some(target_id),
-                    &imported,
+                    idea,
                     true,
                     source_line,
                     meta_snippet,
@@ -524,14 +550,24 @@ fn reference_to_edges(
         ReferenceTarget::Qualified { path, qualifier, ideaset: _, idea, .. } => {
             // Namespace leaf is the last segment (`idea`), not the ideaset/alias head.
             if let Some(path) = path {
-                let file = resolve_rq_path(&unquote_path(path), file_uri, import_roots);
+                let file = imported_idea_target_file(
+                    &unquote_path(path),
+                    file_uri,
+                    import_roots,
+                    keep_authored_targets,
+                );
                 let target_id = idea_id(&file, idea);
                 vec![ref_edge(source_id, Some(target_id), idea, true, source_line, meta_snippet)]
             } else if let Some(qualifier) = qualifier {
                 if let Some(import) = namespace_import(imports, qualifier) {
                     if let Some(path) = import.path() {
                         let target_id = idea_id(
-                            &resolve_rq_path(&unquote_path(path), file_uri, import_roots),
+                            &imported_idea_target_file(
+                                &unquote_path(path),
+                                file_uri,
+                                import_roots,
+                                keep_authored_targets,
+                            ),
                             idea,
                         );
                         vec![ref_edge(
@@ -556,12 +592,19 @@ fn reference_to_edges(
                         meta_snippet,
                     )]
                 } else if let Some((path, imported)) = from_import_binding(imports, idea) {
-                    let target_id =
-                        idea_id(&resolve_rq_path(&path, file_uri, import_roots), &imported);
+                    let target_id = idea_id(
+                        &imported_idea_target_file(
+                            &path,
+                            file_uri,
+                            import_roots,
+                            keep_authored_targets,
+                        ),
+                        &imported,
+                    );
                     vec![ref_edge(
                         source_id,
                         Some(target_id),
-                        &imported,
+                        idea,
                         true,
                         source_line,
                         meta_snippet,

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -8,6 +8,7 @@ import { NodeFileSystem } from "langium/node";
 import { expandToString as s } from "langium/generate";
 import { clearDocuments } from "langium/test";
 import type { Model } from "@reqlan/language";
+import type { PathResolveContext } from "../src/reqlan-path-resolve.js";
 import { createReqlanServices } from "../src/reqlan-module.js";
 import { ReqlanDocumentBuilder } from "../src/reqlan-document-builder.js";
 import {
@@ -129,6 +130,79 @@ describe("comment reference resolution", () => {
     expect(resolved.diagnostics).toHaveLength(0);
     expect(resolved.links).toHaveLength(1);
     expect(resolved.links[0]?.idea).toBe("elevator_pitch");
+  });
+
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+  // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+  test("creates a document link for an import-root aliased comment reference", () => {
+    const workspace = "/workspace";
+    const target = posix.resolve(workspace, "shared/main.rq");
+    const presented = presentCommentReferences(
+      '// rq:["@/shared/main.rq".demo]\n',
+      posix.resolve(workspace, "pkg/src"),
+      {
+        exists: (absolutePath) => absolutePath === target,
+        declaresIdea: (_absolutePath, idea) => idea === "demo",
+      },
+      posix.resolve,
+      {
+        workspaceFolderUri: URI.parse("file:///workspace"),
+        config: null,
+      },
+    );
+    expect(presented.diagnostics).toHaveLength(0);
+    expect(presented.links).toHaveLength(1);
+    expect(presented.links[0]?.targetPath).toBe(target);
+    expect(presented.links[0]?.idea).toBe("demo");
+  });
+
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+  test("does not treat @/ as a path relative to the source file", () => {
+    const presented = presentCommentReferences(
+      '// rq:["@/shared/main.rq".demo]\n',
+      "/workspace/pkg/src",
+      {
+        exists: (absolutePath) =>
+          absolutePath === posix.resolve("/workspace/pkg/src", "@/shared/main.rq")
+          || absolutePath === posix.resolve("/workspace/pkg/src", "@", "shared/main.rq"),
+        declaresIdea: () => true,
+      },
+      posix.resolve,
+      {
+        workspaceFolderUri: URI.parse("file:///workspace"),
+        config: null,
+      },
+    );
+    expect(presented.links).toHaveLength(0);
+    expect(presented.diagnostics[0]?.code).toBe(COMMENT_REFERENCE_MISSING_FILE);
+  });
+
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+  // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+  test("resolves a configured alias in a comment reference", () => {
+    const lib = posix.resolve("/workspace/lib", "target.rq");
+    const presented = presentCommentReferences(
+      '// rq:["#/target.rq".demo]\n',
+      "/workspace/pkg/src",
+      {
+        exists: (absolutePath) => absolutePath === lib,
+        declaresIdea: () => true,
+      },
+      posix.resolve,
+      {
+        workspaceFolderUri: URI.parse("file:///workspace"),
+        config: {
+          importRoots: [
+            {
+              alias: "#",
+              rootUri: URI.parse("file:///workspace/lib"),
+            },
+          ],
+        },
+      },
+    );
+    expect(presented.diagnostics).toHaveLength(0);
+    expect(presented.links[0]?.targetPath).toBe(lib);
   });
 });
 
@@ -467,6 +541,65 @@ describe("comment reference resolution after workspace updates", () => {
     expect(presented.diagnostics).toHaveLength(0);
     expect(presented.links).toHaveLength(1);
     expect(presented.links[0]?.idea).toBe("elevator_pitch");
+
+    const documents = services.shared.workspace.LangiumDocuments.all.toArray();
+    if (documents.length > 0) {
+      await clearDocuments(services.shared, documents);
+    }
+  });
+
+  // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+  // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+  test("accepts an import-root aliased comment reference in a loaded document", async () => {
+    const services = createReqlanServices(NodeFileSystem);
+    const dir = mkdtempSync(join(tmpdir(), "reqlan-comment-alias-"));
+    tempDirs.push(dir);
+    mkdirSync(join(dir, "shared"), { recursive: true });
+    mkdirSync(join(dir, "pkg"), { recursive: true });
+    const targetPath = join(dir, "shared", "target.rq");
+    const sourcePath = join(dir, "pkg", "host.rq");
+    writeFileSync(targetPath, "present_idea {}\n");
+    writeFileSync(
+      sourcePath,
+      'host {}\n// rq:["@/shared/target.rq".present_idea]\n',
+    );
+
+    const targetUri = URI.parse(pathToFileURL(targetPath).href);
+    const sourceUri = URI.parse(pathToFileURL(sourcePath).href);
+    const target =
+      (await services.shared.workspace.LangiumDocumentFactory.fromUri(
+        targetUri,
+      )) as LangiumDocument<Model>;
+    const source =
+      (await services.shared.workspace.LangiumDocumentFactory.fromUri(
+        sourceUri,
+      )) as LangiumDocument<Model>;
+    services.shared.workspace.LangiumDocuments.addDocument(target);
+    services.shared.workspace.LangiumDocuments.addDocument(source);
+    await services.shared.workspace.DocumentBuilder.build([target, source], {
+      validation: true,
+    });
+    const context: PathResolveContext = {
+      fileSystem: services.shared.workspace.FileSystemProvider,
+      workspaceFolderUri: URI.parse(pathToFileURL(dir).href),
+      config: null,
+    };
+    const issues = collectCommentReferenceIssues(
+      source,
+      services.shared.workspace.LangiumDocuments,
+      services.shared.workspace.FileSystemProvider,
+      context,
+    );
+    expect(issues).toHaveLength(0);
+    const presented = presentCommentReferencesForDocument(
+      source,
+      services.shared.workspace.LangiumDocuments,
+      services.shared.workspace.FileSystemProvider,
+      context,
+    );
+    expect(presented.diagnostics).toHaveLength(0);
+    expect(presented.links).toHaveLength(1);
+    expect(presented.links[0]?.idea).toBe("present_idea");
 
     const documents = services.shared.workspace.LangiumDocuments.all.toArray();
     if (documents.length > 0) {

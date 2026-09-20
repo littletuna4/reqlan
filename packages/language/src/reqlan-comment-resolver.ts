@@ -5,6 +5,8 @@
  * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
+ * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
  * rq:["../../../reqlan rq/language/syntax.rq".comments]
  * rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
  * rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]

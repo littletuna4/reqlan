@@ -10,6 +10,7 @@
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".aliased_from_import_ctrl_click]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
@@ -38,6 +39,7 @@ import {
 } from './generated/ast.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 import {
+    resolveImportRootUri,
     resolveRqConfig,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
@@ -78,8 +80,9 @@ export function importRootsForLocalSymbolic(
     const config = resolveRqConfig(document, context);
     return config.importRoots.map(mapping => {
         const root: LocalSymbolicImportRoot = { alias: mapping.alias };
-        if (mapping.rootUri) {
-            root.root = mapping.rootUri.fsPath;
+        const rootUri = resolveImportRootUri(document, context, mapping);
+        if (rootUri) {
+            root.root = rootUri.fsPath;
         }
         return root;
     });
@@ -221,7 +224,7 @@ export function collectLocalSymbolicOutboundLinks(
             links.push(link);
         }
     }
-    return links;
+    return dropContainedOverlappingLinks(document, links);
 }
 
 export function findLocalSymbolicDefinition(
@@ -231,6 +234,7 @@ export function findLocalSymbolicDefinition(
     documents?: LangiumDocuments
 ): { targetUri: string; targetRange?: Range; sourceRange: Range } | undefined {
     const extracted = analyzeDocumentLocalSymbolic(document, context);
+    let best: { targetUri: string; targetRange?: Range; sourceRange: Range; span: number } | undefined;
     for (const edge of extracted.edges) {
         if (edge.kind !== 'references' || edge.isResolved === false) {
             continue;
@@ -244,17 +248,29 @@ export function findLocalSymbolicDefinition(
         if (offset < start || offset >= end) {
             continue;
         }
+        const span = end - start;
+        if (best && span <= best.span) {
+            continue;
+        }
         const target = resolveIdeaTarget(document, extracted, edge, context, documents);
         if (!target) {
-            return undefined;
+            continue;
         }
-        return {
+        best = {
             targetUri: target.targetUri,
             targetRange: target.targetRange,
-            sourceRange
+            sourceRange,
+            span
         };
     }
-    return undefined;
+    if (!best) {
+        return undefined;
+    }
+    return {
+        targetUri: best.targetUri,
+        targetRange: best.targetRange,
+        sourceRange: best.sourceRange
+    };
 }
 
 function ideaLinkFromEdge(
@@ -377,18 +393,92 @@ export function ideaNameRangeFromEdge(
     if (!full) {
         return undefined;
     }
-    const label = edge.label;
-    if (!label) {
+    const text = document.textDocument.getText(full);
+    const token = writtenIdeaTokenInReferenceSpan(text) ?? edge.label;
+    if (!token) {
         return full;
     }
-    const text = document.textDocument.getText(full);
-    const index = text.lastIndexOf(label);
+    const index = wholeTokenIndex(text, token);
     if (index < 0) {
         return full;
     }
     const startOffset = document.textDocument.offsetAt(full.start) + index;
     return {
         start: document.textDocument.positionAt(startOffset),
-        end: document.textDocument.positionAt(startOffset + label.length)
+        end: document.textDocument.positionAt(startOffset + token.length)
     };
+}
+
+/**
+ * Idea name as written in a bracket or wikilink span.
+ * `[ontology-simulation]` → `ontology-simulation`, not a suffix of that alias.
+ */
+export function writtenIdeaTokenInReferenceSpan(text: string): string | undefined {
+    const trimmed = text.trim();
+    let inner = trimmed;
+    if (inner.startsWith('[[') && inner.endsWith(']]')) {
+        inner = inner.slice(2, -2).trim();
+    } else if (inner.startsWith('[') && inner.endsWith(']')) {
+        inner = inner.slice(1, -1).trim();
+    }
+    if (inner.length === 0) {
+        return undefined;
+    }
+    const quoted = inner.match(/^["'](?:\\.|[^"'\\])*["']\s*\.\s*(.+)$/);
+    if (quoted?.[1]) {
+        return quoted[1];
+    }
+    const dot = inner.lastIndexOf('.');
+    if (dot >= 0) {
+        return inner.slice(dot + 1);
+    }
+    return inner;
+}
+
+function isIdeaNameChar(ch: string | undefined): boolean {
+    if (!ch) {
+        return false;
+    }
+    return /[A-Za-z0-9_-]/.test(ch);
+}
+
+/** Reject `simulation` as a suffix of `ontology-simulation`. */
+function wholeTokenIndex(text: string, token: string): number {
+    let from = text.length;
+    while (from >= token.length) {
+        const index = text.lastIndexOf(token, from - 1);
+        if (index < 0) {
+            return -1;
+        }
+        const before = index > 0 ? text[index - 1] : undefined;
+        const after = text[index + token.length];
+        if (!isIdeaNameChar(before) && !isIdeaNameChar(after)) {
+            return index;
+        }
+        from = index;
+    }
+    return -1;
+}
+
+function dropContainedOverlappingLinks(
+    document: LangiumDocument,
+    links: ResolvedFileLink[]
+): ResolvedFileLink[] {
+    const withSpan = links.map(link => {
+        const start = document.textDocument.offsetAt(link.sourceRange.start);
+        const end = document.textDocument.offsetAt(link.sourceRange.end);
+        return { link, start, end, span: end - start };
+    });
+    withSpan.sort((left, right) => right.span - left.span);
+    const kept: typeof withSpan = [];
+    for (const candidate of withSpan) {
+        const contained = kept.some(existing =>
+            candidate.start >= existing.start && candidate.end <= existing.end
+        );
+        if (contained) {
+            continue;
+        }
+        kept.push(candidate);
+    }
+    return kept.map(entry => entry.link);
 }

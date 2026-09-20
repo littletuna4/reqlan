@@ -631,6 +631,7 @@ mod tests {
 
     #[test]
     fn resolves_aliased_qualified_comment_path() {
+        // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
         let catalog = vec![IdeaSummary {
             id: "reqs/demo.rq#alpha".into(),
             name: "alpha".into(),

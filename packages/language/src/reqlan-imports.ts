@@ -9,6 +9,8 @@
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
 import {
+    fileUriFromFsPath,
+    isAbsoluteUriOrPath,
     resolveDocumentPathUri,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
@@ -97,17 +99,19 @@ export function resolveExistingImportUri(
 /**
  * Neighbor file for 1-hop confirmation: implicit `.rq` first, then the path as written.
  * Native extract may keep an extensionless path; do not miss the loaded `.rq` buffer.
+ * Already-resolved absolute paths and URIs must not be joined to the current document directory.
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".aliased_from_import_ctrl_click]
  */
 export function neighborTargetCandidateUris(
     filePart: string,
     document: LangiumDocument,
     context?: PathResolveContext
 ): URI[] {
-    if (filePart.includes('://')) {
+    if (filePart.includes('://') || isAbsoluteUriOrPath(filePart)) {
         try {
-            const uri = URI.parse(filePart);
+            const uri = filePart.includes('://') ? URI.parse(filePart) : fileUriFromFsPath(filePart);
             const implicitPath = importPathWithImplicitExtension(uri.path);
             return implicitPath === undefined ? [uri] : [uri.with({ path: implicitPath }), uri];
         } catch {

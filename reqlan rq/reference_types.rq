@@ -55,6 +55,7 @@ ideaset_reference {
 
 comment_reference {
     Inbound ["./ontology.rq".reference] from comments in non-`.rq` source: `rq:[idea]` / `rq:["path".idea]`.
+    Qualified paths may use import-root aliases (`rq:["@/path".idea]`) per ["./language/imports.rq".configuration_import_root_alias] and ["./extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias].
     Spec: ["./extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     Syntax note: ["./language/syntax.rq".comment_reference]. Resolve: [comment_resolver].
     Unresolved: ["./language/syntax.rq".comment_reference_resolution_error].
@@ -65,6 +66,7 @@ comment_reference {
         [comment_resolver]
         [analytical_types]
         ["../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../packages/extension/src/extension/comment-reference-path-context.ts"]
         ["../packages/language/src/reqlan-comment-diagnostics.ts"]
         ["../crates/reqlan-index/src/comment.rs"]
     )
@@ -73,6 +75,8 @@ comment_reference {
         ["../packages/language/test/references.test.ts:finds rq: comment references in block comments"]
         ["../packages/language/test/linking.test.ts:comment references in source files resolve to rq ideas"]
         ["../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
+        ["../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
+        ["../packages/extension/test/comment-reference-path-context.test.ts:resolves @/ against the workspace folder for extension comment links"]
     )
 }
 

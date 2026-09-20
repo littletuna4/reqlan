@@ -104,3 +104,35 @@ fn analyze_local_symbolic_source_offsets_are_utf8_bytes() {
     assert_eq!("café".len(), 5);
     assert_eq!("café".chars().count(), 4);
 }
+
+#[test]
+fn analyze_local_symbolic_aliased_from_import_keeps_authored_path_and_written_name() {
+    let source = r#"
+from "@/_charter/plant-ontology.rq" import simulation as ontology-simulation
+host {
+    See [ontology-simulation].
+}
+"#;
+    let roots = vec![ImportRootMapping { alias: "@".into(), root: None }];
+    let doc = analyze_local_symbolic(
+        "file:///ws/_charter/modules/simulation/simulation.rq",
+        source,
+        &roots,
+    );
+    let edge = doc
+        .edges
+        .iter()
+        .find(|edge| edge.kind == EdgeKind::References && edge.is_resolved == Some(true))
+        .expect("resolved from-import edge");
+    assert_eq!(edge.label.as_deref(), Some("ontology-simulation"));
+    let target = edge.target_id.as_deref().expect("target id");
+    assert!(
+        target.starts_with("@/_charter/plant-ontology.rq#"),
+        "local symbolic must keep the authored import-root path, got {target}"
+    );
+    assert!(target.ends_with("#simulation"), "target idea must stay the imported name, got {target}");
+    let start = edge.source_offset_start.unwrap() as usize;
+    let end = edge.source_offset_end.unwrap() as usize;
+    assert_eq!(&source[start..end], "[ontology-simulation]");
+}
+

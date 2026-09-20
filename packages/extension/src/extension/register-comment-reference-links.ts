@@ -6,13 +6,20 @@
  * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
+ * rq:["../../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
  */
 import { extractIdeaNames } from '@reqlan/analytical/core';
+import { NodeFileSystem } from 'langium/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { presentCommentReferences, type CommentReferencePresentation } from '@reqlan/language';
+import {
+    clearCommentReferenceConfigCache,
+    createCommentReferencePathContext
+} from './comment-reference-path-context.js';
 
 export const COMMENT_REFERENCE_LANGUAGES = [
     'python',
@@ -27,6 +34,8 @@ export const COMMENT_REFERENCE_LANGUAGES = [
 ];
 
 const RQ_FILE_GLOB = '**/*.rq';
+const CONFIG_FILE_GLOB = '**/.reqlan/config.json';
+const commentReferenceFileSystem = NodeFileSystem.fileSystemProvider();
 
 export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionContext): void {
     const selector = COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file', language }));
@@ -40,7 +49,12 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
             document.getText(),
             path.dirname(document.uri.fsPath),
             createCommentReferenceHost(),
-            path.resolve
+            path.resolve,
+            createCommentReferencePathContext(
+                document.uri.fsPath,
+                workspaceFolderFsPaths(),
+                commentReferenceFileSystem
+            )
         );
         presentations.set(document.uri.toString(), presented);
         diagnostics.set(
@@ -73,9 +87,15 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
         }, 50);
     };
     const rqWatcher = vscode.workspace.createFileSystemWatcher(RQ_FILE_GLOB);
+    const configWatcher = vscode.workspace.createFileSystemWatcher(CONFIG_FILE_GLOB);
+    const onConfigChange = (): void => {
+        clearCommentReferenceConfigCache();
+        scheduleRefreshOpenSources();
+    };
     context.subscriptions.push(
         diagnostics,
         rqWatcher,
+        configWatcher,
         { dispose: () => { if (refreshTimer !== undefined) { clearTimeout(refreshTimer); } } },
         vscode.workspace.onDidOpenTextDocument(refresh),
         vscode.workspace.onDidChangeTextDocument(event => {
@@ -89,9 +109,16 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
             presentations.delete(document.uri.toString());
             diagnostics.delete(document.uri);
         }),
+        vscode.workspace.onDidChangeWorkspaceFolders(() => {
+            clearCommentReferenceConfigCache();
+            scheduleRefreshOpenSources();
+        }),
         rqWatcher.onDidCreate(() => scheduleRefreshOpenSources()),
         rqWatcher.onDidChange(() => scheduleRefreshOpenSources()),
         rqWatcher.onDidDelete(() => scheduleRefreshOpenSources()),
+        configWatcher.onDidCreate(onConfigChange),
+        configWatcher.onDidChange(onConfigChange),
+        configWatcher.onDidDelete(onConfigChange),
         vscode.languages.registerDocumentLinkProvider(selector, {
             provideDocumentLinks(document) {
                 if (!document.getText().includes('rq:[')) {
@@ -117,6 +144,10 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
         })
     );
     refreshOpenSources();
+}
+
+function workspaceFolderFsPaths(): string[] {
+    return (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath);
 }
 
 function isRqDocument(document: vscode.TextDocument): boolean {

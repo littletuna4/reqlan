@@ -45,6 +45,7 @@ configuration_import_roots {
     When several aliases could match a path, the longest alias wins.
     Invalid or unreadable JSON, and a non-array `importRoots` value, fall back to defaults (or no loaded config for discovery, then defaults at resolve time).
     Language path forms and `@/` shorthand: ["../../language/imports.rq".import_paths] and ["../../language/imports.rq".configuration_import_root_alias].
+    Comment references in source files use the same mappings: ["../language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias].
     Schema: [configuration_schema_file]. Applying file discovery: [configuration_location].
     Editor completion of aliased import paths: ["../language/syntax/features-syntax.rq".code_completion].
 
@@ -53,6 +54,9 @@ configuration_import_roots {
         ["../../../packages/language/src/file-path-rewrite.ts"]
         ["../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../../packages/extension/src/extension/comment-reference-path-context.ts"]
+        ["../../../packages/extension/src/extension/register-comment-reference-links.ts"]
         ["../../../packages/extension/schemas/config.schema.json"]
         ["../../../crates/reqlan-parse/src/path.rs"]
         ["../../../crates/reqlan-index/src/path_resolve.rs"]
@@ -83,6 +87,7 @@ configuration_import_roots {
         ["../../../packages/language/test/path-resolve.test.ts:rewrite leaves aliased paths unchanged"]
         ["../../../packages/language/test/path-resolve.test.ts:toDirectoryUri does not parse a drive letter as a URI scheme"]
         ["../../../packages/language/test/completion.test.ts:completes import-root alias paths"]
+        ["../../../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
         ["../../../crates/reqlan-parse/src/path.rs:resolves_default_alias_against_workspace_folder"]
         ["../../../crates/reqlan-index/src/path_resolve.rs:missing_import_roots_uses_default_alias"]
         ["../../../crates/reqlan-index/src/path_resolve.rs:relative_root_resolves_against_base"]

@@ -65,7 +65,8 @@ export {
     collectLocalSymbolicOutboundLinks,
     documentOutboundTouchesChangedUris,
     findLocalSymbolicDefinition,
-    localSymbolicExtractCount
+    localSymbolicExtractCount,
+    writtenIdeaTokenInReferenceSpan
 } from './reqlan-local-symbolic-links.js';
 export * from './reqlan-outbound-presentation.js';
 export * from './reqlan-workspace-attribute-catalog.js';

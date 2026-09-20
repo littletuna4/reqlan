@@ -8,7 +8,7 @@ references_in_functional_code_comments {
     # This has been built to comply with a qualified comment reference — which is very important.
     ```
 
-    Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support].
+    Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support] and [comment_reference_import_root_alias].
 
     @demos (
         ["./features-code-comment.text.js"]
@@ -48,5 +48,34 @@ comment_reference_resolution_error_state {
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:relinks comment references only when the target file changes"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
         ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
+    )
+}
+
+comment_reference_import_root_alias {
+    Qualified comment references use the same path forms as imports, including import-root aliases such as `@/`.
+    `rq:["@/path/relative/to/import/root.rq".idea]` resolves against the alias's import-root directory (workspace folder by default), not the source file directory.
+    `@reqs` without a following `/` is not an alias. Configured aliases and roots follow ["../../../language/imports.rq".configuration_import_root_alias] and ["../../host/configuration.rq".configuration_import_roots].
+    The language server applies this when resolving comment references in `.rq` files. The extension applies the same core resolver for `rq:[…]` links in non-`.rq` source.
+    Related: ["../../../language/syntax.rq".comment_reference], [references_in_functional_code_comments], ["../../../language/imports.rq".import_paths].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../../../packages/language/src/reqlan-comment-diagnostics.ts"]
+        ["../../../../packages/language/src/reqlan-comment-resolver.ts"]
+        ["../../../../packages/extension/src/extension/comment-reference-path-context.ts"]
+        ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../../crates/reqlan-index/src/comment.rs"]
+        ["../../../../crates/reqlan-parse/src/path.rs"]
+    )
+    @tests (
+        ["../../../../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
+        ["../../../../packages/language/test/comment-reference-resolution.test.ts:does not treat @/ as a path relative to the source file"]
+        ["../../../../packages/language/test/comment-reference-resolution.test.ts:resolves a configured alias in a comment reference"]
+        ["../../../../packages/language/test/comment-reference-resolution.test.ts:accepts an import-root aliased comment reference in a loaded document"]
+        ["../../../../packages/language/test/path-resolve.test.ts:resolveAuthoredFsPath joins aliased remainder to the workspace folder"]
+        ["../../../../packages/language/test/path-resolve.test.ts:pathResolveContextFromWorkspaceFolders picks the longest matching folder"]
+        ["../../../../packages/extension/test/comment-reference-path-context.test.ts:resolves @/ against the workspace folder for extension comment links"]
+        ["../../../../crates/reqlan-index/src/comment.rs:resolves_aliased_qualified_comment_path"]
     )
 }

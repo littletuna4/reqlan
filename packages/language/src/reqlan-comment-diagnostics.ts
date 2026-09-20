@@ -4,7 +4,9 @@
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
@@ -18,6 +20,7 @@ import {
 } from './reqlan-comment-resolver.js';
 import { findRqIgnoreErrorTargetLines } from './reqlan-ignore-error.js';
 import {
+    importPathCandidates,
     isResolvableImportPath,
     resolveImportCandidateUris
 } from './reqlan-imports.js';
@@ -27,7 +30,10 @@ import {
     neighborIdea,
     parseNeighborDocument
 } from './reqlan-neighbor-parse.js';
-import type { PathResolveContext } from './reqlan-path-resolve.js';
+import {
+    resolveAuthoredFsPath,
+    type PathResolveContext
+} from './reqlan-path-resolve.js';
 
 export const COMMENT_REFERENCE_MISSING_FILE = 'comment-reference-missing-file';
 export const COMMENT_REFERENCE_MISSING_IDEA = 'comment-reference-missing-idea';
@@ -73,17 +79,18 @@ export function presentCommentReferences(
     text: string,
     sourceDir: string,
     host: CommentReferenceFileHost,
-    resolvePath: (sourceDir: string, relativePath: string) => string
+    resolvePath: (sourceDir: string, relativePath: string) => string,
+    context?: PathResolveContext
 ): CommentReferencePresentation {
     const ignoredLines = findRqIgnoreErrorTargetLines(text);
     const links: CommentReferenceLink[] = [];
     const diagnostics: CommentReferenceDiagnostic[] = [];
     for (const reference of findCommentReferencesInText(text)) {
-        const issue = commentReferenceFileIssue(reference, sourceDir, host, resolvePath);
+        const targetPath = reference.path
+            ? existingCommentReferenceFile(reference.path, sourceDir, host, resolvePath, context)
+            : host.resolveWorkspaceIdea?.(reference.idea);
+        const issue = commentReferenceFileIssue(reference, host, targetPath);
         if (!issue) {
-            const targetPath = reference.path
-                ? resolvePath(sourceDir, reference.path)
-                : host.resolveWorkspaceIdea?.(reference.idea);
             if (targetPath) {
                 links.push({
                     range: reference.range,
@@ -214,15 +221,29 @@ function isSlashOrBlockCommentReference(text: string, range: Range): boolean {
     return before.includes('//') || before.includes('/*');
 }
 
-function commentReferenceFileIssue(
-    reference: EmbeddedCommentReference,
+function existingCommentReferenceFile(
+    authoredPath: string,
     sourceDir: string,
     host: CommentReferenceFileHost,
-    resolvePath: (sourceDir: string, relativePath: string) => string
+    resolvePath: (sourceDir: string, relativePath: string) => string,
+    context?: PathResolveContext
+): string | undefined {
+    for (const candidate of importPathCandidates(authoredPath)) {
+        const absolutePath = resolveAuthoredFsPath(candidate, sourceDir, resolvePath, context);
+        if (host.exists(absolutePath)) {
+            return absolutePath;
+        }
+    }
+    return undefined;
+}
+
+function commentReferenceFileIssue(
+    reference: EmbeddedCommentReference,
+    host: CommentReferenceFileHost,
+    absolutePath: string | undefined
 ): CommentReferenceDiagnostic | undefined {
     if (reference.path) {
-        const absolutePath = resolvePath(sourceDir, reference.path);
-        if (!host.exists(absolutePath)) {
+        if (!absolutePath) {
             return {
                 range: reference.range,
                 message: commentReferenceMissingFileMessage(reference.path),

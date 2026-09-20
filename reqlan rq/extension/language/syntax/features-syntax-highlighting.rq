@@ -113,8 +113,37 @@ reference_document_links {
         ["../../../../packages/language/test/linking.test.ts:cross-file imported idea references produce document links"]
         ["../../../../packages/language/test/linking.test.ts:qualified reference idea token produces document link"]
         ["../../../../packages/language/test/linking.test.ts:navigable document links include target and tooltip"]
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:aliased from-import whose name contains the imported idea is one link"]
     )
     @status done
+}
+
+aliased_from_import_ctrl_click {
+    A from-import alias that contains the imported idea name as a suffix or substring
+    must offer one Ctrl+click destination for the whole written alias.
+    Example: `from "@/_charter/plant-ontology.rq" import simulation as ontology-simulation`
+    then `[ontology-simulation]`.
+    The document-link underline must cover `ontology-simulation`, not only `simulation`.
+    Ctrl+click on any character of that alias must open the imported idea in the import-root
+    target file.
+    Do not resolve the import path a second time against the current file directory.
+    Do not offer a second interactive link on the original idea-name suffix.
+
+    Related: [reference_document_links], [reference_underline_syntax_align],
+    [non_web_reference_navigation],
+    ["../../../language/imports.rq".import_from],
+    ["../../../language/imports.rq".configuration_import_root_alias].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../../../packages/language/src/reqlan-imports.ts"]
+        ["../../../../crates/reqlan-index/src/extract.rs"]
+    )
+    @tests (
+        ["../../../../packages/language/test/local-symbolic-links.test.ts:aliased from-import whose name contains the imported idea is one link"]
+        ["../../../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_aliased_from_import_keeps_authored_path_and_written_name"]
+    )
 }
 
 reference_underline_syntax_align {
@@ -125,7 +154,7 @@ reference_underline_syntax_align {
     (["../../../indexer/indexer.rq".local_symbolic_analysis]); LSP `Position.character`
     is UTF-16. Convert before `positionAt` so the underline does not drift off the token.
     Related: [non_web_reference_navigation], [reference_document_links],
-    [unresolved_reference_diagnostics].
+    [unresolved_reference_diagnostics], [aliased_from_import_ctrl_click].
 
     @status done
     @implementation (

@@ -4,6 +4,7 @@
  * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
  * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
  */
 import type { FileSystemProvider, LangiumDocument, URI } from 'langium';
 import { URI as UriCtor, UriUtils } from 'langium';
@@ -429,6 +430,56 @@ export function resolveDocumentPathUri(
         return UriUtils.resolvePath(UriUtils.dirname(document.uri), path);
     }
     return UriUtils.resolvePath(importRoot, matched.remainder);
+}
+
+/**
+ * Dummy file under `sourceDir` so `dirname(document.uri)` is the source directory.
+ * Used when resolving authored paths from non-Langium hosts (comment links in code files).
+ */
+function documentFromSourceDir(sourceDir: string): LangiumDocument {
+    const dirUri = fileUriFromFsPath(sourceDir);
+    return { uri: UriUtils.joinPath(dirUri, '.reqlan-path-resolve') } as LangiumDocument;
+}
+
+/**
+ * Same alias rules as {@link resolveDocumentPathUri}, returning a filesystem path.
+ * Relative paths join `sourceDir`; aliased paths join the mapping root / workspace folder.
+ * `resolvePath` is the host join (Node `path.resolve` or `posix.resolve` in tests).
+ */
+export function resolveAuthoredFsPath(
+    path: string,
+    sourceDir: string,
+    resolvePath: (fromDir: string, relativePath: string) => string,
+    context?: PathResolveContext
+): string {
+    const document = documentFromSourceDir(sourceDir);
+    const config = resolveRqConfig(document, context);
+    const matched = matchImportRootMapping(path, config.importRoots);
+    if (!matched) {
+        return resolvePath(sourceDir, path);
+    }
+    const importRoot = resolveImportRootUri(document, context, matched.mapping);
+    if (!importRoot) {
+        return resolvePath(sourceDir, path);
+    }
+    return resolvePath(importRoot.fsPath, matched.remainder);
+}
+
+/** Build a path-resolve context from filesystem workspace folders (extension host, tests). */
+export function pathResolveContextFromWorkspaceFolders(
+    sourceFsPath: string,
+    workspaceFolderFsPaths: readonly string[],
+    fileSystem?: FileSystemProvider,
+    configCache?: Map<string, RqConfig | undefined>
+): PathResolveContext {
+    const documentUri = fileUriFromFsPath(sourceFsPath);
+    const workspaceFolderUris = workspaceFolderFsPaths.map(fileUriFromFsPath);
+    return {
+        fileSystem,
+        workspaceFolderUris,
+        workspaceFolderUri: findWorkspaceFolderUri(documentUri, workspaceFolderUris),
+        configCache
+    };
 }
 
 export function workspaceFolderUrisFromManager(
