@@ -96,7 +96,7 @@ export const montageIdeShot: DocsShot = {
   // Panel aspect for slides — room for chrome + graph without clipping nodes.
   viewport: { width: 720, height: 560, deviceScaleFactor: 2 },
   settleMs: 900,
-  readySelector: "#app h1",
+  readySelector: "h1",
   readyTimeoutMs: 45_000,
   captureSelector: "#app",
   captureCss: IDEAS_SUMMARY_CAPTURE_CSS,

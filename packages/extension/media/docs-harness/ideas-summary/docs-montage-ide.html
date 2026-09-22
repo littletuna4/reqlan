@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=720, height=560, initial-scale=1.0" />
+  <title>docs harness</title>
+  <link rel="stylesheet" href="../../webviews/ideas-summary/main.css" />
+  <style>
+:root {
+  color-scheme: dark;
+  --vscode-font-family: "Segoe UI", system-ui, sans-serif;
+  --vscode-font-size: 13px;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-disabledForeground: #666666;
+  --vscode-errorForeground: #f48771;
+  --vscode-sideBar-background: #1e1e1e;
+  --vscode-sideBar-foreground: #cccccc;
+  --vscode-sideBarSectionHeader-background: #1e1e1e;
+  --vscode-sideBarSectionHeader-foreground: #cccccc;
+  --vscode-sideBarSectionHeader-border: #2b2b2b;
+  --vscode-panel-border: #2b2b2b;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-border: #454545;
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #3c3c3c;
+  --vscode-input-placeholderForeground: #8892a0;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-secondaryBackground: #3a3d41;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-secondaryHoverBackground: #45494e;
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-list-activeSelectionBackground: #094771;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-inactiveSelectionBackground: #37373d;
+  --vscode-focusBorder: #007fd4;
+  --vscode-textLink-foreground: #3794ff;
+  --vscode-textLink-activeForeground: #3794ff;
+  --vscode-badge-background: #4d4d4d;
+  --vscode-badge-foreground: #ffffff;
+  --vscode-checkbox-background: #3c3c3c;
+  --vscode-checkbox-border: #3c3c3c;
+  --vscode-checkbox-foreground: #cccccc;
+  --vscode-dropdown-background: #3c3c3c;
+  --vscode-dropdown-foreground: #cccccc;
+  --vscode-dropdown-border: #3c3c3c;
+  --vscode-toolbar-hoverBackground: #2a2d2e;
+  --vscode-icon-foreground: #c5c5c5;
+  --vscode-scrollbarSlider-background: #79797966;
+  --vscode-scrollbarSlider-hoverBackground: #646464b3;
+  --vscode-widget-shadow: #00000066;
+  --vscode-charts-green: #89d185;
+  --vscode-charts-yellow: #f0c14a;
+  --vscode-charts-red: #f48771;
+  --vscode-charts-blue: #75beff;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+
+html, body {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--vscode-sideBar-background, #1e1e1e) !important;
+}
+#app {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+* {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+
+
+html, body {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--vscode-sideBar-background, #1e1e1e) !important;
+}
+#app {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+* {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+body {
+  padding: 10px 12px !important;
+  box-sizing: border-box !important;
+  background: var(--vscode-editor-background, #1e1e1e) !important;
+}
+.graph-host, .cy-host, [data-graph-root] {
+  overflow: hidden !important;
+}
+
+html, body { width: 720px !important; height: 560px !important; }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    (() => {
+      let state = { activeTab: "graph" };
+      const reply = (message) => window.postMessage(message, "*");
+      window.acquireVsCodeApi = () => ({
+        postMessage(msg) {
+          if (!msg || typeof msg !== "object") return;
+          if (msg.type === "ready") {
+            reply({ type: "indexStatus", status: {"state":"ready","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"fileIssues":[],"recentActivity":[{"label":"Indexed","detail":"reqs/product.rq","at":1790110680053}],"activeBaseId":"base:demo","bases":[{"id":"base:demo","label":"demo","root":"/demo","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"state":"ready"}]} });
+            reply({ type: "graphUiState", state: {"showKey":false,"showControls":false,"hiddenNodeTypes":[],"layoutId":"fcose","useCompound":false,"compoundBasisId":"folder-path","animatePhysics":false,"labelMode":"auto","fileTreatment":"linked","maxNodes":120,"truncationBasis":"path","physics":{"gravity":0.002,"repulsion":20000,"linkStrength":0.015,"linkDistance":120,"damping":0.5}} });
+            reply({
+              type: "overviewLinks",
+              links: [{ id: "site", label: "Site", href: "https://littletuna4.github.io/reqlan/" }],
+            });
+            reply({ type: "graphSlice", slice: {"query":{"centerId":"idea:welcome_flow","includeIndirect":false,"hopDepth":1,"maxNodes":40},"centerId":"idea:welcome_flow","depth":1,"truncated":false,"totalMatching":3,"nodes":[{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":12,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:password_rules","name":"password_rules","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":28,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":40,"statusKey":"__not_present__","tags":[],"tagsKeys":["__not_present__"]}],"edges":[{"id":"e1","sourceId":"idea:welcome_flow","targetId":"idea:password_rules","kind":"references","label":"password_rules"},{"id":"e2","sourceId":"idea:welcome_flow","targetId":"idea:onboarding_checklist","kind":"references","label":"onboarding_checklist"}]} });
+            return;
+          }
+          if (msg.type === "loadGraph" || msg.type === "loadIndexStatus") {
+            if (msg.type === "loadIndexStatus") {
+              reply({ type: "indexStatus", status: {"state":"ready","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"fileIssues":[],"recentActivity":[{"label":"Indexed","detail":"reqs/product.rq","at":1790110680053}],"activeBaseId":"base:demo","bases":[{"id":"base:demo","label":"demo","root":"/demo","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"state":"ready"}]} });
+            } else {
+              reply({ type: "graphSlice", slice: {"query":{"centerId":"idea:welcome_flow","includeIndirect":false,"hopDepth":1,"maxNodes":40},"centerId":"idea:welcome_flow","depth":1,"truncated":false,"totalMatching":3,"nodes":[{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":12,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:password_rules","name":"password_rules","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":28,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":40,"statusKey":"__not_present__","tags":[],"tagsKeys":["__not_present__"]}],"edges":[{"id":"e1","sourceId":"idea:welcome_flow","targetId":"idea:password_rules","kind":"references","label":"password_rules"},{"id":"e2","sourceId":"idea:welcome_flow","targetId":"idea:onboarding_checklist","kind":"references","label":"onboarding_checklist"}]}, requestId: msg.requestId });
+            }
+            return;
+          }
+          if (msg.type === "loadIdeas") {
+            reply({
+              type: "ideasPage",
+              query: {"page":0,"pageSize":50,"sortBy":"path","sortDir":"asc","attributeColumns":[],"referenceFilters":[],"columnFilters":[]},
+              total: 3,
+              rows: [{"id":"idea:welcome_flow","title":"welcome_flow","path":"reqs/product.rq","kind":"block","mainAttribute":"status","otherAttributes":"tags","otherAttributeItems":["tags"],"attributeValues":{"status":"done"},"referenceCount":2,"outboundCount":2,"inboundCount":1,"outboundReferences":[],"inboundReferences":[],"fileUri":"file:///demo/reqs/product.rq","lineStart":12},{"id":"idea:password_rules","title":"password_rules","path":"reqs/product.rq","kind":"block","mainAttribute":"status","otherAttributes":"tags","otherAttributeItems":["tags"],"attributeValues":{"status":"done"},"referenceCount":1,"outboundCount":0,"inboundCount":1,"outboundReferences":[],"inboundReferences":[],"fileUri":"file:///demo/reqs/product.rq","lineStart":28},{"id":"idea:onboarding_checklist","title":"onboarding_checklist","path":"reqs/product.rq","kind":"block","otherAttributes":"","otherAttributeItems":[],"attributeValues":{},"referenceCount":1,"outboundCount":0,"inboundCount":1,"outboundReferences":[],"inboundReferences":[],"fileUri":"file:///demo/reqs/product.rq","lineStart":40}],
+            });
+          }
+        },
+        getState() { return state; },
+        setState(next) { state = next; },
+      });
+    })();
+  </script>
+  <script type="module" src="../../webviews/ideas-summary/main.js"></script>
+</body>
+</html>

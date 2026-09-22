@@ -11,9 +11,9 @@ import {
   buildDocsWebviews,
   type DocsWebviewId,
 } from "./lib/build-webviews.ts";
-import { presentationAssetsRoot, webviewMediaRoot } from "./lib/paths.ts";
+import { extensionMediaRoot, presentationAssetsRoot } from "./lib/paths.ts";
 import { startStaticServer } from "./lib/serve.ts";
-import { writeDocsHarnesses } from "./lib/write-harnesses.ts";
+import { writeDocsHarness } from "./lib/write-harnesses.ts";
 import { DOCS_IMAGE_SHOTS } from "./shots/catalog.ts";
 import type { DocsShot } from "./shots/types.ts";
 
@@ -77,9 +77,6 @@ async function main(): Promise<void> {
   console.log("Building docs webviews…");
   buildDocsWebviews(webviewIds);
 
-  console.log("Writing docs harness pages…");
-  await writeDocsHarnesses(shots);
-
   await mkdir(presentationAssetsRoot, { recursive: true });
 
   let browser;
@@ -98,7 +95,7 @@ async function main(): Promise<void> {
     );
   }
 
-  const server = await startStaticServer(webviewMediaRoot);
+  const server = await startStaticServer(extensionMediaRoot);
 
   try {
     for (const shot of shots) {
@@ -121,8 +118,17 @@ async function main(): Promise<void> {
         }
       });
 
-      const harnessUrl = `${server.url}/${shot.webview}/docs-${shot.id}.html`;
-      await page.goto(harnessUrl, { waitUntil: "load", timeout: 60_000 });
+      await writeDocsHarness(shot);
+      const harnessUrl = `${server.url}/docs-harness/${shot.webview}/docs-${shot.id}.html`;
+      const response = await page.goto(harnessUrl, {
+        waitUntil: "load",
+        timeout: 60_000,
+      });
+      if (!response?.ok()) {
+        throw new Error(
+          `${shot.id}: harness page ${harnessUrl} returned HTTP ${response?.status() ?? "unknown"}`,
+        );
+      }
 
       if (shot.readySelector) {
         const readyTimeout = shot.readyTimeoutMs ?? 30_000;

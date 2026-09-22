@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=320, height=480, initial-scale=1.0" />
+  <title>docs harness</title>
+  <link rel="stylesheet" href="../../webviews/activity-bar/main.css" />
+  <style>
+:root {
+  color-scheme: dark;
+  --vscode-font-family: "Segoe UI", system-ui, sans-serif;
+  --vscode-font-size: 13px;
+  --vscode-foreground: #cccccc;
+  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-disabledForeground: #666666;
+  --vscode-errorForeground: #f48771;
+  --vscode-sideBar-background: #1e1e1e;
+  --vscode-sideBar-foreground: #cccccc;
+  --vscode-sideBarSectionHeader-background: #1e1e1e;
+  --vscode-sideBarSectionHeader-foreground: #cccccc;
+  --vscode-sideBarSectionHeader-border: #2b2b2b;
+  --vscode-panel-border: #2b2b2b;
+  --vscode-editor-background: #1e1e1e;
+  --vscode-editor-foreground: #d4d4d4;
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-border: #454545;
+  --vscode-input-background: #3c3c3c;
+  --vscode-input-foreground: #cccccc;
+  --vscode-input-border: #3c3c3c;
+  --vscode-input-placeholderForeground: #8892a0;
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-secondaryBackground: #3a3d41;
+  --vscode-button-secondaryForeground: #cccccc;
+  --vscode-button-secondaryHoverBackground: #45494e;
+  --vscode-list-hoverBackground: #2a2d2e;
+  --vscode-list-activeSelectionBackground: #094771;
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-list-inactiveSelectionBackground: #37373d;
+  --vscode-focusBorder: #007fd4;
+  --vscode-textLink-foreground: #3794ff;
+  --vscode-textLink-activeForeground: #3794ff;
+  --vscode-badge-background: #4d4d4d;
+  --vscode-badge-foreground: #ffffff;
+  --vscode-checkbox-background: #3c3c3c;
+  --vscode-checkbox-border: #3c3c3c;
+  --vscode-checkbox-foreground: #cccccc;
+  --vscode-dropdown-background: #3c3c3c;
+  --vscode-dropdown-foreground: #cccccc;
+  --vscode-dropdown-border: #3c3c3c;
+  --vscode-toolbar-hoverBackground: #2a2d2e;
+  --vscode-icon-foreground: #c5c5c5;
+  --vscode-scrollbarSlider-background: #79797966;
+  --vscode-scrollbarSlider-hoverBackground: #646464b3;
+  --vscode-widget-shadow: #00000066;
+  --vscode-charts-green: #89d185;
+  --vscode-charts-yellow: #f0c14a;
+  --vscode-charts-red: #f48771;
+  --vscode-charts-blue: #75beff;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--vscode-sideBar-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+
+html, body {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--vscode-sideBar-background, #1e1e1e) !important;
+}
+#app {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+* {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+
+
+
+html, body {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: var(--vscode-sideBar-background, #1e1e1e) !important;
+}
+#app {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+* {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.activity-bar {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+.pane-stack {
+  overflow: hidden !important;
+}
+/* Keep pane bodies usable — hide scrollbar chrome, but allow overflow. */
+.section-body {
+  overflow: auto !important;
+  scrollbar-width: none !important;
+}
+.section-body::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.search-results {
+  overflow: auto !important;
+  scrollbar-width: none !important;
+}
+
+.section:has(.section-header [aria-expanded="false"]),
+.section:has(button[aria-expanded="false"]) {
+  /* keep headers so the shot still reads as activity-bar */
+}
+.section-fill .section-body {
+  overflow: hidden !important;
+}
+.search-results {
+  overflow: visible !important;
+}
+.search-results-list {
+  overflow: visible !important;
+}
+
+html, body { width: 320px !important; height: 480px !important; }
+</style>
+</head>
+<body>
+  <div id="app"><p class="shell-loading">Loading…</p></div>
+  <script>
+    (() => {
+      const initialState = {"panes":{"workspace":false,"search":true,"todos":false,"scope":false,"selection":false,"references":false,"graph":false,"parents":false,"tray":false}};
+      const bootstrap = [{"type":"editorContext","syncWithEditor":true,"globalHopDepth":1,"minHopDepth":1,"maxHopDepth":4,"dimensionHopDepth":{}},{"type":"indexHealth","status":{"state":"ready","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"fileIssues":[],"recentActivity":[{"label":"Indexed","detail":"reqs/product.rq","at":1790110678911}],"activeBaseId":"base:demo","bases":[{"id":"base:demo","label":"demo","root":"/demo","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"state":"ready"}]}},{"type":"phonebookLinks","links":[{"id":"site","label":"reqlan site","href":"https://littletuna4.github.io/reqlan/"}]},{"type":"tray","tray":{"pinned":[]}},{"type":"context","model":{"revision":1,"focus":{"kind":"idea","ideaId":"idea:welcome_flow","fileUri":"file:///demo/reqs/product.rq","line":12},"dimensions":[{"id":"workspace","label":"Workspace","enabled":true,"pinned":false,"weight":0.1,"ideaCount":24,"fileCount":6,"summary":"24 ideas","hopDepth":1,"supportsHopControl":false},{"id":"current_file","label":"This file","enabled":true,"pinned":false,"weight":1,"ideaCount":3,"fileCount":1,"summary":"product.rq","hopDepth":1,"supportsHopControl":true}],"footprint":{"ideaIds":["idea:welcome_flow","idea:password_rules","idea:onboarding_checklist"],"fileUris":["file:///demo/reqs/product.rq"],"effectiveCenterId":"idea:welcome_flow","summaryLine":"welcome_flow · 3 ideas","provenance":{"ideaSources":{},"fileSources":{}}},"globalHopDepth":1,"minHopDepth":1,"maxHopDepth":4,"dimensionHopDepth":{},"currentFile":{"fileUri":"file:///demo/reqs/product.rq","fileLabel":"product.rq","isRqFile":true,"focusIdea":{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":12,"summary":"Empty submissions fail. Success continues into onboarding_checklist.","status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"],"lineEnd":26},"ideasInFile":[{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":12,"summary":"Empty submissions fail. Success continues into onboarding_checklist.","status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"],"lineEnd":26},{"id":"idea:password_rules","name":"password_rules","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":28,"summary":"Passwords must be at least twelve characters.","status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"],"lineEnd":36},{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":40,"summary":"Post-login checklist for new accounts.","statusKey":"__not_present__","tags":[],"tagsKeys":["__not_present__"],"lineEnd":48}],"outline":[{"id":"idea:welcome_flow","name":"welcome_flow","lineStart":12,"lineEnd":26,"children":[]}],"unresolvedCount":0,"referencingIdeas":[],"inboundReferencingIdeas":[],"referencedIdeas":[{"id":"idea:password_rules","name":"password_rules","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":28,"summary":"Passwords must be at least twelve characters.","status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","fileUri":"file:///demo/reqs/product.rq","lineStart":40,"summary":"Post-login checklist for new accounts.","statusKey":"__not_present__","tags":[],"tagsKeys":["__not_present__"]}],"commentLinkedIdeas":[],"folderReferencingIdeas":[]},"openFiles":[{"fileUri":"file:///demo/reqs/product.rq","fileLabel":"product.rq","line":12,"sources":["current_file"]}],"fileHistory":[],"editHistory":[],"manualIdeas":[],"workspace":{"ready":true,"ideaCount":24,"edgeCount":41,"activeBaseId":"base:demo","activeBaseLabel":"demo","bases":[{"id":"base:demo","label":"demo","root":"/demo","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0}]},"anomalies":[],"references":{"ideaId":"idea:welcome_flow","rows":[{"edgeId":"e1","direction":"outbound","kind":"references","label":"password_rules","targetName":"password_rules","targetPath":"reqs/product.rq","targetLine":28,"isResolved":true,"sourceIdeaId":"idea:welcome_flow","targetIdeaId":"idea:password_rules"},{"edgeId":"e2","direction":"outbound","kind":"references","label":"onboarding_checklist","targetName":"onboarding_checklist","targetPath":"reqs/product.rq","targetLine":40,"isResolved":true,"sourceIdeaId":"idea:welcome_flow","targetIdeaId":"idea:onboarding_checklist"},{"edgeId":"e3","direction":"inbound","kind":"file_reference","label":"login.ts","targetName":"login.ts","targetPath":"src/login.ts","isResolved":true,"sourceIdeaId":"file:src/login.ts","targetIdeaId":"idea:welcome_flow"}]}}},{"type":"bootstrapComplete"},{"type":"ideaSearchResults","payload":{"query":"password empty","total":2,"truncated":false,"results":[{"id":"idea:password_rules","name":"password_rules","kind":"block","path":"reqs/product.rq","summary":"Passwords must be at least twelve characters.","fileUri":"file:///demo/reqs/product.rq","lineStart":28},{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","path":"reqs/product.rq","summary":"Empty submissions fail. Success continues into onboarding_checklist.","fileUri":"file:///demo/reqs/product.rq","lineStart":12}]}}];
+      let state = initialState;
+      const reply = (message) => window.postMessage(message, "*");
+      window.acquireVsCodeApi = () => ({
+        postMessage(msg) {
+          if (!msg || typeof msg !== "object") return;
+          if (msg.type === "ready") {
+            for (const m of bootstrap) reply(m);
+            return;
+          }
+          if (msg.type === "loadGraph") {
+            reply({ type: "graphSlice", slice: {"query":{"centerId":"idea:welcome_flow","includeIndirect":false,"hopDepth":1,"maxNodes":40},"centerId":"idea:welcome_flow","depth":1,"truncated":false,"totalMatching":3,"nodes":[{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":12,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:password_rules","name":"password_rules","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":28,"status":"done","statusKey":"done","tags":["auth"],"tagsKeys":["auth"]},{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","fileUri":"file:///demo/reqs/product.rq","path":"reqs/product.rq","lineStart":40,"statusKey":"__not_present__","tags":[],"tagsKeys":["__not_present__"]}],"edges":[{"id":"e1","sourceId":"idea:welcome_flow","targetId":"idea:password_rules","kind":"references","label":"password_rules"},{"id":"e2","sourceId":"idea:welcome_flow","targetId":"idea:onboarding_checklist","kind":"references","label":"onboarding_checklist"}]}, requestId: msg.requestId });
+            return;
+          }
+          if (msg.type === "loadAncestors") {
+            reply({ type: "ancestors", result: {"ideaId":"idea:welcome_flow","ancestors":[],"statusRollup":{"done":1},"blocking":[]}, requestId: msg.requestId });
+            return;
+          }
+          if (msg.type === "loadReferences") {
+            reply({
+              type: "references",
+              payload: {
+                ideaId: "idea:welcome_flow",
+                rows: [{"edgeId":"e1","direction":"outbound","kind":"references","label":"password_rules","targetName":"password_rules","targetPath":"reqs/product.rq","targetLine":28,"isResolved":true,"sourceIdeaId":"idea:welcome_flow","targetIdeaId":"idea:password_rules"},{"edgeId":"e2","direction":"outbound","kind":"references","label":"onboarding_checklist","targetName":"onboarding_checklist","targetPath":"reqs/product.rq","targetLine":40,"isResolved":true,"sourceIdeaId":"idea:welcome_flow","targetIdeaId":"idea:onboarding_checklist"},{"edgeId":"e3","direction":"inbound","kind":"file_reference","label":"login.ts","targetName":"login.ts","targetPath":"src/login.ts","isResolved":true,"sourceIdeaId":"file:src/login.ts","targetIdeaId":"idea:welcome_flow"}],
+                grouped: {},
+              },
+              requestId: msg.requestId,
+            });
+            return;
+          }
+          if (msg.type === "searchIdeas") {
+            reply({
+              type: "ideaSearchResults",
+              payload: { ...{"query":"password empty","total":2,"truncated":false,"results":[{"id":"idea:password_rules","name":"password_rules","kind":"block","path":"reqs/product.rq","summary":"Passwords must be at least twelve characters.","fileUri":"file:///demo/reqs/product.rq","lineStart":28},{"id":"idea:welcome_flow","name":"welcome_flow","kind":"block","path":"reqs/product.rq","summary":"Empty submissions fail. Success continues into onboarding_checklist.","fileUri":"file:///demo/reqs/product.rq","lineStart":12}]}, query: msg.query || "password empty" },
+              requestId: msg.requestId,
+            });
+            return;
+          }
+          if (msg.type === "loadTodos") {
+            reply({ type: "todoList", payload: {"total":1,"truncated":false,"results":[{"id":"idea:onboarding_checklist","name":"onboarding_checklist","kind":"block","path":"reqs/product.rq","summary":"Post-login checklist for new accounts.","fileUri":"file:///demo/reqs/product.rq","lineStart":40,"todoNote":"Fill checklist steps"}]}, requestId: msg.requestId });
+            return;
+          }
+          if (msg.type === "loadIndexHealth") {
+            reply({ type: "indexHealth", status: {"state":"ready","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"fileIssues":[],"recentActivity":[{"label":"Indexed","detail":"reqs/product.rq","at":1790110678911}],"activeBaseId":"base:demo","bases":[{"id":"base:demo","label":"demo","root":"/demo","ready":true,"ideaCount":24,"edgeCount":41,"fileIssueCount":0,"state":"ready"}]} });
+          }
+        },
+        getState() { return state; },
+        setState(next) { state = next; },
+      });
+    })();
+  </script>
+  <script type="module" src="../../webviews/activity-bar/main.js"></script>
+</body>
+</html>

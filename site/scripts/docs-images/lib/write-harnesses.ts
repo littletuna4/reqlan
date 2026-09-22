@@ -2,8 +2,8 @@
  * Write self-contained harness HTML next to built webviews for docs captures.
  * Each harness mocks acquireVsCodeApi and seeds demo host messages.
  */
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 import {
   demoAncestors,
@@ -17,7 +17,12 @@ import {
   demoTodoList,
 } from "../fixtures/demo-data.ts";
 import { CAPTURE_BASE_CSS } from "../lib/capture-css.ts";
-import { webviewMediaRoot } from "../lib/paths.ts";
+import { docsHarnessRoot } from "../lib/paths.ts";
+
+/** Built webview bundle paths relative to `extensionMediaRoot` (static server root). */
+function webviewAssetBase(webviewId: string): string {
+  return `../../webviews/${webviewId}`;
+}
 import { VSCODE_THEME_CSS } from "../lib/vscode-theme.ts";
 import { DOCS_IMAGE_SHOTS } from "../shots/catalog.ts";
 import type { DocsShot } from "../shots/types.ts";
@@ -42,6 +47,7 @@ function activityBarHarness(options: {
   styles: string;
   width: number;
   height: number;
+  assetBase: string;
 }): string {
   const bootstrap = [
     {
@@ -80,7 +86,7 @@ function activityBarHarness(options: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=${options.width}, height=${options.height}, initial-scale=1.0" />
   <title>docs harness</title>
-  <link rel="stylesheet" href="./main.css" />
+  <link rel="stylesheet" href="${options.assetBase}/main.css" />
   <style>${options.styles}</style>
 </head>
 <body>
@@ -139,7 +145,7 @@ function activityBarHarness(options: {
       });
     })();
   </script>
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="${options.assetBase}/main.js"></script>
 </body>
 </html>`;
 }
@@ -148,6 +154,7 @@ function ideasSummaryHarness(options: {
   styles: string;
   width: number;
   height: number;
+  assetBase: string;
 }): string {
   const ideas = demoIdeasPage();
   return `<!DOCTYPE html>
@@ -156,7 +163,7 @@ function ideasSummaryHarness(options: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=${options.width}, height=${options.height}, initial-scale=1.0" />
   <title>docs harness</title>
-  <link rel="stylesheet" href="./main.css" />
+  <link rel="stylesheet" href="${options.assetBase}/main.css" />
   <style>${options.styles}</style>
 </head>
 <body>
@@ -200,7 +207,7 @@ function ideasSummaryHarness(options: {
       });
     })();
   </script>
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="${options.assetBase}/main.js"></script>
 </body>
 </html>`;
 }
@@ -209,6 +216,7 @@ function onboardingHarness(options: {
   styles: string;
   width: number;
   height: number;
+  assetBase: string;
 }): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -216,7 +224,7 @@ function onboardingHarness(options: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=${options.width}, height=${options.height}, initial-scale=1.0" />
   <title>docs harness</title>
-  <link rel="stylesheet" href="./main.css" />
+  <link rel="stylesheet" href="${options.assetBase}/main.css" />
   <style>${options.styles}</style>
 </head>
 <body>
@@ -235,33 +243,45 @@ function onboardingHarness(options: {
       });
     })();
   </script>
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="${options.assetBase}/main.js"></script>
 </body>
 </html>`;
+}
+
+function harnessHtmlForShot(shot: DocsShot): string {
+  const styles = shellStyles(shot);
+  const { width, height } = shot.viewport;
+  const assetBase = webviewAssetBase(shot.webview);
+  if (shot.webview === "activity-bar") {
+    return activityBarHarness({
+      searchOnReady: shot.id === "chat-search",
+      initialState: shot.initialState ?? null,
+      styles,
+      width,
+      height,
+      assetBase,
+    });
+  }
+  if (shot.webview === "ideas-summary") {
+    return ideasSummaryHarness({ styles, width, height, assetBase });
+  }
+  return onboardingHarness({ styles, width, height, assetBase });
+}
+
+export async function writeDocsHarness(shot: DocsShot): Promise<string> {
+  const html = harnessHtmlForShot(shot);
+  const out = join(docsHarnessRoot, shot.webview, `docs-${shot.id}.html`);
+  await mkdir(dirname(out), { recursive: true });
+  await writeFile(out, html);
+  const { width, height } = shot.viewport;
+  console.log(`wrote harness ${out} (${width}×${height})`);
+  return out;
 }
 
 export async function writeDocsHarnesses(
   shots: readonly DocsShot[] = DOCS_IMAGE_SHOTS,
 ): Promise<void> {
   for (const shot of shots) {
-    const styles = shellStyles(shot);
-    const { width, height } = shot.viewport;
-    let html: string;
-    if (shot.webview === "activity-bar") {
-      html = activityBarHarness({
-        searchOnReady: shot.id === "chat-search",
-        initialState: shot.initialState ?? null,
-        styles,
-        width,
-        height,
-      });
-    } else if (shot.webview === "ideas-summary") {
-      html = ideasSummaryHarness({ styles, width, height });
-    } else {
-      html = onboardingHarness({ styles, width, height });
-    }
-    const out = join(webviewMediaRoot, shot.webview, `docs-${shot.id}.html`);
-    await writeFile(out, html);
-    console.log(`wrote harness ${out} (${width}×${height})`);
+    await writeDocsHarness(shot);
   }
 }
