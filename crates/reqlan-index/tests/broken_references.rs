@@ -206,10 +206,7 @@ fn check_accepts_qualified_reference_when_the_file_exists() {
     std::fs::write(root.join("host.rq"), "host {\n    [\"./src/app.ts\".term]\n}\n").unwrap();
     let store = sync_root(&root);
     let rows = run_check(&store, &root, None);
-    assert!(
-        rows.iter().all(|row| row.kind != "file_reference"),
-        "{rows:?}"
-    );
+    assert!(rows.iter().all(|row| row.kind != "file_reference"), "{rows:?}");
     std::fs::remove_dir_all(&root).ok();
 }
 

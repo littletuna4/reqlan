@@ -562,7 +562,12 @@ pub fn list_broken_references(
                 match_count: None,
             });
         }
-        append_missing_qualified_file_targets(store, workspace_root, options.path_glob, &mut broken)?;
+        append_missing_qualified_file_targets(
+            store,
+            workspace_root,
+            options.path_glob,
+            &mut broken,
+        )?;
     }
 
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
