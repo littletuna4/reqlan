@@ -1,5 +1,11 @@
 # @reqlan/language
 
+## 1.13.2
+
+### Patch Changes
+
+- 738060c: check file references exist in check.
+
 ## 1.13.1
 
 ### Patch Changes
