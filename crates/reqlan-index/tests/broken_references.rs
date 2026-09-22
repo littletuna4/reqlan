@@ -5,6 +5,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 
@@ -173,6 +174,42 @@ fn skips_idea_and_comment_refs_on_rq_ignore_error_lines() {
     assert!(rows.iter().any(|row| row.kind == "comment_link" && row.label == "gone_reported"));
     assert!(rows.iter().all(|row| row.label != "missing_ignored"));
     assert!(rows.iter().all(|row| row.label != "gone_ignored"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_reports_qualified_reference_to_a_missing_file() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+    let root = scratch("qual-missing");
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    [\"../../../../my/non-existentfile.ts\".term]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(
+        rows.iter().any(|row| {
+            row.kind == "file_reference" && row.label.ends_with("my/non-existentfile.ts")
+        }),
+        "{rows:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_accepts_qualified_reference_when_the_file_exists() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+    let root = scratch("qual-exists");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src").join("app.ts"), "export const term = 1;\n").unwrap();
+    std::fs::write(root.join("host.rq"), "host {\n    [\"./src/app.ts\".term]\n}\n").unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(
+        rows.iter().all(|row| row.kind != "file_reference"),
+        "{rows:?}"
+    );
     std::fs::remove_dir_all(&root).ok();
 }
 

@@ -20,10 +20,13 @@ merge_requirements{
 rename_file{
     this should update any referencess in rq files (imports, inline references, etc)
     it should also update any inline references in functional code files - per ["../language/comment-references/functional-code-comment-references.rq"] and ["./refactor_support.rq".comment_reference_refactor_support]
+    Renaming a folder updates references to that folder and to every file inside it.
     See also ["./refactor_support.rq".refactor_file_moves] and ["./refactor_support.rq".refactor_changes].
-    Implemented by ["../../../packages/extension/src/mutation_module/file-move-plan.ts"], ["../../../packages/language/src/file-path-rewrite.ts"], and ["../../../packages/extension/src/mutation_module/collect-inbound-referencers.ts"].
+    Implemented by ["../../../packages/extension/src/mutation_module/file-move-plan.ts"], ["../../../packages/extension/src/mutation_module/expand-renamed-paths.ts"], ["../../../packages/language/src/file-path-rewrite.ts"], and ["../../../packages/extension/src/mutation_module/collect-inbound-referencers.ts"].
     @tests (
         ["../../../packages/language/test/file-path-rewrite.test.ts:updates inbound import path when the target file moves"]
+        ["../../../packages/language/test/file-path-rewrite.test.ts:updates a folder reference when the folder is renamed"]
+        ["../../../packages/extension/test/expand-renamed-paths.test.ts:pairs each file under a renamed folder with its old path"]
     )
 }
 

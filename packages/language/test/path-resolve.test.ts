@@ -19,6 +19,7 @@ import {
     pathResolveContextFromWorkspaceFolders,
     resolveAuthoredFsPath
 } from '../src/reqlan-path-resolve.js';
+import { resolveFileUri } from '../src/reqlan-comment-resolver.js';
 
 describe('import root alias', () => {
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
@@ -46,6 +47,41 @@ describe('import root alias', () => {
             config: null
         });
         expect(resolved.toString()).toBe(URI.parse('file:///workspace/shared.rq').toString());
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+    test('a climbing relative path resolves from an ancestor directory', () => {
+        const fs = new VirtualFileSystemProvider();
+        fs.insert('file:///ws/packages/language/test/parsing.test.ts', 'test("parse ontology.rq ideas", () => {})\n');
+        const document = createSourceTextDocument(
+            'file:///ws/testdata/golden-corpus/ontology.rq',
+            'host {}'
+        );
+        const resolved = resolveFileUri('../packages/language/test/parsing.test.ts', document, {
+            workspaceFolderUri: URI.parse('file:///ws'),
+            fileSystem: fs,
+            config: null
+        });
+        expect(resolved.toString()).toBe(
+            URI.parse('file:///ws/packages/language/test/parsing.test.ts').toString()
+        );
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+    test('a file next to the document wins over an ancestor', () => {
+        const fs = new VirtualFileSystemProvider();
+        fs.insert('file:///ws/testdata/packages/app.ts', 'near\n');
+        fs.insert('file:///ws/packages/app.ts', 'far\n');
+        const document = createSourceTextDocument(
+            'file:///ws/testdata/golden-corpus/ontology.rq',
+            'host {}'
+        );
+        const resolved = resolveFileUri('../packages/app.ts', document, {
+            workspaceFolderUri: URI.parse('file:///ws'),
+            fileSystem: fs,
+            config: null
+        });
+        expect(resolved.toString()).toBe(URI.parse('file:///ws/testdata/packages/app.ts').toString());
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]

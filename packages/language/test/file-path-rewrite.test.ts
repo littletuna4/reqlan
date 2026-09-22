@@ -45,6 +45,24 @@ describe('rewritePathToMovedTarget', () => {
     });
 
     // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+    // rq:["../../../reqlan rq/extension/mutation/mutation-hooks.rq".rename_file]
+    test('updates a folder reference when the folder is renamed', () => {
+        const referencing = URI.parse('file:///workspace/ext/main.rq');
+        const oldFolder = URI.parse('file:///workspace/ext/oldname');
+        const newFolder = URI.parse('file:///workspace/ext/newname');
+        expect(rewritePathToMovedTarget('./oldname', referencing, oldFolder, newFolder)).toBe('./newname');
+    });
+
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    test('updates an aliased path when the target folder is renamed', () => {
+        const referencing = URI.parse('file:///workspace/pkg/main.rq');
+        const oldTarget = URI.parse('file:///workspace/oldname/foo.rq');
+        const newTarget = URI.parse('file:///workspace/newname/foo.rq');
+        expect(rewritePathToMovedTarget('@/oldname/foo.rq', referencing, oldTarget, newTarget)).toBe('@/newname/foo.rq');
+    });
+
+    // rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
     test('preserves extensionless inbound paths', () => {
         const referencing = URI.parse('file:///workspace/ext/a/main.rq');
         const oldTarget = URI.parse('file:///workspace/ext/a/foo.rq');

@@ -9,6 +9,7 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - report unresolved imports: [check_unresolved_imports].
+    - report a qualified reference whose file is not on disk: [check_qualified_missing_file].
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
     Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
@@ -24,6 +25,8 @@ check {
     @tests (
         ["../../crates/reqlan-index/tests/broken_references.rs:skips_idea_and_comment_refs_on_rq_ignore_error_lines"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_file_refs_and_skips_existing"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_strips_test_name_and_line_suffix_before_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_test_names_that_contain_colons_from_nested_rq"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_same_file_idea_refs_and_reports_true_missing"]
@@ -194,6 +197,24 @@ check_skip_gitignored_targets {
         ["../../packages/cli/test/check.test.ts:honours skip-gitignored-targets"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:CI check skips gitignored targets"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_gitignored_import_paths"]
+    )
+}
+
+check_qualified_missing_file {
+    A qualified [reference] names a file and an idea. Example: `["../../../../my/non-existentfile.ts".term]`.
+    [check] reports an error when that file is not on disk.
+    The issue kind is `file_reference`. The label is the resolved file path.
+    A qualified reference to a file that exists is not this error.
+    A same-file idea reference is not this error.
+    The editor already underlines this target.
+    Related: [check] ["../language/syntax.rq".reference_file] ["../extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
     )
 }
 

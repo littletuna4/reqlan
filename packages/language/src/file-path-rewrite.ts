@@ -5,6 +5,7 @@
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  * rq:["../../../reqlan rq/extension/mutation/mutation-hooks.rq".move_file]
  * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+ * rq:["../../../reqlan rq/extension/mutation/mutation-hooks.rq".rename_file]
  * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
  */
 import { URI, UriUtils } from 'langium';
@@ -57,6 +58,52 @@ function pathHadExplicitExtension(path: string): boolean {
     return basename.includes('.', 1);
 }
 
+function normalizePosixPath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+function pathEndsWithSegment(absolute: string, segment: string): boolean {
+    const abs = normalizePosixPath(absolute);
+    const rel = normalizePosixPath(segment).replace(/^\/+/, '');
+    return rel.length > 0 && (abs === rel || abs.endsWith(`/${rel}`));
+}
+
+/**
+ * Keep an import-root alias when the target file or folder moves inside that root.
+ * `@/old/foo.rq` becomes `@/new/foo.rq`. A move of the referencing file does not use this.
+ */
+function rewriteAliasedPathToMovedTarget(
+    path: string,
+    oldTargetUri: URI,
+    newTargetUri: URI,
+    options?: PathRewriteOptions
+): string | undefined {
+    const matched = matchImportRootMapping(path, rewriteImportRoots(options));
+    if (!matched) {
+        return undefined;
+    }
+    const oldPath = normalizePosixPath(oldTargetUri.path);
+    const newPath = normalizePosixPath(newTargetUri.path);
+    const remainder = matched.remainder;
+    const implicit = importPathWithImplicitExtension(remainder);
+    const matchedRemainder = pathEndsWithSegment(oldPath, remainder)
+        ? remainder
+        : (implicit && pathEndsWithSegment(oldPath, implicit) ? implicit : undefined);
+    if (!matchedRemainder) {
+        return undefined;
+    }
+    const prefix = oldPath.slice(0, oldPath.length - matchedRemainder.length);
+    if (!newPath.startsWith(prefix)) {
+        return undefined;
+    }
+    let newRemainder = newPath.slice(prefix.length);
+    if (!pathHadExplicitExtension(remainder) && newRemainder.endsWith('.rq')) {
+        newRemainder = newRemainder.slice(0, -'.rq'.length);
+    }
+    const rewritten = `${matched.mapping.alias}/${newRemainder}`;
+    return rewritten === path ? undefined : rewritten;
+}
+
 export function relativePathWithoutExtension(dirname: string, targetUri: URI): string {
     let relativePath = UriUtils.relative(dirname, uriWithoutExtension(targetUri));
     return ensureDotRelative(relativePath);
@@ -93,6 +140,10 @@ export function rewritePathToMovedTarget(
 ): string | undefined {
     if (!path || path.startsWith('file://')) {
         return undefined;
+    }
+    const aliased = rewriteAliasedPathToMovedTarget(path, oldTargetUri, newTargetUri, options);
+    if (aliased !== undefined) {
+        return aliased;
     }
     if (matchImportRootMapping(path, rewriteImportRoots(options)) !== undefined) {
         return undefined;

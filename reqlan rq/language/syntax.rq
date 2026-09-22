@@ -217,6 +217,9 @@ reference_qualified {
 reference_file {
     References may target arbitrary files, not only .rq files.
     File reference syntax uses a bracketed quoted path.
+    A relative path resolves from the document directory.
+    When that path climbs with `..` and the file is not there, the same path is tried from each ancestor directory up to the workspace folder.
+    The document-directory file wins when it exists.
     Line or line-range references append `L#n` or `L#n-m` after the path inside the brackets.
     Test-name references append `:` and the test title after the path (for example `./app.test.ts:lists items`).
     The first `:` after the path starts the title; later `:` characters stay in the title (`e2e: …`).
@@ -225,6 +228,9 @@ reference_file {
     Quoted body text is not a file reference: ["../reference_types.rq".reference_edgecase].
     @implementation (
         ["../../packages/language/src/reqlan-file-references.ts"]
+        ["../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../packages/language/src/reqlan-imports.ts"]
+        ["../../packages/language/src/reqlan-comment-resolver.ts"]
         ["../../crates/reqlan-parse/src/path.rs"]
         ["../../packages/language/src/reqlan-file-link-resolver.ts"]
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -238,6 +244,8 @@ reference_file {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_strips_test_name_and_line_suffix_before_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_test_names_that_contain_colons_from_nested_rq"]
         ["../../packages/language/test/linking.test.ts:document links resolve test file references to the matching test"]
+        ["../../packages/language/test/path-resolve.test.ts:a climbing relative path resolves from an ancestor directory"]
+        ["../../packages/language/test/path-resolve.test.ts:a file next to the document wins over an ancestor"]
     )
 }
 

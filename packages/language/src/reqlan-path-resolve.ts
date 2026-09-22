@@ -433,6 +433,59 @@ export function resolveDocumentPathUri(
 }
 
 /**
+ * Document-relative URI first. When the path climbs with `..` and that file is absent,
+ * the same path is tried from each ancestor directory up to the workspace folder.
+ * A path that already exists next to the document is unchanged.
+ * rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+ */
+export function authoredPathUriCandidates(
+    path: string,
+    document: LangiumDocument,
+    context?: PathResolveContext
+): URI[] {
+    const primary = resolveDocumentPathUri(path, document, context);
+    const uris = [primary];
+    if (!path.split(/[\\/]/).includes('..')) {
+        return uris;
+    }
+    const config = resolveRqConfig(document, context);
+    if (matchImportRootMapping(path, config.importRoots)) {
+        return uris;
+    }
+    const workspace = context?.workspaceFolderUri
+        ?? findWorkspaceFolderUri(document.uri, context?.workspaceFolderUris);
+    if (!workspace) {
+        return uris;
+    }
+    let dir = UriUtils.dirname(document.uri);
+    for (;;) {
+        const parent = UriUtils.dirname(dir);
+        if (UriUtils.equals(parent, dir) || !isUriInsideFolder(parent, workspace)) {
+            break;
+        }
+        dir = parent;
+        const candidate = UriUtils.resolvePath(dir, path);
+        if (!uris.some(uri => UriUtils.equals(uri, candidate))) {
+            uris.push(candidate);
+        }
+        if (UriUtils.equals(dir, workspace)) {
+            break;
+        }
+    }
+    return uris;
+}
+
+function isUriInsideFolder(uri: URI, folder: URI): boolean {
+    if (UriUtils.equals(uri, folder)) {
+        return true;
+    }
+    const folderPrefix = folder.toString().endsWith('/')
+        ? folder.toString()
+        : `${folder.toString()}/`;
+    return uri.toString().startsWith(folderPrefix);
+}
+
+/**
  * Dummy file under `sourceDir` so `dirname(document.uri)` is the source directory.
  * Used when resolving authored paths from non-Langium hosts (comment links in code files).
  */

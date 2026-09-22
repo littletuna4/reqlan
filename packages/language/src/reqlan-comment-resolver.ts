@@ -19,7 +19,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findImportedDocument } from './reqlan-imports.js';
 import { isIdea, isModel, isOneLinerIdea } from './generated/ast.js';
 import {
-    resolveDocumentPathUri,
+    authoredPathUriCandidates,
     type PathResolveContext
 } from './reqlan-path-resolve.js';
 import { parseReqlanQuotedString, REQLAN_QUOTED_STRING_CAPTURE } from './reqlan-quoted-strings.js';
@@ -464,10 +464,20 @@ export function resolveCommentDefinitionLinks(
     )];
 }
 
+/**
+ * Resolve a file path from the document directory.
+ * A `..` path whose file is absent is tried again from each ancestor up to the workspace folder.
+ * rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+ */
 export function resolveFileUri(
     path: string,
     document: LangiumDocument,
     context?: PathResolveContext
 ) {
-    return resolveDocumentPathUri(path, document, context);
+    const candidates = authoredPathUriCandidates(path, document, context);
+    const fileSystem = context?.fileSystem;
+    if (!fileSystem) {
+        return candidates[0]!;
+    }
+    return candidates.find(uri => fileSystem.existsSync(uri)) ?? candidates[0]!;
 }

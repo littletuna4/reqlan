@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { AnalyticalSubmodule } from '../analytical_submodule/index.js';
+import { expandRenamedPaths } from './expand-renamed-paths.js';
 import { shouldPromptForMovedFile } from './file-mutation-gate.js';
 import { planFileMoveChanges } from './file-move-plan.js';
 import { promptAndApplyFileMoveChanges } from './show-mutation-approval.js';
@@ -7,6 +10,7 @@ import { promptAndApplyFileMoveChanges } from './show-mutation-approval.js';
 /**
  * rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
  * rq:["../../../../reqlan rq/extension/mutation/mutation-hooks.rq".move_file]
+ * rq:["../../../../reqlan rq/extension/mutation/mutation-hooks.rq".rename_file]
  */
 export function registerFileMutationHooks(
     context: vscode.ExtensionContext,
@@ -23,13 +27,14 @@ async function handleFileRenames(
     files: ReadonlyArray<{ oldUri: vscode.Uri; newUri: vscode.Uri }>,
     submodule: AnalyticalSubmodule
 ): Promise<void> {
-    if (!submodule.index.isReady || files.length === 0) {
-        await migrateMovedRqFiles(files, submodule);
+    const expanded = await expandRenameUris(files);
+    if (!submodule.index.isReady || expanded.length === 0) {
+        await migrateMovedRqFiles(expanded, submodule);
         return;
     }
 
     const qualifyingFiles: Array<{ oldUri: vscode.Uri; newUri: vscode.Uri }> = [];
-    for (const file of files) {
+    for (const file of expanded) {
         if (await shouldPromptForMovedFile(file.oldUri, submodule.index.indexStore)) {
             qualifyingFiles.push(file);
         }
@@ -42,7 +47,43 @@ async function handleFileRenames(
         }
     }
 
-    await migrateMovedRqFiles(files, submodule);
+    await migrateMovedRqFiles(expanded, submodule);
+}
+
+async function expandRenameUris(
+    files: ReadonlyArray<{ oldUri: vscode.Uri; newUri: vscode.Uri }>
+): Promise<Array<{ oldUri: vscode.Uri; newUri: vscode.Uri }>> {
+    const expanded = await expandRenamedPaths(
+        files.map(file => ({ oldPath: file.oldUri.fsPath, newPath: file.newUri.fsPath })),
+        async path => {
+            try {
+                return (await vscode.workspace.fs.stat(vscode.Uri.file(path))).type === vscode.FileType.Directory;
+            } catch {
+                return false;
+            }
+        },
+        directory => listFiles(directory)
+    );
+    return expanded.map(entry => ({
+        oldUri: vscode.Uri.file(entry.oldPath),
+        newUri: vscode.Uri.file(entry.newPath)
+    }));
+}
+
+async function listFiles(directory: string): Promise<string[]> {
+    const files: string[] = [];
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+        const entryPath = join(directory, entry.name);
+        if (entry.isDirectory()) {
+            files.push(...await listFiles(entryPath));
+            continue;
+        }
+        if (entry.isFile()) {
+            files.push(entryPath);
+        }
+    }
+    return files;
 }
 
 async function migrateMovedRqFiles(

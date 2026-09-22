@@ -562,6 +562,7 @@ pub fn list_broken_references(
                 match_count: None,
             });
         }
+        append_missing_qualified_file_targets(store, workspace_root, options.path_glob, &mut broken)?;
     }
 
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
@@ -649,6 +650,62 @@ fn to_zero_based_line(kind: EdgeKind, source_line: Option<u32>) -> Option<u32> {
         EdgeKind::CommentLink => Some(line),
         _ => Some(line.saturating_sub(1)),
     }
+}
+
+/// A qualified reference `["path".idea]` is stored as a resolved idea edge.
+/// Check still reports the path when that file is not on disk.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+fn append_missing_qualified_file_targets(
+    store: &IndexStore,
+    workspace_root: &Path,
+    path_glob: Option<&str>,
+    broken: &mut Vec<BrokenReference>,
+) -> Result<(), StoreError> {
+    for edge in store.get_all_edges()? {
+        if edge.kind != EdgeKind::References || edge.is_resolved == Some(false) {
+            continue;
+        }
+        let Some(target_id) = edge.target_id.as_deref() else {
+            continue;
+        };
+        let target_file = file_from_idea_id(target_id);
+        if target_file.is_empty() || target_file == target_id {
+            continue;
+        }
+        let Some(source) = store.get_idea(&edge.source_id)? else {
+            continue;
+        };
+        if !file_matches(path_glob, &source.file_uri) {
+            continue;
+        }
+        if target_file == source.file_uri {
+            continue;
+        }
+        if !qualified_target_file_missing(workspace_root, target_file) {
+            continue;
+        }
+        broken.push(BrokenReference {
+            file_uri: source.file_uri,
+            source_id: Some(source.id),
+            source_name: Some(source.name),
+            kind: EdgeKind::FileReference.as_str().to_string(),
+            label: target_file.to_string(),
+            source_line: to_zero_based_line(edge.kind, edge.source_line),
+            snippet: edge.snippet,
+            severity: "error".to_string(),
+            match_count: None,
+        });
+    }
+    Ok(())
+}
+
+fn qualified_target_file_missing(workspace_root: &Path, target_file: &str) -> bool {
+    if target_file.contains("://") {
+        return false;
+    }
+    !import_path_candidates(target_file)
+        .iter()
+        .any(|candidate| file_exists(workspace_root, candidate))
 }
 
 fn file_reference_missing(

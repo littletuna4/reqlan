@@ -1,4 +1,5 @@
 import { URI } from 'langium';
+import { statSync } from 'node:fs';
 import {
     buildInboundPathRewriteEdits,
     buildPathRewriteEdits,
@@ -29,20 +30,26 @@ export async function planFileMoveChanges(
     const changesByUri = new Map<string, FileMoveChange>();
 
     for (const { oldUri, newUri } of files) {
-        const document = await vscode.workspace.openTextDocument(newUri);
-        const isRqFile = newUri.fsPath.endsWith('.rq');
-        const references = findPathReferencesInMovedFile(document.getText(), isRqFile);
-        const outboundEdits = buildPathRewriteEdits(
-            references,
-            URI.parse(oldUri.toString()),
-            URI.parse(newUri.toString()),
-            (_path, newPath) => JSON.stringify(newPath)
-        );
-        mergeChange(changesByUri, {
-            uri: newUri,
-            oldUri,
-            edits: outboundEdits
-        });
+        if (!isDirectory(newUri.fsPath)) {
+            try {
+                const document = await vscode.workspace.openTextDocument(newUri);
+                const isRqFile = newUri.fsPath.endsWith('.rq');
+                const references = findPathReferencesInMovedFile(document.getText(), isRqFile);
+                const outboundEdits = buildPathRewriteEdits(
+                    references,
+                    URI.parse(oldUri.toString()),
+                    URI.parse(newUri.toString()),
+                    (_path, newPath) => JSON.stringify(newPath)
+                );
+                mergeChange(changesByUri, {
+                    uri: newUri,
+                    oldUri,
+                    edits: outboundEdits
+                });
+            } catch {
+                // A directory or unreadable path still contributes inbound rewrites below.
+            }
+        }
 
         if (!indexStore) {
             continue;
@@ -80,6 +87,14 @@ export async function planFileMoveChanges(
     }
 
     return [...changesByUri.values()].filter(change => change.edits.length > 0);
+}
+
+function isDirectory(fsPath: string): boolean {
+    try {
+        return statSync(fsPath).isDirectory();
+    } catch {
+        return false;
+    }
 }
 
 function mergeChange(map: Map<string, FileMoveChange>, change: FileMoveChange): void {

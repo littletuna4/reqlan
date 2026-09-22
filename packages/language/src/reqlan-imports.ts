@@ -9,6 +9,7 @@
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
 import {
+    authoredPathUriCandidates,
     fileUriFromFsPath,
     isAbsoluteUriOrPath,
     resolveDocumentPathUri,
@@ -84,7 +85,7 @@ export function findImportedDocument(
     return undefined;
 }
 
-/** First candidate that exists, falling back to the path as written when none do. */
+/** First candidate that exists, falling back to the document-relative path when none do. */
 export function resolveExistingImportUri(
     path: string,
     document: LangiumDocument,
@@ -92,8 +93,16 @@ export function resolveExistingImportUri(
     fileSystem?: FileSystemProvider,
     context?: PathResolveContext
 ): URI {
-    const uris = resolveImportCandidateUris(path, document, withFileSystem(context, fileSystem));
-    return uris.find(uri => isImportTarget(uri, documents, fileSystem)) ?? uris[uris.length - 1]!;
+    const pathContext = withFileSystem(context, fileSystem);
+    const uris = importPathCandidates(path).flatMap(candidate =>
+        authoredPathUriCandidates(candidate, document, pathContext)
+    );
+    const existing = uris.find(uri => isImportTarget(uri, documents, fileSystem));
+    if (existing) {
+        return existing;
+    }
+    const written = importPathCandidates(path).at(-1) ?? path;
+    return resolveDocumentPathUri(written, document, pathContext);
 }
 
 /**
