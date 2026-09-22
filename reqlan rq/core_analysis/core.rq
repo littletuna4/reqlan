@@ -77,7 +77,7 @@ consumption_silence {
     repeating flashes after `.rq` change; the language-server Node probe can flash once
     at start on old hosts.
     Index parse itself stays in-process (napi `.node` / `.dll`) and does not spawn a console.
-    Related: ["../extension/index-host/indexer.rq".git_dates],
+    Related: ["../indexer/indexer.rq".git_dates],
     ["../extension/index-host/git-codelens.rq".git_dates_background_indexing],
     ["../extension/index-host/git-codelens.rq".git_dates_rate_cap],
     ["../extension/local-context/context-scope.rq".git_context],

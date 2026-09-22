@@ -234,7 +234,7 @@ timeline_page {
     - Git idea lifecycle from indexed `git_created_at` / `git_modified_at` (created + last edited as separate events when they differ)
     - Session idea reindex activity (one event per idea persisted, with name / status / summary when available)
     Missing git dates are filled by the silent background indexer
-    (["../../index-host/indexer.rq".git_dates] / ["../../index-host/git-codelens.rq".git_dates_background_indexing]) —
+    (["../../../indexer/indexer.rq".git_dates] / ["../../index-host/git-codelens.rq".git_dates_background_indexing]) —
     opening Timeline must not run git log on the UI path.
     Reindex must preserve existing git dates across upsert.
     Entries are reverse-chronological, filterable by source (git / reindexed), and clickable to open the idea.
