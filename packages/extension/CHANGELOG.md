@@ -1,5 +1,13 @@
 # reqlan-extension
 
+## 1.16.2
+
+### Patch Changes
+
+- 738060c: check file references exist in check.
+- Updated dependencies [738060c]
+  - @reqlan/language@1.13.2
+
 ## 1.16.1
 
 ### Patch Changes
