@@ -169,6 +169,7 @@ ci_gate {
   Order in one job: install workspace packages, compile crates and TypeScript once, then crate tests, ["../core_analysis/check.rq".check], then JS/TS tests (["./distribution.rq".prerelease_tests], ["../core_analysis/check.rq".check_meta_implementation], ["../development/commit.rq".rust_fmt]).
   `@reqlan/*` packages come from this git checkout (`workspace:*`), not from the npm registry. Platform native packages are linked the same way in this workspace through `packageExtensions` in ["../../pnpm-workspace.yaml"]; they are not listed in git `@reqlan/analytical` `optionalDependencies`.
   A push to main does not start CI a second time as an independent workflow; ["../../.github/workflows/release.yml"] calls ["../../.github/workflows/ci.yml"] with `workflow_call`.
+  Because ["../../.github/workflows/ci.yml"] declares `permissions.contents: write`, the caller job in ["../../.github/workflows/release.yml"] must grant `contents: write` when invoking it.
   The version-bump commit (`chore(release):`) skips the gate and the version job to prevent a recursive run.
   @status done
   @implementation (
