@@ -8,6 +8,7 @@ Please check the specific projects here:
 - [packages/mcp](./packages/mcp/README.md) MCP stdio server for requirement graph tools (`@reqlan/mcp`).
 - [packages/extension](./packages/extension/langium-quickstart.md) *Optional* Contains the VSCode extension if you chose to create it.
 
+## requirements - use reqlan
 ## What's in the folder?
 
 Some file are contained in the root directory as well.
