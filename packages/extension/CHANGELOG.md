@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.16.3
+
+### Patch Changes
+
+- 27096bf: refactor bugfix. ci fmt gate changes
+- Updated dependencies [27096bf]
+  - @reqlan/analytical@1.16.1
+  - @reqlan/language@1.13.3
+
 ## 1.16.2
 
 ### Patch Changes

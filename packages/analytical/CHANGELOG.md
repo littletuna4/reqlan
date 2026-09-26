@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.16.1
+
+### Patch Changes
+
+- 27096bf: refactor bugfix. ci fmt gate changes
+
 ## 1.16.0
 
 ### Minor Changes

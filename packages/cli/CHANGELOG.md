@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.12.1
+
+### Patch Changes
+
+- 27096bf: refactor bugfix. ci fmt gate changes
+- Updated dependencies [27096bf]
+  - @reqlan/analytical@1.16.1
+
 ## 0.12.0
 
 ### Minor Changes
