@@ -24,6 +24,9 @@ describe('release CI gate', () => {
     test('release calls sequential CI before versioning', () => {
         const release = readWorkflow('release.yml');
         expect(release).toContain('uses: ./.github/workflows/ci.yml');
+        expect(release).toMatch(
+            /ci:\n(?:[\s\S]*?)uses: \.\/\.github\/workflows\/ci\.yml\n(?:[\s\S]*?)permissions:\n(?:[\s\S]*?)contents: write/
+        );
         expect(release).not.toContain('ci-rust.yml');
         expect(release).not.toContain('ci-check.yml');
         expect(release).not.toContain('ci-test.yml');
