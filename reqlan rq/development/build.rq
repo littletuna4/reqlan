@@ -27,6 +27,7 @@ incremental_extension_build {
     Host napi staging ([extension_host_native_stage]) always runs: cargo is incremental locally; Azure stages matrix artifacts and skips a second cargo compile in the package job.
     A step is skipped only when its command/input fingerprint and current output-content fingerprint both match the cache under `packages/extension/out/`.
     Missing, changed, or manually edited output invalidates that step.
+    Fingerprint walks skip `node_modules` so Vite scratch files under `.vite-temp` and installed deps do not race or inflate hashes; dependency identity stays in `pnpm-lock.yaml` via shared inputs.
     Webview output fingerprints cover each complete emitted directory, including future lazy chunks. Host-bundle inputs include bundled phonebook data as well as workspace package output.
     TypeScript retains its native `tsc -b` project-reference incrementality.
     TextMate syntax copies are cached by content; Cursor-skill sync still runs because it targets workspace-external state.
@@ -36,6 +37,7 @@ incremental_extension_build {
     Root `pnpm run build:ext` delegates only to the extension package. The extension build generates Langium artifacts when their fingerprints change, then its `tsc -b` builds language/analytical project references before downstream fingerprints are evaluated. It does not rebuild unrelated CLI, MCP, site, or test projects.
     @tests (
         ["../../packages/extension/test/incremental-build.test.ts"]
+        ["../../packages/extension/test/incremental-build.test.ts:ignores node_modules when fingerprinting a directory tree"]
         ["../../packages/analytical/test/native-packaging.test.ts"]
     )
     @status done

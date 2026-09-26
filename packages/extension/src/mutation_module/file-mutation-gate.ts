@@ -5,7 +5,8 @@ import { toIndexFileUri } from '../analytical_submodule/index-store/resolve-inde
 
 /**
  * Gate prompts using the pre-move URI — the index still keys ideas under the old path
- * until migrateRenamedFile runs.
+ * until migrateRenamedFile runs. Watcher deletes of that URI are suppressed for the
+ * duration of the rename (see pending-rename-paths / onWillRenameFiles).
  * rq:["../../../../reqlan rq/extension/mutation/mutation-hooks.rq".move_file]
  * rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
  */

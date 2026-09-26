@@ -11,10 +11,13 @@ import { fileURLToPath } from 'node:url';
 const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(extensionRoot, '../..');
 const cachePath = join(extensionRoot, 'out', '.extension-build-cache.json');
-const cacheVersion = 1;
+/** Bump when fingerprint walk rules change (e.g. ignored directory names). */
+const cacheVersion = 2;
 const force = process.argv.includes('--force') || process.env.REQLAN_BUILD_FORCE === '1';
 const skipNative =
     process.argv.includes('--skip-native') || process.env.REQLAN_SKIP_NATIVE_STAGE === '1';
+/** Dependency trees and Vite scratch dirs must not enter content fingerprints. */
+const ignoredFingerprintDirNames = new Set(['node_modules']);
 
 const fromExtension = (...parts) => join(extensionRoot, ...parts);
 const fromRepo = (...parts) => join(repoRoot, ...parts);
@@ -233,6 +236,7 @@ async function filesUnder(path) {
         const entries = await readdir(path, { withFileTypes: true });
         const nested = await Promise.all(
             entries
+                .filter(entry => !ignoredFingerprintDirNames.has(entry.name))
                 .sort((left, right) => left.name.localeCompare(right.name))
                 .map(entry => filesUnder(join(path, entry.name)))
         );
@@ -256,7 +260,15 @@ export async function fingerprint(paths, command) {
         }
         for (const file of files) {
             hash.update(`${relative(repoRoot, file)}\0`);
-            hash.update(await readFile(file));
+            try {
+                hash.update(await readFile(file));
+            } catch (error) {
+                if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+                    hash.update(`missing:${relative(repoRoot, file)}`);
+                } else {
+                    throw error;
+                }
+            }
             hash.update('\0');
         }
     }

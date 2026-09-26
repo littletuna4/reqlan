@@ -8,9 +8,13 @@ import "../../packages/analytical/test/rust-fmt-hook.test.ts" as rust_fmt_tests
 import "../core_analysis/rust_port.rq" as rust_port
 
 rust_fmt {
-    [ci] checks `cargo fmt --all -- --check` on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
-    Pull requests and the release workflow run the same sequential CI job (["../distribution/distribution.rq".ci_gate]).
-    Git pre-commit runs the same formatter in write mode so local commits stay formatted; CI remains the enforcement layer.
+    CI runs `cargo fmt --all` in write mode on all crates ([rust_port.rust_crate_layout], [rustfmt_toml]).
+    Format is a chore, not a gate: an unformatted tree does not fail the job.
+    On same-repo pull requests, if fmt changes files, CI commits `chore: cargo fmt` and pushes to the PR branch.
+    Fork PRs and `workflow_call` (release) only format the working tree; they do not push.
+    Recursion stops because: (1) pushes with the default `GITHUB_TOKEN` do not start new workflow runs; (2) a second run finds no diff after fmt, so it does not commit again.
+    Pull requests and the release workflow share the same sequential CI job (["../distribution/distribution.rq".ci_gate]).
+    Git pre-commit runs the same formatter in write mode so local commits stay formatted.
     Skip when no crate Rust is staged, format in place and restage, skip merge/rebase, `SKIP_RUST_FMT=1` escape hatch.
     [workspace_package] `prepare` sets `core.hooksPath` to `.githooks`.
     @status done
@@ -27,7 +31,7 @@ rust_fmt {
         [rust_fmt_tests]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:selects only staged crate rust sources"]
         ["../../packages/analytical/test/rust-fmt-hook.test.ts:runs cargo fmt --all in crates then restages the rust files"]
-        ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI still checks cargo fmt --all and prepare installs committed hooks"]
+        ["../../packages/analytical/test/rust-fmt-hook.test.ts:CI formats crates and auto-commits on same-repo PRs"]
         ["../../packages/analytical/test/release-ci-gate.test.ts:release calls sequential CI before versioning"]
     )
 }

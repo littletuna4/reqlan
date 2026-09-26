@@ -26,6 +26,7 @@ import {
 } from '@reqlan/analytical';
 import { toIndexFileUri } from './resolve-index-file-uri.js';
 import { shareInFlight, type InFlightSlot } from '../../shared/share-in-flight.js';
+import { PendingRenamePaths } from './pending-rename-paths.js';
 
 export type { IndexStatusSnapshot, IndexSyncProgress } from '@reqlan/analytical';
 export type { BaseDescriptor, BaseStatusEntry, RegisteredBase };
@@ -64,6 +65,12 @@ export class IndexService {
     private readonly catchUpInFlight = new Map<string, Promise<void>>();
     /** One in-flight `findFiles` so overlapping rediscover/sync do not stack ripgrep. */
     private readonly collectRqFilesSlot: InFlightSlot<string[]> = {};
+    /**
+     * Rename old→new paths while `onDidRenameFiles` plans import rewrites.
+     * Watcher delete would otherwise clear the pre-move index URI first.
+     */
+    private readonly pendingRenames = new PendingRenamePaths();
+    private pendingRenameClearTimer?: ReturnType<typeof setTimeout>;
 
     get discoveryEmpty(): boolean {
         return this.registry.size === 0;
@@ -484,6 +491,30 @@ export class IndexService {
     }
 
     /**
+     * Hold watcher delete/create for paths in an in-flight explorer rename so
+     * import rewrite planning can still read the pre-move index URI.
+     * rq:["../../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+     * rq:["../../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_changes]
+     */
+    notePendingRenames(files: ReadonlyArray<{ oldUri: vscode.Uri; newUri: vscode.Uri }>): void {
+        this.pendingRenames.note(files.map(file => ({
+            oldPath: file.oldUri.fsPath,
+            newPath: file.newUri.fsPath
+        })));
+        this.armPendingRenameClearTimer();
+    }
+
+    clearPendingRenames(files: ReadonlyArray<{ oldUri: vscode.Uri; newUri: vscode.Uri }>): void {
+        this.pendingRenames.clear(files.map(file => ({
+            oldPath: file.oldUri.fsPath,
+            newPath: file.newUri.fsPath
+        })));
+        if (this.pendingRenames.isEmpty) {
+            this.clearPendingRenameClearTimer();
+        }
+    }
+
+    /**
      * Create `<folder>/.reqlan/` (empty dir marker), rediscover, and sync.
      * Defaults to the first workspace folder.
      * Uses analytical `createBase` + `BaseRegistry.refresh` so the new marker is
@@ -611,6 +642,9 @@ export class IndexService {
     }
 
     private enqueueSync(uri: vscode.Uri, change: 'created' | 'changed'): void {
+        if (change === 'created' && this.pendingRenames.shouldSuppressCreate(uri.fsPath)) {
+            return;
+        }
         const entry = this.registry.baseForFilePath(uri.fsPath);
         if (!entry) {
             return;
@@ -627,6 +661,9 @@ export class IndexService {
     }
 
     private enqueueDelete(uri: vscode.Uri): void {
+        if (this.pendingRenames.shouldSuppressDelete(uri.fsPath)) {
+            return;
+        }
         const entry = this.registry.baseForFilePath(uri.fsPath);
         if (!entry) {
             for (const b of this.registry.list()) {
@@ -644,6 +681,22 @@ export class IndexService {
             entry.index.enqueueDelete(toIndexFileUri(uri, entry.descriptor.root));
             this.scheduleIdleRelease(IDLE_QUIET_MS);
         })();
+    }
+
+    private armPendingRenameClearTimer(): void {
+        this.clearPendingRenameClearTimer();
+        // If didRename never fires (cancelled rename), do not suppress deletes forever.
+        this.pendingRenameClearTimer = setTimeout(() => {
+            this.pendingRenameClearTimer = undefined;
+            this.pendingRenames.clearAll();
+        }, 60_000);
+    }
+
+    private clearPendingRenameClearTimer(): void {
+        if (this.pendingRenameClearTimer !== undefined) {
+            clearTimeout(this.pendingRenameClearTimer);
+            this.pendingRenameClearTimer = undefined;
+        }
     }
 
     /** Idle: optional stale check on already-open bases, then release all SQLite handles. */

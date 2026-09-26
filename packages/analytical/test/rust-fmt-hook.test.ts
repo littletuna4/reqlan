@@ -1,5 +1,5 @@
 /**
- * Commit-time rustfmt hook: format staged crate sources; CI still --check.
+ * Commit-time rustfmt hook: format staged crate sources; CI auto-commits fmt.
  * rq:["../../../reqlan rq/development/commit.rq".rust_fmt]
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -129,9 +129,17 @@ describe('rust fmt pre-commit hook', () => {
     });
 
     // rq:["../../../reqlan rq/development/commit.rq".rust_fmt]
-    test('CI still checks cargo fmt --all and prepare installs committed hooks', () => {
+    test('CI formats crates and auto-commits on same-repo PRs', () => {
         const ci = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
-        expect(ci).toMatch(/cargo fmt --all -- --check/);
+        expect(ci).toMatch(/cargo fmt --all\b/);
+        expect(ci).not.toMatch(/cargo fmt --all -- --check/);
+        expect(ci).toContain('chore: cargo fmt');
+        expect(ci).toContain('git push origin "HEAD:${GITHUB_HEAD_REF}"');
+        expect(ci).toMatch(/contents:\s*write/);
+        expect(ci).toContain(
+            'github.event.pull_request.head.repo.full_name == github.repository'
+        );
+        expect(ci).toContain('if git diff --quiet');
         expect(ci).toContain('rq:["../../reqlan rq/development/commit.rq".rust_fmt]');
 
         const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {

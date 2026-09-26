@@ -22,7 +22,10 @@ refactor_file_moves {
     Import-root aliases such as `@/old/file.rq` are rewritten when that target moves (`@/new/file.rq`).
     There should be a single prompt per batch asking whether to apply path updates,
     aligned with [move_file] and [rename_file].
-    Implemented by ["../../../packages/extension/src/mutation_module/register-file-mutation-hooks.ts"], ["../../../packages/extension/src/mutation_module/expand-renamed-paths.ts"], ["../../../packages/extension/src/mutation_module/file-move-plan.ts"], ["../../../packages/extension/src/mutation_module/file-mutation-gate.ts"], ["../../../packages/extension/src/mutation_module/collect-inbound-referencers-core.ts"], ["../../../packages/language/src/file-path-rewrite.ts"], and ["../../../packages/language/src/reqlan-path-references.ts"].
+    While a rename is in flight, the index file watcher must not delete the pre-move URI
+    before inbound import planning runs — `onWillRenameFiles` marks pending paths and
+    `migrateRenamedFile` clears the old URI after path edits are planned.
+    Implemented by ["../../../packages/extension/src/mutation_module/register-file-mutation-hooks.ts"], ["../../../packages/extension/src/mutation_module/expand-renamed-paths.ts"], ["../../../packages/extension/src/mutation_module/file-move-plan.ts"], ["../../../packages/extension/src/mutation_module/file-mutation-gate.ts"], ["../../../packages/extension/src/mutation_module/collect-inbound-referencers-core.ts"], ["../../../packages/extension/src/analytical_submodule/index-store/pending-rename-paths.ts"], ["../../../packages/extension/src/analytical_submodule/index-store/index-service.ts"], ["../../../packages/language/src/file-path-rewrite.ts"], and ["../../../packages/language/src/reqlan-path-references.ts"].
     @tests (
         ["../../../packages/language/test/file-path-rewrite.test.ts:updates inbound import path when the target file moves"]
         ["../../../packages/language/test/file-path-rewrite.test.ts:preserves extensionless inbound paths"]
@@ -33,6 +36,8 @@ refactor_file_moves {
         ["../../../packages/language/test/file-path-rewrite.test.ts:updates an aliased path when the target folder is renamed"]
         ["../../../packages/extension/test/collect-inbound-referencers.test.ts:includes comment_link target files when an rq file moves"]
         ["../../../packages/extension/test/expand-renamed-paths.test.ts:pairs each file under a renamed folder with its old path"]
+        ["../../../packages/extension/test/pending-rename-paths.test.ts:suppresses watcher delete of the pre-move file until cleared"]
+        ["../../../packages/extension/test/pending-rename-paths.test.ts:suppresses deletes under a renamed folder"]
     )
 }
 

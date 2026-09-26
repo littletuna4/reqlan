@@ -18,14 +18,19 @@ on:
   workflow_call:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      # Pull requests: check out the PR head branch so fmt commits can push back.
+      # workflow_call: check out the triggering commit (ref falls back to github.sha).
       - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -45,9 +50,25 @@ jobs:
       - name: Assert @reqlan packages are workspace packages
         run: node scripts/assert-workspace-reqlan.mjs
 
+      # Format is a chore, not a blocker. Same-repo PRs get an auto-commit when dirty.
+      # Recursion: GITHUB_TOKEN pushes do not re-trigger workflows; no diff ⇒ no commit.
       - name: Format crates
         working-directory: crates
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all
+      - name: Commit cargo fmt
+        if: >
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if git diff --quiet; then
+            echo "crates already formatted"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u -- crates
+          git commit -m "chore: cargo fmt"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
       - name: Clippy
         working-directory: crates
         run: cargo clippy --workspace --exclude reqlan-napi --all-targets
