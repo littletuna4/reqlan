@@ -1,5 +1,11 @@
 # site
 
+## 0.21.2
+
+### Patch Changes
+
+- 63c9461: fix the reference sequencing.
+
 ## 0.21.1
 
 ### Patch Changes
