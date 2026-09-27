@@ -1,5 +1,13 @@
 # @reqlan/mcp
 
+## 0.7.2
+
+### Patch Changes
+
+- 63c9461: fix the reference sequencing.
+- Updated dependencies [63c9461]
+  - @reqlan/analytical@1.16.2
+
 ## 0.7.1
 
 ### Patch Changes
