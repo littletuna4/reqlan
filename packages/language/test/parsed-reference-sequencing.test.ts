@@ -49,6 +49,7 @@ describe('Parsed-time reference sequencing', () => {
         return index;
     }
 
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('definition hover highlight and links do not resolve refs before ComputedScopes', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const document = populateParsed(s`
@@ -84,6 +85,7 @@ describe('Parsed-time reference sequencing', () => {
         warn.mockRestore();
     });
 
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
     test('definition still resolves same-file ideas at Parsed via symbolic path', async () => {
         const document = populateParsed(s`
             alpha {
