@@ -1,23 +1,27 @@
 /**
  * Shared helpers for the reference target union types.
  */
-import type { Reference } from 'langium';
+import { AstUtils, type Reference } from 'langium';
 import {
     isFileReference,
     isFileSymbolReference,
     isLocalReference,
+    isModel,
     isQualifiedReference,
     type IdeaDeclaration,
     type Import,
     type QualifiedReference,
     type ReferenceTarget
 } from './generated/ast.js';
-import { importPathOf } from './reqlan-import-bindings.js';
+import { findNamespaceImportByAlias, importPathOf } from './reqlan-import-bindings.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
 export function referenceImport(target: ReferenceTarget): Reference<Import> | undefined {
     if (isQualifiedReference(target)) {
-        return target.path?.ref || target.qualifier?.ref ? (target.path ?? target.qualifier) : undefined;
+        return peekResolvedRef(target.path) || peekResolvedRef(target.qualifier)
+            ? (target.path ?? target.qualifier)
+            : undefined;
     }
     return undefined;
 }
@@ -40,11 +44,22 @@ export function referenceFilePath(target: ReferenceTarget): string | undefined {
 }
 
 export function qualifiedReferenceImportPath(reference: QualifiedReference): string | undefined {
-    if (reference.qualifier?.ref) {
-        return importPathOf(reference.qualifier.ref);
+    const qualifierImport = peekResolvedRef(reference.qualifier);
+    if (qualifierImport) {
+        return importPathOf(qualifierImport);
     }
-    if (reference.path?.ref) {
-        return importPathOf(reference.path.ref);
+    const pathImport = peekResolvedRef(reference.path);
+    if (pathImport) {
+        return importPathOf(pathImport);
+    }
+    if (reference.qualifier?.$refText) {
+        const model = AstUtils.getDocument(reference).parseResult.value;
+        if (isModel(model)) {
+            const importDecl = findNamespaceImportByAlias(model.imports, reference.qualifier.$refText);
+            if (importDecl) {
+                return importPathOf(importDecl);
+            }
+        }
     }
     if (reference.path?.$refText) {
         return unquoteReqlanString(reference.path.$refText);
@@ -53,7 +68,9 @@ export function qualifiedReferenceImportPath(reference: QualifiedReference): str
 }
 
 export function isAnonymousQualifiedReference(reference: QualifiedReference): boolean {
-    return reference.path !== undefined && reference.path.ref === undefined && reference.qualifier === undefined;
+    return reference.path !== undefined
+        && peekResolvedRef(reference.path) === undefined
+        && reference.qualifier === undefined;
 }
 
 export { unquoteReqlanString } from './reqlan-quoted-strings.js';

@@ -331,6 +331,11 @@ open_file_hot_path {
     Do not drop a different missing name on the same line ([outbound_presentation]).
     At `DocumentState.Parsed`, publish lex/parse diagnostics with outbound idea errors
     so the editor does not wait for Validated to see a broken parse.
+    Parsed-time LSP handlers (definition, hover, highlight, document links) must not read
+    Langium `.ref` — that forces linking before `ComputedScopes`, leaves failed resolves
+    uncached, and retries on every request (especially harmful for `git:` Diff buffers).
+    Use `$refText` / symbolic extract / `peekResolvedRef` until scopes are ready; only then
+    call Langium `super` linking paths.
     Related: [open_file_algorithm], [outbound_one_hop], [ast_lifecycle],
     [comment_backlink_sequence].
 
@@ -342,6 +347,10 @@ open_file_hot_path {
         [outbound_presentation]
         [comment_diagnostics]
         ["../../../../packages/language/src/reqlan-parse-diagnostics.ts"]
+        ["../../../../packages/language/src/reqlan-reference-peek.ts"]
+        ["../../../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../../../packages/language/src/reqlan-hover-provider.ts"]
+        ["../../../../packages/language/src/reqlan-document-highlight-provider.ts"]
     )
     @tests (
         ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
@@ -353,6 +362,8 @@ open_file_hot_path {
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
         ["../../../../packages/language/test/outbound-hop.test.ts:keeps a missing idea error on the same line as a confirmed neighbor idea"]
         ["../../../../packages/language/test/outbound-hop.test.ts:Parsed outbound publish includes lex parse diagnostics"]
+        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition hover highlight and links do not resolve refs before ComputedScopes"]
+        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition still resolves same-file ideas at Parsed via symbolic path"]
     )
 }
 

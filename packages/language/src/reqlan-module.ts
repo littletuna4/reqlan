@@ -4,6 +4,7 @@ import { ReqlanGeneratedModule, reqlanGeneratedSharedModule } from './generated/
 import { ReqlanDefinitionProvider } from './reqlan-definition-provider.js';
 import { ReqlanDocumentHighlightProvider } from './reqlan-document-highlight-provider.js';
 import { ReqlanDocumentLinkProvider } from './reqlan-document-link-provider.js';
+import { ReqlanHoverProvider } from './reqlan-hover-provider.js';
 import { createReqlanGrammarConfig } from './reqlan-grammar-config.js';
 import { ReqlanNameProvider } from './reqlan-name-provider.js';
 import { ReqlanLinker } from './reqlan-linker.js';
@@ -75,6 +76,7 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
         DefinitionProvider: services => new ReqlanDefinitionProvider(services),
         DocumentHighlightProvider: services => new ReqlanDocumentHighlightProvider(services),
         DocumentLinkProvider: services => new ReqlanDocumentLinkProvider(services),
+        HoverProvider: services => new ReqlanHoverProvider(services),
         SemanticTokenProvider: services => new ReqlanSemanticTokenProvider(services),
         InlayHintProvider: services => new ReqlanInlayHintProvider(services),
         CodeLensProvider: services => new ReqlanCodeLensProvider(services),

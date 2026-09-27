@@ -7,6 +7,7 @@ import { isIdea, isModel, isOneLinerIdea, type Import, type LocalReference, type
 import { findNamespaceImportByAlias, importPathOf } from './reqlan-import-bindings.js';
 import { bindingNameSourceRange, resolveImportedFileLink, type ResolvedFileLink } from './reqlan-file-link-resolver.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 
 export function namespaceImportBindingName(reference: LocalReference): string | undefined {
     return reference.idea?.$refText;
@@ -28,7 +29,8 @@ export function isNamespaceImportOnlyReference(reference: LocalReference | Quali
     if (!isModel(model)) {
         return false;
     }
-    if (reference.idea?.ref) {
+    // Do not read `.ref` here — Parsed-time document links call this helper.
+    if (peekResolvedRef(reference.idea)) {
         return false;
     }
     if (model.elements.some(element =>
@@ -57,7 +59,7 @@ export function resolveNamespaceImportReferenceLink(
         return undefined;
     }
     const importDecl = reference.$type === 'QualifiedReference'
-        ? reference.qualifier?.ref
+        ? (peekResolvedRef(reference.qualifier) ?? findNamespaceImportByAlias(model.imports, bindingName))
         : findNamespaceImportByAlias(model.imports, bindingName);
     if (!importDecl || !isNamespaceImportBinding(importDecl, bindingName)) {
         return undefined;

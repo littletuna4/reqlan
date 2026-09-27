@@ -1,0 +1,26 @@
+/**
+ * Hover for idea declarations. Default Langium hover resolves `.ref` via findDeclarations;
+ * that must not run before ComputedScopes (Parsed-time LSP handlers for open-file speed).
+ */
+import type { LangiumDocument, MaybePromise } from 'langium';
+import { MultilineCommentHoverProvider } from 'langium/lsp';
+import type { Hover, HoverParams } from 'vscode-languageserver';
+import { documentHasComputedScopes } from './reqlan-reference-peek.js';
+import type { ReqlanServices } from './reqlan-module.js';
+
+export class ReqlanHoverProvider extends MultilineCommentHoverProvider {
+
+    constructor(services: ReqlanServices) {
+        super(services);
+    }
+
+    override getHoverContent(
+        document: LangiumDocument,
+        params: HoverParams
+    ): MaybePromise<Hover | undefined> {
+        if (!documentHasComputedScopes(document)) {
+            return undefined;
+        }
+        return super.getHoverContent(document, params);
+    }
+}

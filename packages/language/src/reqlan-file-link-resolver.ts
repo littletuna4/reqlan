@@ -16,6 +16,7 @@ import { findEmbeddedFileReferencesInText } from './reqlan-embedded-file-referen
 import { importPathOf } from './reqlan-import-bindings.js';
 import { findImportedDocument, resolveExistingImportUri } from './reqlan-imports.js';
 import type { PathResolveContext } from './reqlan-path-resolve.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import {
     findTestLineInText,
@@ -450,7 +451,8 @@ function fileStartRange(): Range {
  * Source range is the reference name; target is the declaration name (or whole node).
  */
 export function resolveLinkedAstReferenceLink(reference: Reference<AstNode> | undefined): ResolvedFileLink | undefined {
-    const target = reference?.ref;
+    // Peek only: calling `.ref` before ComputedScopes retries forever on failure.
+    const target = peekResolvedRef(reference);
     const sourceNode = reference?.$refNode;
     const sourceRange = cstRange(sourceNode);
     if (!target || !sourceRange) {
@@ -573,7 +575,7 @@ export function collectFileLinks(
                 pushLink(link);
             }
         }
-        if (isQualifiedReference(node) && node.path && !node.path.ref) {
+        if (isQualifiedReference(node) && node.path && !peekResolvedRef(node.path)) {
             const link = resolveQualifiedReferencePathLink(node, documents, pathContext);
             if (link) {
                 pushLink(link);

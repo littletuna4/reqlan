@@ -47,6 +47,7 @@ import {
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { findLocalSymbolicDefinition } from './reqlan-local-symbolic-links.js';
+import { documentHasComputedScopes, peekResolvedRef } from './reqlan-reference-peek.js';
 import { findWildcardReferenceAtPosition } from './reqlan-wildcard-resolve.js';
 
 export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
@@ -93,10 +94,10 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
     }
 
     override getDefinition(document: LangiumDocument, params: DefinitionParams): MaybePromise<LocationLink[] | undefined> {
-        // Fast path: when the cursor is on an idea token inside a bracket/wiki reference the
-        // answer is just the cached Langium ref target — no text scans, no file-system calls.
-        // Same-file and cross-file idea refs both take this path, so neither is slower than the other.
-        if (this.isIdeaReferencePosition(document, params.position)) {
+        const scopesReady = documentHasComputedScopes(document);
+        // Fast path: when the cursor is on an idea token whose Langium ref is already linked,
+        // answer from that cache. Never call super (or `.ref`) before ComputedScopes.
+        if (scopesReady && this.isIdeaReferencePosition(document, params.position)) {
             const langiumDefinition = super.getDefinition(document, params);
             return Promise.resolve(langiumDefinition).then(links => {
                 if (links && links.length > 0) {
@@ -151,6 +152,9 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         if (importPathLink) {
             return [this.toLocationLink(importPathLink)];
         }
+        if (!scopesReady) {
+            return undefined;
+        }
         return super.getDefinition(document, params);
     }
 
@@ -170,9 +174,8 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         while (current) {
             const node = current.astNode;
             if (isLocalReference(node)) {
-                // A local ref whose idea is already resolved → fast O(1) path.
-                // Unresolved ones still go through the normal flow so file-link checks can try.
-                return node.idea?.ref !== undefined;
+                // Peek only — reading `.ref` before ComputedScopes storms the linker.
+                return peekResolvedRef(node.idea) !== undefined;
             }
             if (isQualifiedReference(node)) {
                 const assignment = GrammarUtils.findAssignment(current);
@@ -186,7 +189,8 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
                 }
                 // On the idea or ideaset token → O(1) cached ref lookup.
                 if (assignment.feature === 'idea' || assignment.feature === 'ideaset') {
-                    return node.idea?.ref !== undefined || node.ideaset?.ref !== undefined;
+                    return peekResolvedRef(node.idea) !== undefined
+                        || peekResolvedRef(node.ideaset) !== undefined;
                 }
                 return false;
             }
@@ -273,7 +277,7 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
                 return this.createImportedFileLink(current, container);
             }
             if (isQualifiedReference(container) && this.isOnQualifiedReferencePath(current, container)) {
-                const importDecl = container.path?.ref;
+                const importDecl = peekResolvedRef(container.path);
                 if (importDecl) {
                     return this.createImportedFileLink(current, importDecl);
                 }
@@ -347,8 +351,8 @@ export class ReqlanDefinitionProvider extends DefaultDefinitionProvider {
         let current: CstNode | undefined = CstUtils.findLeafNodeAtOffset(root, offset);
         while (current) {
             const node = current.astNode;
-            if (isQualifiedReference(node) && !node.path?.ref) {
-                const pathNode = node.path?.$refNode ?? GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
+            if (isQualifiedReference(node) && node.path && !peekResolvedRef(node.path)) {
+                const pathNode = node.path.$refNode ?? GrammarUtils.findNodeForProperty(node.$cstNode, 'path');
                 if (pathNode && offset >= pathNode.offset && offset < pathNode.end) {
                     const resolved = resolveQualifiedReferencePathLink(node, this.documents, this.pathContext());
                     if (!resolved) {
