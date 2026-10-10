@@ -2,14 +2,17 @@
  * Shared idea extract/move flow for command palette and code actions.
  * Move commands live here; [decompose] must reuse the same resolve → destination →
  * plan → apply → reindex sequence without overlapping the move behaviour.
+ * Resolve-at-cursor uses napi symbolic extract (no Langium DI).
+ * Move/delete planning still uses Langium until index-backed planners land.
  * rq:["../../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
  * rq:["../../../../../reqlan rq/extension/host/features-commands.rq".decompose]
+ * rq:["../../../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
  */
+import { analyzeLocalSymbolic } from '@reqlan/analytical';
 import { URI } from 'langium';
 import { NodeFileSystem } from 'langium/node';
 import {
     createReqlanServices,
-    findIdeaDeclarationAtRange,
     isRefactorIdeaDeclaration,
     listRefactorIdeaDeclarations,
     planIdeaDeleteEdits,
@@ -38,32 +41,42 @@ export async function resolveIdeaRefactorArgs(
         return undefined;
     }
 
-    const services = createReqlanServices(NodeFileSystem);
-    const document = await loadRqDocument(services, URI.parse(editor.document.uri.toString()));
-    const atCursor = findIdeaDeclarationAtRange(document, {
-        start: { line: editor.selection.active.line, character: editor.selection.active.character },
-        end: { line: editor.selection.active.line, character: editor.selection.active.character }
-    });
-    if (atCursor?.name) {
-        return {
-            documentUri: editor.document.uri.toString(),
-            ideaName: atCursor.name,
-            range: atCursor.$cstNode?.range ?? {
-                start: { line: editor.selection.active.line, character: 0 },
-                end: { line: editor.selection.active.line, character: 0 }
-            }
-        };
+    const documentUri = editor.document.uri.toString();
+    const text = editor.document.getText();
+    let ideas: { name: string; lineStart: number }[] = [];
+    try {
+        const symbolic = analyzeLocalSymbolic(documentUri, text);
+        ideas = symbolic.ideas
+            .filter(idea => idea.kind !== 'ideaset')
+            .map(idea => ({ name: idea.name, lineStart: idea.lineStart }));
+    } catch (error) {
+        console.error('[reqlan] native idea list for refactor failed:', error);
+        void vscode.window.showErrorMessage('Could not read ideas in this file.');
+        return undefined;
     }
 
-    const ideas = listRefactorIdeaDeclarations(document).filter(idea => idea.name);
     if (ideas.length === 0) {
         void vscode.window.showErrorMessage('This file has no idea to move.');
         return undefined;
     }
+
+    const cursorLine = editor.selection.active.line;
+    const atCursor = ideas.find(idea => idea.lineStart === cursorLine);
+    if (atCursor) {
+        return {
+            documentUri,
+            ideaName: atCursor.name,
+            range: {
+                start: { line: atCursor.lineStart, character: 0 },
+                end: { line: atCursor.lineStart, character: 0 }
+            }
+        };
+    }
+
     const picked = await vscode.window.showQuickPick(
         ideas.map(idea => ({
             label: idea.name,
-            description: idea.$cstNode ? `line ${idea.$cstNode.range.start.line + 1}` : undefined,
+            description: `line ${idea.lineStart + 1}`,
             idea
         })),
         { placeHolder: 'Select an idea to move' }
@@ -72,11 +85,11 @@ export async function resolveIdeaRefactorArgs(
         return undefined;
     }
     return {
-        documentUri: editor.document.uri.toString(),
+        documentUri,
         ideaName: picked.idea.name,
-        range: picked.idea.$cstNode?.range ?? {
-            start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 }
+        range: {
+            start: { line: picked.idea.lineStart, character: 0 },
+            end: { line: picked.idea.lineStart, character: 0 }
         }
     };
 }

@@ -205,8 +205,9 @@ wildcard_references {
     via `WILDCARD_NAME` in PlainText so ordinary `*` characters still parse.
     Without that longer-alt, a live wildcard inside a block body can fail Idea recovery and leave later
     top-level ideas unindexed (soft mtime sync will not rebuild until the `.rq` file changes).
-    Navigation does not emit N LocationLinks — document links and go-to open
+    Navigation does not emit N LocationLinks. A document-link click opens
     `reqlan.openWildcardReference` with `{ pathPattern, ideaPattern, fromUri }` (see [wildcard_references_webview]).
+    Go-to-definition does not open that panel.
     Indexing fans out per ["../indexer/indexer.rq".wildcard_reference_edges]
     (owned under ["../indexer/indexer.rq".index]): native extract writes one `wildcard_reference`
     edge per catalog match; empty catalog / zero matches → one unresolved edge of that kind
@@ -215,7 +216,7 @@ wildcard_references {
     (["../core_analysis/check.rq".check_wildcard_sparse]).
     Ideas Summary graph toggles those edges via
     ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".wildcard_refs_toggle].
-    LS helper: custom request `reqlan/wildcardReferenceAt` for middleware position lookup.
+    The server can answer `reqlan/wildcardReferenceAt`. Go-to-definition does not call it.
     Related: ["./syntax.rq".reference_embedding], ["./syntax.rq".reference_brackets], ["./syntax.rq".reference_wikilink],
     ["../indexer/indexer.rq".wildcard_reference_edges], ["../core_analysis/check.rq".check_wildcard_sparse],
     ["../core_analysis/check.rq".check_wildcard_zero], ["../core_analysis/check.rq".check_wildcard_one].
@@ -260,8 +261,8 @@ wildcard_references {
 }
 
 wildcard_references_webview {
-    On traversal of a [wildcard_references] target (document-link click or go-to-definition middleware),
-    the extension runs `reqlan.openWildcardReference` and opens a dedicated **wildcard matches** webview
+    A click on the command document link for a [wildcard_references] target
+    runs `reqlan.openWildcardReference` and opens a dedicated **wildcard matches** webview
     (beside the editor) that lists:
     - Stats: matching idea count, distinct file count, and @status breakdown
     - Requirements: each matching idea with name, status, path, and summary (click opens the idea)
@@ -272,8 +273,7 @@ wildcard_references_webview {
     - `pathFilter`: the path glob as a hard AND filter ([idea_path_filter])
     Payload builder: `buildWildcardMatchesPayload` filters the index catalog by idea glob + path filter.
     Protocol for the matches panel is inline host↔webview (`init` / `openIdea` / `openFile` / `openSearch`).
-    Middleware short-circuits definition when `reqlan/wildcardReferenceAt` returns a pattern;
-    document-link clicks use the same command URI shape as the language document-link provider.
+    The document-link target is the command URI. Go-to-definition does not open the panel.
     Highlighting of the source reference must stay link-styled — see
     ["../extension/language/syntax/features-syntax.rq".syntax_highlighting] and
     ["../extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting].

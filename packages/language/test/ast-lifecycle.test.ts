@@ -1,7 +1,6 @@
 /**
  * When the Langium AST is populated, replaced, or left unchanged.
- * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
- * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -78,7 +77,7 @@ describe('Langium AST lifecycle', () => {
         return value;
     }
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('populates the Langium AST at Parsed without DocumentBuilder', () => {
         const document = populateAst(s`
             first_idea {
@@ -90,7 +89,7 @@ describe('Langium AST lifecycle', () => {
         expect(ideaNames(modelOf(document))).toEqual(['first_idea']);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('replaces the AST when this buffer text changes', async () => {
         tempDir = mkdtempSync(join(tmpdir(), 'reqlan-ast-lifecycle-'));
         const path = join(tempDir, 'life.rq');
@@ -108,7 +107,7 @@ describe('Langium AST lifecycle', () => {
         expect(document.state).toBe(DocumentState.Parsed);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('keeps the AST when the text is unchanged', async () => {
         tempDir = mkdtempSync(join(tmpdir(), 'reqlan-ast-lifecycle-'));
         const path = join(tempDir, 'stable.rq');
@@ -123,7 +122,7 @@ describe('Langium AST lifecycle', () => {
         expect(document.state).toBe(DocumentState.Parsed);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('linking and validation do not replace the AST', async () => {
         const document = populateAst(s`
             alpha {
@@ -141,7 +140,7 @@ describe('Langium AST lifecycle', () => {
         expect(ideaNames(ast)).toEqual(['alpha', 'beta']);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('neighbor hop does not populate a Langium AST', async () => {
         tempDir = mkdtempSync(join(tmpdir(), 'reqlan-ast-lifecycle-'));
         const libPath = join(tempDir, 'lib.rq');

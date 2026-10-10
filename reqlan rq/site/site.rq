@@ -913,20 +913,24 @@ showcase_rules_set (
 
 // --- features worth demonstrating --------------------------------------------
 
+sub_file_binding {
+    Symbol refs `["auth.ts".login]`, line ranges ["adc.cL#41-58"],
+    and test-name anchors ["x.test.ts:rejects expired token"].
+    Requirements attach to code at symbol granularity, in any language.
+}
+
+bidirectional_comment_links {
+    rq-comment refs in TS, Python, C, ST, etc.
+    Code points back, with working document links.
+    A product story bound this way is [story_codebase_showcase].
+}
+
 features_tier_1 {
     The reasons to adopt. All verified as shipping today.
 
     @subreqs (
-        sub_file_binding {
-            Symbol refs `["auth.ts".login]`, line ranges ["adc.cL#41-58"],
-            and test-name anchors ["x.test.ts:rejects expired token"].
-            Requirements attach to code at symbol granularity, in any language.
-        }
-        bidirectional_comment_links {
-            rq-comment refs in TS, Python, C, ST, etc.
-            Code points back, with working document links.
-            A product story bound this way is [story_codebase_showcase].
-        }
+        [sub_file_binding]
+        [bidirectional_comment_links]
         refs_break_loudly {
             Unresolved references are error diagnostics with quick-fix code actions.
             File moves prompt to rewrite every inbound ref.

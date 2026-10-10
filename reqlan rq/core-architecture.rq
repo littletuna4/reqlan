@@ -161,11 +161,11 @@ language_server {
 
 ideas_index {
     The ideas index is built and maintained by the [indexer] in [analytical_package].
-    Path: parse with [language_package] → extract ideas/edges → SQLite via [workspace_index].
-    Rust replacement of this path: [rust_port.analytical_rust_port].
+    Path: Rust parse/extract → SQLite via [workspace_index] ([rust_port.analytical_rust_port]).
     Application memory: each [bases.base] holds SQLite under `<base>/.reqlan/` (shared by extension, [cli_package], and [mcp_package]) — see ["./extension/index-host/index.rq".application_memory].
     Multi-base: a BaseRegistry owns one [workspace_index] per discovered base; the extension adapter routes file events to the owning base.
     In the editor, [editor_index_adapter] watches `**\*.rq` and forwards changes to the owning base's [workspace_index]; it serves UIs, commands, chat, and analysers.
+    The Rust language server reads the same store for catalogs, rename, and find-references ([lsp_rust.language_server_rust]).
     Headless (MCP/CLI) uses [analysis_runtime] (nearest base containing cwd when several exist).
     Capability requirements: [indexer.index_ideas], [indexer.index_technology], and sibling analysers in that file.
     Triggers: [indexer.triggers] and ["./extension/index-host/index.rq".idea_index_triggers].

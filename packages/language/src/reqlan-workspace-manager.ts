@@ -69,7 +69,7 @@ export async function forEachWithConcurrency<T>(
  * At most {@link WORKSPACE_PARSE_CONCURRENCY} files parse at once.
  * rq:["../../../reqlan rq/language/syntax.rq".no_name_idea_safe_warning]
  * rq:["../../../reqlan rq/language/parser_lexer.rq".parse_budget_timeout]
- * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".workspace_parse_concurrency]
  */
 export class ReqlanWorkspaceManager extends DefaultWorkspaceManager {

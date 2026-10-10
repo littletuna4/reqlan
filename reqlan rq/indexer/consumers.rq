@@ -47,7 +47,8 @@ extension_ui_consumers {
     - Chat / AI commands that call `getFileContext`, `getLocalGraph`, or semantic search
     - Refactor and mutation hooks that read inbound edges from the store
     - Name and attribute catalog sync that pushes index rows into the language server
-    The language server does not open SQLite; it uses Langium documents plus pushed catalogs.
+    The Rust language server may open the ideas index read-only for rename, find-references, and fallback completion.
+    Open-file inbound inlays and file CodeLens use the host-pushed snapshot first (no SQLite in those handlers).
     [index_consumers]
 }
 

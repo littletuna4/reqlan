@@ -11,8 +11,9 @@ hierarchy_of_requirements user request trumps the ["../../reqlan rq"] requiremen
 
 stack {
     - Requirements are documented with reqlan in the ["../../reqlan rq"] folder.
-    - Language grammar is defined with langium in ["../../reqlan rq/language/syntax.rq"]
-    - VSCode Extension is implemented with vscode-langium in ["../../packages/extension"]
+    - Language grammar truth is ["../../reqlan rq/language/syntax.rq"]; the default editor LSP is Rust (`reqlan-lsp`).
+    - Langium in `@reqlan/language` remains a dual-parser oracle and the transitional `node` engine fallback.
+    - VS Code extension host is in ["../../packages/extension"]; open-buffer features run in `crates/reqlan-lsp`.
     - vscode webviews are implemented with svelte
     - Extension build pipeline is documented in ["./build.rq"]
 }

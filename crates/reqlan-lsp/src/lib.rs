@@ -7,7 +7,7 @@ mod server;
 mod session;
 mod utf16;
 
-pub use analysis::InboundReferencer;
+pub use analysis::{AttributeCatalog, InboundReferencer};
 pub use code_actions::SymbolHit;
 pub use server::serve;
 pub use session::Session;

@@ -12,7 +12,8 @@ code_completion {
 }
 
 inlay_hints {
-    Inbound-reference inlay hints. Detail: ["./support/open-file-sequencing.rq".open_file_hot_path].
+    Inbound-reference inlay hints. They appear when the inbound snapshot is ready
+    (["./support/open-file-sequencing.rq".lazy_features_after_outbound]).
 }
 
 code_actions {

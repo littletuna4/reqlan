@@ -54,6 +54,22 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
+    /** rq:["../../../reqlan rq/indexer/indexer.rq".nonblocking_index] */
+    test('soft sync drops rqignored paths supplied by base discovery', async () => {
+        const root = await writeWorkspace({
+            '.reqlan/.rqignore': 'fixtures/\n',
+            'kept.rq': 'alpha this is alpha\n',
+            'fixtures/ignored.rq': 'beta this is beta\n'
+        });
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
+        await index.open();
+
+        await index.syncWorkspace([join(root, 'kept.rq'), join(root, 'fixtures', 'ignored.rq')]);
+        const names = (await index.indexStore.listAllIdeas()).map(idea => idea.name);
+        expect(names).toEqual(['alpha']);
+        await index.deactivate();
+    });
+
     test('soft sync reindexes when mtime changes', async () => {
         const root = await writeWorkspace({
             'demo.rq': 'alpha this is alpha\n'

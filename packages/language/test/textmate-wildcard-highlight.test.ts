@@ -67,6 +67,29 @@ describe('TextMate wildcard reference highlighting', () => {
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
+    test('reference rules use the meta.link scope', () => {
+        const grammar = loadGrammar();
+        const names = [
+            grammar.repository['bracket-references']?.name,
+            grammar.repository['idea-bracket-references']?.name,
+            grammar.repository['url-bracket-references']?.name,
+            grammar.repository['markdown-links']?.name,
+            grammar.repository.wikilinks?.patterns?.[0]?.name,
+            grammar.repository.wikilinks?.patterns?.[1]?.name
+        ];
+        expect(names).toEqual([
+            'meta.link.reqlan',
+            'meta.link.reqlan',
+            'meta.link.reqlan',
+            'meta.link.reqlan',
+            'meta.link.reqlan',
+            'meta.link.reqlan'
+        ]);
+    });
+
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".wildcard_reference_highlighting]
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
     test('wikilink path + wildcard idea is a dedicated link pattern', () => {
         const grammar = loadGrammar();
         const wikiPatterns = grammar.repository.wikilinks?.patterns ?? [];

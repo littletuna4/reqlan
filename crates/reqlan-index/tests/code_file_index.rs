@@ -117,6 +117,61 @@ fn rq_reindex_restores_comment_links() {
     std::fs::remove_dir_all(&root).ok();
 }
 
+fn comment_link_sources(store: &IndexStore) -> Vec<String> {
+    let mut sources: Vec<String> = store
+        .get_all_edges()
+        .unwrap()
+        .into_iter()
+        .filter(|edge| edge.kind == EdgeKind::CommentLink)
+        .map(|edge| edge.source_id)
+        .collect();
+    sources.sort();
+    sources
+}
+
+/// rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
+#[test]
+fn rq_reindex_relinks_code_files_only_when_idea_names_change() {
+    let root = scratch("relink");
+    std::fs::write(root.join("demo.rq"), "alpha {\n    first\n}\n").unwrap();
+    std::fs::write(root.join("app.ts"), "// rq:[alpha]\n// rq:[beta]\n").unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
+    sync_workspace(&mut store, &options, &AtomicBool::new(false)).unwrap();
+    assert_eq!(comment_link_sources(&store), vec!["demo.rq#alpha"]);
+
+    // A body edit keeps the comment link without re-reading the code file.
+    std::fs::write(root.join("app.ts"), "// rq:[alpha]\n// rq:[beta]\n// rq:[gamma]\n").unwrap();
+    std::fs::write(root.join("demo.rq"), "alpha {\n    second\n}\n").unwrap();
+    index_one_file(&mut store, &root, root.join("demo.rq").to_str().unwrap()).unwrap();
+    assert_eq!(comment_link_sources(&store), vec!["demo.rq#alpha"]);
+
+    // A new name resolves a waiting reference; a removed name drops its link.
+    std::fs::write(root.join("demo.rq"), "beta {\n    third\n}\n").unwrap();
+    index_one_file(&mut store, &root, root.join("demo.rq").to_str().unwrap()).unwrap();
+    assert_eq!(comment_link_sources(&store), vec!["demo.rq#beta"]);
+    std::fs::remove_dir_all(&root).ok();
+}
+
+/// rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
+#[test]
+fn index_one_file_drops_an_rqignored_rq_file() {
+    let root = scratch("ignored-one");
+    std::fs::create_dir_all(root.join(".reqlan")).unwrap();
+    std::fs::write(root.join(".reqlan").join(".rqignore"), "fixtures/\n").unwrap();
+    std::fs::create_dir_all(root.join("fixtures")).unwrap();
+    std::fs::write(root.join("fixtures").join("demo.rq"), "alpha {\n}\n").unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    index_one_file(&mut store, &root, root.join("fixtures/demo.rq").to_str().unwrap()).unwrap();
+    assert!(store.list_all_ideas().unwrap().is_empty());
+    std::fs::remove_dir_all(&root).ok();
+}
+
 #[test]
 fn skips_nested_child_base_code_and_rq_files() {
     let root = scratch("nested");

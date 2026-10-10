@@ -157,7 +157,7 @@ describe('open-file hot path', () => {
         expect(findLoadedDocument(documents, 'file:///ws/c/lib.rq')).toBeUndefined();
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('does not relink an unrelated file that still has linker errors', async () => {
         const dir = writeDir({
             'lonely.rq': 'broken { see [nope] }\n',
@@ -178,7 +178,7 @@ describe('open-file hot path', () => {
         expect(hasRelinkMarker(lonely)).toBe(true);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('relinks a host when its neighbor file changes', async () => {
         const dir = writeDir({
             'lib.rq': 'other {}\n',

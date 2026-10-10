@@ -30,16 +30,12 @@ export function resolveLanguageServerLaunch(input: LanguageServerLaunchInput): L
     };
 }
 
-export function findRustLanguageServer(extensionPath: string): string | undefined {
+/** A debug build is never launched: only the release build is refreshed by the extension build. */
+function findRustLanguageServer(extensionPath: string): string | undefined {
     const exe = process.platform === 'win32' ? 'reqlan-lsp.exe' : 'reqlan-lsp';
-    const repoRoot = path.resolve(extensionPath, '..', '..');
     const candidates = [
         path.join(extensionPath, 'bin', exe),
-        path.join(extensionPath, 'bin', 'reqlan-lsp'),
-        path.join(repoRoot, 'crates', 'target', 'debug', exe),
-        path.join(repoRoot, 'crates', 'target', 'release', exe),
-        path.join(repoRoot, 'crates', 'target', 'debug', 'reqlan-lsp'),
-        path.join(repoRoot, 'crates', 'target', 'release', 'reqlan-lsp')
+        path.resolve(extensionPath, '..', '..', 'crates', 'target', 'release', exe)
     ];
     return candidates.find(candidate => existsSync(candidate));
 }

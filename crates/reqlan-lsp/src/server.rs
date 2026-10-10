@@ -1,5 +1,8 @@
 //! stdio language server loop.
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
+use crate::analysis::AttributeCatalog;
 use crate::code_actions::SymbolHit;
 use crate::session::{is_rq_uri, Session};
 use lsp_server::{Connection, Message, Notification, Request, Response};
@@ -8,12 +11,13 @@ use lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DocumentHighlightParams, DocumentLinkOptions, DocumentLinkParams, GotoDefinitionParams,
     HoverParams, HoverProviderCapability, InitializeParams, InlayHintParams, OneOf,
-    PublishDiagnosticsParams, RenameOptions, RenameParams, SemanticTokensFullOptions,
-    SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams, ServerCapabilities,
-    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
-    WorkDoneProgressOptions,
+    PublishDiagnosticsParams, ReferenceParams, RenameOptions, RenameParams,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
+    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, Url, WorkDoneProgressOptions,
 };
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub fn serve() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
@@ -24,16 +28,35 @@ pub fn serve() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
     if let Ok(params) = serde_json::from_value::<InitializeParams>(init) {
         let folders = workspace_folders(&params);
         session.set_workspace_folders(&folders);
-        if let Some(enabled) = params
-            .initialization_options
-            .as_ref()
-            .and_then(|value| value.get("ideaContentTooltip"))
-            .and_then(|value| value.as_bool())
-        {
-            session.set_idea_content_tooltip(enabled);
+        if let Some(options) = params.initialization_options.as_ref() {
+            if let Some(enabled) =
+                options.get("ideaContentTooltip").and_then(|value| value.as_bool())
+            {
+                session.set_idea_content_tooltip(enabled);
+            }
+            if let Some(enabled) =
+                options.get("referenceInlayHints").and_then(|value| value.as_bool())
+            {
+                session.set_reference_inlay_hints(enabled);
+            }
         }
     }
-    for message in &connection.receiver {
+    let mut confirm = PendingConfirm::default();
+    loop {
+        let message = match connection.receiver.try_recv() {
+            Ok(message) => message,
+            Err(error) if error.is_disconnected() => break,
+            Err(_) if confirm.is_empty() => match connection.receiver.recv() {
+                Ok(message) => message,
+                Err(_) => break,
+            },
+            Err(_) => {
+                for publish in confirm.run_one(&mut session) {
+                    let _ = connection.sender.send(Message::Notification(publish));
+                }
+                continue;
+            }
+        };
         match message {
             Message::Request(request) => {
                 if connection.handle_shutdown(&request).unwrap_or(false) {
@@ -46,7 +69,7 @@ pub fn serve() -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
                 if notification.method == "exit" {
                     break;
                 }
-                for publish in dispatch_notification(&mut session, notification) {
+                for publish in dispatch_notification(&mut session, &mut confirm, notification) {
                     let _ = connection.sender.send(Message::Notification(publish));
                 }
             }
@@ -99,6 +122,7 @@ fn server_capabilities() -> ServerCapabilities {
             prepare_provider: Some(true),
             work_done_progress_options: WorkDoneProgressOptions::default(),
         })),
+        references_provider: Some(OneOf::Left(true)),
         ..ServerCapabilities::default()
     }
 }
@@ -121,7 +145,41 @@ fn workspace_folders(params: &InitializeParams) -> Vec<PathBuf> {
     folders
 }
 
-fn dispatch_notification(session: &mut Session, notification: Notification) -> Vec<Notification> {
+/// The confirm pass after a hot publish. It runs only while no client message waits,
+/// so a hover or a definition request never queues behind it.
+#[derive(Default)]
+struct PendingConfirm {
+    uris: Vec<String>,
+    comments: bool,
+}
+
+impl PendingConfirm {
+    fn is_empty(&self) -> bool {
+        self.uris.is_empty() && !self.comments
+    }
+
+    fn push(&mut self, uri: &str) {
+        if !self.uris.iter().any(|pending| pending == uri) {
+            self.uris.push(uri.to_string());
+        }
+        self.comments |= is_rq_uri(uri);
+    }
+
+    fn run_one(&mut self, session: &mut Session) -> Vec<Notification> {
+        if !self.uris.is_empty() {
+            let uri = self.uris.remove(0);
+            return vec![publish(session, &uri)];
+        }
+        self.comments = false;
+        republish_comments(session)
+    }
+}
+
+fn dispatch_notification(
+    session: &mut Session,
+    confirm: &mut PendingConfirm,
+    notification: Notification,
+) -> Vec<Notification> {
     match notification.method.as_str() {
         "textDocument/didOpen" => {
             let Ok(params) =
@@ -131,7 +189,8 @@ fn dispatch_notification(session: &mut Session, notification: Notification) -> V
             };
             let uri = params.text_document.uri.as_ref().to_string();
             session.open(&uri, params.text_document.text);
-            publish_affected(session, &uri)
+            confirm.push(&uri);
+            vec![publish_hot(session, &uri)]
         }
         "textDocument/didChange" => {
             let Ok(params) =
@@ -145,7 +204,8 @@ fn dispatch_notification(session: &mut Session, notification: Notification) -> V
                 return Vec::new();
             };
             session.change(&uri, text);
-            publish_affected(session, &uri)
+            confirm.push(&uri);
+            vec![publish_hot(session, &uri)]
         }
         "textDocument/didClose" => {
             let Ok(params) =
@@ -154,13 +214,10 @@ fn dispatch_notification(session: &mut Session, notification: Notification) -> V
                 return Vec::new();
             };
             let uri = params.text_document.uri.as_ref().to_string();
-            let refresh_comments = is_rq_uri(&uri);
             session.close(&uri);
-            let mut notes = vec![empty_publish(&uri)];
-            if refresh_comments {
-                notes.extend(republish_comments(session));
-            }
-            notes
+            confirm.uris.retain(|pending| pending != &uri);
+            confirm.comments |= is_rq_uri(&uri);
+            vec![empty_publish(&uri)]
         }
         "reqlan/inboundSnapshot" => {
             note_snapshot(session, &notification.params);
@@ -172,23 +229,23 @@ fn dispatch_notification(session: &mut Session, notification: Notification) -> V
             {
                 session.set_idea_content_tooltip(enabled);
             }
+            if let Some(enabled) =
+                notification.params.get("referenceInlayHints").and_then(|value| value.as_bool())
+            {
+                session.set_reference_inlay_hints(enabled);
+            }
             Vec::new()
         }
-        "reqlan/attributeCatalog" => Vec::new(),
+        "reqlan/attributeCatalog" => {
+            note_attribute_catalog(session, &notification.params);
+            Vec::new()
+        }
         "reqlan/nameCatalog" => {
             note_name_catalog(session, &notification.params);
             Vec::new()
         }
         _ => Vec::new(),
     }
-}
-
-fn publish_affected(session: &mut Session, uri: &str) -> Vec<Notification> {
-    let mut notes = vec![publish(session, uri)];
-    if is_rq_uri(uri) {
-        notes.extend(republish_comments(session));
-    }
-    notes
 }
 
 fn republish_comments(session: &mut Session) -> Vec<Notification> {
@@ -222,8 +279,46 @@ fn note_snapshot(session: &mut Session, params: &Value) {
                 names.push((name.clone(), referencers));
             }
         }
-        session.note_inbound(uri, names);
+        let file_referencers = snapshot
+            .get("fileReferencers")
+            .and_then(|value| value.as_array())
+            .map(|rows| rows.iter().filter_map(referencer_from_snapshot).collect())
+            .unwrap_or_default();
+        session.note_inbound(uri, names, file_referencers);
     }
+}
+
+fn note_attribute_catalog(session: &mut Session, params: &Value) {
+    let keys = params
+        .get("keys")
+        .and_then(|value| value.as_array())
+        .map(|rows| {
+            rows.iter().filter_map(|row| row.as_str().map(str::to_string)).collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut values_by_key = HashMap::new();
+    if let Some(map) = params.get("valuesByKey").and_then(|value| value.as_object()) {
+        for (key, values) in map {
+            let list = values
+                .as_array()
+                .map(|rows| {
+                    rows.iter().filter_map(|row| row.as_str().map(str::to_string)).collect()
+                })
+                .unwrap_or_default();
+            values_by_key.insert(key.clone(), list);
+        }
+    }
+    let mut catalog = AttributeCatalog::endorsed();
+    for key in keys {
+        if !catalog.keys.iter().any(|existing| existing == &key) {
+            catalog.keys.push(key);
+        }
+    }
+    catalog.keys.sort();
+    for (key, values) in values_by_key {
+        catalog.values_by_key.insert(key, values);
+    }
+    session.note_attribute_catalog(catalog);
 }
 
 fn note_name_catalog(session: &mut Session, params: &Value) {
@@ -243,8 +338,15 @@ fn note_name_catalog(session: &mut Session, params: &Value) {
     session.note_name_catalog(catalog);
 }
 
+fn publish_hot(session: &mut Session, uri: &str) -> Notification {
+    publish_with(session.diagnostics_hot(uri), uri)
+}
+
 fn publish(session: &mut Session, uri: &str) -> Notification {
-    let diagnostics = session.diagnostics(uri);
+    publish_with(session.diagnostics(uri), uri)
+}
+
+fn publish_with(diagnostics: Vec<lsp_types::Diagnostic>, uri: &str) -> Notification {
     let params = PublishDiagnosticsParams {
         uri: Url::parse(uri).unwrap_or_else(|_| Url::parse("file:///reqlan.rq").expect("uri")),
         diagnostics,
@@ -374,6 +476,16 @@ fn dispatch_request(session: &mut Session, request: Request) -> Response {
                 params.text_document_position.text_document.uri.as_ref(),
                 params.text_document_position.position,
                 &params.new_name,
+            ))
+        }
+        "textDocument/references" => {
+            let params: ReferenceParams = match serde_json::from_value(request.params) {
+                Ok(params) => params,
+                Err(_) => return err(id.clone()),
+            };
+            json(session.references(
+                params.text_document_position.text_document.uri.as_ref(),
+                params.text_document_position.position,
             ))
         }
         "reqlan/fileReferenceAt" => {

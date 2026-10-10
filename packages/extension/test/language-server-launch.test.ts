@@ -1,7 +1,7 @@
 /**
  * rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -16,6 +16,24 @@ describe('language server launch', () => {
         writeFileSync(binary, '');
         const launch = resolveLanguageServerLaunch({ engine: 'rust', extensionPath });
         expect(launch).toEqual({ kind: 'rust', command: binary, transport: 'stdio' });
+    });
+
+    test('launches the release build and never a debug build', () => {
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-lsp-dev-'));
+        const extensionPath = join(root, 'packages', 'extension');
+        mkdirSync(extensionPath, { recursive: true });
+        for (const profile of ['debug', 'release']) {
+            mkdirSync(join(root, 'crates', 'target', profile), { recursive: true });
+            writeFileSync(join(root, 'crates', 'target', profile, 'reqlan-lsp'), '');
+        }
+        const launch = resolveLanguageServerLaunch({ engine: 'rust', extensionPath });
+        expect(launch).toEqual({
+            kind: 'rust',
+            command: join(root, 'crates', 'target', 'release', 'reqlan-lsp'),
+            transport: 'stdio'
+        });
+        rmSync(join(root, 'crates', 'target', 'release'), { recursive: true });
+        expect(resolveLanguageServerLaunch({ engine: 'rust', extensionPath }).kind).toBe('node');
     });
 
     test('uses the node server when rust is missing', () => {

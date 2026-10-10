@@ -410,6 +410,7 @@ fn formats_inbound_referencers_as_an_inlayed_attribute() {
     let mut session = Session::new();
     let uri = "file:///target.rq";
     session.open(uri, "target {\n}\n".into());
+    session.set_reference_inlay_hints(true);
     session.note_inbound(
         uri,
         vec![(
@@ -419,6 +420,7 @@ fn formats_inbound_referencers_as_an_inlayed_attribute() {
                 referencer("alpha", "file:///alpha.rq", 1),
             ],
         )],
+        Vec::new(),
     );
     let hints = session.inlays(uri);
     assert_eq!(hints.len(), 1, "{hints:?}");
@@ -443,6 +445,7 @@ fn truncates_long_referencer_lists_with_a_remainder_suffix() {
     let mut session = Session::new();
     let uri = "file:///target.rq";
     session.open(uri, "target {\n}\n".into());
+    session.set_reference_inlay_hints(true);
     session.note_inbound(
         uri,
         vec![(
@@ -455,6 +458,7 @@ fn truncates_long_referencer_lists_with_a_remainder_suffix() {
                 referencer("a", "file:///a.rq", 0),
             ],
         )],
+        Vec::new(),
     );
     let hints = session.inlays(uri);
     assert_eq!(hint_text(&hints[0].label), "@referenced-by: (a, b, c, +2 more)");

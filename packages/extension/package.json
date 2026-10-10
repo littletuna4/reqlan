@@ -61,6 +61,14 @@
         "editor.semanticHighlighting.enabled": true
       }
     },
+    "keybindings": [
+      {
+        "command": "reqlan.navigateBack",
+        "key": "alt+left",
+        "mac": "ctrl+-",
+        "when": "reqlan.canNavigateBack && editorTextFocus && (editorLangId == reqlan || resourceExtname == .rq)"
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": [
@@ -212,6 +220,11 @@
       }
     ],
     "commands": [
+      {
+        "command": "reqlan.navigateBack",
+        "title": "Navigate Back from Reference",
+        "category": "reqlan"
+      },
       {
         "command": "reqlan.listAllIdeas",
         "title": "List All Ideas",

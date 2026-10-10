@@ -16,7 +16,7 @@ fn file_uri(path: &Path) -> String {
     Url::from_file_path(path).unwrap().to_string()
 }
 
-fn markup(session: &Session, uri: &str, line: u32, character: u32) -> String {
+fn markup(session: &mut Session, uri: &str, line: u32, character: u32) -> String {
     let hover = session.hover(uri, Position { line, character }).unwrap();
     let lsp_types::HoverContents::Markup(markup) = hover.contents else {
         panic!("markup hover");
@@ -41,7 +41,7 @@ fn hover_shows_styled_idea_content_by_default() {
     let mut session = Session::new();
     let uri = "file:///hover-body.rq";
     session.open(uri, format!("{ALPHA}beta {{\n    see [alpha]\n}}\n"));
-    let on_name = markup(&session, uri, 0, 0);
+    let on_name = markup(&mut session, uri, 0, 0);
     assert!(on_name.contains("### alpha"), "{on_name}");
     assert!(on_name.contains("The server keeps open buffers."), "{on_name}");
     assert!(on_name.contains("**@status**"), "{on_name}");
@@ -50,7 +50,7 @@ fn hover_shows_styled_idea_content_by_default() {
     assert!(on_name.contains("- parse"), "{on_name}");
     assert!(on_name.contains("- hover"), "{on_name}");
 
-    let on_ref = markup(&session, uri, 9, 10);
+    let on_ref = markup(&mut session, uri, 9, 10);
     assert!(on_ref.contains("The server keeps open buffers."), "{on_ref}");
     assert!(on_ref.contains("**@status**"), "{on_ref}");
 }
@@ -61,7 +61,7 @@ fn hover_omits_idea_content_when_the_setting_is_off() {
     session.set_idea_content_tooltip(false);
     let uri = "file:///hover-off.rq";
     session.open(uri, ALPHA.to_string());
-    let value = markup(&session, uri, 0, 0);
+    let value = markup(&mut session, uri, 0, 0);
     assert!(value.contains("**alpha**"), "{value}");
     assert!(!value.contains("### alpha"), "{value}");
     assert!(!value.contains("**@status**"), "{value}");
@@ -83,10 +83,11 @@ fn hover_shows_idea_content_from_another_file() {
         &host_uri,
         "from \"./lib.rq\" import beta\nhost {\n    [beta]\n    [\"./lib.rq\".beta]\n}\n".into(),
     );
-    let imported = markup(&session, &host_uri, 2, 6);
+    let imported = markup(&mut session, &host_uri, 2, 6);
     assert!(imported.contains("### beta"), "{imported}");
     assert!(imported.contains("Ships the binary."), "{imported}");
-    let qualified = markup(&session, &host_uri, 3, 12);
+    // Idea token `beta`, not the path string — hover range follows lexer tokens.
+    let qualified = markup(&mut session, &host_uri, 3, 18);
     assert!(qualified.contains("Ships the binary."), "{qualified}");
     let _ = fs::remove_dir_all(root);
 }

@@ -1,33 +1,50 @@
 //! Open documents and a read-only view of each base's ideas index.
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
-use crate::analysis::{rename_edits, resolve_neighbor_file, DocModel, InboundReferencer};
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
+use crate::analysis::{
+    line_range, rename_edits, resolve_neighbor_file, AttributeCatalog, DocModel, InboundReferencer,
+};
 use crate::code_actions::SymbolHit;
 use crate::utf16::LineMap;
 use lsp_types::{
     CodeActionOrCommand, CodeLens, Command, CompletionItem, Diagnostic, DiagnosticSeverity,
-    DocumentHighlight, DocumentLink, GotoDefinitionResponse, Hover, InlayHint, NumberOrString,
-    Position, Range, SemanticTokens, Url, WorkspaceEdit,
+    DocumentHighlight, DocumentLink, GotoDefinitionResponse, Hover, InlayHint, Location,
+    NumberOrString, Position, Range, SemanticTokens, TextEdit, Url, WorkspaceEdit,
 };
 use reqlan_index::{
-    find_comment_references_in_text, find_rq_ignore_error_target_lines, IdeaKind, IndexStore,
+    find_comment_references_in_text, find_rq_ignore_error_target_lines, idea_id, IdeaKind,
+    IndexStore,
 };
-use reqlan_parse::{import_path_candidates, resolve_rq_path, ImportRootMapping};
-use std::collections::{HashMap, VecDeque};
+use reqlan_parse::{
+    import_path_candidates, parse_document, resolve_rq_path, ImportRootMapping, Model,
+};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 const NEIGHBOR_CAP: usize = 32;
 
 struct OpenDoc {
-    text: String,
     model: DocModel,
     path: Option<PathBuf>,
 }
 
+/// A closed `.rq` file parsed once. A lookup checks the file stamp, not the text.
 struct Neighbor {
     path: PathBuf,
-    hash: u64,
-    names: Vec<(String, u32)>,
-    aliases: Vec<String>,
+    stamp: FileStamp,
+    text: String,
+    model: Model,
+    names: Vec<(String, Range)>,
+    bindings: Vec<(String, u32)>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct FileStamp {
+    modified: SystemTime,
+    len: u64,
 }
 
 struct BaseIndex {
@@ -48,12 +65,18 @@ pub struct Session {
     folders: Vec<PathBuf>,
     indexes: Vec<BaseIndex>,
     neighbors: VecDeque<Neighbor>,
-    /// Host push of referencer names, used when the index has no row yet.
+    /// Host push of referencer names. Presence of a URI means snapshot-first (no SQLite).
     inbound_names: HashMap<String, Vec<(String, Vec<InboundReferencer>)>>,
-    /// Host push of idea names for unresolved-reference quick fixes.
+    /// Host push of file-level inbound referencers for the file CodeLens.
+    file_referencers: HashMap<String, Vec<InboundReferencer>>,
+    /// Host push of idea names for unresolved-reference quick fixes and completion.
     name_catalog: Vec<SymbolHit>,
+    /// Host push of attribute keys and values for completion.
+    attribute_catalog: AttributeCatalog,
     /// When true, a hover shows the styled idea body. Default is on.
     idea_content_tooltip: bool,
+    /// When true, emit inbound reference inlay hints. Default is off (matches VS Code setting).
+    reference_inlay_hints: bool,
 }
 
 impl Session {
@@ -65,8 +88,11 @@ impl Session {
             indexes: Vec::new(),
             neighbors: VecDeque::new(),
             inbound_names: HashMap::new(),
+            file_referencers: HashMap::new(),
             name_catalog: Vec::new(),
+            attribute_catalog: AttributeCatalog::endorsed(),
             idea_content_tooltip: true,
+            reference_inlay_hints: false,
         }
     }
 
@@ -74,8 +100,16 @@ impl Session {
         self.idea_content_tooltip = enabled;
     }
 
+    pub fn set_reference_inlay_hints(&mut self, enabled: bool) {
+        self.reference_inlay_hints = enabled;
+    }
+
     pub fn note_name_catalog(&mut self, entries: Vec<SymbolHit>) {
         self.name_catalog = entries;
+    }
+
+    pub fn note_attribute_catalog(&mut self, catalog: AttributeCatalog) {
+        self.attribute_catalog = catalog;
     }
 
     pub fn document_count(&self) -> usize {
@@ -105,8 +139,8 @@ impl Session {
         if is_rq_uri(uri) {
             self.comments.remove(uri);
             let path = uri_to_path(uri);
-            let model = DocModel::parse(uri, text.clone(), path.as_deref());
-            self.documents.insert(uri.to_string(), OpenDoc { text, model, path });
+            let model = DocModel::parse(uri, text, path.as_deref());
+            self.documents.insert(uri.to_string(), OpenDoc { model, path });
             return;
         }
         self.documents.remove(uri);
@@ -121,21 +155,43 @@ impl Session {
         self.comments.insert(uri.to_string(), CommentDoc { text, path });
     }
 
+    /// Reparse with the import roots loaded at open. A change does not read the config again.
     pub fn change(&mut self, uri: &str, text: String) {
-        self.open(uri, text);
+        let Some(doc) = self.documents.remove(uri) else {
+            return self.open(uri, text);
+        };
+        let model = DocModel::parse_with_roots(uri, text, doc.path.as_deref(), doc.model.roots);
+        self.documents.insert(uri.to_string(), OpenDoc { model, path: doc.path });
     }
 
     pub fn close(&mut self, uri: &str) {
         self.documents.remove(uri);
         self.comments.remove(uri);
         self.inbound_names.remove(uri);
+        self.file_referencers.remove(uri);
     }
 
-    pub fn note_inbound(&mut self, uri: &str, names: Vec<(String, Vec<InboundReferencer>)>) {
+    pub fn note_inbound(
+        &mut self,
+        uri: &str,
+        names: Vec<(String, Vec<InboundReferencer>)>,
+        file_referencers: Vec<InboundReferencer>,
+    ) {
         self.inbound_names.insert(uri.to_string(), names);
+        self.file_referencers.insert(uri.to_string(), file_referencers);
     }
 
+    /// Hot-path diagnostics: this buffer plus import neighbors. No path-qualified confirm.
+    pub fn diagnostics_hot(&mut self, uri: &str) -> Vec<Diagnostic> {
+        self.diagnostics_with(uri, false)
+    }
+
+    /// Full diagnostics after qualified neighbor confirm.
     pub fn diagnostics(&mut self, uri: &str) -> Vec<Diagnostic> {
+        self.diagnostics_with(uri, true)
+    }
+
+    fn diagnostics_with(&mut self, uri: &str, confirm_path_qualified: bool) -> Vec<Diagnostic> {
         if self.comments.contains_key(uri) {
             return self.comment_diagnostics_for(uri);
         }
@@ -144,9 +200,12 @@ impl Session {
         };
         let path = doc.path.clone();
         let roots = doc.model.roots.clone();
-        let outbound = doc.model.neighbor_queries();
-        let mut confirmed = std::collections::HashSet::new();
-        let mut alias_confirmed = std::collections::HashSet::new();
+        let mut outbound = doc.model.import_neighbor_queries();
+        if confirm_path_qualified {
+            outbound.extend(doc.model.qualified_neighbor_queries());
+        }
+        let mut confirmed = HashSet::new();
+        let mut alias_confirmed = HashSet::new();
         if let Some(from) = path.as_deref() {
             for (authored, idea) in outbound {
                 if self.neighbor_has(from, &authored, &idea, &roots) {
@@ -165,15 +224,15 @@ impl Session {
                 |authored, idea| {
                     alias_confirmed.contains(&(authored.to_string(), idea.to_string()))
                 },
+                confirm_path_qualified,
             )
         };
-        let extra = self
-            .documents
-            .get(uri)
-            .and_then(|doc| doc.path.clone().map(|path| (doc.text.clone(), path)));
         let mut out = parsed;
-        if let Some((text, path)) = extra {
-            out.extend(self.comment_diagnostics(&text, &path));
+        if let Some(doc) = self.documents.remove(uri) {
+            if let Some(path) = doc.path.as_deref().filter(|_| doc.model.text.contains("rq:")) {
+                out.extend(self.comment_diagnostics(&doc.model.text, path));
+            }
+            self.documents.insert(uri.to_string(), doc);
         }
         out
     }
@@ -199,29 +258,32 @@ impl Session {
         if self.comments.contains_key(uri) {
             return self.comment_links_for(uri);
         }
-        let Some(doc) = self.documents.get(uri) else {
+        let Some(doc) = self.documents.remove(uri) else {
             return Vec::new();
         };
-        let text = doc.text.clone();
-        let path = doc.path.clone();
-        let mut links = doc.model.links(uri);
-        if let Some(path) = path {
-            links.extend(self.comment_links(&text, &path));
+        let mut links = doc.model.links(uri, |path, idea| self.neighbor_range(path, idea));
+        if let Some(path) = doc.path.as_deref().filter(|_| doc.model.text.contains("rq:")) {
+            links.extend(self.comment_links(&doc.model.text, path));
         }
+        self.documents.insert(uri.to_string(), doc);
         links
     }
 
     pub fn definition(&mut self, uri: &str, pos: Position) -> Option<GotoDefinitionResponse> {
-        let locations = self.documents.get(uri)?.model.definition(pos, uri);
-        if locations.is_empty() {
+        let Some(doc) = self.documents.remove(uri) else {
+            return None;
+        };
+        let links = doc.model.definition(pos, uri, |path, idea| self.neighbor_range(path, idea));
+        self.documents.insert(uri.to_string(), doc);
+        if links.is_empty() {
             None
         } else {
-            Some(GotoDefinitionResponse::Array(locations))
+            Some(GotoDefinitionResponse::Link(links))
         }
     }
 
-    pub fn hover(&self, uri: &str, pos: Position) -> Option<Hover> {
-        let hit = self.documents.get(uri)?.model.hover_hit(pos)?;
+    pub fn hover(&mut self, uri: &str, pos: Position) -> Option<Hover> {
+        let hit = self.documents.get(uri)?.model.hover_hit(pos, self.idea_content_tooltip)?;
         let value = if self.idea_content_tooltip {
             if let Some(markdown) = hit.markdown {
                 markdown
@@ -243,23 +305,23 @@ impl Session {
         })
     }
 
-    fn markdown_for_authored(&self, from_uri: &str, authored: &str, idea: &str) -> Option<String> {
+    /// Idea body from the open buffer or the neighbor cache. A hover does not reparse the file.
+    fn markdown_for_authored(
+        &mut self,
+        from_uri: &str,
+        authored: &str,
+        idea: &str,
+    ) -> Option<String> {
         let path = self.documents.get(from_uri)?.model.resolve_path(authored)?;
-        if let Some(markdown) = self.markdown_in_open(&path, idea) {
-            return Some(markdown);
+        if let Some(doc) = self.open_doc_at(&path) {
+            return doc.model.idea_markdown(idea);
         }
-        let text = std::fs::read_to_string(&path).ok()?;
-        let parsed = reqlan_parse::parse_document(&text);
-        crate::hover_content::markdown_for_name(&text, &parsed.model, idea)
+        let entry = self.ensure_neighbor(&path)?;
+        crate::hover_content::markdown_for_name(&entry.text, &entry.model, idea)
     }
 
-    fn markdown_in_open(&self, path: &Path, idea: &str) -> Option<String> {
-        self.documents.values().find_map(|doc| {
-            doc.path
-                .as_ref()
-                .filter(|doc_path| doc_path.as_path() == path)
-                .and_then(|_| doc.model.idea_markdown(idea))
-        })
+    fn open_doc_at(&self, path: &Path) -> Option<&OpenDoc> {
+        self.documents.values().find(|doc| doc.path.as_deref() == Some(path))
     }
 
     pub fn highlights(&self, uri: &str, pos: Position) -> Vec<DocumentHighlight> {
@@ -270,8 +332,8 @@ impl Session {
         let Some(doc) = self.documents.get(uri) else {
             return Vec::new();
         };
-        let extra = self.index_names();
-        doc.model.completion(pos, &extra)
+        let extra = self.completion_names(uri);
+        doc.model.completion(pos, &extra, &self.attribute_catalog)
     }
 
     pub fn prepare_rename(&self, uri: &str, pos: Position) -> Option<Range> {
@@ -280,13 +342,36 @@ impl Session {
 
     pub fn rename(&self, uri: &str, pos: Position, new_name: &str) -> Option<WorkspaceEdit> {
         let old = self.documents.get(uri)?.model.name_at(pos)?;
-        let mut changes = HashMap::new();
+        let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+        let mut touched: HashSet<String> = HashSet::new();
         for (doc_uri, doc) in &self.documents {
-            let edits = rename_edits(&doc.text, &doc.model.lines, &old, new_name);
+            let edits = rename_edits(&doc.model.text, &doc.model.lines, &old, new_name);
             if !edits.is_empty() {
                 if let Ok(url) = Url::parse(doc_uri) {
                     changes.insert(url, edits);
+                    touched.insert(doc_uri.clone());
                 }
+            }
+        }
+        for (doc_uri, doc) in &self.comments {
+            let edits = rename_edits(&doc.text, &LineMap::new(&doc.text), &old, new_name);
+            if !edits.is_empty() {
+                if let Ok(url) = Url::parse(doc_uri) {
+                    changes.insert(url, edits);
+                    touched.insert(doc_uri.clone());
+                }
+            }
+        }
+        for (file_uri, text) in self.index_rename_texts(&old) {
+            if touched.contains(&file_uri) {
+                continue;
+            }
+            let edits = rename_edits(&text, &LineMap::new(&text), &old, new_name);
+            if edits.is_empty() {
+                continue;
+            }
+            if let Ok(url) = Url::parse(&file_uri) {
+                changes.insert(url, edits);
             }
         }
         if changes.is_empty() {
@@ -298,6 +383,46 @@ impl Session {
                 change_annotations: None,
             })
         }
+    }
+
+    pub fn references(&self, uri: &str, pos: Position) -> Vec<Location> {
+        let Some(name) = self.documents.get(uri).and_then(|doc| doc.model.name_at(pos)) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        let mut seen = HashSet::new();
+        for (doc_uri, doc) in &self.documents {
+            for location in doc.model.reference_locations(doc_uri, &name) {
+                let key = location_key(&location);
+                if seen.insert(key) {
+                    out.push(location);
+                }
+            }
+        }
+        for (doc_uri, doc) in &self.comments {
+            let lines = LineMap::new(&doc.text);
+            for reference in find_comment_references_in_text(&doc.text) {
+                if reference.idea != name {
+                    continue;
+                }
+                let location = Location {
+                    uri: Url::parse(doc_uri)
+                        .unwrap_or_else(|_| Url::parse("file:///reqlan.rq").expect("uri")),
+                    range: lines.range(&doc.text, reference.start, reference.end),
+                };
+                let key = location_key(&location);
+                if seen.insert(key) {
+                    out.push(location);
+                }
+            }
+        }
+        for location in self.index_reference_locations(&name) {
+            let key = location_key(&location);
+            if seen.insert(key) {
+                out.push(location);
+            }
+        }
+        out
     }
 
     pub fn code_actions(&mut self, uri: &str, range: Range) -> Vec<CodeActionOrCommand> {
@@ -391,6 +516,9 @@ impl Session {
     }
 
     pub fn inlays(&self, uri: &str) -> Vec<InlayHint> {
+        if !self.reference_inlay_hints {
+            return Vec::new();
+        }
         let Some(doc) = self.documents.get(uri) else {
             return Vec::new();
         };
@@ -560,15 +688,10 @@ impl Session {
     }
 
     fn path_declares(&mut self, path: &Path, idea: &str) -> bool {
-        let open = self
-            .documents
-            .values()
-            .find(|doc| doc.path.as_deref() == Some(path))
-            .map(|doc| doc.model.has_idea(idea));
-        if let Some(has) = open {
-            return has;
+        if let Some(doc) = self.open_doc_at(path) {
+            return doc.model.has_idea(idea);
         }
-        self.cached_neighbor_line(path, idea).is_some()
+        self.neighbor_declares(path, idea)
     }
 
     fn unqualified_file(&self, idea: &str) -> Option<PathBuf> {
@@ -585,24 +708,35 @@ impl Session {
                 return Some(path.clone());
             }
         }
-        for index in &self.indexes {
-            let Ok(ideas) = index.store.list_all_ideas() else {
-                continue;
-            };
-            if let Some(row) = ideas.into_iter().find(|row| row.name == idea) {
-                let path = PathBuf::from(&row.file_uri);
-                return Some(if path.is_absolute() { path } else { index.root.join(path) });
+        for hit in &self.name_catalog {
+            if hit.name == idea {
+                if let Some(path) =
+                    Url::parse(&hit.file_uri).ok().and_then(|url| url.to_file_path().ok())
+                {
+                    return Some(path);
+                }
             }
         }
         None
     }
 
-    fn index_names(&self) -> Vec<String> {
+    fn completion_names(&self, from_uri: &str) -> Vec<String> {
         let mut names = Vec::new();
+        let mut seen = HashSet::new();
+        for hit in &self.name_catalog {
+            if hit.file_uri != from_uri && seen.insert(hit.name.clone()) {
+                names.push(hit.name.clone());
+            }
+        }
+        if !names.is_empty() {
+            return names;
+        }
         for index in &self.indexes {
             if let Ok(ideas) = index.store.list_all_ideas() {
                 for idea in ideas {
-                    names.push(idea.name);
+                    if seen.insert(idea.name.clone()) {
+                        names.push(idea.name);
+                    }
                 }
             }
         }
@@ -610,66 +744,122 @@ impl Session {
     }
 
     fn idea_inbound_names(&self, uri: &str) -> Vec<(String, Vec<InboundReferencer>)> {
+        // Snapshot-first: once the host pushes for this URI, never open SQLite here.
         if let Some(pushed) = self.inbound_names.get(uri) {
-            if !pushed.is_empty() {
-                return pushed
-                    .iter()
-                    .map(|(idea, names)| (idea.clone(), sort_referencers(names.clone())))
-                    .collect();
-            }
+            return pushed
+                .iter()
+                .map(|(idea, names)| (idea.clone(), sort_referencers(names.clone())))
+                .collect();
         }
-        let mut names: HashMap<String, Vec<InboundReferencer>> = HashMap::new();
-        for index in &self.indexes {
-            let relative = index_uri(&index.root, uri);
-            let Ok(rows) = index.store.inbound_for_file(&relative) else {
-                continue;
-            };
-            for row in rows {
-                let kind = row.get("kind").and_then(|value| value.as_str()).unwrap_or("");
-                if kind != "references" && kind != "wildcard_reference" {
-                    continue;
-                }
-                let Some(target) = row.get("target_name").and_then(|value| value.as_str()) else {
-                    continue;
-                };
-                let Some(source) = row.get("source_name").and_then(|value| value.as_str()) else {
-                    continue;
-                };
-                let source_file =
-                    row.get("source_file_uri").and_then(|value| value.as_str()).unwrap_or("");
-                if source_file == relative.as_str() {
-                    continue;
-                }
-                let line = row.get("source_idea_line").and_then(|value| value.as_u64()).unwrap_or(0)
-                    as u32;
-                let list = names.entry(target.to_string()).or_default();
-                if list.iter().any(|referencer| referencer.name == source) {
-                    continue;
-                }
-                list.push(InboundReferencer {
-                    name: source.to_string(),
-                    uri: file_uri_in_base(&index.root, source_file),
-                    line,
-                });
-            }
-        }
-        names.into_iter().map(|(idea, referencers)| (idea, sort_referencers(referencers))).collect()
+        Vec::new()
     }
 
     fn file_inbound_count(&self, uri: &str) -> u32 {
-        let mut count = 0u32;
+        if let Some(rows) = self.file_referencers.get(uri) {
+            return rows.len() as u32;
+        }
+        0
+    }
+
+    fn index_rename_texts(&self, idea: &str) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        let mut seen = HashSet::new();
         for index in &self.indexes {
-            let relative = index_uri(&index.root, uri);
-            let Ok(rows) = index.store.inbound_for_file(&relative) else {
+            let Ok(ideas) = index.store.list_all_ideas() else {
                 continue;
             };
-            for row in rows {
-                if row.get("kind").and_then(|value| value.as_str()) == Some("file_reference") {
-                    count += 1;
+            for row in ideas {
+                if row.name != idea {
+                    continue;
+                }
+                let id = idea_id(&row.file_uri, &row.name);
+                let Ok(edges) = index.store.get_edges_to(&id) else {
+                    continue;
+                };
+                let mut files = HashSet::new();
+                files.insert(row.file_uri.clone());
+                for edge in edges {
+                    if let Some(source) = edge.source_id.split_once('#').map(|(file, _)| file) {
+                        files.insert(source.to_string());
+                    }
+                }
+                for relative in files {
+                    let path = if Path::new(&relative).is_absolute() {
+                        PathBuf::from(&relative)
+                    } else {
+                        index.root.join(&relative)
+                    };
+                    let Ok(file_uri) = Url::from_file_path(&path) else {
+                        continue;
+                    };
+                    let file_uri = file_uri.to_string();
+                    if !seen.insert(file_uri.clone()) {
+                        continue;
+                    }
+                    if let Ok(text) = std::fs::read_to_string(&path) {
+                        out.push((file_uri, text));
+                    }
                 }
             }
         }
-        count
+        out
+    }
+
+    fn index_reference_locations(&self, idea: &str) -> Vec<Location> {
+        let mut out = Vec::new();
+        for index in &self.indexes {
+            let Ok(ideas) = index.store.list_all_ideas() else {
+                continue;
+            };
+            for row in ideas {
+                if row.name != idea {
+                    continue;
+                }
+                let path = if Path::new(&row.file_uri).is_absolute() {
+                    PathBuf::from(&row.file_uri)
+                } else {
+                    index.root.join(&row.file_uri)
+                };
+                if let Ok(uri) = Url::from_file_path(&path) {
+                    out.push(Location {
+                        uri,
+                        range: Range {
+                            start: Position { line: row.line_start, character: 0 },
+                            end: Position {
+                                line: row.line_start,
+                                character: utf16_len_name(&row.name),
+                            },
+                        },
+                    });
+                }
+                let id = idea_id(&row.file_uri, &row.name);
+                let Ok(edges) = index.store.get_edges_to(&id) else {
+                    continue;
+                };
+                for edge in edges {
+                    let Some((source_file, _)) = edge.source_id.split_once('#') else {
+                        continue;
+                    };
+                    let path = if Path::new(source_file).is_absolute() {
+                        PathBuf::from(source_file)
+                    } else {
+                        index.root.join(source_file)
+                    };
+                    let Ok(uri) = Url::from_file_path(&path) else {
+                        continue;
+                    };
+                    let line = edge.source_line.unwrap_or(0);
+                    out.push(Location {
+                        uri,
+                        range: Range {
+                            start: Position { line, character: 0 },
+                            end: Position { line, character: utf16_len_name(idea) },
+                        },
+                    });
+                }
+            }
+        }
+        out
     }
 
     fn neighbor_has(
@@ -682,12 +872,7 @@ impl Session {
         let Some(path) = resolve_neighbor_file(from, authored, roots) else {
             return false;
         };
-        if let Some(open) =
-            self.documents.values().find(|doc| doc.path.as_deref() == Some(path.as_path()))
-        {
-            return open.model.has_idea(idea);
-        }
-        self.cached_neighbor_line(&path, idea).is_some()
+        self.path_declares(&path, idea)
     }
 
     fn neighbor_binds_import(
@@ -700,37 +885,70 @@ impl Session {
         let Some(path) = resolve_neighbor_file(from, authored, roots) else {
             return false;
         };
-        if let Some(open) =
-            self.documents.values().find(|doc| doc.path.as_deref() == Some(path.as_path()))
-        {
-            return open.model.binds_import(idea);
+        if let Some(doc) = self.open_doc_at(&path) {
+            return doc.model.binds_import(idea);
         }
         self.ensure_neighbor(&path)
-            .is_some_and(|entry| entry.aliases.iter().any(|name| name == idea))
+            .is_some_and(|entry| entry.bindings.iter().any(|(name, _)| name == idea))
     }
 
-    fn cached_neighbor_line(&mut self, path: &Path, idea: &str) -> Option<u32> {
-        self.ensure_neighbor(path)?
-            .names
+    fn neighbor_declares(&mut self, path: &Path, idea: &str) -> bool {
+        self.ensure_neighbor(path)
+            .is_some_and(|entry| entry.names.iter().any(|(name, _)| name == idea))
+    }
+
+    /// Name token of `idea` in `path`. An open buffer wins over the file on disk.
+    fn neighbor_range(&mut self, path: &Path, idea: &str) -> Option<Range> {
+        if let Some(doc) = self.open_doc_at(path) {
+            return doc.model.idea_range(idea);
+        }
+        let entry = self.ensure_neighbor(path)?;
+        if let Some((_, range)) = entry.names.iter().find(|(name, _)| name == idea) {
+            return Some(*range);
+        }
+        entry
+            .bindings
             .iter()
             .find(|(name, _)| name == idea)
-            .map(|(_, line)| *line)
+            .map(|(name, line)| line_range(*line, name))
     }
 
+    /// One `stat` when the cached parse is current. Read and parse only when the file changed.
     fn ensure_neighbor(&mut self, path: &Path) -> Option<&Neighbor> {
-        let text = std::fs::read_to_string(path).ok()?;
-        let hash = hash_text(&text);
-        if let Some(index) =
-            self.neighbors.iter().position(|entry| entry.path == path && entry.hash == hash)
-        {
-            return self.neighbors.get(index);
+        let meta = std::fs::metadata(path).ok().filter(|meta| meta.is_file())?;
+        let stamp = FileStamp { modified: meta.modified().ok()?, len: meta.len() };
+        if let Some(index) = self.neighbors.iter().position(|entry| entry.path == path) {
+            if self.neighbors[index].stamp == stamp {
+                return self.neighbors.get(index);
+            }
+            self.neighbors.remove(index);
         }
-        let symbolic =
-            reqlan_index::analyze_local_symbolic(&path.display().to_string(), &text, &[]);
-        let names: Vec<(String, u32)> =
-            symbolic.ideas.into_iter().map(|idea| (idea.name, idea.line_start)).collect();
-        let aliases = symbolic.import_bindings.into_iter().map(|binding| binding.name).collect();
-        self.neighbors.push_back(Neighbor { path: path.to_path_buf(), hash, names, aliases });
+        let text = std::fs::read_to_string(path).ok()?;
+        let parsed = parse_document(&text);
+        let lines = LineMap::new(&text);
+        let mut names = Vec::new();
+        for element in &parsed.model.elements {
+            let (name, span) = match element {
+                reqlan_parse::TopLevelElement::Idea(item) => (&item.name, item.span),
+                reqlan_parse::TopLevelElement::OneLiner(item) => (&item.name, item.span),
+                reqlan_parse::TopLevelElement::IdeaSet(item) => (&item.name, item.span),
+                reqlan_parse::TopLevelElement::Anonymous(_) => continue,
+            };
+            let start = text
+                .get(span.start..span.end)
+                .and_then(|body| body.find(name.as_str()))
+                .map_or(span.start, |offset| span.start + offset);
+            names.push((name.clone(), lines.range(&text, start, start + name.len())));
+        }
+        let bindings = parsed.model.import_bindings();
+        self.neighbors.push_back(Neighbor {
+            path: path.to_path_buf(),
+            stamp,
+            text,
+            model: parsed.model,
+            names,
+            bindings,
+        });
         while self.neighbors.len() > NEIGHBOR_CAP {
             self.neighbors.pop_front();
         }
@@ -807,29 +1025,17 @@ fn sort_referencers(mut referencers: Vec<InboundReferencer>) -> Vec<InboundRefer
     referencers
 }
 
-fn file_uri_in_base(root: &Path, file: &str) -> String {
-    if file.contains("://") {
-        return file.to_string();
-    }
-    let path = PathBuf::from(file);
-    let path = if path.is_absolute() { path } else { root.join(path) };
-    Url::from_file_path(path).map(|uri| uri.to_string()).unwrap_or_else(|_| file.to_string())
+fn location_key(location: &Location) -> String {
+    format!(
+        "{}:{}:{}:{}:{}",
+        location.uri,
+        location.range.start.line,
+        location.range.start.character,
+        location.range.end.line,
+        location.range.end.character
+    )
 }
 
-fn index_uri(root: &Path, uri: &str) -> String {
-    let Some(path) = uri_to_path(uri) else {
-        return uri.to_string();
-    };
-    path.strip_prefix(root)
-        .map(|relative| relative.to_string_lossy().replace('\\', "/"))
-        .unwrap_or_else(|_| path.to_string_lossy().replace('\\', "/"))
-}
-
-fn hash_text(text: &str) -> u64 {
-    let mut hash = 0xcbf29ce484222325u64;
-    for byte in text.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    hash
+fn utf16_len_name(name: &str) -> u32 {
+    name.encode_utf16().count() as u32
 }

@@ -43,13 +43,14 @@ import_statement_highlighting {
 non_web_reference_navigation {
     Non-web references (idea brackets/wikilinks, local file paths, import paths) must be Ctrl+click
     navigable via document links and/or go-to-definition. Built-in http(s) link detection is not enough.
-    Idea underlines come from path-local Rust extract (["../../../indexer/indexer.rq".local_symbolic_analysis])
-    with a Langium fallback when native extract throws so file/idea links are not lost.
-    Go-to-definition uses Langium when the idea ref is already linked, then falls back to the same
-    local-symbolic target so navigation works before workspace Linked completes.
-    Cross-file idea confirmation is a depth-1 neighbor parse
+    The rust engine builds same-file links and import-target links on the open path
     (["../../../language/syntax.rq".open_file_reference_sequencing],
     ["../support/open-file-sequencing.rq".outbound_one_hop]).
+    When the engine is node, idea underlines use the path-local Rust extract
+    (["../../../indexer/indexer.rq".local_symbolic_analysis]),
+    and go-to-definition uses Langium when the idea ref is already linked.
+    Qualified-reference idea lines follow
+    ["../support/open-file-sequencing.rq".lazy_features_after_outbound].
     Related: [reference_document_links], [reference_goto_definition_speed],
     [reference_underline_syntax_align],
     ["../../../language/syntax.rq".open_file_reference_sequencing].
@@ -60,10 +61,10 @@ non_web_reference_navigation {
         ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
         ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
     )
     @tests (
         ["../../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
-        ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
         ["../../../../packages/language/test/local-symbolic-links.test.ts:idea underlines match syntax tokens after non-ASCII text"]
         ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
         ["../../../../packages/language/test/linking.test.ts:same-file idea references produce document links"]
@@ -73,25 +74,27 @@ non_web_reference_navigation {
 
 unresolved_reference_diagnostics {
     Unresolved idea references must report a linking error diagnostic.
-    Local-symbolic outbound must not emit document links for `isResolved: false` edges or for
-    cross-file targets that do not exist on disk / are not declared in the neighbor file
-    (["../support/open-file-sequencing.rq".outbound_one_hop]).
-    Those false links looked like happy references while Ctrl+click could not navigate.
+    A same-file miss and an import-target miss have an error and no document link.
+    A qualified reference may link to its file before the idea line is confirmed.
+    After confirmation, a missing idea has an error and no document link
+    (["../support/open-file-sequencing.rq".missing_reference_colour_sequence]).
+    A false idea link looked like a happy reference while Ctrl+click could not navigate.
     Missing file references stay on ["./features-syntax.rq".file_references] /
     ["../support/language-server-errors.rq".file_reference_errors] (error, no document link).
     Related: [reference_rendering], [non_web_reference_navigation].
 
-    @status done
+    @status in-progress
+    @todo The qualified file link before idea confirmation is still open on ["../support/open-file-sequencing.rq".missing_reference_colour_sequence].
     @implementation (
         ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
         ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../../packages/language/src/reqlan-outbound-presentation.ts"]
         ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
         ["../../../../packages/language/src/reqlan-validator.ts"]
     )
     @tests (
         ["../../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
-        ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
         ["../../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
         ["../../../../packages/language/test/outbound-hop.test.ts:drops a false unresolved diagnostic when the neighbor idea exists"]
         ["../../../../packages/language/test/ignore-error.test.ts:reports unresolved reference without ignore directive"]
@@ -99,8 +102,9 @@ unresolved_reference_diagnostics {
 }
 
 reference_document_links {
-    Bracket and wikilink idea references — both same-file and cross-file — must receive a VS Code document-link
-    underline so the editor treats them identically to file-path references.
+    Bracket and wikilink idea references — both same-file and cross-file — must emit a document link
+    so the editor can follow them the same way as file-path references.
+    Editor activation is [editor_reference_activation].
     All resolved `LocalReference` and `QualifiedReference` idea/ideaset tokens should emit links targeting the
     declaration name, regardless of whether the target lives in the same file or an imported one.
     Namespace-import alias tokens (`[alias]` → file) keep their existing file-target link.
@@ -116,6 +120,59 @@ reference_document_links {
         ["../../../../packages/language/test/local-symbolic-links.test.ts:aliased from-import whose name contains the imported idea is one link"]
     )
     @status done
+}
+
+editor_reference_activation {
+    A file reference and an idea reference have no underline in the resting editor.
+    The editor shows an underline when the user holds Ctrl and the pointer is on that reference.
+    Ctrl+click follows the reference in the active editor.
+    A target in the open file moves the cursor in that editor.
+    A target in another file opens in the active editor group.
+    The editor does not open a second copy of the current file.
+    The editor does not open a browser page for a file or idea reference.
+    Alt+Left is navigate-back. It restores the caret from before go-to-definition.
+    The extension keeps that JUMP on a reqlan stack because Cursor often skips the editor history entry for same-file definition.
+    Definition targets prefer an open workspace tab URI so Cursor does not open a detached file copy.
+    The definition target range must move the caret (not an empty 0:0–0:0 range).
+    A click that is already on the declaration name is not a JUMP.
+    The TextMate scope is `meta.link.reqlan`.
+    A `markup.underline` scope forces an underline in the resting editor.
+    A file document link is always underlined, and its `#L` URI opens another editor.
+    The extension does not give the editor a file document link.
+    Ctrl+hover uses the definition request. That request is [reference_goto_definition_speed].
+    The interactive underline is the lexer token under the cursor: the path string or the idea id from the parser.
+    Definition returns `LocationLink.originSelectionRange` for that token so the editor does not invent a word from brackets or quotes.
+    Path segment names inside a quoted path are not reference tokens.
+    Do not register a definition provider for other languages. Do not rescan open source files for this activation.
+    A web URL and a command link (folder, wildcard) stay document links.
+    A click on a web URL opens that URL in the browser.
+    Related: [reference_document_links], [non_web_reference_navigation], [reference_goto_definition_speed].
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/scripts/patch-textmate.mjs"]
+        ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../../packages/extension/grammars/reqlan-comment.injection.json"]
+        ["../../../../packages/extension/language-configuration.json"]
+        ["../../../../packages/extension/src/extension/editor-link-activation.ts"]
+        ["../../../../packages/extension/src/extension/register-editor-link-activation.ts"]
+        ["../../../../packages/extension/src/extension/definition-navigation.ts"]
+        ["../../../../packages/extension/src/extension/definition-navigation-stack.ts"]
+        ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+    )
+    @tests (
+        ["../../../../packages/language/test/textmate-wildcard-highlight.test.ts:reference rules use the meta.link scope"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:keeps web URL and command document links"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:editor words are identifiers; reference tokens come from the parser"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:go-to-definition does not send the buffer"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:comment injection link scope is meta.link.reqlan"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:records a command selection move as a definition jump"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_origin_is_the_lexer_token_under_the_cursor"]
+    )
 }
 
 aliased_from_import_ctrl_click {
@@ -199,7 +256,7 @@ same_line_named_block_highlighting {
 wildcard_reference_highlighting {
     Bracket and wikilink forms of ["../../../language/imports.rq".wildcard_references]
     (`["path/**/*.rq".idea_*]`, `[["path/*.rq".*_pane|label]]`) must TextMate-scope as
-    `markup.underline.link.reqlan` with the path as `string.other.link.reqlan` — never as
+    `meta.link.reqlan` with the path as `string.other.link.reqlan` — never as
     `comment.block.reqlan`. The grey "comment" paint happened when `#bracket-references` only
     allowed ID suffixes, so `/*` inside an unmatched path opened a block comment.
     Fixes: TextMate `#bracket-references` / wiki path patterns accept `WILDCARD_NAME` suffixes;
@@ -224,21 +281,55 @@ wildcard_reference_highlighting {
 }
 
 reference_goto_definition_speed {
-    Go-to-definition on any resolved idea bracket-reference must be instant — same-file refs must not
-    be slower than cross-file ones, and neither should require a full document text scan at click time.
-    The definition provider must use cached Langium ref objects (O(1)) for idea tokens and must not
-    run character-level text scans (comment-reference scan, markdown-link regex) when the CST already
-    covers the cursor position.
-    Implemented by ["../../../../packages/language/src/reqlan-definition-provider.ts"]
-    (CST-first fast path for idea refs) and
-    ["../../../../packages/language/src/reqlan-markdown-links.ts"]
-    (no redundant text scan when CST is available).
+    Hover and go-to-definition are lookups on the open parse.
+    The parse keeps its references sorted by start byte. A request finds the reference under the cursor by binary search.
+    A request does not walk the syntax tree and does not convert each reference to a line and column.
+    A request resolves each authored path once per parse. It does not `stat` that path again.
+    A same-file idea uses that parse.
+    An open neighbor uses that neighbor's buffer.
+    A closed neighbor is parsed once. The server keeps its model, idea names, and name-token ranges.
+    A later request does one `stat`. It reads and parses the file again only when the modified time or the size changed.
+    A hover on a cross-file idea renders from that cached model. It does not read the file.
+    The target is the name token of the idea, in the open editor when the target is open.
+    An imported alias such as `[other]` reaches the imported idea.
+    A folder reference has no definition. Its link is the folder-picker command.
+    A hover renders idea content only when ["./features-syntax.rq".idea_content_tooltip] is on.
+    A request does not wait behind the confirm pass of ["../support/open-file-sequencing.rq".lazy_features_after_outbound].
+    The editor calls this request on Ctrl+hover.
+    The extension does not send the document text from that handler.
+    The extension does not open a folder picker or a wildcard panel from that handler.
+    A folder click and a wildcard click use the command document link.
+    When the engine is node, the provider uses cached Langium ref objects for idea tokens.
+    It does not scan the document text when the CST already covers the cursor.
+    Related: [editor_reference_activation], ["../../../language/imports.rq".wildcard_references_webview].
+
     @status done
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../packages/extension/src/extension/register-folder-reference-handling.ts"]
+        ["../../../../packages/extension/src/extension/register-wildcard-reference-handling.ts"]
+        ["../../../../packages/language/src/reqlan-definition-provider.ts"]
+        ["../../../../packages/language/src/reqlan-markdown-links.ts"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_uses_the_open_neighbor_parse"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_follows_a_changed_neighbor_to_the_name_token"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_of_an_imported_alias_reaches_the_neighbor"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:folder_reference_link_is_a_command"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_idea_content_from_another_file"]
+        ["../../../../crates/reqlan-lsp/tests/stdio.rs:stdio_initialize_and_shutdown"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:go-to-definition does not send the buffer"]
+    )
 }
 
 reference_resolution_folder {
   If the reference path is a folder, the extension should render a popup with a list of files in that folder.
-  The link should not try to resolve to a file if it doesn't exist.  
+  The link should not try to resolve to a file if it doesn't exist.
+  The popup is the command document link. Go-to-definition does not open the popup.
+  Related: [editor_reference_activation], [reference_goto_definition_speed].
 }
 
 
@@ -352,11 +443,19 @@ view_references_as_inlay_hints {
   This should be a toggleable setting, which should be available in the command palette.
   N-lines (configurable setting) of hints should be shown below the idea.
   Inbound lookup must stay interactive on large graphs via [inbound_inlay_index_performance].
-  Implemented by ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], and ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"].
-  @status incomplete
+  The Rust server honours `reqlan.referencesInlayHints.enabled` and the host inbound snapshot (`byIdeaName` + `fileReferencers`).
+  Implemented by ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"], and ["../../../../crates/reqlan-lsp/src/session.rs"].
+  @status done
+  @implementation (
+    ["../../../../crates/reqlan-lsp/src/session.rs"]
+    ["../../../../crates/reqlan-lsp/src/server.rs"]
+    ["../../../../packages/extension/src/extension/idea-content-tooltip.ts"]
+    ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"]
+  )
   @tests (
     ["../../../../packages/language/test/inlay-hints.test.ts"]
     ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts"]
+    ["../../../../crates/reqlan-lsp/tests/parity.rs:formats_inbound_referencers_as_an_inlayed_attribute"]
   )
 }
 
@@ -406,6 +505,9 @@ inbound_inlay_index_performance {
   Computing inbound reference inlay hints for a document with many ideas must look up a
   pre-pushed SQLite inbound snapshot (["../../../indexer/cache-reuse.rq".unify_inbound_indexes])
   in near-constant time per declaration.
+  Show the hints when that snapshot arrives
+  (["../support/open-file-sequencing.rq".lazy_features_after_outbound]).
+  An empty snapshot leaves the hints empty.
   Must not call Langium `findAllReferences` / equivalent full-index scans once per idea
   (that is O(ideas × workspace refs) and freezes the editor on dense graphs).
   Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
@@ -446,6 +548,8 @@ file_inbound_code_lens {
   Hide the CodeLens when the file has no inbound file references.
   Read referencers from the SQLite inbound snapshot
   (["../../../indexer/cache-reuse.rq".unify_inbound_indexes]).
+  Show the CodeLens when that snapshot arrives
+  (["../support/open-file-sequencing.rq".lazy_features_after_outbound]).
   Do not scan Langium IndexManager.
   The file CodeLens is independent of the outbound classification toggle on
   [code_lens_reference_types].

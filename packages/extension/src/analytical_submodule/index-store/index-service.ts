@@ -599,23 +599,10 @@ export class IndexService {
         return shareInFlight(this.collectRqFilesSlot, () => this.runCollectRqFiles());
     }
 
+    /** Each base index applies its own `.rqignore` to these paths. */
     private async runCollectRqFiles(): Promise<string[]> {
         const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**');
-        const filterCache = new Map<string, ReturnType<typeof loadRqIgnore>>();
-        return files
-            .map(uri => uri.fsPath)
-            .filter(fsPath => {
-                const entry = this.registry.baseForFilePath(fsPath);
-                if (!entry) {
-                    return true;
-                }
-                let filter = filterCache.get(entry.descriptor.id);
-                if (!filter) {
-                    filter = loadRqIgnore(entry.descriptor.root);
-                    filterCache.set(entry.descriptor.id, filter);
-                }
-                return !isIgnoredPath(filter, entry.descriptor.root, fsPath, false);
-            });
+        return files.map(uri => uri.fsPath);
     }
 
     private async collectIndexFiles(): Promise<string[]> {

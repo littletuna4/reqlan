@@ -96,7 +96,7 @@ export class ReqlanLinker extends DefaultLinker {
         if ((reference as { _ref?: unknown })._ref === UnlinkedFileTarget) {
             return undefined;
         }
-        // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+        // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
         // Do not link, warn, or cache a failure before scopes exist. A later phase can still link.
         if (reference._ref === undefined && documentBelowComputedScopes(node)) {
             return undefined;

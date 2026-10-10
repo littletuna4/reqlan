@@ -1130,17 +1130,32 @@ pub fn upsert_document(
         }
         map
     };
+    // `comment_link` edges belong to the code file that holds the comment, so kept ideas
+    // update in place; deleting a removed idea cascades to its comment links.
     tx.execute(
-        "DELETE FROM edges WHERE source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
+        "DELETE FROM edges WHERE kind != 'comment_link'
+           AND source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
         [file_uri],
     )?;
-    tx.execute("DELETE FROM ideas WHERE file_uri = ?1", [file_uri])?;
+    {
+        let mut delete_idea = tx.prepare("DELETE FROM ideas WHERE id = ?1")?;
+        for id in existing.keys().filter(|id| !ideas.iter().any(|idea| &idea.id == *id)) {
+            delete_idea.execute([id])?;
+        }
+    }
     {
         let mut insert_idea = tx.prepare(
             "INSERT INTO ideas (
                 id, name, kind, file_uri, line_start, line_end, summary,
                 attributes_json, content_hash, git_created_at, git_modified_at, git_change_count
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name, kind = excluded.kind, file_uri = excluded.file_uri,
+                line_start = excluded.line_start, line_end = excluded.line_end,
+                summary = excluded.summary, attributes_json = excluded.attributes_json,
+                content_hash = excluded.content_hash, git_created_at = excluded.git_created_at,
+                git_modified_at = excluded.git_modified_at,
+                git_change_count = excluded.git_change_count",
         )?;
         for idea in ideas {
             let previous = existing.get(&idea.id);

@@ -9,13 +9,14 @@ import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node
 import { ideaContentTooltipEnabled, pushIdeaContentTooltip } from './idea-content-tooltip.js';
 import { resolveLanguageServerLaunch } from './language-server-launch.js';
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
-import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
-import {
-    registerWildcardReferenceCommand,
-    withWildcardReferenceMiddleware
-} from './register-wildcard-reference-handling.js';
+import { registerFolderReferenceCommand } from './register-folder-reference-handling.js';
+import { registerWildcardReferenceCommand } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
 import { COMMENT_REFERENCE_LANGUAGES, registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import {
+    registerDefinitionNavigation,
+    withEditorNavigationMiddleware
+} from './register-definition-navigation.js';
 import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-actions.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
@@ -56,7 +57,10 @@ export function activate(context: vscode.ExtensionContext): void {
     // Each step is isolated so a failure in one cannot abort activation and leave
     // the extension stuck (which would keep the activity bar view unresolved and
     // commands unavailable).
-    runStep('reference inlay hints', () => registerReferenceInlayHintsToggle(context));
+    runStep('definition navigation', () => registerDefinitionNavigation(context));
+    runStep('reference inlay hints', () =>
+        registerReferenceInlayHintsToggle(context, () => client)
+    );
     runStep('reference code lens', () => registerReferenceCodeLens(context));
     const fileInboundCodeLens = new FileInboundCodeLensProvider();
     runStep('file inbound code lens', () => registerFileInboundCodeLens(context, fileInboundCodeLens));
@@ -199,27 +203,22 @@ async function startLanguageClient(
 
     // Options to control the language client
     let client!: LanguageClient;
-    const clientOptions: LanguageClientOptions = withWildcardReferenceMiddleware(
-        withFolderReferenceMiddleware(
-            {
+    const clientOptions: LanguageClientOptions = withEditorNavigationMiddleware({
                 initializationOptions: {
                     ideaContentTooltip: ideaContentTooltipEnabled(
                         vscode.workspace.getConfiguration('reqlan')
-                    )
+                    ),
+                    referenceInlayHints: vscode.workspace
+                        .getConfiguration('reqlan')
+                        .get<boolean>('referencesInlayHints.enabled', false)
                 },
-                documentSelector: [
-                    { scheme: '*', language: 'reqlan' },
-                    ...(launch.kind === 'rust'
-                        ? COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file' as const, language }))
-                        : [])
-                ]
-            },
-            () => client
-        ),
-        () => client,
-        () => submodule.index,
-        () => getActivityBarWebviewProvider()
-    );
+        documentSelector: [
+            { scheme: '*', language: 'reqlan' },
+            ...(launch.kind === 'rust'
+                ? COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file' as const, language }))
+                : [])
+        ]
+    });
 
     // Create the language client and start the client.
     client = new LanguageClient(
@@ -240,7 +239,10 @@ async function startLanguageClient(
     const configuration = vscode.workspace.getConfiguration('reqlan');
     pushIdeaContentTooltip(client, configuration);
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
-        if (event.affectsConfiguration('reqlan.ideaContentTooltip.enabled')) {
+        if (
+            event.affectsConfiguration('reqlan.ideaContentTooltip.enabled')
+            || event.affectsConfiguration('reqlan.referencesInlayHints.enabled')
+        ) {
             pushIdeaContentTooltip(client, vscode.workspace.getConfiguration('reqlan'));
         }
     }));

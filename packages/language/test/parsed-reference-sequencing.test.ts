@@ -2,8 +2,7 @@
  * Parsed-time LSP handlers must not touch Langium `.ref` (triggers uncached linking
  * retries and "Attempted reference resolution before document reached ComputedScopes").
  * git: Diff buffers often stay at Parsed while hover/definition/highlight/links fire repeatedly.
- * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
- * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
  */
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { AstUtils, DocumentState, isReference, URI, type LangiumDocument } from 'langium';
@@ -49,7 +48,7 @@ describe('Parsed-time reference sequencing', () => {
         return index;
     }
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('definition hover highlight and links do not resolve refs before ComputedScopes', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const document = populateParsed(s`
@@ -85,7 +84,7 @@ describe('Parsed-time reference sequencing', () => {
         warn.mockRestore();
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('definition still resolves same-file ideas at Parsed via symbolic path', async () => {
         const document = populateParsed(s`
             alpha {
@@ -104,7 +103,7 @@ describe('Parsed-time reference sequencing', () => {
         expect(document.state).toBe(DocumentState.Parsed);
     });
 
-    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".node_engine_open_path]
     test('reading every ref before ComputedScopes does not warn and linking still works', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const target = services.shared.workspace.LangiumDocumentFactory.fromString(s`

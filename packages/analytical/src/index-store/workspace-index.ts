@@ -343,7 +343,7 @@ export class WorkspaceIndex {
                 syncWorkspace: paths => this.syncWorkspace(paths, 'stale'),
                 syncInFlight: Boolean(this.syncInFlight)
             },
-            filePaths
+            this.indexedFiles(filePaths)
         );
     }
 
@@ -567,7 +567,7 @@ export class WorkspaceIndex {
                 diagnostics: this.diagnostics,
                 timingTrigger: this.nextTimingTrigger
             },
-            filePaths
+            filePaths && this.indexedFiles(filePaths)
         );
         // Full-base sync also indexes comment-bearing code files (mtime-skips .rq already done).
         if (ok && !filePaths?.length && !this.syncCancelRequested) {
@@ -677,6 +677,20 @@ export class WorkspaceIndex {
         return this.isReady;
     }
 
+    /**
+     * Caller paths (base discovery, idle check) pass the same `.rqignore` gate as the walk.
+     * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
+     */
+    private indexedFiles(filePaths: readonly string[]): string[] {
+        this.rqIgnore = loadRqIgnore(this.workspaceRoot);
+        return filePaths.filter(filePath => this.isIndexedPath(filePath));
+    }
+
+    private isIndexedPath(fullPath: string): boolean {
+        return !isSecretRqPath(fullPath)
+            && !isIgnoredPath(this.rqIgnore, this.workspaceRoot, fullPath, false);
+    }
+
     private async collectRqFiles(): Promise<string[]> {
         // Reload so edits to `.reqlan/.rqignore` apply on the next sync/walk.
         this.rqIgnore = loadRqIgnore(this.workspaceRoot);
@@ -704,12 +718,7 @@ export class WorkspaceIndex {
                 await this.walkDirectory(fullPath, results);
                 continue;
             }
-            if (
-                entry.isFile()
-                && entry.name.endsWith('.rq')
-                && !isSecretRqPath(entry.name)
-                && !isIgnoredPath(this.rqIgnore, this.workspaceRoot, fullPath, false)
-            ) {
+            if (entry.isFile() && entry.name.endsWith('.rq') && this.isIndexedPath(fullPath)) {
                 results.push(fullPath);
             }
         }

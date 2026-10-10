@@ -1,21 +1,21 @@
 /**
  * Extension-host commands for unresolved-reference quick fixes and reference search.
+ * Happy path uses LSP custom requests / index APIs — not Langium DI.
  * rq:["../../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
  */
 import * as path from 'node:path';
 import {
-    createReqlanServices,
     REQLAN_IMPORT_ERROR_CREATE_COMMAND,
     REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
     REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_SEARCH_REFERENCE_COMMAND,
     relativeRqImportPath,
-    resolveReferenceSearchSiteFromDocument,
     type ImportErrorCommandArgs,
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
-import { EmptyFileSystem, URI } from 'langium';
+import { URI } from 'langium';
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { State } from 'vscode-languageclient/node';
@@ -72,7 +72,7 @@ export function registerImportErrorCommands(
  * Code actions intentionally omit command arguments so VS Code does not cache
  * them under a disposable delegating id (see "Actual command not found … /N").
  * Resolve the search site from the active editor via the language server, or a
- * local parse when the client is not yet running.
+ * local text fallback when the client is not yet running.
  */
 async function resolveSearchArgsFromEditor(
     getClient: () => LanguageClient | undefined
@@ -115,12 +115,11 @@ async function resolveSearchArgsFromEditor(
         }
     }
 
-    const localSite = resolveSearchSiteLocally(documentUri, text, range);
+    const localSite = resolveSearchSiteLocally(documentUri, text, range, editor);
     if (localSite) {
         return localSite;
     }
 
-    // Last resort: open search against the selection/word text without AST context.
     const selected = editor.document.getText(editor.selection).trim();
     const refText = selected || wordAtPosition(editor.document, editor.selection.active);
     if (!refText) {
@@ -141,23 +140,42 @@ async function resolveSearchArgsFromEditor(
     };
 }
 
-/** Parse the active editor text locally when the language client is unavailable. */
+/** Text fallback when the language client is unavailable — no Langium DI. */
 function resolveSearchSiteLocally(
     documentUri: string,
     text: string,
-    range: { start: { line: number; character: number }; end: { line: number; character: number } }
+    range: { start: { line: number; character: number }; end: { line: number; character: number } },
+    editor: vscode.TextEditor
 ): SearchReferenceCommandArgs | undefined {
-    try {
-        const services = createReqlanServices(EmptyFileSystem);
-        const document = services.shared.workspace.LangiumDocumentFactory.fromString(
-            text,
-            URI.parse(documentUri)
-        );
-        return resolveReferenceSearchSiteFromDocument(documentUri, document, range);
-    } catch (error) {
-        console.error('[reqlan] local reference search site resolve failed:', error);
+    const selected = editor.document.getText(editor.selection).trim();
+    if (selected.startsWith('[') && selected.endsWith(']')) {
+        const inner = selected.slice(1, -1).trim();
+        const idea = inner.includes('.') ? inner.slice(inner.lastIndexOf('.') + 1).replace(/^["']|["']$/g, '') : inner;
+        if (idea) {
+            return { documentUri, refText: idea, range, mode: 'replace' };
+        }
+    }
+    const line = text.split(/\r?\n/)[range.start.line] ?? '';
+    const bracket = line.match(/\[([^\]]*)\]/);
+    if (bracket?.[1]) {
+        const inner = bracket[1].trim();
+        const idea = inner.includes('.')
+            ? inner.slice(inner.lastIndexOf('.') + 1).replace(/^["']|["']$/g, '')
+            : inner;
+        if (idea) {
+            return { documentUri, refText: idea, range, mode: 'replace' };
+        }
+    }
+    const word = wordAtPosition(editor.document, editor.selection.active);
+    if (!word) {
         return undefined;
     }
+    return {
+        documentUri,
+        refText: word,
+        range: wordRangeAtPosition(editor.document, editor.selection.active) ?? range,
+        mode: 'wrap'
+    };
 }
 
 function wordAtPosition(document: vscode.TextDocument, position: vscode.Position): string {

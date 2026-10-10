@@ -6,8 +6,7 @@ lsp_file_watch {
     It must not register a recursive all-files watcher.
     Watched-file events whose path contains a `node_modules`, `.git`, `.reqlan`, `out`, or `dist` segment must not start a document rebuild.
     Directory URIs without a trailing slash, Windows paths, and percent-encoded URIs must use the same segment rules.
-    A kept `.rq` change marks that document Changed. The factory then replaces the Langium AST
-    if the text changed ([ast_lifecycle]).
+    A kept `.rq` change replaces that buffer's model when the text changed ([ast_lifecycle]).
     Related: [language_server], [index_file_search_coalesce], [open_file_algorithm].
     @status done
     @implementation (
@@ -26,6 +25,7 @@ lsp_file_watch {
 index_file_search_coalesce {
     Extension-host `findFiles` for `**/*.rq` must share one in-flight search.
     Overlapping rediscover and sync callers must not start a second ripgrep / `searchtext.exe` process.
+    The search does not filter: the base index applies `.rqignore` (["../../../indexer/indexer.rq".nonblocking_index]), because the bases are not known before discovery.
     Related: [lsp_file_watch], ["../../index-host/index.rq".rqignore].
     @status done
     @implementation (

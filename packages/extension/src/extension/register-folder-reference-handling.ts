@@ -1,17 +1,5 @@
 import * as vscode from 'vscode';
-import type { LanguageClient, LanguageClientOptions } from 'vscode-languageclient/node';
-import { State } from 'vscode-languageclient/node';
-import { REQLAN_FILE_REFERENCE_AT_REQUEST, REQLAN_OPEN_FOLDER_COMMAND } from '@reqlan/language';
-
-export interface FileReferenceAtResponse {
-    sourceRange: {
-        start: { line: number; character: number };
-        end: { line: number; character: number };
-    };
-    targetUri: string;
-    resolution: 'file' | 'folder' | 'missing';
-    folderFiles?: string[];
-}
+import { REQLAN_OPEN_FOLDER_COMMAND } from '@reqlan/language';
 
 export function registerFolderReferenceCommand(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
@@ -19,45 +7,6 @@ export function registerFolderReferenceCommand(context: vscode.ExtensionContext)
             await openFolderReferencePicker(folderUri, folderFiles);
         })
     );
-}
-
-export function withFolderReferenceMiddleware(
-    clientOptions: LanguageClientOptions,
-    getClient: () => LanguageClient
-): LanguageClientOptions {
-    return {
-        ...clientOptions,
-        middleware: {
-            ...clientOptions.middleware,
-            provideDefinition: async (document, position, token, next) => {
-                const line = document.lineAt(position.line).text;
-                if (!line.includes('rq:') && !line.includes('["')) {
-                    return next(document, position, token);
-                }
-                try {
-                    const client = getClient();
-                    if (client.state !== State.Running) {
-                        return next(document, position, token);
-                    }
-                    const reference = await client.sendRequest<FileReferenceAtResponse | undefined>(
-                        REQLAN_FILE_REFERENCE_AT_REQUEST,
-                        {
-                            uri: document.uri.toString(),
-                            text: document.getText(),
-                            position
-                        }
-                    );
-                    if (reference?.resolution === 'folder') {
-                        await openFolderReferencePicker(reference.targetUri, reference.folderFiles);
-                        return null;
-                    }
-                } catch {
-                    // Fall through to default definition handling.
-                }
-                return next(document, position, token);
-            }
-        }
-    };
 }
 
 export async function openFolderReferencePicker(folderUri: string, fileNames?: string[]): Promise<void> {

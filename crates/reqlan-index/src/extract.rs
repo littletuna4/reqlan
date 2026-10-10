@@ -75,12 +75,23 @@ pub fn analyze_local_symbolic(
     source: &str,
     import_roots: &[ImportRootMapping],
 ) -> crate::types::LocalSymbolicDocument {
+    let parsed = parse_document(source);
+    analyze_local_symbolic_from_parse(file_uri, source, &parsed, import_roots)
+}
+
+/// File-local symbolic extract from an existing parse (no second `parse_document`).
+/// rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+pub fn analyze_local_symbolic_from_parse(
+    file_uri: &str,
+    source: &str,
+    parsed: &ParseResult,
+    import_roots: &[ImportRootMapping],
+) -> crate::types::LocalSymbolicDocument {
     let roots = if import_roots.is_empty() {
         reqlan_parse::default_import_roots()
     } else {
         import_roots.to_vec()
     };
-    let parsed = parse_document(source);
     let import_bindings = parsed
         .model
         .import_bindings()
@@ -90,7 +101,7 @@ pub fn analyze_local_symbolic(
     let doc = extract_from_parse(
         file_uri,
         source,
-        &parsed,
+        parsed,
         &ExtractOptions { idea_candidates: Vec::new(), import_roots: roots, local_symbolic: true },
     );
     let mut symbolic = crate::types::LocalSymbolicDocument::from_indexed(doc);

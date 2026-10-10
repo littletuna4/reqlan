@@ -166,7 +166,7 @@ grammar.repository.attributes = {
 grammar.repository.wikilinks = {
     patterns: [
         {
-            name: 'markup.underline.link.reqlan',
+            name: 'meta.link.reqlan',
             match: wikiPathRef,
             captures: {
                 '1': { name: 'string.other.link.reqlan' },
@@ -175,7 +175,7 @@ grammar.repository.wikilinks = {
             }
         },
         {
-            name: 'markup.underline.link.reqlan',
+            name: 'meta.link.reqlan',
             match: '\\[\\[([^\\]|]+)(\\|[^\\]]+)?\\]\\]',
             captures: {
                 '1': { name: 'entity.name.tag.reference.reqlan' },
@@ -186,7 +186,7 @@ grammar.repository.wikilinks = {
 };
 
 grammar.repository['markdown-links'] = {
-    name: 'markup.underline.link.reqlan',
+    name: 'meta.link.reqlan',
     match: '\\[([^\\]]+)\\]\\(([^)]+)\\)',
     captures: {
         '1': { name: 'string.other.link.title.reqlan' },
@@ -195,7 +195,7 @@ grammar.repository['markdown-links'] = {
 };
 
 grammar.repository['idea-bracket-references'] = {
-    name: 'markup.underline.link.reqlan',
+    name: 'meta.link.reqlan',
     match: '\\[(?![#\\["])([^\\]]+)\\](?!\\()',
     captures: {
         '1': { name: 'entity.name.tag.reference.reqlan' }
@@ -203,7 +203,7 @@ grammar.repository['idea-bracket-references'] = {
 };
 
 grammar.repository['bracket-references'] = {
-    name: 'markup.underline.link.reqlan',
+    name: 'meta.link.reqlan',
     match: bracketPathRef,
     captures: {
         '1': { name: 'string.other.link.reqlan' }
@@ -211,7 +211,7 @@ grammar.repository['bracket-references'] = {
 };
 
 grammar.repository['url-bracket-references'] = {
-    name: 'markup.underline.link.reqlan',
+    name: 'meta.link.reqlan',
     match: bracketUrlRef,
     captures: {
         '1': { name: 'string.other.link.reqlan' }

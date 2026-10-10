@@ -30,7 +30,7 @@ analytical_rust_port {
     )
     @plan {
         goal
-            Same AnalysisApi behaviour, faster and native, distributed as per-arch npm packages and per-target VSIXes without breaking the shared `<base>/.reqlan` index or the Langium editor.
+            Same AnalysisApi behaviour, faster and native, distributed as per-arch npm packages and per-target VSIXes without breaking the shared `<base>/.reqlan` index. The editor LSP is Rust ([lsp_rust.language_server_rust]).
 
         constraints
             - Ship per [distribution.rust_binary_distribution] and [distribution.vsix_export]: npm platform packages + host-targeted VSIX; website listing and GitHub-release postinstall out of scope.
@@ -141,7 +141,8 @@ lexer_rust {
     Hand-written Rust lexer that ports ["../../packages/language/src/reqlan-token-builder.ts"]:
     structural vs prose `{` / `}`, fence opacity, quote-aware comments, `@` only at line start, glob `/**/` not a block comment.
     Linear in document size with sparse brace-depth lookup ([syntax_edges.context_sensitive_lexer_scaling]).
-    Owned by `reqlan-parse`; consumed by [parser_rust]. Langium token builder remains the LSP lexer until a later language-server port.
+    Owned by `reqlan-parse`; consumed by [parser_rust] and by [lsp_rust.language_server_rust].
+    The Langium token builder remains only for the transitional `node` engine fallback and dual-parser tests.
     @status done
     @tests (
         ["../../crates/reqlan-parse/tests/lexer.rs:structural_braces_around_named_block"]
@@ -159,8 +160,8 @@ parser_rust {
     Recursive-descent parser matching ["../../packages/language/src/reqlan.langium"] productions into a Rust AST the extractor can walk.
     Recovery: nameless `{...}` and local import mistakes still yield a usable document ([parser_lexer.recovery_vs_budget]).
     Wall-clock [parser_lexer.parse_budget_timeout] via native timeout/cancel — no Node worker process required on the index path.
-    Dual-parser window: every grammar change updates Langium *and* `reqlan-parse` until the index path is Rust-only.
-    CLI `parse` uses the core engine `parseReqlanSource` (`reqlan-parse`); Langium stays the editor LSP parser.
+    Open `.rq` buffers and CLI `parse` use `reqlan-parse` ([lsp_rust.language_server_rust]).
+    Langium remains a dual-parser test oracle and the transitional `node` engine fallback — not the default editor LSP.
     Alignment contract: [parser_align].
     @status done
     @tests (
@@ -182,10 +183,11 @@ parser_rust {
 }
 
 parser_align {
-    Langium and `reqlan-parse` stay two engines until the language server uses Rust.
+    Langium and `reqlan-parse` stay two engines as a dual-parser **test oracle**.
     Grammar truth is [syntax] / ["../../packages/language/src/reqlan.langium"].
     The same source must yield the same parse snapshot: top-level elements, live bracket and wiki refs, inline-code count, and fence count.
     One Node test runs Langium and native `parseReqlanSource` (`parseAlignSnapshot`) together. A committed name dump is not the only check.
+    The default editor LSP already uses Rust ([lsp_rust.language_server_rust]); this idea does not gate that cutover.
     Related: [golden_corpus], [parser_rust], [comment_span_align].
     @status done
     @implementation (
@@ -275,7 +277,7 @@ cutover {
     Native engine is required for CLI, MCP, and the extension IndexService path (no `REQLAN_ANALYTICAL_ENGINE=js` escape hatch).
     Order: golden parse/extract → headless CLI `analyse`/`search`/`export` → MCP → extension via platform VSIX (host-matching napi `.node` required).
     Shared [bases.base] `.reqlan` DB is schema v4 rusqlite; fixtures verify reopen compatibility.
-    Langium remains for the editor LSP only; the index path uses Rust parse/extract.
+    The default editor LSP is [lsp_rust.language_server_rust]. Langium remains only as the transitional `node` engine fallback and dual-parser oracle ([parser_align]).
     @status done
     @tests (
         ["../../crates/reqlan-index/tests/schema.rs:opens_at_schema_version_4"]

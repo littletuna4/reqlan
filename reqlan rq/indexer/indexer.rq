@@ -107,14 +107,13 @@ local_symbolic_analysis {
     (["../extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]).
     Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
     Do not read SQLite. Do not walk other workspace documents. Do not load an idea catalog.
-    This extract is not the Langium AST
-    (["../extension/language/support/open-file-sequencing.rq".ast_lifecycle]).
-    The language server confirms cross-file idea names with a separate depth-1 neighbor parse
+    The open-buffer model is ["../extension/language/support/open-file-sequencing.rq".ast_lifecycle].
+    The hot path parses this buffer once. It does not run this extract as a second parse.
+    Import-target confirmation is a separate depth-1 parse
     (["../extension/language/support/open-file-sequencing.rq".outbound_one_hop]).
-    That hop is not part of this native extract. The LSP caches this file's extract by URI
-    plus text fingerprint
+    That parse is not this extract.
+    The language server caches the open buffer by URI plus text fingerprint
     (["../extension/language/support/open-file-sequencing.rq".open_file_hot_path]).
-    That hop is not part of this native extract.
     Wildcard forms stay one `wildcard_reference` pattern edge (unresolved); sync still expands
     them later via [wildcard_reference_edges].
     Flag: `ExtractOptions.local_symbolic` forces an empty candidate list.
@@ -200,10 +199,13 @@ nonblocking_index {
     - Single-file create/change/delete via watchers indexes only that file — never a full base walk.
     - Soft full sync (`syncWorkspace` / Refresh) skips parse+persist when the file's mtime matches the value stored on the documents row.
     - Hard refresh (`clearAndRebuildIndex` / Clear & rebuild) wipes the store and reindexes every file.
+    - Every sync and stale check applies `.rqignore` to the paths it receives, the same as the base walk; the native single-file index also drops an ignored path.
+      Thus base discovery cannot make the first sync index ignored files.
     Implemented by [workspace_index]; editor adapter [editor_index_adapter].
     @tests (
         [workspace_index_tests]
         ["../../packages/analytical/src/index-store/workspace-index.ts"]
+        ["../../packages/analytical/test/workspace-index.test.ts:soft sync drops rqignored paths supplied by base discovery"]
         ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]
         ["../../crates/reqlan-index/tests/sync.rs:hard_rebuild_reindexes_despite_mtime"]
     )
@@ -297,7 +299,9 @@ index_code_files {
     Binary files stay out unless a negation such as `!*.bin` opts them in.
     The walk cheap-filters on `rq:`, and persists matching files as documents plus `comment_link` edges.
     Edge shape: source = referenced idea, `target_file` = code file URI, kind `comment_link` (no synthetic file ideas).
-    Reindex of a `.rq` file re-applies comment links from already-indexed code documents so FK cascade does not drop them.
+    Reindex of a `.rq` file updates kept ideas in place, so their comment links stay. Deletion of a removed idea cascades to its links.
+    Code documents are re-linked only when the set of idea names in that `.rq` file changes, because links resolve on names only.
+    A body edit must not read the code files again.
     Watcher + idle stale check cover code documents as well as `.rq` files ([triggers], [nonblocking_index]).
     Consumers: [graph_analysers.file_related_requirements], ["../core_analysis/search.rq".file_search],
     ["../core_analysis/html_export.rq".html_export_code_reference_pages], Ideas Summary comment-reference rows,
@@ -314,6 +318,8 @@ index_code_files {
         ["../../crates/reqlan-index/tests/code_file_index.rs:indexes_comment_references_from_non_rq_files"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:unqualified_comment_ref_matches_catalog_idea_name"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:rq_reindex_restores_comment_links"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:rq_reindex_relinks_code_files_only_when_idea_names_change"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:index_one_file_drops_an_rqignored_rq_file"]
         ["../../crates/reqlan-index/tests/code_file_index.rs:skips_binary_comment_files_unless_rqignore_negation"]
         ["../../crates/reqlan-analytical/tests/file_context.rs:file_context_includes_indexed_comment_links"]
         ["../../crates/reqlan-analytical/tests/fuzzy_search.rs:workspace_index_fuzzy_search_includes_comment_code_files"]

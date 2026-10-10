@@ -1,15 +1,18 @@
 //! Open-buffer language features from the Rust AST.
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
 //! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+//! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
 use crate::utf16::{range_contains, utf16_len, LineMap};
 use lsp_types::{
     CodeActionOrCommand, Command, CompletionItem, CompletionItemKind, Diagnostic,
     DiagnosticSeverity, DocumentHighlight, DocumentHighlightKind, DocumentLink, InlayHint,
     InlayHintLabel, InlayHintLabelPart, InlayHintLabelPartTooltip, InlayHintTooltip, Location,
-    MarkupContent, MarkupKind, Position, Range, SemanticToken, SemanticTokens, TextEdit, Url,
+    LocationLink, MarkupContent, MarkupKind, Position, Range, SemanticToken, SemanticTokens,
+    TextEdit, Url,
 };
 use reqlan_index::{
-    analyze_local_symbolic, find_rq_ignore_error_target_lines, local_name_binding,
+    analyze_local_symbolic_from_parse, find_rq_ignore_error_target_lines, local_name_binding,
     LocalNameBinding, LocalSymbolicDocument,
 };
 use reqlan_parse::{
@@ -17,6 +20,8 @@ use reqlan_parse::{
     AttributeValue, BodyElement, Import, ImportRootMapping, ListItem, Model, ReferenceTarget,
     RichPart, Span, TopLevelElement,
 };
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 const TYPE_IDEA: u32 = 0;
@@ -27,7 +32,8 @@ const TYPE_DECORATOR: u32 = 4;
 const TYPE_OPERATOR: u32 = 5;
 const MOD_DEFINITION: u32 = 1;
 
-const ATTRIBUTE_KEYS: &[&str] = &[
+/// Endorsed attribute keys used until the host pushes a catalog.
+pub const ENDORSED_ATTRIBUTE_KEYS: &[&str] = &[
     "plan",
     "status",
     "priority",
@@ -42,6 +48,22 @@ const ATTRIBUTE_KEYS: &[&str] = &[
     "deprecated",
     "tests",
 ];
+
+/// Host-pushed attribute completion catalog.
+#[derive(Debug, Clone, Default)]
+pub struct AttributeCatalog {
+    pub keys: Vec<String>,
+    pub values_by_key: HashMap<String, Vec<String>>,
+}
+
+impl AttributeCatalog {
+    pub fn endorsed() -> Self {
+        Self {
+            keys: ENDORSED_ATTRIBUTE_KEYS.iter().map(|key| (*key).to_string()).collect(),
+            values_by_key: HashMap::new(),
+        }
+    }
+}
 
 /// One idea that references the declaration under the inlay.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +83,13 @@ pub(crate) struct HoverHit {
     pub external: Option<(String, String)>,
 }
 
+enum HoverToken<'a> {
+    Idea(&'a str),
+    ExternalIdea(&'a str, &'a str),
+    Path(&'a str),
+    Wildcard(&'a str, &'a str),
+}
+
 #[derive(Debug, Clone)]
 pub struct NameLoc {
     pub name: String,
@@ -75,9 +104,14 @@ pub struct DocModel {
     pub lines: LineMap,
     pub roots: Vec<ImportRootMapping>,
     file_path: Option<PathBuf>,
-    names: Vec<NameLoc>,
+    pub(crate) names: Vec<NameLoc>,
     tokens: Vec<RawToken>,
     model: Model,
+    parse_diagnostics: Vec<reqlan_parse::ParseDiagnostic>,
+    /// Body references sorted by start byte. A cursor lookup is a binary search.
+    refs: Vec<ReferenceTarget>,
+    /// Authored path to resolved file, filled on first use for this parse.
+    located: RefCell<HashMap<String, Option<PathBuf>>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -93,13 +127,26 @@ impl DocModel {
         let roots = file_path
             .map(|path| reqlan_index::load_applying_rq_config(path, Some(path)).import_roots)
             .unwrap_or_else(reqlan_parse::default_import_roots);
+        Self::parse_with_roots(uri, text, file_path, roots)
+    }
+
+    /// Parse with import roots already loaded for this file.
+    pub fn parse_with_roots(
+        uri: &str,
+        text: String,
+        file_path: Option<&Path>,
+        roots: Vec<ImportRootMapping>,
+    ) -> Self {
         let parsed = parse_document(&text);
-        let symbolic = analyze_local_symbolic(uri, &text, &roots);
+        let symbolic = analyze_local_symbolic_from_parse(uri, &text, &parsed, &roots);
         let lines = LineMap::new(&text);
         let mut tokens = Vec::new();
         let mut names = Vec::new();
         collect_model(&text, &lines, &parsed.model, &symbolic, &mut tokens, &mut names);
         tokens.sort_by_key(|token| (token.start, token.end));
+        let mut refs = Vec::new();
+        walk_refs(&parsed.model, &mut |target, _| refs.push(target.clone()));
+        refs.sort_by_key(|target| target_span(target).start);
         Self {
             text,
             lines,
@@ -108,11 +155,36 @@ impl DocModel {
             names,
             tokens,
             model: parsed.model,
+            parse_diagnostics: parsed.diagnostics,
+            refs,
+            located: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn has_idea(&self, name: &str) -> bool {
         self.names.iter().any(|idea| idea.name == name)
+    }
+
+    /// Name token of a declared idea, or the line of an import binding when the name is an alias.
+    pub(crate) fn idea_range(&self, name: &str) -> Option<Range> {
+        if let Some(idea) = self.names.iter().find(|idea| idea.name == name) {
+            return Some(idea.range);
+        }
+        self.model
+            .import_bindings()
+            .into_iter()
+            .find(|(binding, _)| binding == name)
+            .map(|(_, line)| line_range(line, name))
+    }
+
+    fn byte_at(&self, pos: Position) -> usize {
+        self.lines.byte_at(&self.text, pos)
+    }
+
+    fn ref_at(&self, byte: usize) -> Option<&ReferenceTarget> {
+        let after = self.refs.partition_point(|target| target_span(target).start <= byte);
+        let target = self.refs.get(after.checked_sub(1)?)?;
+        span_has(target_span(target), byte).then_some(target)
     }
 
     /// True when `name` is an import alias in this file, not a declared idea.
@@ -183,6 +255,15 @@ impl DocModel {
         if authored.contains("://") {
             return None;
         }
+        if let Some(found) = self.located.borrow().get(authored) {
+            return found.clone();
+        }
+        let found = self.locate_on_disk(authored);
+        self.located.borrow_mut().insert(authored.to_string(), found.clone());
+        found
+    }
+
+    fn locate_on_disk(&self, authored: &str) -> Option<PathBuf> {
         let from = self
             .file_path
             .as_ref()
@@ -192,7 +273,8 @@ impl DocModel {
         existing_path(&resolved)
     }
 
-    pub fn neighbor_queries(&self) -> Vec<(String, String)> {
+    /// Import targets and import-bound local names for the open-file hot path.
+    pub fn import_neighbor_queries(&self) -> Vec<(String, String)> {
         let mut pairs = Vec::new();
         for import in &self.model.imports {
             match import {
@@ -208,9 +290,6 @@ impl DocModel {
             }
         }
         walk_refs(&self.model, &mut |target, _| match target {
-            ReferenceTarget::Qualified { path: Some(path), idea, .. } => {
-                pairs.push((path.clone(), idea.clone()));
-            }
             ReferenceTarget::Qualified { path: None, qualifier: Some(qualifier), idea, .. } => {
                 if let Some(LocalNameBinding::Namespace { path }) =
                     local_name_binding(&self.model.imports, qualifier)
@@ -226,6 +305,17 @@ impl DocModel {
                 }
             }
             _ => {}
+        });
+        pairs
+    }
+
+    /// Path-qualified body references confirmed after the hot path.
+    pub fn qualified_neighbor_queries(&self) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+        walk_refs(&self.model, &mut |target, _| {
+            if let ReferenceTarget::Qualified { path: Some(path), idea, .. } = target {
+                pairs.push((path.clone(), idea.clone()));
+            }
         });
         pairs
     }
@@ -263,6 +353,7 @@ impl DocModel {
         &self,
         mut neighbor_has: F,
         mut neighbor_binds_import: A,
+        confirm_path_qualified: bool,
     ) -> Vec<Diagnostic>
     where
         F: FnMut(&str, &str) -> bool,
@@ -270,7 +361,7 @@ impl DocModel {
     {
         let ignored = find_rq_ignore_error_target_lines(&self.text);
         let mut out = Vec::new();
-        for diagnostic in &parse_document(&self.text).diagnostics {
+        for diagnostic in &self.parse_diagnostics {
             let range = self.lines.range(
                 &self.text,
                 diagnostic.offset,
@@ -296,6 +387,9 @@ impl DocModel {
             }
             ReferenceTarget::Qualified { span, path, qualifier, idea, ideaset } => {
                 if let Some(path) = path {
+                    if !confirm_path_qualified {
+                        return;
+                    }
                     if !neighbor_has(path, idea)
                         && !neighbor_binds_import(path, idea)
                         && !self.has_idea(idea)
@@ -386,19 +480,29 @@ impl DocModel {
         SemanticTokens { result_id: None, data }
     }
 
-    pub fn links(&self, doc_uri: &str) -> Vec<DocumentLink> {
+    pub fn links<N>(&self, doc_uri: &str, mut neighbor_range_of: N) -> Vec<DocumentLink>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
+        let mut neighbor_line_of =
+            |path: &Path, idea: &str| neighbor_range_of(path, idea).map(|range| range.start.line);
         let mut links = Vec::new();
         walk_refs(&self.model, &mut |target, _| match target {
             ReferenceTarget::Local { span, idea } => {
                 if let Some(decl) = self.names.iter().find(|item| item.name == *idea) {
                     links.push(self.idea_link(doc_uri, span, decl.line, idea));
                 } else if let Some(binding) = local_name_binding(&self.model.imports, idea) {
-                    self.push_binding_link(&mut links, span, &binding);
+                    self.push_binding_link(&mut links, span, &binding, &mut neighbor_line_of);
                 }
             }
             ReferenceTarget::File { span, file }
             | ReferenceTarget::FileSymbol { span, file, .. } => {
-                if let Some(target) = self.located_url(file) {
+                if let Some(target) = self.path_document_url(file) {
+                    links.push(link(self, *span, target));
+                }
+            }
+            ReferenceTarget::Wildcard { span, path_pattern, idea_pattern } => {
+                if let Some(target) = wildcard_command_url(path_pattern, idea_pattern, doc_uri) {
                     links.push(link(self, *span, target));
                 }
             }
@@ -410,11 +514,18 @@ impl DocModel {
             ReferenceTarget::Qualified { span, path, qualifier, ideaset, idea } => {
                 if let Some(path) = path.as_deref() {
                     if let Some(file) = self.locate(path) {
-                        if let Ok(target) = Url::from_file_path(&file) {
+                        if file.is_dir() {
+                            if let (Some(path_span), Some(target)) = (
+                                authored_path_span(&self.text, *span, path),
+                                folder_command_url(&file),
+                            ) {
+                                links.push(link(self, path_span, target));
+                            }
+                        } else if let Ok(target) = Url::from_file_path(&file) {
                             if let Some(path_span) = authored_path_span(&self.text, *span, path) {
                                 links.push(link(self, path_span, target.clone()));
                             }
-                            if let Some(line) = neighbor_line(&file, idea) {
+                            if let Some(line) = neighbor_line_of(&file, idea) {
                                 if let Some(leaf) =
                                     ident_span_from(&self.text, *span, span.start, idea)
                                 {
@@ -431,6 +542,7 @@ impl DocModel {
                         qualifier,
                         ideaset.as_deref(),
                         idea,
+                        &mut neighbor_line_of,
                     );
                 } else if let Some(decl) = self.names.iter().find(|item| item.name == *idea) {
                     let leaf =
@@ -438,10 +550,9 @@ impl DocModel {
                     links.push(self.idea_link(doc_uri, &leaf, decl.line, idea));
                 }
             }
-            _ => {}
         });
         for import in &self.model.imports {
-            self.push_import_token_links(&mut links, import);
+            self.push_import_token_links(&mut links, import, &mut neighbor_line_of);
         }
         links
     }
@@ -455,15 +566,18 @@ impl DocModel {
         }
     }
 
-    fn push_binding_link(
+    fn push_binding_link<N>(
         &self,
         links: &mut Vec<DocumentLink>,
         span: &Span,
         binding: &LocalNameBinding,
-    ) {
+        neighbor_line_of: &mut N,
+    ) where
+        N: FnMut(&Path, &str) -> Option<u32>,
+    {
         match binding {
             LocalNameBinding::Namespace { path } => {
-                if let Some(target) = self.located_url(path) {
+                if let Some(target) = self.path_document_url(path) {
                     links.push(link(self, *span, target));
                 }
             }
@@ -471,7 +585,7 @@ impl DocModel {
                 let Some(file) = self.locate(path) else {
                     return;
                 };
-                let Some(line) = neighbor_line(&file, idea) else {
+                let Some(line) = neighbor_line_of(&file, idea) else {
                     return;
                 };
                 if let Ok(target) = Url::from_file_path(&file) {
@@ -481,11 +595,15 @@ impl DocModel {
         }
     }
 
-    fn located_url(&self, authored: &str) -> Option<Url> {
+    /// File URL, or a folder-picker command when the path is a directory.
+    fn path_document_url(&self, authored: &str) -> Option<Url> {
         if authored.contains("://") {
             return Url::parse(authored).ok();
         }
         let path = self.locate(authored)?;
+        if path.is_dir() {
+            return folder_command_url(&path);
+        }
         Url::from_file_path(path).ok()
     }
 
@@ -576,7 +694,7 @@ impl DocModel {
         }
     }
 
-    fn push_dotted_links(
+    fn push_dotted_links<N>(
         &self,
         links: &mut Vec<DocumentLink>,
         doc_uri: &str,
@@ -584,7 +702,10 @@ impl DocModel {
         qualifier: &str,
         ideaset: Option<&str>,
         idea: &str,
-    ) {
+        neighbor_line_of: &mut N,
+    ) where
+        N: FnMut(&Path, &str) -> Option<u32>,
+    {
         let parts = self.dotted_parts(*span, Some(qualifier), ideaset, idea);
         if ideaset.is_none() {
             match self.local_name_kind(qualifier) {
@@ -601,18 +722,18 @@ impl DocModel {
             local_name_binding(&self.model.imports, qualifier)
         {
             if let Some(qualifier_span) = parts.qualifier {
-                if let Some(target) = self.located_url(&path) {
+                if let Some(target) = self.path_document_url(&path) {
                     links.push(link(self, qualifier_span, target));
                 }
             }
             if let Some(file) = self.locate(&path) {
                 if let Ok(target) = Url::from_file_path(&file) {
                     if let (Some(name), Some(middle)) = (ideaset, parts.ideaset) {
-                        if let Some(line) = neighbor_line(&file, name) {
+                        if let Some(line) = neighbor_line_of(&file, name) {
                             links.push(self.foreign_idea_link(middle, &target, line, name));
                         }
                     }
-                    if let Some(line) = neighbor_line(&file, idea) {
+                    if let Some(line) = neighbor_line_of(&file, idea) {
                         if parts.idea.end.saturating_sub(parts.idea.start) == idea.len() {
                             links.push(self.foreign_idea_link(parts.idea, &target, line, idea));
                         }
@@ -648,28 +769,47 @@ impl DocModel {
         }
     }
 
-    fn push_import_token_links(&self, links: &mut Vec<DocumentLink>, import: &Import) {
+    fn push_import_token_links<N>(
+        &self,
+        links: &mut Vec<DocumentLink>,
+        import: &Import,
+        neighbor_line_of: &mut N,
+    ) where
+        N: FnMut(&Path, &str) -> Option<u32>,
+    {
         let Some(path) = import.path() else {
             return;
         };
         let Some(path_span) = import.path_span() else {
             return;
         };
-        if let Some(target) = self.located_url(path) {
+        if let Some(target) = self.path_document_url(path) {
             links.push(link(self, path_span, target));
         }
         match import {
             Import::From(from) => {
                 for spec in &from.specifiers {
-                    self.push_imported_idea_link(links, path, spec.idea_span, &spec.idea);
+                    self.push_imported_idea_link(
+                        links,
+                        path,
+                        spec.idea_span,
+                        &spec.idea,
+                        neighbor_line_of,
+                    );
                     if let Some(alias_span) = spec.alias_span {
-                        self.push_imported_idea_link(links, path, alias_span, &spec.idea);
+                        self.push_imported_idea_link(
+                            links,
+                            path,
+                            alias_span,
+                            &spec.idea,
+                            neighbor_line_of,
+                        );
                     }
                 }
             }
             Import::Namespace(namespace) => {
                 if let Some(alias_span) = namespace.alias_span {
-                    if let Some(target) = self.located_url(path) {
+                    if let Some(target) = self.path_document_url(path) {
                         links.push(link(self, alias_span, target));
                     }
                 }
@@ -680,228 +820,306 @@ impl DocModel {
                     path,
                     qualified.ideaset_span,
                     &qualified.ideaset,
+                    neighbor_line_of,
                 );
-                self.push_imported_idea_link(links, path, qualified.idea_span, &qualified.idea);
+                self.push_imported_idea_link(
+                    links,
+                    path,
+                    qualified.idea_span,
+                    &qualified.idea,
+                    neighbor_line_of,
+                );
                 if let Some(alias_span) = qualified.alias_span {
-                    self.push_imported_idea_link(links, path, alias_span, &qualified.idea);
+                    self.push_imported_idea_link(
+                        links,
+                        path,
+                        alias_span,
+                        &qualified.idea,
+                        neighbor_line_of,
+                    );
                 }
             }
             Import::InvalidFrom(_) => {}
         }
     }
 
-    fn push_imported_idea_link(
+    fn push_imported_idea_link<N>(
         &self,
         links: &mut Vec<DocumentLink>,
         path: &str,
         span: Span,
         idea: &str,
-    ) {
+        neighbor_line_of: &mut N,
+    ) where
+        N: FnMut(&Path, &str) -> Option<u32>,
+    {
         if idea.is_empty() {
             return;
         }
-        let Some((file, line)) = self.neighbor_idea(path, idea) else {
+        let Some((file, line)) = self.neighbor_idea(path, idea, neighbor_line_of) else {
             return;
         };
         links.push(self.foreign_idea_link(span, &file, line, idea));
     }
 
-    fn neighbor_idea(&self, path: &str, idea: &str) -> Option<(Url, u32)> {
+    fn neighbor_idea<N>(
+        &self,
+        path: &str,
+        idea: &str,
+        neighbor_line_of: &mut N,
+    ) -> Option<(Url, u32)>
+    where
+        N: FnMut(&Path, &str) -> Option<u32>,
+    {
         let file = self.locate(path)?;
-        let line = neighbor_line(&file, idea)?;
+        let line = neighbor_line_of(&file, idea)?;
         let uri = Url::from_file_path(&file).ok()?;
         Some((uri, line))
     }
 
-    fn file_location(&self, path: &str) -> Option<Location> {
-        Some(Location { uri: self.located_url(path)?, range: Range::default() })
+    /// A file target for go-to-definition. A folder has no definition; its link is a command.
+    /// The landing range is one character so the editor records a JUMP for Alt+Left navigate-back.
+    fn file_definition(&self, path: &str) -> Option<Location> {
+        if path.contains("://") {
+            return Some(Location { uri: Url::parse(path).ok()?, range: file_landing_range() });
+        }
+        let file = self.locate(path)?;
+        if file.is_dir() {
+            return None;
+        }
+        Some(Location { uri: Url::from_file_path(file).ok()?, range: file_landing_range() })
     }
 
-    fn idea_location(&self, path: &str, idea: &str) -> Option<Location> {
-        let (uri, line) = self.neighbor_idea(path, idea)?;
-        Some(Location {
-            uri,
-            range: Range {
-                start: Position { line, character: 0 },
-                end: Position { line, character: utf16_len(idea) },
-            },
+    fn idea_location<N>(
+        &self,
+        path: &str,
+        idea: &str,
+        neighbor_range_of: &mut N,
+    ) -> Option<Location>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
+        let file = self.locate(path)?;
+        let range = non_empty_selection(neighbor_range_of(&file, idea)?);
+        Some(Location { uri: Url::from_file_path(&file).ok()?, range })
+    }
+
+    fn local_location(&self, doc_uri: &str, idea: &str) -> Option<Location> {
+        let decl = self.names.iter().find(|item| item.name == idea)?;
+        Some(Location { uri: parse_url(doc_uri), range: non_empty_selection(decl.range) })
+    }
+
+    /// Build a LocationLink. Skip when origin and target are the same place — that is not a
+    /// JUMP, so navigate-back (Alt+Left) would have nothing to restore.
+    fn definition_link(
+        &self,
+        doc_uri: &str,
+        origin: Span,
+        target: Location,
+    ) -> Option<LocationLink> {
+        let origin_range = self.lines.range(&self.text, origin.start, origin.end);
+        let target_range = non_empty_selection(target.range);
+        if target.uri.as_str() == doc_uri && origin_range == target_range {
+            return None;
+        }
+        Some(LocationLink {
+            origin_selection_range: Some(origin_range),
+            target_uri: target.uri,
+            target_range,
+            target_selection_range: target_range,
         })
     }
 
-    fn import_definition(&self, pos: Position) -> Option<Location> {
-        for import in &self.model.imports {
-            let Some(path) = import.path() else {
-                continue;
-            };
-            if import.path_span().is_some_and(|span| self.span_contains(span, pos)) {
-                return self.file_location(path);
-            }
-            match import {
-                Import::From(from) => {
-                    for spec in &from.specifiers {
-                        if self.span_contains(spec.idea_span, pos) {
-                            return self.idea_location(path, &spec.idea);
-                        }
-                        if spec.alias_span.is_some_and(|span| self.span_contains(span, pos)) {
-                            return self.idea_location(path, &spec.idea);
-                        }
-                    }
-                }
-                Import::Namespace(namespace) => {
-                    if namespace.alias_span.is_some_and(|span| self.span_contains(span, pos)) {
-                        return self.file_location(path);
-                    }
-                }
-                Import::Qualified(qualified) => {
-                    if self.span_contains(qualified.ideaset_span, pos) {
-                        return self.idea_location(path, &qualified.ideaset);
-                    }
-                    if self.span_contains(qualified.idea_span, pos)
-                        || qualified.alias_span.is_some_and(|span| self.span_contains(span, pos))
-                    {
-                        return self.idea_location(path, &qualified.idea);
-                    }
-                }
-                Import::InvalidFrom(_) => {}
-            }
+    fn import_definition<N>(
+        &self,
+        doc_uri: &str,
+        byte: usize,
+        neighbor_range_of: &mut N,
+    ) -> Option<LocationLink>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
+        let import =
+            self.model.imports.iter().find(|import| span_has(import_span(import), byte))?;
+        let path = import.path()?;
+        if let Some(path_span) = import.path_span().filter(|span| span_has(*span, byte)) {
+            return self.definition_link(doc_uri, path_span, self.file_definition(path)?);
         }
-        None
+        match import {
+            Import::From(from) => {
+                let spec = from.specifiers.iter().find(|spec| {
+                    span_has(spec.idea_span, byte)
+                        || spec.alias_span.is_some_and(|span| span_has(span, byte))
+                })?;
+                let origin =
+                    spec.alias_span.filter(|span| span_has(*span, byte)).unwrap_or(spec.idea_span);
+                self.definition_link(
+                    doc_uri,
+                    origin,
+                    self.idea_location(path, &spec.idea, neighbor_range_of)?,
+                )
+            }
+            Import::Namespace(namespace) => {
+                let origin = namespace.alias_span.filter(|span| span_has(*span, byte))?;
+                self.definition_link(doc_uri, origin, self.file_definition(path)?)
+            }
+            Import::Qualified(qualified) => {
+                if span_has(qualified.ideaset_span, byte) {
+                    return self.definition_link(
+                        doc_uri,
+                        qualified.ideaset_span,
+                        self.idea_location(path, &qualified.ideaset, neighbor_range_of)?,
+                    );
+                }
+                if span_has(qualified.idea_span, byte)
+                    || qualified.alias_span.is_some_and(|span| span_has(span, byte))
+                {
+                    let origin = qualified
+                        .alias_span
+                        .filter(|span| span_has(*span, byte))
+                        .unwrap_or(qualified.idea_span);
+                    return self.definition_link(
+                        doc_uri,
+                        origin,
+                        self.idea_location(path, &qualified.idea, neighbor_range_of)?,
+                    );
+                }
+                None
+            }
+            Import::InvalidFrom(_) => None,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn define_dotted(
+    fn define_dotted<N>(
         &self,
-        found: &mut Vec<Location>,
-        pos: Position,
+        byte: usize,
         doc_uri: &str,
         span: &Span,
         qualifier: Option<&str>,
         ideaset: Option<&str>,
         idea: &str,
-    ) {
+        neighbor_range_of: &mut N,
+    ) -> Option<LocationLink>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
         let parts = self.dotted_parts(*span, qualifier, ideaset, idea);
-        if let Some(qualifier_name) = qualifier {
-            if let Some(qualifier_span) = parts.qualifier {
-                if self.span_contains(qualifier_span, pos) {
-                    if let Some(LocalNameBinding::Namespace { path }) =
-                        local_name_binding(&self.model.imports, qualifier_name)
-                    {
-                        if let Some(uri) = self.located_url(&path) {
-                            found.push(Location { uri, range: Range::default() });
-                        }
-                    } else if let Some(decl) =
-                        self.names.iter().find(|item| item.name == qualifier_name)
-                    {
-                        found.push(Location { uri: parse_url(doc_uri), range: decl.range });
-                    }
-                    return;
-                }
+        if let (Some(qualifier_name), Some(qualifier_span)) = (qualifier, parts.qualifier) {
+            if span_has(qualifier_span, byte) {
+                let target = match local_name_binding(&self.model.imports, qualifier_name) {
+                    Some(LocalNameBinding::Namespace { path }) => self.file_definition(&path)?,
+                    _ => self.local_location(doc_uri, qualifier_name)?,
+                };
+                return self.definition_link(doc_uri, qualifier_span, target);
             }
         }
-        if let Some(name) = ideaset {
-            if let Some(middle) = parts.ideaset {
-                if self.span_contains(middle, pos) {
-                    self.push_neighbor_or_local_definition(found, doc_uri, qualifier, name);
-                    return;
-                }
+        if let (Some(name), Some(middle)) = (ideaset, parts.ideaset) {
+            if span_has(middle, byte) {
+                return self.definition_link(
+                    doc_uri,
+                    middle,
+                    self.neighbor_or_local_definition(doc_uri, qualifier, name, neighbor_range_of)?,
+                );
             }
         }
-        if self.span_contains(parts.idea, pos) {
-            self.push_neighbor_or_local_definition(found, doc_uri, qualifier, idea);
+        if !span_has(parts.idea, byte) {
+            return None;
         }
+        self.definition_link(
+            doc_uri,
+            parts.idea,
+            self.neighbor_or_local_definition(doc_uri, qualifier, idea, neighbor_range_of)?,
+        )
     }
 
-    fn push_neighbor_or_local_definition(
+    fn neighbor_or_local_definition<N>(
         &self,
-        found: &mut Vec<Location>,
         doc_uri: &str,
         qualifier: Option<&str>,
         idea: &str,
-    ) {
-        if let Some(qualifier_name) = qualifier {
-            if let Some(LocalNameBinding::Namespace { path }) =
-                local_name_binding(&self.model.imports, qualifier_name)
-            {
-                if let Some(file) = self.locate(&path) {
-                    if let Some(line) = neighbor_line(&file, idea) {
-                        if let Ok(uri) = Url::from_file_path(&file) {
-                            found.push(Location {
-                                uri,
-                                range: Range {
-                                    start: Position { line, character: 0 },
-                                    end: Position { line, character: utf16_len(idea) },
-                                },
-                            });
-                        }
-                    }
-                    return;
-                }
-            }
+        neighbor_range_of: &mut N,
+    ) -> Option<Location>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
+        if let Some(LocalNameBinding::Namespace { path }) =
+            qualifier.and_then(|name| local_name_binding(&self.model.imports, name))
+        {
+            return self.idea_location(&path, idea, neighbor_range_of);
         }
-        if let Some(decl) = self.names.iter().find(|item| item.name == idea) {
-            found.push(Location { uri: parse_url(doc_uri), range: decl.range });
-        }
+        self.local_location(doc_uri, idea)
     }
 
-    fn span_contains(&self, span: Span, pos: Position) -> bool {
-        range_contains(self.lines.range(&self.text, span.start, span.end), pos)
-    }
-
-    pub fn definition(&self, pos: Position, doc_uri: &str) -> Vec<Location> {
-        if let Some(idea) = self.names.iter().find(|idea| range_contains(idea.range, pos)) {
-            return vec![Location { uri: parse_url(doc_uri), range: idea.range }];
-        }
-        if let Some(location) = self.import_definition(pos) {
-            return vec![location];
-        }
-        let mut found = Vec::new();
-        walk_refs(&self.model, &mut |target, _| {
-            let span = target_span(target);
-            if !range_contains(self.lines.range(&self.text, span.start, span.end), pos) {
-                return;
-            }
-            match target {
-                ReferenceTarget::Local { idea, .. } => {
-                    if let Some(decl) = self.names.iter().find(|item| item.name == *idea) {
-                        found.push(Location { uri: parse_url(doc_uri), range: decl.range });
-                    }
-                }
-                ReferenceTarget::Qualified { span, path: None, qualifier, ideaset, idea } => {
-                    self.define_dotted(
-                        &mut found,
-                        pos,
-                        doc_uri,
-                        span,
-                        qualifier.as_deref(),
-                        ideaset.as_deref(),
-                        idea,
-                    );
-                }
-                ReferenceTarget::Qualified { path: Some(path), idea, .. } => {
-                    if let Some(file) = existing_path(path) {
-                        let line = neighbor_line(&file, idea).unwrap_or(0);
-                        if let Ok(uri) = Url::from_file_path(&file) {
-                            found.push(Location {
-                                uri,
-                                range: Range {
-                                    start: Position { line, character: 0 },
-                                    end: Position { line, character: utf16_len(idea) },
-                                },
-                            });
+    /// Go-to-definition. The origin span is the lexer token under the cursor
+    /// (path string or idea id), so Ctrl+hover underlines that token — not an editor word.
+    pub fn definition<N>(
+        &self,
+        pos: Position,
+        doc_uri: &str,
+        mut neighbor_range_of: N,
+    ) -> Vec<LocationLink>
+    where
+        N: FnMut(&Path, &str) -> Option<Range>,
+    {
+        // Already on the declaration name: a self-target is not a JUMP, so Alt+Left
+        // would have nothing to restore. Fall through in case a reference overlaps.
+        let byte = self.byte_at(pos);
+        let on_decl = self.names.iter().any(|idea| range_contains(idea.range, pos));
+        let found = match self.ref_at(byte) {
+            Some(ReferenceTarget::Local { span, idea }) => {
+                let target =
+                    self.local_location(doc_uri, idea).or_else(|| {
+                        match local_name_binding(&self.model.imports, idea)? {
+                            LocalNameBinding::Imported { path, idea } => {
+                                self.idea_location(&path, &idea, &mut neighbor_range_of)
+                            }
+                            LocalNameBinding::Namespace { path } => self.file_definition(&path),
                         }
-                    } else if let Some(decl) = self.names.iter().find(|item| item.name == *idea) {
-                        found.push(Location { uri: parse_url(doc_uri), range: decl.range });
-                    }
-                }
-                ReferenceTarget::File { file, .. } | ReferenceTarget::FileSymbol { file, .. } => {
-                    if let Some(target) = file_url(file) {
-                        found.push(Location { uri: target, range: Range::default() });
-                    }
-                }
-                _ => {}
+                    });
+                target.and_then(|target| self.definition_link(doc_uri, *span, target))
             }
-        });
-        found
+            Some(ReferenceTarget::Qualified { span, path: None, qualifier, ideaset, idea }) => self
+                .define_dotted(
+                    byte,
+                    doc_uri,
+                    span,
+                    qualifier.as_deref(),
+                    ideaset.as_deref(),
+                    idea,
+                    &mut neighbor_range_of,
+                ),
+            Some(ReferenceTarget::Qualified { span, path: Some(path), idea, .. }) => {
+                if let Some(path_span) = authored_path_span(&self.text, *span, path) {
+                    if span_has(path_span, byte) {
+                        return self
+                            .file_definition(path)
+                            .and_then(|target| self.definition_link(doc_uri, path_span, target))
+                            .into_iter()
+                            .collect();
+                    }
+                }
+                let Some(leaf) = ident_span_from(&self.text, *span, span.start, idea) else {
+                    return Vec::new();
+                };
+                if !span_has(leaf, byte) {
+                    return Vec::new();
+                }
+                self.idea_location(path, idea, &mut neighbor_range_of)
+                    .or_else(|| self.file_definition(path))
+                    .and_then(|target| self.definition_link(doc_uri, leaf, target))
+            }
+            Some(
+                ReferenceTarget::File { span, file }
+                | ReferenceTarget::FileSymbol { span, file, .. },
+            ) => self
+                .file_definition(file)
+                .and_then(|target| self.definition_link(doc_uri, *span, target)),
+            Some(ReferenceTarget::Url { .. } | ReferenceTarget::Wildcard { .. }) => None,
+            None if on_decl => None,
+            None => self.import_definition(doc_uri, byte, &mut neighbor_range_of),
+        };
+        found.into_iter().collect()
     }
 
     pub(crate) fn resolve_path(&self, authored: &str) -> Option<PathBuf> {
@@ -912,82 +1130,111 @@ impl DocModel {
         crate::hover_content::markdown_for_name(&self.text, &self.model, name)
     }
 
-    pub(crate) fn hover_hit(&self, pos: Position) -> Option<HoverHit> {
+    pub(crate) fn hover_hit(&self, pos: Position, with_markdown: bool) -> Option<HoverHit> {
+        let markdown_of = |name: &str| with_markdown.then(|| self.idea_markdown(name)).flatten();
         if let Some(idea) = self.names.iter().find(|idea| range_contains(idea.range, pos)) {
             return Some(HoverHit {
                 range: idea.range,
                 name: idea.name.clone(),
                 summary: idea.summary.clone(),
-                markdown: self.idea_markdown(&idea.name),
+                markdown: markdown_of(&idea.name),
                 external: None,
             });
         }
-        let mut hit = None;
-        walk_refs(&self.model, &mut |target, _| {
-            let span = target_span(target);
-            let range = self.lines.range(&self.text, span.start, span.end);
-            if !range_contains(range, pos) {
-                return;
-            }
-            hit = Some(self.hover_hit_for_target(range, target));
-        });
-        hit
+        let byte = self.byte_at(pos);
+        let target = self.ref_at(byte)?;
+        let (span, hit) = self.hover_token(byte, target)?;
+        let range = self.lines.range(&self.text, span.start, span.end);
+        Some(self.hover_hit_for_token(range, hit, &markdown_of))
     }
 
-    fn hover_hit_for_target(&self, range: Range, target: &ReferenceTarget) -> HoverHit {
+    /// Lexer token under the cursor inside a reference (path string or idea id).
+    fn hover_token<'a>(
+        &self,
+        byte: usize,
+        target: &'a ReferenceTarget,
+    ) -> Option<(Span, HoverToken<'a>)> {
         match target {
-            ReferenceTarget::Local { idea, .. } => {
-                let summary = self.summary_of(idea);
-                let markdown = self.idea_markdown(idea);
-                let external = if markdown.is_none() {
-                    match local_name_binding(&self.model.imports, idea) {
-                        Some(LocalNameBinding::Imported { path, idea: imported }) => {
-                            Some((path, imported))
-                        }
-                        _ => None,
+            ReferenceTarget::Local { span, idea } => Some((*span, HoverToken::Idea(idea))),
+            ReferenceTarget::Qualified { span, path: Some(path), idea, .. } => {
+                if let Some(path_span) = authored_path_span(&self.text, *span, path) {
+                    if span_has(path_span, byte) {
+                        return Some((path_span, HoverToken::Path(path)));
                     }
-                } else {
-                    None
+                }
+                let leaf = ident_span_from(&self.text, *span, span.start, idea)?;
+                span_has(leaf, byte).then_some((leaf, HoverToken::ExternalIdea(path, idea)))
+            }
+            ReferenceTarget::Qualified { span, path: None, qualifier, ideaset, idea } => {
+                let parts =
+                    self.dotted_parts(*span, qualifier.as_deref(), ideaset.as_deref(), idea);
+                if let (Some(name), Some(part)) = (qualifier.as_deref(), parts.qualifier) {
+                    if span_has(part, byte) {
+                        return Some((part, HoverToken::Idea(name)));
+                    }
+                }
+                if let (Some(name), Some(part)) = (ideaset.as_deref(), parts.ideaset) {
+                    if span_has(part, byte) {
+                        return Some((part, HoverToken::Idea(name)));
+                    }
+                }
+                span_has(parts.idea, byte).then_some((parts.idea, HoverToken::Idea(idea)))
+            }
+            ReferenceTarget::File { span, file }
+            | ReferenceTarget::FileSymbol { span, file, .. } => {
+                Some((*span, HoverToken::Path(file)))
+            }
+            ReferenceTarget::Url { span, url } => Some((*span, HoverToken::Path(url))),
+            ReferenceTarget::Wildcard { span, path_pattern, idea_pattern } => {
+                if let Some(path_span) = authored_path_span(&self.text, *span, path_pattern) {
+                    if span_has(path_span, byte) {
+                        return Some((path_span, HoverToken::Path(path_pattern)));
+                    }
+                }
+                if let Some(leaf) = ident_span_from(&self.text, *span, span.start, idea_pattern) {
+                    if span_has(leaf, byte) {
+                        return Some((leaf, HoverToken::Wildcard(path_pattern, idea_pattern)));
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    fn hover_hit_for_token(
+        &self,
+        range: Range,
+        token: HoverToken<'_>,
+        markdown_of: &dyn Fn(&str) -> Option<String>,
+    ) -> HoverHit {
+        match token {
+            HoverToken::Idea(idea) => {
+                let summary = self.summary_of(idea);
+                let local = self.has_idea(idea);
+                let external = match local_name_binding(&self.model.imports, idea) {
+                    Some(LocalNameBinding::Imported { path, idea: imported }) if !local => {
+                        Some((path, imported))
+                    }
+                    _ => None,
                 };
-                HoverHit { range, name: idea.clone(), summary, markdown, external }
+                let markdown = if local { markdown_of(idea) } else { None };
+                HoverHit { range, name: idea.to_string(), summary, markdown, external }
             }
-            ReferenceTarget::Qualified { path, idea, .. } => {
-                let summary = self.summary_of(idea);
-                if let Some(path) = path {
-                    HoverHit {
-                        range,
-                        name: idea.clone(),
-                        summary,
-                        markdown: None,
-                        external: Some((path.clone(), idea.clone())),
-                    }
-                } else {
-                    HoverHit {
-                        range,
-                        name: idea.clone(),
-                        summary,
-                        markdown: self.idea_markdown(idea),
-                        external: None,
-                    }
-                }
-            }
-            ReferenceTarget::File { file, .. } | ReferenceTarget::FileSymbol { file, .. } => {
-                HoverHit {
-                    range,
-                    name: file.clone(),
-                    summary: String::new(),
-                    markdown: None,
-                    external: None,
-                }
-            }
-            ReferenceTarget::Url { url, .. } => HoverHit {
+            HoverToken::ExternalIdea(path, idea) => HoverHit {
                 range,
-                name: url.clone(),
+                name: idea.to_string(),
+                summary: self.summary_of(idea),
+                markdown: None,
+                external: Some((path.to_string(), idea.to_string())),
+            },
+            HoverToken::Path(path) => HoverHit {
+                range,
+                name: path.to_string(),
                 summary: String::new(),
                 markdown: None,
                 external: None,
             },
-            ReferenceTarget::Wildcard { path_pattern, idea_pattern, .. } => HoverHit {
+            HoverToken::Wildcard(path_pattern, idea_pattern) => HoverHit {
                 range,
                 name: format!("{path_pattern}.{idea_pattern}"),
                 summary: String::new(),
@@ -1036,14 +1283,38 @@ impl DocModel {
         out
     }
 
-    pub fn completion(&self, pos: Position, extra: &[String]) -> Vec<CompletionItem> {
+    pub fn completion(
+        &self,
+        pos: Position,
+        extra: &[String],
+        catalog: &AttributeCatalog,
+    ) -> Vec<CompletionItem> {
         let prefix = line_prefix(&self.text, &self.lines, pos);
         let mut items = Vec::new();
+        if let Some((key, value_prefix)) = attribute_value_prefix(&prefix) {
+            let values = catalog.values_by_key.get(key).into_iter().flatten();
+            for value in values {
+                if value.starts_with(value_prefix) {
+                    items.push(CompletionItem {
+                        label: value.clone(),
+                        kind: Some(CompletionItemKind::VALUE),
+                        detail: Some(format!("@{key}")),
+                        ..CompletionItem::default()
+                    });
+                }
+            }
+            return items;
+        }
         if let Some(attr) = attribute_prefix(&prefix) {
-            for key in ATTRIBUTE_KEYS {
+            let keys = if catalog.keys.is_empty() {
+                ENDORSED_ATTRIBUTE_KEYS.iter().map(|key| (*key).to_string()).collect()
+            } else {
+                catalog.keys.clone()
+            };
+            for key in keys {
                 if key.starts_with(attr) {
                     items.push(CompletionItem {
-                        label: (*key).to_string(),
+                        label: key,
                         kind: Some(CompletionItemKind::PROPERTY),
                         ..CompletionItem::default()
                     });
@@ -1073,6 +1344,32 @@ impl DocModel {
             }
         }
         items
+    }
+
+    pub fn reference_locations(&self, doc_uri: &str, name: &str) -> Vec<Location> {
+        let mut out = Vec::new();
+        for idea in &self.names {
+            if idea.name == name {
+                out.push(Location { uri: parse_url(doc_uri), range: idea.range });
+            }
+        }
+        walk_refs(&self.model, &mut |target, _| {
+            let label = match target {
+                ReferenceTarget::Local { idea, .. } | ReferenceTarget::Qualified { idea, .. } => {
+                    idea.as_str()
+                }
+                _ => return,
+            };
+            if label != name {
+                return;
+            }
+            let span = target_span(target);
+            out.push(Location {
+                uri: parse_url(doc_uri),
+                range: self.lines.range(&self.text, span.start, span.end),
+            });
+        });
+        out
     }
 
     pub fn prepare_rename(&self, pos: Position) -> Option<Range> {
@@ -1178,49 +1475,32 @@ impl DocModel {
     }
 
     pub fn file_reference_at(&self, pos: Position) -> Option<serde_json::Value> {
-        let mut found = None;
-        walk_refs(&self.model, &mut |target, _| {
-            let span = target_span(target);
+        let byte = self.byte_at(pos);
+        if let Some(
+            ReferenceTarget::File { span, file } | ReferenceTarget::FileSymbol { span, file, .. },
+        ) = self.ref_at(byte)
+        {
             let range = self.lines.range(&self.text, span.start, span.end);
-            if !range_contains(range, pos) {
-                return;
-            }
-            if let ReferenceTarget::File { file, .. } | ReferenceTarget::FileSymbol { file, .. } =
-                target
-            {
-                found = Some(file_reference_value(file, range));
-            }
-        });
-        if found.is_some() {
-            return found;
+            return Some(file_reference_value(file, range));
         }
-        for import in &self.model.imports {
-            let span = import_span(import);
-            let range = self.lines.range(&self.text, span.start, span.end);
-            if range_contains(range, pos) {
-                if let Some(path) = import.path() {
-                    return Some(file_reference_value(path, range));
-                }
-            }
-        }
-        None
+        let import =
+            self.model.imports.iter().find(|import| span_has(import_span(import), byte))?;
+        let span = import_span(import);
+        let range = self.lines.range(&self.text, span.start, span.end);
+        Some(file_reference_value(import.path()?, range))
     }
 
     pub fn wildcard_at(&self, pos: Position, from_uri: &str) -> Option<serde_json::Value> {
-        let mut found = None;
-        walk_refs(&self.model, &mut |target, _| {
-            if let ReferenceTarget::Wildcard { span, path_pattern, idea_pattern } = target {
-                let range = self.lines.range(&self.text, span.start, span.end);
-                if range_contains(range, pos) {
-                    found = Some(serde_json::json!({
-                        "pathPattern": path_pattern,
-                        "ideaPattern": idea_pattern,
-                        "fromUri": from_uri,
-                    }));
-                }
-            }
-        });
-        found
+        let ReferenceTarget::Wildcard { path_pattern, idea_pattern, .. } =
+            self.ref_at(self.byte_at(pos))?
+        else {
+            return None;
+        };
+        Some(serde_json::json!({
+            "pathPattern": path_pattern,
+            "ideaPattern": idea_pattern,
+            "fromUri": from_uri,
+        }))
     }
 
     pub fn search_site(&self, range: Range, doc_uri: &str) -> Option<serde_json::Value> {
@@ -1279,9 +1559,20 @@ pub fn rename_edits(text: &str, lines: &LineMap, old: &str, new_name: &str) -> V
             });
         }
     }
-    let needles = [format!("[{old}]"), format!("[[{old}]]"), format!("[[{old}|")];
-    let replacements =
-        [format!("[{new_name}]"), format!("[[{new_name}]]"), format!("[[{new_name}|")];
+    let needles = [
+        format!("[{old}]"),
+        format!("[[{old}]]"),
+        format!("[[{old}|"),
+        format!("rq:[{old}]"),
+        format!("rq:[[{old}]]"),
+    ];
+    let replacements = [
+        format!("[{new_name}]"),
+        format!("[[{new_name}]]"),
+        format!("[[{new_name}|"),
+        format!("rq:[{new_name}]"),
+        format!("rq:[[{new_name}]]"),
+    ];
     for (needle, replacement) in needles.iter().zip(replacements.iter()) {
         let mut from = 0;
         while let Some(found) = text[from..].find(needle) {
@@ -1294,7 +1585,30 @@ pub fn rename_edits(text: &str, lines: &LineMap, old: &str, new_name: &str) -> V
             from = end;
         }
     }
+    // Also rewrite path-qualified comment sites that end with ."old"] / .'old'] / ."old" / .'old'
+    let qualified = [
+        (format!("\".{old}]"), format!("\".{new_name}]")),
+        (format!("'.{old}]"), format!("'.{new_name}]")),
+        (format!("\".{old}\""), format!("\".{new_name}\"")),
+        (format!("'.{old}'"), format!("'.{new_name}'")),
+    ];
+    for (needle, replacement) in qualified {
+        let mut from = 0;
+        while let Some(found) = text[from..].find(&needle) {
+            let start = from + found;
+            let end = start + needle.len();
+            let before = &text[..start];
+            if before.contains("rq:[") || before.rfind('[').is_some() {
+                edits.push(TextEdit {
+                    range: lines.range(text, start, end),
+                    new_text: replacement.clone(),
+                });
+            }
+            from = end;
+        }
+    }
     edits.sort_by_key(|edit| (edit.range.start.line, edit.range.start.character));
+    edits.dedup_by(|left, right| left.range == right.range);
     edits
 }
 
@@ -1649,7 +1963,23 @@ fn line_prefix(text: &str, lines: &LineMap, pos: Position) -> String {
 
 fn attribute_prefix(prefix: &str) -> Option<&str> {
     let trimmed = prefix.trim_start();
-    trimmed.strip_prefix('@')
+    let rest = trimmed.strip_prefix('@')?;
+    if rest.contains(char::is_whitespace) {
+        return None;
+    }
+    Some(rest)
+}
+
+fn attribute_value_prefix(prefix: &str) -> Option<(&str, &str)> {
+    let trimmed = prefix.trim_start();
+    let rest = trimmed.strip_prefix('@')?;
+    let mut parts = rest.splitn(2, char::is_whitespace);
+    let key = parts.next()?;
+    let value = parts.next()?;
+    if key.is_empty() {
+        return None;
+    }
+    Some((key, value))
 }
 
 fn reference_prefix(prefix: &str) -> Option<&str> {
@@ -1749,25 +2079,72 @@ fn inlay_referencer(referencer: &InboundReferencer) -> InlayHintLabelPart {
     }
 }
 
-fn file_url(path: &str) -> Option<Url> {
-    if path.contains("://") {
-        return Url::parse(path).ok();
-    }
-    let existing = existing_path(path)?;
-    Url::from_file_path(existing).ok()
+fn span_has(span: Span, byte: usize) -> bool {
+    span.start <= byte && byte < span.end
 }
 
-fn neighbor_line(path: &Path, idea: &str) -> Option<u32> {
-    let text = std::fs::read_to_string(path).ok()?;
-    let symbolic = analyze_local_symbolic(&path.display().to_string(), &text, &[]);
-    if let Some(item) = symbolic.ideas.iter().find(|item| item.name == idea) {
-        return Some(item.line_start);
+pub(crate) fn line_range(line: u32, name: &str) -> Range {
+    Range {
+        start: Position { line, character: 0 },
+        end: Position { line, character: utf16_len(name) },
     }
-    symbolic
-        .import_bindings
-        .iter()
-        .find(|binding| binding.name == idea)
-        .map(|binding| binding.line_start)
+}
+
+fn folder_command_url(path: &Path) -> Option<Url> {
+    let uri = Url::from_file_path(path).ok()?.to_string();
+    command_url("reqlan.openFolderReference", &serde_json::json!([uri]))
+}
+
+fn wildcard_command_url(path_pattern: &str, idea_pattern: &str, from_uri: &str) -> Option<Url> {
+    command_url(
+        "reqlan.openWildcardReference",
+        &serde_json::json!([{
+            "pathPattern": path_pattern,
+            "ideaPattern": idea_pattern,
+            "fromUri": from_uri,
+        }]),
+    )
+}
+
+fn command_url(command: &str, args: &serde_json::Value) -> Option<Url> {
+    let encoded = encode_uri_component(&serde_json::to_string(args).ok()?);
+    Url::parse(&format!("command:{command}?{encoded}")).ok()
+}
+
+fn encode_uri_component(value: &str) -> String {
+    let mut out = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'!'
+            | b'~'
+            | b'*'
+            | b'\''
+            | b'('
+            | b')' => out.push(byte as char),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// One character at the file start. An empty 0:0–0:0 range does not move the caret, so the
+/// editor may skip the JUMP that Alt+Left (navigate-back) needs.
+fn file_landing_range() -> Range {
+    Range { start: Position { line: 0, character: 0 }, end: Position { line: 0, character: 1 } }
+}
+
+fn non_empty_selection(range: Range) -> Range {
+    if range.start == range.end {
+        file_landing_range()
+    } else {
+        range
+    }
 }
 
 fn location_uri(doc_uri: &str, line: u32) -> Url {

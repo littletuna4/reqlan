@@ -10,8 +10,12 @@ from "../syntax/features-syntax-highlighting.rq" import non_web_reference_naviga
 from "../comment-references/functional-code-comment-references.rq" import comment_reference_resolution_error_state
 from "./language-server-errors.rq" import file_reference_errors
 from "./features-imports.rq" import import_does_not_exist_error, implicit_file_extension
+from "./language-server-rust.rq" import language_server_rust
 from "../../host/activation.rq" import background_startup
 from "../vsc-primitives.rq" import inlay_hints, codelens
+import "../../../../crates/reqlan-lsp/src/session.rs" as lsp_session
+import "../../../../crates/reqlan-lsp/src/analysis.rs" as lsp_analysis
+import "../../../../crates/reqlan-lsp/src/server.rs" as lsp_server
 import "../../../../packages/language/src/reqlan-neighbor-parse.ts" as neighbor_parse
 import "../../../../packages/language/src/reqlan-outbound-presentation.ts" as outbound_presentation
 import "../../../../packages/language/src/reqlan-local-symbolic-links.ts" as local_symbolic_links
@@ -32,57 +36,48 @@ import "../../../../packages/extension/src/extension/register-inbound-sqlite-syn
 import "../../../../packages/analytical/src/native/parse-source.ts" as native_parse
 
 open_file_algorithm {
-    When the editor opens or changes a `.rq` buffer, the language server must run this sequence.
-    Do not wait for workspace Linked. Do not wait for a full SQLite crawl.
+    When the editor opens or changes a `.rq` buffer, `reqlan-lsp` runs this sequence.
+    Do not wait for the ideas index. Do not wait for a workspace crawl.
     Detail: [open_file_sequence_diagram].
-    Related: [open_file_reference_sequencing], [ast_lifecycle], [outbound_one_hop],
-    [open_file_hot_path], [token_colour_sequence], [missing_reference_colour_sequence],
-    [lazy_features_after_outbound].
+    Related: [open_file_reference_sequencing], [language_server_rust], [ast_lifecycle],
+    [outbound_one_hop], [open_file_hot_path], [token_colour_sequence],
+    [missing_reference_colour_sequence], [lazy_features_after_outbound].
 
-    1. Populate the Langium AST for this buffer only ([ast_lifecycle]).
-       CST and AST exist at `DocumentState.Parsed`. Later builder phases do not rebuild the tree.
-    2. Colour tokens in this buffer ([token_colour_sequence]).
-    3. Identify outbound reference targets from native local extract plus this AST
-       ([local_symbolic_analysis]).
-    4. For each target that is another file, parse that file only ([outbound_one_hop]).
-    5. Colour resolvable links. Keep URL and wildcard links. Show an error for an
-       unresolved idea. Show an error for an unresolved import ([missing_reference_colour_sequence]).
-    6. Show lazy features when they are ready ([lazy_features_after_outbound]).
-       They must not block steps 1–5.
+    The hot path finishes before the first diagnostics publish.
+    1. Parse this buffer once ([ast_lifecycle]).
+    2. Colour tokens from that parse ([token_colour_sequence]).
+    3. Emit same-file links and same-file missing-idea errors from that parse.
+    4. Parse each imported file once, at depth 1, for idea names and lines ([outbound_one_hop]).
+       Link an imported name that exists. Underline an imported name that does not
+       ([missing_reference_colour_sequence]).
+    5. Return. A qualified reference may link to its file from the path token.
+       Do not read that file on this path.
 
-    Outbound links must be self-contained: one buffer parse plus one native parse per
-    unique neighbor file, with a content-hash cache ([neighbor_parse]).
-    The host native extract is cached by URI plus text fingerprint ([open_file_hot_path]).
-    If the workspace index can finish in less than one second, inbound pointing still
-    waits for SQLite. Outbound pointing must not wait for that index.
+    After that publish, a background pass fills the rest ([lazy_features_after_outbound]).
+    That pass must not delay steps 1–5.
+    The server sends the hot publish before it starts that pass.
+    It runs that pass only while no client message waits. A hover or a definition request goes first.
+    A change reuses the import roots loaded at open. It does not read the config again.
+    The node engine keeps [node_engine_open_path].
 
     @status done
     @implementation (
-        [neighbor_parse]
-        [outbound_presentation]
-        [local_symbolic_links]
-        [document_links]
-        [semantic_tokens]
-        [document_factory]
-        [document_builder]
-        [language_server_main]
-        [native_parse]
+        [lsp_session]
+        [lsp_analysis]
+        [lsp_server]
     )
     @tests (
-        ["../../../../packages/language/test/outbound-hop.test.ts"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts"]
-        ["../../../../packages/language/test/open-file-hot-path.test.ts"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:same_file_idea_references_produce_document_links"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:from_import_binds_a_local_reference"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_imported_idea_does_not_exist"]
         ["../../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
     )
 }
 
 open_file_sequence_diagram {
     [open_file_algorithm]
-    Actors: VS Code editor, TextMate grammar, extension host, VS Code LSP API,
-    Langium functions, native extract, file system, SQLite index, lazy extra features.
+    Actors: VS Code editor, TextMate grammar, extension host, `reqlan-lsp`, file system.
 
     ```mermaid
     sequenceDiagram
@@ -91,133 +86,71 @@ open_file_sequence_diagram {
         participant Editor as VS Code editor
         participant TextMate as TextMate grammar
         participant ExtHost as Extension host
-        participant VscLsp as VS Code LSP API
-        participant Langium as Langium functions
-        participant Native as Native extract
+        participant Lsp as reqlan-lsp
         participant Fs as File system
-        participant Sqlite as SQLite index
-        participant Lazy as Lazy extra features
 
         User->>Editor: Open or change .rq file
         Editor->>TextMate: Tokenise buffer
         TextMate-->>Editor: Immediate syntax colour
         Editor->>ExtHost: didOpen / didChange
-        ExtHost->>VscLsp: textDocument/didOpen or didChange
-        VscLsp->>Langium: Parse this buffer (factory populate or replace)
-        Langium-->>VscLsp: CST and AST on parseResult (Parsed)
-        Note over Langium: Linked and Validated do not rebuild this AST
-        VscLsp-->>Editor: Semantic tokens from this AST
-        VscLsp->>Native: analyzeLocalSymbolic(this file)
-        Native-->>VscLsp: Ideas, outbound edges, same-file inbound
-        loop each unique neighbor file (depth 1)
-            VscLsp->>Fs: Read neighbor text
-            VscLsp->>Native: Parse neighbor ideas only
-            Native-->>VscLsp: Neighbor idea names and lines
-            Note over Langium: Do not populate a Langium AST for the neighbor
+        ExtHost->>Lsp: textDocument/didOpen or didChange
+        Lsp->>Lsp: Parse this buffer once
+        Lsp-->>Editor: Semantic tokens, same-file links, same-file errors
+        loop each imported file
+            Lsp->>Fs: Read imported file
+            Lsp->>Lsp: Parse idea names and lines
         end
-        VscLsp-->>Editor: Resolvable links, URL links, wildcard links
-        VscLsp-->>Editor: Error for unresolved ideas and imports
-        Note over Sqlite,Lazy: Must not block outbound links
-        ExtHost->>Sqlite: Soft sync when the index is ready
-        Sqlite-->>Lazy: Inbound snapshot, catalogs
-        Lazy-->>Editor: Inlay hints, CodeLens, completion
+        Lsp-->>Editor: Import-target links and import errors
+        Note over Lsp: Qualified-reference files stay unread
+        Note over Lsp: Index snapshot stays unread
     ```
 }
 
 ast_lifecycle {
-    The Langium AST is the Chevrotain tree on `document.parseResult`.
-    Native [local_symbolic_analysis] is a separate idea list. It is not this AST.
+    The open buffer has one model. That model is the Rust parse of this buffer.
+    [local_symbolic_analysis] is a file-local extract. The hot path does not run it as a second parse.
     Related: [open_file_algorithm], [open_file_sequence_diagram], [outbound_one_hop],
     [token_colour_sequence], [parse_budget_timeout],
-    ["./initialisation-and-sequencing.rq".lsp_file_watch].
+    ["./initialisation-and-sequencing.rq".lsp_file_watch], [language_server_rust].
 
-    Populate. The document factory parses this buffer when the editor opens it,
-    when workspace load first reads that URI, or when a caller uses `fromString`.
-    After parse, the document is at `DocumentState.Parsed`. The CST and the AST exist then.
-    Semantic tokens and outbound identification may run.
+    Populate. Parse this buffer when the editor opens it.
+    Semantic tokens, same-file links, and the import list come from that parse.
 
-    Replace. When this buffer text changes, the factory parses again and replaces
-    `parseResult`. It does not patch the old tree. Then the open-file sequence runs again
-    from colour tokens. A watched `.rq` change uses the same replace path
-    ([document_update_handler]). If the text is unchanged, keep the current tree.
+    Replace. When this buffer text changes, parse again and replace the model.
+    Do not patch the old model. A watched `.rq` change uses the same replace path
+    ([document_update_handler]). When the text is unchanged, keep the current model.
 
-    Do not rebuild. DocumentBuilder phases after Parsed (`IndexedContent`, `ComputedScopes`,
-    `Linked`, `IndexedReferences`, `Validated`) attach scopes, links, and diagnostics.
-    They must not replace the AST ([document_builder]).
+    Drop. When the editor closes the buffer, drop the model.
+    A closed file keeps no syntax tree ([language_server_rust]).
 
-    Do not populate a Langium AST for a neighbor during [outbound_one_hop].
-    A change to a neighbor file does not replace this buffer's AST.
-    Outbound confirmation reads neighbor text again (cache by fingerprint).
-    Background workspace parse may populate ASTs for other files ([workspace_manager]).
-    That load parses at most 8 files at a time ([workspace_parse_concurrency]).
-    That work must not gate outbound links. Open buffers parse first.
+    Import files. [outbound_one_hop] stores a name list for each imported file.
+    That list is not an open-buffer model.
+    A change to an imported file does not replace this buffer's model.
+    Read the imported file again when its content hash changes.
 
-    Incomplete parse. If the budget fails, the factory stores an empty model plus
-    diagnostics ([parse_budget_timeout]). Idea lists on that AST stay empty until a
-    later successful parse.
+    Incomplete parse. When the budget fails, store an empty model plus diagnostics
+    ([parse_budget_timeout]). Idea names stay empty until a later successful parse.
 
-    ```mermaid
-    sequenceDiagram
-        autonumber
-        participant Editor as VS Code editor
-        participant Factory as Document factory
-        participant Parser as Langium parser
-        participant Builder as DocumentBuilder
-        participant Native as Native extract
-        participant Neighbor as Neighbor 1-hop
-
-        alt Open this buffer or first workspace load of this URI
-            Editor->>Factory: didOpen / getOrCreateDocument
-            Factory->>Parser: parse or parseAsync (this text)
-            Parser-->>Factory: CST and AST
-            Factory-->>Editor: parseResult populated (Parsed)
-        else Change this buffer text
-            Editor->>Factory: didChange / factory.update
-            Factory->>Parser: parseAsync (new text)
-            Parser-->>Factory: New CST and AST
-            Factory-->>Editor: parseResult replaced (Parsed)
-            Note over Factory: Do not patch the old tree
-        else Text unchanged
-            Factory-->>Editor: Keep current parseResult
-        else Parse budget fails
-            Parser-->>Factory: Empty model plus diagnostics
-            Factory-->>Editor: Incomplete AST (no idea names)
-        end
-        Builder->>Builder: Index, scopes, link, validate
-        Note over Builder: Same AST. Do not rebuild the tree.
-        Native-->>Editor: Separate idea list for this file
-        Note over Neighbor: Native parse only. No Langium AST for the neighbor.
-    ```
+    The node engine follows [node_engine_open_path].
 
     @status done
     @implementation (
-        [document_factory]
-        [async_parser]
-        [parse_budget]
-        [workspace_manager]
-        [document_update_handler]
-        [document_builder]
-        [neighbor_parse]
-        [language_server_main]
+        [lsp_session]
+        [lsp_analysis]
+        [lsp_server]
     )
     @tests (
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:populates the Langium AST at Parsed without DocumentBuilder"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:replaces the AST when this buffer text changes"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:keeps the AST when the text is unchanged"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:linking and validation do not replace the AST"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:neighbor hop does not populate a Langium AST"]
-        ["../../../../packages/language/test/ast-lifecycle.test.ts:incomplete parse stores an empty model"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
         ["../../../../packages/language/test/parse-budget.test.ts:times out a hung parse worker with warning and error"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:open-file-sequencing.rq parses mermaid sequence diagrams"]
     )
 }
 
 token_colour_sequence {
-    Token colour has two layers. They must not wait for SQLite or for workspace Linked.
-    TextMate paints first from the buffer text. Semantic tokens paint after the Langium AST
-    is populated ([ast_lifecycle]). Native extract does not paint tokens.
-    Missing references keep the same token colour. The error underline is a diagnostic,
-    not a different semantic token ([missing_reference_colour_sequence], [reference_rendering]).
+    Token colour has two layers. They must not wait for the ideas index.
+    TextMate paints first from the buffer text. Semantic tokens paint from the one parse
+    ([ast_lifecycle]). A second extract does not paint tokens.
+    A missing reference keeps the same token colour. The error underline is a diagnostic
+    ([missing_reference_colour_sequence], [reference_rendering]).
     Related: [syntax_highlighting].
 
     ```mermaid
@@ -225,36 +158,34 @@ token_colour_sequence {
         autonumber
         participant Editor as VS Code editor
         participant TextMate as TextMate grammar
-        participant VscLsp as VS Code LSP API
-        participant Langium as Langium functions
-        participant Native as Native extract
+        participant Lsp as reqlan-lsp
 
         Editor->>TextMate: Buffer text
         TextMate-->>Editor: Scopes for ideas, imports, links, comments
-        Editor->>VscLsp: semanticTokens/full (DocumentState.Parsed)
-        VscLsp->>Langium: Walk AST
-        Langium-->>Editor: Types, namespaces, strings, variables
-        Note over Native: Native extract does not paint tokens
+        Editor->>Lsp: semanticTokens/full
+        Lsp->>Lsp: Walk the one parse
+        Lsp-->>Editor: Types, namespaces, strings, variables
     ```
 
     @status done
     @implementation (
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         [semantic_tokens]
+        [lsp_analysis]
         [language_server_main]
     )
     @tests (
         ["../../../../packages/language/test/textmate-import-highlight.test.ts"]
         ["../../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:semantic tokens are available from Parsed AST without workspace link"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
     )
 }
 
 file_crawl_sequence {
     Workspace crawl is the indexer ([index], [index_sequencing]). It is not the open-file path.
     Native sync walks `.rq` files, then allowlisted code files, and writes SQLite.
-    Open-file outbound links must not wait for that walk ([open_file_algorithm]).
-    Langium watches `.rq` files only (["./initialisation-and-sequencing.rq".lsp_file_watch]).
+    Open-file links must not wait for that walk ([open_file_algorithm]).
+    The language server watches `.rq` files only (["./initialisation-and-sequencing.rq".lsp_file_watch]).
     Related: [extension_startup_sequence], [background_startup].
 
     ```mermaid
@@ -264,16 +195,16 @@ file_crawl_sequence {
         participant Native as Native sync
         participant Fs as File system
         participant Sqlite as SQLite index
-        participant Langium as Langium LSP
+        participant Lsp as reqlan-lsp
         participant Editor as VS Code editor
 
         ExtHost->>Native: Soft syncWorkspace (mtime skip)
         Native->>Fs: Walk .rq files then code files
         Native->>Sqlite: Upsert ideas and edges
-        Note over Langium,Editor: Open-file 1-hop does not wait for this walk
+        Note over Lsp,Editor: Open-file links do not wait for this walk
         Sqlite-->>ExtHost: Index ready
-        ExtHost->>Langium: Push inbound snapshot for visible editors
-        Langium-->>Editor: Lazy inbound inlay and CodeLens
+        ExtHost->>Lsp: Push inbound snapshot for visible editors
+        Lsp-->>Editor: Backlinks when the snapshot arrives
     ```
 
     @status done
@@ -281,250 +212,255 @@ file_crawl_sequence {
         ["../../../../packages/analytical/src/index-store/workspace-index.ts"]
         ["../../../../crates/reqlan-index/src/sync.rs"]
         [inbound_sync]
+        [lsp_server]
     )
     @tests (
         ["../../../../packages/analytical/test/workspace-index.test.ts"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
     )
 }
 
 outbound_one_hop {
-    Cross-file idea confirmation has depth 1: parse the target file, then stop.
-    Do not parse files that the neighbor itself references.
-    Do not load the neighbor into `LangiumDocuments` (that starts workspace linking).
-    Do not read SQLite for outbound confirmation.
-    Prefer the open buffer text when the neighbor is already open and dirty.
-    Cache neighbor idea lists by URI plus content hash ([neighbor_parse]).
-    Cache this buffer's native extract by URI plus text fingerprint so links and
-    diagnostics share one host parse ([open_file_hot_path]).
-    Native [local_symbolic_analysis] stays file-local. This hop is the LSP layer on top.
-    This hop must not populate a Langium AST for the neighbor ([ast_lifecycle]).
-    An extensionless neighbor path prefers `.rq`, then the path as written
+    The hot path parses imported files only.
+    For each import in the open buffer, parse that file once, then stop.
+    Read idea names, idea lines, and import aliases. Do not parse files that the import references.
+    Do not read SQLite.
+    Prefer the open buffer text when that import is already open and dirty.
+    Cache each parse by path plus file stamp (modified time and size) ([lsp_session]).
+    A current stamp is one `stat`. Read and parse the file only when the stamp changed.
+    Cache the open buffer by URI plus text fingerprint ([open_file_hot_path]).
+    [local_symbolic_analysis] stays file-local. This hop is outside that extract.
+    An extensionless import path prefers `.rq`, then the path as written
     ([implicit_file_extension]).
+    A qualified reference that is not an import waits for [lazy_features_after_outbound].
     Related: [open_file_algorithm], [non_web_reference_navigation].
 
     @status done
     @implementation (
-        [neighbor_parse]
-        [local_symbolic_links]
+        [lsp_session]
+        [lsp_analysis]
         [native_parse]
-        ["../../../../packages/language/src/reqlan-imports.ts"]
     )
     @tests (
-        ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:from_import_tokens_link_independently"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_import_path_file_does_not_exist"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:extensionless_path_confirms_the_neighbor_idea"]
         ["../../../../packages/language/test/outbound-hop.test.ts:reuses a cached neighbor parse for the same content"]
-        ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:confirms a neighbor idea when the authored path has no .rq extension"]
+        ["../../../../packages/language/test/outbound-hop.test.ts:does not parse a neighbor of the neighbor"]
     )
 }
 
 open_file_hot_path {
-    Open-file work must stay cheap after the first parse of this buffer.
-    Cache this buffer's native extract by URI plus text fingerprint. Document links,
-    go-to-definition, and outbound diagnostics must reuse that extract until the text
-    or import-root mapping changes ([local_symbolic_links]).
-    Keep that extract, and depth-1 neighbor lists, only for open editors
-    ([native_cache_retention]).
-    When a document is removed, drop its scope cache entries ([scope_cache_release]).
-    Look up an open neighbor buffer by URI only. Do not match on file basename
-    ([neighbor_parse]).
-    When another `.rq` file changes, do not relink every document that still has a
-    Langium linker error. Relink this document when the index says it is affected,
-    when comment references name that file, or when this document's outbound targets
-    include the changed URI ([document_builder]).
-    Drop a false unresolved diagnostic only for the overlapping idea-name range.
-    Do not drop a different missing name on the same line ([outbound_presentation]).
-    At `DocumentState.Parsed`, publish lex/parse diagnostics with outbound idea errors
-    so the editor does not wait for Validated to see a broken parse.
-    Parsed-time LSP handlers (definition, hover, highlight, document links) must not read
-    Langium `.ref` — that forces linking before `ComputedScopes`, leaves failed resolves
-    uncached, and retries on every request (especially harmful for `git:` Diff buffers).
-    Use `$refText` / symbolic extract / `peekResolvedRef` until scopes are ready; only then
-    call Langium `super` linking paths.
-    The linker must not resolve a cross-reference while that document is below `ComputedScopes`.
-    Do not log the Langium warning. Do not store a failed link. A later scope phase can still link it.
-    Scope lookup, code lens, completion, and idea summaries use `readResolvedRef` or `peekResolvedRef`
-    until that phase. A walk of every reference in an open buffer must not recurse or abort the server.
+    Open-file work stays on the one parse of this buffer plus one parse per imported file.
+    Reuse that model for document links, go-to-definition, hover, and diagnostics until the text
+    or the import-root mapping changes.
+    Keep that model, and the import name lists, only for open editors ([native_cache_retention]).
+    Look up an open import by URI. Do not match on file basename.
+    Do not read SQLite. Do not call `list_all_ideas`.
+    At parse time, publish lex and parse diagnostics with same-file and import errors.
+    The editor must not wait for a workspace link phase to see a broken parse.
+    Handlers on this path read the open model. They do not build a workspace link graph.
     Related: [open_file_algorithm], [outbound_one_hop], [ast_lifecycle],
     [comment_backlink_sequence].
 
-    @status done
+    @status in-progress
+    @todo Unqualified comment lookup can still fall back to the name catalog when no open buffer matches.
     @implementation (
-        [local_symbolic_links]
-        [neighbor_parse]
-        [document_builder]
-        [outbound_presentation]
-        [comment_diagnostics]
-        ["../../../../packages/language/src/reqlan-parse-diagnostics.ts"]
-        ["../../../../packages/language/src/reqlan-reference-peek.ts"]
-        ["../../../../packages/language/src/reqlan-linker.ts"]
-        ["../../../../packages/language/src/reqlan-scope.ts"]
-        ["../../../../packages/language/src/reqlan-definition-provider.ts"]
-        ["../../../../packages/language/src/reqlan-hover-provider.ts"]
-        ["../../../../packages/language/src/reqlan-document-highlight-provider.ts"]
-        ["../../../../packages/language/src/reqlan-reference-code-lens.ts"]
-        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
-        ["../../../../packages/language/src/reqlan-idea-summary.ts"]
+        [lsp_session]
+        [lsp_analysis]
+        [lsp_server]
     )
     @tests (
         ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
         ["../../../../packages/language/test/open-file-hot-path.test.ts:reparses the host native extract when this buffer text changes"]
         ["../../../../packages/language/test/open-file-hot-path.test.ts:does not treat a same-name file as the loaded neighbor"]
-        ["../../../../packages/language/test/open-file-hot-path.test.ts:does not relink an unrelated file that still has linker errors"]
-        ["../../../../packages/language/test/open-file-hot-path.test.ts:relinks a host when its neighbor file changes"]
-        ["../../../../packages/language/test/comment-reference-resolution.test.ts:relinks comment references only when the target file changes"]
-        ["../../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:keeps a missing idea error on the same line as a confirmed neighbor idea"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:Parsed outbound publish includes lex parse diagnostics"]
-        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition hover highlight and links do not resolve refs before ComputedScopes"]
-        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition still resolves same-file ideas at Parsed via symbolic path"]
-        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:reading every ref before ComputedScopes does not warn and linking still works"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:same_file_idea_references_produce_document_links"]
     )
 }
 
 missing_reference_colour_sequence {
-    After [outbound_one_hop], paint links and errors as follows:
+    Paint links and errors in two steps.
+    The hot path paints same-file names and import targets ([outbound_one_hop]).
+    The background pass paints qualified-reference idea lines ([lazy_features_after_outbound]).
+    Related: [unresolved_reference_diagnostics], [reference_rendering],
+    [file_reference_errors], [import_does_not_exist_error].
+
+    Hot path:
     - URL references: document link, no error.
-    - Wildcard references: document link (command target), no error underline for zero matches
-      (warning stays on the validator).
-    - File or import path missing: error underline, no document link
-      ([file_reference_errors], [import_does_not_exist_error]).
-    - Neighbor file exists and the named idea exists: document link to that idea line.
-    - Neighbor file exists and the named idea is missing: error underline, no document link.
+    - Wildcard references: document link, no error underline for zero matches.
+    - Import path missing: error underline, no document link.
+    - Imported idea present: document link to that idea line.
+    - Imported idea missing: error underline, no document link.
     - Same-file idea missing: error underline, no document link.
-    One-hop that confirms an idea must drop a false Langium linking error for that range.
-    Do not drop a different missing name that only shares the line.
-    Related: [unresolved_reference_diagnostics], [reference_rendering].
+    - Qualified reference: document link to the file from the path token.
+      Do not underline a missing idea yet.
 
-    ```mermaid
-    sequenceDiagram
-        autonumber
-        participant Langium as Langium functions
-        participant Native as Native extract
-        participant Fs as File system
-        participant Editor as VS Code editor
-
-        Langium->>Native: Outbound edges from this file
-        alt URL or wildcard
-            Langium-->>Editor: Document link (no unresolved error)
-        else File or import path missing
-            Fs-->>Langium: Not found
-            Langium-->>Editor: Error underline, no document link
-        else Neighbor exists, idea missing
-            Langium->>Native: Parse neighbor (depth 1)
-            Native-->>Langium: Idea list without the name
-            Langium-->>Editor: Error underline, no document link
-        else Neighbor exists, idea present
-            Langium->>Native: Parse neighbor (depth 1)
-            Native-->>Langium: Idea name and line
-            Langium-->>Editor: Document link to idea line
-            Note over Langium: Drop false linker unresolved for that range
-        else Same-file idea missing
-            Langium-->>Editor: Error underline, no document link
-        end
-    ```
+    Background pass:
+    - Qualified idea present: document link to that idea line.
+    - Qualified idea missing: error underline, and remove the document link.
+    - Drop a false missing-idea error only for the range that this pass confirms.
+      Keep a different missing name on the same line.
 
     @status done
     @implementation (
+        [lsp_analysis]
+        [lsp_session]
         [outbound_presentation]
-        [local_symbolic_links]
         [document_links]
-        ["../../../../packages/language/src/reqlan-validator.ts"]
     )
     @tests (
-        ["../../../../packages/language/test/outbound-hop.test.ts:does not link when the neighbor file exists but the idea is missing"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:missing_file_references_do_not_produce_document_links"]
         ["../../../../packages/language/test/outbound-hop.test.ts:keeps URL and wildcard document links"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:drops a false unresolved diagnostic when the neighbor idea exists"]
         ["../../../../packages/language/test/outbound-hop.test.ts:keeps a missing idea error on the same line as a confirmed neighbor idea"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:reports an unresolved import path"]
         ["../../../../packages/language/test/local-symbolic-links.test.ts:unresolved same-file ideas get no document link"]
-        ["../../../../packages/language/test/local-symbolic-links.test.ts:missing cross-file targets do not get document links"]
     )
 }
 
 comment_backlink_sequence {
-    `rq:[idea]` and `rq:["path".idea]` in code comments use the same depth-1 confirmation.
-    Qualified path: read that `.rq` file, parse idea names, then link or error.
-    Unqualified name: search open `.rq` buffers first; SQLite may fill later ([lazy_features_after_outbound]).
-    Do not create a happy document link when the idea is not confirmed.
+    `rq:[idea]` and `rq:["path".idea]` in code comments use one resolution for the link and the underline.
+    A qualified path reads that `.rq` file, parses idea names, then links or errors.
+    That read belongs to the comment file. Opening a different `.rq` buffer must not re-resolve every comment buffer.
+    An unqualified name searches open `.rq` buffers first.
+    The index snapshot may add a match later ([lazy_features_after_outbound]).
+    Do not call `list_all_ideas` for that search.
+    Do not create a document link when the idea is not confirmed.
     Related: [comment_reference_resolution_error_state].
 
-    ```mermaid
-    sequenceDiagram
-        autonumber
-        participant Editor as VS Code editor
-        participant ExtHost as Extension host
-        participant Langium as Langium functions
-        participant Native as Native extract
-        participant Fs as File system
-        participant Sqlite as SQLite index
-
-        Editor->>ExtHost: Open code file with rq comment
-        ExtHost->>ExtHost: Find rq tokens in comments
-        alt Qualified path
-            ExtHost->>Fs: Read target .rq (depth 1)
-            ExtHost->>Native: Parse idea names
-            alt Idea declared
-                Native-->>Editor: Document link
-            else Idea or file missing
-                Native-->>Editor: Error underline, no link
-            end
-        else Unqualified name
-            ExtHost->>ExtHost: Search open .rq buffers
-            opt Index ready
-                Sqlite-->>ExtHost: Optional later match
-            end
-        end
-        Note over Langium: .rq files use the same 1-hop helper
-    ```
-
-    @status done
+    @status in-progress
+    @todo A change to a .rq file still republishes every comment buffer in the background pass, and unqualified lookup can call list_all_ideas.
     @implementation (
+        [lsp_session]
         [comment_diagnostics]
         [comment_links_host]
-        [neighbor_parse]
         ["../../../../packages/language/src/reqlan-comment-resolver.ts"]
     )
     @tests (
-        ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:reports a missing comment reference idea in a loaded file"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
     )
 }
 
+lazy_features_after_outbound {
+    After the hot path is on screen, show the rest when its data is ready.
+    This pass must not delay [open_file_algorithm] steps 1–5.
+    Related: [language_server], [unify_inbound_indexes], [background_startup],
+    [inlay_hints], [codelens].
+
+    Work:
+    - Confirm each qualified reference. Read that target file once, at depth 1.
+      Then paint the idea line or the missing-idea error ([missing_reference_colour_sequence]).
+    - Inbound backlinks: inlay hints and the file-top CodeLens, from the host snapshot
+      ([unify_inbound_indexes]).
+    - Attribute and name catalogs for completion and quick fixes.
+    - Unqualified comment matches from that snapshot ([comment_backlink_sequence]).
+
+    Until the snapshot arrives, inlay hints and the file CodeLens stay empty.
+    Those handlers do not open SQLite and do not call `list_all_ideas`.
+    When the snapshot arrives, refresh the visible editors.
+
+    ```mermaid
+    sequenceDiagram
+        autonumber
+        participant Lsp as reqlan-lsp
+        participant Fs as File system
+        participant ExtHost as Extension host
+        participant Editor as VS Code editor
+
+        Note over Lsp,Editor: Hot path already published
+        Lsp->>Fs: Read each qualified-reference file
+        Lsp-->>Editor: Idea-line links or missing-idea errors
+        ExtHost->>Lsp: Inbound snapshot
+        Lsp-->>Editor: Inlay hints, file CodeLens, catalogs
+    ```
+
+    @status done
+    @implementation (
+        [lsp_session]
+        [lsp_server]
+        [inbound_sync]
+        ["../../../../packages/extension/src/extension/main.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:index_completion_inlay_and_custom_requests"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:neighbor_confirm_suppresses_missing_idea"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:formats_inbound_referencers_as_an_inlayed_attribute"]
+    )
+}
+
 native_cache_retention {
-    The language server keeps a native extract for each open editor, and a depth-1
-    neighbor idea list for each file that an open editor confirms.
-    A closed editor drops its extract. It also drops neighbor lists that no open editor
-    still needs.
+    The language server keeps the open-buffer model for each open editor.
+    It keeps a depth-1 name list for each imported file, and for each qualified-reference file
+    the background pass has confirmed, while an open editor still needs that list.
+    A closed editor drops its model. It also drops name lists that no open editor still needs.
     A file-watcher delete drops that URI from both caches.
-    A removed Langium document drops that URI from both caches.
-    Closed files may still be parsed for a single check. That result is not stored.
+    A check of a closed file may parse it once. That result is not stored.
     Related: [open_file_hot_path], [outbound_one_hop], [ast_lifecycle].
 
     @status done
     @implementation (
+        [lsp_session]
         [editor_retention]
-        [local_symbolic_links]
         [neighbor_parse]
         [document_update_handler]
-        ["../../../../packages/language/src/reqlan-module.ts"]
     )
     @tests (
-        ["../../../../packages/language/test/lsp-memory.test.ts:keeps the host extract while the editor is open"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
         ["../../../../packages/language/test/lsp-memory.test.ts:drops a neighbor list when the last open editor closes"]
         ["../../../../packages/language/test/lsp-memory.test.ts:drops a neighbor list when the file watcher reports a delete"]
-        ["../../../../packages/language/test/lsp-memory.test.ts:drops native caches when the Langium document is removed"]
-        ["../../../../packages/language/test/lsp-memory.test.ts:does not store a neighbor list for a closed editor"]
-        ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
         ["../../../../packages/language/test/outbound-hop.test.ts:reuses a cached neighbor parse for the same content"]
     )
 }
 
+node_engine_open_path {
+    This idea applies when `reqlan.languageServer.engine` is `node`.
+    The default engine is [language_server_rust].
+    The node server populates a Langium AST for the open buffer at `DocumentState.Parsed`.
+    Later builder phases attach scopes, links, and diagnostics. They must not replace that AST.
+    Parsed-time handlers must not read Langium `.ref`.
+    Use `$refText`, the symbolic extract, or `peekResolvedRef` until `ComputedScopes`.
+    The linker must not resolve a cross-reference while that document is below `ComputedScopes`.
+    Do not log the Langium warning. Do not store a failed link.
+    Scope lookup, code lens, completion, and idea summaries use `readResolvedRef` or `peekResolvedRef` until that phase.
+    When another `.rq` file changes, relink this document when the index says it is affected,
+    when comment references name that file, or when this document's outbound targets include the changed URI.
+    Do not relink every document that still has a linker error.
+    Workspace load parses at most 8 files at a time ([workspace_parse_concurrency]).
+    `fileIdeasCache` and `importPathCache` drop a URI when that document is removed ([scope_cache_release]).
+    Related: [open_file_algorithm], [ast_lifecycle].
+
+    @status done
+    @implementation (
+        [document_factory]
+        [document_builder]
+        [async_parser]
+        [parse_budget]
+        [workspace_manager]
+        [scope_provider]
+        [local_symbolic_links]
+        [neighbor_parse]
+        [outbound_presentation]
+        [document_links]
+        [language_server_main]
+        ["../../../../packages/language/src/reqlan-linker.ts"]
+        ["../../../../packages/language/src/reqlan-reference-peek.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/ast-lifecycle.test.ts:populates the Langium AST at Parsed without DocumentBuilder"]
+        ["../../../../packages/language/test/ast-lifecycle.test.ts:linking and validation do not replace the AST"]
+        ["../../../../packages/language/test/ast-lifecycle.test.ts:neighbor hop does not populate a Langium AST"]
+        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition hover highlight and links do not resolve refs before ComputedScopes"]
+        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:reading every ref before ComputedScopes does not warn and linking still works"]
+        ["../../../../packages/language/test/open-file-hot-path.test.ts:does not relink an unrelated file that still has linker errors"]
+        ["../../../../packages/language/test/open-file-hot-path.test.ts:relinks a host when its neighbor file changes"]
+    )
+}
+
 scope_cache_release {
+    This idea applies when the engine is `node` ([node_engine_open_path]).
     `fileIdeasCache` and `importPathCache` drop a URI when that Langium document is removed.
     A version change still replaces the entry for a document that stays.
+    The rust server drops the open model in [native_cache_retention].
     Related: [open_file_hot_path], [native_cache_retention].
 
     @status done
@@ -537,9 +473,12 @@ scope_cache_release {
 }
 
 workspace_parse_concurrency {
+    This idea applies when the engine is `node` ([node_engine_open_path]).
     Workspace load parses `.rq` files with a fixed limit of 8 in flight.
     One file that fails to parse does not cancel the other files.
     The steady-state set is still every workspace `.rq` file.
+    The rust server does not parse the workspace. A closed file keeps no syntax tree
+    ([language_server_rust]).
     Related: [ast_lifecycle], [workspace_manager].
 
     @status done
@@ -549,28 +488,5 @@ workspace_parse_concurrency {
     @tests (
         ["../../../../packages/language/test/lsp-memory.test.ts:runs at most the concurrency limit"]
         ["../../../../packages/language/test/lsp-memory.test.ts:loads every workspace file with at most 8 parses in flight"]
-    )
-}
-
-lazy_features_after_outbound {
-    After outbound links and errors are on screen, show extra features when their data is ready:
-    - SQLite inbound snapshot ([unify_inbound_indexes]) for inlay hints ([inlay_hints])
-    - Reference CodeLens ([codelens]), including file-top inbound
-      (["../syntax/features-syntax-highlighting.rq".file_inbound_code_lens])
-    - Attribute and name catalogs for completion and quick fixes
-    - Activity-bar local symbolic merge
-    These features must not delay [open_file_algorithm] steps 1–5.
-    Related: [language_server], [background_startup].
-
-    @status done
-    @implementation (
-        [inbound_sync]
-        ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"]
-        ["../../../../packages/language/src/reqlan-code-lens-provider.ts"]
-        ["../../../../packages/extension/src/extension/main.ts"]
-    )
-    @tests (
-        ["../../../../packages/language/test/inbound-referencer-index-perf.test.ts:inlay referencers come from the pushed snapshot, not findAllReferences"]
-        ["../../../../packages/language/test/outbound-hop.test.ts:links a neighbor idea after a depth-1 parse without loading the target document"]
     )
 }

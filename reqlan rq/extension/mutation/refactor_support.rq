@@ -46,9 +46,18 @@ refactor_symbol_rename {
     renamable via the editor rename action (F2 / LSP rename).
     Rename should update AST references across .rq files and matching `rq:["path".idea]`
     comment idea tokens in source files ([comment_reference_refactor_support]).
+    The Rust server renames open buffers, open comment buffers, and closed files reached via the ideas index.
+    Non-`.rq` comment rename stays on the host provider until Rust owns those buffers.
     [refactor_support]
-    Implemented by ["../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../packages/language/src/reqlan-comment-rename.ts"], ["../../../packages/language/src/reqlan-name-provider.ts"], and ["../../../packages/extension/src/mutation_module/refactor/register-comment-rename-provider.ts"].
+    Implemented by ["../../../crates/reqlan-lsp/src/session.rs"], ["../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../packages/language/src/reqlan-comment-rename.ts"], ["../../../packages/language/src/reqlan-name-provider.ts"], and ["../../../packages/extension/src/mutation_module/refactor/register-comment-rename-provider.ts"].
+    @status done
+    @implementation (
+        ["../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../crates/reqlan-lsp/src/analysis.rs"]
+    )
     @tests (
+        ["../../../crates/reqlan-lsp/tests/session.rs:completion_rename_and_code_action"]
+        ["../../../crates/reqlan-lsp/tests/session.rs:attribute_catalog_completion_and_find_references"]
         ["../../../packages/language/test/rename-provider.test.ts:rename updates declaration and wikilink references"]
         ["../../../packages/language/test/rename-provider.test.ts:rename also updates rq comment idea tokens in the same document"]
         ["../../../packages/language/test/comment-rename.test.ts:builds rename edits for matching comment idea tokens"]

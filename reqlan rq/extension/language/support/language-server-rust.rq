@@ -9,19 +9,26 @@ language_server_rust {
     A Rust binary replaces the Langium language-server process.
     The extension launches `reqlan-lsp` over stdio.
     Open `.rq` buffers parse with [parser_rust].
-    Workspace names, rename targets, and inbound hints come from the ideas index under [application_memory].
+    The open sequence is ["open-file-sequencing.rq".open_file_algorithm].
+    Workspace names and rename targets come from the ideas index under [application_memory].
+    Inbound hints wait for the host snapshot of that index.
     The inbound inlay hover is markdown. It lists each referencer as a file link.
     An idea hover shows styled idea content when ["../syntax/features-syntax.rq".idea_content_tooltip] is on.
     A closed file has no retained syntax tree.
+    Go-to-definition cost is ["../syntax/features-syntax-highlighting.rq".reference_goto_definition_speed].
     When the engine is `rust`, the server also serves `rq:[…]` links and missing-idea diagnostics in non-`.rq` comments.
     One resolution supplies the link and the underline.
     The host serves those links when the engine is `node`.
-    Editor commands stay in `@reqlan/language`.
+    Host commands prefer LSP custom requests, napi extract, and the ideas index.
+    Move/delete planners still use Langium until index-backed planners land.
     The setting `reqlan.languageServer.engine` selects the binary.
     The default is `rust`.
     `node` remains only when the setting says so, or when the binary is not on disk yet.
     A local extension build compiles this binary with the napi addon ([extension_host_native_stage]).
+    The extension launches `bin/reqlan-lsp`, else that release build. It never launches a debug build, because a debug build is slow and the extension build does not refresh it.
     Code actions match ["../vsc-primitives.rq".code_actions]: ignore, create below, import fixes, search or wrap, idea move and delete, and barrel page.
+    Attribute and name catalogs drive completion. Rename and find-references use open buffers plus the ideas index.
+    Inlay hints honour `reqlan.referencesInlayHints.enabled` and the host inbound snapshot.
     An import link uses the parser token span ([import_from]).
     The path links to the file.
     An imported idea name and its alias each link to that declaration.
@@ -29,7 +36,7 @@ language_server_rust {
     A missing leaf reports an unresolved idea on that name.
     Related: [language_server], [grammar_and_parser], [analytical_rust_port], [vsix_export].
     @status in-progress
-    @todo Host helpers in `@reqlan/language` still link Langium. Move those helpers off Langium after the server cutover.
+    @todo Move/delete and barrel-page host planners still call Langium DI. Finish those off napi/index/LSP.
     @implementation (
         ["../../../../crates/reqlan-lsp/src/lib.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
@@ -48,6 +55,9 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_hover_highlight_and_link"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_uses_the_open_neighbor_parse"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_does_not_reread_a_cached_neighbor"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:folder_reference_link_is_a_command"]
         ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_styled_idea_content_by_default"]
         ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_omits_idea_content_when_the_setting_is_off"]
         ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_idea_content_from_another_file"]
@@ -55,6 +65,7 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/session.rs:rq_ignore_suppresses_the_next_line"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:completion_rename_and_code_action"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:index_completion_inlay_and_custom_requests"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:attribute_catalog_completion_and_find_references"]
         ["../../../../crates/reqlan-lsp/tests/stdio.rs:stdio_initialize_and_shutdown"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:same_file_idea_references_produce_document_links"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:missing_file_references_do_not_produce_document_links"]
@@ -75,6 +86,7 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/parity.rs:omits_the_inlay_when_there_are_no_inbound_referencers"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
         ["../../../../packages/extension/test/language-server-launch.test.ts:defaults to the rust binary over stdio"]
+        ["../../../../packages/extension/test/language-server-launch.test.ts:launches the release build and never a debug build"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_ignore_error_quick_fix_on_a_line_with_a_linking_error"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_ignore_error_when_only_refactor_is_requested"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:creates_the_missing_idea_below_the_containing_idea"]
@@ -101,7 +113,7 @@ language_server_rust {
         constraints
             - vscode-languageclient stays. Transport becomes stdio.
             - lsp-server and lsp-types only. No second parser.
-            - Open-file links do not wait for the index.
+            - Open-file links follow open_file_algorithm.
             - UTF-8 spans convert to UTF-16 LSP positions.
             - TextMate stays a checked-in grammar. The editor paints it before semantic tokens.
             - With the rust engine, non-.rq comment links come from the server. The node engine keeps the host provider.
@@ -118,6 +130,6 @@ language_server_rust {
             7. Keep Langium only for host helpers. The server process does not load it when the engine is rust.
 
         open
-            - Host helpers in `@reqlan/language` still use Langium.
+            - Host move/delete/barrel planners still use Langium DI.
     }
 }

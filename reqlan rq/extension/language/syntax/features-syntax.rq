@@ -3,7 +3,12 @@ syntax_features {
     Syntax features should cover ideas, ideasets, imports, references, attributes, comments, and lists.
     Broken imports and references should be validated and reported in the editor.
     Go-to-definition and find-references should work for ideas, imports, and cross-file links.
+    Find-references is served by ["../support/language-server-rust.rq".language_server_rust] (`textDocument/references`).
     Autoformatting should be supported for .rq files.
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/session.rs:attribute_catalog_completion_and_find_references"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_hover_highlight_and_link"]
+    )
 }
 
 syntax_highlighting {
@@ -109,7 +114,8 @@ file_references {
     A file reference should act as a link in the editor.
     If the target file is empty or has a parse error, the link should remain available and clickable, but should show a warning underline.
     If the target file is missing, show an error underline and do not create a document link — see ["../support/language-server-errors.rq".file_reference_errors].
-    Same-file and imported idea bracket references should use the same document-link underline as file targets — no visual distinction between local and external refs.
+    Same-file and imported idea bracket references use the same editor activation as file targets.
+    See ["./features-syntax-highlighting.rq".editor_reference_activation].
 
     Implemented by ["../../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../../packages/language/src/reqlan-document-link-provider.ts"], ["../../../../packages/language/src/reqlan-definition-provider.ts"], and ["../../../../packages/language/src/reqlan-validator.ts"].
     @tests (

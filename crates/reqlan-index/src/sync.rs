@@ -17,7 +17,7 @@ use crate::extract::{
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
 use crate::path_resolve::load_applying_rq_config;
 use crate::store::{IndexStore, StoreError};
-use crate::types::IdeaSummary;
+use crate::types::{IdeaSummary, IndexedDocument};
 use reqlan_parse::{parse_document, ImportRootMapping, Severity};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -199,7 +199,7 @@ pub fn sync_workspace(
     let mut progress =
         SyncProgress { total: rq_files.len() + code_files.len(), ..SyncProgress::default() };
     let mut file_issues = Vec::new();
-    let mut rq_indexed = 0usize;
+    let mut names_changed = false;
 
     let mut catalog: Vec<WildcardIdeaCandidate> = store
         .list_all_ideas()?
@@ -245,11 +245,13 @@ pub fn sync_workspace(
                 local_symbolic: false,
             },
         );
+        let file_names_changed = idea_names_change(store, &extracted)?;
         if let Err(error) = store.persist_extracted(extracted.clone(), mtime_ms) {
             progress.errors += 1;
             file_issues.push(FileIssue { file_uri, message: error.to_string() });
             continue;
         }
+        names_changed |= file_names_changed;
         for idea in extracted.ideas {
             catalog.push(WildcardIdeaCandidate {
                 file_path: idea.file_uri.clone(),
@@ -258,7 +260,6 @@ pub fn sync_workspace(
             });
         }
         progress.indexed += 1;
-        rq_indexed += 1;
     }
 
     if !progress.cancelled {
@@ -267,7 +268,7 @@ pub fn sync_workspace(
             &options.workspace_root,
             &code_files,
             &stored_mtimes,
-            options.hard_rebuild || stale_extract || rq_indexed > 0,
+            options.hard_rebuild || stale_extract || names_changed,
             cancel,
             &mut progress,
             &mut file_issues,
@@ -445,16 +446,14 @@ pub fn index_one_file(
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
+    if RqIgnoreFilter::load(workspace_root).ignores(&file_uri, false) {
+        store.delete_document(&file_uri)?;
+        return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
+    }
+
     let import_roots = load_applying_rq_config(workspace_root, Some(&path)).import_roots;
 
     if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
-        if is_binary_rqignore_path(&path) {
-            let filter = RqIgnoreFilter::load(workspace_root);
-            if filter.ignores(&file_uri, false) {
-                store.delete_document(&file_uri)?;
-                return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
-            }
-        }
         let catalog = store.list_all_ideas()?;
         let source = match std::fs::read_to_string(&path) {
             Ok(text) => text,
@@ -493,9 +492,20 @@ pub fn index_one_file(
         &parsed,
         &ExtractOptions { idea_candidates: catalog, import_roots, local_symbolic: false },
     );
+    let names_changed = idea_names_change(store, &extracted)?;
     store.persist_extracted(extracted, mtime_ms)?;
-    refresh_indexed_code_documents(store, workspace_root)?;
+    if names_changed {
+        refresh_indexed_code_documents(store, workspace_root)?;
+    }
     Ok(IndexOneFileResult { file_uri, diagnostics })
+}
+
+/// Code comment links resolve on idea names alone, so only a name change re-links code files.
+fn idea_names_change(store: &IndexStore, document: &IndexedDocument) -> Result<bool, StoreError> {
+    let before: HashSet<String> =
+        store.get_ideas_in_file(&document.file_uri)?.into_iter().map(|idea| idea.name).collect();
+    let after: HashSet<&str> = document.ideas.iter().map(|idea| idea.name.as_str()).collect();
+    Ok(before.len() != after.len() || !before.iter().all(|name| after.contains(name.as_str())))
 }
 
 fn file_mtime_ms(path: &Path) -> Option<f64> {
