@@ -163,6 +163,7 @@ describe("native platform packaging", () => {
     const azure = readFileSync(join(root, "azure-pipelines.yml"), "utf8");
     expect(azure).toContain("package-extension-targets.mjs");
     expect(azure).toContain("build_native");
+    expect(azure).toContain("cargo build -p reqlan-napi -p reqlan-lsp --release");
     expect(azure).toContain("collect-napi-binary.mjs");
     expect(azure).toContain("prepare-native-packages.mjs");
     expect(azure).toContain("--binary-dir");
@@ -187,6 +188,7 @@ describe("native platform packaging", () => {
       join(root, ".github/workflows/deploy-npm.yml"),
       "utf8",
     );
+    expect(deployNpm).toContain("cargo build -p reqlan-napi -p reqlan-lsp --release");
     expect(deployNpm).toContain("--publish-versions");
     expect(deployNpm).toMatch(
       /prepare-native-packages\.mjs --publish-versions/,

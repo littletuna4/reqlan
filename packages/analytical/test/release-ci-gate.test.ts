@@ -69,7 +69,7 @@ describe('release CI gate', () => {
 
         expect((ci.match(/pnpm install --frozen-lockfile/g) ?? []).length).toBe(1);
         expect((ci.match(/pnpm run build:tsc/g) ?? []).length).toBe(1);
-        expect((ci.match(/cargo build -p reqlan-napi --release/g) ?? []).length).toBe(1);
+        expect((ci.match(/cargo build -p reqlan-napi -p reqlan-lsp --release/g) ?? []).length).toBe(1);
         expect(ci).not.toContain('ensure-host-native');
 
         const installAt = ci.indexOf('pnpm install --frozen-lockfile');

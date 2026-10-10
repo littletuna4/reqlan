@@ -113,7 +113,7 @@ rust_binary_distribution {
     steps
       1. Scaffold six platform packages with os/cpu and the napi binary. (done)
       2. Wire optionalDependencies on published `@reqlan/analytical` only; git omits them so Changesets can ignore platform packages. (done)
-      3. Cross-compile reqlan-napi in CI for [native_targets]. (done in deploy-npm.yml and azure-pipelines.yml)
+      3. Cross-compile `reqlan-napi` and `reqlan-lsp` for [native_targets]. `collect-napi-binary.mjs` copies both. npm packages ship only the `.node`. The VSIX ships `bin/reqlan-lsp`. (done in deploy-npm.yml and azure-pipelines.yml)
       4. Publish platform packages on `analytical/v*` before `@reqlan/analytical`.
       5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)
   }
@@ -191,6 +191,7 @@ prerelease_tests {
   GitHub CI runs them in the same job as crate tests and ["../core_analysis/check.rq".check], after that compile (["./distribution.rq".ci_gate]).
   This job runs on every pull request and on main before versioning.
   Host native addon is required because analytical and language tests load `reqlan-napi`.
+  The host release build compiles `reqlan-napi` and `reqlan-lsp`. `pack-host-native-package.mjs` calls `collect-napi-binary.mjs`, which copies both.
   Azure runs `pnpm run test:js` before VSIX publish ([extension_distribution]).
   Local `pnpm run test` runs `test:js` then `test:rust` (["../core_analysis/rust_port.rq".rust_crate_layout]).
   The implementation lives in ["../../.github/workflows/ci.yml"]; ["../../.github/workflows/release.yml"] calls it with `workflow_call` as part of ["./distribution.rq".ci_gate].
