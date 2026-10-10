@@ -1528,14 +1528,19 @@ example_ideaset (
             .filter(isQualifiedReference);
         expect(qualified).toHaveLength(2);
 
-        const attributeRef = qualified[0];
-        expect(attributeRef.idea?.ref).toBeDefined();
-        expect(isAttribute(attributeRef.idea?.ref)).toBe(true);
-        if (!isAttribute(attributeRef.idea?.ref)) {
-            return;
+        const parsedDocument = document;
+        if (parsedDocument === undefined) {
+            throw new Error('The parsed document is missing.');
         }
-        expect(attributeRef.idea.ref.name).toBe('example');
-        const owner = attributeRef.idea.ref.$container;
+
+        const attributeRef = qualified[0];
+        const attributeTarget = attributeRef?.idea?.ref;
+        expect(attributeTarget).toBeDefined();
+        if (!isAttribute(attributeTarget)) {
+            throw new Error('The link target is not an attribute.');
+        }
+        expect(attributeTarget.name).toBe('example');
+        const owner = attributeTarget.$container;
         expect(isIdea(owner) && owner.name).toBe('attribute_namespacing');
 
         const memberRef = qualified[1];
@@ -1566,11 +1571,11 @@ example_ideaset (
         });
         expect(targetLine).toContain('@example');
 
-        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
-            textDocument: { uri: document.textDocument.uri }
+        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(parsedDocument, {
+            textDocument: { uri: parsedDocument.textDocument.uri }
         });
         const attributeLink = documentLinks?.find(entry =>
-            document.textDocument.getText(entry.range) === 'example'
+            parsedDocument.textDocument.getText(entry.range) === 'example'
             && entry.target?.includes(`#L${links![0].targetSelectionRange!.start.line + 1}`)
         );
         expect(attributeLink?.target).toBeDefined();
@@ -1590,22 +1595,26 @@ example_ideaset (
             }
         `);
         await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const parsedDocument = document;
+        if (parsedDocument === undefined) {
+            throw new Error('The parsed document is missing.');
+        }
 
-        const messages = (document.diagnostics ?? [])
+        const messages = (parsedDocument.diagnostics ?? [])
             .map(diagnostic => diagnostic.message)
             .filter((message): message is string => typeof message === 'string');
         expect(messages).toContain("Could not resolve attribute 'missing' on idea 'attribute_namespacing'.");
         expect(messages.some(message => message.includes("IdeaDeclaration named 'missing'"))).toBe(false);
 
-        const qualified = [...AstUtils.streamAst(document.parseResult.value)].filter(isQualifiedReference);
+        const qualified = [...AstUtils.streamAst(parsedDocument.parseResult.value)].filter(isQualifiedReference);
         expect(qualified).toHaveLength(1);
         expect(isIdea(peekResolvedRef(qualified[0].idea))).toBe(false);
 
-        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
-            textDocument: { uri: document.textDocument.uri }
+        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(parsedDocument, {
+            textDocument: { uri: parsedDocument.textDocument.uri }
         });
         const decoyLink = documentLinks?.find(entry =>
-            document.textDocument.getText(entry.range) === 'missing'
+            parsedDocument.textDocument.getText(entry.range) === 'missing'
         );
         expect(decoyLink).toBeUndefined();
     });

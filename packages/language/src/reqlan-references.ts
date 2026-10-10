@@ -1,5 +1,6 @@
 /**
  * Shared helpers for the reference target union types.
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
 import { AstUtils, type Reference } from 'langium';
 import {
@@ -8,8 +9,8 @@ import {
     isLocalReference,
     isModel,
     isQualifiedReference,
-    type IdeaDeclaration,
     type Import,
+    type QualifiedIdeaTarget,
     type QualifiedReference,
     type ReferenceTarget
 } from './generated/ast.js';
@@ -26,7 +27,8 @@ export function referenceImport(target: ReferenceTarget): Reference<Import> | un
     return undefined;
 }
 
-export function referenceIdea(target: ReferenceTarget): Reference<IdeaDeclaration> | undefined {
+/** Qualified targets include attributes. Local targets are idea declarations. */
+export function referenceIdea(target: ReferenceTarget): Reference<QualifiedIdeaTarget> | undefined {
     if (isQualifiedReference(target) || isLocalReference(target)) {
         return target.idea;
     }

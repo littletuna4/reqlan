@@ -382,6 +382,7 @@ attribute_namespacing {
     A bracket link `[idea.attribute]` targets one attribute of that idea.
     The first name is the idea name.
     The second name is the attribute name.
+    The grammar types that name as an attribute or an idea declaration.
     `[attribute_namespacing.example]` targets the `example` attribute of this idea.
     The form `[ideaset.member]` still targets an ideaset member.
     See [references_to_subidea].
@@ -397,11 +398,14 @@ attribute_namespacing {
     Related: [reference_brackets], [attribute_marker], ["../core_analysis/html_export.rq".html_export_internal_links].
     @status done
     @implementation (
+        ["../../packages/language/src/reqlan.langium"]
         ["../../crates/reqlan-parse/src/lexer.rs"]
         ["../../crates/reqlan-parse/src/parser.rs"]
         ["../../packages/language/src/reqlan-scope.ts"]
         ["../../packages/language/src/reqlan-linker.ts"]
         ["../../packages/language/src/reqlan-attribute-links.ts"]
+        ["../../packages/language/src/reqlan-references.ts"]
+        ["../../packages/language/src/reqlan-reference-code-lens.ts"]
         ["../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
         ["../../packages/language/src/reqlan-outbound-presentation.ts"]

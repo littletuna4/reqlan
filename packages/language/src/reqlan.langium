@@ -214,9 +214,14 @@ FileSymbolReference:
 WildcardReference:
     pathPattern=STRING '.' ideaPattern=WILDCARD_NAME;
 
+// The second name of a qualified reference is an idea, an ideaset member, or an attribute.
+// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+// rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+type QualifiedIdeaTarget = IdeaDeclaration | Attribute;
+
 QualifiedReference:
     (path=[Import:STRING] | qualifier=[Import:ID]) '.'
-    (ideaset=[IdeaSet:ReferenceName] '.')? idea=[IdeaDeclaration:ReferenceName];
+    (ideaset=[IdeaSet:ReferenceName] '.')? idea=[QualifiedIdeaTarget:ReferenceName];
 
 LocalReference:
     idea=[IdeaDeclaration:ReferenceName];

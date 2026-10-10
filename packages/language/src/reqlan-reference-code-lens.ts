@@ -10,6 +10,7 @@ import {
     isFileReference,
     isFileSymbolReference,
     isIdea,
+    isIdeaDeclaration,
     isIdeaSet,
     isLocalReference,
     isOneLinerIdea,
@@ -65,8 +66,10 @@ export function classifyReferenceForCodeLens(
             );
             return classifyResolvedFileLink(link);
         }
+        // Attribute targets are not idea declarations.
+        // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
         const ideaTarget = peekResolvedRef(referenceIdea(target));
-        if (ideaTarget) {
+        if (ideaTarget && isIdeaDeclaration(ideaTarget)) {
             return { kind: 'idea', declaration: ideaTarget };
         }
         if (isQualifiedReference(target)) {
