@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.17.1
+
+### Patch Changes
+
+- 0e9a53a: fix the collection and remove build waste
+
 ## 1.17.0
 
 ### Minor Changes
