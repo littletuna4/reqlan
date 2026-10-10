@@ -265,7 +265,7 @@ check_qualified_missing_file {
 }
 
 check_qualified_missing_idea {
-    A qualified [reference] names a file and an idea. Example: `["./graph-analysers.rq".index_ideas]`.
+    A qualified [reference] names a file and an idea. Example: `["../extension/index-host/graph-analysers.rq".not_an_idea]`.
     The same rule applies to a namespace alias: `[alias.idea]` ([import_namespace]).
     [check] reports an error when that file is an `.rq` file, the file does not declare the idea, and the file does not bind that name as an import alias.
     The issue kind is `references`. The label is the missing idea name.

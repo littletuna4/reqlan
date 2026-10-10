@@ -43,7 +43,7 @@ extension_product {
 
 host_lifecycle {
     Install vs base, activation, first paint, onboarding, and configuration schema contribution.
-    [installation.installation], [activation.activation], [startup.startup_performance],
+    [installation.installation], [activation.activation], [startup.extension_startup_reliability],
     [onboarding.installation_event], [configuration.configuration_location],
     [command_palette_doc.command_palette].
     @status done

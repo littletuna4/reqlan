@@ -10,7 +10,7 @@ application_memory {
     Base-local application memory for reqlan tools lives under `<base>/.reqlan/`.
     The presence of `.reqlan` **marks** a directory as a ["../../bases/base.rq".base]; each base owns its own store.
     Shared by the VS Code extension, ["../../cli/cli_package.rq".cli_package], and MCP ([mcp_server]) — not VS Code `globalStorageUri` / extension-private storage.
-    The ideas graph index (["./graph-analysers.rq".index_ideas] / ["./graph-analysers.rq".index_technology]) persists as `ideas-index.sqlite` inside that directory.
+    The ideas graph index ([indexer.index_ideas] and [indexer.index_technology]) persists as `ideas-index.sqlite` inside that directory.
     Schema: ["../../indexer/sqlite-schema.rq".ideas_index_sqlite].
     Index timing diagnostics persist separately as `index-diagnostics.sqlite` ([index_diagnostics_store] / ["./index-diagnostics.rq".index_diagnostics]) so rebuilds of the ideas index do not wipe history.
     Click session state persists as `click-sessions.sqlite` (["../../cli/click.rq".click_session]) so agent/CLI click cursors survive ideas-index rebuilds.
