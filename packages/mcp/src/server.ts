@@ -38,12 +38,27 @@ export type PromptToolInput = {
 };
 
 export type CheckToolInput = {
-  glob?: string;
+  glob?: string | string[];
   wildcardZero?: SparseWildcardHandling;
   wildcardOne?: SparseWildcardHandling;
   skipTargets?: string[];
   skipGitignoredTargets?: boolean;
 };
+
+function checkPathGlobs(glob: string | string[] | undefined): string[] | undefined {
+  if (glob === undefined) {
+    return undefined;
+  }
+  const values = Array.isArray(glob) ? glob : [glob];
+  const trimmed = values.map((value) => value.trim());
+  if (trimmed.length === 1 && trimmed[0] === "") {
+    return undefined;
+  }
+  if (trimmed.some((value) => value.length === 0)) {
+    throw new Error("glob must not be empty");
+  }
+  return trimmed;
+}
 
 function resolveWorkspaceRoot(): string {
   const fromEnv = process.env.REQLAN_WORKSPACE?.trim();
@@ -120,6 +135,7 @@ export async function handlePromptTool(
 /**
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
@@ -132,9 +148,9 @@ export async function handleCheckTool(
   api: McpAnalysisApi,
   input: CheckToolInput,
 ) {
-  const glob = input.glob?.trim();
+  const pathGlobs = checkPathGlobs(input.glob);
   const rows = await api.check({
-    pathGlob: glob !== undefined && glob.length > 0 ? glob : undefined,
+    pathGlobs,
     wildcardZero: input.wildcardZero,
     wildcardOne: input.wildcardOne,
     skipTargets: input.skipTargets,
@@ -207,12 +223,14 @@ export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
     "check",
     {
       description:
-        "Check that idea, comment, file, and import references resolve. Returns JSON issue rows ordered by missing target. Empty array means no issues. Optional glob limits to a path subset. wildcardZero and wildcardOne are warn (default), error, or off. skipTargets omits issues whose missing target matches a glob. skipGitignoredTargets omits missing file targets that Git ignore rules ignore. Lines after //rq-ignore-error are skipped.",
+        "Check that idea, comment, file, and import references resolve. Returns JSON issue rows ordered by missing target. Empty array means no issues. Optional glob is one path pattern or a list of patterns. A file that matches any pattern is in the scan. wildcardZero and wildcardOne are warn (default), error, or off. skipTargets omits issues whose missing target matches a glob. skipGitignoredTargets omits missing file targets that Git ignore rules ignore. Lines after //rq-ignore-error are skipped.",
       inputSchema: {
         glob: z
-          .string()
+          .union([z.string(), z.array(z.string())])
           .optional()
-          .describe("Optional path glob that limits the check to a subset of the base"),
+          .describe(
+            "Optional path glob or list of path globs. A file that matches any glob is in the scan.",
+          ),
         wildcardZero: z
           .enum(["warn", "error", "off"])
           .optional()

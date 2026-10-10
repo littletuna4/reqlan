@@ -2,7 +2,7 @@ use crate::click::{self, ClickOptions};
 use crate::types::{
     from_index_summary, BrokenReferenceDto, ClickResult, CompletionSummary, DeprecationImpact,
     EdgeDto, ExportRequestDto, ExportResultDto, FileReferenceMatch, FileRelatedRequirements,
-    GraphSlice, IdeaSummary, InteractionDescriptor, NameAmbiguity, RequirementMatch,
+    GraphSlice, IdeaSummary, InteractionDescriptor, KatzScore, NameAmbiguity, RequirementMatch,
     SearchRequirementsOptions,
 };
 use reqlan_export::{
@@ -12,11 +12,14 @@ use reqlan_export::{
 use reqlan_index::ignore::{application_memory_path, ideas_index_path};
 use reqlan_index::sync::{sync_workspace, to_indexed_uri, SyncOptions};
 use reqlan_index::{
-    check_references, is_deprecated, list_broken_references, parse_attributes,
+    check_references, is_deprecated, list_broken_references, parse_attributes, path_glob_matches,
     CheckReferencesOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
     StoreError,
 };
-use reqlan_search::{rerank_matches_with_context, resolve_search_context_refs, semantic_search};
+use reqlan_search::{
+    apply_katz_search_bias, citation_edge_pairs, katz_centrality, rerank_matches_with_context,
+    resolve_search_context_refs, semantic_search,
+};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -58,7 +61,12 @@ impl AnalysisRuntime {
         let cancel = AtomicBool::new(false);
         sync_workspace(
             &mut self.store,
-            &SyncOptions { workspace_root: self.workspace_root.clone(), hard_rebuild: false },
+            &SyncOptions {
+                workspace_root: self.workspace_root.clone(),
+                hard_rebuild: false,
+                path_globs: Vec::new(),
+                include_files: Vec::new(),
+            },
             &cancel,
         )?;
         self.ready = true;
@@ -69,7 +77,12 @@ impl AnalysisRuntime {
         let cancel = AtomicBool::new(false);
         sync_workspace(
             &mut self.store,
-            &SyncOptions { workspace_root: self.workspace_root.clone(), hard_rebuild: hard },
+            &SyncOptions {
+                workspace_root: self.workspace_root.clone(),
+                hard_rebuild: hard,
+                path_globs: Vec::new(),
+                include_files: Vec::new(),
+            },
             &cancel,
         )?;
         self.ready = true;
@@ -84,17 +97,26 @@ impl AnalysisRuntime {
     ) -> Result<Vec<RequirementMatch>, AnalysisError> {
         self.ensure_ready()?;
         let context_refs = options.map(|opts| opts.context.clone()).unwrap_or_default();
+        let use_katz = options.is_some_and(|opts| opts.katz);
         let context_ids = if context_refs.is_empty() {
             Vec::new()
         } else {
             resolve_search_context_refs(&self.store, &self.workspace_root, &context_refs)?
         };
-        let fetch_limit = if context_ids.is_empty() { limit } else { (limit * 3).max(24) };
+        let fetch_limit =
+            if context_ids.is_empty() && !use_katz { limit } else { (limit * 3).max(24) };
         let matches = semantic_search(&self.store, query, None, fetch_limit)?;
         let ranked = if context_ids.is_empty() {
             matches
         } else {
             rerank_matches_with_context(&self.store, matches, &context_ids)?
+        };
+        let ranked = if use_katz {
+            let scores = self.katz_score_map()?;
+            apply_katz_search_bias(true, ranked, &scores)
+                .map_err(|error| AnalysisError::Message(error.to_string()))?
+        } else {
+            ranked
         };
         Ok(ranked
             .into_iter()
@@ -105,6 +127,31 @@ impl AnalysisRuntime {
                 reasons: Some(match_.reasons),
             })
             .collect())
+    }
+
+    /// Inbound Katz centrality for every indexed idea. The top score is 1.
+    /// rq:["../../../reqlan rq/modelling/advanced_analysis.rq".katz_centrality]
+    pub fn katz_centrality(&mut self) -> Result<Vec<KatzScore>, AnalysisError> {
+        self.ensure_ready()?;
+        let scores = self.katz_score_map()?;
+        let mut rows: Vec<KatzScore> =
+            scores.into_iter().map(|(idea_id, score)| KatzScore { idea_id, score }).collect();
+        rows.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| left.idea_id.cmp(&right.idea_id))
+        });
+        Ok(rows)
+    }
+
+    fn katz_score_map(&self) -> Result<HashMap<String, f64>, AnalysisError> {
+        let ideas = self.store.list_all_ideas()?;
+        let edges = self.store.get_all_edges()?;
+        let node_ids: Vec<String> = ideas.iter().map(|idea| idea.id.clone()).collect();
+        let pairs = citation_edge_pairs(&node_ids, &edges);
+        Ok(katz_centrality(&node_ids, &pairs))
     }
 
     pub fn list_requirements(&mut self, limit: usize) -> Result<Vec<IdeaSummary>, AnalysisError> {
@@ -322,6 +369,7 @@ impl AnalysisRuntime {
     }
 
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
@@ -329,18 +377,37 @@ impl AnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
     pub fn check(
         &mut self,
-        path_glob: Option<&str>,
+        path_globs: &[&str],
+        paths: &[&str],
         wildcard_zero: SparseWildcardHandling,
         wildcard_one: SparseWildcardHandling,
         skip_targets: &[&str],
         skip_gitignored_targets: bool,
     ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
-        self.ensure_ready()?;
+        let scan = prepare_check_scan(&self.workspace_root, path_globs, paths)?;
+        if scan.globs.is_empty() || self.ready {
+            self.ensure_ready()?;
+        } else {
+            let cancel = AtomicBool::new(false);
+            sync_workspace(
+                &mut self.store,
+                &SyncOptions {
+                    workspace_root: self.workspace_root.clone(),
+                    hard_rebuild: false,
+                    path_globs: scan.globs.clone(),
+                    include_files: scan.include_files,
+                },
+                &cancel,
+            )?;
+        }
+        let glob_refs: Vec<&str> = scan.globs.iter().map(String::as_str).collect();
+        let extra_refs: Vec<&str> = scan.extra_files.iter().map(String::as_str).collect();
         let rows = check_references(
             &self.store,
             &self.workspace_root,
             CheckReferencesOptions {
-                path_glob,
+                path_globs: &glob_refs,
+                extra_files: &extra_refs,
                 wildcard_zero,
                 wildcard_one,
                 skip_targets,
@@ -548,4 +615,65 @@ fn match_file_reference(
         return Some("file");
     }
     None
+}
+
+struct CheckScan {
+    globs: Vec<String>,
+    include_files: Vec<PathBuf>,
+    extra_files: Vec<String>,
+}
+
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+fn prepare_check_scan(
+    workspace_root: &Path,
+    path_globs: &[&str],
+    paths: &[&str],
+) -> Result<CheckScan, AnalysisError> {
+    let mut globs = Vec::new();
+    for glob in path_globs {
+        let trimmed = glob.trim();
+        if trimmed.is_empty() {
+            return Err(AnalysisError::Message("path glob must not be empty".to_string()));
+        }
+        globs.push(trimmed.to_string());
+    }
+    let mut include_files = Vec::new();
+    let mut extra_files = Vec::new();
+    for raw in paths {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            return Err(AnalysisError::Message("path must not be empty".to_string()));
+        }
+        let path = if Path::new(raw).is_absolute() {
+            PathBuf::from(raw)
+        } else {
+            workspace_root.join(raw)
+        };
+        if !path.exists() {
+            return Err(AnalysisError::Message(format!("path does not exist: {raw}")));
+        }
+        if path.is_dir() {
+            continue;
+        }
+        if !path.is_file() {
+            return Err(AnalysisError::Message(format!("path is not a file or directory: {raw}")));
+        }
+        if globs.is_empty() {
+            continue;
+        }
+        let uri = normalize_scope_uri(&to_indexed_uri(workspace_root, raw));
+        include_files.push(path);
+        if !globs.iter().any(|glob| path_glob_matches(glob, &uri)) {
+            extra_files.push(uri);
+        }
+    }
+    Ok(CheckScan { globs, include_files, extra_files })
+}
+
+fn normalize_scope_uri(path: &str) -> String {
+    let mut path = path.replace('\\', "/");
+    while let Some(stripped) = path.strip_prefix("./") {
+        path = stripped.to_string();
+    }
+    path
 }

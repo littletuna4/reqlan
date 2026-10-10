@@ -5,6 +5,7 @@
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
  * rq:["../../../reqlan rq/core-architecture.rq".mcp_package]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -99,7 +100,7 @@ describe("MCP tool surface", () => {
       skipGitignoredTargets: true,
     });
     expect(check).toHaveBeenCalledWith({
-      pathGlob: "reqlan rq/**",
+      pathGlobs: ["reqlan rq/**"],
       wildcardZero: "error",
       wildcardOne: "off",
       skipTargets: ["**/.cursor/**"],
@@ -120,11 +121,27 @@ describe("MCP tool surface", () => {
     check.mockClear();
     await handleCheckTool(api, { glob: "  " });
     expect(check).toHaveBeenCalledWith({
-      pathGlob: undefined,
+      pathGlobs: undefined,
       wildcardZero: undefined,
       wildcardOne: undefined,
       skipTargets: undefined,
       skipGitignoredTargets: undefined,
     });
+  });
+
+  test("check accepts one glob or a list of globs", async () => {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    const { api, check } = stubApi();
+    await handleCheckTool(api, { glob: ["a/**", "b/**"] });
+    expect(check).toHaveBeenCalledWith({
+      pathGlobs: ["a/**", "b/**"],
+      wildcardZero: undefined,
+      wildcardOne: undefined,
+      skipTargets: undefined,
+      skipGitignoredTargets: undefined,
+    });
+    await expect(handleCheckTool(api, { glob: ["", "a/**"] })).rejects.toThrow(
+      "glob must not be empty",
+    );
   });
 });

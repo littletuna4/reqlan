@@ -1,5 +1,6 @@
 /**
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
@@ -342,6 +343,86 @@ describe('CLI check', () => {
             expect(pipe.status, pipe.stderr).toBe(1);
             expect(pipe.stdout).toContain('[import] ./gone.rq');
             expect(pipe.stdout).toContain('[import] missing_idea');
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('checks files from two globs and one file outside them', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-globs-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            mkdirSync(join(root, 'a'));
+            mkdirSync(join(root, 'b'));
+            mkdirSync(join(root, 'c'));
+            writeFileSync(join(root, 'c', 'present.ts'), 'export {}\n');
+            writeFileSync(
+                join(root, 'a', 'host.rq'),
+                'host {\n    [missing_a]\n    ["../c/present.ts"]\n    ["../c/missing.ts"]\n}\n'
+            );
+            writeFileSync(join(root, 'b', 'side.rq'), 'side {\n    [missing_b]\n}\n');
+            writeFileSync(join(root, 'c', 'leaf.rq'), 'leaf {\n    [leaf_missing]\n}\n');
+            mkdirSync(join(root, 'c', 'nested'));
+            writeFileSync(join(root, 'c', 'nested', 'decoy.rq'), 'decoy {\n    [decoy_missing]\n}\n');
+
+            const json = runCheck(root, [
+                '--json',
+                '--glob',
+                'a/**',
+                '--glob',
+                'b/**',
+                'c/leaf.rq'
+            ]);
+            expect(json.status, json.stderr).toBe(1);
+            const rows = JSON.parse(json.stdout) as Array<{ label: string; kind: string }>;
+            expect(rows.some(row => row.label === 'missing_a')).toBe(true);
+            expect(rows.some(row => row.label === 'missing_b')).toBe(true);
+            expect(rows.some(row => row.label === 'leaf_missing')).toBe(true);
+            expect(rows.some(row => row.kind === 'file_reference' && row.label.includes('missing.ts'))).toBe(
+                true
+            );
+            expect(rows.every(row => !row.label.includes('present.ts'))).toBe(true);
+            expect(rows.every(row => row.label !== 'decoy_missing')).toBe(true);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('does not recurse into a directory outside the globs', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-dir-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            mkdirSync(join(root, 'a'));
+            mkdirSync(join(root, 'c', 'nested'), { recursive: true });
+            writeFileSync(join(root, 'a', 'host.rq'), 'host {\n    [missing_a]\n}\n');
+            writeFileSync(join(root, 'c', 'leaf.rq'), 'leaf {\n    [leaf_missing]\n}\n');
+            writeFileSync(join(root, 'c', 'nested', 'decoy.rq'), 'decoy {\n    [decoy_missing]\n}\n');
+
+            const json = runCheck(root, ['--json', '--glob', 'a/**', 'c']);
+            expect(json.status, json.stderr).toBe(1);
+            const rows = JSON.parse(json.stdout) as Array<{ label: string }>;
+            expect(rows.some(row => row.label === 'missing_a')).toBe(true);
+            expect(rows.every(row => row.label !== 'leaf_missing')).toBe(true);
+            expect(rows.every(row => row.label !== 'decoy_missing')).toBe(true);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('rejects an empty glob', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-empty-glob-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    local\n}\n');
+            const bad = runCheck(root, ['--glob', '']);
+            expect(bad.status, bad.stderr).toBe(1);
+            expect(bad.stderr).toContain('Each --glob value must be a non-empty path glob');
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

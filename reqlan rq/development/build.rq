@@ -46,7 +46,8 @@ incremental_extension_build {
 extension_host_native_stage {
     Local F5 and `pnpm run build` / `build:ext` stage the host-matching core engine `.node` into `packages/extension/native/` so activation loads the same layout as a per-target VSIX ([distribution.vsix_export], ["../distribution/native_host_binary.rq".native_host_binary_development]).
     The same build copies the `.node` into `packages/analytical-native/<napiSuffix>/` so the workspace optionalDependency matches a production npm install ([distribution.rust_binary_distribution]).
-    The orchestrator builds `cargo build -p reqlan-napi --release` when needed, then copies `reqlan_napi.node` beside the extension; it is not a separate manual install.
+    The orchestrator builds `cargo build -p reqlan-napi -p reqlan-lsp --release` when needed, then copies `reqlan_napi.node` beside the extension. It is not a separate manual install.
+    That command writes `reqlan-lsp` into `crates/target` (["../extension/language/support/language-server-rust.rq".language_server_rust]).
     Azure compiles the [distribution.native_targets] matrix, then stages those binaries with `prepare-native-packages.mjs --binary-dir` before tests and VSIX packaging. Versions come from git at the `ext/v*` tag. Do not fetch platform packages from npm on Azure ([distribution.extension_distribution]).
     Implementation: ["../../scripts/stage-host-native.mjs"], ["../../scripts/ensure-host-native.mjs"], ["../../packages/extension/scripts/build.mjs"], ["../../azure-pipelines.yml"].
     @status done

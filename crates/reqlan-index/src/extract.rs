@@ -13,6 +13,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".attribute_forms]
 //! rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
+//! rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
 //! rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 //! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
@@ -21,7 +22,8 @@
 
 use crate::ids::{edge_id, idea_id};
 use crate::types::{
-    AttributeValue, EdgeKind, EdgeRecord, IdeaAttributeMap, IdeaKind, IdeaRecord, IndexedDocument,
+    parse_attributes, AttributeValue, EdgeKind, EdgeRecord, IdeaAttributeMap, IdeaKind, IdeaRecord,
+    IndexedDocument,
 };
 use reqlan_parse::{
     lex, parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
@@ -33,7 +35,7 @@ use sha2::{Digest, Sha256};
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 5;
+pub const EXTRACT_VERSION: i64 = 6;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -78,12 +80,22 @@ pub fn analyze_local_symbolic(
     } else {
         import_roots.to_vec()
     };
-    let doc = extract_indexed_document(
+    let parsed = parse_document(source);
+    let import_bindings = parsed
+        .model
+        .import_bindings()
+        .into_iter()
+        .map(|(name, line_start)| crate::types::ImportBindingRecord { name, line_start })
+        .collect();
+    let doc = extract_from_parse(
         file_uri,
         source,
+        &parsed,
         &ExtractOptions { idea_candidates: Vec::new(), import_roots: roots, local_symbolic: true },
     );
-    crate::types::LocalSymbolicDocument::from_indexed(doc)
+    let mut symbolic = crate::types::LocalSymbolicDocument::from_indexed(doc);
+    symbolic.import_bindings = import_bindings;
+    symbolic
 }
 
 pub fn extract_indexed_document(
@@ -408,6 +420,7 @@ fn collect_parts_edges(
                     target,
                     imports,
                     &local_names,
+                    ideas,
                     candidates,
                     import_roots,
                     keep_authored_targets,
@@ -490,6 +503,7 @@ fn reference_to_edges(
     target: &ReferenceTarget,
     imports: &[Import],
     local_names: &[&str],
+    ideas: &[IdeaRecord],
     candidates: &[WildcardIdeaCandidate],
     import_roots: &[ImportRootMapping],
     keep_authored_targets: bool,
@@ -545,7 +559,23 @@ fn reference_to_edges(
                 vec![ref_edge(source_id, None, idea, false, source_line, meta_snippet)]
             }
         }
-        ReferenceTarget::Qualified { path, qualifier, ideaset: _, idea, .. } => {
+        ReferenceTarget::Qualified { path, qualifier, ideaset, idea, .. } => {
+            // `[idea.attribute]` targets that attribute. Do not retarget a same-named idea.
+            // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+            if path.is_none() && ideaset.is_none() {
+                if let Some(qualifier) = qualifier {
+                    if let Some(edge) = attribute_reference_edge(
+                        source_id,
+                        ideas,
+                        qualifier,
+                        idea,
+                        source_line,
+                        meta_snippet.clone(),
+                    ) {
+                        return vec![edge];
+                    }
+                }
+            }
             // Namespace leaf is the last segment (`idea`), not the ideaset/alias head.
             if let Some(path) = path {
                 let file = imported_idea_target_file(
@@ -617,6 +647,32 @@ fn reference_to_edges(
     }
 }
 
+/// `Some` when `qualifier` is a block idea or one-liner.
+/// An ideaset qualifier returns `None` so `[ideaset.member]` keeps member resolution.
+/// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+fn attribute_reference_edge(
+    source_id: &str,
+    ideas: &[IdeaRecord],
+    qualifier: &str,
+    attribute: &str,
+    source_line: u32,
+    snippet: Option<String>,
+) -> Option<EdgeRecord> {
+    let owner = ideas.iter().find(|idea| idea.name == qualifier)?;
+    if owner.kind == IdeaKind::Ideaset {
+        return None;
+    }
+    let resolved = parse_attributes(&owner.attributes_json).contains_key(attribute);
+    Some(ref_edge(
+        source_id,
+        if resolved { Some(owner.id.clone()) } else { None },
+        attribute,
+        resolved,
+        source_line,
+        snippet,
+    ))
+}
+
 fn ref_edge(
     source_id: &str,
     target_id: Option<String>,
@@ -639,6 +695,20 @@ fn ref_edge(
         source_offset_start: None,
         source_offset_end: None,
     }
+}
+
+/// How a bare name in this file binds. Same rules as the edge linker.
+pub enum LocalNameBinding {
+    Namespace { path: String },
+    Imported { path: String, idea: String },
+}
+
+pub fn local_name_binding(imports: &[Import], name: &str) -> Option<LocalNameBinding> {
+    if let Some(import) = namespace_import(imports, name) {
+        let path = import.path()?;
+        return Some(LocalNameBinding::Namespace { path: unquote_path(path) });
+    }
+    from_import_binding(imports, name).map(|(path, idea)| LocalNameBinding::Imported { path, idea })
 }
 
 fn namespace_import<'a>(imports: &'a [Import], alias: &str) -> Option<&'a Import> {
@@ -792,6 +862,7 @@ fn join_posix(base: &str, relative: &str) -> String {
 
 /// Match a POSIX-style path glob against a workspace-relative file URI.
 /// A glob with no `/` (for example `*.rq`) also matches nested paths.
+/// An empty glob matches every path. Callers that reject a failed glob must not use that result.
 pub fn path_glob_matches(glob: &str, path: &str) -> bool {
     let glob = glob.replace('\\', "/");
     let glob = glob.trim();
@@ -799,12 +870,86 @@ pub fn path_glob_matches(glob: &str, path: &str) -> bool {
         return true;
     }
     let path = path.replace('\\', "/");
-    let normalized = if glob.contains('/') || glob.starts_with("**") {
+    glob_to_regex(&normalize_scan_glob(glob), true).is_match(&path)
+}
+
+/// True when a file under `dir_rel` can match `glob`.
+/// An empty glob matches nothing here. It is not a match-all scan.
+/// `dir_rel` is a workspace-relative directory. An empty directory is the workspace root.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+pub fn path_glob_may_match_under(glob: &str, dir_rel: &str) -> bool {
+    let normalized = normalize_scan_glob(glob.trim());
+    if normalized.is_empty() {
+        return false;
+    }
+    let dir_rel = dir_rel.replace('\\', "/");
+    let dir_rel = dir_rel.trim().trim_matches('/');
+    if dir_rel.is_empty() {
+        return true;
+    }
+    let glob_parts: Vec<&str> = normalized.split('/').filter(|part| !part.is_empty()).collect();
+    let dir_parts: Vec<&str> = dir_rel.split('/').filter(|part| !part.is_empty()).collect();
+    glob_prefix_can_match(&glob_parts, &dir_parts)
+}
+
+fn normalize_scan_glob(glob: &str) -> String {
+    let glob = glob.replace('\\', "/");
+    let glob = glob.trim();
+    if glob.is_empty() {
+        return String::new();
+    }
+    if glob.contains('/') || glob.starts_with("**") {
         glob.to_string()
     } else {
         format!("**/{glob}")
-    };
-    glob_to_regex(&normalized, true).is_match(&path)
+    }
+}
+
+fn glob_prefix_can_match(glob: &[&str], dir: &[&str]) -> bool {
+    fn rec(glob: &[&str], dir: &[&str], gi: usize, di: usize) -> bool {
+        if di == dir.len() {
+            return gi < glob.len();
+        }
+        if gi == glob.len() {
+            return false;
+        }
+        if glob[gi] == "**" {
+            if rec(glob, dir, gi + 1, di) {
+                return true;
+            }
+            return rec(glob, dir, gi, di + 1);
+        }
+        if segment_glob_match(glob[gi], dir[di]) {
+            return rec(glob, dir, gi + 1, di + 1);
+        }
+        false
+    }
+    rec(glob, dir, 0, 0)
+}
+
+fn segment_glob_match(pattern: &str, segment: &str) -> bool {
+    segment_glob_at(pattern.as_bytes(), 0, segment.as_bytes(), 0)
+}
+
+fn segment_glob_at(pat: &[u8], pi: usize, hay: &[u8], hi: usize) -> bool {
+    if pi == pat.len() {
+        return hi == hay.len();
+    }
+    if pat[pi] == b'*' && pi + 1 < pat.len() && pat[pi + 1] == b'*' {
+        return segment_glob_at(pat, pi + 1, hay, hi);
+    }
+    if pat[pi] == b'*' {
+        for skip in 0..=hay.len().saturating_sub(hi) {
+            if segment_glob_at(pat, pi + 1, hay, hi + skip) {
+                return true;
+            }
+        }
+        return false;
+    }
+    if pat[pi] == b'?' {
+        return hi < hay.len() && segment_glob_at(pat, pi + 1, hay, hi + 1);
+    }
+    hi < hay.len() && hay[hi] == pat[pi] && segment_glob_at(pat, pi + 1, hay, hi + 1)
 }
 
 fn normalize_posix(path: &str) -> String {

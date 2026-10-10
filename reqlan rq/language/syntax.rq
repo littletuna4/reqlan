@@ -96,6 +96,7 @@ ideaset {
 reference_brackets {
     Single-bracket references use square brackets around a target.
     Forms include ideaset-only, idea-only, ideaset dot idea, and idea dot attribute targets.
+    An idea dot attribute target follows [attribute_namespacing].
 }
 
 same_file_reference {
@@ -316,6 +317,35 @@ attribute_marker {
     @required
 }
 
+empty_attribute {
+    A line that contains only @ is insignificant whitespace.
+    Spaces or tabs may precede that @.
+    Spaces or tabs may follow that @.
+    The lexer consumes that @ as hidden whitespace.
+    The parser does not build an attribute for that line.
+    That line does not cause a parser error.
+    That line does not cause a lexer error.
+    That line does not cause a tokenizer error.
+    That line does not cause an extension error.
+    A flag keeps the form @name.
+    A negated flag keeps the form @name!.
+    A valued attribute keeps its value after the name.
+    A syntax error on a different line is still reported.
+    @implementation (
+        ["../../packages/language/src/reqlan-token-builder.ts"]
+        ["../../packages/language/src/reqlan.langium"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/parsing.test.ts:parses a lone @ without a parser error and keeps later ideas"]
+        ["../../packages/language/test/parsing.test.ts:still reports a syntax error when another line is invalid"]
+        ["../../packages/language/test/validating.test.ts:does not report an extension error for a lone @"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:lone_at_is_hidden_whitespace"]
+        ["../../crates/reqlan-parse/tests/parser.rs:lone_at_keeps_surrounding_ideas"]
+        ["../../crates/reqlan-parse/tests/parser.rs:syntax_error_elsewhere_is_still_reported"]
+    )
+}
+
 attribute_forms {
     A bare attribute name after @ denotes a true flag or render keyword.
     A negated flag uses a trailing bang after the attribute name.
@@ -346,6 +376,48 @@ attribute_values {
     Attribute values may be unstructured scalar text on the same line.
     Attribute values may be block values in curly braces.
     Attribute values may be list values in parentheses.
+}
+
+attribute_namespacing {
+    A bracket link `[idea.attribute]` targets one attribute of that idea.
+    The first name is the idea name.
+    The second name is the attribute name.
+    `[attribute_namespacing.example]` targets the `example` attribute of this idea.
+    The form `[ideaset.member]` still targets an ideaset member.
+    See [references_to_subidea].
+    The editor opens the attribute when the first name is an idea.
+    The editor reports an error when that idea has no attribute with the second name.
+    The link target is only that attribute on that idea.
+    HTML export uses the same link form.
+    The export link opens that attribute on the idea page.
+    @example {
+        my subidea
+    }
+    See [attribute_namespacing.example].
+    Related: [reference_brackets], [attribute_marker], ["../core_analysis/html_export.rq".html_export_internal_links].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../packages/language/src/reqlan-scope.ts"]
+        ["../../packages/language/src/reqlan-linker.ts"]
+        ["../../packages/language/src/reqlan-attribute-links.ts"]
+        ["../../packages/language/src/reqlan-document-link-provider.ts"]
+        ["../../packages/language/src/reqlan-local-symbolic-links.ts"]
+        ["../../packages/language/src/reqlan-outbound-presentation.ts"]
+        ["../../packages/language/src/reqlan-semantic-token-provider.ts"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-export/src/html_utils.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+    )
+    @tests (
+        ["../../packages/language/test/linking.test.ts:resolves an idea attribute link to that attribute"]
+        ["../../packages/language/test/linking.test.ts:reports a missing idea attribute and does not open another idea"]
+        ["../../crates/reqlan-parse/tests/lexer.rs:bracket_attribute_link_lexes_a_dot_between_two_names"]
+        ["../../crates/reqlan-parse/tests/parser.rs:parses_idea_attribute_link_as_qualified_names"]
+        ["../../crates/reqlan-index/tests/extract_parity.rs:idea_attribute_reference_targets_owner_not_a_same_named_idea"]
+        ["../../crates/reqlan-export/tests/html_export.rs:attribute_link_opens_the_attribute_on_the_idea_page"]
+    )
 }
 
 lists {

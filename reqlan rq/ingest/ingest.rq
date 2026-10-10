@@ -1,0 +1,79 @@
+_file {
+    - This file is used for preingestion of ideas into the graph
+    - It is for ideas that are being drafted, haven't been placed, haven't been linked or represent a significant superseding descructive change to the graph 
+       - i.e. requiring careful integration to leave no trace of deprecated ideas, leave no duplication and leave no conflicts
+    - ingestion must pass validation (pnpm test, pnpm build, and reqlan check)
+    - ingestion requires reqiurement integration into the graph, followed by actual implementation if requested.
+}
+
+attribute_namespaceing {
+    an idea's attributes should be referenceable in links.
+    @example {
+        my subidea
+    }
+    
+    an idea should be able to access `[attribute_namespacing.example]`
+    Links should link appropriately the parser, lexer, ... extension, html...
+    @todo
+    @implementation
+    
+}
+
+code-comment-syntax-errors {
+    any time a comment line contains `rq:[*]`, or common patterns it should be parsed, and be considered in `reqlan check`...
+    @todo
+}
+
+
+idea-leading-whitespace {
+    Block ideas often have leading whitespace
+    The base level should be decided by the first line, subsequent lines should not be fully trimmed
+    THis line has 4 spaces (same as first line). It should parse with no leading whitespace
+        This line has 8 spaces (4 more than first line) it should parse with 4 spaces as part of the content.
+
+    @implementation
+    @tests
+    @todo
+}
+
+html-export-changes {
+    The print page should be aware of the [idea-leading-whitespace]
+    @todo
+}
+
+empty-attributes {
+    it should be perfectly acceptable to have empty attributes
+    e.g.:
+
+    @
+
+    This should not break the parsing of the file. (Including in extension errors as well as parser/lexer/tokenizer errors)
+
+    @todo
+}
+
+reqlan-check-glob-patterns {
+    When running `reqlan check` it should be possible to specify --glob patterns to check specific files.
+    It should be possible to specify multiple glob patterns.
+    If the targets are outside of the glob, they should be checked, but, not recursively.
+
+    @todo
+    @tests
+}
+
+
+idea-tooltip-file-link-accuracy {
+
+    File links in the extenstion tool tips are broken. I.e. for the backlinks, clicking the links shows a file doesn't exist error.
+    THis needs to be fixed, and standardised - it shouldn't even be using it's own link builder.
+    @bug
+    @tests
+
+}
+
+code-action-duplication {
+    I don't know why, but sometimes, the code action drop down duplicates options until there are many.
+    Without just truncating or deduplicating, resolve the explosion.
+    @bug
+}
+

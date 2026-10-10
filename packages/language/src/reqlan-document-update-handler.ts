@@ -1,5 +1,10 @@
+import type { TextDocument } from 'langium';
 import { DefaultDocumentUpdateHandler } from 'langium/lsp';
-import type { DidChangeWatchedFilesParams, FileEvent, FileSystemWatcher } from 'vscode-languageserver';
+import type { DidChangeWatchedFilesParams, FileEvent, FileSystemWatcher, TextDocumentChangeEvent } from 'vscode-languageserver';
+import { FileChangeType } from 'vscode-languageserver';
+import { noteClosedEditor, noteOpenEditor } from './reqlan-editor-retention.js';
+import { dropHostExtract, dropNativeCachesForUri } from './reqlan-local-symbolic-links.js';
+import { pruneUnretainedNeighbors } from './reqlan-neighbor-parse.js';
 
 /** Client watchers for Langium document updates. Do not watch every file in the workspace. */
 export const REQLAN_WATCHED_FILE_GLOBS = ['**/*.rq'] as const;
@@ -19,16 +24,32 @@ const NOISY_PATH_SEGMENTS: Readonly<Record<string, string>> = {
  * if the text changed.
  * rq:["../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".lsp_file_watch]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
  */
 export class ReqlanDocumentUpdateHandler extends DefaultDocumentUpdateHandler {
     protected override getWatchers(): FileSystemWatcher[] {
         return REQLAN_WATCHED_FILE_GLOBS.map(globPattern => ({ globPattern }));
     }
 
+    didOpenDocument(event: TextDocumentChangeEvent<TextDocument>): void {
+        noteOpenEditor(event.document.uri);
+    }
+
+    didCloseDocument(event: TextDocumentChangeEvent<TextDocument>): void {
+        noteClosedEditor(event.document.uri);
+        pruneUnretainedNeighbors();
+        dropHostExtract(event.document.uri);
+    }
+
     override didChangeWatchedFiles(params: DidChangeWatchedFilesParams): void {
         const kept = filterWatchedFileChanges(params.changes);
         if (kept.length === 0) {
             return;
+        }
+        for (const change of kept) {
+            if (change.type === FileChangeType.Deleted) {
+                dropNativeCachesForUri(change.uri);
+            }
         }
         super.didChangeWatchedFiles({ ...params, changes: kept });
     }

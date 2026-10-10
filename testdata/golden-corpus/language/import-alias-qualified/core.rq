@@ -1,0 +1,5 @@
+import "./runtime.ts" as analysis_runtime
+
+scope {
+    Headless facade sample. analysis_runtime is an import alias, not an idea.
+}

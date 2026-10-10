@@ -62,6 +62,16 @@ fn mid_line_at_plan_brace_stays_prose() {
     assert!(tokens.contains(&TokenKind::Other), "prose {{ after mid-line @plan: {tokens:?}");
 }
 
+// rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+#[test]
+fn lone_at_is_hidden_whitespace() {
+    let source = "idea {\n    @\n    @   \n    @name\n    @!\n    user@host\n}";
+    let lexed = lex(source, ParseBudget::unlimited());
+    assert!(lexed.errors.is_empty(), "{:?}", lexed.errors);
+    let ats: Vec<_> = lexed.tokens.iter().filter(|token| token.kind == TokenKind::At).collect();
+    assert_eq!(ats.len(), 2, "lone @ lines are hidden; @name and @! stay markers: {ats:?}");
+}
+
 // rq:["../../../reqlan rq/language/syntax.rq".attribute_location]
 #[test]
 fn at_only_at_line_start() {
@@ -265,6 +275,16 @@ fn middle_dot_before_brace_does_not_panic() {
     let tokens = visible_kinds(source);
     assert!(tokens.contains(&TokenKind::LBrace));
     assert!(tokens.contains(&TokenKind::Id));
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+#[test]
+fn bracket_attribute_link_lexes_a_dot_between_two_names() {
+    let tokens = visible_kinds("see [attribute_namespacing.example]");
+    let window =
+        [TokenKind::LBrack, TokenKind::Id, TokenKind::Dot, TokenKind::Id, TokenKind::RBrack];
+    let found = tokens.windows(window.len()).any(|slice| slice == window);
+    assert!(found, "{tokens:?}");
 }
 
 fn visible_text(source: &str) -> String {

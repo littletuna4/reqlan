@@ -255,6 +255,18 @@
       "kind": "block"
     }
   ],
+  "testdata/golden-corpus/language/import-alias-qualified/core.rq": [
+    {
+      "name": "scope",
+      "kind": "block"
+    }
+  ],
+  "testdata/golden-corpus/language/import-alias-qualified/host.rq": [
+    {
+      "name": "runtime",
+      "kind": "block"
+    }
+  ],
   "testdata/golden-corpus/language/imports.rq": [
     {
       "name": "import_keywords",
@@ -514,6 +526,10 @@
   "testdata/golden-corpus/language/syntax_whitespace.rq": [
     {
       "name": "syntax_whitespace",
+      "kind": "block"
+    },
+    {
+      "name": "idea-leading-whitespace",
       "kind": "block"
     }
   ],

@@ -2,7 +2,7 @@
 
 use reqlan_parse::{
     parse_align_snapshot, parse_document, parse_document_with_budget, BodyElement, ParseBudget,
-    TopLevelElement, PARSE_HANG_SENTINEL,
+    ReferenceTarget, RichPart, Severity, TopLevelElement, PARSE_HANG_SENTINEL,
 };
 
 fn idea_names(source: &str) -> Vec<String> {
@@ -151,6 +151,25 @@ fn allows_escaped_closing_brace_in_body_prose() {
     assert!(body.contains("\\}"), "{body}");
 }
 
+// rq:["../../../reqlan rq/language/imports.rq".import_from]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
+#[test]
+fn from_import_records_each_token_span() {
+    let source = "from \"./links-to-file.rq\" import ishouldlink, ishouldbeasecondlink as ishouldbeathirdvalidlink\n";
+    let parsed = parse_document(source);
+    let reqlan_parse::Import::From(import) = &parsed.model.imports[0] else {
+        panic!("expected a from-import");
+    };
+    let text = |span: reqlan_parse::Span| &source[span.start..span.end];
+    assert_eq!(text(import.path_span), "\"./links-to-file.rq\"");
+    assert_eq!(import.specifiers.len(), 2);
+    assert_eq!(text(import.specifiers[0].idea_span), "ishouldlink");
+    assert!(import.specifiers[0].alias_span.is_none());
+    assert_eq!(text(import.specifiers[1].idea_span), "ishouldbeasecondlink");
+    let alias_span = import.specifiers[1].alias_span.expect("alias span");
+    assert_eq!(text(alias_span), "ishouldbeathirdvalidlink");
+}
+
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 // rq:["../../../reqlan rq/language/parser_lexer.rq".recovery_vs_budget]
 #[test]
@@ -203,6 +222,95 @@ fn parse_dash_and_underscore_delimited_idea_names() {
     let names = idea_names(source);
     assert!(names.contains(&"dash-or_undersore_delimited-idea".to_string()));
     assert!(names.contains(&"my_idea".to_string()));
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+#[test]
+fn lone_at_keeps_surrounding_ideas() {
+    let source = "\
+sample {
+    kept body
+    @
+    @   
+    @flag
+    @gone!
+    @status done
+    @note: legacy
+    still kept
+}
+next { ok }
+";
+    let result = parse_document(source);
+    assert!(
+        result.diagnostics.iter().all(|diagnostic| diagnostic.severity != Severity::Error),
+        "{:?}",
+        result.diagnostics
+    );
+    assert!(result.incomplete.is_none());
+    assert_eq!(idea_names(source), vec!["sample", "next"]);
+    let body = block_body_source(source, "sample");
+    assert!(body.contains("kept body"), "{body}");
+    assert!(body.contains("still kept"), "{body}");
+    assert!(!body.contains('@'), "{body}");
+    let parsed = parse_document(source);
+    let idea = parsed.model.elements.iter().find_map(|element| match element {
+        TopLevelElement::Idea(idea) if idea.name == "sample" => Some(idea),
+        _ => None,
+    });
+    let idea = idea.expect("sample idea");
+    let names: Vec<&str> = idea
+        .elements
+        .iter()
+        .filter_map(|element| match element {
+            BodyElement::Attribute(attribute) => Some(attribute.name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(names, vec!["flag", "gone", "status", "note"]);
+    let gone = idea.elements.iter().find_map(|element| match element {
+        BodyElement::Attribute(attribute) if attribute.name == "gone" => Some(attribute),
+        _ => None,
+    });
+    assert_eq!(gone.map(|attribute| attribute.negated), Some(true));
+    let status = idea.elements.iter().find_map(|element| match element {
+        BodyElement::Attribute(attribute) if attribute.name == "status" => Some(attribute),
+        _ => None,
+    });
+    assert!(matches!(
+        status.and_then(|attribute| attribute.value.as_ref()),
+        Some(reqlan_parse::AttributeValue::Scalar(scalar)) if scalar.text == "done"
+    ));
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+#[test]
+fn syntax_error_elsewhere_is_still_reported() {
+    let source = "\
+sample {
+    @
+}
+next { ok }
+bad {
+    @!
+}
+";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none());
+    assert_eq!(idea_names(source), vec!["sample", "next", "bad"]);
+    let errors: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.severity == Severity::Error)
+        .collect();
+    assert!(!errors.is_empty(), "{:?}", result.diagnostics);
+    let lone_at_line = source
+        .lines()
+        .position(|line| line.trim_matches(|ch: char| ch == ' ' || ch == '\t') == "@")
+        .expect("lone @ line") as u32;
+    assert!(
+        errors.iter().all(|diagnostic| diagnostic.line != lone_at_line),
+        "lone @ line {lone_at_line} must not be an error: {errors:?}"
+    );
 }
 
 // rq:["../../../reqlan rq/language/syntax.rq".file_layout]
@@ -279,6 +387,66 @@ fn bracketed_url_is_a_url_reference() {
         .all(|reference| reference.kind != "local" || reference.label != "https"));
 }
 
+// rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+#[test]
+fn relative_dedent_keeps_extra_spaces_on_a_later_body_line() {
+    let source = "\
+idea {
+        @status pending
+    alpha
+    gamma
+        beta
+}
+";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none());
+    let idea = result
+        .model
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            TopLevelElement::Idea(idea) if idea.name == "idea" => Some(idea),
+            _ => None,
+        })
+        .expect("idea");
+    let kinds: Vec<&str> = idea
+        .elements
+        .iter()
+        .map(|element| match element {
+            BodyElement::Attribute(attribute) => {
+                assert_eq!(attribute.name, "status");
+                "attribute"
+            }
+            BodyElement::BodyLine(_) => "line",
+            _ => "other",
+        })
+        .collect();
+    assert_eq!(kinds, vec!["attribute", "line", "line", "line"]);
+    let lines = block_body_source(source, "idea");
+    assert_eq!(lines, "alpha\ngamma\n    beta");
+}
+
+// rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+#[test]
+fn relative_dedent_uses_the_indent_of_a_first_body_line_that_is_not_at_column_0() {
+    let source = "\
+    shifted {
+        alpha
+            beta
+    }
+";
+    let lines = block_body_source(source, "shifted");
+    assert_eq!(lines, "alpha\n    beta");
+}
+
+// rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+#[test]
+fn relative_dedent_keeps_an_extra_tab() {
+    let source = "idea {\n\tfirst\n\t\tsecond\n}\n";
+    let lines = block_body_source(source, "idea");
+    assert_eq!(lines, "first\n\tsecond");
+}
+
 // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
 #[test]
 fn unbracketed_quoted_path_is_not_a_file_reference() {
@@ -305,4 +473,36 @@ fn unbracketed_quoted_path_is_not_a_file_reference() {
         "{:?}",
         snapshot.refs
     );
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+#[test]
+fn parses_idea_attribute_link_as_qualified_names() {
+    let source = "host {\n    see [attribute_namespacing.example]\n}\n";
+    let result = parse_document(source);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.incomplete.is_none());
+    let idea = result
+        .model
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            TopLevelElement::Idea(idea) if idea.name == "host" => Some(idea),
+            _ => None,
+        })
+        .expect("host idea");
+    let target = idea.elements.iter().find_map(|element| match element {
+        BodyElement::BodyLine(line) => line.parts.iter().find_map(|part| match part {
+            RichPart::BracketRef { target, .. } => Some(target),
+            _ => None,
+        }),
+        _ => None,
+    });
+    match target {
+        Some(ReferenceTarget::Qualified { path: None, qualifier, ideaset: None, idea, .. }) => {
+            assert_eq!(qualifier.as_deref(), Some("attribute_namespacing"));
+            assert_eq!(idea, "example");
+        }
+        other => panic!("expected idea.attribute qualified target, got {other:?}"),
+    }
 }

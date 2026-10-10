@@ -21,7 +21,8 @@ import type {
     IdeaSummary,
     InteractionDescriptor,
     RequirementMatch,
-    SearchRequirementsOptions
+    SearchRequirementsOptions,
+    KatzScore
 } from '../src/native/generated.js';
 
 const generatedPath = join(dirname(fileURLToPath(import.meta.url)), '../src/native/generated.ts');
@@ -33,6 +34,8 @@ describe('specta generated native types', () => {
         expect(source).toContain('export type IdeaSummary');
         expect(source).toContain('export type RequirementMatch');
         expect(source).toContain('export type SearchRequirementsOptions');
+        expect(source).toContain('katz');
+        expect(source).toContain('export type KatzScore');
         expect(source).toContain('export type FileRelatedRequirements');
         expect(source).toContain('export type GraphSlice');
         expect(source).toContain('export type CompletionSummary');
@@ -59,6 +62,7 @@ describe('specta generated native types', () => {
             IdeaSummary,
             RequirementMatch,
             SearchRequirementsOptions,
+            KatzScore,
             FileReferenceMatch,
             BrokenReferenceDto,
             ClickResult,

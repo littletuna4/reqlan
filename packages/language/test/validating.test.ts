@@ -294,6 +294,53 @@ describe('Validating', () => {
             element => 'name' in element && element.name === 'later_idea'
         )).toBe(true);
     });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+    test('does not report an extension error for a lone @', async () => {
+        const document = await parse(s`
+            sample {
+                kept body
+                @
+                still kept
+            }
+
+            next { ok }
+        `);
+        expect(document.parseResult.lexerErrors).toEqual([]);
+        expect(document.parseResult.parserErrors).toEqual([]);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        expect(document.diagnostics ?? []).toEqual([]);
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['sample', 'next']);
+
+        services = createReqlanServices(EmptyFileSystem);
+        const localParse = parseHelper<Model>(services.Reqlan);
+        const broken = await localParse(s`
+            from example.rq import symbol1
+            sample {
+                @
+            }
+            next { ok }
+        `, { validation: true });
+        expect(broken.parseResult.lexerErrors).toEqual([]);
+        expect(broken.parseResult.parserErrors).toEqual([]);
+        expect(broken.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['sample', 'next']);
+        const syntaxErrors = (broken.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Invalid from-import: expected a quoted path')
+        );
+        expect(syntaxErrors).toHaveLength(1);
+        const lines = broken.textDocument.getText().split(/\r?\n/);
+        const loneAtLines = lines.flatMap((line, index) => /^[ \t]*@[ \t]*$/.test(line) ? [index] : []);
+        expect(loneAtLines.length).toBeGreaterThan(0);
+        const loneAtDiagnostics = (broken.diagnostics ?? []).filter(diagnostic =>
+            loneAtLines.includes(diagnostic.range.start.line)
+        );
+        expect(loneAtDiagnostics).toEqual([]);
+    });
 });
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {

@@ -40,6 +40,13 @@ export interface RequirementMatch {
 export interface SearchRequirementsOptions {
     /** Relative `.rq` paths, `path#idea` refs, or bare idea names that bias ranking by hop distance. */
     context?: string[];
+    /** When true, multiply the text score by `(1 + inbound Katz centrality)`. Default is false. */
+    katz?: boolean;
+}
+
+export interface KatzScore {
+    ideaId: string;
+    score: number;
 }
 
 export interface ClickOptions {
@@ -62,14 +69,26 @@ export type SparseWildcardHandling = 'warn' | 'error' | 'off';
 
 /**
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
  */
 export interface CheckOptions {
-    /** Optional path glob that limits the check to a subset of the base. */
-    pathGlob?: string;
+    /**
+     * Path globs for the recursive scan.
+     * A file that matches any glob is included.
+     * One glob selects the same files as a single path glob.
+     * Omit the list to scan the whole base.
+     */
+    pathGlobs?: string[];
+    /**
+     * Extra paths.
+     * A file outside the globs is checked as that file.
+     * A directory outside the globs is not walked.
+     */
+    paths?: string[];
     /** How to handle a wildcard that matches 0 ideas. */
     wildcardZero?: SparseWildcardHandling;
     /** How to handle a wildcard that matches 1 idea. */
@@ -122,12 +141,25 @@ export class NativeAnalysisApi {
         limit = 8,
         options?: SearchRequirementsOptions
     ): Promise<RequirementMatch[]> {
-        const matches = this.native.searchRequirements(query, limit, options?.context) as NativeRequirementMatch[];
+        const matches = this.native.searchRequirements(
+            query,
+            limit,
+            options?.context,
+            options?.katz
+        ) as NativeRequirementMatch[];
         return matches.map(match => ({
             idea: toIdea(match.idea),
             score: match.score ?? undefined,
             reasons: match.reasons ?? undefined
         }));
+    }
+
+    /**
+     * Inbound Katz centrality for every indexed idea. The top score is 1.
+     * rq:["../../../../reqlan rq/modelling/advanced_analysis.rq".katz_centrality]
+     */
+    async katzCentrality(): Promise<KatzScore[]> {
+        return this.native.katzCentrality() as KatzScore[];
     }
 
     async listRequirements(limit = 50): Promise<IdeaSummary[]> {
@@ -209,6 +241,7 @@ export class NativeAnalysisApi {
 
     /**
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
@@ -216,7 +249,8 @@ export class NativeAnalysisApi {
      */
     async check(options?: CheckOptions): Promise<NativeBrokenReference[]> {
         return this.native.checkReferences(
-            options?.pathGlob,
+            options?.pathGlobs,
+            options?.paths,
             options?.wildcardZero,
             options?.wildcardOne,
             options?.skipTargets,
@@ -327,7 +361,8 @@ export class NativeAnalysisApi {
                     'Check idea, comment, and file references. Skip lines after //rq-ignore-error.',
                 // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
                 parameters: {
-                    pathGlob: 'Optional path glob over a subset of the base',
+                    pathGlobs: 'Optional path globs. A file that matches any glob is in the scan.',
+                    paths: 'Optional extra paths. A file outside the globs is checked alone.',
                     wildcardZero: 'warn (default), error, or off for 0-match wildcards',
                     wildcardOne: 'warn (default), error, or off for 1-match wildcards',
                     skipTargets: 'Optional globs; omit issues whose missing target matches',

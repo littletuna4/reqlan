@@ -24,3 +24,25 @@ idea_graph_distance {
     Used by ["../core_analysis/search.rq".contextual_search]: `finalScore = textScore * 2^(-minHop)` with unreachable floor 8.
     @status done
 }
+
+katz_centrality {
+    Score each idea by inbound Katz centrality on the citation graph.
+    An idea scores higher when important ideas reference it.
+    The score uses resolved reference edges and wildcard reference edges between ideas.
+    The analysis package exposes the scores as `katzCentrality()`.
+    The top score is 1.
+    A graph with no citation edges gives every idea the score 1.
+    Search can opt in through ["../core_analysis/search.rq".katz_search].
+    HTML export shows the score through ["../core_analysis/html_export.rq".html_export_katz_column].
+    @implementation (
+        ["../../crates/reqlan-search/src/katz.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-search/tests/katz.rs:chain_ranks_the_cited_end_highest"]
+        ["../../crates/reqlan-search/tests/katz.rs:graph_with_no_citation_edges_scores_every_idea_at_one"]
+        ["../../crates/reqlan-search/tests/katz.rs:citation_edges_skip_unresolved_and_non_reference_kinds"]
+    )
+    @status done
+}

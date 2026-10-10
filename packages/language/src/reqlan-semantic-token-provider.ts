@@ -4,7 +4,7 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".token_colour_sequence]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_highlighting]
  */
-import type { AstNode } from 'langium';
+import { AstUtils, type AstNode } from 'langium';
 import { AbstractSemanticTokenProvider, type SemanticTokenAcceptor } from 'langium/lsp';
 import { SemanticTokenModifiers, SemanticTokenTypes } from 'vscode-languageserver';
 import {
@@ -22,11 +22,13 @@ import {
     isMarkdownLink,
     isQualifiedImport,
     isQualifiedReference,
+    isModel,
     isOneLinerIdea,
     isUrlReference,
     isWildcardReference,
     type Import
 } from './generated/ast.js';
+import { findDeclaredAttribute } from './reqlan-attribute-links.js';
 import { isWellFormedFromImport } from './reqlan-import-bindings.js';
 
 export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
@@ -71,7 +73,18 @@ export class ReqlanSemanticTokenProvider extends AbstractSemanticTokenProvider {
                 acceptor({ node, property: 'ideaset', type: SemanticTokenTypes.namespace });
             }
             if (node.idea) {
-                acceptor({ node, property: 'idea', type: SemanticTokenTypes.variable });
+                const ownerName = node.qualifier?.$refText;
+                const attributeName = node.idea.$refText;
+                const model = AstUtils.getContainerOfType(node, isModel);
+                const attributeLink = ownerName !== undefined
+                    && attributeName.length > 0
+                    && model !== undefined
+                    && findDeclaredAttribute(model, ownerName, attributeName) !== undefined;
+                acceptor({
+                    node,
+                    property: 'idea',
+                    type: attributeLink ? SemanticTokenTypes.decorator : SemanticTokenTypes.variable
+                });
             }
             return;
         }

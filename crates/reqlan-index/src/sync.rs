@@ -4,14 +4,15 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index_code_files]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
 
 use crate::comment::{
     code_file_content_hash, comment_link_edges, is_comment_index_path,
-    looks_like_comment_reference_source, too_large_for_comment_index,
+    looks_like_comment_reference_source, scan_comment_references, too_large_for_comment_index,
 };
 use crate::extract::{
-    extract_from_parse, extract_indexed_document, ExtractOptions, WildcardIdeaCandidate,
-    EXTRACT_VERSION,
+    extract_from_parse, extract_indexed_document, path_glob_matches, path_glob_may_match_under,
+    ExtractOptions, WildcardIdeaCandidate, EXTRACT_VERSION,
 };
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
 use crate::path_resolve::load_applying_rq_config;
@@ -27,6 +28,14 @@ use walkdir::WalkDir;
 pub struct SyncOptions {
     pub workspace_root: PathBuf,
     pub hard_rebuild: bool,
+    /// When non-empty, the recursive walk keeps a file that matches any glob.
+    /// A directory that can hold no match is not entered.
+    /// An empty glob in this list matches nothing.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    pub path_globs: Vec<String>,
+    /// Files indexed even when they match no glob. Directories are not walked.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    pub include_files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -53,13 +62,13 @@ pub struct FileIssue {
 }
 
 pub fn collect_rq_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<PathBuf> {
-    collect_files(workspace_root, filter, |path| {
+    collect_files(workspace_root, filter, &[], |path| {
         path.extension().and_then(|ext| ext.to_str()) == Some("rq")
     })
 }
 
 pub fn collect_code_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<PathBuf> {
-    collect_files(workspace_root, filter, |path| {
+    collect_files(workspace_root, filter, &[], |path| {
         is_comment_index_path(path) || is_binary_rqignore_path(path)
     })
 }
@@ -67,11 +76,12 @@ pub fn collect_code_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec
 fn collect_files(
     workspace_root: &Path,
     filter: &RqIgnoreFilter,
+    path_globs: &[String],
     keep: impl Fn(&Path) -> bool,
 ) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for entry in WalkDir::new(workspace_root).into_iter().filter_entry(|entry| {
-        should_descend(workspace_root, filter, entry.path(), entry.file_type().is_dir())
+        should_descend(workspace_root, filter, path_globs, entry.path(), entry.file_type().is_dir())
     }) {
         let Ok(entry) = entry else { continue };
         if !entry.file_type().is_file() {
@@ -85,6 +95,9 @@ fn collect_files(
         if filter.ignores(&rel, false) {
             continue;
         }
+        if !file_in_glob_scan(path_globs, &rel) {
+            continue;
+        }
         files.push(path.to_path_buf());
     }
     files.sort();
@@ -94,6 +107,7 @@ fn collect_files(
 fn should_descend(
     workspace_root: &Path,
     filter: &RqIgnoreFilter,
+    path_globs: &[String],
     path: &Path,
     is_dir: bool,
 ) -> bool {
@@ -104,7 +118,56 @@ fn should_descend(
     if is_dir && path != workspace_root && path.join(".reqlan").is_dir() {
         return false;
     }
+    if is_dir
+        && !path_globs.is_empty()
+        && path != workspace_root
+        && !directory_may_hold_match(path_globs, &rel)
+    {
+        return false;
+    }
     true
+}
+
+/// An empty glob does not select files. An empty list selects every file.
+fn file_in_glob_scan(path_globs: &[String], rel: &str) -> bool {
+    if path_globs.is_empty() {
+        return true;
+    }
+    path_globs.iter().any(|glob| {
+        let glob = glob.trim();
+        !glob.is_empty() && path_glob_matches(glob, rel)
+    })
+}
+
+fn directory_may_hold_match(path_globs: &[String], dir_rel: &str) -> bool {
+    path_globs.iter().any(|glob| path_glob_may_match_under(glob, dir_rel))
+}
+
+fn append_explicit_files(
+    workspace_root: &Path,
+    include_files: &[PathBuf],
+    rq_files: &mut Vec<PathBuf>,
+    code_files: &mut Vec<PathBuf>,
+) {
+    for include in include_files {
+        let path =
+            if include.is_absolute() { include.clone() } else { workspace_root.join(include) };
+        if !path.is_file() {
+            continue;
+        }
+        if rq_files.iter().any(|existing| existing == &path)
+            || code_files.iter().any(|existing| existing == &path)
+        {
+            continue;
+        }
+        if path.extension().and_then(|ext| ext.to_str()) == Some("rq") {
+            rq_files.push(path);
+        } else if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
+            code_files.push(path);
+        }
+    }
+    rq_files.sort();
+    code_files.sort();
 }
 
 pub fn sync_workspace(
@@ -118,8 +181,20 @@ pub fn sync_workspace(
     }
     let filter = RqIgnoreFilter::load(&options.workspace_root);
     let import_roots = load_applying_rq_config(&options.workspace_root, None).import_roots;
-    let rq_files = collect_rq_files(&options.workspace_root, &filter);
-    let code_files = collect_code_files(&options.workspace_root, &filter);
+    let mut rq_files =
+        collect_files(&options.workspace_root, &filter, &options.path_globs, |path| {
+            path.extension().and_then(|ext| ext.to_str()) == Some("rq")
+        });
+    let mut code_files =
+        collect_files(&options.workspace_root, &filter, &options.path_globs, |path| {
+            is_comment_index_path(path) || is_binary_rqignore_path(path)
+        });
+    append_explicit_files(
+        &options.workspace_root,
+        &options.include_files,
+        &mut rq_files,
+        &mut code_files,
+    );
     let stored_mtimes = store.list_document_mtimes()?;
     let mut progress =
         SyncProgress { total: rq_files.len() + code_files.len(), ..SyncProgress::default() };
@@ -300,9 +375,15 @@ fn persist_code_source(
     mtime_ms: Option<f64>,
     import_roots: &[ImportRootMapping],
 ) -> Result<CodeIndexOutcome, StoreError> {
-    if !looks_like_comment_reference_source(source)
-        || crate::comment::find_comment_references_in_text(source).is_empty()
-    {
+    if !looks_like_comment_reference_source(source) {
+        if store.get_document_hash(file_uri)?.is_some() {
+            store.delete_document(file_uri)?;
+        }
+        return Ok(CodeIndexOutcome::Empty);
+    }
+    // rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+    let scan = scan_comment_references(source);
+    if scan.references.is_empty() && scan.syntax_errors.is_empty() {
         if store.get_document_hash(file_uri)?.is_some() {
             store.delete_document(file_uri)?;
         }

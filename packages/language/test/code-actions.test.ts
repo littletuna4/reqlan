@@ -3,7 +3,7 @@
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  */
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
-import { EmptyFileSystem, URI, type LangiumDocument } from 'langium';
+import { DocumentState, DocumentValidator, EmptyFileSystem, URI, type LangiumDocument } from 'langium';
 import { clearDocuments, parseHelper } from 'langium/test';
 import { expandToString as s } from 'langium/generate';
 import type { CodeAction } from 'vscode-languageserver';
@@ -57,6 +57,16 @@ async function parseUri(text: string, uri: string): Promise<LangiumDocument<Mode
 
 function isCodeAction(value: unknown): value is CodeAction {
     return typeof value === 'object' && value !== null && 'title' in value;
+}
+
+function linkingErrorCount(document: LangiumDocument): number {
+    return (document.diagnostics ?? []).filter(diagnostic => {
+        const data = diagnostic.data;
+        if (typeof data !== 'object' || data === null || !('code' in data)) {
+            return false;
+        }
+        return data.code === DocumentValidator.LinkingError;
+    }).length;
 }
 
 describe('Import error code actions', () => {
@@ -320,6 +330,37 @@ describe('Import error code actions', () => {
         const actions = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
         const addImport = actions.find(action => action.title.includes('Add import from'));
         expect(addImport?.edit?.changes?.[document.textDocument.uri]?.[0]?.newText).toBe(', beta');
+    });
+
+    // rq:["../../../reqlan rq/extension/language/vsc-primitives.rq".code_actions]
+    test('keeps one quick fix set after repeated builds', async () => {
+        const library = await parseUri(s`
+            shared_idea {
+                body
+            }
+        `, 'file:///workspace/lib/stable-shared.rq');
+        const document = await parseUri(s`
+            consumer {
+                [shared_idea] should resolve after import.
+            }
+        `, 'file:///workspace/app/stable-consumer.rq');
+
+        const builder = services.shared.workspace.DocumentBuilder;
+        await builder.build([library, document], { validation: true });
+
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const first = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
+        const firstTitles = first.map(action => action.title).sort();
+        expect(firstTitles.filter(title => title.startsWith('Add import from'))).toHaveLength(1);
+
+        for (let refresh = 0; refresh < 4; refresh += 1) {
+            document.state = DocumentState.IndexedReferences;
+            await builder.build([document], { validation: true });
+        }
+
+        expect(linkingErrorCount(document)).toBe(1);
+        const again = collectImportErrorCodeActions(provider, document).filter(isCodeAction);
+        expect(again.map(action => action.title).sort()).toEqual(firstTitles);
     });
 });
 

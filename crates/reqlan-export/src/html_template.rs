@@ -15,6 +15,14 @@ use crate::types::{
 use reqlan_index::{FILTER_EMPTY, FILTER_NOT_PRESENT};
 use std::collections::BTreeSet;
 
+fn format_katz(score: f64) -> String {
+    format!("{score:.3}")
+}
+
+fn render_katz_cell(score: f64) -> String {
+    format!(r#"<td class="count" data-sort-value="{score:.12}">{}</td>"#, format_katz(score))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ActiveNav {
     Overview,
@@ -237,6 +245,7 @@ pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
     })
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_ideas_ref_columns]
 pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
     let current_path = snapshot.manifest.ideas_index.path.as_str();
     let rows = snapshot
@@ -252,7 +261,7 @@ pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
             ]
             .join(" ");
             format!(
-                r#"<tr data-filter-row="ideas" data-filter-text="{}"><td><strong>{}</strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}/{}</td></tr>"#,
+                r#"<tr data-filter-row="ideas" data-filter-text="{}"><td><strong>{}</strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td class="count">{}</td><td class="count">{}</td>{}</tr>"#,
                 escape_html(&filter_text),
                 render_idea_anchor(snapshot, current_path, idea, &idea.name),
                 render_file_path_cell(snapshot, current_path, &idea.file_uri),
@@ -260,7 +269,8 @@ pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
                 render_linked_tags_cell(snapshot, current_path, idea),
                 render_idea_summary_html(snapshot, current_path, idea, "—", false),
                 idea.references.inbound.len(),
-                idea.references.outbound.len()
+                idea.references.outbound.len(),
+                render_katz_cell(idea.katz_centrality)
             )
         })
         .collect::<Vec<_>>()
@@ -293,7 +303,9 @@ pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
                             <th data-filter-key="status">Status</th>
                             <th data-filter-key="tags">Tags</th>
                             <th data-filter-key="summary">Summary</th>
-                            <th data-filter-key="refs">Refs in/out</th>
+                            <th data-filter-key="in">In</th>
+                            <th data-filter-key="out">Out</th>
+                            <th data-filter-key="katz">Katz</th>
                         </tr>
                     </thead>
                     <tbody>{rows}</tbody>
@@ -619,7 +631,7 @@ pub fn render_attribute_detail_page(
             .join("")
     };
     let idea_rows = if ideas.is_empty() {
-        r#"<tr><td colspan="5" class="subtle">No ideas declare this attribute.</td></tr>"#.into()
+        r#"<tr><td colspan="6" class="subtle">No ideas declare this attribute.</td></tr>"#.into()
     } else {
         ideas
             .iter()
@@ -631,7 +643,7 @@ pub fn render_attribute_detail_page(
                     .filter(|value| !value.is_empty())
                     .unwrap_or_else(|| "(empty)".into());
                 format!(
-                    r#"<tr data-filter-row="attributeIdeas" data-filter-text="{}"><td>{}</td><td data-sort-value="{}"><a href="{}">{}</a></td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                    r#"<tr data-filter-row="attributeIdeas" data-filter-text="{}"><td>{}</td><td data-sort-value="{}"><a href="{}">{}</a></td><td>{}</td><td>{}</td><td>{}</td>{}</tr>"#,
                     escape_html(&format!("{} {value} {} {} {}", idea.name, idea_status(idea).unwrap_or_default(), idea_tags(idea).join(" "), idea.summary)),
                     render_idea_anchor(snapshot, current_path, idea, &idea.name),
                     escape_html(&value),
@@ -639,7 +651,8 @@ pub fn render_attribute_detail_page(
                     escape_html(&value),
                     render_linked_status_cell(snapshot, current_path, idea),
                     render_linked_tags_cell(snapshot, current_path, idea),
-                    escape_html(&idea.summary)
+                    escape_html(&idea.summary),
+                    render_katz_cell(idea.katz_centrality)
                 )
             })
             .collect::<Vec<_>>()
@@ -690,7 +703,7 @@ pub fn render_attribute_detail_page(
                     </div>
                 </div>
                 <table>
-                    <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="value">Value</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th></tr></thead>
+                    <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="value">Value</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th><th data-filter-key="katz">Katz</th></tr></thead>
                     <tbody>{idea_rows}</tbody>
                 </table>
             </section>"#,
@@ -891,6 +904,7 @@ pub fn render_idea_detail_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> 
                     {tag_pills}
                 </div>
             </header>
+            <section class="grid">{}</section>
             <section class="detail-grid">
                 <div class="panel prose print-break-avoid">
                     <h2>Summary</h2>
@@ -938,6 +952,7 @@ pub fn render_idea_detail_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> 
             escape_html(&idea.file_uri),
             idea.line_start + 1,
             escape_html(&idea.kind),
+            render_metric("Katz", &format_katz(idea.katz_centrality), None),
             render_idea_summary_html(snapshot, current_path, idea, "No summary provided.", false),
             render_idea_attributes(snapshot, current_path, idea),
             render_reference_section(
@@ -1007,12 +1022,13 @@ pub fn render_file_detail_page(snapshot: &ExportSnapshot, file: &ExportFile) -> 
         .iter()
         .map(|idea| {
             format!(
-                r#"<tr data-filter-row="fileIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                r#"<tr data-filter-row="fileIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>"#,
                 escape_html(&format!("{} {} {} {}", idea.name, idea.summary, idea_status(idea).unwrap_or_default(), idea_tags(idea).join(" "))),
                 render_idea_anchor(snapshot, current_path, idea, &idea.name),
                 render_linked_status_cell(snapshot, current_path, idea),
                 render_linked_tags_cell(snapshot, current_path, idea),
-                escape_html(&idea.summary)
+                escape_html(&idea.summary),
+                render_katz_cell(idea.katz_centrality)
             )
         })
         .collect::<Vec<_>>()
@@ -1052,7 +1068,7 @@ pub fn render_file_detail_page(snapshot: &ExportSnapshot, file: &ExportFile) -> 
                     </div>
                     <div class="scroll-window">
                         <table>
-                            <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th></tr></thead>
+                            <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th><th data-filter-key="katz">Katz</th></tr></thead>
                             <tbody>{idea_rows}</tbody>
                         </table>
                     </div>
@@ -1101,18 +1117,19 @@ pub fn render_code_file_detail_page(snapshot: &ExportSnapshot, file: &ExportCode
     let referencing: Vec<&ExportIdea> =
         file.referencing_idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = if referencing.is_empty() {
-        r#"<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>"#.into()
+        r#"<tr><td colspan="5" class="subtle">No referencing ideas.</td></tr>"#.into()
     } else {
         referencing
             .iter()
             .map(|idea| {
                 format!(
-                    r#"<tr data-filter-row="codeFileIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                    r#"<tr data-filter-row="codeFileIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>"#,
                     escape_html(&format!("{} {} {} {}", idea.name, idea.summary, idea_status(idea).unwrap_or_default(), idea_tags(idea).join(" "))),
                     render_idea_anchor(snapshot, current_path, idea, &idea.name),
                     render_linked_status_cell(snapshot, current_path, idea),
                     render_linked_tags_cell(snapshot, current_path, idea),
-                    escape_html(&idea.summary)
+                    escape_html(&idea.summary),
+                    render_katz_cell(idea.katz_centrality)
                 )
             })
             .collect::<Vec<_>>()
@@ -1158,7 +1175,7 @@ pub fn render_code_file_detail_page(snapshot: &ExportSnapshot, file: &ExportCode
                 </div>
                 <div class="scroll-window">
                     <table>
-                        <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th></tr></thead>
+                        <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="status">Status</th><th data-filter-key="tags">Tags</th><th data-filter-key="summary">Summary</th><th data-filter-key="katz">Katz</th></tr></thead>
                         <tbody>{rows}</tbody>
                     </table>
                 </div>
@@ -1199,12 +1216,13 @@ pub fn render_cluster_detail_page(snapshot: &ExportSnapshot, cluster: &ExportClu
         .iter()
         .map(|idea| {
             format!(
-                r#"<tr data-filter-row="clusterIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                r#"<tr data-filter-row="clusterIdeas" data-filter-text="{}"><td>{}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>"#,
                 escape_html(&format!("{} {} {} {}", idea.name, idea.file_uri, idea_status(idea).unwrap_or_default(), idea.summary)),
                 render_idea_anchor(snapshot, current_path, idea, &idea.name),
                 render_file_path_cell(snapshot, current_path, &idea.file_uri),
                 render_linked_status_cell(snapshot, current_path, idea),
-                escape_html(&idea.summary)
+                escape_html(&idea.summary),
+                render_katz_cell(idea.katz_centrality)
             )
         })
         .collect::<Vec<_>>()
@@ -1242,7 +1260,7 @@ pub fn render_cluster_detail_page(snapshot: &ExportSnapshot, cluster: &ExportClu
                 </div>
                 <div class="scroll-window">
                     <table>
-                        <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="path">File</th><th data-filter-key="status">Status</th><th data-filter-key="summary">Summary</th></tr></thead>
+                        <thead><tr><th data-filter-key="idea">Idea</th><th data-filter-key="path">File</th><th data-filter-key="status">Status</th><th data-filter-key="summary">Summary</th><th data-filter-key="katz">Katz</th></tr></thead>
                         <tbody>{rows}</tbody>
                     </table>
                 </div>
@@ -1273,6 +1291,7 @@ pub fn render_cluster_detail_page(snapshot: &ExportSnapshot, cluster: &ExportClu
     })
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_print_body_whitespace]
 pub fn render_print_home_page(snapshot: &ExportSnapshot) -> String {
     let current_path = snapshot.manifest.print_home.path.as_str();
     let cards = snapshot
@@ -1281,7 +1300,7 @@ pub fn render_print_home_page(snapshot: &ExportSnapshot) -> String {
         .map(|idea| {
             let anchor_id = export_idea_anchor_id(idea);
             format!(
-                r##"<article class="print-card print-break-avoid" id="{}"><h3><a href="#{}">{}</a></h3><p class="subtle">{}</p><p>{}</p>{}</article>"##,
+                r##"<article class="print-card print-break-avoid" id="{}"><h3><a href="#{}">{}</a></h3><p class="subtle">{}</p><p class="print-idea-body">{}</p>{}</article>"##,
                 escape_html(&anchor_id),
                 escape_html(&anchor_id),
                 escape_html(&idea.name),
@@ -1334,6 +1353,7 @@ pub fn render_print_home_page(snapshot: &ExportSnapshot) -> String {
     })
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_print_body_whitespace]
 pub fn render_print_idea_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> String {
     let current_path =
         idea.page.printable_path.as_deref().unwrap_or(snapshot.manifest.print_home.path.as_str());
@@ -1366,7 +1386,8 @@ pub fn render_print_idea_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> S
                 </div>
             </header>
             <section class="print-card print-break-avoid">
-                <p class="idea-summary">{}</p>
+                <p><strong>Katz</strong> {}</p>
+                <p class="print-idea-body">{}</p>
                 {}
                 {interactive}
             </section>"#,
@@ -1374,6 +1395,7 @@ pub fn render_print_idea_page(snapshot: &ExportSnapshot, idea: &ExportIdea) -> S
             escape_html(&idea.name),
             escape_html(&idea.file_uri),
             idea.line_start + 1,
+            format_katz(idea.katz_centrality),
             render_idea_summary_html(snapshot, current_path, idea, "No summary provided.", false),
             render_print_idea_attributes_html(snapshot, current_path, idea, false)
         ),
@@ -1396,10 +1418,11 @@ pub fn render_print_file_page(snapshot: &ExportSnapshot, file: &ExportFile) -> S
                 escape_html(&idea.name)
             };
             format!(
-                "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>",
                 render_optional_status_cell(idea),
                 render_optional_tags_cell(idea),
-                escape_html(&idea.summary)
+                escape_html(&idea.summary),
+                render_katz_cell(idea.katz_centrality)
             )
         })
         .collect::<Vec<_>>()
@@ -1419,7 +1442,7 @@ pub fn render_print_file_page(snapshot: &ExportSnapshot, file: &ExportFile) -> S
             </header>
             <section class="table-shell">
                 <table>
-                    <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
+                    <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th><th>Katz</th></tr></thead>
                     <tbody>{rows}</tbody>
                 </table>
             </section>"#,
@@ -1434,7 +1457,7 @@ pub fn render_print_code_file_page(snapshot: &ExportSnapshot, file: &ExportCodeF
     let referencing: Vec<&ExportIdea> =
         file.referencing_idea_ids.iter().filter_map(|id| snapshot.ideas_by_id.get(id)).collect();
     let rows = if referencing.is_empty() {
-        r#"<tr><td colspan="4" class="subtle">No referencing ideas.</td></tr>"#.into()
+        r#"<tr><td colspan="5" class="subtle">No referencing ideas.</td></tr>"#.into()
     } else {
         referencing
             .iter()
@@ -1449,10 +1472,11 @@ pub fn render_print_code_file_page(snapshot: &ExportSnapshot, file: &ExportCodeF
                     escape_html(&idea.name)
                 };
                 format!(
-                    "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                    "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>",
                     render_optional_status_cell(idea),
                     render_optional_tags_cell(idea),
-                    escape_html(&idea.summary)
+                    escape_html(&idea.summary),
+                    render_katz_cell(idea.katz_centrality)
                 )
             })
             .collect::<Vec<_>>()
@@ -1473,7 +1497,7 @@ pub fn render_print_code_file_page(snapshot: &ExportSnapshot, file: &ExportCodeF
             </header>
             <section class="table-shell">
                 <table>
-                    <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th></tr></thead>
+                    <thead><tr><th>Idea</th><th>Status</th><th>Tags</th><th>Summary</th><th>Katz</th></tr></thead>
                     <tbody>{rows}</tbody>
                 </table>
             </section>"#,
@@ -1504,10 +1528,11 @@ pub fn render_print_cluster_page(snapshot: &ExportSnapshot, cluster: &ExportClus
                 escape_html(&idea.name)
             };
             format!(
-                "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                "<tr><td>{name}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>",
                 escape_html(&idea.file_uri),
                 render_optional_status_cell(idea),
-                escape_html(&idea.summary)
+                escape_html(&idea.summary),
+                render_katz_cell(idea.katz_centrality)
             )
         })
         .collect::<Vec<_>>()
@@ -1527,7 +1552,7 @@ pub fn render_print_cluster_page(snapshot: &ExportSnapshot, cluster: &ExportClus
             </header>
             <section class="table-shell">
                 <table>
-                    <thead><tr><th>Idea</th><th>File</th><th>Status</th><th>Summary</th></tr></thead>
+                    <thead><tr><th>Idea</th><th>File</th><th>Status</th><th>Summary</th><th>Katz</th></tr></thead>
                     <tbody>{rows}</tbody>
                 </table>
             </section>"#,
@@ -1708,7 +1733,8 @@ fn render_idea_attributes(
                     )
                 });
             format!(
-                "<tr><td><a href=\"{}\">{}</a></td><td>{}</td></tr>",
+                "<tr id=\"attr-{}\"><td><a href=\"{}\">{}</a></td><td>{}</td></tr>",
+                escape_html(&slug_attribute_key(key)),
                 escape_html(&href),
                 escape_html(key),
                 render_attribute_value_html(snapshot, current_path, value, Some(idea), false)

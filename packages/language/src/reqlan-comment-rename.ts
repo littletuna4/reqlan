@@ -1,5 +1,5 @@
 /**
- * Build text edits that rename idea tokens inside `rq:[...]` comment references.
+ * Build text edits that rename idea tokens inside comment references.
  * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
  * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
  */

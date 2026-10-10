@@ -26,7 +26,7 @@ const CODE_LANGUAGE_IDS = [
 ];
 
 /**
- * Rename provider for `rq:[...].idea` tokens embedded in non-.rq source comments.
+ * Rename provider for idea tokens embedded in non-.rq source comments.
  * rq:["../../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
  */
 export function registerCommentRenameProvider(context: vscode.ExtensionContext): void {

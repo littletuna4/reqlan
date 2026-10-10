@@ -28,6 +28,7 @@ html_export {
     [html_export_attribute_pages]
     [html_export_printable_pages]
     [html_export_print_idea_cards]
+    [html_export_print_body_whitespace]
     [html_export_print_in_page_anchors]
     [html_export_print_all_attributes]
     [html_export_print_button]
@@ -36,6 +37,7 @@ html_export {
     [html_export_scrollable_lists]
     [html_export_header_link]
     [html_export_url_base]
+    [html_export_katz_column]
     @status done
     @implementation (
         ["../../crates/reqlan-export/src/html.rs"]
@@ -66,6 +68,7 @@ html_export_internal_links {
     On the printable report, same-page idea links use those in-page anchors per [html_export_print_in_page_anchors].
     Graph node links must follow [html_export_graph_links].
     When [html_export_url_base] is set, those same links must be root-relative under the mount prefix so static hosts resolve them with or without a trailing slash.
+    A link `[idea.attribute]` opens that attribute on the idea page. See ["../language/syntax.rq".attribute_namespacing].
 }
 
 html_export_search {
@@ -80,6 +83,8 @@ html_export_list_views {
     Every interactive table column should be sortable by header click and filterable with a per-column filter, in addition to any page-level search bar.
     Navigable facet cells in those tables (status, tags, paths, attribute values, cluster labels/kinds) should be links to the matching detail page or to a list page with the matching column filter applied via [html_export_overview_links].
     Long lists that sit above other page content follow [html_export_scrollable_lists].
+    The ideas index count columns follow [html_export_ideas_ref_columns].
+    [html_export_ideas_ref_columns]
     [html_export_attributes_index]
     [html_export_file_pages]
     [html_export_code_reference_pages]
@@ -92,7 +97,44 @@ html_export_list_views {
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+        ["../../crates/reqlan-export/tests/html_export.rs:ideas_index_splits_inbound_and_outbound_counts"]
     )
+}
+
+html_export_ideas_ref_columns {
+    The ideas index table shows inbound reference counts and outbound reference counts in two columns.
+    The first count column is In. The second count column is Out.
+    Each cell shows one integer.
+    Each column has its own header sort and column filter.
+    Filter keys are `in` and `out`.
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:ideas_index_splits_inbound_and_outbound_counts"]
+    )
+}
+
+html_export_katz_column {
+    HTML export shows the inbound Katz score (["../modelling/advanced_analysis.rq".katz_centrality]) for each idea.
+    The ideas index adds a Katz column after Out.
+    File idea tables, code-file idea tables, cluster member tables, and attribute idea tables add a Katz column.
+    The printable file sheet, code-file sheet, and cluster sheet add the same column.
+    The idea page and the printable idea sheet show the same score as a metric.
+    The cell text uses 3 decimal places. The sort value is the full score.
+    The filter key is `katz`.
+    File, cluster, and attribute index tables do not show this column.
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-export/src/html_template.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:idea_tables_show_a_katz_column"]
+    )
+    @status done
 }
 
 html_export_overview_links {
@@ -367,6 +409,7 @@ html_export_printable_pages {
     Status and tags are nullable: when absent, printable sheets must omit those fields rather than inventing placeholders such as unspecified or empty dashes.
     When print pages are browsed in interactive runtime mode, long lists with content below them follow [html_export_scrollable_lists].
     Idea cards on the printable report follow [html_export_print_idea_cards], [html_export_print_in_page_anchors], [html_export_print_all_attributes], and [html_export_print_button].
+    Stored idea body spaces on print pages follow [html_export_print_body_whitespace].
     Ordering of cards on the printable report is tracked by [html_export_print_order_by].
     @implementation (
         ["../../crates/reqlan-export/src/html_template.rs"]
@@ -382,6 +425,7 @@ html_export_printable_pages {
 html_export_print_idea_cards {
     The printable report page lists ideas as cards in a single column that must remain within the page width on narrow viewports — no horizontal spill from long summaries, file paths, refs, or attribute values.
     Cards use a one-column grid (`minmax(0, 1fr)`) and wrapping/overflow rules so content reflows instead of overflowing the layout.
+    Stored idea body spaces on these cards follow [html_export_print_body_whitespace].
     Cross-refs [html_export_printable_pages], [html_export_print_in_page_anchors], [html_export_print_all_attributes].
     @status done
     @implementation (
@@ -390,6 +434,27 @@ html_export_print_idea_cards {
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+    )
+}
+
+html_export_print_body_whitespace {
+    The printable report must show the idea body text that the parser stores.
+    Each per-idea printable sheet must show the stored idea body text.
+    The parser removes the base indent.
+    The base indent is the indent of the first body line.
+    Extra indent on a later line is part of the body text.
+    A later line with 4 more spaces than the first body line is stored with those 4 spaces.
+    Print HTML must keep those leading spaces.
+    Print HTML must not collapse those spaces.
+    The body text must still wrap inside the card width.
+    Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:print_pages_keep_relative_body_indent"]
     )
 }
 

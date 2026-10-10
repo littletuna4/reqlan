@@ -5,3 +5,8 @@ this line is not an idea, it is part of the main content attribute ["./ontology.
     @perfectly_acceptable_attribute to labour the point
 
 }
+
+idea-leading-whitespace {
+    same indent
+        extra indent
+}

@@ -32,7 +32,7 @@ native_host_binary_development {
     The build process and the extension host must be the same machine.
     Copy the matching `.node` file to `packages/extension/native/reqlan_napi.node`.
     Write `packages/extension/native/target.json` with the host tuple.
-    If the binary is not present, build it with `cargo build -p reqlan-napi --release`.
+    If the binary is not present, build it with `cargo build -p reqlan-napi -p reqlan-lsp --release`.
     At run time, search in this order:
     1. The `native/` folder of the extension, if `target.json` records the host tuple.
     2. The resolved `main` of the host npm package (`createRequire` from `@reqlan/analytical/package.json`).

@@ -261,6 +261,8 @@ pub struct ExportIdea {
     pub references: ExportIdeaReferenceGroups,
     pub ancestors: ExportAncestorChain,
     pub cluster_ids: Vec<String>,
+    /// Max-normalized inbound Katz centrality. The top idea in the export scope is 1.
+    pub katz_centrality: f64,
 }
 
 impl ExportIdea {

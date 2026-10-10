@@ -99,8 +99,10 @@ wildcard_reference_edges {
 local_symbolic_analysis {
     Open-file symbolic analysis must run in Rust on one file only.
     Input: file URI plus source text (and optional import-root mappings).
-    Output: ideas in that file, outbound edges with UTF-8 source byte spans, and same-file
+    Output: ideas in that file, import binding names in that file, outbound edges with UTF-8 source byte spans, and same-file
     inbound backlinks (edges whose target is an idea declared in this file).
+    Import binding names let a qualified reference name an import alias
+    (["../core_analysis/check.rq".check_qualified_missing_idea]).
     LSP document-link and error underlines must convert those spans to UTF-16
     (["../extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]).
     Cross-file inbound still comes from SQLite via ["./cache-reuse.rq".unify_inbound_indexes].
@@ -142,6 +144,7 @@ local_symbolic_analysis {
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_ignores_catalog_candidates"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_includes_same_file_inbound_backlinks"]
         ["../../crates/reqlan-index/tests/local_symbolic.rs:analyze_local_symbolic_source_offsets_are_utf8_bytes"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:qualified_reference_to_an_import_alias_is_not_a_missing_idea"]
         ["../../packages/analytical/test/load-native.test.ts:exposes analyzeLocalSymbolic on the engine when present"]
         ["../../packages/analytical/test/local-symbolic-references.test.ts"]
         ["../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]

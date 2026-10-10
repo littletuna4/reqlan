@@ -82,6 +82,31 @@ function stageNative(target) {
     };
     fs.writeFileSync(path.join(nativeStageDir, 'target.json'), `${JSON.stringify(meta, null, 4)}\n`);
     console.log(`staged ${srcBinary} → ${destBinary} (${target.vsCodeTarget})`);
+    stageLanguageServer(target);
+}
+
+function stageLanguageServer(target) {
+    const exe = target.os.includes('win32') ? 'reqlan-lsp.exe' : 'reqlan-lsp';
+    const candidates = [
+        path.join(root, 'artifacts', 'napi', target.napiSuffix, exe),
+        path.join(root, 'artifacts', 'napi', target.napiSuffix, 'reqlan-lsp'),
+        path.join(nativeDir, target.napiSuffix, exe),
+        path.join(root, 'crates', 'target', target.rustTarget, 'release', exe),
+        path.join(root, 'crates', 'target', target.rustTarget, 'release', 'reqlan-lsp'),
+    ];
+    const found = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).size > 0);
+    if (!found) {
+        throw new Error(
+            `Missing reqlan-lsp for ${target.vsCodeTarget}. Build with cargo build -p reqlan-lsp --release --target ${target.rustTarget}.\n` +
+                candidates.join('\n')
+        );
+    }
+    const binDir = path.join(extensionDir, 'bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const dest = path.join(binDir, exe);
+    fs.copyFileSync(found, dest);
+    fs.chmodSync(dest, 0o755);
+    console.log(`staged ${found} → ${dest}`);
 }
 
 function readZipEntry(zipPath, entryPath) {
@@ -99,6 +124,15 @@ function readZipEntry(zipPath, entryPath) {
     throw new Error(
         `Could not read ${entryPath} from ${zipPath}: ${result.stderr?.toString() || unzip.stderr || 'no unzip/python'}`
     );
+}
+
+function assertPackedLanguageServer(vsixPath, target) {
+    const entry = target.os.includes('win32') ? 'extension/bin/reqlan-lsp.exe' : 'extension/bin/reqlan-lsp';
+    const raw = readZipEntry(vsixPath, entry);
+    if (!raw) {
+        throw new Error(`VSIX ${vsixPath} is missing ${entry}`);
+    }
+    console.log(`verified ${vsixPath} contains ${entry}`);
 }
 
 function assertPackedNativeTarget(vsixPath, vsCodeTarget) {
@@ -153,6 +187,7 @@ for (const target of targets) {
         outPath,
     ]);
     assertPackedNativeTarget(outPath, target.vsCodeTarget);
+    assertPackedLanguageServer(outPath, target);
     console.log(`packaged ${outPath}`);
 
     if (doPublish) {
@@ -170,5 +205,6 @@ if (targets.length === 1) {
     console.log(`native/ left staged for ${targets[0].vsCodeTarget}`);
 } else {
     fs.rmSync(nativeStageDir, { recursive: true, force: true });
-    console.log('cleared native/ after multi-target packaging');
+    fs.rmSync(path.join(extensionDir, 'bin'), { recursive: true, force: true });
+    console.log('cleared native/ and bin/ after multi-target packaging');
 }

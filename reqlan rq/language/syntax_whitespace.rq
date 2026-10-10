@@ -5,3 +5,37 @@ this line is not an idea, it is part of the main content attribute ["../ontology
     @perfectly_acceptable_attribute to labour the point
 
 }
+
+idea-leading-whitespace {
+    A block body can have spaces or tabs before the text.
+    The lexer counts a space and a tab as whitespace.
+    A tab is one whitespace character.
+    The parser does not replace a tab with spaces.
+    The base indent is the whitespace at the start of the first body line.
+    The first body line is the first line of body text in the block.
+    The first body line can start after column 0.
+    The base indent is still the whitespace on that line.
+    A body line with the same whitespace as the base indent has no leading whitespace in the parsed text.
+    A body line keeps the whitespace that remains after the base indent.
+    The parser removes the base indent only when the line starts with that same whitespace.
+    An attribute on its own line stays an attribute.
+    Example: the first body line has four spaces.
+    A later line with four spaces has no leading whitespace.
+    A later line with eight spaces has four spaces in the parsed text.
+    This line has the same four spaces as the first body line.
+        This line has eight spaces.
+
+    @implementation (
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../crates/reqlan-parse/src/lexer.rs"]
+        ["../../packages/language/src/reqlan-body-indent.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-parse/tests/parser.rs:relative_dedent_keeps_extra_spaces_on_a_later_body_line"]
+        ["../../crates/reqlan-parse/tests/parser.rs:relative_dedent_uses_the_indent_of_a_first_body_line_that_is_not_at_column_0"]
+        ["../../crates/reqlan-parse/tests/parser.rs:relative_dedent_keeps_an_extra_tab"]
+        ["../../packages/language/test/parsing.test.ts:keeps extra indent on a later body line"]
+        ["../../packages/language/test/parsing.test.ts:uses the first body line indent when that line is not at column 0"]
+        ["../../packages/language/test/parsing.test.ts:keeps an extra tab on a later body line"]
+    )
+}

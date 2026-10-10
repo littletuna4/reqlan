@@ -4,6 +4,7 @@
 
 mod contextual;
 mod fuzzy;
+mod katz;
 mod semantic;
 
 pub use contextual::{
@@ -15,4 +16,5 @@ pub use fuzzy::{
     match_query_tokens, normalize_search_separators, search_ideas, search_index,
     split_search_tokens, FuzzyHitKind, FuzzySearchHit, FuzzySearchResult, SearchIdeasOptions,
 };
+pub use katz::{apply_katz_search_bias, citation_edge_pairs, katz_centrality, MissingKatzScore};
 pub use semantic::semantic_search;

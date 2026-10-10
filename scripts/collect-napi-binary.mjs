@@ -81,3 +81,29 @@ fs.mkdirSync(destDir, { recursive: true });
 const dest = path.join(destDir, target.binaryName);
 fs.copyFileSync(found, dest);
 console.log(`collected ${found} → ${dest}`);
+
+const lspNames = target.os.includes('win32')
+    ? ['reqlan-lsp.exe', 'reqlan-lsp']
+    : ['reqlan-lsp'];
+let lspFound;
+for (const dir of searchRoots) {
+    for (const name of lspNames) {
+        const candidate = path.join(dir, name);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).size > 0) {
+            lspFound = candidate;
+            break;
+        }
+    }
+    if (lspFound) {
+        break;
+    }
+}
+if (!lspFound) {
+    throw new Error(
+        `Could not find reqlan-lsp for ${target.napiSuffix}. Build with cargo build -p reqlan-lsp --release. Searched under:\n` +
+            searchRoots.join('\n')
+    );
+}
+const lspDest = path.join(destDir, path.basename(lspFound));
+fs.copyFileSync(lspFound, lspDest);
+console.log(`collected ${lspFound} → ${lspDest}`);

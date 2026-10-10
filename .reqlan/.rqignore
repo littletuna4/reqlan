@@ -64,3 +64,5 @@ temp/
 testdata/
 example_rq_project/
 export/
+/reqlan-export/
+/packages/extension/media/webviews/

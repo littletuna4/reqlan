@@ -35,6 +35,15 @@ pub struct RequirementMatch {
 pub struct SearchRequirementsOptions {
     #[serde(default)]
     pub context: Vec<String>,
+    #[serde(default)]
+    pub katz: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct KatzScore {
+    pub idea_id: String,
+    pub score: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

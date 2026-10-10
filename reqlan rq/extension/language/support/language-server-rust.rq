@@ -1,0 +1,123 @@
+from "../../../core-architecture.rq" import language_server, grammar_and_parser
+from "../../../core_analysis/rust_port.rq" import analytical_rust_port, parser_rust
+from "../../../distribution/distribution.rq" import vsix_export
+from "../../index-host/index.rq" import application_memory
+from "../../../development/build.rq" import extension_host_native_stage
+from "../../../language/imports.rq" import import_from
+
+language_server_rust {
+    A Rust binary replaces the Langium language-server process.
+    The extension launches `reqlan-lsp` over stdio.
+    Open `.rq` buffers parse with [parser_rust].
+    Workspace names, rename targets, and inbound hints come from the ideas index under [application_memory].
+    The inbound inlay hover is markdown. It lists each referencer as a file link.
+    An idea hover shows styled idea content when ["../syntax/features-syntax.rq".idea_content_tooltip] is on.
+    A closed file has no retained syntax tree.
+    When the engine is `rust`, the server also serves `rq:[…]` links and missing-idea diagnostics in non-`.rq` comments.
+    One resolution supplies the link and the underline.
+    The host serves those links when the engine is `node`.
+    Editor commands stay in `@reqlan/language`.
+    The setting `reqlan.languageServer.engine` selects the binary.
+    The default is `rust`.
+    `node` remains only when the setting says so, or when the binary is not on disk yet.
+    A local extension build compiles this binary with the napi addon ([extension_host_native_stage]).
+    Code actions match ["../vsc-primitives.rq".code_actions]: ignore, create below, import fixes, search or wrap, idea move and delete, and barrel page.
+    An import link uses the parser token span ([import_from]).
+    The path links to the file.
+    An imported idea name and its alias each link to that declaration.
+    A namespace reference links the alias and the idea as separate names.
+    A missing leaf reports an unresolved idea on that name.
+    Related: [language_server], [grammar_and_parser], [analytical_rust_port], [vsix_export].
+    @status in-progress
+    @todo Host helpers in `@reqlan/language` still link Langium. Move those helpers off Langium after the server cutover.
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/lib.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/hover_content.rs"]
+        ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../../packages/extension/src/extension/language-server-launch.ts"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../scripts/collect-napi-binary.mjs"]
+        ["../../../../scripts/stage-host-native.mjs"]
+        ["../../../../scripts/package-extension-targets.mjs"]
+        ["../../../../azure-pipelines.yml"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_hover_highlight_and_link"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_styled_idea_content_by_default"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_omits_idea_content_when_the_setting_is_off"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_idea_content_from_another_file"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:neighbor_confirm_suppresses_missing_idea"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:rq_ignore_suppresses_the_next_line"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:completion_rename_and_code_action"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:index_completion_inlay_and_custom_requests"]
+        ["../../../../crates/reqlan-lsp/tests/stdio.rs:stdio_initialize_and_shutdown"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:same_file_idea_references_produce_document_links"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:missing_file_references_do_not_produce_document_links"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:anonymous_import_path_does_not_report_an_unresolved_import"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_import_path_file_does_not_exist"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_imported_idea_does_not_exist"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:anonymous_qualified_idea_resolves_without_an_import_statement"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:quoted_path_reaches_an_idea_that_is_not_from_imported"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:extensionless_path_confirms_the_neighbor_idea"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:from_import_binds_a_local_reference"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:from_import_tokens_link_independently"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:import_document_link_covers_the_path_string"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:namespace_drill_links_each_segment"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:namespace_drill_missing_leaf_is_unresolved"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:namespace_alias_is_a_file_link"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:formats_inbound_referencers_as_an_inlayed_attribute"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:truncates_long_referencer_lists_with_a_remainder_suffix"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:omits_the_inlay_when_there_are_no_inbound_referencers"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+        ["../../../../packages/extension/test/language-server-launch.test.ts:defaults to the rust binary over stdio"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_ignore_error_quick_fix_on_a_line_with_a_linking_error"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_ignore_error_when_only_refactor_is_requested"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:creates_the_missing_idea_below_the_containing_idea"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_all_or_a_specific_unresolved_idea"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_the_caret_idea_has_no_unresolved_local_references"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_for_a_qualified_unresolved_reference"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_only_refactor_is_requested"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_and_rewrite_when_a_matching_idea_exists_elsewhere"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:uses_name_catalog_matches_when_documents_are_not_loaded"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:search_and_create_actions_invoke_extension_commands"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_to_an_existing_from_import_for_the_same_path"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_from_the_ideas_index"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_search_code_action_when_cursor_is_inside_a_resolved_reference"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_wrap_code_action_for_a_prose_selection"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:wraps_the_word_under_the_cursor_when_selection_is_empty"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_move_and_delete_actions_at_an_idea_declaration"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_barrel_page_source_action_when_the_file_has_top_level_ideas"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_barrel_page_when_only_quickfix_is_requested_or_there_are_no_ideas"]
+    )
+    @plan {
+        goal
+            A Rust language-server binary replaces the Langium process. Open buffers parse with reqlan-parse. Workspace names come from the ideas index. Closed files have no retained syntax tree.
+
+        constraints
+            - vscode-languageclient stays. Transport becomes stdio.
+            - lsp-server and lsp-types only. No second parser.
+            - Open-file links do not wait for the index.
+            - UTF-8 spans convert to UTF-16 LSP positions.
+            - TextMate stays a checked-in grammar. The editor paints it before semantic tokens.
+            - With the rust engine, non-.rq comment links come from the server. The node engine keeps the host provider.
+            - Per-target VSIX ships bin/reqlan-lsp. The napi addon stays for the index host.
+            - Default engine is rust. Node starts only as a fallback.
+
+        steps
+            1. Write this idea and point language_server and grammar_and_parser at it.
+            2. Scaffold reqlan-lsp: initialize, didOpen, didChange, didClose, parse diagnostics.
+            3. Launch it from the extension. Default is rust.
+            4. Port open-file features: tokens, links, definition, hover, highlight, diagnostics.
+            5. Read the ideas index for completion, rename, code actions, lenses, and inlays.
+            6. Pack the binary in the VSIX matrix.
+            7. Keep Langium only for host helpers. The server process does not load it when the engine is rust.
+
+        open
+            - Host helpers in `@reqlan/language` still use Langium.
+    }
+}

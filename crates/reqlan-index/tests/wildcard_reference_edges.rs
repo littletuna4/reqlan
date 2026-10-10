@@ -80,7 +80,12 @@ fn sync_root(root: &Path) -> IndexStore {
     let mut store = IndexStore::open_in_memory().unwrap();
     sync_workspace(
         &mut store,
-        &SyncOptions { workspace_root: root.to_path_buf(), hard_rebuild: false },
+        &SyncOptions {
+            workspace_root: root.to_path_buf(),
+            hard_rebuild: false,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
         &AtomicBool::new(false),
     )
     .unwrap();

@@ -62,21 +62,51 @@ function makeMatch(text: string, offset: number, length: number): RegExpExecArra
 }
 
 /**
- * `@` marks an attribute only when it is the first non-whitespace character on a line.
+ * `@` marks an attribute only when it is the first non-whitespace character on a line
+ * and the rest of that line is not blank.
+ * A line that is only `@` is insignificant whitespace (empty_attribute).
  * Mid-line `@` (and `\@` at line start) fall through to OTHER as body text.
+ * rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
  */
 const atSignAttributeMarker = (text: string, offset: number): RegExpExecArray | null => {
-    if (text[offset] !== '@') {
+    if (!isLineStartAttributeAt(text, offset) || isLoneAttributeLine(text, offset)) {
         return null;
+    }
+    return makeMatch(text, offset, 1);
+};
+
+function isLineStartAttributeAt(text: string, offset: number): boolean {
+    if (text[offset] !== '@') {
+        return false;
     }
     let previousIndex = offset - 1;
     while (previousIndex >= 0 && (text[previousIndex] === ' ' || text[previousIndex] === '\t')) {
         previousIndex--;
     }
-    if (previousIndex >= 0 && text[previousIndex] !== '\n' && text[previousIndex] !== '\r') {
+    return previousIndex < 0 || text[previousIndex] === '\n' || text[previousIndex] === '\r';
+}
+
+/** True when this `@` is the only non-whitespace character on its line. */
+function isLoneAttributeLine(text: string, offset: number): boolean {
+    return isLineStartAttributeAt(text, offset) && restOfLineIsBlank(text, offset);
+}
+
+/**
+ * Spaces, tabs, and a lone line-start `@`.
+ * The `@` keyword and OTHER must not also match that `@`.
+ */
+const reqlanWhitespace = (text: string, offset: number): RegExpExecArray | null => {
+    if (isLoneAttributeLine(text, offset)) {
+        return makeMatch(text, offset, 1);
+    }
+    let index = offset;
+    while (index < text.length && (text[index] === ' ' || text[index] === '\t')) {
+        index++;
+    }
+    if (index === offset) {
         return null;
     }
-    return makeMatch(text, offset, 1);
+    return makeMatch(text, offset, index - offset);
 };
 
 /** Unquoted `scheme://…` token. Stops at whitespace or brackets so `[https://host/]` is one target. */
@@ -533,6 +563,12 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             atToken.PATTERN = atSignAttributeMarker;
             atToken.LINE_BREAKS = false;
         }
+        const wsToken = tokens.find(token => token.name === 'WS');
+        if (wsToken) {
+            wsToken.PATTERN = reqlanWhitespace;
+            wsToken.LINE_BREAKS = false;
+            wsToken.START_CHARS_HINT = [' ', '\t', '@'];
+        }
         const markdownIndex = tokens.findIndex(token => token.name === 'MARKDOWN_LINK');
         if (markdownIndex >= 0) {
             const [markdown] = tokens.splice(markdownIndex, 1);
@@ -599,6 +635,10 @@ export class ReqlanTokenBuilder extends DefaultTokenBuilder {
             const other = tokens[otherIndex]!;
             const basePattern = other.PATTERN;
             other.PATTERN = (text: string, offset: number) => {
+                // A lone line-start `@` is hidden whitespace, not body punctuation.
+                if (isLoneAttributeLine(text, offset)) {
+                    return null;
+                }
                 const proseBrace = proseOpenBrace(text, offset) ?? proseCloseBrace(text, offset);
                 if (proseBrace) {
                     return proseBrace;

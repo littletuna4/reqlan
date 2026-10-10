@@ -14,9 +14,11 @@ import {
     type MarkupContent
 } from 'vscode-languageserver';
 import type { IdeaDeclaration, IdeaSet } from './generated/ast.js';
+import { resolvedFileLinkTargetUri } from './reqlan-file-link-resolver.js';
 import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from './reqlan-inlay-hint-settings.js';
 import { sharedInboundSnapshot } from './reqlan-inbound-snapshot.js';
 import type { ReqlanServices } from './reqlan-module.js';
+import { toDirectoryUri } from './reqlan-path-resolve.js';
 
 export interface InboundReferenceInlayLabel {
     labelParts: InlayHintLabelPartType[];
@@ -87,10 +89,36 @@ export function collectInboundReferencingNames(
     return collectInboundReferencers(services, declaration).map(referrer => referrer.name);
 }
 
+/**
+ * File URI the editor opens for this inbound referencer.
+ * Same URI builder as document links (`toDirectoryUri`), so a space in
+ * `reqlan rq` stays inside the path.
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+ */
+export function referencerOpenLocation(referrer: InboundReferencer): Location {
+    return {
+        uri: toDirectoryUri(referrer.location.uri).toString(),
+        range: referrer.location.range
+    };
+}
+
+/**
+ * Markdown link for a backlink tooltip.
+ * The target is {@link resolvedFileLinkTargetUri}, the document-link target.
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+ */
 export function referencerMarkdownLink(referrer: InboundReferencer): string {
-    const line = referrer.location.range.start.line + 1;
-    const character = referrer.location.range.start.character + 1;
-    return `[${referrer.name}](${referrer.location.uri}#L${line},${character})`;
+    const location = referencerOpenLocation(referrer);
+    const target = resolvedFileLinkTargetUri({
+        sourceRange: location.range,
+        targetUri: location.uri,
+        targetRange: location.range,
+        resolution: 'file'
+    });
+    if (target === undefined) {
+        throw new Error(`Inbound referencer ${referrer.name} has no file link target.`);
+    }
+    return `[${referrer.name}](${target})`;
 }
 
 export function buildReferencersTooltipMarkup(referencers: InboundReferencer[]): MarkupContent {
@@ -137,10 +165,11 @@ export function buildInboundReferencesInlayLabel(
         if (index > 0) {
             labelParts.push(InlayHintLabelPart.create(', '));
         }
+        const referrer = inlineReferencers[index]!;
         labelParts.push({
-            value: inlineReferencers[index]!.name,
-            location: inlineReferencers[index]!.location,
-            tooltip: referencerPartTooltip(inlineReferencers[index]!)
+            value: referrer.name,
+            location: referencerOpenLocation(referrer),
+            tooltip: referencerPartTooltip(referrer)
         });
     }
 

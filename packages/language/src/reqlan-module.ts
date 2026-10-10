@@ -17,6 +17,7 @@ import { ReqlanInlayHintProvider } from './reqlan-inlay-hint-provider.js';
 import { ReqlanRenameProvider } from './reqlan-rename-provider.js';
 import { ReqlanSemanticTokenProvider } from './reqlan-semantic-token-provider.js';
 import { ReqlanTokenBuilder } from './reqlan-token-builder.js';
+import { createReqlanLangiumParser } from './reqlan-body-indent.js';
 import { registerRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
 import { ReqlanValidator, registerValidationChecks } from './reqlan-validator.js';
 import { registerOutboundDiagnosticAuthority } from './reqlan-outbound-presentation.js';
@@ -25,6 +26,7 @@ import { ReqlanAsyncParser } from './reqlan-async-parser.js';
 import { ReqlanLangiumDocumentFactory } from './reqlan-document-factory.js';
 import { ReqlanDocumentBuilder } from './reqlan-document-builder.js';
 import { ReqlanDocumentUpdateHandler } from './reqlan-document-update-handler.js';
+import { dropNativeCachesForUri } from './reqlan-local-symbolic-links.js';
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -70,7 +72,8 @@ export const ReqlanModule: Module<ReqlanServices, PartialLangiumServices & Reqla
     parser: {
         GrammarConfig: createReqlanGrammarConfig,
         TokenBuilder: () => new ReqlanTokenBuilder(),
-        AsyncParser: (services: ReqlanServices) => new ReqlanAsyncParser(services)
+        AsyncParser: (services: ReqlanServices) => new ReqlanAsyncParser(services),
+        LangiumParser: (services: ReqlanServices) => createReqlanLangiumParser(services)
     },
     lsp: {
         DefinitionProvider: services => new ReqlanDefinitionProvider(services),
@@ -120,6 +123,12 @@ export function createReqlanServices(context: DefaultSharedModuleContext): {
     registerOutboundDiagnosticAuthority(Reqlan);
     // rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
     registerRqIgnoreErrorFiltering(shared);
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
+    shared.workspace.DocumentBuilder.onUpdate((_changed, deleted) => {
+        for (const uri of deleted) {
+            dropNativeCachesForUri(uri.toString());
+        }
+    });
     if (!context.connection) {
         // We don't run inside a language server
         // Therefore, initialize the configuration provider instantly

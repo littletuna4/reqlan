@@ -336,6 +336,16 @@ table { width: 100%; border-collapse: collapse; }
 th, td {
     padding: 0.75rem 0.65rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top;
 }
+td.count {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    width: 1%;
+}
+th[data-filter-key="in"] .sort-button,
+th[data-filter-key="out"] .sort-button {
+    justify-content: flex-end;
+}
 th { color: var(--muted); font-size: 0.94rem; }
 tbody tr:hover { background: var(--bg-raised); }
 .table-shell { overflow-x: auto; }
@@ -440,6 +450,11 @@ body[data-runtime-mode="interactive"] .scroll-window thead .column-filter-row.is
     scroll-margin-top: 5.5rem;
 }
 .print-card > h3 { overflow-wrap: anywhere; }
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_print_body_whitespace] */
+.print-idea-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
 .print-attrs {
     display: grid;
     gap: 0.45rem;

@@ -11,6 +11,7 @@ use reqlan_index::{
     parse_attributes, EdgeKind, EdgeRecord, IdeaAttributeMap, IdeaSummary, IndexStore, StoreError,
     FILTER_NOT_PRESENT,
 };
+use reqlan_search::{citation_edge_pairs, katz_centrality};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -68,8 +69,11 @@ pub fn build_export_snapshot(
     let edges = store.get_all_edges()?;
     let idea_lookup: HashMap<String, IdeaSummary> =
         summaries.iter().map(|idea| (idea.id.clone(), idea.clone())).collect();
+    let node_ids: Vec<String> = summaries.iter().map(|idea| idea.id.clone()).collect();
+    // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_katz_column]
+    let katz_scores = katz_centrality(&node_ids, &citation_edge_pairs(&node_ids, &edges));
 
-    let mut ideas = build_idea_records(&summaries, &raw_by_id, &edges, &idea_lookup);
+    let mut ideas = build_idea_records(&summaries, &raw_by_id, &edges, &idea_lookup, &katz_scores);
     let by_status = rollup_statuses(&ideas);
     let by_tag = rollup_tags(&ideas);
     let mut clusters = build_cluster_records(&ideas, &cluster_strategy);
@@ -180,6 +184,7 @@ fn build_idea_records(
     raw_by_id: &HashMap<String, String>,
     edges: &[EdgeRecord],
     idea_lookup: &HashMap<String, IdeaSummary>,
+    katz_scores: &HashMap<String, f64>,
 ) -> Vec<ExportIdea> {
     let mut records: Vec<ExportIdea> = summaries
         .iter()
@@ -220,6 +225,9 @@ fn build_idea_records(
                     ancestors: Vec::new(),
                 },
                 cluster_ids: Vec::new(),
+                katz_centrality: *katz_scores
+                    .get(&summary.id)
+                    .unwrap_or_else(|| panic!("missing Katz score for {}", summary.id)),
             }
         })
         .collect();

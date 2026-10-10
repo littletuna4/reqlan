@@ -9,9 +9,11 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - report unresolved imports: [check_unresolved_imports].
+    - report a comment reference with invalid syntax: [code_comment_syntax_errors].
     - report a qualified reference whose file is not on disk: [check_qualified_missing_file].
+    - report a qualified reference whose `.rq` file does not declare the idea: [check_qualified_missing_idea].
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
-    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Path globs: [check_glob_patterns]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -27,13 +29,18 @@ check {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_file_refs_and_skips_existing"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_namespace_qualified_reference_to_a_missing_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_qualified_missing_idea_on_rq_ignore_error"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_strips_test_name_and_line_suffix_before_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_test_names_that_contain_colons_from_nested_rq"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_same_file_idea_refs_and_reports_true_missing"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
         ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_lists_broken_refs_with_glob_and_comments"]
+        ["../../packages/cli/test/check.test.ts:checks files from two globs and one file outside them"]
         ["../../packages/cli/test/check.test.ts:reports unresolved idea, comment, and file refs and exits 1"]
         ["../../packages/cli/test/check.test.ts:reports unresolved imports and exits 1"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_a_malformed_comment_reference"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_import_path"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_imported_idea"]
         ["../../packages/cli/test/check.test.ts:exits 0 when there are no issues"]
@@ -43,6 +50,45 @@ check {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_orders_issues_by_missing_target"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
         ["../../packages/mcp/test/server.test.ts:check returns JSON issue rows"]
+    )
+}
+
+check_glob_patterns {
+    [check] accepts more than one `--glob` pattern.
+    Repeat `--glob` for each pattern.
+    A file is in the recursive scan when it matches any glob.
+    One `--glob` selects the same files as one path glob.
+    A reference target that matches no glob is still checked.
+    That target must resolve.
+    [check] does not walk a directory that matches no glob.
+    A positional path can name a file outside the globs.
+    [check] checks that file.
+    A positional path that is a directory outside the globs is not walked.
+    An empty `--glob` value is an error.
+    API: `AnalysisApi.check({ pathGlobs, paths })`.
+    CLI: ["../cli/cli_package.rq".commands].
+    MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check].
+    Related: [check]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-index/src/extract.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/mcp/src/server.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_two_globs_report_an_outside_target_and_skip_outside_directories"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_includes_an_explicit_file_outside_the_globs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_rejects_an_empty_path_glob"]
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_honours_multiple_globs_and_extra_paths"]
+        ["../../packages/cli/test/check.test.ts:checks files from two globs and one file outside them"]
+        ["../../packages/cli/test/check.test.ts:does not recurse into a directory outside the globs"]
+        ["../../packages/cli/test/check.test.ts:rejects an empty glob"]
+        ["../../packages/mcp/test/server.test.ts:check accepts one glob or a list of globs"]
     )
 }
 
@@ -207,7 +253,7 @@ check_qualified_missing_file {
     A qualified reference to a file that exists is not this error.
     A same-file idea reference is not this error.
     The editor already underlines this target.
-    Related: [check] ["../language/syntax.rq".reference_file] ["../extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+    Related: [check] [check_qualified_missing_idea] ["../language/syntax.rq".reference_file] ["../extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/broken.rs"]
@@ -215,6 +261,41 @@ check_qualified_missing_file {
     @tests (
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
+    )
+}
+
+check_qualified_missing_idea {
+    A qualified [reference] names a file and an idea. Example: `["./graph-analysers.rq".index_ideas]`.
+    The same rule applies to a namespace alias: `[alias.idea]` ([import_namespace]).
+    [check] reports an error when that file is an `.rq` file, the file does not declare the idea, and the file does not bind that name as an import alias.
+    The issue kind is `references`. The label is the missing idea name.
+    A path with no extension means `.rq` first ([implicit_file_extension]).
+    A qualified reference to an idea that the `.rq` file declares is not this error.
+    A qualified reference to an import alias bound in that file is not this error.
+    A namespace import binds its `as` name.
+    A from-import or qualified import binds its `as` name, or the idea name when `as` is absent.
+    A from-import of an import alias stays [check_unresolved_imports]. The alias is not an idea.
+    A qualified reference to a code file is not this error. That form uses [check_qualified_missing_file].
+    A missing file stays [check_qualified_missing_file]. [check] does not also report a missing idea for that file.
+    [comment_reference_ignore] suppresses this error.
+    Related: [check] [check_qualified_missing_file] ["../language/syntax.rq".reference_qualified]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-parse/src/ast.rs"]
+        ["../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../crates/reqlan-lsp/src/session.rs"]
+        ["../../packages/language/src/reqlan-neighbor-parse.ts"]
+        ["../../packages/language/src/reqlan-outbound-presentation.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_namespace_qualified_reference_to_a_missing_idea"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_qualified_missing_idea_on_rq_ignore_error"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:qualified_reference_to_an_import_alias_is_not_a_missing_idea"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:golden_corpus_import_alias_is_not_an_unresolved_idea"]
     )
 }
 
@@ -247,6 +328,40 @@ check_unresolved_imports {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_remote_import_urls"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_gitignored_import_paths"]
         ["../../packages/cli/test/check.test.ts:reports unresolved imports and exits 1"]
+    )
+}
+
+code_comment_syntax_errors {
+    A comment reference uses `rq:[idea]` or `rq:["path".idea]`.
+    A path string uses double quotes or single quotes.
+    A qualified reference may use dotted idea names after the path.
+    Line comments use `//` and `#`.
+    The same forms apply in every comment span that the indexer reads.
+    [check] reads each comment reference in a non-`.rq` source file.
+    A comment reference with invalid syntax is a syntax error.
+    [check] reports the syntax error.
+    The issue kind is `comment_syntax`.
+    The issue label is the error reason and the comment reference text.
+    The issue severity is `error`.
+    A valid comment reference stays a ["../language/syntax.rq".comment_reference] site.
+    An unresolved valid target stays a `comment_link` issue.
+    A source file that contains only a syntax error stays in the code index.
+    [comment_reference_ignore] suppresses the syntax error on the next line.
+    Related: [check] ["../extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/comment.rs"]
+        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/src/comment.rs:reports_a_malformed_comment_reference"]
+        ["../../crates/reqlan-index/src/comment.rs:reports_an_unclosed_comment_reference"]
+        ["../../crates/reqlan-index/src/comment.rs:keeps_a_quoted_bracket_inside_a_qualified_comment_reference"]
+        ["../../crates/reqlan-index/src/comment.rs:ignores_malformed_rq_inside_strings_and_raw_strings"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_a_malformed_comment_reference"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_comment_syntax_on_rq_ignore_error"]
     )
 }
 

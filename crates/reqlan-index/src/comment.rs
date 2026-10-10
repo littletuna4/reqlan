@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
 
 use crate::extract::{extract_indexed_document, hash_text, ExtractOptions};
 use crate::ids::edge_id;
@@ -26,8 +27,28 @@ const CODE_FILE_EXTENSIONS: &[&str] = &[
 pub struct CommentReference {
     pub path: Option<String>,
     pub idea: String,
+    /// Byte offset of `rq:` in the source.
+    pub start: usize,
+    /// Byte offset after the closing `]`.
+    pub end: usize,
     pub line: u32,
     pub snippet: String,
+}
+
+/// Issue kind for a comment reference that does not match the comment grammar.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+pub const COMMENT_SYNTAX_KIND: &str = "comment_syntax";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommentSyntaxError {
+    pub line: u32,
+    pub snippet: String,
+    pub label: String,
+}
+
+pub(crate) struct CommentReferenceScan {
+    pub references: Vec<CommentReference>,
+    pub syntax_errors: Vec<CommentSyntaxError>,
 }
 
 pub fn is_comment_index_path(path: &Path) -> bool {
@@ -46,48 +67,81 @@ pub fn too_large_for_comment_index(path: &Path) -> bool {
 }
 
 pub fn parse_comment_reference_target(target: &str) -> Option<(Option<String>, String)> {
-    let trimmed = target.trim();
-    if let Some((path, idea)) = parse_qualified_target(trimmed) {
-        return Some((Some(path), idea));
-    }
-    if is_idea_name(trimmed) {
-        return Some((None, trimmed.to_string()));
-    }
-    None
+    parse_comment_reference_target_checked(target).ok()
 }
 
 pub fn find_comment_references_in_text(text: &str) -> Vec<CommentReference> {
+    scan_comment_references(text).references
+}
+
+pub(crate) fn find_comment_syntax_errors(text: &str) -> Vec<CommentSyntaxError> {
+    scan_comment_references(text).syntax_errors
+}
+
+pub(crate) fn scan_comment_references(text: &str) -> CommentReferenceScan {
     let mut references = Vec::new();
+    let mut syntax_errors = Vec::new();
     for (start, end) in find_comment_spans(text) {
         let comment = &text[start..end];
-        let mut search = comment;
         let mut search_offset = 0usize;
-        while let Some(rel) = search.find("rq:") {
+        while search_offset < comment.len() {
+            let search = &comment[search_offset..];
+            let Some(rel) = search.find("rq:") else {
+                break;
+            };
             let after_token = &search[rel + 3..];
             let ws = after_token.len() - after_token.trim_start().len();
             let after_ws = &after_token[ws..];
             if !after_ws.starts_with('[') {
-                search = &search[rel + 3..];
                 search_offset += rel + 3;
                 continue;
             }
             let after_bracket = &after_ws[1..];
-            let Some(close) = after_bracket.find(']') else {
+            let abs_start = start + search_offset + rel;
+            let line = line_of_offset(text, abs_start);
+            let snippet = snippet_for_line(text, abs_start);
+            let bracket = find_unquoted_closing_bracket(after_bracket);
+            let Some(close) = bracket.close else {
+                let token = search[rel..].trim_end();
+                let reason = if bracket.in_string {
+                    CommentTargetError::UnclosedString.label_prefix()
+                } else {
+                    UNCLOSED_REFERENCE
+                };
+                syntax_errors.push(CommentSyntaxError {
+                    line,
+                    snippet,
+                    label: syntax_label(reason, token),
+                });
                 break;
             };
             let inner = &after_bracket[..close];
-            if let Some((path, idea)) = parse_comment_reference_target(inner) {
-                let abs_start = start + search_offset + rel;
-                let line = line_of_offset(text, abs_start);
-                let snippet = snippet_for_line(text, abs_start);
-                references.push(CommentReference { path, idea, line, snippet });
+            let token_end = rel + 3 + ws + 1 + close + 1;
+            let token = &search[rel..token_end];
+            let abs_end = start + search_offset + token_end;
+            match parse_comment_reference_target_checked(inner) {
+                Ok((path, idea)) => {
+                    references.push(CommentReference {
+                        path,
+                        idea,
+                        start: abs_start,
+                        end: abs_end,
+                        line,
+                        snippet,
+                    });
+                }
+                Err(error) => {
+                    syntax_errors.push(CommentSyntaxError {
+                        line,
+                        snippet,
+                        label: syntax_label(error.label_prefix(), token),
+                    });
+                }
             }
-            let consumed = rel + 3 + ws + 1 + close + 1;
-            search = &search[consumed..];
-            search_offset += consumed;
+            search_offset += token_end;
         }
     }
-    references
+    CommentReferenceScan { references, syntax_errors }
 }
 
 pub fn comment_link_edges(
@@ -125,7 +179,7 @@ pub fn comment_link_edges(
     edges
 }
 
-/// Comment `rq:[…]` sites in `source` that do not resolve against the idea catalog
+/// Comment reference sites in `source` that do not resolve against the idea catalog
 /// or, for qualified paths, against the target `.rq` file on disk.
 pub fn unresolved_comment_references(
     code_file_uri: &str,
@@ -264,10 +318,54 @@ pub fn code_file_content_hash(source: &str) -> String {
     hash_text(source)
 }
 
-fn parse_qualified_target(target: &str) -> Option<(String, String)> {
-    let quote = target.chars().next()?;
+const UNCLOSED_REFERENCE: &str = "unclosed comment reference";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CommentTargetError {
+    Empty,
+    UnclosedString,
+    MissingIdea,
+    InvalidIdea,
+}
+
+impl CommentTargetError {
+    fn label_prefix(self) -> &'static str {
+        match self {
+            Self::Empty => "empty comment reference",
+            Self::UnclosedString => "unclosed string in comment reference",
+            Self::MissingIdea => "comment reference has no idea name",
+            Self::InvalidIdea => "invalid idea name in comment reference",
+        }
+    }
+}
+
+struct BracketEnd {
+    close: Option<usize>,
+    in_string: bool,
+}
+
+fn parse_comment_reference_target_checked(
+    target: &str,
+) -> Result<(Option<String>, String), CommentTargetError> {
+    let trimmed = target.trim();
+    if trimmed.is_empty() {
+        return Err(CommentTargetError::Empty);
+    }
+    let quote = trimmed.chars().next().ok_or(CommentTargetError::Empty)?;
+    if quote == '"' || quote == '\'' {
+        let (path, idea) = parse_qualified_target_checked(trimmed)?;
+        return Ok((Some(path), idea));
+    }
+    if is_idea_name(trimmed) {
+        return Ok((None, trimmed.to_string()));
+    }
+    Err(CommentTargetError::InvalidIdea)
+}
+
+fn parse_qualified_target_checked(target: &str) -> Result<(String, String), CommentTargetError> {
+    let quote = target.chars().next().ok_or(CommentTargetError::Empty)?;
     if quote != '"' && quote != '\'' {
-        return None;
+        return Err(CommentTargetError::InvalidIdea);
     }
     let mut escaped = false;
     let mut path = String::new();
@@ -288,18 +386,63 @@ fn parse_qualified_target(target: &str) -> Option<(String, String)> {
         }
         path.push(ch);
     }
-    let end = end?;
+    let Some(end) = end else {
+        return Err(CommentTargetError::UnclosedString);
+    };
     let rest = target[end + 1..].trim_start();
     if !rest.starts_with('.') {
-        return None;
+        return Err(CommentTargetError::MissingIdea);
     }
     let names: Vec<&str> =
         rest[1..].split('.').map(str::trim).filter(|part| !part.is_empty()).collect();
-    let idea = names.last()?.to_string();
-    if !is_idea_name(&idea) {
-        return None;
+    let Some(idea) = names.last() else {
+        return Err(CommentTargetError::MissingIdea);
+    };
+    if !is_idea_name(idea) {
+        return Err(CommentTargetError::InvalidIdea);
     }
-    Some((path, idea))
+    Ok((path, (*idea).to_string()))
+}
+
+fn find_unquoted_closing_bracket(text: &str) -> BracketEnd {
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for (index, ch) in text.char_indices() {
+        if let Some(open) = quote {
+            if escaped {
+                escaped = false;
+                continue;
+            }
+            if ch == '\\' {
+                escaped = true;
+                continue;
+            }
+            if ch == open {
+                quote = None;
+            }
+            continue;
+        }
+        if ch == '"' || ch == '\'' {
+            quote = Some(ch);
+            continue;
+        }
+        if ch == ']' {
+            return BracketEnd { close: Some(index), in_string: false };
+        }
+    }
+    BracketEnd { close: None, in_string: quote.is_some() }
+}
+
+fn syntax_label(reason: &str, token: &str) -> String {
+    truncate_display(&format!("{reason}: {token}"))
+}
+
+fn truncate_display(text: &str) -> String {
+    if text.chars().count() <= 160 {
+        return text.to_string();
+    }
+    let end = text.char_indices().nth(160).map(|(index, _)| index).unwrap_or(text.len());
+    format!("{}…", &text[..end])
 }
 
 fn is_idea_name(value: &str) -> bool {
@@ -687,5 +830,56 @@ mod tests {
         assert_eq!(unresolved.len(), 1, "{unresolved:?}");
         assert_eq!(unresolved[0].idea, "gone");
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn reports_a_malformed_comment_reference() {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+        let source = "// rq:[123bad]\n# rq:[\"missing-idea\"]\n// rq:[alpha]\n// rq: prefix only\n";
+        let errors = find_comment_syntax_errors(source);
+        assert_eq!(
+            errors.iter().map(|error| error.label.as_str()).collect::<Vec<_>>(),
+            vec![
+                "invalid idea name in comment reference: rq:[123bad]",
+                "comment reference has no idea name: rq:[\"missing-idea\"]",
+            ]
+        );
+        assert_eq!(errors[0].line, 0);
+        assert_eq!(errors[1].line, 1);
+        let refs = find_comment_references_in_text(source);
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0].idea, "alpha");
+    }
+
+    #[test]
+    fn reports_an_unclosed_comment_reference() {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+        let errors = find_comment_syntax_errors("// rq:[alpha\n// rq:[\"unterminated]\n");
+        assert_eq!(
+            errors.iter().map(|error| error.label.as_str()).collect::<Vec<_>>(),
+            vec![
+                "unclosed comment reference: rq:[alpha",
+                "unclosed string in comment reference: rq:[\"unterminated]",
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_a_quoted_bracket_inside_a_qualified_comment_reference() {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+        let source = "// rq:[\"a]b.rq\".idea]\n";
+        let refs = find_comment_references_in_text(source);
+        assert_eq!(refs.len(), 1, "{refs:?}");
+        assert_eq!(refs[0].path.as_deref(), Some("a]b.rq"));
+        assert_eq!(refs[0].idea, "idea");
+        assert!(find_comment_syntax_errors(source).is_empty());
+    }
+
+    #[test]
+    fn ignores_malformed_rq_inside_strings_and_raw_strings() {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+        let source = concat!("const x = \"rq:[123bad]\";\n", "let y = r#\"rq:[123bad]\"#;\n");
+        assert!(find_comment_syntax_errors(source).is_empty());
+        assert!(find_comment_references_in_text(source).is_empty());
     }
 }

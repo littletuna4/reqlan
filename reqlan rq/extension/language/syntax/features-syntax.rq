@@ -33,6 +33,34 @@ syntax_highlighting {
 syntax_hovering {
     Hovering on an idea, ideaset, import, or reference should show a text summary of its content and resolved target.
     Hovering on a reference should show where it resolves and any declared reference kind.
+    The styled body hover is [idea_content_tooltip].
+}
+
+idea_content_tooltip {
+    A hover on an idea name or on a reference shows that idea's content.
+    The tooltip is markdown. It uses a heading, body lines, attributes, lists, and code fences.
+    A reference in another file shows that file's idea content.
+    The setting `reqlan.ideaContentTooltip.enabled` controls this hover.
+    The default is on.
+    When the setting is off, the hover shows the idea name and the one-line summary.
+    Related: [syntax_hovering] ["../support/language-server-rust.rq".language_server_rust]
+    @status done
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/hover_content.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../packages/extension/src/extension/idea-content-tooltip.ts"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_styled_idea_content_by_default"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_omits_idea_content_when_the_setting_is_off"]
+        ["../../../../crates/reqlan-lsp/tests/hover_content.rs:hover_shows_idea_content_from_another_file"]
+        ["../../../../packages/extension/test/idea-content-tooltip.test.ts:package.json enables idea content tooltips by default"]
+        ["../../../../packages/extension/test/idea-content-tooltip.test.ts:a missing value stays on"]
+    )
 }
 
 comment_support {

@@ -21,7 +21,12 @@ fn soft_sync_skips_unchanged_mtime() {
     std::fs::write(root.join("a.rq"), "alpha {\n    first\n}\n").unwrap();
     let mut store = IndexStore::open_in_memory().unwrap();
     let cancel = AtomicBool::new(false);
-    let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     let first = sync_workspace(&mut store, &options, &cancel).unwrap();
     assert_eq!(first.progress.indexed, 1);
     assert_eq!(first.progress.skipped_mtime, 0);
@@ -41,9 +46,19 @@ fn hard_rebuild_reindexes_despite_mtime() {
     std::fs::write(root.join("a.rq"), "alpha {\n    first\n}\n").unwrap();
     let mut store = IndexStore::open_in_memory().unwrap();
     let cancel = AtomicBool::new(false);
-    let soft = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    let soft = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     sync_workspace(&mut store, &soft, &cancel).unwrap();
-    let hard = SyncOptions { workspace_root: root.clone(), hard_rebuild: true };
+    let hard = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: true,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     let rebuilt = sync_workspace(&mut store, &hard, &cancel).unwrap();
     assert_eq!(rebuilt.progress.indexed, 1);
     assert_eq!(rebuilt.progress.skipped_mtime, 0);

@@ -1,5 +1,6 @@
 /**
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
@@ -9,6 +10,7 @@
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
  * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
  */
 import { Command, Option } from 'clipanion';
 import type { SparseWildcardHandling } from '@reqlan/analytical/core';
@@ -36,11 +38,18 @@ export class CheckCommand extends Command {
         description: 'Check that requirement, comment, import, and code references resolve.',
         details: `
             Wraps the ideas index and reports unresolved idea references, comment
-            references, missing code files, and unresolved imports. Lines after //rq-ignore-error are skipped.
+            references, missing code files, and unresolved imports. A malformed rq: comment reference is an error.
+            Lines after //rq-ignore-error are skipped.
             Issues are ordered by the missing target so shared broken refs group together.
             Wildcard references that match 0 ideas use --wildcard-zero (default warn).
             Wildcard references that match 1 idea use --wildcard-one (default warn).
             Each flag is warn, error, or off.
+            Repeat --glob <pattern> to scan files that match any pattern.
+            One --glob selects the same files as before.
+            A reference target outside every glob is still checked.
+            The command does not walk a directory that matches no glob.
+            A positional file outside the globs is checked as that file.
+            A positional directory outside the globs is not walked.
             Repeat --skip-target <glob> to omit issues whose missing target matches a glob.
             --skip-gitignored-targets omits missing file targets that Git ignore rules ignore.
             Exit status is 1 when the command finds issues.
@@ -51,6 +60,8 @@ export class CheckCommand extends Command {
             ['JSON output', '$0 check --json'],
             ['Pipe output', '$0 check --pipe'],
             ['Limit to a path glob', '$0 check --glob "reqlan rq/**"'],
+            ['Use two globs', '$0 check --glob "src/**" --glob "reqs/**"'],
+            ['Check one file outside the globs', '$0 check --glob "src/**" notes/extra.rq'],
             ['Treat empty wildcards as errors', '$0 check --wildcard-zero error'],
             ['Skip singleton-wildcard warnings', '$0 check --wildcard-one off'],
             ['Skip gitignored Cursor paths', '$0 check --skip-target "**/.cursor/**"'],
@@ -58,8 +69,8 @@ export class CheckCommand extends Command {
         ]
     });
 
-    glob = Option.String('--glob', {
-        description: 'Optional path glob that limits the check to a subset of the base'
+    globs = Option.Array('--glob', {
+        description: 'Path glob for the recursive scan. Repeat to include another pattern.'
     });
     cwd = Option.String('--cwd', {
         description: 'Workspace root (default: walk from cwd, or REQLAN_WORKSPACE)'
@@ -82,12 +93,20 @@ export class CheckCommand extends Command {
     skipGitignoredTargets = Option.Boolean('--skip-gitignored-targets', false, {
         description: 'Omit file-reference issues whose missing target is gitignored'
     });
+    pathArgs = Option.Rest({ name: 'path' });
 
     async execute(): Promise<number> {
         if (this.json && this.pipe) {
             this.context.stderr.write('Specify only one of --json or --pipe.\n');
             return 1;
         }
+        const globs = this.globs ?? [];
+        if (globs.some(glob => glob.trim().length === 0)) {
+            this.context.stderr.write('Each --glob value must be a non-empty path glob.\n');
+            return 1;
+        }
+        const paths = (this.pathArgs ?? []).filter(path => path.trim().length > 0);
+
         const wildcardZero = parseHandling(this.wildcardZero);
         if (!wildcardZero) {
             this.context.stderr.write(`--wildcard-zero must be ${HANDLING_VALUES}.\n`);
@@ -102,7 +121,8 @@ export class CheckCommand extends Command {
         try {
             return await withAnalysisApi(this.cwd, async api => {
                 const rows = await api.check({
-                    pathGlob: this.glob,
+                    pathGlobs: globs.length > 0 ? globs : undefined,
+                    paths: paths.length > 0 ? paths : undefined,
                     wildcardZero,
                     wildcardOne,
                     skipTargets: this.skipTargets,

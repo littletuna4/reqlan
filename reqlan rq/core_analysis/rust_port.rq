@@ -10,12 +10,13 @@ import "../development/core.rq" as development_core
 import "../constitution.rq" as constitution
 import "../cli/cli_package.rq" as cli
 import "../bases/base.rq" as bases
+import "../extension/language/support/language-server-rust.rq" as lsp_rust
 
 analytical_rust_port {
     Port ["../core-architecture.rq".analytical_package] to Rust: lexer, parser (index path), extractor, SQLite index, search, and export.
     `@reqlan/analytical` remains the published JS facade (`createAnalysisRuntime` / `AnalysisApi` / Zustand host state).
     Native work lives in a `crates/` Cargo workspace and ships as per-architecture binaries per [distribution.rust_binary_distribution].
-    Langium LSP stays in ["../core-architecture.rq".language_package] / ["../core-architecture.rq".language_server] — this port is not a tower-lsp rewrite.
+    The editor language server is [lsp_rust.language_server_rust]. This analytical port does not replace that process.
     Component plans: [rust_crate_layout], [lexer_rust], [parser_rust], [parser_align], [indexer.indexer_rust], [search_rust], [export_rust], [native_bridge], [cutover].
     @status in-progress
     @todo first `@reqlan/analytical-<platform>-<arch>` publish (Trusted Publisher on npmjs.com + analytical/v* tag)
@@ -34,7 +35,7 @@ analytical_rust_port {
         constraints
             - Ship per [distribution.rust_binary_distribution] and [distribution.vsix_export]: npm platform packages + host-targeted VSIX; website listing and GitHub-release postinstall out of scope.
             - On-disk ideas index schema stays compatible ([indexer.index]) so TS and Rust share application memory during cutover.
-            - Grammar truth remains [syntax] / Langium; do not switch the language to tree-sitter (["../core-architecture.rq".grammar_and_parser]).
+            - Syntax requirements stay in [syntax]. The language server parses with `reqlan-parse` ([lsp_rust.language_server_rust]). Do not switch the language to tree-sitter (["../core-architecture.rq".grammar_and_parser]).
             - Port the context-sensitive lexer, not a naive parser-generator ([parser_lexer.lexer_bridge_to_syntax], [syntax_edges.nested_curly_braces], [syntax_edges.context_sensitive_lexer_scaling]).
             - Honour [indexer.nonblocking_index], [parser_lexer.parse_budget_timeout], [development_core.rust_mindset], [constitution.supply_chain].
             - Extension host loads the host-matching napi `.node` from the per-target VSIX ([distribution.extension_host_target]); missing core engine is a hard error (no sql.js fallback).
@@ -51,7 +52,7 @@ analytical_rust_port {
             7. Publish platform packages on `analytical/v*` and ship per-target VSIXes ([distribution.rust_binary_distribution], [distribution.vsix_export]).
 
         open
-            - Language-server port remains Langium; CLI `parse` uses the core Rust engine.
+            - Language-server process: [lsp_rust.language_server_rust]. CLI `parse` uses the core Rust engine.
     }
 }
 
@@ -63,6 +64,7 @@ rust_crate_layout {
     - `reqlan-export` — snapshot + html/md/json/csv writers; embed existing HTML JS assets
     - `reqlan-analytical` — facade matching `AnalysisApi` + `WorkspaceIndex` operations
     - `reqlan-napi` — Node binding for the core engine ([native_bridge])
+    - `reqlan-lsp` — editor language server ([lsp_rust.language_server_rust])
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
     Golden tests compare Rust extract against Langium on the frozen [golden_corpus], plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
     Format: ["../development/commit.rq".rust_fmt].
@@ -95,6 +97,7 @@ golden_corpus {
         ["../../packages/language/test/parsing.test.ts:parse mid-line triple backticks corpus without swallowing later ideas"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:opaque_file_examples_do_not_extract_inline_or_fenced_paths"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:mid_line_triple_backticks_keep_later_ideas"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:qualified_reference_to_an_import_alias_is_not_a_missing_idea"]
     )
 }
 
@@ -163,6 +166,7 @@ parser_rust {
     @tests (
         ["../../crates/reqlan-parse/tests/parser.rs:keeps_inline_prose_braces"]
         ["../../crates/reqlan-parse/tests/parser.rs:recovers_nameless_block"]
+        ["../../crates/reqlan-parse/tests/parser.rs:from_import_records_each_token_span"]
         ["../../crates/reqlan-parse/tests/parser.rs:recovers_invalid_from_import_and_keeps_later_ideas"]
         ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
         ["../../crates/reqlan-parse/tests/parser.rs:keeps_ideas_after_mid_line_triple_backticks"]

@@ -66,7 +66,11 @@ commands {
     - `init [directory]` — create a new [base] marker (`.reqlan`) at the given path or cwd ([init]).
     - `check` — CI wrapper around ["../core_analysis/core.rq".index] unresolved references (["../core_analysis/check.rq".check]).
       Reports broken idea, comment, file, and import references (["../core_analysis/check.rq".check_unresolved_imports]). Skips lines after ["../language/syntax.rq".comment_reference_ignore].
-      `--glob` limits the check to a path subset of the base.
+      Repeatable `--glob <pattern>` limits the recursive scan to files that match any pattern
+      (["../core_analysis/check.rq".check_glob_patterns]).
+      One `--glob` selects the same files as one path glob.
+      A positional file outside those patterns is checked as that file.
+      A positional directory outside those patterns is not walked.
       `--json` / `--pipe` select machine output. Exit status is 1 when the command finds issues.
       Issue order groups shared missing targets (["../core_analysis/check.rq".check_order_by_target]).
       `--wildcard-zero` / `--wildcard-one` are `warn` (default), `error`, or `off`

@@ -79,7 +79,8 @@ export interface NativeAnalysisRuntimeHandle {
     ensureReady(): void;
     /** Release SQLite locks held by this runtime. */
     close?: () => void;
-    searchRequirements(query: string, limit: number, context?: string[]): unknown;
+    searchRequirements(query: string, limit: number, context?: string[], katz?: boolean): unknown;
+    katzCentrality(): unknown;
     listRequirements(limit: number): unknown;
     getFileContext(filePath: string): unknown;
     getLocalGraph(filePath: string, depth: number): unknown;
@@ -98,7 +99,8 @@ export interface NativeAnalysisRuntimeHandle {
     getDeprecationImpact(): unknown;
     listBrokenReferences(pathGlob?: string, includeCommentReferences?: boolean): unknown;
     checkReferences(
-        pathGlob?: string,
+        pathGlobs?: string[],
+        paths?: string[],
         wildcardZero?: string,
         wildcardOne?: string,
         skipTargets?: string[],

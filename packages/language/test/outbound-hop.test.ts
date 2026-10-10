@@ -27,6 +27,7 @@ import {
 import {
     presentCommentReferencesForDocument
 } from '../src/reqlan-comment-diagnostics.js';
+import { noteOpenEditor } from '../src/reqlan-editor-retention.js';
 import {
     clearNeighborParseCache,
     neighborParseCount
@@ -220,6 +221,7 @@ describe('outbound one-hop sequencing', () => {
             }
         `);
         clearNeighborParseCache();
+        noteOpenEditor(document.uri.toString());
         await documentLinks(document);
         const first = neighborParseCount();
         expect(first).toBe(1);

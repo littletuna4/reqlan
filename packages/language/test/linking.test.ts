@@ -7,7 +7,7 @@ import { NodeFileSystem } from 'langium/node';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments, parseHelper } from 'langium/test';
 import type { LocalReference, Model, QualifiedReference } from '@reqlan/language';
-import { createReqlanServices, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
+import { createReqlanServices, isAttribute, isBracketReference, isFromImport, isIdea, isIdeaSet, isLocalReference, isModel, isNamespaceImport, isOneLinerIdea, isQualifiedReference, isWikiLink } from '@reqlan/language';
 import { ReqlanDocumentLinkProvider, navigableDocumentLink } from '../src/reqlan-document-link-provider.js';
 import {
     classifyReferenceUri,
@@ -23,6 +23,7 @@ import {
 } from '../src/reqlan-comment-resolver.js';
 import { findCommentDefinitionAtPosition } from '../src/reqlan-reference-at-position.js';
 import { findTestLineInText } from '../src/reqlan-file-references.js';
+import { peekResolvedRef } from '../src/reqlan-reference-peek.js';
 
 const repoDir = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const exampleDir = join(repoDir, 'example_rq_project');
@@ -1500,6 +1501,113 @@ example_ideaset (
                 && diagnostic.message.includes("Could not resolve reference to Import")
         );
         expect(importPathErrors).toHaveLength(0);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+    test('resolves an idea attribute link to that attribute', async () => {
+        document = await parse(s`
+            host {
+                see [attribute_namespacing.example] and [example_ideaset.subidea1]
+            }
+            attribute_namespacing {
+                @example {
+                    my subidea
+                }
+            }
+            example {
+                decoy
+            }
+            example_ideaset (
+                subidea1
+            )
+            subidea1 hello
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const qualified = [...AstUtils.streamAst(document.parseResult.value)]
+            .filter(isQualifiedReference);
+        expect(qualified).toHaveLength(2);
+
+        const attributeRef = qualified[0];
+        expect(attributeRef.idea?.ref).toBeDefined();
+        expect(isAttribute(attributeRef.idea?.ref)).toBe(true);
+        if (!isAttribute(attributeRef.idea?.ref)) {
+            return;
+        }
+        expect(attributeRef.idea.ref.name).toBe('example');
+        const owner = attributeRef.idea.ref.$container;
+        expect(isIdea(owner) && owner.name).toBe('attribute_namespacing');
+
+        const memberRef = qualified[1];
+        expect(isOneLinerIdea(memberRef.idea?.ref) || isIdea(memberRef.idea?.ref)).toBe(true);
+        expect(memberRef.idea?.ref?.name).toBe('subidea1');
+
+        const unresolved = (document.diagnostics ?? []).filter(
+            diagnostic => typeof diagnostic.message === 'string'
+                && diagnostic.message.includes('Could not resolve')
+        );
+        expect(unresolved).toHaveLength(0);
+
+        const attributeNode = attributeRef.idea?.$refNode;
+        expect(attributeNode).toBeDefined();
+        if (!attributeNode) {
+            return;
+        }
+        const links = await services.Reqlan.lsp.DefinitionProvider?.getDefinition(document, {
+            textDocument: { uri: document.textDocument.uri },
+            position: document.textDocument.positionAt(attributeNode.offset)
+        });
+        expect(links).toHaveLength(1);
+        const targetText = document.textDocument.getText(links![0].targetSelectionRange!);
+        expect(targetText).toBe('example');
+        const targetLine = document.textDocument.getText({
+            start: { line: links![0].targetSelectionRange!.start.line, character: 0 },
+            end: { line: links![0].targetSelectionRange!.start.line, character: 200 }
+        });
+        expect(targetLine).toContain('@example');
+
+        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const attributeLink = documentLinks?.find(entry =>
+            document.textDocument.getText(entry.range) === 'example'
+            && entry.target?.includes(`#L${links![0].targetSelectionRange!.start.line + 1}`)
+        );
+        expect(attributeLink?.target).toBeDefined();
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+    test('reports a missing idea attribute and does not open another idea', async () => {
+        document = await parse(s`
+            host {
+                see [attribute_namespacing.missing]
+            }
+            attribute_namespacing {
+                @example flag
+            }
+            missing {
+                decoy
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const messages = (document.diagnostics ?? [])
+            .map(diagnostic => diagnostic.message)
+            .filter((message): message is string => typeof message === 'string');
+        expect(messages).toContain("Could not resolve attribute 'missing' on idea 'attribute_namespacing'.");
+        expect(messages.some(message => message.includes("IdeaDeclaration named 'missing'"))).toBe(false);
+
+        const qualified = [...AstUtils.streamAst(document.parseResult.value)].filter(isQualifiedReference);
+        expect(qualified).toHaveLength(1);
+        expect(isIdea(peekResolvedRef(qualified[0].idea))).toBe(false);
+
+        const documentLinks = await services.Reqlan.lsp.DocumentLinkProvider?.getDocumentLinks(document, {
+            textDocument: { uri: document.textDocument.uri }
+        });
+        const decoyLink = documentLinks?.find(entry =>
+            document.textDocument.getText(entry.range) === 'missing'
+        );
+        expect(decoyLink).toBeUndefined();
     });
 });
 

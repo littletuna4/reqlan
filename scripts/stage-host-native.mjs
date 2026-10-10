@@ -104,12 +104,19 @@ if (ciSkip) {
     process.exit(0);
 }
 
-console.log('cargo build -p reqlan-napi --release');
-run('cargo', ['build', '-p', 'reqlan-napi', '--release'], path.join(root, 'crates'));
+const cargoTargetDir = path.join(root, 'crates/target');
+console.log('cargo build -p reqlan-napi -p reqlan-lsp --release');
+run(
+    'cargo',
+    ['build', '-p', 'reqlan-napi', '-p', 'reqlan-lsp', '--release', '--target-dir', cargoTargetDir],
+    path.join(root, 'crates')
+);
 run(process.execPath, [
     path.join(root, 'scripts/collect-napi-binary.mjs'),
     '--target',
     target.napiSuffix,
+    '--cargo-target-dir',
+    cargoTargetDir,
 ]);
 
 const collected = artifactBinaryPath();

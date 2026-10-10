@@ -52,12 +52,23 @@ impl NativeAnalysisRuntime {
         query: String,
         limit: u32,
         context: Option<Vec<String>>,
+        katz: Option<bool>,
     ) -> Result<serde_json::Value> {
-        let options = context.map(|context| SearchRequirementsOptions { context });
+        let options = SearchRequirementsOptions {
+            context: context.unwrap_or_default(),
+            katz: katz.unwrap_or(false),
+        };
         let matches = self.with_mut(|runtime| {
-            runtime.search_requirements(&query, limit as usize, options.as_ref()).map_err(map_err)
+            runtime.search_requirements(&query, limit as usize, Some(&options)).map_err(map_err)
         })?;
         serde_json::to_value(matches).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    /// rq:["../../../reqlan rq/modelling/advanced_analysis.rq".katz_centrality]
+    #[napi]
+    pub fn katz_centrality(&self) -> Result<serde_json::Value> {
+        let scores = self.with_mut(|runtime| runtime.katz_centrality().map_err(map_err))?;
+        serde_json::to_value(scores).map_err(|error| Error::from_reason(error.to_string()))
     }
 
     #[napi]
@@ -159,6 +170,7 @@ impl NativeAnalysisRuntime {
     }
 
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
@@ -166,7 +178,8 @@ impl NativeAnalysisRuntime {
     #[napi]
     pub fn check_references(
         &self,
-        path_glob: Option<String>,
+        path_globs: Option<Vec<String>>,
+        paths: Option<Vec<String>>,
         wildcard_zero: Option<String>,
         wildcard_one: Option<String>,
         skip_targets: Option<Vec<String>>,
@@ -176,10 +189,15 @@ impl NativeAnalysisRuntime {
         let wildcard_one = parse_sparse_wildcard_handling("wildcardOne", wildcard_one)?;
         let skip_owned = skip_targets.unwrap_or_default();
         let skip_refs: Vec<&str> = skip_owned.iter().map(String::as_str).collect();
+        let globs_owned = path_globs.unwrap_or_default();
+        let paths_owned = paths.unwrap_or_default();
+        let glob_refs: Vec<&str> = globs_owned.iter().map(String::as_str).collect();
+        let path_refs: Vec<&str> = paths_owned.iter().map(String::as_str).collect();
         let rows = self.with_mut(|runtime| {
             runtime
                 .check(
-                    path_glob.as_deref(),
+                    &glob_refs,
+                    &path_refs,
                     wildcard_zero,
                     wildcard_one,
                     &skip_refs,

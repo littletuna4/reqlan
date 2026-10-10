@@ -112,6 +112,12 @@ export interface LocalSymbolicIdea {
     summary: string;
 }
 
+export interface LocalSymbolicImportBinding {
+    name: string;
+    /** 0-based line of the import alias. */
+    lineStart: number;
+}
+
 export interface LocalSymbolicDocument {
     fileUri: string;
     contentHash: string;
@@ -123,6 +129,8 @@ export interface LocalSymbolicDocument {
      * rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
      */
     inbound: LocalSymbolicEdge[];
+    /** Import aliases bound in this file. A qualified reference may name one. */
+    importBindings: LocalSymbolicImportBinding[];
 }
 
 /**
@@ -153,6 +161,7 @@ export function analyzeLocalSymbolic(
         contentHash: raw.contentHash,
         ideas: raw.ideas ?? [],
         edges: raw.edges ?? [],
-        inbound: raw.inbound ?? []
+        inbound: raw.inbound ?? [],
+        importBindings: raw.importBindings ?? []
     };
 }

@@ -1,5 +1,5 @@
 /**
- * Diagnostics and document-link targets for `rq:[…]` comment references.
+ * Diagnostics and document-link targets for comment references.
  * One presentation supplies both, so the clickable link and the error underline stay in sync.
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_resolution_error]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
@@ -366,5 +366,5 @@ function commentNeighborParse(
     context?: PathResolveContext
 ) {
     const target = resolveFileUri(path, document, context);
-    return parseNeighborDocument(target, documents, fileSystem ?? context?.fileSystem);
+    return parseNeighborDocument(target, documents, fileSystem ?? context?.fileSystem, document.uri.toString());
 }

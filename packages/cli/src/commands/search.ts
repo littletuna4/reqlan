@@ -13,7 +13,8 @@ export class SearchCommand extends Command {
             [
                 'Bias by context',
                 '$0 search ranking --context "reqlan rq/core_analysis/search.rq" --context fuzzy_search'
-            ]
+            ],
+            ['Bias by Katz centrality', '$0 search ranking --katz']
         ]
     });
 
@@ -24,6 +25,9 @@ export class SearchCommand extends Command {
     contextRefs = Option.Array('--context', {
         description:
             'Relative .rq path, path#idea, or idea name that biases ranking by graph hop distance (repeatable)'
+    });
+    katz = Option.Boolean('--katz', false, {
+        description: 'Bias ranking by inbound Katz centrality'
     });
     cwd = Option.String('--cwd', {
         description: 'Workspace root (default: walk from cwd, or REQLAN_WORKSPACE)'
@@ -39,7 +43,9 @@ export class SearchCommand extends Command {
                 const matches = await api.searchRequirements(
                     this.query,
                     Number.isFinite(limit) && limit > 0 ? limit : 8,
-                    this.contextRefs?.length ? { context: this.contextRefs } : undefined
+                    this.contextRefs?.length || this.katz
+                        ? { context: this.contextRefs, katz: this.katz }
+                        : undefined
                 );
                 if (this.json) {
                     emit(

@@ -12,13 +12,16 @@ import {
     type Model
 } from '@reqlan/language';
 import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from '../src/reqlan-inlay-hint-settings.js';
+import { resolvedFileLinkTargetUri } from '../src/reqlan-file-link-resolver.js';
 import {
     buildInboundReferencesInlayLabel,
     buildReferencersTooltipMarkup,
     collectInboundReferencers,
     formatInboundReferencesInlayLabel,
-    referencerMarkdownLink
+    referencerMarkdownLink,
+    referencerOpenLocation
 } from '../src/reqlan-inbound-reference-inlay-label.js';
+import { fileUriFromFsPath } from '../src/reqlan-path-resolve.js';
 import { sharedInboundSnapshot } from '../src/reqlan-inbound-snapshot.js';
 import { ReqlanInlayHintProvider } from '../src/reqlan-inlay-hint-provider.js';
 
@@ -82,6 +85,23 @@ function hintLabelParts(hint: InlayHint): InlayHintLabelPart[] {
 
 function hintLabelText(hint: InlayHint): string {
     return hintLabelParts(hint).map(part => part.value).join('');
+}
+
+/** CommonMark link destination. A raw space ends the destination. */
+function markdownLinkDestination(markup: string): string {
+    const open = markup.indexOf('](');
+    if (open < 0) {
+        throw new Error('Markdown link is missing.');
+    }
+    const start = open + 2;
+    let end = start;
+    while (end < markup.length && markup[end] !== ')' && !/\s/.test(markup[end]!)) {
+        end++;
+    }
+    if (end === start) {
+        throw new Error('Markdown link destination is empty.');
+    }
+    return markup.slice(start, end);
 }
 
 describe('Reference inlay hints', () => {
@@ -215,6 +235,47 @@ describe('Reference inlay hints', () => {
         for (const referrer of referencers) {
             expect(tooltip.value).toContain(referencerMarkdownLink(referrer));
         }
+    });
+
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+    test('backlink tooltip opens the real file URI when the path has a space', () => {
+        const fsPath = '/workspace/reqlan rq/cli/cli_package.rq';
+        const realUri = fileUriFromFsPath(fsPath).toString();
+        const range = {
+            start: { line: 11, character: 0 },
+            end: { line: 11, character: 11 }
+        };
+        const referrer = {
+            name: 'cli_package',
+            location: {
+                uri: 'file:///workspace/reqlan rq/cli/cli_package.rq',
+                range
+            }
+        };
+        const opened = referencerOpenLocation(referrer);
+        const target = resolvedFileLinkTargetUri({
+            sourceRange: range,
+            targetUri: realUri,
+            targetRange: range,
+            resolution: 'file'
+        });
+        expect(target).toBe(`${realUri}#L12`);
+        expect(opened.uri).toBe(realUri);
+        expect(URI.parse(opened.uri).fsPath).toBe(fsPath);
+
+        const tooltip = buildReferencersTooltipMarkup([referrer]);
+        const destination = markdownLinkDestination(tooltip.value);
+        const hash = destination.indexOf('#');
+        expect(hash).toBeGreaterThan(0);
+        expect(destination).toBe(target);
+        expect(destination.includes(' ')).toBe(false);
+        expect(destination.startsWith('file:///workspace/reqlan#')).toBe(false);
+        expect(URI.parse(destination.slice(0, hash)).fsPath).toBe(fsPath);
+
+        const formatted = buildInboundReferencesInlayLabel([referrer], 'file:///workspace/target.rq', 'target');
+        const part = formatted?.labelParts.find(item => item.value === 'cli_package');
+        expect(part?.location?.uri).toBe(realUri);
+        expect(part?.location?.range).toEqual(range);
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]

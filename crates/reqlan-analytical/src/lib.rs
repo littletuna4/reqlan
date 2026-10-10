@@ -26,6 +26,7 @@ pub fn type_collection() -> TypeCollection {
     types.register::<IdeaSummary>();
     types.register::<RequirementMatch>();
     types.register::<SearchRequirementsOptions>();
+    types.register::<KatzScore>();
     types.register::<FileRelatedRequirements>();
     types.register::<GraphSlice>();
     types.register::<CompletionSummary>();

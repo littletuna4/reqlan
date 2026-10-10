@@ -1,4 +1,4 @@
-from "../modelling/advanced_analysis.rq" import pagerank, search_with_context, idea_graph_distance
+from "../modelling/advanced_analysis.rq" import pagerank, search_with_context, idea_graph_distance, katz_centrality
 from "../extension/local-context/context-scope-v2.rq" import context_scope_v2
 import "../../packages/extension/src/shared/fuzzy-search.ts" as fuzzy_search_impl
 import "../../packages/analytical/src/native/native-analysis-api.ts" as native_analysis_api
@@ -7,7 +7,7 @@ import "../../packages/cli/src/commands/search.ts" as search_cli
 
 search {
     Search over the requirement graph — find ideas by name, body, tags, and related signals.
-    Surfaces: [fuzzy_search], [file_search], [contextual_search], [semantic_search].
+    Surfaces: [fuzzy_search], [file_search], [contextual_search], [semantic_search], [katz_search].
     Consumed by CLI `reqlan search`, MCP/chat tools, Ideas Summary, and the activity-bar search pane.
     Rust ranking engine: ["./rust_port.rq".search_rust].
     @todo flesh out shared search UX / ranking contract across surfaces
@@ -96,11 +96,34 @@ contextual_search {
     and exponential decay ([idea_graph_distance]): `finalScore = textScore * 2^(-minHop)` (unreachable floor = 8 hops).
     Surfaces: [native_analysis_api] `searchRequirements(..., { context })` and CLI `reqlan search --context` ([search_cli]).
     Implements [search_with_context]. PageRank ([pagerank]) and full [context_scope_v2] ingestion remain future work.
+    Default ranking does not use Katz. Opt in with [katz_search].
     Complements [fuzzy_search] when neighbourhood / context should bias ranking.
     ["../cli/click.rq".click_input] ranks ambiguous click matches the same way, with session ideas as context.
     @tests (
         ["../../crates/reqlan-search/tests/contextual.rs:nearer_ideas_rank_above_farther_with_equal_text_scores"]
         ["../../crates/reqlan-search/tests/contextual.rs:reranks_using_graph_edges_from_context_seeds"]
+    )
+    @status done
+}
+
+katz_search {
+    Search can bias matches by inbound Katz centrality ([katz_centrality]).
+    The bias is off unless the caller sets it.
+    CLI flag: `reqlan search <query> --katz`.
+    API field: `SearchRequirementsOptions.katz`.
+    When the bias is on, the score is `textScore * (1 + katzScore)`.
+    The match reasons include `katz:<score>`.
+    Context hop decay runs first. The Katz multiplier runs second.
+    When the bias is off, match order and scores stay on the text ranking.
+    @implementation (
+        ["../../crates/reqlan-search/src/katz.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/search.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-search/tests/katz.rs:katz_bias_is_off_by_default_and_lifts_the_higher_score_when_on"]
+        ["../../crates/reqlan-search/tests/katz.rs:katz_bias_reports_a_missing_score"]
     )
     @status done
 }

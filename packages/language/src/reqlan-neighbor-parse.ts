@@ -7,12 +7,21 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
 import type { Range } from 'vscode-languageserver';
 import { analyzeLocalSymbolic } from '@reqlan/analytical/core';
+import {
+    clearEditorRetention,
+    forgetUri,
+    isNeighborRetained,
+    retainNeighbor,
+    retainedNeighborKeys,
+    uriCacheKeys
+} from './reqlan-editor-retention.js';
 
 export interface NeighborIdea {
     readonly name: string;
@@ -20,10 +29,16 @@ export interface NeighborIdea {
     readonly lineEnd: number;
 }
 
+export interface NeighborImportBinding {
+    readonly name: string;
+    readonly lineStart: number;
+}
+
 export interface NeighborParse {
     readonly uri: string;
     readonly contentHash: string;
     readonly ideas: readonly NeighborIdea[];
+    readonly importBindings: readonly NeighborImportBinding[];
 }
 
 interface NeighborCacheEntry extends NeighborParse {
@@ -33,19 +48,31 @@ interface NeighborCacheEntry extends NeighborParse {
 const cache = new Map<string, NeighborCacheEntry>();
 let parseCount = 0;
 
+/** Test helper. Also forgets which editors are open, so the next case starts closed. */
 export function clearNeighborParseCache(): void {
     cache.clear();
     parseCount = 0;
+    clearEditorRetention();
 }
 
 export function neighborParseCount(): number {
     return parseCount;
 }
 
+export function neighborCacheSize(): number {
+    return cache.size;
+}
+
+/**
+ * Depth-1 idea list for `targetUri`.
+ * Store the list only when `hostUri` is an open editor.
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
+ */
 export function parseNeighborDocument(
     targetUri: URI,
     documents: LangiumDocuments | undefined,
-    fileSystem: FileSystemProvider | undefined
+    fileSystem: FileSystemProvider | undefined,
+    hostUri?: string
 ): NeighborParse | undefined {
     const uriKey = targetUri.toString();
     const text = readNeighborText(targetUri, documents, fileSystem);
@@ -56,6 +83,11 @@ export function parseNeighborDocument(
     const fingerprint = fingerprintText(text);
     const cached = cache.get(uriKey);
     if (cached && cached.fingerprint === fingerprint) {
+        const retain = hostUri !== undefined && retainNeighbor(hostUri, uriKey);
+        if (retain || isNeighborRetained(uriKey)) {
+            return cached;
+        }
+        cache.delete(uriKey);
         return cached;
     }
     let extracted;
@@ -74,10 +106,38 @@ export function parseNeighborDocument(
             name: idea.name,
             lineStart: idea.lineStart,
             lineEnd: idea.lineEnd
+        })),
+        importBindings: (extracted.importBindings ?? []).map(binding => ({
+            name: binding.name,
+            lineStart: binding.lineStart
         }))
     };
-    cache.set(uriKey, parsed);
+    const retain = hostUri !== undefined && retainNeighbor(hostUri, uriKey);
+    if (retain || isNeighborRetained(uriKey)) {
+        cache.set(uriKey, parsed);
+    } else {
+        cache.delete(uriKey);
+    }
     return parsed;
+}
+
+/** Drop neighbor lists that no open editor still needs. */
+export function pruneUnretainedNeighbors(): void {
+    const keep = retainedNeighborKeys();
+    for (const key of [...cache.keys()]) {
+        if (!keep.has(key)) {
+            cache.delete(key);
+        }
+    }
+}
+
+/** The file watcher or document removal dropped this URI. */
+export function dropNeighborCacheForUri(uri: string): void {
+    forgetUri(uri);
+    for (const key of uriCacheKeys(uri)) {
+        cache.delete(key);
+    }
+    pruneUnretainedNeighbors();
 }
 
 export function neighborIdea(parsed: NeighborParse, ideaName: string): NeighborIdea | undefined {
@@ -86,6 +146,11 @@ export function neighborIdea(parsed: NeighborParse, ideaName: string): NeighborI
 
 export function neighborHasIdea(parsed: NeighborParse, ideaName: string): boolean {
     return neighborIdea(parsed, ideaName) !== undefined;
+}
+
+/** True when the neighbor file binds `name` as an import alias. */
+export function neighborBindsImport(parsed: NeighborParse, name: string): boolean {
+    return parsed.importBindings.some(binding => binding.name === name);
 }
 
 export function ideaRangeFromNeighbor(idea: NeighborIdea): Range {

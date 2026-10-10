@@ -57,6 +57,8 @@ export type IdeaSummary = { id: string; name: string; kind: string; fileUri: str
 
 export type InteractionDescriptor = { name: string; description: string; parameters: Partial<{ [key in string]: string }> }
 
+export type KatzScore = { ideaId: string; score: number }
+
 /**
  * Name/target uniqueness: none, unique, or ambiguous.
  * rq:["../../../../reqlan rq/cli/click.rq".click_ambiguity]
@@ -65,5 +67,5 @@ export type NameAmbiguity = { kind: string; matches: ClickCandidate[] }
 
 export type RequirementMatch = { idea: IdeaSummary; score?: number | null; reasons?: string[] | null }
 
-export type SearchRequirementsOptions = { context?: string[] }
+export type SearchRequirementsOptions = { context?: string[]; katz?: boolean }
 

@@ -1137,6 +1137,62 @@ label { body }`);
         ]);
     });
 
+    // rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+    test('keeps extra indent on a later body line', async () => {
+        const document = await parse(`idea {
+        @status pending
+    alpha
+    gamma
+        beta
+}`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements.find(isIdea);
+        expect(idea?.elements.map(element => element.$type)).toEqual([
+            'Attribute',
+            'BodyLine',
+            'BodyLine',
+            'BodyLine'
+        ]);
+        const attribute = idea?.elements.find(isAttribute);
+        expect(attribute?.name).toBe('status');
+        expect(attribute?.value?.$cstNode?.text).toBe('pending');
+        const lines = idea?.elements.filter(isBodyLine) ?? [];
+        expect(lines.map(line => line.$cstNode?.text)).toEqual([
+            'alpha',
+            'gamma',
+            '    beta'
+        ]);
+        expect(lines[2]?.parts[0]?.text).toBe('    beta');
+    });
+
+    // rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+    test('uses the first body line indent when that line is not at column 0', async () => {
+        const document = await parse(`    shifted {
+        alpha
+            beta
+    }`);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements.find(isIdea);
+        const lines = idea?.elements.filter(isBodyLine) ?? [];
+        expect(lines.map(line => line.$cstNode?.text)).toEqual([
+            'alpha',
+            '    beta'
+        ]);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+    test('keeps an extra tab on a later body line', async () => {
+        const document = await parse('idea {\n\tfirst\n\t\tsecond\n}\n');
+        expect(checkDocumentValid(document)).toBeUndefined();
+        const idea = document.parseResult.value.elements.find(isIdea);
+        const lines = idea?.elements.filter(isBodyLine) ?? [];
+        expect(lines.map(line => line.$cstNode?.text)).toEqual([
+            'first',
+            '\tsecond'
+        ]);
+        expect(lines[1]?.parts[0]?.text).toBe('\tsecond');
+    });
+
     // rq:["../../../reqlan rq/extension/features-syntax.rq".at_sign_in_idea_text_block]
     // rq:["../../../reqlan rq/language/syntax.rq".attribute_location]
     test('treats mid-line @ as body text and line-start @ as attribute', async () => {
@@ -1193,7 +1249,80 @@ label { body }`);
             expect(attribute.name).toBe('real_attribute');
         }
     });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+    test('parses a lone @ without a parser error and keeps later ideas', async () => {
+        const document = await parse(`sample {
+    kept body
+    @
+    @   
+    @flag
+    @gone!
+    @status done
+    @note: legacy
+    still kept
+}
+next { ok }
+`);
+        expect(document.parseResult.lexerErrors).toEqual([]);
+        expect(checkDocumentValid(document)).toBeUndefined();
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['sample', 'next']);
+        const sample = document.parseResult.value.elements.find(isIdea);
+        const attributes = (sample?.elements ?? []).filter(isAttribute);
+        expect(attributes.map(attribute => attribute.name)).toEqual([
+            'flag',
+            'gone',
+            'status',
+            'note'
+        ]);
+        expect(attributes.find(attribute => attribute.name === 'flag')?.negated).toBe(false);
+        expect(attributes.find(attribute => attribute.name === 'flag')?.value).toBeUndefined();
+        expect(attributes.find(attribute => attribute.name === 'gone')?.negated).toBe(true);
+        expect(attributes.find(attribute => attribute.name === 'status')?.value?.$cstNode?.text).toBe('done');
+        expect(attributes.find(attribute => attribute.name === 'note')?.value?.$cstNode?.text).toBe('legacy');
+        const body = (sample?.elements ?? [])
+            .filter(isBodyLine)
+            .map(line => line.$cstNode?.text?.trim());
+        expect(body).toEqual(['kept body', 'still kept']);
+    });
+
+    // rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+    test('still reports a syntax error when another line is invalid', async () => {
+        const document = await parse(`sample {
+    @
+}
+next { ok }
+bad {
+    @!
+}
+`);
+        expect(document.parseResult.lexerErrors).toEqual([]);
+        expect(document.parseResult.parserErrors.length).toBeGreaterThan(0);
+        expect(document.parseResult.value.elements.map(element =>
+            'name' in element ? element.name : element.$type
+        )).toEqual(['sample', 'next', 'bad']);
+        const loneAtOffset = document.textDocument.getText().search(/^[ \t]*@[ \t]*$/m);
+        expect(loneAtOffset).toBeGreaterThanOrEqual(0);
+        const errorsOnLoneAt = document.parseResult.parserErrors.filter(error =>
+            recognitionStartOffset(error) === loneAtOffset
+        );
+        expect(errorsOnLoneAt).toEqual([]);
+    });
 });
+
+function recognitionStartOffset(error: unknown): number | undefined {
+    if (typeof error !== 'object' || error === null || !('token' in error)) {
+        return undefined;
+    }
+    const token: unknown = error.token;
+    if (typeof token !== 'object' || token === null || !('startOffset' in token)) {
+        return undefined;
+    }
+    const startOffset: unknown = token.startOffset;
+    return typeof startOffset === 'number' ? startOffset : undefined;
+}
 
 function checkDocumentValid(document: LangiumDocument): string | undefined {
     return document.parseResult.parserErrors.length && s`

@@ -7,17 +7,33 @@ import_keywords {
 
 import_from {
     From-import syntax uses from, a quoted path, import, and an idea name.
+    From-import may list more than one idea. Separate the names with commas.
     From-import may include an alias using as.
-    When the alias contains the imported idea name, Ctrl+click still treats the whole alias as one link.
+    The parser records a span for the path, each idea name, and each alias.
+    Each of those tokens is its own document link.
+    The path links to the file.
+    An idea name links to that declaration.
+    An alias links to the same declaration.
+    When the alias contains the imported idea name, Ctrl+click on a bracket reference still treats the whole alias as one link.
     See ["../extension/language/syntax/features-syntax-highlighting.rq".aliased_from_import_ctrl_click].
+    The language server uses the parser spans: ["../extension/language/support/language-server-rust.rq".language_server_rust].
 
     @example {
-        from "example.rq" import idea
+        ```
+        from "@/links-to-file.rq" import ishouldlink, ishouldbeasecondlink as ishouldbeathirdvalidlink
+        ```
     }
 
+    @implementation (
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../crates/reqlan-parse/src/ast.rs"]
+        ["../../crates/reqlan-lsp/src/analysis.rs"]
+    )
     @tests (
         ["../../packages/language/test/parsing.test.ts:parses from-import example line inside an attribute block value"]
         ["../../packages/language/test/local-symbolic-links.test.ts:aliased from-import whose name contains the imported idea is one link"]
+        ["../../crates/reqlan-parse/tests/parser.rs:from_import_records_each_token_span"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:from_import_tokens_link_independently"]
     )
 }
 
@@ -47,10 +63,16 @@ import_namespace {
     Namespace import may include an alias using as.
     A bracket reference to the alias alone — for example `[context_model]` — opens the imported file and links only the alias name, like an ideaset namespace.
     Qualified references through the alias — for example `[context_model.builder]` — resolve ideas from the imported module.
+    A qualified reference may also name an import alias bound in that module.
+    Example: `[core_arch.analysis_runtime]` when `analysis_runtime` is an import alias in the imported file.
+    That name is not an idea. Check does not report it as a missing idea (["../core_analysis/check.rq".check_qualified_missing_idea]).
+    A from-import of that alias is still a missing idea.
 
     @tests (
         ["../../packages/language/test/linking.test.ts:resolve namespace import references to files"]
         ["../../packages/language/test/linking.test.ts:namespace import bracket reference links only the alias name"]
+        ["../../crates/reqlan-index/tests/golden_corpus.rs:qualified_reference_to_an_import_alias_is_not_a_missing_idea"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:golden_corpus_import_alias_is_not_an_unresolved_idea"]
     )
 }
 

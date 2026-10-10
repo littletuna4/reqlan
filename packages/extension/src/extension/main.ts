@@ -3,9 +3,11 @@
  * rq:["../../../../reqlan rq/ontology.rq".extension]
  */
 import type { LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { LanguageClient, State, TransportKind } from 'vscode-languageclient/node';
+import { ideaContentTooltipEnabled, pushIdeaContentTooltip } from './idea-content-tooltip.js';
+import { resolveLanguageServerLaunch } from './language-server-launch.js';
 import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand, withFolderReferenceMiddleware } from './register-folder-reference-handling.js';
 import {
@@ -13,7 +15,7 @@ import {
     withWildcardReferenceMiddleware
 } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
-import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import { COMMENT_REFERENCE_LANGUAGES, registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-actions.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
@@ -169,29 +171,49 @@ async function startLanguageClient(
 ): Promise<LanguageClient> {
     const serverModule = context.asAbsolutePath(path.join('out', 'language', 'main.cjs'));
     const runtime = resolveLanguageServerRuntime();
-    // The debug options for the server
-    // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging.
-    // By setting `process.env.DEBUG_BREAK` to a truthy value, the language server will wait until a debugger is attached.
     const nativeDir = path.join(context.extensionPath, 'native');
-    // rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+    // rq:["../../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
     const serverEnv = { ...process.env, REQLAN_NATIVE_DIR: nativeDir };
-    const debugOptions = {
-        execArgv: ['--nolazy', `--inspect${process.env.DEBUG_BREAK ? '-brk' : ''}=${process.env.DEBUG_SOCKET || '6009'}`],
-        env: serverEnv
-    };
-
-    // If the extension is launched in debug mode then the debug server options are used
-    // Otherwise the run options are used
-    const serverOptions: ServerOptions = {
-        run: { module: serverModule, transport: TransportKind.ipc, runtime, options: { env: serverEnv } },
-        debug: { module: serverModule, transport: TransportKind.ipc, runtime, options: debugOptions }
-    };
+    const configured = vscode.workspace.getConfiguration('reqlan').get<string>('languageServer.engine', 'rust');
+    const launch = resolveLanguageServerLaunch({
+        engine: configured === 'node' ? 'node' : 'rust',
+        extensionPath: context.extensionPath
+    });
+    const serverOptions: ServerOptions = launch.kind === 'rust'
+        ? {
+            run: { command: launch.command, transport: TransportKind.stdio, options: { env: serverEnv } },
+            debug: { command: launch.command, transport: TransportKind.stdio, options: { env: serverEnv } }
+        }
+        : {
+            run: { module: serverModule, transport: TransportKind.ipc, runtime, options: { env: serverEnv } },
+            debug: {
+                module: serverModule,
+                transport: TransportKind.ipc,
+                runtime,
+                options: {
+                    execArgv: ['--nolazy', `--inspect${process.env.DEBUG_BREAK ? '-brk' : ''}=${process.env.DEBUG_SOCKET || '6009'}`],
+                    env: serverEnv
+                }
+            }
+        };
 
     // Options to control the language client
     let client!: LanguageClient;
     const clientOptions: LanguageClientOptions = withWildcardReferenceMiddleware(
         withFolderReferenceMiddleware(
-            { documentSelector: [{ scheme: '*', language: 'reqlan' }] },
+            {
+                initializationOptions: {
+                    ideaContentTooltip: ideaContentTooltipEnabled(
+                        vscode.workspace.getConfiguration('reqlan')
+                    )
+                },
+                documentSelector: [
+                    { scheme: '*', language: 'reqlan' },
+                    ...(launch.kind === 'rust'
+                        ? COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file' as const, language }))
+                        : [])
+                ]
+            },
             () => client
         ),
         () => client,
@@ -208,10 +230,19 @@ async function startLanguageClient(
     );
 
     registerFolderReferenceCommand(context);
-    registerCommentReferenceDocumentLinks(context);
+    if (launch.kind !== 'rust') {
+        registerCommentReferenceDocumentLinks(context);
+    }
     registerIgnoreErrorCodeActions(context);
 
     // Start the client. This will also launch the server
     await client.start();
+    const configuration = vscode.workspace.getConfiguration('reqlan');
+    pushIdeaContentTooltip(client, configuration);
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration('reqlan.ideaContentTooltip.enabled')) {
+            pushIdeaContentTooltip(client, vscode.workspace.getConfiguration('reqlan'));
+        }
+    }));
     return client;
 }

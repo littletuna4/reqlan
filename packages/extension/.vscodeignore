@@ -17,3 +17,5 @@ vsix-out/**
 !.agents/**
 !native/**
 !native/**/*
+!bin/**
+!bin/**/*

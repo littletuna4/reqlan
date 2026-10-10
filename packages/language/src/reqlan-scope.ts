@@ -5,22 +5,27 @@
  * of the same path only binds some names.
  * rq:["../../../reqlan rq/language/syntax.rq".same_file_reference]
  * rq:["../../../reqlan rq/language/syntax.rq".reference_resolution_order]
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  * rq:["../../../reqlan rq/language/imports.rq".anonymous_imports_allowed]
  */
 import type { AstNodeDescription, LangiumDocument, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultScopeComputation, DefaultScopeProvider, StreamScope, stream, type Scope } from 'langium';
 import {
+    isAttribute,
     isFromImport,
     isFromImportSpecifier,
+    isIdea,
     isIdeaDeclaration,
     isIdeaSet,
     isInvalidFromImport,
     isLocalReference,
     isModel,
     isNamespaceImport,
+    isOneLinerIdea,
     isQualifiedImport,
     isQualifiedReference,
     type FromImportSpecifier,
+    type Idea,
     type IdeaSet,
     type Import,
     type Model,
@@ -33,6 +38,7 @@ import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { readResolvedRef } from './reqlan-reference-peek.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
+import { uriCacheKeys } from './reqlan-editor-retention.js';
 
 export class ReqlanScopeComputation extends DefaultScopeComputation {
 
@@ -61,12 +67,13 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     private readonly services: ReqlanServices;
     /**
      * Per-document cache for `scopeForFileIdeas`. Key is the document URI string.
-     * Invalidated when the document version changes so edits always get a fresh scope.
+     * A new document version replaces the entry. Document removal drops the key.
      */
     private readonly fileIdeasCache = new Map<string, ScopeEntry>();
     /**
-     * Per-(document, importPath) cache for `scopeForImportPath`. Key is the imported document URI string.
+     * Cache for `scopeForImportPath`. Key is the imported document URI string.
      * The cached scope is keyed to the imported document's version.
+     * Document removal drops the key.
      */
     private readonly importPathCache = new Map<string, ScopeEntry>();
 
@@ -74,6 +81,27 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         super(services);
         this.documents = services.shared.workspace.LangiumDocuments;
         this.services = services;
+        // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".scope_cache_release]
+        services.shared.workspace.DocumentBuilder.onUpdate((_changed, deleted) => {
+            for (const uri of deleted) {
+                this.releaseDocument(uri.toString());
+            }
+        });
+    }
+
+    /** Drop scope entries that point at a removed document. */
+    releaseDocument(uri: string): void {
+        for (const key of uriCacheKeys(uri)) {
+            this.fileIdeasCache.delete(key);
+            this.importPathCache.delete(key);
+        }
+    }
+
+    scopeCacheCounts(): { fileIdeas: number; importPaths: number } {
+        return {
+            fileIdeas: this.fileIdeasCache.size,
+            importPaths: this.importPathCache.size
+        };
     }
 
     override getScope(context: ReferenceInfo): Scope {
@@ -103,6 +131,12 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
+                if (!container.path && !container.ideaset && container.qualifier?.$refText) {
+                    const attributeScope = this.scopeForIdeaAttributes(container.qualifier.$refText, document);
+                    if (attributeScope) {
+                        return attributeScope;
+                    }
+                }
                 const qualifier = readResolvedRef(container.qualifier, document);
                 if (qualifier && isIdeaSet(qualifier)) {
                     return this.scopeForIdeasetMembers(qualifier, document);
@@ -225,6 +259,35 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             }
         }
         return descriptions;
+    }
+
+    /**
+     * `[idea.attribute]` links only to attributes of that idea.
+     * An ideaset qualifier stays on the member-idea path.
+     * A one-liner has no attributes, so the scope is empty.
+     * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+     */
+    private scopeForIdeaAttributes(qualifierName: string, document: LangiumDocument): Scope | undefined {
+        const model = document.parseResult.value as Model;
+        if (!isModel(model)) {
+            return undefined;
+        }
+        if (model.elements.some(element => isIdeaSet(element) && element.name === qualifierName)) {
+            return undefined;
+        }
+        const idea = model.elements.find((element): element is Idea =>
+            isIdea(element) && element.name === qualifierName
+        );
+        if (idea) {
+            const descriptions = idea.elements
+                .filter(isAttribute)
+                .map(attribute => this.descriptions.createDescription(attribute, attribute.name, document));
+            return new StreamScope(stream(descriptions));
+        }
+        if (model.elements.some(element => isOneLinerIdea(element) && element.name === qualifierName)) {
+            return new StreamScope(stream([]));
+        }
+        return undefined;
     }
 
     private scopeForIdeasetMembers(ideaset: IdeaSet, document: LangiumDocument): Scope {

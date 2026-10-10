@@ -8,12 +8,14 @@
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
 import type { LangiumDocument } from 'langium';
 import { URI } from 'langium';
 import type { DocumentLinkProvider } from 'langium/lsp';
 import type { DocumentLink, DocumentLinkParams } from 'vscode-languageserver';
 import { DocumentLink as LspDocumentLink } from 'vscode-languageserver';
+import { collectAttributeDocumentLinks } from './reqlan-attribute-links.js';
 import { presentCommentReferencesForDocument } from './reqlan-comment-diagnostics.js';
 import { collectFileLinks, resolvedFileLinkTargetUri } from './reqlan-file-link-resolver.js';
 import { collectLocalSymbolicOutboundLinks } from './reqlan-local-symbolic-links.js';
@@ -31,6 +33,10 @@ export function navigableDocumentLink(range: DocumentLink['range'], target: stri
     const link = LspDocumentLink.create(range, target);
     link.tooltip = documentLinkTooltip(target);
     return link;
+}
+
+export function rangeKey(range: DocumentLink['range']): string {
+    return `${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}`;
 }
 
 export function documentLinkTooltip(target: string): string {
@@ -89,6 +95,14 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             return [navigableDocumentLink(link.sourceRange, target)];
         });
         const ideaLinks = this.collectIdeaDocumentLinks(document, pathContext);
+        const attributeLinks = collectAttributeDocumentLinks(document).flatMap(link => {
+            const target = resolvedFileLinkTargetUri(link);
+            if (!target) {
+                return [];
+            }
+            return [navigableDocumentLink(link.sourceRange, target)];
+        });
+        const attributeRanges = new Set(attributeLinks.map(link => rangeKey(link.range)));
         const commentLinks = presentCommentReferencesForDocument(
             document,
             this.documents,
@@ -101,7 +115,8 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             }
             return [navigableDocumentLink(link.range, target)];
         });
-        return [...fileLinks, ...ideaLinks, ...commentLinks];
+        const ideaOnly = ideaLinks.filter(link => !attributeRanges.has(rangeKey(link.range)));
+        return [...fileLinks, ...ideaOnly, ...attributeLinks, ...commentLinks];
     }
 
     /**

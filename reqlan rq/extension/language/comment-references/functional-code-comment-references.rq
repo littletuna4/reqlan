@@ -40,6 +40,8 @@ comment_reference_resolution_error_state {
         ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../../../packages/language/src/reqlan-validator.ts"]
         ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-index/src/comment.rs"]
     )
     @tests (
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
@@ -48,6 +50,7 @@ comment_reference_resolution_error_state {
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:relinks comment references only when the target file changes"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
         ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
     )
 }
 
@@ -77,5 +80,6 @@ comment_reference_import_root_alias {
         ["../../../../packages/language/test/path-resolve.test.ts:pathResolveContextFromWorkspaceFolders picks the longest matching folder"]
         ["../../../../packages/extension/test/comment-reference-path-context.test.ts:resolves @/ against the workspace folder for extension comment links"]
         ["../../../../crates/reqlan-index/src/comment.rs:resolves_aliased_qualified_comment_path"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
     )
 }

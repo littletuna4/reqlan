@@ -1,5 +1,8 @@
 - USE ASD-STE100
-- All non-trivial user requirements must be documented in an .rq file.
-- Implementation and tests should be cross referenced.
+- All non-trivial; or directional user requirements must be documented in an .rq file. The user is lazy - you should injest requests, link, deprecate and deduplicated proactively and agressively.
+- Implementation and tests should be cross referenced in rq.
+- verbosity is sin; as are code and req duplication.
 - Do not use the browser tool.
-- strictly type - don't use unsafe fallbacks.
+- strictly type - don't use unsafe fallbacks or unkown.
+- User's stated intent and validation passes are secondary to doing things properly and with future clarity.
+- requirements are single source of sytnax truth, parser is single source of implementation. 

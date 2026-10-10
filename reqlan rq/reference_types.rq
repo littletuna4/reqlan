@@ -14,6 +14,7 @@ idea_reference {
     ["./language/syntax.rq".references_to_subidea].
     Index edge kind `references` on [analytical_types] / [rust_index_types]. Extract: [idea_extractor], [rust_extract].
     A `[ideaset.member]` form records the edge on the member leaf, not on the ideaset container.
+    An attribute uses the same brackets. See ["./language/syntax.rq".attribute_namespacing].
     Wikilink surface for the same edge kind: [link_reference]. Fan-out across files: [wildcard_reference].
     @status done
     @implementation (

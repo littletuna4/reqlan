@@ -28,7 +28,12 @@ fn indexes_comment_references_from_non_rq_files() {
     .unwrap();
     let mut store = IndexStore::open_in_memory().unwrap();
     let cancel = AtomicBool::new(false);
-    let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     let result = sync_workspace(&mut store, &options, &cancel).unwrap();
     assert!(result.progress.indexed >= 2, "indexed={}", result.progress.indexed);
 
@@ -55,7 +60,12 @@ fn unqualified_comment_ref_matches_catalog_idea_name() {
     let cancel = AtomicBool::new(false);
     sync_workspace(
         &mut store,
-        &SyncOptions { workspace_root: root.clone(), hard_rebuild: false },
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: false,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
         &cancel,
     )
     .unwrap();
@@ -77,7 +87,12 @@ fn rq_reindex_restores_comment_links() {
     std::fs::write(root.join("app.ts"), "// rq:[\"./demo.rq\".alpha]\n").unwrap();
     let mut store = IndexStore::open_in_memory().unwrap();
     let cancel = AtomicBool::new(false);
-    let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     sync_workspace(&mut store, &options, &cancel).unwrap();
     assert_eq!(
         store
@@ -112,7 +127,12 @@ fn skips_nested_child_base_code_and_rq_files() {
     let mut store = IndexStore::open_in_memory().unwrap();
     sync_workspace(
         &mut store,
-        &SyncOptions { workspace_root: root.clone(), hard_rebuild: false },
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: false,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
         &AtomicBool::new(false),
     )
     .unwrap();
@@ -132,7 +152,12 @@ fn skips_binary_comment_files_unless_rqignore_negation() {
         .unwrap();
     let mut store = IndexStore::open_in_memory().unwrap();
     let cancel = AtomicBool::new(false);
-    let options = SyncOptions { workspace_root: root.clone(), hard_rebuild: false };
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+    };
     sync_workspace(&mut store, &options, &cancel).unwrap();
     assert!(store.list_code_document_uris().unwrap().is_empty());
 

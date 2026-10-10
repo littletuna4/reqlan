@@ -8,7 +8,7 @@ use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{
     to_summary, EdgeKind, EdgeRecord, IdeaKind, IdeaRecord, IdeaSummary, IndexedDocument,
 };
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -22,6 +22,8 @@ pub enum StoreError {
     Io(#[from] std::io::Error),
     #[error("sql bridge: {0}")]
     SqlBridge(#[from] SqlBridgeError),
+    #[error("{0}")]
+    Invalid(String),
 }
 
 pub struct IndexStore {
@@ -38,6 +40,20 @@ impl IndexStore {
         let store = Self { conn };
         store.migrate()?;
         Ok(store)
+    }
+
+    /// Read an existing ideas index. Does not create the file or run migrations.
+    /// rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
+    pub fn open_read_only(path: &Path) -> Result<Self, StoreError> {
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        Ok(Self { conn })
+    }
+
+    pub fn inbound_for_file(&self, file_uri: &str) -> Result<Vec<JsonValue>, StoreError> {
+        Ok(queries::get_inbound_for_file_rows(&self.conn, file_uri)?)
     }
 
     pub fn open_in_memory() -> Result<Self, StoreError> {

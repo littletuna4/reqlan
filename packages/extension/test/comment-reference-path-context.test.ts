@@ -1,5 +1,5 @@
 /**
- * Extension host path context for aliased `rq:[…]` comment references.
+ * Extension host path context for aliased comment references.
  * rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  */

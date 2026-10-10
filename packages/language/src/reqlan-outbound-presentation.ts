@@ -6,6 +6,7 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
 import type { LangiumDocument } from 'langium';
 import { DocumentState, GrammarUtils, URI } from 'langium';
@@ -34,12 +35,19 @@ import {
 } from './reqlan-local-symbolic-links.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import {
+    neighborBindsImport,
     neighborHasIdea,
     parseNeighborDocument
 } from './reqlan-neighbor-parse.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 import { applyRqIgnoreErrorFiltering } from './reqlan-ignore-error.js';
+import {
+    attributeReferenceParts,
+    findDeclaredAttribute,
+    ownerIsAttributeHost,
+    unresolvedAttributeMessage
+} from './reqlan-attribute-links.js';
 import { collectLexParseDiagnostics } from './reqlan-parse-diagnostics.js';
 
 export const OUTBOUND_IDEA_MISSING = 'unresolved-idea-reference';
@@ -61,6 +69,8 @@ interface OutboundIdeaDecision {
     range: Range;
     name: string;
     confirmed: boolean;
+    /** Set when `[idea.attribute]` names an idea, not an ideaset. */
+    attributeOwner?: string;
 }
 
 export function collectOutboundIdeaDecisions(
@@ -78,8 +88,28 @@ export function collectOutboundIdeaDecisions(
         extracted = undefined;
     }
     if (extracted) {
+        const model = isModel(document.parseResult.value) ? document.parseResult.value : undefined;
         for (const edge of extracted.edges) {
             if (edge.kind !== 'references') {
+                continue;
+            }
+            const attributeParts = attributeReferenceParts(edge.snippet);
+            if (
+                model
+                && attributeParts
+                && edge.label === attributeParts.attribute
+                && ownerIsAttributeHost(model, attributeParts.owner)
+            ) {
+                const range = ideaNameRangeFromEdge(document, edge);
+                if (!range) {
+                    continue;
+                }
+                decisions.push({
+                    range,
+                    name: attributeParts.attribute,
+                    confirmed: findDeclaredAttribute(model, attributeParts.owner, attributeParts.attribute) !== undefined,
+                    attributeOwner: attributeParts.owner
+                });
                 continue;
             }
             const range = ideaNameRangeFromEdge(document, edge);
@@ -100,7 +130,8 @@ export function collectOutboundIdeaDecisions(
             const filePart = hash >= 0 ? targetId.slice(0, hash) : targetId;
             const ideaName = hash >= 0 ? targetId.slice(hash + 1) : name;
             if (!filePart || isSameIndexedUri(filePart, document.uri)) {
-                const local = extracted.ideas.some(idea => idea.name === ideaName);
+                const local = extracted.ideas.some(idea => idea.name === ideaName)
+                    || extracted.importBindings.some(binding => binding.name === ideaName);
                 decisions.push({ range, name: ideaName, confirmed: local });
                 continue;
             }
@@ -117,8 +148,8 @@ export function collectOutboundIdeaDecisions(
                 decisions.push({ range, name: ideaName, confirmed: false });
                 continue;
             }
-            const neighbor = parseNeighborDocument(targetUri, documents, fileSystem);
-            if (!neighbor || !neighborHasIdea(neighbor, ideaName)) {
+            const neighbor = parseNeighborDocument(targetUri, documents, fileSystem, document.uri.toString());
+            if (!neighbor || (!neighborHasIdea(neighbor, ideaName) && !neighborBindsImport(neighbor, ideaName))) {
                 decisions.push({ range, name: ideaName, confirmed: false });
                 continue;
             }
@@ -137,7 +168,10 @@ export function applyOutboundDiagnosticAuthority(document: LangiumDocument, serv
     const confirmed = decisions.filter(decision => decision.confirmed);
     const existing = document.diagnostics ?? [];
     const seed = existing.length > 0 ? existing : collectLexParseDiagnostics(document);
-    const kept = seed.filter(diagnostic => !isConfirmedUnresolved(diagnostic, confirmed));
+    const kept = seed.filter(diagnostic =>
+        !isConfirmedUnresolved(diagnostic, confirmed)
+        && !isIdeaErrorOnAttributeLink(diagnostic, decisions)
+    );
     const seen = new Set(
         kept.map(diagnostic => `${rangeKey(diagnostic.range)}:${diagnosticMessageText(diagnostic.message) ?? ''}`)
     );
@@ -145,13 +179,15 @@ export function applyOutboundDiagnosticAuthority(document: LangiumDocument, serv
         if (decision.confirmed) {
             continue;
         }
-        const message = unresolvedIdeaMessage(decision.name);
+        const message = decision.attributeOwner
+            ? unresolvedAttributeMessage(decision.attributeOwner, decision.name)
+            : unresolvedIdeaMessage(decision.name);
         const key = `${rangeKey(decision.range)}:${message}`;
         if (seen.has(key) || alreadyReportedUnresolved(kept, decision, message)) {
             continue;
         }
         seen.add(key);
-        kept.push(outboundIdeaDiagnostic(decision.range, decision.name));
+        kept.push(outboundDiagnostic(decision.range, message));
     }
     document.diagnostics = kept;
     applyRqIgnoreErrorFiltering(document);
@@ -161,6 +197,15 @@ export function registerOutboundDiagnosticAuthority(services: ReqlanServices): v
     services.shared.workspace.DocumentBuilder.onDocumentPhase(DocumentState.Validated, document => {
         applyOutboundDiagnosticAuthority(document, services);
     });
+}
+
+function isIdeaErrorOnAttributeLink(diagnostic: Diagnostic, decisions: readonly OutboundIdeaDecision[]): boolean {
+    if (!isUnresolvedIdeaMessage(diagnostic.message)) {
+        return false;
+    }
+    return decisions.some(decision =>
+        decision.attributeOwner !== undefined && rangesOverlap(diagnostic.range, decision.range)
+    );
 }
 
 function isConfirmedUnresolved(diagnostic: Diagnostic, confirmed: OutboundIdeaDecision[]): boolean {
@@ -207,7 +252,7 @@ function importSpecifierDecisions(
             continue;
         }
         const targetUri = resolveExistingImportUri(path, document, documents, fileSystem, pathContext);
-        const neighbor = parseNeighborDocument(targetUri, documents, fileSystem);
+        const neighbor = parseNeighborDocument(targetUri, documents, fileSystem, document.uri.toString());
         if (!neighbor) {
             continue;
         }
@@ -233,11 +278,11 @@ function importSpecifierDecisions(
     return decisions;
 }
 
-function outboundIdeaDiagnostic(range: Range, name: string): Diagnostic {
+function outboundDiagnostic(range: Range, message: string): Diagnostic {
     return {
         severity: DiagnosticSeverity.Error,
         range,
-        message: unresolvedIdeaMessage(name),
+        message,
         source: 'reqlan',
         code: OUTBOUND_IDEA_MISSING
     };

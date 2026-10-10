@@ -9,6 +9,7 @@ description = "Export snapshot plus html/markdown/json/csv writers"
 
 [dependencies]
 reqlan-index = { path = "../reqlan-index" }
+reqlan-search = { path = "../reqlan-search" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

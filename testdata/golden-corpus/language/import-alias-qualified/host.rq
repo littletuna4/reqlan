@@ -1,0 +1,6 @@
+import "./core.rq" as core_arch
+
+runtime {
+    [core_arch.analysis_runtime]
+    [core_arch.missing_leaf]
+}

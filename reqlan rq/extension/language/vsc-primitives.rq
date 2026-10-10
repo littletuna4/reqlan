@@ -23,10 +23,20 @@ code_actions {
     - File-level source action: barrel page — ["../host/features-commands.rq".barrel_page]
     - Quick Fix: insert `//rq-ignore-error` before a line with diagnostics — ["../host/features-commands.rq".code_actions_ignore_error]
     - Quick Fix: create a missing local idea below the idea that contains the unresolved reference — ["../host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    The Rust server returns the same set (["./support/language-server-rust.rq".language_server_rust]).
     Command-backed search/replace and barrel actions omit LSP command arguments so VS Code does not cache disposable delegating ids; the extension resolves the active editor (or document) when the command runs.
+    The same Quick Fix appears once in one request.
+    Langium appends validation diagnostics when a document already has diagnostics.
+    The diagnostic list stays when the document state is below Validated.
+    The document builder removes previous built-in diagnostics before that append.
+    One linking error gives one Quick Fix after repeated builds.
     @status done
     @implementation (
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../packages/language/src/reqlan-document-builder.ts"]
         ["../../../packages/extension/src/extension/register-import-error-commands.ts"]
         ["../../../packages/extension/src/extension/main.ts"]
         ["../../../packages/extension/src/language/main.ts"]
@@ -38,6 +48,8 @@ code_actions {
     )
     @tests (
         ["../../../packages/language/test/code-actions.test.ts"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs"]
+        ["../../../packages/language/test/code-actions.test.ts:keeps one quick fix set after repeated builds"]
         ["../../../packages/extension/test/extension-package.test.ts"]
         ["../../../packages/extension/test/barrel-page-apply.test.ts"]
         ["../../../packages/language/test/idea-refactor.test.ts"]

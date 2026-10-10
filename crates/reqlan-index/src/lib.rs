@@ -30,8 +30,9 @@ pub use comment::{
 };
 pub use diagnostics::{now_ms, DiagnosticsError, FileIssueDraft, IndexDiagnosticsStore};
 pub use extract::{
-    analyze_local_symbolic, count_wildcard_matches, extract_indexed_document, path_glob_matches,
-    split_wildcard_label, ExtractOptions, WildcardIdeaCandidate, EXTRACT_VERSION,
+    analyze_local_symbolic, count_wildcard_matches, extract_indexed_document, local_name_binding,
+    path_glob_matches, path_glob_may_match_under, split_wildcard_label, ExtractOptions,
+    LocalNameBinding, WildcardIdeaCandidate, EXTRACT_VERSION,
 };
 pub use git_dates::{fill_git_dates, parse_git_author_dates, CREATE_NO_WINDOW};
 pub use ids::{edge_id, idea_id};

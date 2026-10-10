@@ -26,6 +26,7 @@ import {
     collectLocalSymbolicOutboundLinks,
     localSymbolicExtractCount
 } from '../src/reqlan-local-symbolic-links.js';
+import { noteOpenEditor } from '../src/reqlan-editor-retention.js';
 import { findLoadedDocument } from '../src/reqlan-neighbor-parse.js';
 import { pathResolveContextFromServices } from '../src/reqlan-path-resolve.js';
 
@@ -109,6 +110,7 @@ describe('open-file hot path', () => {
         });
         const pathContext = pathResolveContextFromServices(services);
         clearLocalSymbolicExtractCache();
+        noteOpenEditor(document.uri.toString());
         collectLocalSymbolicOutboundLinks(
             document,
             pathContext,
@@ -132,6 +134,7 @@ describe('open-file hot path', () => {
         const uri = URI.parse(pathToFileURL(path).href);
         const document = await services.shared.workspace.LangiumDocuments.getOrCreateDocument(uri);
         clearLocalSymbolicExtractCache();
+        noteOpenEditor(document.uri.toString());
         analyzeDocumentLocalSymbolic(document, pathResolveContextFromServices(services));
         expect(localSymbolicExtractCount()).toBe(1);
         writeFileSync(path, 'second_idea { body }\n');
@@ -194,6 +197,7 @@ describe('open-file hot path', () => {
         `, {
             documentUri: hostUri.toString()
         });
+        noteOpenEditor(host.uri.toString());
         await services.shared.workspace.DocumentBuilder.build([host], { validation: true });
         expect(
             (host.diagnostics ?? []).some(diagnostic => isUnresolvedNamed(diagnostic, 'present_idea'))

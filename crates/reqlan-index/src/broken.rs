@@ -7,14 +7,19 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
 //! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_does_not_exist_error]
 //! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
 //! rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_folder_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
 
-use crate::comment::{unresolved_comment_references, CommentReference};
+use crate::comment::{
+    find_comment_syntax_errors, unresolved_comment_references, CommentReference,
+    CommentSyntaxError, COMMENT_SYNTAX_KIND,
+};
 use crate::extract::{
     count_wildcard_matches, path_glob_matches, split_wildcard_label, WildcardIdeaCandidate,
 };
@@ -32,11 +37,28 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ListBrokenReferencesOptions<'a> {
     pub path_glob: Option<&'a str>,
+    /// When non-empty, a source file matches when any glob matches.
+    /// An empty glob in this list does not match.
+    pub path_globs: &'a [&'a str],
+    /// Source files checked even when they match no glob.
+    pub extra_files: &'a [&'a str],
     pub include_comment_references: bool,
     pub include_file_references: bool,
+}
+
+impl Default for ListBrokenReferencesOptions<'_> {
+    fn default() -> Self {
+        Self {
+            path_glob: None,
+            path_globs: &[],
+            extra_files: &[],
+            include_comment_references: false,
+            include_file_references: false,
+        }
+    }
 }
 
 /// How [check] treats a sparse wildcard (0 matches or 1 match).
@@ -86,7 +108,14 @@ impl SparseWildcardHandling {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 #[derive(Debug, Clone)]
 pub struct CheckReferencesOptions<'a> {
-    pub path_glob: Option<&'a str>,
+    /// Source files in the recursive scan. Empty means the whole base.
+    /// One glob selects the same files as a single path glob.
+    /// An empty glob string is an error.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    pub path_globs: &'a [&'a str],
+    /// Source files checked even when they match no glob.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    pub extra_files: &'a [&'a str],
     pub wildcard_zero: SparseWildcardHandling,
     pub wildcard_one: SparseWildcardHandling,
     /// Globs matched against the missing target `label`. Empty globs are ignored.
@@ -98,7 +127,8 @@ pub struct CheckReferencesOptions<'a> {
 impl Default for CheckReferencesOptions<'_> {
     fn default() -> Self {
         Self {
-            path_glob: None,
+            path_globs: &[],
+            extra_files: &[],
             wildcard_zero: SparseWildcardHandling::Warn,
             wildcard_one: SparseWildcardHandling::Warn,
             skip_targets: &[],
@@ -142,18 +172,22 @@ fn error_severity() -> String {
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
 pub fn check_references(
     store: &IndexStore,
     workspace_root: &Path,
     options: CheckReferencesOptions<'_>,
 ) -> Result<Vec<BrokenReference>, StoreError> {
+    reject_empty_globs(options.path_globs)?;
     let mut rows = list_broken_references(
         store,
         workspace_root,
         ListBrokenReferencesOptions {
-            path_glob: options.path_glob,
+            path_globs: options.path_globs,
+            extra_files: options.extra_files,
             include_comment_references: true,
             include_file_references: true,
+            ..Default::default()
         },
     )?;
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
@@ -287,7 +321,7 @@ fn append_wildcard_sparse_rows(
         let Some(source) = store.get_idea(&source_id)? else {
             continue;
         };
-        if !file_matches(options.path_glob, &source.file_uri) {
+        if !check_source_in_scope(options, &source.file_uri) {
             continue;
         }
         let line = to_zero_based_line(EdgeKind::WildcardReference, source_line);
@@ -330,7 +364,7 @@ fn append_unresolved_import_rows(
         if !is_rq_uri(&file_uri) {
             continue;
         }
-        if !file_matches(options.path_glob, &file_uri) {
+        if !check_source_in_scope(options, &file_uri) {
             continue;
         }
         let path = workspace_root.join(&file_uri);
@@ -486,11 +520,17 @@ pub fn list_broken_references(
     let local_ideas: HashSet<(String, String)> =
         catalog.iter().map(|idea| (idea.file_uri.clone(), idea.name.clone())).collect();
     let catalog_ids: HashSet<&str> = catalog.iter().map(|idea| idea.id.as_str()).collect();
+    let mut ideas_by_file: HashMap<String, HashSet<String>> = HashMap::new();
+    for idea in &catalog {
+        ideas_by_file.entry(idea.file_uri.clone()).or_default().insert(idea.name.clone());
+    }
+    let indexed_rq: HashSet<String> =
+        store.list_document_uris()?.into_iter().filter(|uri| is_rq_uri(uri)).collect();
     let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
 
     let mut broken = Vec::new();
     for (edge, source) in store.list_unresolved_idea_edges()? {
-        if !file_matches(options.path_glob, &source.file_uri) {
+        if !list_source_in_scope(&options, &source.file_uri) {
             continue;
         }
         if edge.kind == EdgeKind::CommentLink {
@@ -514,7 +554,7 @@ pub fn list_broken_references(
 
     if options.include_comment_references {
         for file_uri in store.list_code_document_uris()? {
-            if !file_matches(options.path_glob, &file_uri) {
+            if !list_source_in_scope(&options, &file_uri) {
                 continue;
             }
             let path = workspace_root.join(&file_uri);
@@ -530,6 +570,9 @@ pub fn list_broken_references(
             ) {
                 broken.push(broken_comment(&file_uri, &reference));
             }
+            for error in find_comment_syntax_errors(&source) {
+                broken.push(broken_comment_syntax(&file_uri, &error));
+            }
         }
     }
 
@@ -544,7 +587,7 @@ pub fn list_broken_references(
             let Some(source) = store.get_idea(&edge.source_id)? else {
                 continue;
             };
-            if !file_matches(options.path_glob, &source.file_uri) {
+            if !list_source_in_scope(&options, &source.file_uri) {
                 continue;
             }
             if !file_reference_missing(workspace_root, &edge.source_id, target, &import_roots) {
@@ -562,13 +605,17 @@ pub fn list_broken_references(
                 match_count: None,
             });
         }
-        append_missing_qualified_file_targets(
-            store,
-            workspace_root,
-            options.path_glob,
-            &mut broken,
-        )?;
+        append_missing_qualified_file_targets(store, workspace_root, &options, &mut broken)?;
     }
+
+    append_unresolved_qualified_idea_targets(
+        store,
+        workspace_root,
+        &options,
+        &ideas_by_file,
+        &indexed_rq,
+        &mut broken,
+    )?;
 
     let mut ignore_cache: HashMap<String, HashSet<u32>> = HashMap::new();
     broken.retain(|row| {
@@ -609,12 +656,59 @@ fn idea_reference_resolves(
     local_ideas.contains(&(source_file.to_string(), label.to_string()))
 }
 
-fn file_matches(glob: Option<&str>, file_uri: &str) -> bool {
-    match glob {
+fn reject_empty_globs(globs: &[&str]) -> Result<(), StoreError> {
+    if globs.iter().any(|glob| glob.trim().is_empty()) {
+        return Err(StoreError::Invalid("path glob must not be empty".to_string()));
+    }
+    Ok(())
+}
+
+fn check_source_in_scope(options: &CheckReferencesOptions<'_>, file_uri: &str) -> bool {
+    if extra_file_matches(options.extra_files, file_uri) {
+        return true;
+    }
+    if options.path_globs.is_empty() {
+        return true;
+    }
+    glob_list_matches(options.path_globs, file_uri)
+}
+
+fn list_source_in_scope(options: &ListBrokenReferencesOptions<'_>, file_uri: &str) -> bool {
+    if extra_file_matches(options.extra_files, file_uri) {
+        return true;
+    }
+    if !options.path_globs.is_empty() {
+        return glob_list_matches(options.path_globs, file_uri);
+    }
+    match options.path_glob {
         None => true,
         Some(glob) if glob.trim().is_empty() => true,
         Some(glob) => path_glob_matches(glob, file_uri),
     }
+}
+
+fn extra_file_matches(extra_files: &[&str], file_uri: &str) -> bool {
+    extra_files.iter().any(|path| same_indexed_path(path, file_uri))
+}
+
+/// An empty string in the list matches nothing. It does not select every file.
+fn glob_list_matches(path_globs: &[&str], file_uri: &str) -> bool {
+    path_globs.iter().any(|glob| {
+        let glob = glob.trim();
+        !glob.is_empty() && path_glob_matches(glob, file_uri)
+    })
+}
+
+fn same_indexed_path(left: &str, right: &str) -> bool {
+    normalize_indexed_path(left) == normalize_indexed_path(right)
+}
+
+fn normalize_indexed_path(path: &str) -> String {
+    let mut path = path.replace('\\', "/");
+    while let Some(stripped) = path.strip_prefix("./") {
+        path = stripped.to_string();
+    }
+    path
 }
 
 fn broken_comment(file_uri: &str, reference: &CommentReference) -> BrokenReference {
@@ -626,6 +720,20 @@ fn broken_comment(file_uri: &str, reference: &CommentReference) -> BrokenReferen
         label: reference.display_label(),
         source_line: Some(reference.line),
         snippet: Some(reference.snippet.clone()),
+        severity: "error".to_string(),
+        match_count: None,
+    }
+}
+
+fn broken_comment_syntax(file_uri: &str, error: &CommentSyntaxError) -> BrokenReference {
+    BrokenReference {
+        file_uri: file_uri.to_string(),
+        source_id: None,
+        source_name: None,
+        kind: COMMENT_SYNTAX_KIND.to_string(),
+        label: error.label.clone(),
+        source_line: Some(error.line),
+        snippet: Some(error.snippet.clone()),
         severity: "error".to_string(),
         match_count: None,
     }
@@ -657,13 +765,138 @@ fn to_zero_based_line(kind: EdgeKind, source_line: Option<u32>) -> Option<u32> {
     }
 }
 
+/// A qualified reference `["path".idea]` or `[alias.idea]` is stored as a resolved idea edge.
+/// When the target `.rq` file exists and does not declare that idea, the reference is unresolved.
+/// An import alias bound in that file is a valid target. It is not a missing idea.
+/// A code-file symbol reference is not this error. A missing file stays a file-reference error.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
+/// rq:["../../../reqlan rq/language/imports.rq".import_namespace]
+fn append_unresolved_qualified_idea_targets(
+    store: &IndexStore,
+    workspace_root: &Path,
+    options: &ListBrokenReferencesOptions<'_>,
+    ideas_by_file: &HashMap<String, HashSet<String>>,
+    indexed_rq: &HashSet<String>,
+    broken: &mut Vec<BrokenReference>,
+) -> Result<(), StoreError> {
+    let mut import_bindings: HashMap<String, HashSet<String>> = HashMap::new();
+    for edge in store.get_all_edges()? {
+        if edge.kind != EdgeKind::References || edge.is_resolved == Some(false) {
+            continue;
+        }
+        let Some(target_id) = edge.target_id.as_deref() else {
+            continue;
+        };
+        let Some(idea) = edge.label.as_deref().filter(|label| !label.is_empty()) else {
+            continue;
+        };
+        let target_file = file_from_idea_id(target_id);
+        if target_file.is_empty() || target_file == target_id {
+            continue;
+        }
+        // Attribute edges point at the owner idea. The label is the attribute name.
+        let Some((_, target_idea)) = target_id.rsplit_once('#') else {
+            continue;
+        };
+        if target_idea != idea {
+            continue;
+        }
+        let Some(source) = store.get_idea(&edge.source_id)? else {
+            continue;
+        };
+        if !list_source_in_scope(options, &source.file_uri) {
+            continue;
+        }
+        if qualified_target_exposes_name(
+            workspace_root,
+            target_file,
+            idea,
+            ideas_by_file,
+            indexed_rq,
+            &mut import_bindings,
+        ) {
+            continue;
+        }
+        if !qualified_target_is_rq(workspace_root, target_file, indexed_rq) {
+            continue;
+        }
+        broken.push(BrokenReference {
+            file_uri: source.file_uri,
+            source_id: Some(source.id),
+            source_name: Some(source.name),
+            kind: EdgeKind::References.as_str().to_string(),
+            label: idea.to_string(),
+            source_line: to_zero_based_line(edge.kind, edge.source_line),
+            snippet: edge.snippet,
+            severity: "error".to_string(),
+            match_count: None,
+        });
+    }
+    Ok(())
+}
+
+fn qualified_target_exposes_name(
+    workspace_root: &Path,
+    target_file: &str,
+    idea: &str,
+    ideas_by_file: &HashMap<String, HashSet<String>>,
+    indexed_rq: &HashSet<String>,
+    import_bindings: &mut HashMap<String, HashSet<String>>,
+) -> bool {
+    import_path_candidates(target_file).iter().any(|candidate| {
+        file_exists(workspace_root, candidate)
+            && (file_declares_idea(workspace_root, candidate, idea, ideas_by_file, indexed_rq)
+                || file_binds_import_name(workspace_root, candidate, idea, import_bindings))
+    })
+}
+
+/// An import alias in the target file is a valid qualified name.
+/// It is not an idea, so a from-import of that name stays unresolved.
+fn file_binds_import_name(
+    workspace_root: &Path,
+    file_uri: &str,
+    name: &str,
+    cache: &mut HashMap<String, HashSet<String>>,
+) -> bool {
+    let names = cache.entry(file_uri.to_string()).or_insert_with(|| {
+        let path = if Path::new(file_uri).is_absolute() {
+            Path::new(file_uri).to_path_buf()
+        } else {
+            workspace_root.join(file_uri)
+        };
+        let Ok(source) = std::fs::read_to_string(&path) else {
+            return HashSet::new();
+        };
+        parse_document(&source)
+            .model
+            .import_bindings()
+            .into_iter()
+            .map(|(binding, _line)| binding)
+            .collect()
+    });
+    names.contains(name)
+}
+
+fn qualified_target_is_rq(
+    workspace_root: &Path,
+    target_file: &str,
+    indexed_rq: &HashSet<String>,
+) -> bool {
+    import_path_candidates(target_file).iter().any(|candidate| {
+        if !file_exists(workspace_root, candidate) {
+            return false;
+        }
+        is_rq_uri(candidate) || indexed_rq.contains(candidate)
+    })
+}
+
 /// A qualified reference `["path".idea]` is stored as a resolved idea edge.
 /// Check still reports the path when that file is not on disk.
 /// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
 fn append_missing_qualified_file_targets(
     store: &IndexStore,
     workspace_root: &Path,
-    path_glob: Option<&str>,
+    options: &ListBrokenReferencesOptions<'_>,
     broken: &mut Vec<BrokenReference>,
 ) -> Result<(), StoreError> {
     for edge in store.get_all_edges()? {
@@ -680,7 +913,7 @@ fn append_missing_qualified_file_targets(
         let Some(source) = store.get_idea(&edge.source_id)? else {
             continue;
         };
-        if !file_matches(path_glob, &source.file_uri) {
+        if !list_source_in_scope(options, &source.file_uri) {
             continue;
         }
         if target_file == source.file_uri {

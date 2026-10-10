@@ -2,9 +2,15 @@
  * Links anonymous qualified import paths without requiring a matching import declaration,
  * and keeps bare namespace-alias references unlinked instead of reporting them as unresolved ideas.
  * rq:["../../../reqlan rq/language/imports.rq".import_namespace]
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
-import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, MultiReferenceItem, ReferenceInfo } from 'langium';
+import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, LinkingError, MultiReferenceItem, ReferenceInfo } from 'langium';
 import { AstUtils, DefaultLinker, DocumentState, type DefaultMultiReference, type DefaultReference } from 'langium';
+import {
+    findDeclaredAttribute,
+    ownerIsAttributeHost,
+    unresolvedAttributeMessage
+} from './reqlan-attribute-links.js';
 import { isIdea, isIdeaSet, isLocalReference, isModel, isOneLinerIdea, isQualifiedReference } from './generated/ast.js';
 import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
@@ -30,6 +36,15 @@ export class ReqlanLinker extends DefaultLinker {
     }
 
     protected override doLink(refInfo: ReferenceInfo, document: LangiumDocument): void {
+        const missingAttribute = this.missingAttributeLink(refInfo, document);
+        if (missingAttribute) {
+            this.assignLinkingError(
+                refInfo,
+                document,
+                unresolvedAttributeMessage(missingAttribute.owner, missingAttribute.attribute)
+            );
+            return;
+        }
         if (this.isAnonymousImportPathReference(refInfo)) {
             const scope = this.scopeProvider.getScope(refInfo);
             if (scope.getElement(refInfo.reference.$refText)) {
@@ -114,6 +129,46 @@ export class ReqlanLinker extends DefaultLinker {
             this.fileSystem,
             pathResolveContextFromServices(this.services)
         );
+    }
+
+    /**
+     * `[idea.attribute]` with no such attribute on that idea.
+     * Do not leave the second name for idea linking.
+     * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+     */
+    private missingAttributeLink(
+        refInfo: ReferenceInfo,
+        document: LangiumDocument
+    ): { owner: string; attribute: string } | undefined {
+        const container = refInfo.container;
+        if (!isQualifiedReference(container) || refInfo.property !== 'idea') {
+            return undefined;
+        }
+        if (container.path || container.ideaset) {
+            return undefined;
+        }
+        const owner = container.qualifier?.$refText;
+        const attribute = refInfo.reference.$refText;
+        if (!owner || !attribute) {
+            return undefined;
+        }
+        const model = document.parseResult.value;
+        if (!isModel(model) || !ownerIsAttributeHost(model, owner)) {
+            return undefined;
+        }
+        if (findDeclaredAttribute(model, owner, attribute)) {
+            return undefined;
+        }
+        return { owner, attribute };
+    }
+
+    private assignLinkingError(refInfo: ReferenceInfo, document: LangiumDocument, message: string): void {
+        const ref = refInfo.reference;
+        if ('_ref' in ref && ref._ref === undefined) {
+            const error: LinkingError = { info: refInfo, message };
+            ref._ref = error;
+            document.references.push(ref);
+        }
     }
 
     private markUnlinked(refInfo: ReferenceInfo, document: LangiumDocument): void {

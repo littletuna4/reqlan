@@ -130,19 +130,9 @@ describe('Parsed-time reference sequencing', () => {
         expect(document.state).toBe(DocumentState.Parsed);
 
         for (const node of AstUtils.streamAst(document.parseResult.value)) {
-            for (const key of Object.keys(node)) {
-                if (key.startsWith('$')) {
-                    continue;
-                }
-                const value = (node as Record<string, unknown>)[key];
-                if (isReference(value)) {
-                    void value.ref;
-                } else if (Array.isArray(value)) {
-                    for (const item of value) {
-                        if (isReference(item)) {
-                            void item.ref;
-                        }
-                    }
+            for (const info of AstUtils.streamReferences(node)) {
+                if (isReference(info.reference)) {
+                    void info.reference.ref;
                 }
             }
         }

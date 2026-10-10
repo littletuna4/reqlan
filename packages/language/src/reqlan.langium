@@ -99,9 +99,12 @@ PlainPunctuation returns string:
     '.' | ',' | ':' | ';' | '!' | '?' | '-';
 
 // ---------------------------------------------------------------------------
-// attribute_marker, attribute_forms, attribute_values
+// attribute_marker, attribute_forms, attribute_values, empty_attribute
 // ---------------------------------------------------------------------------
 
+// A line that is only `@` (optional spaces or tabs) is hidden whitespace.
+// ReqlanTokenBuilder consumes it on the WS token. This rule still requires a name.
+// rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
 // `!` is either the negated flag or absent — never the start of a value.
 // `:` is the legacy scalar separator and must not also start a ScalarValue.
 Attribute:

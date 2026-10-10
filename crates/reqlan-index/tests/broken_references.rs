@@ -1,19 +1,22 @@
 //! rq:["../../../reqlan rq/core_analysis/core.rq".test_references]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_order_by_target]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_sparse]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
 //! rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
 
 use reqlan_index::sync::{sync_workspace, SyncOptions};
 use reqlan_index::{
     check_references, extract_indexed_document, list_broken_references, path_glob_matches,
-    CheckReferencesOptions, EdgeKind, EdgeRecord, ExtractOptions, IndexStore,
-    ListBrokenReferencesOptions, SparseWildcardHandling, EXTRACT_VERSION,
+    path_glob_may_match_under, CheckReferencesOptions, EdgeKind, EdgeRecord, ExtractOptions,
+    IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling, EXTRACT_VERSION,
 };
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -30,7 +33,12 @@ fn sync_root(root: &PathBuf) -> IndexStore {
     let mut store = IndexStore::open_in_memory().unwrap();
     sync_workspace(
         &mut store,
-        &SyncOptions { workspace_root: root.clone(), hard_rebuild: true },
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: true,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
         &AtomicBool::new(false),
     )
     .unwrap();
@@ -42,7 +50,12 @@ fn run_check(
     root: &std::path::Path,
     path_glob: Option<&str>,
 ) -> Vec<reqlan_index::BrokenReference> {
-    check_references(store, root, CheckReferencesOptions { path_glob, ..Default::default() })
+    let one = path_glob.map(|glob| [glob]);
+    let path_globs: &[&str] = match &one {
+        Some(items) => items,
+        None => &[],
+    };
+    check_references(store, root, CheckReferencesOptions { path_globs, ..Default::default() })
         .unwrap()
 }
 
@@ -194,6 +207,7 @@ fn check_reports_qualified_reference_to_a_missing_file() {
         }),
         "{rows:?}"
     );
+    assert!(rows.iter().all(|row| row.kind != "references"), "{rows:?}");
     std::fs::remove_dir_all(&root).ok();
 }
 
@@ -206,7 +220,65 @@ fn check_accepts_qualified_reference_when_the_file_exists() {
     std::fs::write(root.join("host.rq"), "host {\n    [\"./src/app.ts\".term]\n}\n").unwrap();
     let store = sync_root(&root);
     let rows = run_check(&store, &root, None);
+    assert!(rows.is_empty(), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_reports_qualified_reference_to_a_missing_idea() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
+    let root = scratch("qual-missing-idea");
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    [\"./lib.rq\".seed]\n    [\"./lib\".seed]\n    [\"./lib.rq\".index_ideas]\n    [\"./lib\".also_missing]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    let missing: Vec<_> = rows.iter().filter(|row| row.kind == "references").collect();
+    assert_eq!(missing.len(), 2, "{rows:?}");
+    assert!(missing.iter().any(|row| row.label == "index_ideas" && row.severity == "error"));
+    assert!(missing.iter().any(|row| row.label == "also_missing"));
+    assert!(missing.iter().all(|row| row.label != "seed"), "{rows:?}");
     assert!(rows.iter().all(|row| row.kind != "file_reference"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_reports_namespace_qualified_reference_to_a_missing_idea() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
+    let root = scratch("qual-alias-missing-idea");
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "import \"./lib.rq\" as lib\nhost {\n    [lib.seed]\n    [lib.index_ideas]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(
+        rows.iter().any(|row| row.kind == "references" && row.label == "index_ideas"),
+        "{rows:?}"
+    );
+    assert!(rows.iter().all(|row| row.label != "seed"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_skips_qualified_missing_idea_on_rq_ignore_error() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
+    let root = scratch("qual-idea-ignore");
+    std::fs::write(root.join("lib.rq"), "seed {\n    ok\n}\n").unwrap();
+    std::fs::write(
+        root.join("host.rq"),
+        "host {\n    //rq-ignore-error\n    [\"./lib.rq\".ignored_idea]\n    [\"./lib.rq\".reported_idea]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().any(|row| row.kind == "references" && row.label == "reported_idea"));
+    assert!(rows.iter().all(|row| row.label != "ignored_idea"), "{rows:?}");
     std::fs::remove_dir_all(&root).ok();
 }
 
@@ -647,7 +719,12 @@ fn sync_drops_stale_inline_code_file_refs_when_extract_version_changes() {
 
     sync_workspace(
         &mut store,
-        &SyncOptions { workspace_root: root.clone(), hard_rebuild: false },
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: false,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
         &AtomicBool::new(false),
     )
     .unwrap();
@@ -781,5 +858,189 @@ fn check_skips_gitignored_import_paths() {
         skipped.iter().any(|row| row.kind == "import" && row.label == "./gone.rq"),
         "{skipped:?}"
     );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+#[test]
+fn check_reports_a_malformed_comment_reference() {
+    let root = scratch("comment-syntax");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("demo.rq"), "alpha {\n    body\n}\n").unwrap();
+    std::fs::write(
+        root.join("src").join("app.ts"),
+        "// rq:[alpha]\n// rq:[123bad]\n# rq:[\"../demo.rq\"]\n// rq:[missing_idea]\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    let syntax: Vec<_> = rows.iter().filter(|row| row.kind == "comment_syntax").collect();
+    assert_eq!(syntax.len(), 2, "{rows:?}");
+    assert!(
+        syntax.iter().any(|row| {
+            row.label == "invalid idea name in comment reference: rq:[123bad]"
+                && row.file_uri == "src/app.ts"
+                && row.severity == "error"
+                && row.source_line == Some(1)
+        }),
+        "{rows:?}"
+    );
+    assert!(
+        syntax
+            .iter()
+            .any(|row| row.label == "comment reference has no idea name: rq:[\"../demo.rq\"]"),
+        "{rows:?}"
+    );
+    assert!(rows.iter().any(|row| row.kind == "comment_link" && row.label == "missing_idea"));
+    assert!(rows.iter().all(|row| row.kind != "comment_link" || row.label != "alpha"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
+// rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+#[test]
+fn check_skips_comment_syntax_on_rq_ignore_error() {
+    let root = scratch("comment-syntax-ignore");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("src").join("app.ts"),
+        "//rq-ignore-error\n// rq:[123bad]\n// rq:[]\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().all(|row| !row.label.contains("123bad")), "{rows:?}");
+    assert!(
+        rows.iter().any(|row| {
+            row.kind == "comment_syntax" && row.label == "empty comment reference: rq:[]"
+        }),
+        "{rows:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn path_glob_may_match_under_prunes_unrelated_directories() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    assert!(path_glob_may_match_under("src/**", "src"));
+    assert!(path_glob_may_match_under("src/**", "src/nested"));
+    assert!(!path_glob_may_match_under("src/**", "other"));
+    assert!(!path_glob_may_match_under("", "src"));
+    assert!(path_glob_may_match_under("*.rq", "other"));
+    assert!(path_glob_may_match_under("a/**", ""));
+}
+
+#[test]
+fn check_two_globs_report_an_outside_target_and_skip_outside_directories() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    let root = scratch("multi-glob");
+    std::fs::create_dir_all(root.join("a")).unwrap();
+    std::fs::create_dir_all(root.join("b")).unwrap();
+    std::fs::create_dir_all(root.join("c").join("nested")).unwrap();
+    std::fs::write(root.join("c").join("present.ts"), "export {}\n").unwrap();
+    std::fs::write(
+        root.join("a").join("host.rq"),
+        "host {\n    [missing_a]\n    [\"../c/present.ts\"]\n    [\"../c/missing.ts\"]\n}\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("b").join("side.rq"), "side {\n    [missing_b]\n}\n").unwrap();
+    std::fs::write(
+        root.join("c").join("nested").join("decoy.rq"),
+        "decoy {\n    [decoy_missing]\n}\n",
+    )
+    .unwrap();
+
+    let mut store = IndexStore::open_in_memory().unwrap();
+    sync_workspace(
+        &mut store,
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: true,
+            path_globs: vec!["a/**".into(), "b/**".into()],
+            include_files: Vec::new(),
+        },
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    let uris = store.list_document_uris().unwrap();
+    assert!(uris.iter().any(|uri| uri.ends_with("a/host.rq")), "{uris:?}");
+    assert!(uris.iter().any(|uri| uri.ends_with("b/side.rq")), "{uris:?}");
+    assert!(uris.iter().all(|uri| !uri.contains("decoy")), "{uris:?}");
+    assert!(uris.iter().all(|uri| !uri.contains("c/")), "{uris:?}");
+
+    let rows = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { path_globs: &["a/**", "b/**"], ..Default::default() },
+    )
+    .unwrap();
+    assert!(rows.iter().any(|row| row.label == "missing_a"), "{rows:?}");
+    assert!(rows.iter().any(|row| row.label == "missing_b"), "{rows:?}");
+    assert!(
+        rows.iter().any(|row| row.kind == "file_reference" && row.label.contains("missing.ts")),
+        "{rows:?}"
+    );
+    assert!(rows.iter().all(|row| !row.label.contains("present.ts")), "{rows:?}");
+    assert!(rows.iter().all(|row| row.label != "decoy_missing"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_includes_an_explicit_file_outside_the_globs() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    let root = scratch("extra-file");
+    std::fs::create_dir_all(root.join("a")).unwrap();
+    std::fs::create_dir_all(root.join("c").join("nested")).unwrap();
+    std::fs::write(root.join("a").join("host.rq"), "host {\n    local\n}\n").unwrap();
+    std::fs::write(root.join("c").join("leaf.rq"), "leaf {\n    [leaf_missing]\n}\n").unwrap();
+    std::fs::write(
+        root.join("c").join("nested").join("decoy.rq"),
+        "decoy {\n    [decoy_missing]\n}\n",
+    )
+    .unwrap();
+
+    let mut store = IndexStore::open_in_memory().unwrap();
+    sync_workspace(
+        &mut store,
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: true,
+            path_globs: vec!["a/**".into()],
+            include_files: vec![root.join("c"), root.join("c").join("leaf.rq")],
+        },
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    let uris = store.list_document_uris().unwrap();
+    assert!(uris.iter().any(|uri| uri.ends_with("c/leaf.rq")), "{uris:?}");
+    assert!(uris.iter().all(|uri| !uri.contains("decoy")), "{uris:?}");
+
+    let rows = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions {
+            path_globs: &["a/**"],
+            extra_files: &["c/leaf.rq"],
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(rows.iter().any(|row| row.label == "leaf_missing"), "{rows:?}");
+    assert!(rows.iter().all(|row| row.label != "decoy_missing"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_rejects_an_empty_path_glob() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+    let root = scratch("empty-glob");
+    std::fs::write(root.join("host.rq"), "host {\n    local\n}\n").unwrap();
+    let store = sync_root(&root);
+    let error = check_references(
+        &store,
+        &root,
+        CheckReferencesOptions { path_globs: &[""], ..Default::default() },
+    );
+    assert!(error.is_err(), "{error:?}");
     std::fs::remove_dir_all(&root).ok();
 }

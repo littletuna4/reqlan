@@ -155,6 +155,11 @@ fn match_token(bytes: &[u8], offset: usize, cache: &BraceScanCache) -> Option<(T
         return Some((TokenKind::RBrace, 1));
     }
     if bytes[offset] == b'@' && at_sign_is_attribute(bytes, offset) {
+        // rq:["../../../reqlan rq/language/syntax.rq".empty_attribute]
+        // A line that is only `@` is insignificant whitespace. Named attributes stay `@` tokens.
+        if rest_of_line_is_blank(bytes, offset) {
+            return Some((TokenKind::Ws, 1));
+        }
         return Some((TokenKind::At, 1));
     }
     if offset + 1 < bytes.len() && bytes[offset] == b'[' && bytes[offset + 1] == b'[' {
@@ -169,6 +174,8 @@ fn match_token(bytes: &[u8], offset: usize, cache: &BraceScanCache) -> Option<(T
         b')' => return Some((TokenKind::RParen, 1)),
         b'[' => return Some((TokenKind::LBrack, 1)),
         b']' => return Some((TokenKind::RBrack, 1)),
+        // Dot between two names: `[ideaset.member]` and `[idea.attribute]`.
+        // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
         b'.' => return Some((TokenKind::Dot, 1)),
         b',' => return Some((TokenKind::Comma, 1)),
         b':' => return Some((TokenKind::Colon, 1)),
@@ -230,6 +237,8 @@ fn utf8_len(bytes: &[u8], offset: usize) -> usize {
     width.min(bytes.len() - offset).max(1)
 }
 
+// A space and a tab are the indent characters.
+// rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
 fn match_ws(bytes: &[u8], offset: usize) -> Option<usize> {
     let mut index = offset;
     while index < bytes.len() && (bytes[index] == b' ' || bytes[index] == b'\t') {

@@ -78,6 +78,7 @@ refactor_symbol_move {
         ["../../../packages/language/src/reqlan-idea-refactor.ts"]
         ["../../../packages/language/src/reqlan-idea-move-imports.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
         ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"]
     )
@@ -88,6 +89,7 @@ refactor_symbol_move {
         ["../../../packages/language/test/idea-refactor.test.ts:move plan adds a sibling import on the destination"]
         ["../../../packages/language/test/idea-refactor.test.ts:move content plan leaves a source stub that imports the moved idea"]
         ["../../../packages/language/test/code-actions.test.ts:offers move and delete actions at an idea declaration"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_move_and_delete_actions_at_an_idea_declaration"]
         ["../../../packages/extension/test/extension-package.test.ts:package.json contributes move idea and move idea content commands"]
     )
 }
@@ -97,10 +99,11 @@ refactor_symbol_delete {
     Deleting should remove the declaration, clear or rewrite AST and comment references
     that targeted it ([comment_reference_refactor_support]), and reindex affected files.
     [refactor_support] [refactor_changes]
-    Implemented by ["../../../packages/language/src/reqlan-idea-refactor.ts"], ["../../../packages/language/src/reqlan-code-action-provider.ts"], and ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"].
+    Implemented by ["../../../packages/language/src/reqlan-idea-refactor.ts"], ["../../../packages/language/src/reqlan-code-action-provider.ts"], ["../../../crates/reqlan-lsp/src/code_actions.rs"], and ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"].
     @tests (
         ["../../../packages/language/test/idea-refactor.test.ts:delete plan removes declaration and bracket references"]
         ["../../../packages/language/test/idea-refactor.test.ts:delete plan removes matching comment references"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_move_and_delete_actions_at_an_idea_declaration"]
     )
 }
 

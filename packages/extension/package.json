@@ -81,6 +81,17 @@
           "type": "boolean",
           "default": false,
           "description": "Show CodeLens buttons on references that open a classification card (idea / reqlan or other file / folder) with summary stats. Navigation stays on editor links. File-top inbound @referenced-by CodeLens is always shown when the file has inbound file references."
+        },
+        "reqlan.ideaContentTooltip.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the idea body in the hover tooltip. The tooltip uses a heading, attributes, lists, and code. Turn this off to show only the idea name and one-line summary."
+        },
+        "reqlan.languageServer.engine": {
+          "type": "string",
+          "enum": ["rust", "node"],
+          "default": "rust",
+          "description": "Language server process. rust launches bin/reqlan-lsp over stdio. node is the Langium process, used when rust is selected and the binary is not on disk."
         }
       }
     },

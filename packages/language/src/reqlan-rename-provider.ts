@@ -1,5 +1,5 @@
 /**
- * LSP rename for reqlan symbols, including `rq:[...]` comment idea tokens in .rq docs.
+ * LSP rename for reqlan symbols, including comment idea tokens in .rq docs.
  * rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".refactor_support]
  */

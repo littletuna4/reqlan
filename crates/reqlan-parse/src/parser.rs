@@ -275,7 +275,7 @@ impl<'s> Parser<'s> {
                 text,
             });
         }
-        let path = Self::unquote(&self.bump_text());
+        let (path, path_span) = self.take_string();
         if self.eat(TokenKind::ImportKw).is_some() {
             let mut specifiers = vec![self.parse_from_specifier()];
             while self.eat(TokenKind::Comma).is_some() {
@@ -285,35 +285,45 @@ impl<'s> Parser<'s> {
             return Import::From(FromImport {
                 span: self.span_of(&start, &end),
                 path,
+                path_span,
                 specifiers,
                 alias: None,
+                alias_span: None,
             });
         }
         if self.eat(TokenKind::AsKw).is_some() {
-            let alias = self.expect_id();
+            let (alias, alias_span) = self.take_optional_id();
             let end = self.current().clone();
             return Import::From(FromImport {
                 span: self.span_of(&start, &end),
                 path,
+                path_span,
                 specifiers: Vec::new(),
                 alias,
+                alias_span,
             });
         }
         let end = self.current().clone();
         Import::From(FromImport {
             span: self.span_of(&start, &end),
             path,
+            path_span,
             specifiers: Vec::new(),
             alias: None,
+            alias_span: None,
         })
     }
 
     fn parse_from_specifier(&mut self) -> FromImportSpecifier {
         let start = self.current().clone();
-        let idea = self.expect_id().unwrap_or_default();
-        let alias = if self.eat(TokenKind::AsKw).is_some() { self.expect_id() } else { None };
+        let (idea, idea_span) = self.take_id_or_empty(&start);
+        let (alias, alias_span) = if self.eat(TokenKind::AsKw).is_some() {
+            self.take_optional_id()
+        } else {
+            (None, None)
+        };
         let end = self.current().clone();
-        FromImportSpecifier { span: self.span_of(&start, &end), idea, alias }
+        FromImportSpecifier { span: self.span_of(&start, &end), idea, idea_span, alias, alias_span }
     }
 
     fn parse_import_kw_line(&mut self) -> Import {
@@ -326,24 +336,44 @@ impl<'s> Parser<'s> {
                 text: "import".into(),
             });
         }
-        let path = Self::unquote(&self.bump_text());
+        let (path, path_span) = self.take_string();
         if self.eat(TokenKind::Dot).is_some() {
-            let ideaset = self.expect_id().unwrap_or_default();
+            let ideaset_token = self.current().clone();
+            let (ideaset, ideaset_span) = self.take_id_or_empty(&ideaset_token);
             self.eat(TokenKind::Dot);
-            let idea = self.expect_id().unwrap_or_default();
-            let alias = if self.eat(TokenKind::AsKw).is_some() { self.expect_id() } else { None };
+            let idea_token = self.current().clone();
+            let (idea, idea_span) = self.take_id_or_empty(&idea_token);
+            let (alias, alias_span) = if self.eat(TokenKind::AsKw).is_some() {
+                self.take_optional_id()
+            } else {
+                (None, None)
+            };
             let end = self.current().clone();
             return Import::Qualified(QualifiedImport {
                 span: self.span_of(&start, &end),
                 path,
+                path_span,
                 ideaset,
+                ideaset_span,
                 idea,
+                idea_span,
                 alias,
+                alias_span,
             });
         }
-        let alias = if self.eat(TokenKind::AsKw).is_some() { self.expect_id() } else { None };
+        let (alias, alias_span) = if self.eat(TokenKind::AsKw).is_some() {
+            self.take_optional_id()
+        } else {
+            (None, None)
+        };
         let end = self.current().clone();
-        Import::Namespace(NamespaceImport { span: self.span_of(&start, &end), path, alias })
+        Import::Namespace(NamespaceImport {
+            span: self.span_of(&start, &end),
+            path,
+            path_span,
+            alias,
+            alias_span,
+        })
     }
 
     fn parse_top_level(&mut self) -> TopLevelElement {
@@ -481,7 +511,60 @@ impl<'s> Parser<'s> {
             }
             elements.push(BodyElement::BodyLine(self.parse_body_line()));
         }
+        // rq:["../../../reqlan rq/language/syntax_whitespace.rq".idea-leading-whitespace]
+        self.apply_relative_body_indent(&mut elements);
         elements
+    }
+
+    /// Base indent is the space/tab prefix of the first body line that starts the line.
+    /// A later line keeps only the whitespace after that prefix.
+    /// Space and tab match the lexer `match_ws` character class.
+    fn apply_relative_body_indent(&self, elements: &mut [BodyElement]) {
+        let Some(base) = elements.iter().find_map(|element| match element {
+            BodyElement::BodyLine(line) => self.owned_line_indent(line.span.start),
+            _ => None,
+        }) else {
+            return;
+        };
+        let base = base.to_string();
+        for element in elements.iter_mut() {
+            let BodyElement::BodyLine(line) = element else {
+                continue;
+            };
+            let Some(indent) = self.owned_line_indent(line.span.start) else {
+                continue;
+            };
+            let extra = extra_indent(&base, indent);
+            if extra.is_empty() {
+                continue;
+            }
+            let extra_start = line.span.start - extra.len();
+            prepend_body_indent(line, extra_start, extra);
+        }
+    }
+
+    /// Leading spaces and tabs when `offset` is the first non-whitespace byte on its line.
+    fn owned_line_indent(&self, offset: usize) -> Option<&str> {
+        let bytes = self.source.as_bytes();
+        if offset > bytes.len() {
+            return None;
+        }
+        let mut line_start = offset;
+        while line_start > 0 {
+            let previous = bytes[line_start - 1];
+            if previous == b'\n' || previous == b'\r' {
+                break;
+            }
+            line_start -= 1;
+        }
+        let mut index = line_start;
+        while index < bytes.len() && (bytes[index] == b' ' || bytes[index] == b'\t') {
+            index += 1;
+        }
+        if index != offset {
+            return None;
+        }
+        self.source.get(line_start..offset)
     }
 
     fn named_list_follows(&self) -> bool {
@@ -787,6 +870,9 @@ impl<'s> Parser<'s> {
         }
         if self.at(TokenKind::Id) {
             let first = self.bump_text();
+            // `[ideaset.member]` and `[idea.attribute]` share this token shape.
+            // rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+            // rq:["../../../reqlan rq/language/syntax.rq".references_to_subidea]
             if self.eat(TokenKind::Dot).is_some() && self.at(TokenKind::Id) {
                 let second = self.bump_text();
                 if self.eat(TokenKind::Dot).is_some() && self.at(TokenKind::Id) {
@@ -816,11 +902,28 @@ impl<'s> Parser<'s> {
     }
 
     fn expect_id(&mut self) -> Option<String> {
+        self.take_optional_id().0
+    }
+
+    fn take_string(&mut self) -> (String, Span) {
+        let token = self.bump();
+        (Self::unquote(&self.token_text(&token)), Span::from_token(&token))
+    }
+
+    fn take_optional_id(&mut self) -> (Option<String>, Option<Span>) {
         if self.at(TokenKind::Id) {
-            Some(self.bump_text())
+            let token = self.bump();
+            (Some(self.token_text(&token)), Some(Span::from_token(&token)))
         } else {
             self.error("expected identifier");
-            None
+            (None, None)
+        }
+    }
+
+    fn take_id_or_empty(&mut self, fallback: &Token) -> (String, Span) {
+        match self.take_optional_id() {
+            (Some(name), Some(span)) => (name, span),
+            _ => (String::new(), Span::from_token(fallback)),
         }
     }
 
@@ -843,4 +946,37 @@ impl<'s> Parser<'s> {
 
 fn collapse_ws(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Remove `base` only when `indent` starts with that same space/tab prefix.
+/// Otherwise keep `indent`.
+fn extra_indent<'a>(base: &str, indent: &'a str) -> &'a str {
+    match indent.strip_prefix(base) {
+        Some(rest) => rest,
+        None => indent,
+    }
+}
+
+fn prepend_body_indent(line: &mut BodyLine, extra_start: usize, extra: &str) {
+    let old_start = line.span.start;
+    line.span.start = extra_start;
+    if let Some(RichPart::Text { span, text }) = line.parts.first_mut() {
+        if span.start == old_start {
+            span.start = extra_start;
+            text.insert_str(0, extra);
+            return;
+        }
+    }
+    line.parts.insert(
+        0,
+        RichPart::Text {
+            span: Span {
+                start: extra_start,
+                end: old_start,
+                line_start: line.span.line_start,
+                line_end: line.span.line_start,
+            },
+            text: extra.to_string(),
+        },
+    );
 }

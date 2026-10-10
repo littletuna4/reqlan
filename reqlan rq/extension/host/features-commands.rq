@@ -73,6 +73,7 @@ search_code_actions {
         ["../../../packages/language/src/reqlan-idea-reference-site.ts"]
         ["../../../packages/language/src/reqlan-reference-search-site.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/extension/reference-search-panel.ts"]
         ["../../../packages/extension/src/extension/reference-search-import-path.ts"]
         ["../../../packages/extension/src/shared/fuzzy-search.ts"]
@@ -86,6 +87,9 @@ search_code_actions {
         ["../../../packages/extension/test/reference-search.test.ts"]
         ["../../../packages/extension/test/extension-package.test.ts"]
         ["../../../crates/reqlan-search/tests/fuzzy.rs"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_search_code_action_when_cursor_is_inside_a_resolved_reference"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_wrap_code_action_for_a_prose_selection"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:wraps_the_word_under_the_cursor_when_selection_is_empty"]
     )
 }
 
@@ -107,6 +111,7 @@ barrel_page {
         ["../../../packages/cli/src/commands/barrel.ts"]
         ["../../../packages/cli/src/main.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/mutation_module/refactor/register-barrel-page-command.ts"]
         ["../../../packages/extension/src/mutation_module/refactor/barrel-page-apply.ts"]
         ["../../../packages/extension/package.json"]
@@ -116,6 +121,8 @@ barrel_page {
         ["../../../packages/analytical/test/barrel-page.test.ts:writes child files and replaces the source with a container"]
         ["../../../packages/language/test/code-actions.test.ts:offers barrel page source action when the file has top-level ideas"]
         ["../../../packages/language/test/code-actions.test.ts:omits barrel page when only quickfix is requested or there are no ideas"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_barrel_page_source_action_when_the_file_has_top_level_ideas"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_barrel_page_when_only_quickfix_is_requested_or_there_are_no_ideas"]
         ["../../../packages/extension/test/barrel-page-apply.test.ts:maps child file names next to the source path"]
         ["../../../packages/extension/test/barrel-page-apply.test.ts:detects overwrite conflicts and source-self collision"]
     )
@@ -134,6 +141,7 @@ file_based_code_actions {
     @ideating.
     @implementation (
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/mutation_module/refactor/register-barrel-page-command.ts"]
     )
     @tests (
@@ -152,6 +160,7 @@ code_actions_ignore_error {
     @implementation (
         ["../../../packages/language/src/reqlan-ignore-error-action.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
         ["../../../packages/extension/src/extension/ignore-error-comment-filter.ts"]
         ["../../../packages/extension/src/extension/main.ts"]
@@ -159,6 +168,8 @@ code_actions_ignore_error {
     @tests (
         ["../../../packages/language/test/code-actions.test.ts:offers ignore-error quick fix on a line with a linking error"]
         ["../../../packages/language/test/code-actions.test.ts:omits ignore-error when only refactor is requested"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_ignore_error_quick_fix_on_a_line_with_a_linking_error"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_ignore_error_when_only_refactor_is_requested"]
         ["../../../packages/language/test/ignore-error-action.test.ts:inserts indented ignore comment before the error line"]
         ["../../../packages/language/test/ignore-error-action.test.ts:uses tab indent and CRLF when the error line uses them"]
         ["../../../packages/language/test/ignore-error-action.test.ts:wraps the ignore comment for a hash-comment error line"]
@@ -180,6 +191,7 @@ create_idea_below_idea_containing_unresolved_reference_under_cursor {
     @implementation (
         ["../../../packages/language/src/reqlan-create-idea-below.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
     )
     @tests (
         ["../../../packages/language/test/code-actions.test.ts:creates the missing idea below the containing idea when only one is unresolved"]
@@ -187,5 +199,10 @@ create_idea_below_idea_containing_unresolved_reference_under_cursor {
         ["../../../packages/language/test/code-actions.test.ts:omits create-below when the caret idea has no unresolved local references"]
         ["../../../packages/language/test/code-actions.test.ts:omits create-below for a qualified unresolved reference"]
         ["../../../packages/language/test/code-actions.test.ts:omits create-below when only refactor is requested"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:creates_the_missing_idea_below_the_containing_idea"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_all_or_a_specific_unresolved_idea"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_the_caret_idea_has_no_unresolved_local_references"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_for_a_qualified_unresolved_reference"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_only_refactor_is_requested"]
     )
 }

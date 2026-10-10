@@ -25,31 +25,41 @@ pub enum Import {
 pub struct FromImport {
     pub span: Span,
     pub path: String,
+    pub path_span: Span,
     pub specifiers: Vec<FromImportSpecifier>,
     pub alias: Option<String>,
+    pub alias_span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]
 pub struct FromImportSpecifier {
     pub span: Span,
     pub idea: String,
+    pub idea_span: Span,
     pub alias: Option<String>,
+    pub alias_span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]
 pub struct NamespaceImport {
     pub span: Span,
     pub path: String,
+    pub path_span: Span,
     pub alias: Option<String>,
+    pub alias_span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]
 pub struct QualifiedImport {
     pub span: Span,
     pub path: String,
+    pub path_span: Span,
     pub ideaset: String,
+    pub ideaset_span: Span,
     pub idea: String,
+    pub idea_span: Span,
     pub alias: Option<String>,
+    pub alias_span: Option<Span>,
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +239,15 @@ impl Import {
         }
     }
 
+    pub fn path_span(&self) -> Option<Span> {
+        match self {
+            Self::From(import) => Some(import.path_span),
+            Self::Namespace(import) => Some(import.path_span),
+            Self::Qualified(import) => Some(import.path_span),
+            Self::InvalidFrom(_) => None,
+        }
+    }
+
     pub fn is_namespace(&self) -> bool {
         matches!(self, Self::Namespace(_))
     }
@@ -238,6 +257,50 @@ impl Import {
             Self::Namespace(import) => import.alias.as_deref(),
             _ => None,
         }
+    }
+}
+
+impl Model {
+    /// Names this file binds with an import, and the 0-based line of that binding.
+    /// A namespace import binds its `as` name.
+    /// A from-import or qualified import binds its `as` name, or the idea name when `as` is absent.
+    /// A mistaken `from "path" as alias` binds nothing.
+    pub fn import_bindings(&self) -> Vec<(String, u32)> {
+        let mut names = Vec::new();
+        for import in &self.imports {
+            match import {
+                Import::Namespace(namespace) => {
+                    if let Some(alias) = namespace.alias.as_deref().filter(|name| !name.is_empty())
+                    {
+                        names.push((alias.to_string(), namespace.span.line_start));
+                    }
+                }
+                Import::From(from) if !from.specifiers.is_empty() => {
+                    for specifier in &from.specifiers {
+                        let name = specifier
+                            .alias
+                            .as_deref()
+                            .filter(|alias| !alias.is_empty())
+                            .unwrap_or(specifier.idea.as_str());
+                        if !name.is_empty() {
+                            names.push((name.to_string(), specifier.span.line_start));
+                        }
+                    }
+                }
+                Import::Qualified(qualified) => {
+                    let name = qualified
+                        .alias
+                        .as_deref()
+                        .filter(|alias| !alias.is_empty())
+                        .unwrap_or(qualified.idea.as_str());
+                    if !name.is_empty() {
+                        names.push((name.to_string(), qualified.span.line_start));
+                    }
+                }
+                Import::From(_) | Import::InvalidFrom(_) => {}
+            }
+        }
+        names
     }
 }
 

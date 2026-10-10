@@ -5,7 +5,8 @@
  * ./graph-cy-elements, pointer wiring in ./graph-cy-interactions, and live physics is
  * the custom continuous simulation in ./graph-physics (central gravity + link
  * attraction + node repulsion).
- * per rq:["../../../../../reqlan rq/extension/presentation/graph.rq"] graph_cy_controller, reframe_view
+ * rq:["../../../../../reqlan rq/extension/presentation/graph.rq".graph_cy_controller]
+ * rq:["../../../../../reqlan rq/extension/presentation/graph.rq".reframe_view]
  */
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';

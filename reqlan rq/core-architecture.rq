@@ -31,6 +31,7 @@ import "../.changeset/config.json" as changeset_config
 import "./bases/base.rq" as bases
 import "./indexer/indexer.rq" as indexer
 import "./core_analysis/rust_port.rq" as rust_port
+import "./extension/language/support/language-server-rust.rq" as lsp_rust
 
 scope {
     These requirements describe the cross-package system architecture of the reqlan monorepo:
@@ -71,7 +72,7 @@ analytical_package {
         constraints
             - Distribution: [distribution.rust_binary_distribution] + [distribution.vsix_export] — npm optional platform packages and host-targeted VSIX; website downloads and GitHub-release postinstall out of scope.
             - Shared on-disk [ideas_index] under `<base>/.reqlan` is schema v4 rusqlite (native required; no sql.js fallback).
-            - [grammar_and_parser] / [language_server] stay Langium; this is not a tree-sitter or tower-lsp rewrite.
+            - The language server is [lsp_rust.language_server_rust]. This analytical plan does not replace that process. Do not switch the language to tree-sitter ([grammar_and_parser]).
             - Port the context-sensitive lexer ([rust_port.lexer_rust]) rather than a parser-generator that cannot honour [syntax] brace/fence rules.
             - [indexer.nonblocking_index] and [parser_lexer.parse_budget_timeout] still apply; [development_core.rust_mindset] and [constitution.supply_chain] (mature crates).
             - Extension host requires the host-matching napi `.node` from the per-target VSIX ([distribution.extension_host_target]).
@@ -87,7 +88,7 @@ analytical_package {
             7. Publish on `analytical/v*` and ship per-target VSIXes ([distribution.rust_binary_distribution], [distribution.vsix_export]).
 
         open
-            - Language-server port remains Langium; CLI `parse` uses the core Rust engine.
+            - Language-server process: [lsp_rust.language_server_rust]. CLI `parse` uses the core Rust engine.
     }
 }
 
@@ -95,7 +96,7 @@ extension_package {
     `packages/extension` (npm `reqlan-extension`) is the editor product per [distribution.extension_package].
     It registers `.rq` language support, TextMate grammars, starts the language client, and owns activity bar, Ideas Summary, chat, skills, and mutation hooks.
     Ideas index engine lives in [analytical_package] / [indexer]; the extension only hosts a thin VS Code adapter ([editor_index_adapter]) for watchers and UI.
-    Host entry: [extension_main]. LSP process entry: [language_server_main].
+    Host entry: [extension_main]. LSP process: [lsp_rust.language_server_rust]. Node fallback: [language_server_main].
     Depends on [language_package] and [analytical_package].
     Follows [extension_architecture.event_driven] and [extension_architecture.state_machine_mindset] for JS state;
     webview UI standards in ["./codestyle/typescript.rq".ui_state_management].
@@ -140,17 +141,21 @@ package_versioning {
 }
 
 grammar_and_parser {
-    Grammar is Langium (Chevrotain), not tree-sitter.
-    Main `.rq` grammar: [reqlan_grammar]. Comment-token grammar for `rq:[…]` in non-`.rq` sources: [comment_grammar].
-    `langium generate` produces AST/grammar modules and TextMate JSON; TextMate is patched and copied into the extension at build time per [development_build.build_prepare].
+    The language server parses with `reqlan-parse` ([lsp_rust.language_server_rust]).
+    Do not switch the language to tree-sitter.
+    Main `.rq` grammar file: [reqlan_grammar]. Comment-token grammar for `rq:[…]` in non-`.rq` sources: [comment_grammar].
+    `langium generate` still builds host AST modules and TextMate JSON per [development_build.build_prepare].
+    The checked-in TextMate grammar paints the editor before semantic tokens.
     Syntax requirements that the grammar must satisfy live in [syntax]; conceptual units in [ontology.idea], [ontology.ideaset], [ontology.reference], [ontology.import_statement].
-    Services are wired in [language_module].
+    Host services stay in [language_module]. The language server does not load them.
 }
 
 language_server {
-    The language server is a separate Node process started by the extension host over IPC ([extension_main] → [language_server_main]).
-    It runs [language_module] `createReqlanServices` for live editing: definition, completion, semantic tokens, inlays, document links, validation.
-    It owns open-document language intelligence for `.rq` files (and related language features), not the full-workspace SQLite ideas index.
+    The language server is the `reqlan-lsp` binary ([lsp_rust.language_server_rust]).
+    The extension launches it over stdio ([extension_main]).
+    It parses open `.rq` buffers for definition, completion, semantic tokens, inlays, document links, and validation.
+    It reads the ideas index for workspace names. It does not keep a syntax tree for every file.
+    A Node Langium process remains only when `reqlan.languageServer.engine` is `node`, or when the binary is missing ([language_server_main]).
     Product expectation for LSP navigation and validation: [extension_scope.lsp_support].
 }
 
@@ -172,12 +177,12 @@ base_containers {
 }
 
 runtime_topology {
-    Two Langium runtimes share [language_package] but not one process.
-    - LSP process: live `.rq` editing intelligence via [language_server_main].
+    The editor and the index do not share one process.
+    - LSP process: `reqlan-lsp` for live `.rq` editing ([lsp_rust.language_server_rust]).
     - Analytical [workspace_index] (extension host via [editor_index_adapter], MCP/CLI via [analysis_runtime]): full-workspace graph for tables, local graph, chat, MCP.
     Editor ↔ extension host: VS Code APIs and webview postMessage.
-    Editor ↔ LSP: vscode-languageclient IPC.
-    Attribute catalog and similar custom notifications may sync from the index side into the LSP for completions.
+    Editor ↔ LSP: vscode-languageclient over stdio.
+    The language server reads the ideas index directly. Host catalog notifications are optional.
     Stack sketch: [development_core.stack].
 }
 

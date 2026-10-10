@@ -90,6 +90,17 @@ fn read(path: &std::path::Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
+fn idea_table_row(html: &str, name: &str) -> String {
+    let marker = format!(">{name}</a></strong>");
+    let start = html.find(&marker).unwrap_or_else(|| panic!("missing idea link {name}"));
+    let row_start = html[..start].rfind("<tr").unwrap_or_else(|| panic!("missing row for {name}"));
+    let row_end =
+        html[start..].find("</tr>").unwrap_or_else(|| panic!("missing row end for {name}"))
+            + start
+            + "</tr>".len();
+    html[row_start..row_end].to_string()
+}
+
 // rq:["../../../reqlan rq/core_analysis/rust_port.rq".export_rust]
 #[test]
 fn html_export_writes_ts_page_template_set_and_embeds_assets() {
@@ -178,6 +189,9 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
     assert!(index_html.contains(&export_tag_cluster.page.path));
     assert!(index_html.contains(&snapshot.clusters[0].page.path));
     assert!(ideas_index_html.contains("Filter ideas"));
+    assert!(ideas_index_html.contains(r#"data-filter-key="in""#));
+    assert!(ideas_index_html.contains(r#"data-filter-key="out""#));
+    assert!(!ideas_index_html.contains("Refs in/out"));
     assert!(ideas_index_html.contains(r#"data-filter-key="status""#));
     assert!(ideas_index_html.contains(r#"data-filter-key="tags""#));
     assert!(ideas_index_html.contains(&todo_status_cluster.page.path));
@@ -263,6 +277,32 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
     assert!(search_index_js.contains("alpha"));
     assert!(search_index_js.contains("code-file"));
     assert!(search_index_js.contains("attributes/status.html"));
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_ideas_ref_columns]
+#[test]
+fn ideas_index_splits_inbound_and_outbound_counts() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let (alpha, beta) = persist_pair(&mut store);
+    let output_dir = temp_out("idea-ref-columns");
+    let request = html_request(&output_dir, "idea-ref-columns");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let ideas_index_html = read(result.ideas_index_file_path.as_ref().unwrap());
+    let styles_css = read(&result.output_dir.join("assets/styles.css"));
+
+    assert!(ideas_index_html.contains(r#"data-filter-key="in">In</th>"#));
+    assert!(ideas_index_html.contains(r#"data-filter-key="out">Out</th>"#));
+    assert!(!ideas_index_html.contains("Refs in/out"));
+    assert!(!ideas_index_html.contains("0/2"));
+    assert!(!ideas_index_html.contains("1/0"));
+
+    let alpha_row = idea_table_row(&ideas_index_html, &alpha.name);
+    let beta_row = idea_table_row(&ideas_index_html, &beta.name);
+    assert!(alpha_row.contains(r#"<td class="count">0</td><td class="count">2</td>"#));
+    assert!(beta_row.contains(r#"<td class="count">1</td><td class="count">0</td>"#));
+    assert!(styles_css.contains("td.count"));
     std::fs::remove_dir_all(&output_dir).ok();
 }
 
@@ -480,5 +520,168 @@ fn html_export_workspace_graph_includes_wildcard_refs_chip_and_edges() {
     assert!(graph_html.contains("Wildcard refs"));
     assert!(app_js.contains("includeWildcardRefs"));
     assert!(app_js.contains("wildcard_reference"));
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_print_body_whitespace]
+#[test]
+fn print_pages_keep_relative_body_indent() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    // The index summary still collapses body whitespace. Feed the stored body directly.
+    let body = "First body line\n    four extra spaces stay";
+    let record = idea("reqs/indent.rq", "indent_body", body, "{}");
+    store.upsert_document("reqs/indent.rq", "hash-indent", &[record.clone()], &[], None).unwrap();
+    let output_dir = temp_out("body-indent");
+    let request = html_request(&output_dir, "body-indent");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let print_home_html = read(&result.output_dir.join(&snapshot.manifest.print_home.path));
+    let print_idea_html = read(
+        &result
+            .output_dir
+            .join(snapshot.ideas_by_id[&record.id].page.printable_path.as_ref().unwrap()),
+    );
+    let idea_html = read(&result.output_dir.join(&snapshot.ideas_by_id[&record.id].page.path));
+    let styles_css = read(&result.output_dir.join("assets/styles.css"));
+    let preserved = "First body line<br>    four extra spaces stay";
+    assert!(
+        print_home_html.contains(r#"class="print-idea-body""#),
+        "printable report must mark the body"
+    );
+    assert!(
+        print_home_html.contains(preserved),
+        "printable report dropped relative indent: {print_home_html}"
+    );
+    assert!(
+        print_idea_html.contains(r#"class="print-idea-body""#),
+        "printable idea sheet must mark the body"
+    );
+    assert!(
+        print_idea_html.contains(preserved),
+        "printable idea sheet dropped relative indent: {print_idea_html}"
+    );
+    assert!(
+        styles_css.contains(".print-idea-body {\n    white-space: pre-wrap;"),
+        "print body CSS must keep spaces and wrap"
+    );
+    assert!(!idea_html.contains("print-idea-body"), "interactive pages stay on idea-summary");
+    assert!(idea_html.contains(r#"class="idea-summary""#));
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_internal_links]
+#[test]
+fn attribute_link_opens_the_attribute_on_the_idea_page() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let file = "reqs/attr.rq";
+    let host = idea(
+        file,
+        "host",
+        "see [attribute_namespacing.example] and [attribute_namespacing.missing] and [example_ideaset.subidea1]",
+        "{}",
+    );
+    let owner = idea(file, "attribute_namespacing", "owner", r#"{"example":"my subidea"}"#);
+    let decoy = idea(file, "example", "decoy", "{}");
+    let missing = idea(file, "missing", "decoy missing", "{}");
+    let mut ideaset = idea(file, "example_ideaset", "", "{}");
+    ideaset.kind = IdeaKind::Ideaset;
+    let member = idea(file, "subidea1", "member", "{}");
+    store
+        .upsert_document(
+            file,
+            "hash-attr",
+            &[host.clone(), owner.clone(), decoy, missing, ideaset, member.clone()],
+            &[],
+            None,
+        )
+        .unwrap();
+
+    let output_dir = temp_out("attribute-link");
+    let request = html_request(&output_dir, "attribute-report");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let host_html = read(&result.output_dir.join(&snapshot.ideas_by_id[&host.id].page.path));
+    let owner_html = read(&result.output_dir.join(&snapshot.ideas_by_id[&owner.id].page.path));
+    let member_page = snapshot.ideas_by_id[&member.id].page.path.clone();
+    let summary = host_html
+        .split(r#"<p class="idea-summary">"#)
+        .nth(1)
+        .and_then(|rest| rest.split("</p>").next())
+        .expect("idea summary");
+
+    assert!(owner_html.contains(r#"id="attr-example""#), "{owner_html}");
+    assert!(summary.contains(&format!("#attr-example")), "{summary}");
+    assert!(summary.contains("Unresolved attribute missing on attribute_namespacing"), "{summary}");
+    assert!(!summary.contains("missing.html"), "{summary}");
+    assert!(summary.contains(&member_page) || summary.contains("subidea1"), "{summary}");
+    let member_file = member_page.rsplit('/').next().unwrap_or(&member_page);
+    assert!(summary.contains(member_file), "{summary}");
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_katz_column]
+#[test]
+fn idea_tables_show_a_katz_column() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let (alpha, beta) = persist_pair(&mut store);
+    let output_dir = temp_out("katz");
+    let request = html_request(&output_dir, "katz-report");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let beta_score =
+        snapshot.ideas.iter().find(|idea| idea.id == beta.id).expect("beta").katz_centrality;
+    let alpha_score =
+        snapshot.ideas.iter().find(|idea| idea.id == alpha.id).expect("alpha").katz_centrality;
+    assert!((beta_score - 1.0).abs() < 1e-6, "cited idea is the top score");
+    assert!(alpha_score < beta_score);
+
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let ideas_html = read(result.ideas_index_file_path.as_ref().unwrap());
+    assert!(ideas_html.contains(r#"data-filter-key="katz""#));
+    assert!(ideas_html.contains(">Katz</th>"));
+    let beta_row = idea_table_row(&ideas_html, "beta");
+    assert!(beta_row.contains("1.000"), "{beta_row}");
+    assert!(beta_row.contains("data-sort-value="), "{beta_row}");
+
+    let files_index = read(result.files_index_file_path.as_ref().unwrap());
+    assert!(!files_index.contains(">Katz</th>"));
+    let clusters_index = read(result.clusters_index_file_path.as_ref().unwrap());
+    assert!(!clusters_index.contains(">Katz</th>"));
+
+    let beta_page = read(&result.output_dir.join(&snapshot.ideas_by_id[&beta.id].page.path));
+    assert!(beta_page.contains("Katz"));
+    assert!(beta_page.contains("1.000"));
+    let print_idea = read(
+        &result
+            .output_dir
+            .join(snapshot.ideas_by_id[&beta.id].page.printable_path.as_ref().unwrap()),
+    );
+    assert!(print_idea.contains("<strong>Katz</strong> 1.000"));
+
+    let file = snapshot.files.iter().find(|file| file.file_uri.ends_with("a.rq")).expect("file a");
+    let file_html = read(&result.output_dir.join(&file.page.path));
+    assert!(file_html.contains(r#"data-filter-key="katz""#));
+    let print_file = read(&result.output_dir.join(&file.print_page.path));
+    assert!(print_file.contains(">Katz</th>"));
+
+    let code = &snapshot.code_files[0];
+    let code_html = read(&result.output_dir.join(&code.page.path));
+    assert!(code_html.contains(r#"data-filter-key="katz""#));
+    let print_code = read(&result.output_dir.join(&code.print_page.path));
+    assert!(print_code.contains(">Katz</th>"));
+
+    let cluster =
+        snapshot.clusters.iter().find(|cluster| cluster.id == "status:todo").expect("todo cluster");
+    let cluster_html = read(&result.output_dir.join(&cluster.page.path));
+    assert!(cluster_html.contains(r#"data-filter-key="katz""#));
+    let print_cluster =
+        read(&result.output_dir.join(cluster.page.printable_path.as_ref().unwrap()));
+    assert!(print_cluster.contains(">Katz</th>"));
+
+    let status =
+        snapshot.attributes.iter().find(|attribute| attribute.key == "status").expect("status");
+    let attribute_html = read(&result.output_dir.join(&status.page.path));
+    assert!(attribute_html.contains(r#"data-filter-key="katz""#));
+
     std::fs::remove_dir_all(&output_dir).ok();
 }

@@ -1,5 +1,5 @@
 /**
- * Document links and diagnostics for `rq:[…]` tokens in non-`.rq` source comments.
+ * Document links and diagnostics for comment reference tokens in non-`.rq` source comments.
  * Links and the error underline use one cached presentation so they stay in sync.
  * rq:["../../../../reqlan rq/ontology.rq".referenced_files]
  * rq:["../../../../reqlan rq/ontology.rq".reference_types]

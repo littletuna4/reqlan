@@ -2,15 +2,17 @@
  * Outbound idea document links from path-local Rust extract plus a depth-1 neighbor parse.
  * Does not wait on Langium workspace linking.
  * Host native extract is cached by URI plus text fingerprint so links and diagnostics
- * share one parse of this buffer.
+ * share one parse of this buffer. The cache keeps open editors only.
  * rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".implicit_file_extension]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".aliased_from_import_ctrl_click]
+ * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
 import type { LangiumDocument, LangiumDocuments } from 'langium';
 import { URI } from 'langium';
@@ -22,7 +24,9 @@ import {
     type LocalSymbolicImportRoot
 } from '@reqlan/analytical/core';
 import type { ResolvedFileLink } from './reqlan-file-link-resolver.js';
+import { isOpenEditor, uriCacheKeys, clearEditorRetention } from './reqlan-editor-retention.js';
 import {
+    dropNeighborCacheForUri,
     ideaRangeFromNeighbor,
     neighborIdea,
     parseNeighborDocument,
@@ -44,6 +48,10 @@ import {
     type PathResolveContext
 } from './reqlan-path-resolve.js';
 import { utf8ByteOffsetToUtf16 } from './reqlan-utf8-lsp-offset.js';
+import {
+    attributeDefinitionAt,
+    isAttributeShapedSnippet
+} from './reqlan-attribute-links.js';
 
 interface HostExtractCacheEntry {
     readonly fingerprint: string;
@@ -53,9 +61,31 @@ interface HostExtractCacheEntry {
 const hostExtractCache = new Map<string, HostExtractCacheEntry>();
 let extractCount = 0;
 
+/** Test helper. Also forgets which editors are open, so the next case starts closed. */
 export function clearLocalSymbolicExtractCache(): void {
     hostExtractCache.clear();
     extractCount = 0;
+    clearEditorRetention();
+}
+
+export function localSymbolicCacheSize(): number {
+    return hostExtractCache.size;
+}
+
+/** Drop the native extract for this URI. The Langium document can stay. */
+export function dropHostExtract(uri: string): void {
+    for (const key of uriCacheKeys(uri)) {
+        hostExtractCache.delete(key);
+    }
+}
+
+/**
+ * File delete: drop the host extract and any neighbor list for this URI.
+ * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
+ */
+export function dropNativeCachesForUri(uri: string): void {
+    dropHostExtract(uri);
+    dropNeighborCacheForUri(uri);
 }
 
 export function localSymbolicExtractCount(): number {
@@ -96,13 +126,19 @@ export function analyzeDocumentLocalSymbolic(
     const text = document.textDocument.getText();
     const uriKey = document.uri.toString();
     const fingerprint = hostExtractFingerprint(text, roots);
+    const open = isOpenEditor(uriKey);
     const cached = hostExtractCache.get(uriKey);
-    if (cached && cached.fingerprint === fingerprint) {
+    if (open && cached && cached.fingerprint === fingerprint) {
         return cached.extracted;
+    }
+    if (!open) {
+        dropHostExtract(uriKey);
     }
     const extracted = analyzeLocalSymbolic(uriKey, text, roots);
     extractCount += 1;
-    hostExtractCache.set(uriKey, { fingerprint, extracted });
+    if (open) {
+        hostExtractCache.set(uriKey, { fingerprint, extracted });
+    }
     return extracted;
 }
 
@@ -219,6 +255,9 @@ export function collectLocalSymbolicOutboundLinks(
         if (edge.kind !== 'references' || edge.isResolved === false) {
             continue;
         }
+        if (isAttributeShapedSnippet(document, edge.snippet, edge.label)) {
+            continue;
+        }
         const link = ideaLinkFromEdge(document, extracted, edge, context, documents);
         if (link) {
             links.push(link);
@@ -233,10 +272,17 @@ export function findLocalSymbolicDefinition(
     context?: PathResolveContext,
     documents?: LangiumDocuments
 ): { targetUri: string; targetRange?: Range; sourceRange: Range } | undefined {
+    const attribute = attributeDefinitionAt(document, offset);
+    if (attribute) {
+        return attribute;
+    }
     const extracted = analyzeDocumentLocalSymbolic(document, context);
     let best: { targetUri: string; targetRange?: Range; sourceRange: Range; span: number } | undefined;
     for (const edge of extracted.edges) {
         if (edge.kind !== 'references' || edge.isResolved === false) {
+            continue;
+        }
+        if (isAttributeShapedSnippet(document, edge.snippet, edge.label)) {
             continue;
         }
         const sourceRange = ideaNameRangeFromEdge(document, edge);
@@ -342,7 +388,12 @@ function resolveIdeaTarget(
     if (!ideaName) {
         return undefined;
     }
-    const neighbor = parseNeighborDocument(targetUri, documents, context?.fileSystem);
+    const neighbor = parseNeighborDocument(
+        targetUri,
+        documents,
+        context?.fileSystem,
+        document.uri.toString()
+    );
     const idea = neighbor ? neighborIdea(neighbor, ideaName) : undefined;
     if (!idea) {
         return undefined;

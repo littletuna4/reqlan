@@ -1,5 +1,5 @@
 /**
- * Path-resolve context for `rq:[…]` links in non-`.rq` source files.
+ * Path-resolve context for comment links in non-`.rq` source files.
  * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias]
  * rq:["../../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
  */

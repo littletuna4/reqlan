@@ -560,6 +560,85 @@ pub fn render_text_with_refs_html(
         .join("<br>")
 }
 
+enum AttributeLink<'a> {
+    Resolved { owner: &'a ExportIdea, key: String },
+    Missing { owner_name: String, key: String },
+}
+
+/// `[idea.attribute]` when the first name is an idea. Ideaset qualifiers stay on member resolution.
+/// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+fn attribute_link<'a>(
+    snapshot: &'a ExportSnapshot,
+    source: Option<&ExportIdea>,
+    raw: &str,
+) -> Option<AttributeLink<'a>> {
+    let parsed = summary_ref_inner(raw);
+    let target = parsed.target.trim();
+    if target.starts_with('"') || target.starts_with('\'') {
+        return None;
+    }
+    let parts: Vec<&str> =
+        target.split('.').map(str::trim).filter(|part| !part.is_empty()).collect();
+    if parts.len() != 2 {
+        return None;
+    }
+    let (head, tail) = (parts[0], parts[1]);
+    let matches: Vec<&ExportIdea> =
+        snapshot.ideas.iter().filter(|idea| idea.name == head).collect();
+    let owner = if let Some(source) = source {
+        let same: Vec<&ExportIdea> =
+            matches.iter().copied().filter(|idea| idea.file_uri == source.file_uri).collect();
+        if same.len() == 1 {
+            Some(same[0])
+        } else if matches.len() == 1 {
+            Some(matches[0])
+        } else {
+            None
+        }
+    } else if matches.len() == 1 {
+        Some(matches[0])
+    } else {
+        None
+    };
+    if let Some(owner) = owner {
+        if owner.kind == "ideaset" {
+            return None;
+        }
+        if owner.attributes.contains_key(tail) {
+            return Some(AttributeLink::Resolved { owner, key: tail.to_string() });
+        }
+        return Some(AttributeLink::Missing {
+            owner_name: owner.name.clone(),
+            key: tail.to_string(),
+        });
+    }
+    if matches.iter().any(|idea| idea.kind != "ideaset") {
+        return Some(AttributeLink::Missing {
+            owner_name: head.to_string(),
+            key: tail.to_string(),
+        });
+    }
+    None
+}
+
+fn attribute_instance_href(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    owner: &ExportIdea,
+    key: &str,
+    same_page_idea_anchors: bool,
+) -> Option<String> {
+    let slug = slug_attribute_key(key);
+    if same_page_idea_anchors {
+        return Some(format!("#{}-attr-{slug}", export_idea_anchor_id(owner)));
+    }
+    if snapshot.page_options.include_idea_pages {
+        let page = page_href(current_path, &owner.page, snapshot.url_base.as_deref());
+        return Some(format!("{page}#attr-{slug}"));
+    }
+    None
+}
+
 fn render_line_with_refs(
     snapshot: &ExportSnapshot,
     current_path: &str,
@@ -574,6 +653,12 @@ fn render_line_with_refs(
         html.push_str(&escape_html(&line[last..start]));
         last = end;
         let raw = &line[start..end];
+        if let Some(rendered) =
+            render_attribute_link_html(snapshot, current_path, raw, idea, same_page_idea_anchors)
+        {
+            html.push_str(&rendered);
+            continue;
+        }
         let display_name = summary_ref_display_name(raw);
         let row = idea.and_then(|idea| take_row(idea, raw, &display_name, used));
         let linked_idea = row
@@ -654,6 +739,48 @@ fn render_line_with_refs(
     }
     html.push_str(&escape_html(&line[last..]));
     html
+}
+
+fn render_attribute_link_html(
+    snapshot: &ExportSnapshot,
+    current_path: &str,
+    raw: &str,
+    idea: Option<&ExportIdea>,
+    same_page_idea_anchors: bool,
+) -> Option<String> {
+    let decision = attribute_link(snapshot, idea, raw)?;
+    let (label, title, href) = match decision {
+        AttributeLink::Resolved { owner, key } => {
+            let title = format!("{} · {}.{}", owner.file_uri, owner.name, key);
+            let href = attribute_instance_href(
+                snapshot,
+                current_path,
+                owner,
+                &key,
+                same_page_idea_anchors,
+            );
+            (key, title, href)
+        }
+        AttributeLink::Missing { owner_name, key } => {
+            (key.clone(), format!("Unresolved attribute {key} on {owner_name}"), None)
+        }
+    };
+    let class_name =
+        if href.is_some() { "idea-ref idea-ref--idea" } else { "idea-ref idea-ref--unresolved" };
+    Some(if let Some(href) = href {
+        format!(
+            r#"<a class="{class_name}" href="{}" title="{}">{}</a>"#,
+            escape_html(&href),
+            escape_html(&title),
+            escape_html(&label)
+        )
+    } else {
+        format!(
+            r#"<span class="{class_name}" title="{}">{}</span>"#,
+            escape_html(&title),
+            escape_html(&label)
+        )
+    })
 }
 
 fn take_row<'a>(
@@ -771,7 +898,9 @@ pub fn render_print_idea_attributes_html(
         .iter()
         .map(|(key, value)| {
             format!(
-                "<div><dt>{}</dt><dd>{}</dd></div>",
+                "<div id=\"{}-attr-{}\"><dt>{}</dt><dd>{}</dd></div>",
+                escape_html(&export_idea_anchor_id(idea)),
+                escape_html(&slug_attribute_key(key)),
                 escape_html(key),
                 render_attribute_value_html(
                     snapshot,

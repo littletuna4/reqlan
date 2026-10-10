@@ -1,0 +1,20 @@
+[package]
+name = "reqlan-lsp"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Language server for reqlan (.rq) documents"
+
+[[bin]]
+name = "reqlan-lsp"
+path = "src/main.rs"
+
+[dependencies]
+lsp-server = "0.7"
+lsp-types = "0.95"
+reqlan-index = { path = "../reqlan-index" }
+reqlan-parse = { path = "../reqlan-parse" }
+serde.workspace = true
+serde_json.workspace = true

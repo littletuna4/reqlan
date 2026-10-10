@@ -1,5 +1,5 @@
 from "../../cli/click.rq" import click, agent_advisory
-from "../../core_analysis/check.rq" import check, check_order_by_target
+from "../../core_analysis/check.rq" import check, check_glob_patterns, check_order_by_target
 from "../index-host/index.rq" import application_memory
 import "../../../packages/mcp/src/server.ts" as mcp_server
 import "../../../packages/mcp/test/server.test.ts" as mcp_server_test
@@ -27,6 +27,8 @@ mcp_check {
     The tool returns JSON issue rows in [check_order_by_target] order.
     An empty list means that there are no issues.
     Optional arguments match the CLI [check] flags: glob, wildcard-zero, wildcard-one, skip-targets, and skip-gitignored-targets.
+    `glob` is one path pattern or a list of path patterns ([check_glob_patterns]).
+    A file that matches any pattern is in the scan.
     Related: [mcp_tools] [check] ["../../core_analysis/check.rq".check_unresolved_imports]
     @status done
     @implementation (

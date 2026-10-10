@@ -161,6 +161,17 @@ pub struct LocalSymbolicDocument {
     /// Same-file backlinks: edges whose `target_id` is an idea declared in this file.
     /// For idea T, inbound referencers are rows with `target_id == T` (source = referencer).
     pub inbound: Vec<EdgeRecord>,
+    /// Import aliases bound in this file. A qualified reference may name one of these.
+    #[serde(default)]
+    pub import_bindings: Vec<ImportBindingRecord>,
+}
+
+/// An import alias bound in one file. `line_start` is 0-based.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportBindingRecord {
+    pub name: String,
+    pub line_start: u32,
 }
 
 impl LocalSymbolicDocument {
@@ -181,6 +192,7 @@ impl LocalSymbolicDocument {
             ideas: doc.ideas,
             edges: doc.edges,
             inbound,
+            import_bindings: Vec::new(),
         }
     }
 

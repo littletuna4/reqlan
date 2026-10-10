@@ -166,3 +166,42 @@ later_set (
         Some(idea_id("file:///workspace/demo.rq", "later_set").as_str())
     );
 }
+
+// rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+#[test]
+fn idea_attribute_reference_targets_owner_not_a_same_named_idea() {
+    let source = r#"host {
+    see [attribute_namespacing.example] and [attribute_namespacing.missing]
+}
+attribute_namespacing {
+    @example {
+        my subidea
+    }
+}
+example {
+    decoy
+}
+missing {
+    decoy
+}
+"#;
+    let indexed = extract(source);
+    let host_id = idea_id("file:///workspace/demo.rq", "host");
+    let owner_id = idea_id("file:///workspace/demo.rq", "attribute_namespacing");
+    let decoy_id = idea_id("file:///workspace/demo.rq", "example");
+    let refs: Vec<_> = indexed
+        .edges
+        .iter()
+        .filter(|edge| edge.source_id == host_id && edge.kind == EdgeKind::References)
+        .collect();
+    assert_eq!(refs.len(), 2, "{refs:?}");
+    let example =
+        refs.iter().find(|edge| edge.label.as_deref() == Some("example")).expect("example edge");
+    assert_eq!(example.target_id.as_deref(), Some(owner_id.as_str()));
+    assert_eq!(example.is_resolved, Some(true));
+    assert_ne!(example.target_id.as_deref(), Some(decoy_id.as_str()));
+    let missing =
+        refs.iter().find(|edge| edge.label.as_deref() == Some("missing")).expect("missing edge");
+    assert_eq!(missing.target_id, None);
+    assert_eq!(missing.is_resolved, Some(false));
+}

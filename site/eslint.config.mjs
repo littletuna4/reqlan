@@ -6,7 +6,13 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores(["out/**", ".next/**", "src/generated/**"]),
   js.configs.recommended,
+  
   ...tseslint.configs.recommended,
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
   {
     plugins: {
       "react-hooks": reactHooks,

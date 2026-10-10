@@ -151,6 +151,7 @@ export type {
     LocalSymbolicDocument,
     LocalSymbolicEdge,
     LocalSymbolicIdea,
+    LocalSymbolicImportBinding,
     LocalSymbolicImportRoot
 } from './native/parse-source.js';
 export * from './core/types.js';
@@ -211,6 +212,7 @@ export type {
     ClickResult,
     NameAmbiguity,
     InteractionDescriptor,
+    KatzScore,
     RequirementMatch,
     SearchRequirementsOptions,
     SparseWildcardHandling

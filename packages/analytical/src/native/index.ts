@@ -34,6 +34,7 @@ export type {
     ClickResult,
     NameAmbiguity,
     InteractionDescriptor,
+    KatzScore,
     RequirementMatch,
     SearchRequirementsOptions,
     SparseWildcardHandling
@@ -48,6 +49,7 @@ export type {
     LocalSymbolicDocument,
     LocalSymbolicEdge,
     LocalSymbolicIdea,
+    LocalSymbolicImportBinding,
     LocalSymbolicImportRoot,
     NativeAlignRef,
     NativeAlignSnapshot,

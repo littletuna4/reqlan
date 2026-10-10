@@ -22,6 +22,8 @@ import "../../../../packages/language/src/reqlan-document-factory.ts" as documen
 import "../../../../packages/language/src/reqlan-async-parser.ts" as async_parser
 import "../../../../packages/language/src/reqlan-parse-budget.ts" as parse_budget
 import "../../../../packages/language/src/reqlan-workspace-manager.ts" as workspace_manager
+import "../../../../packages/language/src/reqlan-editor-retention.ts" as editor_retention
+import "../../../../packages/language/src/reqlan-scope.ts" as scope_provider
 import "../../../../packages/language/src/reqlan-document-update-handler.ts" as document_update_handler
 import "../../../../packages/language/src/reqlan-document-builder.ts" as document_builder
 import "../../../../packages/extension/src/language/main.ts" as language_server_main
@@ -147,6 +149,7 @@ ast_lifecycle {
     A change to a neighbor file does not replace this buffer's AST.
     Outbound confirmation reads neighbor text again (cache by fingerprint).
     Background workspace parse may populate ASTs for other files ([workspace_manager]).
+    That load parses at most 8 files at a time ([workspace_parse_concurrency]).
     That work must not gate outbound links. Open buffers parse first.
 
     Incomplete parse. If the budget fails, the factory stores an empty model plus
@@ -321,6 +324,9 @@ open_file_hot_path {
     Cache this buffer's native extract by URI plus text fingerprint. Document links,
     go-to-definition, and outbound diagnostics must reuse that extract until the text
     or import-root mapping changes ([local_symbolic_links]).
+    Keep that extract, and depth-1 neighbor lists, only for open editors
+    ([native_cache_retention]).
+    When a document is removed, drop its scope cache entries ([scope_cache_release]).
     Look up an open neighbor buffer by URI only. Do not match on file basename
     ([neighbor_parse]).
     When another `.rq` file changes, do not relink every document that still has a
@@ -484,6 +490,65 @@ comment_backlink_sequence {
         ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:reports a missing comment reference idea in a loaded file"]
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:shares one presentation so a matching idea clears the underline and adds a link"]
+    )
+}
+
+native_cache_retention {
+    The language server keeps a native extract for each open editor, and a depth-1
+    neighbor idea list for each file that an open editor confirms.
+    A closed editor drops its extract. It also drops neighbor lists that no open editor
+    still needs.
+    A file-watcher delete drops that URI from both caches.
+    A removed Langium document drops that URI from both caches.
+    Closed files may still be parsed for a single check. That result is not stored.
+    Related: [open_file_hot_path], [outbound_one_hop], [ast_lifecycle].
+
+    @status done
+    @implementation (
+        [editor_retention]
+        [local_symbolic_links]
+        [neighbor_parse]
+        [document_update_handler]
+        ["../../../../packages/language/src/reqlan-module.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/lsp-memory.test.ts:keeps the host extract while the editor is open"]
+        ["../../../../packages/language/test/lsp-memory.test.ts:drops a neighbor list when the last open editor closes"]
+        ["../../../../packages/language/test/lsp-memory.test.ts:drops a neighbor list when the file watcher reports a delete"]
+        ["../../../../packages/language/test/lsp-memory.test.ts:drops native caches when the Langium document is removed"]
+        ["../../../../packages/language/test/lsp-memory.test.ts:does not store a neighbor list for a closed editor"]
+        ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
+        ["../../../../packages/language/test/outbound-hop.test.ts:reuses a cached neighbor parse for the same content"]
+    )
+}
+
+scope_cache_release {
+    `fileIdeasCache` and `importPathCache` drop a URI when that Langium document is removed.
+    A version change still replaces the entry for a document that stays.
+    Related: [open_file_hot_path], [native_cache_retention].
+
+    @status done
+    @implementation (
+        [scope_provider]
+    )
+    @tests (
+        ["../../../../packages/language/test/lsp-memory.test.ts:drops scope cache entries when a document is removed"]
+    )
+}
+
+workspace_parse_concurrency {
+    Workspace load parses `.rq` files with a fixed limit of 8 in flight.
+    One file that fails to parse does not cancel the other files.
+    The steady-state set is still every workspace `.rq` file.
+    Related: [ast_lifecycle], [workspace_manager].
+
+    @status done
+    @implementation (
+        [workspace_manager]
+    )
+    @tests (
+        ["../../../../packages/language/test/lsp-memory.test.ts:runs at most the concurrency limit"]
+        ["../../../../packages/language/test/lsp-memory.test.ts:loads every workspace file with at most 8 parses in flight"]
     )
 }
 

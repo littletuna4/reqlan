@@ -7,11 +7,16 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 //! rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
 
-use reqlan_index::{extract_indexed_document, ExtractOptions};
+use reqlan_index::sync::{sync_workspace, SyncOptions};
+use reqlan_index::{
+    analyze_local_symbolic, check_references, extract_indexed_document, CheckReferencesOptions,
+    ExtractOptions, IndexStore,
+};
 use reqlan_parse::{parse_align_snapshot, parse_document};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 struct GoldenIdea {
@@ -226,5 +231,42 @@ fn opaque_file_examples_do_not_extract_inline_or_fenced_paths() {
             .any(|reference| reference.kind == "file" && reference.label == "./present.ts"),
         "live file ref missing from parse snapshot: {:?}",
         snapshot.refs
+    );
+}
+
+// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_idea]
+// rq:["../../../reqlan rq/language/imports.rq".import_namespace]
+// rq:["../../../reqlan rq/core_analysis/rust_port.rq".golden_corpus]
+#[test]
+fn qualified_reference_to_an_import_alias_is_not_a_missing_idea() {
+    let root = corpus_root().join("language/import-alias-qualified");
+    let mut store = IndexStore::open_in_memory().unwrap();
+    sync_workspace(
+        &mut store,
+        &SyncOptions {
+            workspace_root: root.clone(),
+            hard_rebuild: true,
+            path_globs: Vec::new(),
+            include_files: Vec::new(),
+        },
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    let rows = check_references(&store, &root, CheckReferencesOptions::default()).unwrap();
+    assert!(
+        rows.iter().all(|row| row.label != "analysis_runtime"),
+        "import alias must be a valid qualified target, got {rows:?}"
+    );
+    assert!(
+        rows.iter().any(|row| row.kind == "references" && row.label == "missing_leaf"),
+        "a name that is neither an idea nor an import alias stays missing, got {rows:?}"
+    );
+
+    let core = std::fs::read_to_string(root.join("core.rq")).unwrap();
+    let symbolic = analyze_local_symbolic("core.rq", &core, &[]);
+    assert!(
+        symbolic.import_bindings.iter().any(|binding| binding.name == "analysis_runtime"),
+        "corpus core file must list the import alias, got {:?}",
+        symbolic.import_bindings
     );
 }

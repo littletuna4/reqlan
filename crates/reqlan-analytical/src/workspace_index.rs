@@ -208,7 +208,12 @@ impl WorkspaceIndexRuntime {
         self.cancel.store(false, Ordering::Relaxed);
         let result = sync_workspace(
             &mut self.store,
-            &SyncOptions { workspace_root: self.workspace_root.clone(), hard_rebuild },
+            &SyncOptions {
+                workspace_root: self.workspace_root.clone(),
+                hard_rebuild,
+                path_globs: Vec::new(),
+                include_files: Vec::new(),
+            },
             &self.cancel,
         )?;
         self.synced_once = !result.progress.cancelled;
