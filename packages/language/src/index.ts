@@ -45,7 +45,8 @@ export * from './reqlan-quoted-strings.js';
 export * from './reqlan-references.js';
 export {
     documentHasComputedScopes,
-    peekResolvedRef
+    peekResolvedRef,
+    readResolvedRef
 } from './reqlan-reference-peek.js';
 export * from './reqlan-wildcard-resolve.js';
 export * from './reqlan-reference-at-position.js';

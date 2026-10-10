@@ -30,6 +30,7 @@ import { findFromImportSpecifierByBinding, importPathOf, specifierBindingName } 
 import { findImportedDocument } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { readResolvedRef } from './reqlan-reference-peek.js';
 import { qualifiedReferenceImportPath } from './reqlan-references.js';
 import { unquoteReqlanString } from './reqlan-quoted-strings.js';
 
@@ -102,7 +103,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 return this.scopeForIdeasets(document);
             }
             if (context.property === 'idea') {
-                const qualifier = container.qualifier?.ref;
+                const qualifier = readResolvedRef(container.qualifier, document);
                 if (qualifier && isIdeaSet(qualifier)) {
                     return this.scopeForIdeasetMembers(qualifier, document);
                 }
@@ -117,7 +118,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                         }
                     }
                 } else {
-                    const importDecl = container.qualifier?.ref;
+                    const importDecl = readResolvedRef(container.qualifier, document);
                     if (importDecl) {
                         const importScope = this.scopeForImportDeclaration(importDecl, document);
                         if (importScope) {
@@ -205,7 +206,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         for (const importDecl of model.imports) {
             if (isFromImport(importDecl)) {
                 for (const specifier of importDecl.specifiers) {
-                    const target = specifier.idea.ref;
+                    const target = readResolvedRef(specifier.idea, document);
                     if (!target || !isIdeaDeclaration(target)) {
                         continue;
                     }
@@ -215,7 +216,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
                 continue;
             }
             if (isQualifiedImport(importDecl)) {
-                const target = importDecl.idea.ref;
+                const target = readResolvedRef(importDecl.idea, document);
                 if (!target || !isIdeaDeclaration(target)) {
                     continue;
                 }
@@ -227,8 +228,9 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
     }
 
     private scopeForIdeasetMembers(ideaset: IdeaSet, document: LangiumDocument): Scope {
+        const owner = AstUtils.getDocument(ideaset);
         const descriptions = ideaset.members
-            .map(member => member.ref)
+            .map(member => readResolvedRef(member, owner))
             .filter((target): target is NonNullable<typeof target> =>
                 target !== undefined && isIdeaDeclaration(target)
             )
@@ -293,7 +295,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             if (!imported) {
                 return undefined;
             }
-            const target = importDecl.idea.ref;
+            const target = readResolvedRef(importDecl.idea, document);
             if (!target || !isIdeaDeclaration(target)) {
                 return undefined;
             }
@@ -308,7 +310,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
             if (!imported) {
                 return undefined;
             }
-            const target = importDecl.idea.ref;
+            const target = readResolvedRef(importDecl.idea, document);
             if (!target || !isIdeaDeclaration(target)) {
                 return undefined;
             }

@@ -20,6 +20,7 @@ import {
     type ReferenceTarget,
     type WikiLink
 } from './generated/ast.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 import { parseMarkdownLink, referenceIdea, unquoteReqlanString } from './reqlan-references.js';
 
 /** Preserve the source token so consumers can restyle/link refs (not a bare "[ref]"). */
@@ -56,7 +57,7 @@ function referenceTargetLabel(target: ReferenceTarget | undefined): string | und
     }
     if (isQualifiedReference(target) || isLocalReference(target)) {
         const idea = referenceIdea(target);
-        const name = idea?.ref?.name ?? idea?.$refText;
+        const name = peekResolvedRef(idea)?.name ?? idea?.$refText;
         if (name) {
             return name;
         }

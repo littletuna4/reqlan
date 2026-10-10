@@ -6,14 +6,14 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  */
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
-import { DocumentState, URI, type LangiumDocument } from 'langium';
+import { AstUtils, DocumentState, isReference, URI, type LangiumDocument } from 'langium';
 import { EmptyFileSystem } from 'langium';
 import { expandToString as s } from 'langium/generate';
 import { clearDocuments } from 'langium/test';
 import { createReqlanServices } from '../src/reqlan-module.js';
 import { clearLocalSymbolicExtractCache } from '../src/reqlan-local-symbolic-links.js';
 import { clearNeighborParseCache } from '../src/reqlan-neighbor-parse.js';
-import type { Model } from '../src/generated/ast.js';
+import { isLocalReference, type Model } from '../src/generated/ast.js';
 
 describe('Parsed-time reference sequencing', () => {
     let services: ReturnType<typeof createReqlanServices>;
@@ -102,5 +102,76 @@ describe('Parsed-time reference sequencing', () => {
         });
         expect(links?.length).toBeGreaterThan(0);
         expect(document.state).toBe(DocumentState.Parsed);
+    });
+
+    // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+    test('reading every ref before ComputedScopes does not warn and linking still works', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const target = services.shared.workspace.LangiumDocumentFactory.fromString(s`
+            exported_idea {
+                body
+            }
+        `, URI.parse('file:///tmp/seq-b.rq'));
+        services.shared.workspace.LangiumDocuments.addDocument(target);
+        const document = services.shared.workspace.LangiumDocumentFactory.fromString(s`
+            from "./seq-b.rq" import exported_idea
+            alpha {
+                see [beta] and [missing] and [exported_idea] and ["./gone.rq".remote]
+            }
+            beta {
+                body
+            }
+            group (
+                alpha,
+                beta
+            )
+        `, URI.parse('file:///tmp/seq-a.rq'));
+        services.shared.workspace.LangiumDocuments.addDocument(document);
+        expect(document.state).toBe(DocumentState.Parsed);
+
+        for (const node of AstUtils.streamAst(document.parseResult.value)) {
+            for (const key of Object.keys(node)) {
+                if (key.startsWith('$')) {
+                    continue;
+                }
+                const value = (node as Record<string, unknown>)[key];
+                if (isReference(value)) {
+                    void value.ref;
+                } else if (Array.isArray(value)) {
+                    for (const item of value) {
+                        if (isReference(item)) {
+                            void item.ref;
+                        }
+                    }
+                }
+            }
+        }
+        await services.Reqlan.lsp.CodeLensProvider?.provideCodeLens(document, {
+            textDocument: { uri: document.uri.toString() }
+        });
+
+        expect(document.state).toBe(DocumentState.Parsed);
+        const premature = warn.mock.calls.filter(args =>
+            String(args[0] ?? '').includes('Attempted reference resolution before document reached ComputedScopes')
+        );
+        expect(premature).toEqual([]);
+        warn.mockRestore();
+
+        await services.shared.workspace.DocumentBuilder.build([target, document], { validation: false });
+        let betaName: string | undefined;
+        let importedName: string | undefined;
+        for (const node of AstUtils.streamAst(document.parseResult.value)) {
+            if (!isLocalReference(node)) {
+                continue;
+            }
+            if (node.idea?.$refText === 'beta') {
+                betaName = node.idea.ref?.name;
+            }
+            if (node.idea?.$refText === 'exported_idea') {
+                importedName = node.idea.ref?.name;
+            }
+        }
+        expect(betaName).toBe('beta');
+        expect(importedName).toBe('exported_idea');
     });
 });

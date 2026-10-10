@@ -336,6 +336,10 @@ open_file_hot_path {
     uncached, and retries on every request (especially harmful for `git:` Diff buffers).
     Use `$refText` / symbolic extract / `peekResolvedRef` until scopes are ready; only then
     call Langium `super` linking paths.
+    The linker must not resolve a cross-reference while that document is below `ComputedScopes`.
+    Do not log the Langium warning. Do not store a failed link. A later scope phase can still link it.
+    Scope lookup, code lens, completion, and idea summaries use `readResolvedRef` or `peekResolvedRef`
+    until that phase. A walk of every reference in an open buffer must not recurse or abort the server.
     Related: [open_file_algorithm], [outbound_one_hop], [ast_lifecycle],
     [comment_backlink_sequence].
 
@@ -348,9 +352,14 @@ open_file_hot_path {
         [comment_diagnostics]
         ["../../../../packages/language/src/reqlan-parse-diagnostics.ts"]
         ["../../../../packages/language/src/reqlan-reference-peek.ts"]
+        ["../../../../packages/language/src/reqlan-linker.ts"]
+        ["../../../../packages/language/src/reqlan-scope.ts"]
         ["../../../../packages/language/src/reqlan-definition-provider.ts"]
         ["../../../../packages/language/src/reqlan-hover-provider.ts"]
         ["../../../../packages/language/src/reqlan-document-highlight-provider.ts"]
+        ["../../../../packages/language/src/reqlan-reference-code-lens.ts"]
+        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../../packages/language/src/reqlan-idea-summary.ts"]
     )
     @tests (
         ["../../../../packages/language/test/open-file-hot-path.test.ts:reuses the host native extract for links and diagnostics"]
@@ -364,6 +373,7 @@ open_file_hot_path {
         ["../../../../packages/language/test/outbound-hop.test.ts:Parsed outbound publish includes lex parse diagnostics"]
         ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition hover highlight and links do not resolve refs before ComputedScopes"]
         ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:definition still resolves same-file ideas at Parsed via symbolic path"]
+        ["../../../../packages/language/test/parsed-reference-sequencing.test.ts:reading every ref before ComputedScopes does not warn and linking still works"]
     )
 }
 

@@ -54,6 +54,7 @@ import {
     type PathCompletionCandidate
 } from './reqlan-path-completion.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 import { referenceIdea } from './reqlan-references.js';
 import { collectWorkspaceAttributeCatalog } from './reqlan-workspace-attribute-catalog.js';
 import type { ReqlanServices } from './reqlan-module.js';
@@ -307,7 +308,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
                     continue;
                 }
                 for (const member of element.members) {
-                    const memberNode = member.ref;
+                    const memberNode = peekResolvedRef(member);
                     const memberName = memberNode?.name ?? member.$refText;
                     if (!memberName || (memberPrefix && !memberName.startsWith(memberPrefix))) {
                         continue;
@@ -671,10 +672,10 @@ function referencedNames(target: Parameters<typeof referenceIdea>[0]): string[] 
     const names: string[] = [];
     const idea = referenceIdea(target);
     if (idea) {
-        names.push(idea.ref?.name ?? idea.$refText);
+        names.push(peekResolvedRef(idea)?.name ?? idea.$refText);
     }
     if (isQualifiedReference(target) && target.ideaset) {
-        names.push(target.ideaset.ref?.name ?? target.ideaset.$refText);
+        names.push(peekResolvedRef(target.ideaset)?.name ?? target.ideaset.$refText);
     }
     return names.filter(Boolean);
 }

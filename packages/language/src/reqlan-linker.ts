@@ -3,8 +3,8 @@
  * and keeps bare namespace-alias references unlinked instead of reporting them as unresolved ideas.
  * rq:["../../../reqlan rq/language/imports.rq".import_namespace]
  */
-import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, ReferenceInfo } from 'langium';
-import { AstUtils, DefaultLinker, type DefaultReference } from 'langium';
+import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, MultiReferenceItem, ReferenceInfo } from 'langium';
+import { AstUtils, DefaultLinker, DocumentState, type DefaultMultiReference, type DefaultReference } from 'langium';
 import { isIdea, isIdeaSet, isLocalReference, isModel, isOneLinerIdea, isQualifiedReference } from './generated/ast.js';
 import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
@@ -81,7 +81,23 @@ export class ReqlanLinker extends DefaultLinker {
         if ((reference as { _ref?: unknown })._ref === UnlinkedFileTarget) {
             return undefined;
         }
+        // rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+        // Do not link, warn, or cache a failure before scopes exist. A later phase can still link.
+        if (reference._ref === undefined && documentBelowComputedScopes(node)) {
+            return undefined;
+        }
         return super.resolveReference(reference, node, property);
+    }
+
+    protected override resolveMultiReference(
+        reference: DefaultMultiReference,
+        node: AstNode,
+        property: string
+    ): MultiReferenceItem[] {
+        if (reference._items === undefined && documentBelowComputedScopes(node)) {
+            return [];
+        }
+        return super.resolveMultiReference(reference, node, property);
     }
 
     private isAnonymousImportPathReference(refInfo: ReferenceInfo): boolean {
@@ -107,4 +123,13 @@ export class ReqlanLinker extends DefaultLinker {
             document.references.push(ref);
         }
     }
+}
+
+function documentBelowComputedScopes(node: AstNode): boolean {
+    let current: AstNode = node;
+    while (current.$container) {
+        current = current.$container;
+    }
+    const document = current.$document;
+    return document !== undefined && document.state < DocumentState.ComputedScopes;
 }

@@ -25,3 +25,20 @@ export function peekResolvedRef<T extends AstNode = AstNode>(
     const stored = (reference as DefaultReference)._ref;
     return isAstNode(stored) ? (stored as T) : undefined;
 }
+
+/**
+ * Follow a cross-reference only after scopes exist.
+ * Before `ComputedScopes`, return a target that is already stored. Do not call `.ref`.
+ */
+export function readResolvedRef<T extends AstNode = AstNode>(
+    reference: Reference<T> | undefined,
+    owner: LangiumDocument
+): T | undefined {
+    if (!reference) {
+        return undefined;
+    }
+    if (!documentHasComputedScopes(owner)) {
+        return peekResolvedRef(reference);
+    }
+    return reference.ref;
+}

@@ -32,6 +32,7 @@ import {
     resolveNamespaceImportReferenceLink
 } from './reqlan-namespace-import-links.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
+import { peekResolvedRef } from './reqlan-reference-peek.js';
 import { referenceIdea } from './reqlan-references.js';
 import { summarizeIdeaDeclaration, truncateSummary } from './reqlan-idea-summary.js';
 import {
@@ -64,12 +65,15 @@ export function classifyReferenceForCodeLens(
             );
             return classifyResolvedFileLink(link);
         }
-        const ideaRef = referenceIdea(target);
-        if (ideaRef?.ref) {
-            return { kind: 'idea', declaration: ideaRef.ref };
+        const ideaTarget = peekResolvedRef(referenceIdea(target));
+        if (ideaTarget) {
+            return { kind: 'idea', declaration: ideaTarget };
         }
-        if (isQualifiedReference(target) && target.ideaset?.ref) {
-            return { kind: 'idea', declaration: target.ideaset.ref };
+        if (isQualifiedReference(target)) {
+            const ideaset = peekResolvedRef(target.ideaset);
+            if (ideaset) {
+                return { kind: 'idea', declaration: ideaset };
+            }
         }
         return undefined;
     }
