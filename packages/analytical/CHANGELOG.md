@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.17.2
+
+### Patch Changes
+
+- 2c83893: size verif change
+
 ## 1.17.1
 
 ### Patch Changes

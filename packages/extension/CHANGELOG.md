@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.17.2
+
+### Patch Changes
+
+- 2c83893: size verif change
+- Updated dependencies [2c83893]
+  - @reqlan/analytical@1.17.2
+  - @reqlan/language@1.14.2
+
 ## 1.17.1
 
 ### Patch Changes
