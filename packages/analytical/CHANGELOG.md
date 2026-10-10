@@ -1,5 +1,15 @@
 # @reqlan/analytical
 
+## 1.17.0
+
+### Minor Changes
+
+- aaeceee: LSP rust port. and various bug fixes
+
+### Patch Changes
+
+- aaeceee: bug fix
+
 ## 1.16.2
 
 ### Patch Changes

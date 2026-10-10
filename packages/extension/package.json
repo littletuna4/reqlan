@@ -1,7 +1,7 @@
 {
   "name": "reqlan-extension",
   "description": "Language support for the reqlan language",
-  "version": "1.16.4",
+  "version": "1.17.0",
   "private": true,
   "displayName": "reqlan language support",
   "icon": "media/logo.png",
@@ -97,7 +97,10 @@
         },
         "reqlan.languageServer.engine": {
           "type": "string",
-          "enum": ["rust", "node"],
+          "enum": [
+            "rust",
+            "node"
+          ],
           "default": "rust",
           "description": "Language server process. rust launches bin/reqlan-lsp over stdio. node is the Langium process, used when rust is selected and the binary is not on disk."
         }

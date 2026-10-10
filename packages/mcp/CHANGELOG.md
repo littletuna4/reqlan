@@ -1,5 +1,18 @@
 # @reqlan/mcp
 
+## 0.8.0
+
+### Minor Changes
+
+- aaeceee: LSP rust port. and various bug fixes
+
+### Patch Changes
+
+- aaeceee: bug fix
+- Updated dependencies [aaeceee]
+- Updated dependencies [aaeceee]
+  - @reqlan/analytical@1.17.0
+
 ## 0.7.2
 
 ### Patch Changes

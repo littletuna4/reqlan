@@ -1,5 +1,12 @@
 # site
 
+## 0.21.3
+
+### Patch Changes
+
+- aaeceee: bug fix
+- aaeceee: LSP rust port. and various bug fixes
+
 ## 0.21.2
 
 ### Patch Changes
