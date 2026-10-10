@@ -117,6 +117,7 @@ run(process.execPath, [
     target.napiSuffix,
     '--cargo-target-dir',
     cargoTargetDir,
+    '--with-lsp',
 ]);
 
 const collected = artifactBinaryPath();

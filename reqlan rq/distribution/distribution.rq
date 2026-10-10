@@ -85,6 +85,7 @@ rust_binary_distribution {
   Website download listing and GitHub-release postinstall are later follow-ups (out of scope here).
   Engine port: ["../core_analysis/rust_port.rq".analytical_rust_port] / ["../core_analysis/rust_port.rq".native_bridge].
   Per-target VSIX packaging uses the same package layout under ["../../packages/analytical-native/"], filled by Azure from this git commit ([vsix_export], [vsix_native_not_from_npm]). npm tarballs of those packages are for CLI/MCP only.
+  `collect-napi-binary.mjs` copies `reqlan-lsp` only with `--with-lsp`. The npm workflow does not pass that flag. Azure does, because the VSIX ships `bin/reqlan-lsp` ([vsix_export]).
   Implementation: ["../../packages/analytical-native/"], ["../../scripts/prepare-native-packages.mjs"], ["../../scripts/require-natives-published.mjs"], ["../../packages/analytical/scripts/check-host-native.mjs"], ["../../.changeset/config.json"], ["../../.github/workflows/deploy-npm.yml"] build-native job, ["../../azure-pipelines.yml"] build_native job.
   @status in-progress
   @todo first analytical/v* release with platform packages not yet published to npm
@@ -113,7 +114,7 @@ rust_binary_distribution {
     steps
       1. Scaffold six platform packages with os/cpu and the napi binary. (done)
       2. Wire optionalDependencies on published `@reqlan/analytical` only; git omits them so Changesets can ignore platform packages. (done)
-      3. Cross-compile `reqlan-napi` and `reqlan-lsp` for [native_targets]. `collect-napi-binary.mjs` copies both. npm packages ship only the `.node`. The VSIX ships `bin/reqlan-lsp`. (done in deploy-npm.yml and azure-pipelines.yml)
+      3. Cross-compile `reqlan-napi` for [native_targets] on the npm channel. The platform package contains only the `.node`. That job does not build `reqlan-lsp`. (done in deploy-npm.yml)
       4. Publish platform packages on `analytical/v*` before `@reqlan/analytical`.
       5. Prefer optionalDependency resolution in the loader; keep crates/target fallback for local dev by walking to repo-root `crates/Cargo.toml` (not `packages/crates` from `out/native`). (done)
   }
@@ -191,7 +192,7 @@ prerelease_tests {
   GitHub CI runs them in the same job as crate tests and ["../core_analysis/check.rq".check], after that compile (["./distribution.rq".ci_gate]).
   This job runs on every pull request and on main before versioning.
   Host native addon is required because analytical and language tests load `reqlan-napi`.
-  The host release build compiles `reqlan-napi` and `reqlan-lsp`. `pack-host-native-package.mjs` calls `collect-napi-binary.mjs`, which copies both.
+  The host release build compiles `reqlan-napi` only. Crate tests compile `reqlan-lsp`. That binary ships in the VSIX, not in this host package.
   Azure runs `pnpm run test:js` before VSIX publish ([extension_distribution]).
   Local `pnpm run test` runs `test:js` then `test:rust` (["../core_analysis/rust_port.rq".rust_crate_layout]).
   The implementation lives in ["../../.github/workflows/ci.yml"]; ["../../.github/workflows/release.yml"] calls it with `workflow_call` as part of ["./distribution.rq".ci_gate].
@@ -279,7 +280,7 @@ vsix_native_not_from_npm {
 vsix_export {
   One VSIX is built per [native_targets] tuple via `vsce package --target <tuple> --no-dependencies`.
   Each VSIX keeps today's esbuild-bundled JS (TS dependency graph stays bundled); only the matching platform native package is staged into the VSIX so other targets' binaries are excluded.
-  The same VSIX packs `bin/reqlan-lsp` for that target (["../extension/language/support/language-server-rust.rq".language_server_rust]). The napi addon stays for the index host.
+  The same VSIX packs `bin/reqlan-lsp` for that target (["../extension/language/support/language-server-rust.rq".language_server_rust]). Azure `collect-napi-binary.mjs --with-lsp` copies that binary into the native artifact. The napi addon stays for the index host. npm platform packages do not contain it ([rust_binary_distribution]).
   Stamp `targetPlatform` so Marketplace/Open VSX route by extension host ([extension_host_target], ["./native_host_binary.rq".native_host_binary_distributed]).
   Artifact name shape: `reqlan-extension-<version>-<target>.vsix`.
   The VSIX includes logo assets from the extension media build: PNG for marketplace icon, language file icon, activity bar, and README; WebP as a raster fallback.

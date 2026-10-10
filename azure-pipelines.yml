@@ -111,7 +111,7 @@ jobs:
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          node scripts/collect-napi-binary.mjs --target "$(napiSuffix)"
+          node scripts/collect-napi-binary.mjs --target "$(napiSuffix)" --with-lsp
         displayName: Collect napi binary
         timeoutInMinutes: 5
 

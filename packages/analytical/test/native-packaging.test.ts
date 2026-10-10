@@ -164,7 +164,7 @@ describe("native platform packaging", () => {
     expect(azure).toContain("package-extension-targets.mjs");
     expect(azure).toContain("build_native");
     expect(azure).toContain("cargo build -p reqlan-napi -p reqlan-lsp --release");
-    expect(azure).toContain("collect-napi-binary.mjs");
+    expect(azure).toContain("collect-napi-binary.mjs --target \"$(napiSuffix)\" --with-lsp");
     expect(azure).toContain("prepare-native-packages.mjs");
     expect(azure).toContain("--binary-dir");
     expect(azure).not.toContain("fetch-native-packages.mjs");
@@ -188,7 +188,9 @@ describe("native platform packaging", () => {
       join(root, ".github/workflows/deploy-npm.yml"),
       "utf8",
     );
-    expect(deployNpm).toContain("cargo build -p reqlan-napi -p reqlan-lsp --release");
+    expect(deployNpm).toContain("cargo build -p reqlan-napi --release");
+    expect(deployNpm).not.toContain("reqlan-lsp");
+    expect(deployNpm).not.toContain("--with-lsp");
     expect(deployNpm).toContain("--publish-versions");
     expect(deployNpm).toMatch(
       /prepare-native-packages\.mjs --publish-versions/,

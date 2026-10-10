@@ -4,6 +4,10 @@
  *
  * Usage:
  *   node scripts/collect-napi-binary.mjs --target linux-x64-gnu [--cargo-target-dir crates/target]
+ *   node scripts/collect-napi-binary.mjs --target linux-x64-gnu --with-lsp
+ *
+ * `--with-lsp` copies `reqlan-lsp` beside the addon. The VSIX packer uses that
+ * copy. npm platform packages do not.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,6 +29,7 @@ function parseArg(argv, name) {
 }
 
 const argv = process.argv.slice(2);
+const withLsp = argv.includes('--with-lsp');
 const suffixOrVsCode = parseArg(argv, '--target');
 const cargoTargetDir = path.resolve(
     root,
@@ -82,28 +87,30 @@ const dest = path.join(destDir, target.binaryName);
 fs.copyFileSync(found, dest);
 console.log(`collected ${found} → ${dest}`);
 
-const lspNames = target.os.includes('win32')
-    ? ['reqlan-lsp.exe', 'reqlan-lsp']
-    : ['reqlan-lsp'];
-let lspFound;
-for (const dir of searchRoots) {
-    for (const name of lspNames) {
-        const candidate = path.join(dir, name);
-        if (fs.existsSync(candidate) && fs.statSync(candidate).size > 0) {
-            lspFound = candidate;
+if (withLsp) {
+    const lspNames = target.os.includes('win32')
+        ? ['reqlan-lsp.exe', 'reqlan-lsp']
+        : ['reqlan-lsp'];
+    let lspFound;
+    for (const dir of searchRoots) {
+        for (const name of lspNames) {
+            const candidate = path.join(dir, name);
+            if (fs.existsSync(candidate) && fs.statSync(candidate).size > 0) {
+                lspFound = candidate;
+                break;
+            }
+        }
+        if (lspFound) {
             break;
         }
     }
-    if (lspFound) {
-        break;
+    if (!lspFound) {
+        throw new Error(
+            `Could not find reqlan-lsp for ${target.napiSuffix}. Build with cargo build -p reqlan-lsp --release. Searched under:\n` +
+                searchRoots.join('\n')
+        );
     }
+    const lspDest = path.join(destDir, path.basename(lspFound));
+    fs.copyFileSync(lspFound, lspDest);
+    console.log(`collected ${lspFound} → ${lspDest}`);
 }
-if (!lspFound) {
-    throw new Error(
-        `Could not find reqlan-lsp for ${target.napiSuffix}. Build with cargo build -p reqlan-lsp --release. Searched under:\n` +
-            searchRoots.join('\n')
-    );
-}
-const lspDest = path.join(destDir, path.basename(lspFound));
-fs.copyFileSync(lspFound, lspDest);
-console.log(`collected ${lspFound} → ${lspDest}`);

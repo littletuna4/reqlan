@@ -75,9 +75,9 @@ jobs:
       - name: Compile crate tests
         working-directory: crates
         run: cargo test --no-run --workspace --exclude reqlan-napi
-      - name: Build reqlan-napi and reqlan-lsp (host)
+      - name: Build reqlan-napi (host)
         working-directory: crates
-        run: cargo build -p reqlan-napi -p reqlan-lsp --release
+        run: cargo build -p reqlan-napi --release
       - name: Stage host native package
         run: node scripts/pack-host-native-package.mjs --target linux-x64-gnu
       - name: Native addon smoke
