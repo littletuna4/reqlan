@@ -180,6 +180,8 @@ describe("native platform packaging", () => {
       "utf8",
     );
     expect(packScript).toContain("assertPackedNativeTarget");
+    expect(packScript).toContain("assertPackedLanguageServer");
+    expect(packScript).toContain("file_size");
     const extPkg = JSON.parse(
       readFileSync(join(root, "packages/extension/package.json"), "utf8"),
     ) as { scripts: Record<string, string> };

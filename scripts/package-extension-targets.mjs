@@ -109,6 +109,11 @@ function stageLanguageServer(target) {
     console.log(`staged ${found} → ${dest}`);
 }
 
+function toolFailure(result) {
+    const stderr = result.stderr?.toString().trim();
+    return result.error?.message || stderr || `exit ${result.status}`;
+}
+
 function readZipEntry(zipPath, entryPath) {
     const python = process.platform === 'win32' ? 'python' : 'python3';
     const script =
@@ -122,17 +127,41 @@ function readZipEntry(zipPath, entryPath) {
         return unzip.stdout;
     }
     throw new Error(
-        `Could not read ${entryPath} from ${zipPath}: ${result.stderr?.toString() || unzip.stderr || 'no unzip/python'}`
+        `Could not read ${entryPath} from ${zipPath}: ${toolFailure(result)}; ${toolFailure(unzip)}`
+    );
+}
+
+function zipEntrySize(zipPath, entryPath) {
+    const python = process.platform === 'win32' ? 'python' : 'python3';
+    const script =
+        'import zipfile,sys; print(zipfile.ZipFile(sys.argv[1]).getinfo(sys.argv[2]).file_size)';
+    const result = spawnSync(python, ['-c', script, zipPath, entryPath], { encoding: 'utf8' });
+    if (result.status === 0) {
+        const size = Number(String(result.stdout).trim());
+        if (Number.isInteger(size) && size >= 0) {
+            return size;
+        }
+    }
+    const unzip = spawnSync('unzip', ['-l', zipPath, entryPath], { encoding: 'utf8' });
+    if (unzip.status === 0 && unzip.stdout) {
+        const line = unzip.stdout.split('\n').find((row) => row.trimEnd().endsWith(entryPath));
+        const size = Number(line?.trim().split(/\s+/)[0]);
+        if (Number.isInteger(size) && size >= 0) {
+            return size;
+        }
+    }
+    throw new Error(
+        `Could not stat ${entryPath} in ${zipPath}: ${toolFailure(result)}; ${toolFailure(unzip)}`
     );
 }
 
 function assertPackedLanguageServer(vsixPath, target) {
     const entry = target.os.includes('win32') ? 'extension/bin/reqlan-lsp.exe' : 'extension/bin/reqlan-lsp';
-    const raw = readZipEntry(vsixPath, entry);
-    if (!raw) {
-        throw new Error(`VSIX ${vsixPath} is missing ${entry}`);
+    const size = zipEntrySize(vsixPath, entry);
+    if (size <= 0) {
+        throw new Error(`VSIX ${vsixPath} has empty ${entry}`);
     }
-    console.log(`verified ${vsixPath} contains ${entry}`);
+    console.log(`verified ${vsixPath} contains ${entry} (${size} bytes)`);
 }
 
 function assertPackedNativeTarget(vsixPath, vsCodeTarget) {
