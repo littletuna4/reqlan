@@ -23,6 +23,10 @@ if ! command -v pnpm >/dev/null 2>&1; then
   corepack prepare pnpm@12.10.1 --activate
 fi
 
+# Prefer the Node that owns pnpm. The agent runtime can shadow `node` on PATH.
+export PATH="$(dirname "$(command -v pnpm)"):${PATH}"
+hash -r
+
 echo "node $(node -v) ($(command -v node))"
 echo "pnpm $(pnpm -v) ($(command -v pnpm))"
 echo "rustc $(rustc --version)"
