@@ -1,5 +1,11 @@
 # site
 
+## 0.21.5
+
+### Patch Changes
+
+- ad703c9: More aggressive startup resource use caps and filters. Tool tips in html export.
+
 ## 0.21.4
 
 ### Patch Changes

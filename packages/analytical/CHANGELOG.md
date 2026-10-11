@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.17.3
+
+### Patch Changes
+
+- ad703c9: More aggressive startup resource use caps and filters. Tool tips in html export.
+
 ## 1.17.2
 
 ### Patch Changes
