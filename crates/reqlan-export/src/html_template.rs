@@ -1,7 +1,7 @@
 use crate::html_utils::{
     escape_html, export_idea_anchor_id, file_by_idea, file_page_enabled, filter_display_label,
-    format_date, href_for, idea_status, idea_tags, is_filter_empty, is_filter_not_present,
-    is_filter_unspecified, list_filter_href, page_href, related_clusters,
+    format_date, href_for, idea_status, idea_tags, idea_tip_attrs, is_filter_empty,
+    is_filter_not_present, is_filter_unspecified, list_filter_href, page_href, related_clusters,
     render_attribute_value_html, render_definition_list, render_file_path_cell,
     render_idea_summary_html, render_linked_status_cell, render_linked_tags_cell, render_metric,
     render_optional_status_cell, render_optional_tags_cell, render_print_idea_attributes_html,
@@ -1924,8 +1924,9 @@ fn render_idea_anchor(
 ) -> String {
     if snapshot.page_options.include_idea_pages {
         format!(
-            r#"<a href="{}">{}</a>"#,
+            r#"<a href="{}"{}>{}</a>"#,
             escape_html(&export_page_href(snapshot, current_path, &idea.page)),
+            idea_tip_attrs(idea),
             escape_html(label)
         )
     } else {

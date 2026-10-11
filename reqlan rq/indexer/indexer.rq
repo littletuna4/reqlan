@@ -295,7 +295,8 @@ index_diagnostics_timing {
 
 index_code_files {
     Index non-`.rq` source files that contain [comment_reference] (`rq:[idea]` / `rq:["path".idea]`).
-    After the `.rq` pass, the native sync walks allowlisted text files (respecting `.rqignore`, [app_memory_doc.binary_ignore], and nested child bases).
+    The same directory scan records allowlisted text paths (respecting `.rqignore`, [app_memory_doc.binary_ignore], [app_memory_doc.commentless_file_ignore], and nested child bases).
+    Content reads use that list. They are not a second directory walk. [app_memory_doc.text_prefix_skip] skips non-text before a full read.
     Binary files stay out unless a negation such as `!*.bin` opts them in.
     The walk cheap-filters on `rq:`, and persists matching files as documents plus `comment_link` edges.
     Edge shape: source = referenced idea, `target_file` = code file URI, kind `comment_link` (no synthetic file ideas).

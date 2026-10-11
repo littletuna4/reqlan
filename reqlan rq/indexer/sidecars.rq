@@ -32,10 +32,16 @@ sqlite_wal_sidecars {
     - `index-diagnostics.sqlite-wal` / `-shm` / `-journal`
     - `click-sessions.sqlite-wal` / `-shm` / `-journal`
     These are true sidecars of the open database, not separate product stores.
+    Index walks skip them through [rqignore] (`*.sqlite-wal`, `*.sqlite-shm`, `*.sqlite-journal`, and the same suffixes on `.sqlite3`, `.db`, and `.db3`).
     Seeded `.reqlan/.gitignore` must keep `*.sqlite*` artifacts out of VCS
     ([base_initialisation_ignore], [ignore_rust] `default_gitignore_file_contents`).
     [reqlan_directory_layout]
     [ideas_schema.schema_migrations]
+    @status done
+    @tests (
+        ["../../packages/analytical/test/rqignore.test.ts:defaults ignore json, sqlite sidecars, and files without comments"]
+        ["../../crates/reqlan-index/src/ignore.rs:default_rqignore_skips_files_without_comments_until_negated"]
+    )
 }
 
 json_siblings {

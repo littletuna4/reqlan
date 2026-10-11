@@ -23,10 +23,11 @@ lsp_file_watch {
 }
 
 index_file_search_coalesce {
-    Extension-host `findFiles` for `**/*.rq` must share one in-flight search.
-    Overlapping rediscover and sync callers must not start a second ripgrep / `searchtext.exe` process.
-    The search does not filter: the base index applies `.rqignore` (["../../../indexer/indexer.rq".nonblocking_index]), because the bases are not known before discovery.
-    Related: [lsp_file_watch], ["../../index-host/index.rq".rqignore].
+    Index startup does not call `findFiles` or ripgrep / `searchtext.exe`.
+    The native workspace scan (["../../../indexer/cache-reuse.rq".single_sync_walk]) is the one directory walk.
+    Overlapping rediscover and sync callers share that in-flight scan.
+    The scan applies `.rqignore` (["../../../indexer/indexer.rq".nonblocking_index]).
+    Related: [lsp_file_watch], ["../../index-host/index.rq".rqignore], ["../../../indexer/sequencing.rq".scan_limits].
     @status done
     @implementation (
         ["../../../../packages/extension/src/shared/share-in-flight.ts"]

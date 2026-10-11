@@ -8,12 +8,11 @@
 
 use crate::extract::{extract_indexed_document, hash_text, ExtractOptions};
 use crate::ids::edge_id;
+use crate::text::MAX_INDEX_FILE_BYTES;
 use crate::types::{EdgeKind, EdgeRecord, IdeaSummary};
 use reqlan_parse::{import_path_candidates, resolve_rq_path, ImportRootMapping};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-
-const MAX_CODE_FILE_BYTES: u64 = 1_048_576;
 
 const CODE_FILE_EXTENSIONS: &[&str] = &[
     "ts", "tsx", "js", "jsx", "mjs", "cjs", "cts", "mts", "py", "pyi", "rs", "go", "java", "kt",
@@ -63,7 +62,7 @@ pub fn looks_like_comment_reference_source(source: &str) -> bool {
 }
 
 pub fn too_large_for_comment_index(path: &Path) -> bool {
-    std::fs::metadata(path).ok().map(|meta| meta.len() > MAX_CODE_FILE_BYTES).unwrap_or(false)
+    std::fs::metadata(path).ok().map(|meta| meta.len() > MAX_INDEX_FILE_BYTES).unwrap_or(false)
 }
 
 pub fn parse_comment_reference_target(target: &str) -> Option<(Option<String>, String)> {

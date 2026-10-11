@@ -3,6 +3,7 @@
  * rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
  * rq:["../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
  * rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
+ * rq:["../../../reqlan rq/extension/index-host/index.rq".commentless_file_ignore]
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -35,11 +36,18 @@ describe('rqignore', () => {
         const filter = createRqIgnoreFilter();
         expect(filter.ignores('node_modules/', true)).toBe(true);
         expect(filter.ignores('node_modules/pkg/x.rq')).toBe(true);
+        expect(filter.ignores('target/', true)).toBe(true);
+        expect(filter.ignores('target/debug/out.rs')).toBe(true);
         expect(filter.ignores('venv/', true)).toBe(true);
         expect(filter.ignores('.venv/lib/', true)).toBe(true);
         expect(filter.ignores('data/local.db3')).toBe(true);
         expect(filter.ignores('assets/payload.bin')).toBe(true);
         expect(filter.ignores('photo.png')).toBe(true);
+        expect(filter.ignores('lib/native.jar')).toBe(true);
+        expect(filter.ignores('bin/', true)).toBe(true);
+        expect(filter.ignores('generated/page.rq')).toBe(true);
+        expect(filter.ignores('out/bundle.js')).toBe(true);
+        expect(filter.ignores('docs/index.html')).toBe(true);
         expect(filter.ignores('src/feature.rq')).toBe(false);
     });
 
@@ -48,6 +56,25 @@ describe('rqignore', () => {
         expect(filter.ignores('vendor/lib/', true)).toBe(true);
         // Built-in venv/ plus later !venv/ — last matching rule wins in ignore.
         expect(filter.ignores('venv/', true)).toBe(false);
+    });
+
+    test('defaults ignore json, sqlite sidecars, and files without comments', () => {
+        const filter = createRqIgnoreFilter();
+        expect(filter.ignores('package.json')).toBe(true);
+        expect(filter.ignores('data/rows.csv')).toBe(true);
+        expect(filter.ignores('src/app.min.js')).toBe(true);
+        expect(filter.ignores('ideas-index.sqlite-wal')).toBe(true);
+        expect(filter.ignores('ideas-index.sqlite-shm')).toBe(true);
+        expect(filter.ignores('ideas-index.sqlite-journal')).toBe(true);
+        expect(filter.ignores('src/app.ts')).toBe(false);
+        expect(filter.ignores('tsconfig.jsonc')).toBe(false);
+    });
+
+    test('inverse rqignore patterns opt json back in', () => {
+        const filter = createRqIgnoreFilter('!*.json\n');
+        expect(filter.ignores('package.json')).toBe(false);
+        expect(filter.ignores('data/rows.csv')).toBe(true);
+        expect(filter.ignores('src/feature.rq')).toBe(false);
     });
 
     test('inverse rqignore patterns opt binary files back in', () => {
@@ -99,6 +126,12 @@ describe('rqignore', () => {
         expect(text).toContain('.reqlan/ is not crawled');
         expect(text).toContain('# Dependencies');
         expect(text).toContain('# Databases');
+        expect(text).toContain('SQLite sidecar files');
+        expect(text).toContain('*.sqlite-wal');
+        expect(text).toContain('# Files without comments');
+        expect(text).toContain('no comment syntax');
+        expect(text).toContain('!*.json');
+        expect(text).toContain('*.csv');
         for (const pattern of [
             'node_modules/',
             'venv/',

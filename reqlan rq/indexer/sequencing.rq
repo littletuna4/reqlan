@@ -43,7 +43,8 @@ extension_startup_sequence {
     1. `activate` registers UI only; it must not await index sync.
     2. Activity bar paints → startup gate; language client may start on a short fallback.
     3. Index adapter activates after paint (or a short fallback timer).
-    4. Rediscover bases → soft [soft_sync] for the **active** base only ([indexing_trigger_open]);
+    4. One native scan ([cache_reuse.single_sync_walk], [scan_limits]) records bases and file paths.
+       Soft [soft_sync] then runs for the **active** base only ([indexing_trigger_open]);
        other bases stay closed until pin/focus/file events (["../extension/index-host/sqlite-artifact-lifecycle.rq".event_driven_base_access]).
     5. Install watchers for `.rq` and code globs; watch `.reqlan` marker create/delete for rediscovery
        (not SQLite child writes).
@@ -55,9 +56,36 @@ extension_startup_sequence {
     and must not wait for this crawl.
 }
 
+scan_limits {
+    The workspace scan has two caps. There is no unlimited setting.
+    `reqlan.scan.maxDepth` defaults to 8 and clamps to 1–32. The workspace folder is depth 0. A directory deeper than the cap is not entered.
+    `reqlan.scan.maxEntries` defaults to 20000 and clamps to 1–500000. The count is directories plus files visited.
+    When a cap hits, the walk stops, keeps the partial result, and the editor shows a warning. It does not start another scan to finish.
+    Refresh uses the same caps.
+    CLI and MCP use the same defaults.
+    Built-in ignore also skips `target/` so a Cargo tree does not consume the entry budget.
+    [extension_startup_sequence]
+    [cache_reuse.single_sync_walk]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/scan.rs"]
+        ["../../packages/analytical/src/core/scan-limits.ts"]
+        ["../../packages/extension/package.json"]
+        ["../../crates/reqlan-index/src/ignore.rs"]
+        ["../../packages/analytical/src/core/rqignore.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/scan.rs:depth_2_does_not_return_a_deeper_base_or_rq"]
+        ["../../crates/reqlan-index/tests/scan.rs:entry_cap_stops_and_reports_truncation"]
+        ["../../packages/analytical/test/scan-limits.test.ts:clamps depth and entries into the allowed range"]
+        ["../../crates/reqlan-index/tests/sync.rs:default_rqignore_skips_node_modules"]
+        ["../../packages/analytical/test/base-discovery.test.ts:skips target build trees"]
+    )
+}
+
 soft_sync {
-    Soft full sync (`syncWorkspace` / Refresh) walks the base, skips files whose FS mtime
-    matches [ideas_schema.documents_table].`mtime_ms`, and upserts changed files only.
+    Soft full sync (`syncWorkspace` / Refresh) indexes the path list from [cache_reuse.single_sync_walk].
+    It skips files whose FS mtime matches [ideas_schema.documents_table].`mtime_ms`, and upserts changed files only.
     Progress and cancel follow [nonblocking_index].
     Prefer a single walk ([cache_reuse.single_sync_walk]).
     Triggers: [indexing_trigger_open], [indexing_trigger_manual] (Refresh).
@@ -81,7 +109,7 @@ watcher_incremental {
 }
 
 idle_stale_check {
-    When the editor is idle, load document mtimes in one SQLite read, compare FS mtimes
+    When the editor is idle, use document paths already stored in SQLite (do not scan the tree), load mtimes in one SQLite read, compare FS mtimes
     in memory, and index only mismatched or new files; drop deleted docs in one batch.
     If nothing is stale: no state transition, no progress UI, no parse.
     Prefer unfocused windows; cancel if the user becomes active again.
@@ -98,7 +126,7 @@ idle_stale_check {
 
 headless_sync_on_ready {
     CLI and MCP call [analysis_runtime] `ensure_ready`, which runs a soft [soft_sync]
-    (WalkDir) once before serving commands.
+    from [cache_reuse.single_sync_walk] once before serving commands.
     No watchers and no idle loop ([consumers.headless_consumers]).
     [index_sequencing]
 }

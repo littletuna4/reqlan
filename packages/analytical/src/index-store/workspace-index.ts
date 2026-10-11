@@ -18,7 +18,6 @@
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index_diagnostics_timing]
  */
 import { fsPathFromFileUri } from '../core/path-relative.js';
-import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME } from '../core/application-memory.js';
 import { errorCauseMessage, toFileIndexIssueView, toIndexErrorDetail } from '../core/index-error.js';
@@ -26,7 +25,9 @@ import { isIgnoredPath, loadRqIgnore, type RqIgnoreFilter } from '../core/rqigno
 import { resolveWorkspaceFileUri, toWorkspaceRelativePath } from '../core/workspace-paths.js';
 import { isSecretRqPath } from '../export/secret-rq.js';
 import type { IndexState } from '../core/index-state-types.js';
+import { DEFAULT_SCAN_MAX_DEPTH, DEFAULT_SCAN_MAX_ENTRIES } from '../core/scan-limits.js';
 import { loadNativeEngine } from '../native/load-native.js';
+import { scanWorkspace } from '../native/scan-workspace.js';
 import { NativeSqlConnection } from '../native/native-sql-db.js';
 import { NativeWorkspaceIndex } from '../native/native-workspace-index.js';
 import type { OverviewCoverageScores } from '../native/native-workspace-index.js';
@@ -569,16 +570,6 @@ export class WorkspaceIndex {
             },
             filePaths && this.indexedFiles(filePaths)
         );
-        // Full-base sync also indexes comment-bearing code files (mtime-skips .rq already done).
-        if (ok && !filePaths?.length && !this.syncCancelRequested) {
-            try {
-                native.syncWorkspace(false);
-                const counts = await this.sqlite.counts();
-                native.setIndexReady(counts.ideas, counts.edges);
-            } catch {
-                // Code-file catch-up must not fail the .rq sync.
-            }
-        }
         return ok;
     }
 
@@ -692,36 +683,20 @@ export class WorkspaceIndex {
     }
 
     private async collectRqFiles(): Promise<string[]> {
-        // Reload so edits to `.reqlan/.rqignore` apply on the next sync/walk.
+        // One native walk for this base. Nested bases are not entered.
+        // rq:["../../../../reqlan rq/indexer/cache-reuse.rq".single_sync_walk]
         this.rqIgnore = loadRqIgnore(this.workspaceRoot);
-        const results: string[] = [];
-        if (this.workspaceRoot) {
-            await this.walkDirectory(this.workspaceRoot, results);
+        if (!this.workspaceRoot) {
+            this.rqFilePaths = [];
+            return [];
         }
-        this.rqFilePaths = results;
-        return results;
-    }
-
-    private async walkDirectory(directory: string, results: string[]): Promise<void> {
-        let entries;
-        try {
-            entries = await readdir(directory, { withFileTypes: true });
-        } catch {
-            return;
-        }
-        for (const entry of entries) {
-            const fullPath = join(directory, entry.name);
-            if (entry.isDirectory()) {
-                if (isIgnoredPath(this.rqIgnore, this.workspaceRoot, fullPath, true)) {
-                    continue;
-                }
-                await this.walkDirectory(fullPath, results);
-                continue;
-            }
-            if (entry.isFile() && entry.name.endsWith('.rq') && this.isIndexedPath(fullPath)) {
-                results.push(fullPath);
-            }
-        }
+        const scan = await scanWorkspace(
+            [this.workspaceRoot],
+            { maxDepth: DEFAULT_SCAN_MAX_DEPTH, maxEntries: DEFAULT_SCAN_MAX_ENTRIES },
+            true
+        );
+        this.rqFilePaths = scan.rqFiles;
+        return [...scan.rqFiles, ...scan.codeFiles];
     }
 
     private notifyCatalogUpdated(): void {

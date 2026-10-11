@@ -98,7 +98,7 @@ configuration_rqignore {
     Each base may define path ignore rules in `.reqlan/.rqignore` using **gitignore syntax**.
     Patterns are relative to the base root (parent of `.reqlan`), not the `.reqlan` directory.
     Owned by `@reqlan/analytical` so the CLI, MCP, and extension share one filter for discovery and indexing walks.
-    Built-in defaults always apply (dependencies, venvs, build output, VCS/editor stores, `*.db3` / sqlite DBs, binary globs per ["../index-host/index.rq".binary_ignore], `*.secret.rq`, hidden entries, and `.reqlan/` itself); the on-disk file adds or overrides via the same syntax, including `!` negation.
+    Built-in defaults always apply (dependencies, venvs, build output, VCS/editor stores, `*.db3` / sqlite DBs and SQLite sidecars, binary globs per ["../index-host/index.rq".binary_ignore], files that have no comments per ["../index-host/index.rq".commentless_file_ignore], `*.secret.rq`, hidden entries, and `.reqlan/` itself); the on-disk file adds or overrides via the same syntax, including `!` negation.
     New bases seed `.reqlan/.rqignore` with those defaults (["../index-host/index.rq".rqignore]).
     Missing or unreadable `.rqignore` still uses built-in defaults.
     Location convention: [configuration_location]. Application memory: ["../index-host/index.rq".application_memory].

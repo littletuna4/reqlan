@@ -68,6 +68,16 @@ export {
     toBaseDescriptor
 } from './core/base-discovery.js';
 export type { BaseDescriptor } from './core/base-discovery.js';
+export {
+    clampScanLimits,
+    DEFAULT_SCAN_MAX_DEPTH,
+    DEFAULT_SCAN_MAX_ENTRIES,
+    SCAN_MAX_DEPTH_LIMIT,
+    SCAN_MAX_ENTRIES_LIMIT
+} from './core/scan-limits.js';
+export type { ScanLimits } from './core/scan-limits.js';
+export { scanWorkspace } from './native/scan-workspace.js';
+export type { WorkspaceScan } from './native/scan-workspace.js';
 export { BaseRegistry } from './index-store/base-registry.js';
 export type {
     BaseRegistryRefreshResult,

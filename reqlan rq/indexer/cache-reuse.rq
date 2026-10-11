@@ -33,13 +33,29 @@ already_cached {
 }
 
 single_sync_walk {
-    Soft full sync must not walk the same base tree twice.
-    Today the extension may `findFiles` for `.rq` paths and then call native `syncWorkspace`,
-    which walks again for `.rq` and code files ([editor_index_adapter], [workspace_index]).
-    Prefer one native walk (or one shared file list) per soft sync.
+    One native directory walk records base roots, `.rq` paths, and allowlisted code paths.
+    The walk does not read file bodies.
+    Startup, Refresh, and create-base each run that walk once. They do not call `findFiles` and they do not run a second native `syncWorkspace` walk.
+    Soft sync indexes the path list and skips unchanged mtimes.
+    Idle stale check stats paths already stored in SQLite. New files arrive from the file watcher.
+    The language server does not walk. The extension sends the base roots after the scan.
+    Overlapping callers share one in-flight scan.
+    CLI and MCP `sync_workspace` uses the same walk (one pass, stop at nested bases).
     [index_cache_reuse]
     [sequencing.soft_sync]
-    @status draft
+    [sequencing.scan_limits]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/scan.rs"]
+        ["../../packages/analytical/src/native/scan-workspace.ts"]
+        ["../../packages/extension/src/analytical_submodule/index-store/index-service.ts"]
+        ["../../packages/analytical/src/index-store/workspace-index.ts"]
+        ["../../crates/reqlan-lsp/src/session.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/scan.rs:one_walk_returns_bases_rq_and_code_and_skips_ignored_dirs"]
+        ["../../packages/extension/test/refresh-rediscovers-bases.test.ts:startup scan does not call findFiles"]
+    )
 }
 
 single_open_store {

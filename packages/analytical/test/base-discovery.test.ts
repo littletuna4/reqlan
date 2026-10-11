@@ -121,6 +121,17 @@ describe('base discovery', () => {
         expect(selectDefaultBase([])).toBeUndefined();
     });
 
+    test('skips target build trees', () => {
+        const root = tempDir();
+        markBase(root);
+        const nested = join(root, 'target', 'debug');
+        mkdirSync(nested, { recursive: true });
+        markBase(nested);
+        const bases = discoverBases([root]);
+        expect(bases).toHaveLength(1);
+        expect(bases[0]!.root).toBe(resolve(root));
+    });
+
     test('skips node_modules and does not treat .reqlan as a walkable base root', () => {
         const root = tempDir();
         markBase(root);

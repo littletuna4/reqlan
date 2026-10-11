@@ -34,4 +34,10 @@ describe('refresh rediscovers bases (extension wiring)', () => {
         expect(registerCommands).toContain("reqlan.refreshIndex");
         expect(registerCommands).toContain('index.syncWorkspace()');
     });
+
+    test('startup scan does not call findFiles', () => {
+        expect(indexService).not.toContain('findFiles');
+        expect(indexService).toContain('scanOnce');
+        expect(indexService).toContain('scanWorkspace');
+    });
 });

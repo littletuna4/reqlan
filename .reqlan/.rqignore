@@ -25,12 +25,15 @@ __pycache__/
 dist/
 out/
 build/
+bin/
+generated/
 coverage/
 .next/
 .nuxt/
 .turbo/
 .cache/
 *.tsbuildinfo
+*.html
 
 # VCS / editor / package stores
 .git/
@@ -53,6 +56,61 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+*.db-wal
+*.db-shm
+*.db-journal
+*.db3-wal
+*.db3-shm
+*.db3-journal
+
+# Files without comments
+*.json
+*.jsonl
+*.ndjson
+*.geojson
+*.topojson
+*.har
+*.sarif
+*.webmanifest
+*.ipynb
+*.gltf
+*.csv
+*.tsv
+*.tab
+pnpm-lock.yaml
+bun.lockb
+Package.resolved
+*.lock
+*.sum
+*.sha1
+*.sha256
+*.sha512
+*.md5
+*.snap
+*.min.js
+*.min.mjs
+*.min.cjs
+*.min.css
+*.js.map
+*.mjs.map
+*.cjs.map
+*.css.map
+*.map
+*.pem
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+*.p7b
+*.key
+*.mo
 
 # Secrets / logs / temp
 *.secret.rq

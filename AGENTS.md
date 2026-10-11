@@ -1,5 +1,6 @@
 - USE ASD-STE100
 - All non-trivial; or directional user requirements must be documented in an .rq file. The user is lazy - you should injest requests, link, deprecate and deduplicated proactively and agressively.
+- Graph content should be stateless/timeless
 - Implementation and tests should be cross referenced in rq.
 - verbosity is sin; as are code and req duplication.
 - Do not use the browser tool.

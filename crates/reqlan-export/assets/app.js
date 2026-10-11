@@ -1886,8 +1886,149 @@ function scheduleBackground(task) {
     });
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_idea_tooltips]
+function wireIdeaTooltips(root) {
+    const tip = document.createElement('div');
+    tip.className = 'idea-tooltip';
+    tip.id = 'idea-tooltip';
+    tip.setAttribute('role', 'tooltip');
+    tip.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(tip);
+    let current = null;
+    let showTimer = 0;
+    let hideTimer = 0;
+
+    function anchorFrom(target) {
+        if (!target || typeof target.closest !== 'function') return null;
+        const anchor = target.closest('[data-tip-name]');
+        return anchor && root.contains(anchor) ? anchor : null;
+    }
+
+    function holds(parent, node) {
+        return !!node && typeof node.nodeType === 'number' && parent.contains(node);
+    }
+
+    function fill(anchor) {
+        const name = anchor.getAttribute('data-tip-name') || '';
+        if (!name) return false;
+        const file = anchor.getAttribute('data-tip-file') || '';
+        const body = anchor.getAttribute('data-tip-body') || '';
+        const status = anchor.getAttribute('data-tip-status') || '';
+        tip.replaceChildren();
+        const head = document.createElement('div');
+        head.className = 'idea-tooltip-head';
+        const title = document.createElement('div');
+        title.className = 'idea-tooltip-name';
+        title.textContent = name;
+        head.append(title);
+        if (status) {
+            const pill = document.createElement('span');
+            pill.className = 'idea-tooltip-status';
+            pill.textContent = status;
+            head.append(pill);
+        }
+        tip.append(head);
+        if (file) {
+            const path = document.createElement('div');
+            path.className = 'idea-tooltip-file';
+            path.textContent = file;
+            tip.append(path);
+        }
+        if (body) {
+            const prose = document.createElement('div');
+            prose.className = 'idea-tooltip-body';
+            prose.textContent = body;
+            tip.append(prose);
+        }
+        return true;
+    }
+
+    function place(anchor) {
+        const margin = 10;
+        const gap = 8;
+        const rect = anchor.getBoundingClientRect();
+        const tipRect = tip.getBoundingClientRect();
+        let top = rect.bottom + gap;
+        if (top + tipRect.height > window.innerHeight - margin) {
+            const above = rect.top - gap - tipRect.height;
+            top = above >= margin ? above : margin;
+        }
+        let left = rect.left;
+        top = Math.max(margin, Math.min(top, window.innerHeight - tipRect.height - margin));
+        left = Math.max(margin, Math.min(left, window.innerWidth - tipRect.width - margin));
+        tip.style.left = `${Math.round(left)}px`;
+        tip.style.top = `${Math.round(top)}px`;
+    }
+
+    function show(anchor) {
+        if (!fill(anchor)) return;
+        if (current && current !== anchor) current.removeAttribute('aria-describedby');
+        current = anchor;
+        anchor.setAttribute('aria-describedby', tip.id);
+        tip.removeAttribute('aria-hidden');
+        place(anchor);
+        tip.classList.add('is-open');
+    }
+
+    function hide() {
+        if (current) current.removeAttribute('aria-describedby');
+        current = null;
+        tip.classList.remove('is-open');
+        tip.setAttribute('aria-hidden', 'true');
+    }
+
+    function scheduleHide() {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(hide, 160);
+    }
+
+    root.addEventListener('pointerover', (event) => {
+        if (event.pointerType === 'touch') return;
+        const anchor = anchorFrom(event.target);
+        if (!anchor) return;
+        clearTimeout(hideTimer);
+        if (anchor === current) return;
+        clearTimeout(showTimer);
+        showTimer = setTimeout(() => show(anchor), current ? 40 : 160);
+    });
+    root.addEventListener('pointerout', (event) => {
+        const anchor = anchorFrom(event.target);
+        if (!anchor) return;
+        const next = event.relatedTarget;
+        if (next === tip || holds(tip, next) || holds(anchor, next)) return;
+        if (anchorFrom(next) === anchor) return;
+        scheduleHide();
+    });
+    tip.addEventListener('pointerenter', () => clearTimeout(hideTimer));
+    tip.addEventListener('pointerleave', (event) => {
+        if (current && (event.relatedTarget === current || holds(current, event.relatedTarget))) return;
+        scheduleHide();
+    });
+    root.addEventListener('focusin', (event) => {
+        const anchor = anchorFrom(event.target);
+        if (!anchor) return;
+        clearTimeout(hideTimer);
+        clearTimeout(showTimer);
+        show(anchor);
+    });
+    root.addEventListener('focusout', (event) => {
+        if (anchorFrom(event.target)) scheduleHide();
+    });
+    window.addEventListener('scroll', () => {
+        if (current) place(current);
+    }, true);
+    window.addEventListener('resize', () => {
+        if (current) place(current);
+    });
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') hide();
+    });
+}
+
 function boot() {
     const root = document.body;
+    wireIdeaTooltips(root);
     // Interactive Status/Tags triggers before heavy table/graph init.
     enhanceScdPlaceholders(root);
     wireTables(root);

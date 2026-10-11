@@ -14,10 +14,12 @@ pub mod path_resolve;
 pub mod queries;
 /// rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
 pub mod rq_ignore;
+pub mod scan;
 pub mod schema;
 pub mod sql_bridge;
 pub mod store;
 pub mod sync;
+pub mod text;
 pub mod types;
 
 pub use broken::{
@@ -47,9 +49,16 @@ pub use overview::{compute_overview_coverage, OverviewCoverageScores};
 pub use path_resolve::{default_rq_config, load_applying_rq_config, RqConfig};
 pub use reqlan_parse::{file_from_idea_id, resolve_rq_path};
 pub use rq_ignore::find_rq_ignore_error_target_lines;
+pub use scan::{
+    clamp_scan_depth, clamp_scan_entries, scan_workspace, ScanLimits, WorkspaceScan,
+    DEFAULT_SCAN_MAX_DEPTH, DEFAULT_SCAN_MAX_ENTRIES,
+};
 pub use sql_bridge::{SqlBridge, SqlBridgeError};
 pub use store::{IndexStore, StoreError};
 pub use sync::{
     index_one_file, sync_workspace, IndexOneFileResult, SyncOptions, SyncProgress, SyncResult,
+};
+pub use text::{
+    prefix_rejects, read_index_text, IndexText, MAX_INDEX_FILE_BYTES, TEXT_SNIFF_BYTES,
 };
 pub use types::*;

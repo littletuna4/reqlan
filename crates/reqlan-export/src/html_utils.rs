@@ -11,6 +11,29 @@ pub fn escape_html(value: &str) -> String {
     value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+fn escape_tip_text(value: &str) -> String {
+    let normalized = value.replace("\r\n", "\n").replace('\r', "\n");
+    escape_html(&normalized).replace('\n', "&#10;")
+}
+
+/// Hover payload for a resolved idea link.
+/// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_idea_tooltips]
+pub(crate) fn idea_tip_attrs(idea: &ExportIdea) -> String {
+    let mut attrs = format!(
+        r#" data-tip-name="{}" data-tip-file="{}""#,
+        escape_html(&idea.name),
+        escape_html(&idea.file_uri)
+    );
+    let body = idea.summary.trim();
+    if !body.is_empty() {
+        attrs.push_str(&format!(r#" data-tip-body="{}""#, escape_tip_text(body)));
+    }
+    if let Some(status) = idea_status(idea) {
+        attrs.push_str(&format!(r#" data-tip-status="{}""#, escape_html(&status)));
+    }
+    attrs
+}
+
 pub fn format_date(value: &str) -> String {
     value.to_string()
 }
@@ -722,20 +745,7 @@ fn render_line_with_refs(
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" ");
-        if let Some(href) = href {
-            html.push_str(&format!(
-                r#"<a class="{class_name}" href="{}" title="{}">{}</a>"#,
-                escape_html(&href),
-                escape_html(&title),
-                escape_html(&label)
-            ));
-        } else {
-            html.push_str(&format!(
-                r#"<span class="{class_name}" title="{}">{}</span>"#,
-                escape_html(&title),
-                escape_html(&label)
-            ));
-        }
+        html.push_str(&linked_chip_html(&class_name, href.as_deref(), &label, &title, linked_idea));
     }
     html.push_str(&escape_html(&line[last..]));
     html
@@ -749,7 +759,7 @@ fn render_attribute_link_html(
     same_page_idea_anchors: bool,
 ) -> Option<String> {
     let decision = attribute_link(snapshot, idea, raw)?;
-    let (label, title, href) = match decision {
+    let (label, title, href, tip_idea) = match decision {
         AttributeLink::Resolved { owner, key } => {
             let title = format!("{} · {}.{}", owner.file_uri, owner.name, key);
             let href = attribute_instance_href(
@@ -759,28 +769,49 @@ fn render_attribute_link_html(
                 &key,
                 same_page_idea_anchors,
             );
-            (key, title, href)
+            (key, title, href, Some(owner))
         }
         AttributeLink::Missing { owner_name, key } => {
-            (key.clone(), format!("Unresolved attribute {key} on {owner_name}"), None)
+            (key.clone(), format!("Unresolved attribute {key} on {owner_name}"), None, None)
         }
     };
     let class_name =
         if href.is_some() { "idea-ref idea-ref--idea" } else { "idea-ref idea-ref--unresolved" };
-    Some(if let Some(href) = href {
+    Some(linked_chip_html(&class_name, href.as_deref(), &label, &title, tip_idea))
+}
+
+fn linked_chip_html(
+    class_name: &str,
+    href: Option<&str>,
+    label: &str,
+    title: &str,
+    tip_idea: Option<&ExportIdea>,
+) -> String {
+    if let Some(idea) = tip_idea {
+        let tip = idea_tip_attrs(idea);
+        if let Some(href) = href {
+            format!(
+                r#"<a class="{class_name}" href="{}"{tip}>{}</a>"#,
+                escape_html(href),
+                escape_html(label)
+            )
+        } else {
+            format!(r#"<span class="{class_name}"{tip}>{}</span>"#, escape_html(label))
+        }
+    } else if let Some(href) = href {
         format!(
             r#"<a class="{class_name}" href="{}" title="{}">{}</a>"#,
-            escape_html(&href),
-            escape_html(&title),
-            escape_html(&label)
+            escape_html(href),
+            escape_html(title),
+            escape_html(label)
         )
     } else {
         format!(
             r#"<span class="{class_name}" title="{}">{}</span>"#,
-            escape_html(&title),
-            escape_html(&label)
+            escape_html(title),
+            escape_html(label)
         )
-    })
+    }
 }
 
 fn take_row<'a>(

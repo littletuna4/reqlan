@@ -10,10 +10,49 @@ use reqlan_analytical::{
 use reqlan_index::queries::{
     self, GraphViewQuery, IdeasTableQuery, IdeasetsTableQuery, ReferencesTableQuery,
 };
-use reqlan_index::{EdgeRecord, IdeaRecord, SparseWildcardHandling, SqlBridge};
+use reqlan_index::{
+    scan_workspace as scan_workspace_paths, EdgeRecord, IdeaRecord, ScanLimits,
+    SparseWildcardHandling, SqlBridge,
+};
 use reqlan_parse::{parse_document, Severity};
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+/// One workspace directory walk. Runs off the extension-host thread.
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".single_sync_walk]
+/// rq:["../../../reqlan rq/indexer/sequencing.rq".scan_limits]
+pub struct WorkspaceScanTask {
+    roots: Vec<PathBuf>,
+    limits: ScanLimits,
+}
+
+#[napi]
+impl Task for WorkspaceScanTask {
+    type Output = String;
+    type JsValue = String;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let scan = scan_workspace_paths(&self.roots, self.limits.clone());
+        serde_json::to_string(&scan).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
+    fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        Ok(output)
+    }
+}
+
+#[napi(js_name = "scanWorkspace")]
+pub fn scan_workspace_task(
+    roots: Vec<String>,
+    max_depth: u32,
+    max_entries: u32,
+    stop_at_child_bases: bool,
+) -> AsyncTask<WorkspaceScanTask> {
+    AsyncTask::new(WorkspaceScanTask {
+        roots: roots.into_iter().map(PathBuf::from).collect(),
+        limits: ScanLimits { max_depth, max_entries, stop_at_child_bases, path_globs: Vec::new() },
+    })
+}
 
 #[napi]
 pub struct NativeAnalysisRuntime {

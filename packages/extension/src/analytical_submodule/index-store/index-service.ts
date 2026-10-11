@@ -13,16 +13,23 @@ import * as vscode from 'vscode';
 import {
     BaseRegistry,
     baseForPath,
+    clampScanLimits,
     createBase as createBaseMarker,
+    DEFAULT_SCAN_MAX_DEPTH,
+    DEFAULT_SCAN_MAX_ENTRIES,
     isIgnoredPath,
+    isPathInsideOrEqual,
     loadRqIgnore,
     openAnalysisApi,
     resolveApplicationMemoryPath,
+    scanWorkspace,
+    toBaseDescriptor,
     type BaseDescriptor,
     type BaseStatusEntry,
     type IndexStatusSnapshot,
     type NativeAnalysisApi,
-    type RegisteredBase
+    type RegisteredBase,
+    type WorkspaceScan
 } from '@reqlan/analytical';
 import { toIndexFileUri } from './resolve-index-file-uri.js';
 import { shareInFlight, type InFlightSlot } from '../../shared/share-in-flight.js';
@@ -63,8 +70,11 @@ export class IndexService {
     private idleSyncActive = false;
     /** Coalesced open+soft-sync nudges keyed by base id (pin / path activate). */
     private readonly catchUpInFlight = new Map<string, Promise<void>>();
-    /** One in-flight `findFiles` so overlapping rediscover/sync do not stack ripgrep. */
-    private readonly collectRqFilesSlot: InFlightSlot<string[]> = {};
+    /** One in-flight native scan so overlapping rediscover/sync do not walk twice. */
+    private readonly scanSlot: InFlightSlot<WorkspaceScan> = {};
+    private lastBaseRoots: string[] = [];
+    private lastScan?: WorkspaceScan;
+    private readonly baseRootListeners = new Set<(roots: string[]) => void>();
     /**
      * Rename old→new paths while `onDidRenameFiles` plans import rewrites.
      * Watcher delete would otherwise clear the pre-move index URI first.
@@ -141,6 +151,17 @@ export class IndexService {
         this.catalogListeners.add(listener);
         return () => {
             this.catalogListeners.delete(listener);
+        };
+    }
+
+    getBaseRoots(): string[] {
+        return this.lastBaseRoots;
+    }
+
+    subscribeBaseRoots(listener: (roots: string[]) => void): () => void {
+        this.baseRootListeners.add(listener);
+        return () => {
+            this.baseRootListeners.delete(listener);
         };
     }
 
@@ -352,7 +373,8 @@ export class IndexService {
 
     async syncWorkspace(baseId?: string): Promise<boolean> {
         const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-        const files = await this.collectRqFiles();
+        const scan = await this.scanOnce();
+        const files = scanFiles(scan);
         try {
             // Refresh always rediscovers via the analytical registry so new `.reqlan`
             // markers appear even when bases were already registered.
@@ -360,6 +382,7 @@ export class IndexService {
             const result = await this.registry.refresh(roots, {
                 preferredActiveId: baseId ?? this.activeBaseId,
                 cwd: this.activeEditorPath(),
+                bases: descriptorsFromScan(scan, roots),
                 allRqFiles: files,
                 syncActive: true
             });
@@ -381,11 +404,13 @@ export class IndexService {
 
     async clearAndRebuildIndex(baseId?: string): Promise<boolean> {
         const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-        const files = await this.collectRqFiles();
+        const scan = await this.scanOnce();
+        const files = scanFiles(scan);
         try {
             const result = await this.registry.refresh(roots, {
                 preferredActiveId: baseId ?? this.activeBaseId,
                 cwd: this.activeEditorPath(),
+                bases: descriptorsFromScan(scan, roots),
                 allRqFiles: files,
                 // Rediscover first; rebuild replaces soft-sync for the chosen base.
                 syncActive: false
@@ -424,7 +449,7 @@ export class IndexService {
             this.scheduleIdleRelease(IDLE_QUIET_MS);
             return true;
         }
-        const files = await this.collectRqFiles();
+        const files = await this.filesForSync();
         const ok = await this.registry.ensureBaseReady(id, files);
         this.notifyStatus();
         this.notifyCatalog();
@@ -440,7 +465,7 @@ export class IndexService {
         this.idleCheckInFlight = true;
         this.idleSyncActive = true;
         try {
-            const files = await this.collectIndexFiles();
+            const files = await this.collectStoredPaths();
             for (const base of this.registry.list()) {
                 const entry = this.registry.get(base.id);
                 // Idle must not open closed bases (no reconnect loop) — only diff already-open stores.
@@ -532,10 +557,12 @@ export class IndexService {
         }
         const created = await createBaseMarker(folder.fsPath);
         const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-        const files = await this.collectRqFiles();
+        const scan = await this.scanOnce();
+        const files = scanFiles(scan);
         const result = await this.registry.refresh(roots, {
             preferredActiveId: created.base.id,
             cwd: folder.fsPath,
+            bases: descriptorsFromScan(scan, roots),
             allRqFiles: files,
             syncActive: true
         });
@@ -570,11 +597,13 @@ export class IndexService {
 
     private async rediscoverAndSync(_resync: boolean): Promise<void> {
         const roots = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
-        const files = await this.collectRqFiles();
+        const scan = await this.scanOnce();
+        const files = scanFiles(scan);
         // Shared analytical refresh path (same as Refresh buttons).
         const result = await this.registry.refresh(roots, {
             preferredActiveId: this.activeBaseId,
             cwd: this.activeEditorPath(),
+            bases: descriptorsFromScan(scan, roots),
             allRqFiles: files,
             syncActive: true
         });
@@ -593,21 +622,47 @@ export class IndexService {
     }
 
     /**
-     * rq:["../../../../../reqlan rq/extension/language/support/initialisation-and-sequencing.rq".index_file_search_coalesce]
+     * One native directory walk for the open workspace folders.
+     * Overlapping callers share the in-flight scan.
+     * rq:["../../../../../reqlan rq/indexer/cache-reuse.rq".single_sync_walk]
+     * rq:["../../../../../reqlan rq/indexer/sequencing.rq".scan_limits]
      */
-    private async collectRqFiles(): Promise<string[]> {
-        return shareInFlight(this.collectRqFilesSlot, () => this.runCollectRqFiles());
+    private async scanOnce(): Promise<WorkspaceScan> {
+        return shareInFlight(this.scanSlot, () => this.runScan());
     }
 
-    /** Each base index applies its own `.rqignore` to these paths. */
-    private async runCollectRqFiles(): Promise<string[]> {
-        const files = await vscode.workspace.findFiles('**/*.rq', '**/node_modules/**');
-        return files.map(uri => uri.fsPath);
+    private async filesForSync(): Promise<string[]> {
+        if (this.lastScan) {
+            return scanFiles(this.lastScan);
+        }
+        return scanFiles(await this.scanOnce());
     }
 
-    private async collectIndexFiles(): Promise<string[]> {
-        const rqFiles = await this.collectRqFiles();
-        const extra: string[] = [];
+    private async runScan(): Promise<WorkspaceScan> {
+        const roots = (vscode.workspace.workspaceFolders ?? []).map(folder => folder.uri.fsPath);
+        const configuration = vscode.workspace.getConfiguration('reqlan');
+        const limits = clampScanLimits(
+            configuration.get<number>('scan.maxDepth', DEFAULT_SCAN_MAX_DEPTH),
+            configuration.get<number>('scan.maxEntries', DEFAULT_SCAN_MAX_ENTRIES)
+        );
+        const scan = await scanWorkspace(roots, limits, false);
+        this.lastScan = scan;
+        this.lastBaseRoots = scan.bases;
+        for (const listener of this.baseRootListeners) {
+            listener(scan.bases);
+        }
+        if (scan.truncated) {
+            const reason = scan.truncationReason === 'maxDepth' ? 'depth' : 'entry';
+            const message = `reqlan stopped the workspace scan at the ${reason} cap. Raise reqlan.scan.maxDepth or reqlan.scan.maxEntries. The index is partial.`;
+            console.warn(`[reqlan] ${message}`);
+            void vscode.window.showWarningMessage(message);
+        }
+        return scan;
+    }
+
+    /** Idle stale check uses stored document paths. New files arrive from the watcher. */
+    private async collectStoredPaths(): Promise<string[]> {
+        const paths: string[] = [];
         for (const base of this.registry.list()) {
             const entry = this.registry.get(base.id);
             if (!entry?.index.isReady) {
@@ -616,16 +671,13 @@ export class IndexService {
             try {
                 const uris = await entry.index.indexStore.listDocumentUris();
                 for (const uri of uris) {
-                    if (uri.endsWith('.rq') || uri.endsWith('.RQ')) {
-                        continue;
-                    }
-                    extra.push(vscode.Uri.joinPath(vscode.Uri.file(base.root), uri).fsPath);
+                    paths.push(vscode.Uri.joinPath(vscode.Uri.file(base.root), uri).fsPath);
                 }
             } catch {
                 // ignore unopened stores
             }
         }
-        return [...rqFiles, ...extra];
+        return paths;
     }
 
     private enqueueSync(uri: vscode.Uri, change: 'created' | 'changed'): void {
@@ -723,7 +775,7 @@ export class IndexService {
         }
         const work = (async () => {
             try {
-                const files = await this.collectRqFiles();
+                const files = await this.filesForSync();
                 await this.registry.ensureBaseReady(baseId, files);
             } catch {
                 // Errors are recorded on the per-base store.
@@ -795,4 +847,15 @@ export class IndexService {
             listener();
         }
     }
+}
+
+function scanFiles(scan: WorkspaceScan): string[] {
+    return [...scan.rqFiles, ...scan.codeFiles];
+}
+
+function descriptorsFromScan(scan: WorkspaceScan, roots: string[]): BaseDescriptor[] {
+    return scan.bases.map(baseRoot => {
+        const labelRoot = roots.find(root => isPathInsideOrEqual(baseRoot, root)) ?? roots[0];
+        return toBaseDescriptor(baseRoot, labelRoot);
+    });
 }

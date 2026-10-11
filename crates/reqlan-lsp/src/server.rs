@@ -244,6 +244,10 @@ fn dispatch_notification(
             note_name_catalog(session, &notification.params);
             Vec::new()
         }
+        "reqlan/bases" => {
+            note_bases(session, &notification.params);
+            Vec::new()
+        }
         _ => Vec::new(),
     }
 }
@@ -336,6 +340,15 @@ fn note_name_catalog(session: &mut Session, params: &Value) {
         })
         .collect();
     session.note_name_catalog(catalog);
+}
+
+fn note_bases(session: &mut Session, params: &Value) {
+    let Some(roots) = params.get("roots").and_then(|value| value.as_array()) else {
+        return;
+    };
+    let paths =
+        roots.iter().filter_map(|root| root.as_str().map(PathBuf::from)).collect::<Vec<_>>();
+    session.note_base_roots(&paths);
 }
 
 fn publish_hot(session: &mut Session, uri: &str) -> Notification {

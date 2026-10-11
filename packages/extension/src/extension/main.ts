@@ -21,6 +21,7 @@ import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-act
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
 import { registerAttributeCatalogSync } from './register-attribute-catalog-sync.js';
+import { registerBaseRootsSync } from './register-base-roots-sync.js';
 import { registerNameCatalogSync } from './register-name-catalog-sync.js';
 import { registerInboundSqliteSync } from './register-inbound-sqlite-sync.js';
 import {
@@ -145,6 +146,7 @@ function scheduleBackgroundStartup(
                 // that become ready afterwards.
                 registerAttributeCatalogSync(context, submodule.index, () => client);
                 registerNameCatalogSync(context, submodule.index, () => client);
+                registerBaseRootsSync(context, submodule.index, () => client);
                 registerInboundSqliteSync(context, submodule.index, () => client, fileInboundCodeLens);
             })
             .catch(error => {

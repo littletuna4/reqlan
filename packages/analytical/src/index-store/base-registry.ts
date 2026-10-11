@@ -106,11 +106,16 @@ export class BaseRegistry {
             preferredActiveId?: string;
             cwd?: string;
             allRqFiles?: string[];
+            /** When set, register these bases and do not walk again. */
+            bases?: BaseDescriptor[];
             /** When set, soft-sync this base after rediscovery (defaults to preferred/default). */
             syncActive?: boolean;
         }
     ): Promise<BaseRegistryRefreshResult> {
-        const bases = this.rediscover(roots);
+        const bases = options?.bases ?? this.rediscover(roots);
+        if (options?.bases) {
+            this.replaceDescriptors(bases);
+        }
         if (bases.length === 0) {
             return { bases, activeId: undefined, synced: false };
         }

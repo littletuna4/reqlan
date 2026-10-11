@@ -72,6 +72,8 @@ fn default_rqignore_skips_node_modules() {
     let filter = RqIgnoreFilter::load(&root);
     assert!(filter.ignores("node_modules/", true));
     assert!(filter.ignores("node_modules/pkg/foo.rq", false));
+    assert!(filter.ignores("target/", true));
+    assert!(filter.ignores("target/debug/out.rs", false));
     assert!(filter.ignores("data/local.db3", false));
     assert!(!filter.ignores("src/foo.rq", false));
     assert!(filter.ignores("assets/payload.bin", false));

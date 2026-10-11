@@ -2,6 +2,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 //! rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
 //! rq:["../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
+//! rq:["../../../reqlan rq/extension/index-host/index.rq".commentless_file_ignore]
 //! rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -44,21 +45,86 @@ const RQIGNORE_BUILD: &[&str] = &[
     "dist/",
     "out/",
     "build/",
+    "bin/",
+    "generated/",
     "coverage/",
+    "target/",
     ".next/",
     ".nuxt/",
     ".turbo/",
     ".cache/",
     "*.tsbuildinfo",
+    "*.html",
 ];
 const RQIGNORE_VCS: &[&str] =
     &[".git/", ".svn/", ".hg/", ".cursor/", ".pnpm-store/", ".vscode/", ".idea/"];
 const RQIGNORE_HIDDEN: &[&str] = &[".*", ".*/"];
 const RQIGNORE_MEMORY: &[&str] = &[".reqlan/"];
-const RQIGNORE_DATABASES: &[&str] = &["*.db3", "*.sqlite", "*.sqlite3", "*.db"];
+const RQIGNORE_DATABASES: &[&str] = &[
+    "*.db3",
+    "*.sqlite",
+    "*.sqlite3",
+    "*.db",
+    "*.sqlite-wal",
+    "*.sqlite-shm",
+    "*.sqlite-journal",
+    "*.sqlite3-wal",
+    "*.sqlite3-shm",
+    "*.sqlite3-journal",
+    "*.db-wal",
+    "*.db-shm",
+    "*.db-journal",
+    "*.db3-wal",
+    "*.db3-shm",
+    "*.db3-journal",
+];
+/// Common files that have no comment syntax. Keep in sync with `rqignore.ts`.
+const RQIGNORE_COMMENTLESS: &[&str] = &[
+    "*.json",
+    "*.jsonl",
+    "*.ndjson",
+    "*.geojson",
+    "*.topojson",
+    "*.har",
+    "*.sarif",
+    "*.webmanifest",
+    "*.ipynb",
+    "*.gltf",
+    "*.csv",
+    "*.tsv",
+    "*.tab",
+    "pnpm-lock.yaml",
+    "bun.lockb",
+    "Package.resolved",
+    "*.lock",
+    "*.sum",
+    "*.sha1",
+    "*.sha256",
+    "*.sha512",
+    "*.md5",
+    "*.snap",
+    "*.min.js",
+    "*.min.mjs",
+    "*.min.cjs",
+    "*.min.css",
+    "*.js.map",
+    "*.mjs.map",
+    "*.cjs.map",
+    "*.css.map",
+    "*.map",
+    "*.pem",
+    "*.crt",
+    "*.cer",
+    "*.der",
+    "*.p12",
+    "*.pfx",
+    "*.p7b",
+    "*.key",
+    "*.mo",
+];
 const RQIGNORE_SECRETS: &[&str] = &["*.secret.rq", "*.log", "tmp/", "temp/"];
 
-fn core_rqignore_groups() -> [(&'static str, &'static [&'static str]); 8] {
+fn core_rqignore_groups() -> [(&'static str, &'static [&'static str]); 9] {
     [
         ("Dependencies", RQIGNORE_DEPENDENCIES),
         ("Python / virtualenvs", RQIGNORE_PYTHON),
@@ -66,7 +132,8 @@ fn core_rqignore_groups() -> [(&'static str, &'static [&'static str]); 8] {
         ("VCS / editor / package stores", RQIGNORE_VCS),
         ("Hidden paths - skip dotfiles; include one with !path", RQIGNORE_HIDDEN),
         ("Application memory - do not crawl this folder for .rq sources", RQIGNORE_MEMORY),
-        ("Databases", RQIGNORE_DATABASES),
+        ("Databases and SQLite sidecars", RQIGNORE_DATABASES),
+        ("Files without comments", RQIGNORE_COMMENTLESS),
         ("Secrets / logs / temp", RQIGNORE_SECRETS),
     ]
 }
@@ -87,7 +154,13 @@ pub const BINARY_RQIGNORE_PATTERNS: &[&str] = &[
     "*.tiff", "*.heic", "*.avif", "*.mp4", "*.webm", "*.mov", "*.avi", "*.mkv", "*.mp3", "*.wav",
     "*.ogg", "*.flac", "*.aac", "*.m4a", "*.zip", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.xz",
     "*.7z", "*.rar", "*.pdf", "*.doc", "*.docx", "*.xls", "*.xlsx", "*.ppt", "*.pptx", "*.ttf",
-    "*.otf", "*.woff", "*.woff2", "*.eot", "*.dmg", "*.iso", "*.img", "*.apk",
+    "*.otf", "*.woff", "*.woff2", "*.eot", "*.dmg", "*.iso", "*.img", "*.apk", "*.jxl", "*.jfif",
+    "*.jp2", "*.psd", "*.ai", "*.exr", "*.hdr", "*.tga", "*.dds", "*.ktx", "*.ktx2", "*.icns",
+    "*.cur", "*.glb", "*.fbx", "*.stl", "*.blend", "*.wma", "*.aiff", "*.aif", "*.mid", "*.midi",
+    "*.wmv", "*.flv", "*.m4v", "*.zst", "*.lz4", "*.lzma", "*.cab", "*.jar", "*.war", "*.ear",
+    "*.whl", "*.nupkg", "*.vsix", "*.deb", "*.rpm", "*.msi", "*.pdb", "*.ilk", "*.exp", "*.pyo",
+    "*.pyd", "*.rlib", "*.ttc", "*.npy", "*.npz", "*.h5", "*.hdf5", "*.pkl", "*.pickle", "*.onnx",
+    "*.pb",
 ];
 
 /// True when `path` has an extension covered by [BINARY_RQIGNORE_PATTERNS].
@@ -247,7 +320,7 @@ pub fn default_rqignore_file_contents() -> String {
         "#".to_string(),
         "# Binary files".to_string(),
         "# Binary globs are skipped by default.".to_string(),
-        "# That set includes images, archives, native objects, fonts, and office files."
+        "# That set includes images, archives, packages, native objects, fonts, media, and office files."
             .to_string(),
         "# Include a type with a negation. Example: !*.bin".to_string(),
         "# Opted-in files can be scanned for rq: comment references.".to_string(),
@@ -259,6 +332,18 @@ pub fn default_rqignore_file_contents() -> String {
         "#".to_string(),
         "# Secrets".to_string(),
         "# *.secret.rq is skipped.".to_string(),
+        "#".to_string(),
+        "# Databases".to_string(),
+        "# The filter skips database files and SQLite sidecar files.".to_string(),
+        "# Sidecar suffixes are -wal, -shm, and -journal.".to_string(),
+        "# Example: *.sqlite-wal".to_string(),
+        "#".to_string(),
+        "# Files without comments".to_string(),
+        "# The filter skips common files that have no comment syntax.".to_string(),
+        "# This set includes JSON, CSV, lockfiles, checksums, minified files, source maps, and certificates."
+            .to_string(),
+        "# These files cannot hold rq: references.".to_string(),
+        "# Include one type with a negation. Example: !*.json".to_string(),
         "#".to_string(),
         "# Application memory".to_string(),
         "# .reqlan/ is not crawled for requirement sources.".to_string(),
@@ -376,6 +461,11 @@ mod tests {
         let filter = RqIgnoreFilter::load(&root);
         assert!(filter.ignores("assets/payload.bin", false));
         assert!(filter.ignores("photo.png", false));
+        assert!(filter.ignores("lib/native.jar", false));
+        assert!(filter.ignores("bin/", true));
+        assert!(filter.ignores("generated/page.rq", false));
+        assert!(filter.ignores("out/bundle.js", false));
+        assert!(filter.ignores("docs/index.html", false));
         assert!(!filter.ignores("src/app.ts", false));
 
         let memory = root.join(APPLICATION_MEMORY_DIR);
@@ -384,6 +474,29 @@ mod tests {
         let opted = RqIgnoreFilter::load(&root);
         assert!(!opted.ignores("assets/payload.bin", false));
         assert!(opted.ignores("photo.png", false));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/extension/index-host/index.rq".commentless_file_ignore]
+    #[test]
+    fn default_rqignore_skips_files_without_comments_until_negated() {
+        let root = scratch("commentless-ignore");
+        let filter = RqIgnoreFilter::load(&root);
+        assert!(filter.ignores("package.json", false));
+        assert!(filter.ignores("data/rows.csv", false));
+        assert!(filter.ignores("src/app.min.js", false));
+        assert!(filter.ignores("ideas-index.sqlite-wal", false));
+        assert!(filter.ignores("ideas-index.sqlite-shm", false));
+        assert!(filter.ignores("ideas-index.sqlite-journal", false));
+        assert!(!filter.ignores("src/app.ts", false));
+        assert!(!filter.ignores("tsconfig.jsonc", false));
+
+        let memory = root.join(APPLICATION_MEMORY_DIR);
+        std::fs::create_dir_all(&memory).unwrap();
+        std::fs::write(memory.join(RQIGNORE_FILENAME), "!*.json\n").unwrap();
+        let opted = RqIgnoreFilter::load(&root);
+        assert!(!opted.ignores("package.json", false));
+        assert!(opted.ignores("data/rows.csv", false));
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -407,6 +520,12 @@ mod tests {
         assert!(text.contains(".reqlan/ is not crawled"));
         assert!(text.contains("# Dependencies"));
         assert!(text.contains("# Databases"));
+        assert!(text.contains("SQLite sidecar files"));
+        assert!(text.contains("*.sqlite-wal"));
+        assert!(text.contains("# Files without comments"));
+        assert!(text.contains("no comment syntax"));
+        assert!(text.contains("!*.json"));
+        assert!(text.contains("*.csv"));
         let root = scratch("rqignore-seed-comments");
         let result = create_base(&root).unwrap();
         let on_disk = std::fs::read_to_string(result.memory_path.join(RQIGNORE_FILENAME)).unwrap();

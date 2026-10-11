@@ -224,7 +224,9 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
     assert!(graph_html.contains("data-graph-fit"));
     assert!(alpha_idea_html.contains("Outbound references"));
     assert!(alpha_idea_html.contains(r#"class="idea-ref idea-ref--idea""#));
-    assert!(alpha_idea_html.contains(r#"title="reqs/b.rq · beta""#));
+    assert!(alpha_idea_html.contains(r#"data-tip-name="beta""#));
+    assert!(alpha_idea_html.contains(r#"data-tip-body="beta summary""#));
+    assert!(alpha_idea_html.contains(r#"data-tip-file="reqs/b.rq""#));
     assert!(alpha_idea_html.contains("Printable page"));
     assert!(alpha_idea_html.contains("../assets/search-index.js"));
     assert!(alpha_idea_html.contains("Browse all attributes"));
@@ -617,6 +619,92 @@ fn attribute_link_opens_the_attribute_on_the_idea_page() {
     assert!(summary.contains(&member_page) || summary.contains("subidea1"), "{summary}");
     let member_file = member_page.rsplit('/').next().unwrap_or(&member_page);
     assert!(summary.contains(member_file), "{summary}");
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_idea_tooltips]
+#[test]
+fn idea_links_show_content_tooltips() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let file_a = "reqs/a.rq";
+    let file_b = "reqs/b.rq";
+    let alpha = idea(
+        file_a,
+        "alpha",
+        "alpha links to [beta], [beta.status], and [missing].",
+        r#"{"status":"todo"}"#,
+    );
+    let beta =
+        idea(file_b, "beta", "First line of beta.\nSecond line stays.", r#"{"status":"done"}"#);
+    let edges = vec![
+        EdgeRecord {
+            id: "edge-1".into(),
+            source_id: alpha.id.clone(),
+            target_id: Some(beta.id.clone()),
+            target_file: None,
+            kind: EdgeKind::References,
+            label: Some("beta".into()),
+            source_line: None,
+            snippet: Some("[beta]".into()),
+            is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None,
+        },
+        EdgeRecord {
+            id: "edge-file".into(),
+            source_id: alpha.id.clone(),
+            target_id: None,
+            target_file: Some("src/app.ts".into()),
+            kind: EdgeKind::FileReference,
+            label: Some("app.ts".into()),
+            source_line: None,
+            snippet: None,
+            is_resolved: Some(true),
+            source_offset_start: None,
+            source_offset_end: None,
+        },
+    ];
+    store.upsert_document(file_a, "hash-a", &[alpha.clone()], &edges, None).unwrap();
+    store.upsert_document(file_b, "hash-b", &[beta.clone()], &[], None).unwrap();
+
+    let output_dir = temp_out("idea-tips");
+    let request = html_request(&output_dir, "idea-tips");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let alpha_html = read(&result.output_dir.join(&snapshot.ideas_by_id[&alpha.id].page.path));
+    let summary = alpha_html
+        .split(r#"<p class="idea-summary">"#)
+        .nth(1)
+        .and_then(|rest| rest.split("</p>").next())
+        .expect("idea summary");
+    let body = r#"data-tip-body="First line of beta.&#10;Second line stays.""#;
+    assert_eq!(summary.matches(body).count(), 2, "{summary}");
+    assert!(summary.contains(r#"data-tip-name="beta""#), "{summary}");
+    assert!(summary.contains(r#"data-tip-file="reqs/b.rq""#), "{summary}");
+    assert!(summary.contains(r#"data-tip-status="done""#), "{summary}");
+    assert!(
+        summary.contains(
+            r#"<span class="idea-ref idea-ref--unresolved" title="missing">missing</span>"#
+        ),
+        "{summary}"
+    );
+    assert!(!summary.contains("data-tip-name=\"missing\""), "{summary}");
+
+    let file_at = alpha_html.find(r#"class="idea-ref idea-ref--file""#).expect("file chip");
+    let file_chip = &alpha_html[file_at..file_at + 220];
+    assert!(!file_chip.contains("data-tip-name"), "{file_chip}");
+
+    let ideas_html = read(result.ideas_index_file_path.as_ref().unwrap());
+    let beta_row = idea_table_row(&ideas_html, "beta");
+    assert!(beta_row.contains(body), "{beta_row}");
+    assert!(beta_row.contains(r#"data-tip-status="done""#), "{beta_row}");
+
+    let styles = read(&result.output_dir.join("assets/styles.css"));
+    let app_js = read(&result.output_dir.join("assets/app.js"));
+    assert!(styles.contains(".idea-tooltip"));
+    assert!(styles.contains(".idea-tooltip-body"));
+    assert!(app_js.contains("function wireIdeaTooltips"));
+    assert!(app_js.contains("data-tip-body"));
     std::fs::remove_dir_all(&output_dir).ok();
 }
 

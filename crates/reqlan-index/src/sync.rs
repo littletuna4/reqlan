@@ -11,18 +11,19 @@ use crate::comment::{
     looks_like_comment_reference_source, scan_comment_references, too_large_for_comment_index,
 };
 use crate::extract::{
-    extract_from_parse, extract_indexed_document, path_glob_matches, path_glob_may_match_under,
-    ExtractOptions, WildcardIdeaCandidate, EXTRACT_VERSION,
+    extract_from_parse, extract_indexed_document, ExtractOptions, WildcardIdeaCandidate,
+    EXTRACT_VERSION,
 };
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
 use crate::path_resolve::load_applying_rq_config;
+use crate::scan::{scan_workspace, ScanLimits};
 use crate::store::{IndexStore, StoreError};
+use crate::text::{read_index_text, IndexText};
 use crate::types::{IdeaSummary, IndexedDocument};
 use reqlan_parse::{parse_document, ImportRootMapping, Severity};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
 pub struct SyncOptions {
@@ -61,86 +62,22 @@ pub struct FileIssue {
     pub message: String,
 }
 
-pub fn collect_rq_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<PathBuf> {
-    collect_files(workspace_root, filter, &[], |path| {
-        path.extension().and_then(|ext| ext.to_str()) == Some("rq")
-    })
+pub fn collect_rq_files(workspace_root: &Path, _filter: &RqIgnoreFilter) -> Vec<PathBuf> {
+    let root = workspace_root.to_path_buf();
+    scan_workspace(
+        std::slice::from_ref(&root),
+        ScanLimits { stop_at_child_bases: true, ..ScanLimits::default() },
+    )
+    .rq_files
 }
 
-pub fn collect_code_files(workspace_root: &Path, filter: &RqIgnoreFilter) -> Vec<PathBuf> {
-    collect_files(workspace_root, filter, &[], |path| {
-        is_comment_index_path(path) || is_binary_rqignore_path(path)
-    })
-}
-
-fn collect_files(
-    workspace_root: &Path,
-    filter: &RqIgnoreFilter,
-    path_globs: &[String],
-    keep: impl Fn(&Path) -> bool,
-) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    for entry in WalkDir::new(workspace_root).into_iter().filter_entry(|entry| {
-        should_descend(workspace_root, filter, path_globs, entry.path(), entry.file_type().is_dir())
-    }) {
-        let Ok(entry) = entry else { continue };
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let path = entry.path();
-        if !keep(path) {
-            continue;
-        }
-        let rel = relative_posix(workspace_root, path);
-        if filter.ignores(&rel, false) {
-            continue;
-        }
-        if !file_in_glob_scan(path_globs, &rel) {
-            continue;
-        }
-        files.push(path.to_path_buf());
-    }
-    files.sort();
-    files
-}
-
-fn should_descend(
-    workspace_root: &Path,
-    filter: &RqIgnoreFilter,
-    path_globs: &[String],
-    path: &Path,
-    is_dir: bool,
-) -> bool {
-    let rel = relative_posix(workspace_root, path);
-    if filter.ignores(&rel, is_dir) {
-        return false;
-    }
-    if is_dir && path != workspace_root && path.join(".reqlan").is_dir() {
-        return false;
-    }
-    if is_dir
-        && !path_globs.is_empty()
-        && path != workspace_root
-        && !directory_may_hold_match(path_globs, &rel)
-    {
-        return false;
-    }
-    true
-}
-
-/// An empty glob does not select files. An empty list selects every file.
-fn file_in_glob_scan(path_globs: &[String], rel: &str) -> bool {
-    if path_globs.is_empty() {
-        return true;
-    }
-    path_globs.iter().any(|glob| {
-        let glob = glob.trim();
-        !glob.is_empty() && path_glob_matches(glob, rel)
-    })
-}
-
-fn directory_may_hold_match(path_globs: &[String], dir_rel: &str) -> bool {
-    path_globs.iter().any(|glob| path_glob_may_match_under(glob, dir_rel))
+pub fn collect_code_files(workspace_root: &Path, _filter: &RqIgnoreFilter) -> Vec<PathBuf> {
+    let root = workspace_root.to_path_buf();
+    scan_workspace(
+        std::slice::from_ref(&root),
+        ScanLimits { stop_at_child_bases: true, ..ScanLimits::default() },
+    )
+    .code_files
 }
 
 fn append_explicit_files(
@@ -179,16 +116,17 @@ pub fn sync_workspace(
     if options.hard_rebuild || stale_extract {
         store.clear()?;
     }
-    let filter = RqIgnoreFilter::load(&options.workspace_root);
     let import_roots = load_applying_rq_config(&options.workspace_root, None).import_roots;
-    let mut rq_files =
-        collect_files(&options.workspace_root, &filter, &options.path_globs, |path| {
-            path.extension().and_then(|ext| ext.to_str()) == Some("rq")
-        });
-    let mut code_files =
-        collect_files(&options.workspace_root, &filter, &options.path_globs, |path| {
-            is_comment_index_path(path) || is_binary_rqignore_path(path)
-        });
+    let scan = scan_workspace(
+        std::slice::from_ref(&options.workspace_root),
+        ScanLimits {
+            path_globs: options.path_globs.clone(),
+            stop_at_child_bases: true,
+            ..ScanLimits::default()
+        },
+    );
+    let mut rq_files = scan.rq_files;
+    let mut code_files = scan.code_files;
     append_explicit_files(
         &options.workspace_root,
         &options.include_files,
@@ -228,8 +166,9 @@ pub fn sync_workspace(
             continue;
         }
 
-        let source = match std::fs::read_to_string(&path) {
-            Ok(text) => text,
+        let source = match read_source(&path) {
+            Ok(Some(text)) => text,
+            Ok(None) => continue,
             Err(error) => {
                 progress.errors += 1;
                 file_issues.push(FileIssue { file_uri, message: error.to_string() });
@@ -360,8 +299,9 @@ fn index_code_file_path(
     {
         return Ok(CodeIndexOutcome::SkippedMtime);
     }
-    let source = match std::fs::read_to_string(path) {
-        Ok(text) => text,
+    let source = match read_source(path) {
+        Ok(Some(text)) => text,
+        Ok(None) => return Ok(CodeIndexOutcome::Empty),
         Err(_) if is_binary_rqignore_path(path) => return Ok(CodeIndexOutcome::Empty),
         Err(error) => return Ok(CodeIndexOutcome::Error(error.to_string())),
     };
@@ -407,9 +347,9 @@ fn refresh_indexed_code_documents(
             store.delete_document(&file_uri)?;
             continue;
         }
-        let source = match std::fs::read_to_string(&path) {
-            Ok(text) => text,
-            Err(_) => {
+        let source = match read_source(&path) {
+            Ok(Some(text)) => text,
+            Ok(None) | Err(_) => {
                 store.delete_document(&file_uri)?;
                 continue;
             }
@@ -455,8 +395,11 @@ pub fn index_one_file(
 
     if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
         let catalog = store.list_all_ideas()?;
-        let source = match std::fs::read_to_string(&path) {
-            Ok(text) => text,
+        let source = match read_source(&path) {
+            Ok(Some(text)) => text,
+            Ok(None) => {
+                return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
+            }
             Err(_) if is_binary_rqignore_path(&path) => {
                 return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
             }
@@ -467,7 +410,11 @@ pub fn index_one_file(
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
-    let source = std::fs::read_to_string(&path)?;
+    let source = match read_source(&path) {
+        Ok(Some(text)) => text,
+        Ok(None) => return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() }),
+        Err(error) => return Err(error.into()),
+    };
     let catalog: Vec<WildcardIdeaCandidate> = store
         .list_all_ideas()?
         .into_iter()
@@ -506,6 +453,13 @@ fn idea_names_change(store: &IndexStore, document: &IndexedDocument) -> Result<b
         store.get_ideas_in_file(&document.file_uri)?.into_iter().map(|idea| idea.name).collect();
     let after: HashSet<&str> = document.ideas.iter().map(|idea| idea.name.as_str()).collect();
     Ok(before.len() != after.len() || !before.iter().all(|name| after.contains(name.as_str())))
+}
+
+fn read_source(path: &Path) -> Result<Option<String>, std::io::Error> {
+    match read_index_text(path)? {
+        IndexText::Text(text) => Ok(Some(text)),
+        IndexText::Skip => Ok(None),
+    }
 }
 
 fn file_mtime_ms(path: &Path) -> Option<f64> {

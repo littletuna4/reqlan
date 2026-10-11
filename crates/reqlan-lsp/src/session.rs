@@ -126,12 +126,17 @@ impl Session {
         self.folders = folders.to_vec();
         self.indexes.clear();
         for folder in folders {
-            for base in discover_bases(folder) {
-                let db = base.join(".reqlan").join("ideas-index.sqlite");
-                if let Ok(store) = IndexStore::open_read_only(&db) {
-                    self.indexes.push(BaseIndex { root: base, store });
-                }
-            }
+            open_base_index(&mut self.indexes, folder);
+        }
+    }
+
+    /// Replace open indexes with the bases from the extension's one workspace scan.
+    /// Does not walk the tree.
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".single_sync_walk]
+    pub fn note_base_roots(&mut self, roots: &[PathBuf]) {
+        self.indexes.clear();
+        for root in roots {
+            open_base_index(&mut self.indexes, root);
         }
     }
 
@@ -962,33 +967,10 @@ impl Default for Session {
     }
 }
 
-fn discover_bases(root: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    walk_bases(root, 0, &mut out);
-    out
-}
-
-fn walk_bases(dir: &Path, depth: usize, out: &mut Vec<PathBuf>) {
-    if dir.join(".reqlan").is_dir() {
-        out.push(dir.to_path_buf());
-    }
-    if depth >= 6 {
-        return;
-    }
-    let Ok(read) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in read.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if name.starts_with('.') || name == "node_modules" || name == "target" || name == "dist" {
-            continue;
-        }
-        walk_bases(&path, depth + 1, out);
+fn open_base_index(indexes: &mut Vec<BaseIndex>, folder: &Path) {
+    let db = folder.join(".reqlan").join("ideas-index.sqlite");
+    if let Ok(store) = IndexStore::open_read_only(&db) {
+        indexes.push(BaseIndex { root: folder.to_path_buf(), store });
     }
 }
 
