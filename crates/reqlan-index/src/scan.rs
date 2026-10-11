@@ -10,10 +10,8 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_SCAN_MAX_DEPTH: u32 = 8;
-pub const DEFAULT_SCAN_MAX_ENTRIES: u32 = 20_000;
-pub const SCAN_MAX_DEPTH_LIMIT: u32 = 32;
-pub const SCAN_MAX_ENTRIES_LIMIT: u32 = 500_000;
+// Generated from packages/analytical/src/core/defaults.json.
+include!(concat!(env!("OUT_DIR"), "/scan_limits.rs"));
 
 #[derive(Debug, Clone)]
 pub struct ScanLimits {
@@ -48,11 +46,11 @@ impl ScanLimits {
 }
 
 pub fn clamp_scan_depth(value: u32) -> u32 {
-    value.clamp(1, SCAN_MAX_DEPTH_LIMIT)
+    value.clamp(SCAN_MIN_DEPTH, SCAN_MAX_DEPTH_LIMIT)
 }
 
 pub fn clamp_scan_entries(value: u32) -> u32 {
-    value.clamp(1, SCAN_MAX_ENTRIES_LIMIT)
+    value.clamp(SCAN_MIN_ENTRIES, SCAN_MAX_ENTRIES_LIMIT)
 }
 
 #[derive(Debug, Clone, Serialize)]

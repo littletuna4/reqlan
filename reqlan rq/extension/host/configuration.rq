@@ -41,7 +41,7 @@ configuration_import_roots {
     A relative `root` resolves against the base root (the parent of `.reqlan`), not against the `.reqlan` directory.
     An absolute path or `file://` URI is used as that alias' import-root directory directly.
     When `root` is omitted for a mapping, that alias uses the workspace folder that contains the `.rq` file.
-    When `importRoots` is omitted, empty, or has no valid entries, the default is one mapping with alias `@` and no explicit root.
+    When `importRoots` is omitted, empty, or has no valid entries, the default is one mapping with alias `importRootAlias` from ["../../../packages/analytical/src/core/defaults.json"] and no explicit root.
     When several aliases could match a path, the longest alias wins.
     Invalid or unreadable JSON, and a non-array `importRoots` value, fall back to defaults (or no loaded config for discovery, then defaults at resolve time).
     Language path forms and `@/` shorthand: ["../../language/imports.rq".import_paths] and ["../../language/imports.rq".configuration_import_root_alias].

@@ -4,11 +4,13 @@
         "rootDir": "src",
         "outDir": "out",
         "allowJs": true,
-        "checkJs": false
+        "checkJs": false,
+        "resolveJsonModule": true
     },
     "include": [
         "src/**/*.ts",
         "src/**/*.js",
-        "src/**/*.d.ts"
+        "src/**/*.d.ts",
+        "src/**/*.json"
     ]
 }

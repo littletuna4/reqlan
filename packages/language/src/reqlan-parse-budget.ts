@@ -6,9 +6,10 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
  */
 import type { AstNode, LangiumParser, ParseResult } from 'langium';
+import { DEFAULT_PARSE_BUDGET_MS } from '@reqlan/analytical/defaults';
 
 /** Default wall-clock budget for lex+parse of one file (worker-enforced). */
-export const DEFAULT_PARSE_BUDGET_MS = 8_000;
+export { DEFAULT_PARSE_BUDGET_MS };
 
 /**
  * Prefer in-process sync parse below this size. Worker threads (killable budget)

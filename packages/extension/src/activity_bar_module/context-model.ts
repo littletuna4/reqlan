@@ -7,6 +7,7 @@ import {
     buildGraphViewSlice,
     CONTEXT_MAX_HOP_DEPTH,
     CONTEXT_MIN_HOP_DEPTH,
+    GRAPH_HOP_DEPTH,
     resolveBidirectionalIdeaReferences,
     type AncestorChainResult,
     type IdeaSummary,
@@ -729,7 +730,7 @@ export class ActivityBarDataService extends ContextModelBuilder {
         };
     }
 
-    async loadAncestors(ideaId: string, maxDepth = 8): Promise<AncestorChainResult> {
+    async loadAncestors(ideaId: string, maxDepth = GRAPH_HOP_DEPTH): Promise<AncestorChainResult> {
         return this.store.buildAncestorChainResult(ideaId, maxDepth);
     }
 

@@ -58,8 +58,11 @@ extension_startup_sequence {
 
 scan_limits {
     The workspace scan has two caps. There is no unlimited setting.
-    `reqlan.scan.maxDepth` defaults to 8 and clamps to 1–32. The workspace folder is depth 0. A directory deeper than the cap is not entered.
-    `reqlan.scan.maxEntries` defaults to 20000 and clamps to 1–500000. The count is directories plus files visited.
+    Defaults and clamp bounds are the `scan` object in ["../../packages/analytical/src/core/defaults.json"].
+    `reqlan.scan.maxDepth` uses `defaultMaxDepth`, `minDepth`, and `maxDepthLimit` from that file.
+    The workspace folder is depth 0. A directory deeper than the cap is not entered.
+    `reqlan.scan.maxEntries` uses `defaultMaxEntries`, `minEntries`, and `maxEntriesLimit` from that file.
+    The count is directories plus files visited.
     When a cap hits, the walk stops, keeps the partial result, and the editor shows a warning. It does not start another scan to finish.
     Refresh uses the same caps.
     CLI and MCP use the same defaults.
@@ -68,6 +71,8 @@ scan_limits {
     [cache_reuse.single_sync_walk]
     @status done
     @implementation (
+        ["../../packages/analytical/src/core/defaults.json"]
+        ["../../crates/reqlan-index/build.rs"]
         ["../../crates/reqlan-index/src/scan.rs"]
         ["../../packages/analytical/src/core/scan-limits.ts"]
         ["../../packages/extension/package.json"]
@@ -78,6 +83,7 @@ scan_limits {
         ["../../crates/reqlan-index/tests/scan.rs:depth_2_does_not_return_a_deeper_base_or_rq"]
         ["../../crates/reqlan-index/tests/scan.rs:entry_cap_stops_and_reports_truncation"]
         ["../../packages/analytical/test/scan-limits.test.ts:clamps depth and entries into the allowed range"]
+        ["../../packages/analytical/test/scan-limits.test.ts:editor scan settings match defaults.json"]
         ["../../crates/reqlan-index/tests/sync.rs:default_rqignore_skips_node_modules"]
         ["../../packages/analytical/test/base-discovery.test.ts:skips target build trees"]
     )

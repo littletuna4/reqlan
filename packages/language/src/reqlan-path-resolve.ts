@@ -8,12 +8,15 @@
  */
 import type { FileSystemProvider, LangiumDocument, URI } from 'langium';
 import { URI as UriCtor, UriUtils } from 'langium';
+import {
+    APPLICATION_MEMORY_DIR,
+    CONFIG_FILENAME,
+    DEFAULT_IMPORT_ROOT_ALIAS
+} from '@reqlan/analytical/defaults';
 
-export const DEFAULT_IMPORT_ROOT_ALIAS = '@';
-/** Base marker / application-memory directory name (must match analytical APPLICATION_MEMORY_DIR). */
-export const REQLAN_DIR = '.reqlan';
-/** Config filename under `<base>/.reqlan/`. */
-export const CONFIG_FILENAME = 'config.json';
+export { CONFIG_FILENAME, DEFAULT_IMPORT_ROOT_ALIAS };
+/** Base marker / application-memory directory name. */
+export const REQLAN_DIR = APPLICATION_MEMORY_DIR;
 
 const WINDOWS_DRIVE_ABS = /^[A-Za-z]:[\\/]/;
 const URI_SCHEME = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;

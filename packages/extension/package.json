@@ -106,16 +106,16 @@
         },
         "reqlan.scan.maxDepth": {
           "type": "number",
-          "default": 8,
+          "default": 20,
           "minimum": 1,
-          "maximum": 32,
+          "maximum": 100,
           "description": "Deepest directory level the workspace scan lists. The workspace folder is depth 0. There is no unlimited setting."
         },
         "reqlan.scan.maxEntries": {
           "type": "number",
-          "default": 20000,
+          "default": 100000,
           "minimum": 1,
-          "maximum": 500000,
+          "maximum": 2500000,
           "description": "Maximum directories and files the workspace scan visits. A hit stops the walk and leaves a partial index."
         }
       }

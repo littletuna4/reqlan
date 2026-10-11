@@ -4,6 +4,7 @@
  */
 import { unlink } from 'node:fs/promises';
 import { basename } from 'node:path';
+import { GRAPH_HOP_DEPTH } from '../core/defaults.js';
 import { NativeSqlConnection } from '../native/native-sql-db.js';
 import type {
     EdgeKind,
@@ -291,7 +292,7 @@ export class SqliteIndexStore {
         return this.db.conn.countEdgesFromFile(fileUri);
     }
 
-    async listAncestorChain(ideaId: string, maxDepth = 8): Promise<IdeaSummary[]> {
+    async listAncestorChain(ideaId: string, maxDepth = GRAPH_HOP_DEPTH): Promise<IdeaSummary[]> {
         const ancestors: IdeaSummary[] = [];
         const visited = new Set<string>([ideaId]);
         let frontier = [ideaId];
@@ -320,7 +321,7 @@ export class SqliteIndexStore {
         return ancestors;
     }
 
-    async buildAncestorChainResult(ideaId: string, maxDepth = 8): Promise<AncestorChainResult> {
+    async buildAncestorChainResult(ideaId: string, maxDepth = GRAPH_HOP_DEPTH): Promise<AncestorChainResult> {
         const ancestors = await this.listAncestorChain(ideaId, maxDepth);
         const statusRollup: Record<string, number> = {};
         const blocking: IdeaSummary[] = [];

@@ -38,7 +38,8 @@
         },
         {
             "label": "Run Extension (new window)",
-            "command": "cursor \"${workspaceFolder}/reqlan-debug.code-workspace\"",
+            // "command": "cursor \"${workspaceFolder}/reqlan-debug.code-workspace\"",
+            "command": "cursor \"${workspaceFolder}/../process-twin\"",   
             "type": "shell",
             "detail": "Open the debug workspace in Cursor. For extension development with an isolated profile, use the 'Run Extension' launch config (F5) instead — the Cursor WSL CLI ignores --user-data-dir, --profile-temp, and --extensionDevelopmentPath.",
             "problemMatcher": [],

@@ -43,6 +43,8 @@ describe('rqignore', () => {
         expect(filter.ignores('data/local.db3')).toBe(true);
         expect(filter.ignores('assets/payload.bin')).toBe(true);
         expect(filter.ignores('photo.png')).toBe(true);
+        expect(filter.ignores('favicon.ico')).toBe(true);
+        expect(filter.ignores('logo.svg')).toBe(true);
         expect(filter.ignores('lib/native.jar')).toBe(true);
         expect(filter.ignores('bin/', true)).toBe(true);
         expect(filter.ignores('generated/page.rq')).toBe(true);

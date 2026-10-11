@@ -97,16 +97,18 @@ click_ambiguity {
 click_max_detail {
     Flags that cap how many names and bodies click lists. Invalid or missing values use the default. Values less than 1 use 1.
     Defaults live in `.reqlan/config.json` under `click` ([configuration_location], [configuration_schema_file]). CLI and MCP flags override config.
-    - `maxBacklinks` / `--max-backlinks` / `click.maxBacklinks` — first n backlink names in [click_output], then "+ m more". Default 8.
-    - `maxSiblings` / `--max-siblings` / `click.maxSiblings` — first n sibling names, then "+ m more". Default 8.
-    - `maxOutbound` / `--max-outbound` / `click.maxOutbound` — first n outbound names or paths, then "+ m more". Default 8.
-    - `maxCandidates` / `--max-candidates` / `click.maxCandidates` — search hits and ranked ambiguous matches. Default 8.
+    - `maxBacklinks` / `--max-backlinks` / `click.maxBacklinks` — first n backlink names in [click_output], then "+ m more".
+    - `maxSiblings` / `--max-siblings` / `click.maxSiblings` — first n sibling names, then "+ m more".
+    - `maxOutbound` / `--max-outbound` / `click.maxOutbound` — first n outbound names or paths, then "+ m more".
+    - `maxCandidates` / `--max-candidates` / `click.maxCandidates` — search hits and ranked ambiguous matches.
+    The default for each list is `click.listLimit` in ["../../packages/analytical/src/core/defaults.json"].
     `maxDetail` / `--max-detail` is the old hop-depth for a neighbourhood dump. Unique [click_output] does not use hop depth. The flag is still accepted and ignored on the unique path.
     @status done
     @implementation (
         [click_rust]
         [click_cli]
         [mcp_server]
+        ["../../packages/analytical/src/core/defaults.json"]
         ["../../packages/extension/schemas/config.schema.json"]
         ["../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../packages/language/src/reqlan-path-resolve.ts"]
@@ -216,13 +218,14 @@ click_session {
 }
 
 click_session_limit {
-    Maximum stored click sessions per base defaults to 100.
+    Maximum stored click sessions per base is `click.maxSessions` in ["../../packages/analytical/src/core/defaults.json"].
     Configure with `click.maxSessions` in `.reqlan/config.json` ([configuration_location], [configuration_schema_file]).
-    Invalid or missing values use 100. Values less than 1 use 1.
+    Invalid or missing values use that default. Values below `click.minimum` use `click.minimum`.
     Eviction is by session count and last-touched time ([click_session]).
     Count caps for one click result are [click_max_detail], not this limit.
     @status done
     @implementation (
+        ["../../packages/analytical/src/core/defaults.json"]
         ["../../packages/extension/schemas/config.schema.json"]
         ["../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../packages/language/src/reqlan-path-resolve.ts"]

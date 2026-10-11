@@ -5,7 +5,8 @@
 
 use crate::ast::*;
 use crate::budget::{
-    parse_timeout_error_message, ParseBudget, PARSE_HANG_SENTINEL, PARSE_TIMEOUT_WARNING,
+    parse_timeout_error_message, ParseBudget, DEFAULT_PARSE_BUDGET, PARSE_HANG_SENTINEL,
+    PARSE_TIMEOUT_WARNING,
 };
 use crate::lexer::{lex, visible_tokens};
 use crate::token::{Span, Token, TokenKind};
@@ -86,7 +87,9 @@ pub fn parse_document_with_budget(source: &str, budget: ParseBudget) -> ParseRes
 }
 
 fn incomplete_timeout(budget: ParseBudget) -> ParseResult {
-    let timeout_ms = 8_000u64.saturating_sub(budget.remaining().as_millis() as u64).max(1);
+    let timeout_ms =
+        DEFAULT_PARSE_BUDGET.as_millis().saturating_sub(budget.remaining().as_millis()).max(1)
+            as u64;
     ParseResult {
         model: Model { span: Span::dummy(), imports: Vec::new(), elements: Vec::new() },
         diagnostics: vec![

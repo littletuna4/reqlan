@@ -19,7 +19,7 @@ path_query {
     Inputs:
     - `fromIdeaId` (source node)
     - `toIdeaId` (target node)
-    - optional `maxDepth` (default 8)
+    - optional `maxDepth` (`graphHopDepth` in ["../../../packages/analytical/src/core/defaults.json"])
     - optional `edgeKinds` filter (references, file_reference, incompatible, …)
     - optional `direction` (undirected default, or outbound-only / inbound-only for directed traces)
 

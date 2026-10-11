@@ -16,7 +16,7 @@ recovery_vs_budget {
 }
 
 parse_budget_timeout {
-    Lexing, parsing, or a parse subprocess for a single `.rq` file must finish within a wall-clock budget.
+    Lexing, parsing, or a parse subprocess for a single `.rq` file must finish within `parseBudgetMs` from ["../../packages/analytical/src/core/defaults.json"].
     If it cannot, do not hang the language server or block the rest of the workspace.
     Surface both a warning (budget exceeded; semantic features may be incomplete) and an error (file left unloaded) on that document, then continue with other files.
     Happy path stays in-process (sync) for typical file sizes so edits and workspace load stay fast.
@@ -36,6 +36,7 @@ parse_budget_timeout {
         ["../../crates/reqlan-parse/tests/parser.rs:times_out_hang_sentinel"]
     )
     @implementation (
+        ["../../packages/analytical/src/core/defaults.json"]
         ["../../packages/language/src/reqlan-parse-budget.ts"]
         ["../../packages/language/src/reqlan-async-parser.ts"]
         ["../../packages/language/src/reqlan-parse-worker.ts"]

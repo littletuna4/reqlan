@@ -140,6 +140,7 @@ export {
     CONTEXT_MAX_HOP_DEPTH,
     clampGraphHopDepth
 } from './index-store/webview-graph-queries.js';
+export { GRAPH_HOP_DEPTH } from './core/defaults.js';
 export {
     ACTIVITY_BAR_MAX_NODES,
     BLOCKING_STATUSES

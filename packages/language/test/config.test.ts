@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import {
+    CLICK_LIMIT_MIN,
+    DEFAULT_CLICK_LIST_LIMIT,
+    DEFAULT_CLICK_MAX_SESSIONS
+} from '@reqlan/analytical/defaults';
 import { URI } from 'langium';
 import { VirtualFileSystemProvider } from 'langium/test';
 import {
@@ -38,6 +43,7 @@ describe('config schema file', () => {
         const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
             properties?: {
                 importRoots?: {
+                    default?: Array<{ alias?: string }>;
                     items?: {
                         required?: string[];
                         properties?: Record<string, unknown>;
@@ -66,6 +72,7 @@ describe('config schema file', () => {
                 };
             };
         };
+        expect(schema.properties?.importRoots?.default).toEqual([{ alias: DEFAULT_IMPORT_ROOT_ALIAS }]);
         expect(schema.properties?.importRoots?.items?.required).toEqual(['alias']);
         expect(schema.properties?.importRoots?.items?.properties).toHaveProperty('alias');
         expect(schema.properties?.importRoots?.items?.properties).toHaveProperty('root');
@@ -78,17 +85,17 @@ describe('config schema file', () => {
         });
         expect(schema.properties?.click?.properties?.maxSessions).toMatchObject({
             type: 'integer',
-            default: 100,
-            minimum: 1
+            default: DEFAULT_CLICK_MAX_SESSIONS,
+            minimum: CLICK_LIMIT_MIN
         });
         expect(schema.properties?.click?.properties?.maxBacklinks).toMatchObject({
             type: 'integer',
-            default: 8,
-            minimum: 1
+            default: DEFAULT_CLICK_LIST_LIMIT,
+            minimum: CLICK_LIMIT_MIN
         });
-        expect(schema.properties?.click?.properties?.maxSiblings?.default).toBe(8);
-        expect(schema.properties?.click?.properties?.maxOutbound?.default).toBe(8);
-        expect(schema.properties?.click?.properties?.maxCandidates?.default).toBe(8);
+        expect(schema.properties?.click?.properties?.maxSiblings?.default).toBe(DEFAULT_CLICK_LIST_LIMIT);
+        expect(schema.properties?.click?.properties?.maxOutbound?.default).toBe(DEFAULT_CLICK_LIST_LIMIT);
+        expect(schema.properties?.click?.properties?.maxCandidates?.default).toBe(DEFAULT_CLICK_LIST_LIMIT);
 
         const packageJson = JSON.parse(
             readFileSync(join(repoDir, 'packages/extension/package.json'), 'utf8')
@@ -109,8 +116,8 @@ describe('config schema file', () => {
                 };
             };
         };
-        expect(schema.properties?.click?.properties?.maxSessions?.default).toBe(100);
-        expect(schema.properties?.click?.properties?.maxSessions?.minimum).toBe(1);
+        expect(schema.properties?.click?.properties?.maxSessions?.default).toBe(DEFAULT_CLICK_MAX_SESSIONS);
+        expect(schema.properties?.click?.properties?.maxSessions?.minimum).toBe(CLICK_LIMIT_MIN);
     });
 });
 

@@ -8,160 +8,21 @@
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::path::{Path, PathBuf};
 
-pub const APPLICATION_MEMORY_DIR: &str = ".reqlan";
-pub const RQIGNORE_FILENAME: &str = ".rqignore";
-pub const GITIGNORE_FILENAME: &str = ".gitignore";
-pub const IDEAS_INDEX_FILENAME: &str = "ideas-index.sqlite";
-pub const INDEX_DIAGNOSTICS_FILENAME: &str = "index-diagnostics.sqlite";
-/// Click session cursor store (CLI/MCP). Survives ideas-index rebuild.
-/// rq:["../../../reqlan rq/cli/click.rq".click_session]
-pub const CLICK_SESSIONS_FILENAME: &str = "click-sessions.sqlite";
-/// Default max click sessions retained per base.
-/// rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
-pub const DEFAULT_CLICK_MAX_SESSIONS: u32 = 100;
-/// Default cap for click name lists (`maxBacklinks` / `maxSiblings` / `maxOutbound` / `maxCandidates`).
-/// rq:["../../../reqlan rq/cli/click.rq".click_max_detail]
-pub const DEFAULT_CLICK_LIST_LIMIT: u32 = 8;
+// Filenames, click caps, and .rqignore patterns come from defaults.json.
+include!(concat!(env!("OUT_DIR"), "/product_defaults.rs"));
 
 /// Gitignore patterns that exclude SQLite application-memory artifacts.
 /// rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
 pub const DEFAULT_GITIGNORE_PATTERNS: &[&str] =
     &["*.sqlite", "*.sqlite-journal", "*.sqlite-shm", "*.sqlite-wal"];
 
-const RQIGNORE_DEPENDENCIES: &[&str] = &["node_modules/", "bower_components/", "vendor/"];
-const RQIGNORE_PYTHON: &[&str] = &[
-    "venv/",
-    ".venv/",
-    "env/",
-    ".env/",
-    "__pycache__/",
-    "*.pyc",
-    ".pytest_cache/",
-    ".mypy_cache/",
-    ".tox/",
-    ".ruff_cache/",
-];
-const RQIGNORE_BUILD: &[&str] = &[
-    "dist/",
-    "out/",
-    "build/",
-    "bin/",
-    "generated/",
-    "coverage/",
-    "target/",
-    ".next/",
-    ".nuxt/",
-    ".turbo/",
-    ".cache/",
-    "*.tsbuildinfo",
-    "*.html",
-];
-const RQIGNORE_VCS: &[&str] =
-    &[".git/", ".svn/", ".hg/", ".cursor/", ".pnpm-store/", ".vscode/", ".idea/"];
-const RQIGNORE_HIDDEN: &[&str] = &[".*", ".*/"];
-const RQIGNORE_MEMORY: &[&str] = &[".reqlan/"];
-const RQIGNORE_DATABASES: &[&str] = &[
-    "*.db3",
-    "*.sqlite",
-    "*.sqlite3",
-    "*.db",
-    "*.sqlite-wal",
-    "*.sqlite-shm",
-    "*.sqlite-journal",
-    "*.sqlite3-wal",
-    "*.sqlite3-shm",
-    "*.sqlite3-journal",
-    "*.db-wal",
-    "*.db-shm",
-    "*.db-journal",
-    "*.db3-wal",
-    "*.db3-shm",
-    "*.db3-journal",
-];
-/// Common files that have no comment syntax. Keep in sync with `rqignore.ts`.
-const RQIGNORE_COMMENTLESS: &[&str] = &[
-    "*.json",
-    "*.jsonl",
-    "*.ndjson",
-    "*.geojson",
-    "*.topojson",
-    "*.har",
-    "*.sarif",
-    "*.webmanifest",
-    "*.ipynb",
-    "*.gltf",
-    "*.csv",
-    "*.tsv",
-    "*.tab",
-    "pnpm-lock.yaml",
-    "bun.lockb",
-    "Package.resolved",
-    "*.lock",
-    "*.sum",
-    "*.sha1",
-    "*.sha256",
-    "*.sha512",
-    "*.md5",
-    "*.snap",
-    "*.min.js",
-    "*.min.mjs",
-    "*.min.cjs",
-    "*.min.css",
-    "*.js.map",
-    "*.mjs.map",
-    "*.cjs.map",
-    "*.css.map",
-    "*.map",
-    "*.pem",
-    "*.crt",
-    "*.cer",
-    "*.der",
-    "*.p12",
-    "*.pfx",
-    "*.p7b",
-    "*.key",
-    "*.mo",
-];
-const RQIGNORE_SECRETS: &[&str] = &["*.secret.rq", "*.log", "tmp/", "temp/"];
-
-fn core_rqignore_groups() -> [(&'static str, &'static [&'static str]); 9] {
-    [
-        ("Dependencies", RQIGNORE_DEPENDENCIES),
-        ("Python / virtualenvs", RQIGNORE_PYTHON),
-        ("Build / tooling output", RQIGNORE_BUILD),
-        ("VCS / editor / package stores", RQIGNORE_VCS),
-        ("Hidden paths - skip dotfiles; include one with !path", RQIGNORE_HIDDEN),
-        ("Application memory - do not crawl this folder for .rq sources", RQIGNORE_MEMORY),
-        ("Databases and SQLite sidecars", RQIGNORE_DATABASES),
-        ("Files without comments", RQIGNORE_COMMENTLESS),
-        ("Secrets / logs / temp", RQIGNORE_SECRETS),
-    ]
-}
-
 fn add_core_rqignore_patterns(builder: &mut GitignoreBuilder) {
-    for (_title, patterns) in core_rqignore_groups() {
-        for pattern in patterns {
+    for group in RQIGNORE_CORE_GROUPS {
+        for pattern in group.patterns {
             let _ = builder.add_line(None, pattern);
         }
     }
 }
-
-/// Common binary globs. Always applied; opt in with a later `!*.ext` line.
-/// Keep in sync with `packages/analytical/src/core/rqignore.ts`.
-pub const BINARY_RQIGNORE_PATTERNS: &[&str] = &[
-    "*.bin", "*.exe", "*.dll", "*.so", "*.dylib", "*.o", "*.obj", "*.a", "*.lib", "*.class",
-    "*.wasm", "*.node", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.ico", "*.bmp", "*.tif",
-    "*.tiff", "*.heic", "*.avif", "*.mp4", "*.webm", "*.mov", "*.avi", "*.mkv", "*.mp3", "*.wav",
-    "*.ogg", "*.flac", "*.aac", "*.m4a", "*.zip", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.xz",
-    "*.7z", "*.rar", "*.pdf", "*.doc", "*.docx", "*.xls", "*.xlsx", "*.ppt", "*.pptx", "*.ttf",
-    "*.otf", "*.woff", "*.woff2", "*.eot", "*.dmg", "*.iso", "*.img", "*.apk", "*.jxl", "*.jfif",
-    "*.jp2", "*.psd", "*.ai", "*.exr", "*.hdr", "*.tga", "*.dds", "*.ktx", "*.ktx2", "*.icns",
-    "*.cur", "*.glb", "*.fbx", "*.stl", "*.blend", "*.wma", "*.aiff", "*.aif", "*.mid", "*.midi",
-    "*.wmv", "*.flv", "*.m4v", "*.zst", "*.lz4", "*.lzma", "*.cab", "*.jar", "*.war", "*.ear",
-    "*.whl", "*.nupkg", "*.vsix", "*.deb", "*.rpm", "*.msi", "*.pdb", "*.ilk", "*.exp", "*.pyo",
-    "*.pyd", "*.rlib", "*.ttc", "*.npy", "*.npz", "*.h5", "*.hdf5", "*.pkl", "*.pickle", "*.onnx",
-    "*.pb",
-];
 
 /// True when `path` has an extension covered by [BINARY_RQIGNORE_PATTERNS].
 pub fn is_binary_rqignore_path(path: &Path) -> bool {
@@ -288,77 +149,19 @@ fn nested_gitignore_matches(workspace_root: &Path, relative_path: &str) -> bool 
     false
 }
 
-pub const CONFIG_FILENAME: &str = "config.json";
-
 /// Text seeded into a new base's `.reqlan/.rqignore` (comments + built-in defaults).
 /// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
 /// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 pub fn default_rqignore_file_contents() -> String {
-    let mut lines = vec![
-        "# reqlan path ignore".to_string(),
-        "#".to_string(),
-        "# Purpose".to_string(),
-        "# This file filters which paths discovery and indexing crawl.".to_string(),
-        "# The CLI, the MCP server, and the editor share this filter.".to_string(),
-        "#".to_string(),
-        "# Scope".to_string(),
-        "# Patterns are relative to the base root (the parent of .reqlan).".to_string(),
-        "# Patterns are not relative to this .reqlan folder.".to_string(),
-        "# This file is not Git ignore.".to_string(),
-        "# Git ignore for SQLite stores is .gitignore in this folder.".to_string(),
-        "#".to_string(),
-        "# Syntax".to_string(),
-        "# Use gitignore syntax. A trailing slash matches a directory.".to_string(),
-        "# The last matching rule wins.".to_string(),
-        "# A line that starts with ! includes a path that an earlier rule skipped.".to_string(),
-        "# Examples: !src/vendor/   !*.bin".to_string(),
-        "#".to_string(),
-        "# Built-in defaults".to_string(),
-        "# Built-in defaults always apply, even if this file is missing.".to_string(),
-        "# Lines in this file add to those defaults or override them.".to_string(),
-        "# If you delete a line here, the matching built-in rule still applies.".to_string(),
-        "#".to_string(),
-        "# Binary files".to_string(),
-        "# Binary globs are skipped by default.".to_string(),
-        "# That set includes images, archives, packages, native objects, fonts, media, and office files."
-            .to_string(),
-        "# Include a type with a negation. Example: !*.bin".to_string(),
-        "# Opted-in files can be scanned for rq: comment references.".to_string(),
-        "# They are not parsed as .rq sources.".to_string(),
-        "#".to_string(),
-        "# Hidden paths".to_string(),
-        "# .* and .*/ skip hidden files and directories.".to_string(),
-        "# Include one path with a negation. Example: !.github/".to_string(),
-        "#".to_string(),
-        "# Secrets".to_string(),
-        "# *.secret.rq is skipped.".to_string(),
-        "#".to_string(),
-        "# Databases".to_string(),
-        "# The filter skips database files and SQLite sidecar files.".to_string(),
-        "# Sidecar suffixes are -wal, -shm, and -journal.".to_string(),
-        "# Example: *.sqlite-wal".to_string(),
-        "#".to_string(),
-        "# Files without comments".to_string(),
-        "# The filter skips common files that have no comment syntax.".to_string(),
-        "# This set includes JSON, CSV, lockfiles, checksums, minified files, source maps, and certificates."
-            .to_string(),
-        "# These files cannot hold rq: references.".to_string(),
-        "# Include one type with a negation. Example: !*.json".to_string(),
-        "#".to_string(),
-        "# Application memory".to_string(),
-        "# .reqlan/ is not crawled for requirement sources.".to_string(),
-        "#".to_string(),
-        "# After you edit this file, the next index walk applies your rules.".to_string(),
-        String::new(),
-    ];
-    for (title, patterns) in core_rqignore_groups() {
-        lines.push(format!("# {title}"));
-        lines.extend(patterns.iter().map(|pattern| (*pattern).to_string()));
+    let mut lines: Vec<String> =
+        RQIGNORE_SEED_HEADER.iter().map(|line| (*line).to_string()).collect();
+    lines.push(String::new());
+    for group in RQIGNORE_CORE_GROUPS {
+        lines.push(format!("# {}", group.title));
+        lines.extend(group.patterns.iter().map(|pattern| (*pattern).to_string()));
         lines.push(String::new());
     }
-    lines.push(
-        "# Binary files - skipped unless you opt in with !*.ext (example: !*.bin)".to_string(),
-    );
+    lines.push(RQIGNORE_BINARY_TITLE.to_string());
     lines.extend(BINARY_RQIGNORE_PATTERNS.iter().map(|pattern| (*pattern).to_string()));
     lines.push(String::new());
     lines.join("\n")
@@ -461,6 +264,8 @@ mod tests {
         let filter = RqIgnoreFilter::load(&root);
         assert!(filter.ignores("assets/payload.bin", false));
         assert!(filter.ignores("photo.png", false));
+        assert!(filter.ignores("favicon.ico", false));
+        assert!(filter.ignores("logo.svg", false));
         assert!(filter.ignores("lib/native.jar", false));
         assert!(filter.ignores("bin/", true));
         assert!(filter.ignores("generated/page.rq", false));

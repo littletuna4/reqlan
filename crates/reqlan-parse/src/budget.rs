@@ -5,7 +5,8 @@
 use std::time::{Duration, Instant};
 
 /// Default wall-clock budget for lex+parse of one file.
-pub const DEFAULT_PARSE_BUDGET: Duration = Duration::from_millis(8_000);
+pub use crate::defaults::DEFAULT_PARSE_BUDGET_MS;
+pub const DEFAULT_PARSE_BUDGET: Duration = Duration::from_millis(DEFAULT_PARSE_BUDGET_MS);
 
 /// Test-only sentinel: treat as a hang until the budget expires.
 pub const PARSE_HANG_SENTINEL: &str = "__REQLAN_PARSE_HANG__";

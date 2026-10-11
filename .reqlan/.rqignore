@@ -112,6 +112,35 @@ Package.resolved
 *.key
 *.mo
 
+# Images
+*.ico
+*.icns
+*.cur
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.svg
+*.svgz
+*.tif
+*.tiff
+*.heic
+*.heif
+*.avif
+*.jxl
+*.jfif
+*.jp2
+*.psd
+*.ai
+*.exr
+*.hdr
+*.tga
+*.dds
+*.ktx
+*.ktx2
+
 # Secrets / logs / temp
 *.secret.rq
 *.log

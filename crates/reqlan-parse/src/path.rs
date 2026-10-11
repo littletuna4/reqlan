@@ -5,7 +5,7 @@
 //! rq:["../../../reqlan rq/language/syntax.rq".reference_file]
 
 /// Default import-root alias string. Written as `@/` plus a path under the import root.
-pub const DEFAULT_IMPORT_ROOT_ALIAS: &str = "@";
+pub use crate::defaults::DEFAULT_IMPORT_ROOT_ALIAS;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportRootMapping {

@@ -1,0 +1,8 @@
+{
+  "defaultMaxDepth": 20,
+  "defaultMaxEntries": 100000,
+  "minDepth": 1,
+  "maxDepthLimit": 100,
+  "minEntries": 1,
+  "maxEntriesLimit": 2500000
+}

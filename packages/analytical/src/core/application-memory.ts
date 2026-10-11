@@ -4,42 +4,32 @@
  * The ideas index SQLite database lives under `<base>/.reqlan/` so the
  * extension, CLI, and MCP share one on-disk store per base — not VS Code globalStorage.
  * The presence of `.reqlan` marks a directory as a reqlan base.
- */
-import { join } from 'node:path';
-
-/** Directory name under the base root for shared application memory (also the base marker). */
-export const APPLICATION_MEMORY_DIR = '.reqlan';
-
-/** Config filename under `<base>/.reqlan/` (shared settings for the base). */
-export const CONFIG_FILENAME = 'config.json';
-
-/**
- * Gitignore-syntax ignore file under `<base>/.reqlan/` (path filters for discovery/indexing).
+ * Names live in defaults.json.
  * rq:["../../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
- */
-export const RQIGNORE_FILENAME = '.rqignore';
-
-/**
- * Git ignore file under `<base>/.reqlan/` so SQLite artifacts stay out of VCS.
  * rq:["../../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
- */
-export const GITIGNORE_FILENAME = '.gitignore';
-
-/** Default SQLite filename for the ideas graph index inside application memory. */
-export const IDEAS_INDEX_FILENAME = 'ideas-index.sqlite';
-
-/**
- * Sibling SQLite for indexing timing diagnostics (survives ideas-index rebuild).
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".index_diagnostics_store]
- * rq:["../../../../reqlan rq/extension/index-host/index-diagnostics.rq".index_diagnostics]
- */
-export const INDEX_DIAGNOSTICS_FILENAME = 'index-diagnostics.sqlite';
-
-/**
- * Sibling SQLite for CLI/MCP click session cursors (survives ideas-index rebuild).
  * rq:["../../../../reqlan rq/cli/click.rq".click_session]
  */
-export const CLICK_SESSIONS_FILENAME = 'click-sessions.sqlite';
+import { join } from 'node:path';
+import {
+    APPLICATION_MEMORY_DIR,
+    CLICK_SESSIONS_FILENAME,
+    CONFIG_FILENAME,
+    GITIGNORE_FILENAME,
+    IDEAS_INDEX_FILENAME,
+    INDEX_DIAGNOSTICS_FILENAME,
+    RQIGNORE_FILENAME
+} from './defaults.js';
+
+export {
+    APPLICATION_MEMORY_DIR,
+    CLICK_SESSIONS_FILENAME,
+    CONFIG_FILENAME,
+    GITIGNORE_FILENAME,
+    IDEAS_INDEX_FILENAME,
+    INDEX_DIAGNOSTICS_FILENAME,
+    RQIGNORE_FILENAME
+};
 
 /**
  * Resolve the application-memory directory for a base.

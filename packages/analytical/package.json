@@ -33,6 +33,10 @@
     "./native": {
       "types": "./out/native/index.d.ts",
       "default": "./out/native/index.js"
+    },
+    "./defaults": {
+      "types": "./out/core/defaults.d.ts",
+      "default": "./out/core/defaults.js"
     }
   },
   "scripts": {

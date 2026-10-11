@@ -5,7 +5,8 @@
 //! rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 
 use crate::ignore::{
-    APPLICATION_MEMORY_DIR, CONFIG_FILENAME, DEFAULT_CLICK_LIST_LIMIT, DEFAULT_CLICK_MAX_SESSIONS,
+    APPLICATION_MEMORY_DIR, CLICK_LIMIT_MIN, CONFIG_FILENAME, DEFAULT_CLICK_LIST_LIMIT,
+    DEFAULT_CLICK_MAX_SESSIONS,
 };
 use reqlan_parse::{default_import_roots, ImportRootMapping};
 use serde_json::Value;
@@ -108,8 +109,8 @@ fn parse_rq_config_json(text: &str, base_root: &Path) -> Option<RqConfig> {
 }
 
 fn normalize_click_u32(max: u64) -> u32 {
-    if max == 0 {
-        1
+    if max < u64::from(CLICK_LIMIT_MIN) {
+        CLICK_LIMIT_MIN
     } else {
         max.min(u64::from(u32::MAX)) as u32
     }
@@ -171,7 +172,7 @@ mod tests {
         std::fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
         let config = load_applying_rq_config(&root, None);
         assert_eq!(config.import_roots.len(), 1);
-        assert_eq!(config.import_roots[0].alias, "@");
+        assert_eq!(config.import_roots[0].alias, reqlan_parse::DEFAULT_IMPORT_ROOT_ALIAS);
         assert_eq!(config.import_roots[0].root, None);
         std::fs::remove_dir_all(&root).ok();
     }
@@ -197,7 +198,7 @@ mod tests {
         let root = scratch("click-default");
         std::fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
         let config = load_applying_rq_config(&root, None);
-        assert_eq!(config.click_max_sessions, 100);
+        assert_eq!(config.click_max_sessions, DEFAULT_CLICK_MAX_SESSIONS);
         std::fs::remove_dir_all(&root).ok();
     }
 
