@@ -51,11 +51,8 @@ export class DiffCommand extends Command {
     json = Option.Boolean('--json', false, {
         description: 'Emit machine-readable JSON'
     });
-    color = Option.Boolean('--color', false, {
-        description: 'Force colored text'
-    });
-    noColor = Option.Boolean('--no-color', false, {
-        description: 'Force plain text'
+    color = Option.Boolean('--color', {
+        description: 'Force colored text (--no-color forces plain text)'
     });
     verbosity = Option.String('--verbosity', {
         description: 'summary, references, or text'
@@ -92,7 +89,6 @@ export class DiffCommand extends Command {
                 }
                 const colored = useDiffColor({
                     color: this.color,
-                    noColor: this.noColor,
                     json: false,
                     noColorEnv: Boolean(process.env.NO_COLOR),
                     isTTY: Boolean(process.stdout.isTTY)

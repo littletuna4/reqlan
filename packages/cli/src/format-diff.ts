@@ -34,16 +34,15 @@ const COLOR: Record<DiffChange, string> = {
 };
 
 export function useDiffColor(options: {
-    color: boolean;
-    noColor: boolean;
+    color: boolean | undefined;
     json: boolean;
     noColorEnv: boolean;
     isTTY: boolean;
 }): boolean {
-    if (options.json || options.noColor) {
+    if (options.json || options.color === false) {
         return false;
     }
-    if (options.color) {
+    if (options.color === true) {
         return true;
     }
     if (options.noColorEnv) {
