@@ -7,12 +7,14 @@ from "../../language/syntax.rq" import comment_reference_ignore
 import "../agent/features-ai.rq" as agent_ai
 import "../index-host/index-diagnostics.rq" as index_diagnostics
 import "../mutation/refactor_support.rq" as refactor_support
+from "../../cli/diff.rq" import diff_webview
 
 command_palette {
     Extension commands should be available via the vscode command palette and configurable keyboard shortcuts.
     Command titles should not repeat the category prefix; use category "reqlan" with plain titles so the palette shows "Reqlan: List All Ideas", not "Reqlan: Reqlan: ..." or "RQ: RQ: ...".
     Commands belong to product domains; this file is the palette naming hub under host lifecycle.
     Agent: [agent_ai.add_to_chat]. Index host: [index_diagnostics.open_index_diagnostics].
+    Diff: [diff_webview].
     Export: [export_functions.export_html] and siblings. Mutation: [refactor_support], [barrel_page], [decompose].
     Language: [search_code_actions], [code_actions_ignore_error], [create_idea_below_idea_containing_unresolved_reference_under_cursor].
     @status done

@@ -22,6 +22,7 @@ import type {
     IdeaSummary as NativeIdeaSummary,
     BrokenReferenceDto as NativeBrokenReference,
     ClickResult as NativeClickResult,
+    DiffResult as NativeDiffResult,
     NameAmbiguity as NativeNameAmbiguity,
     RequirementMatch as NativeRequirementMatch
 } from './generated.js';
@@ -206,6 +207,18 @@ export class NativeAnalysisApi {
     /**
      * rq:["../../../../reqlan rq/cli/click.rq".click_ambiguity]
      */
+    /**
+     * rq:["../../../../reqlan rq/cli/diff.rq".diff]
+     * rq:["../../../../reqlan rq/cli/diff.rq".diff_verbosity]
+     */
+    async diffIdeas(
+        from?: string,
+        to?: string,
+        verbosity?: 'summary' | 'references' | 'text'
+    ): Promise<NativeDiffResult> {
+        return this.native.diffIdeas(from, to, verbosity) as NativeDiffResult;
+    }
+
     async checkNameAmbiguity(name: string): Promise<NameAmbiguity> {
         return this.native.checkNameAmbiguity(name) as NativeNameAmbiguity;
     }

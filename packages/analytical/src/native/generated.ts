@@ -39,6 +39,18 @@ export type CompletionSummary = { total: number; byStatus: Partial<{ [key in str
 
 export type DeprecationImpact = { deprecated: IdeaSummary; dependents: IdeaSummary[] }
 
+export type DiffChange = "created" | "deleted" | "modified" | "moved"
+
+export type DiffReferences = { added: string[]; removed: string[] }
+
+export type DiffResult = { from: string; to: string; implicit: boolean; rows: DiffRow[] }
+
+export type DiffRow = { change: DiffChange; name: string; file: string; fromFile?: string | null; references?: DiffReferences | null; text?: DiffText | null }
+
+export type DiffText = { before: string; after: string }
+
+export type DiffVerbosity = "summary" | "references" | "text"
+
 export type EdgeDto = { id: string; sourceId: string; targetId?: string | null; targetFile?: string | null; kind: string; label?: string | null }
 
 export type ExportHeaderLinkDto = { href: string; label: string }

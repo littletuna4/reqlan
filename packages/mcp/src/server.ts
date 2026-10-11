@@ -19,6 +19,11 @@ export type McpAnalysisApi = {
   formatClickResult(result: ClickResult): string;
   getCompletionStatus(): Promise<CompletionSummary>;
   check(options?: CheckOptions): Promise<BrokenReferenceDto[]>;
+  diffIdeas(
+    from?: string,
+    to?: string,
+    verbosity?: "summary" | "references" | "text",
+  ): Promise<{ from: string; to: string; implicit: boolean; rows: unknown[] }>;
 };
 
 export type ClickToolInput = {
@@ -35,6 +40,12 @@ export type PromptToolInput = {
   intent: string;
   filePath?: string;
   requirementName?: string;
+};
+
+export type DiffToolInput = {
+  from?: string;
+  to?: string;
+  verbosity?: "summary" | "references" | "text";
 };
 
 export type CheckToolInput = {
@@ -160,9 +171,28 @@ export async function handleCheckTool(
 }
 
 /**
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_diff]
+ * rq:["../../../reqlan rq/cli/diff.rq".diff]
+ */
+export async function handleDiffTool(api: McpAnalysisApi, input: DiffToolInput) {
+  const result = await api.diffIdeas(
+    blank(input.from),
+    blank(input.to),
+    input.verbosity ?? "summary",
+  );
+  return textContent(JSON.stringify(result.rows, null, 2));
+}
+
+function blank(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+/**
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools]
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_diff]
  */
 export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
   const server = new McpServer({
@@ -250,6 +280,23 @@ export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
       },
     },
     async (input) => handleCheckTool(api, input),
+  );
+
+  server.registerTool(
+    "diff",
+    {
+      description:
+        "Compare ideas between two git revisions. Returns the same JSON array as reqlan diff --json. Omit from and to to use the CLI default: pending .rq edits against HEAD, or HEAD~1 against HEAD when those edits are absent. verbosity is summary (default), references, or text. A bad revision is an error. An empty array means no idea changes.",
+      inputSchema: {
+        from: z.string().optional().describe("Left revision. Omit with to for the default."),
+        to: z.string().optional().describe("Right revision. Omit to compare from with HEAD."),
+        verbosity: z
+          .enum(["summary", "references", "text"])
+          .optional()
+          .describe("summary (default), references, or text"),
+      },
+    },
+    async (input) => handleDiffTool(api, input),
   );
 
   server.registerTool(

@@ -1,6 +1,7 @@
 /**
  * rq:["../../../reqlan rq/cli/cli_package.rq".pnpm_extra_args]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
+ * rq:["../../../reqlan rq/cli/diff.rq".diff]
  */
 import { Cli, Builtins } from 'clipanion';
 import { readFileSync } from 'node:fs';
@@ -14,6 +15,7 @@ import { ExportCommand } from './commands/export.js';
 import { InitCommand } from './commands/init.js';
 import { BarrelCommand } from './commands/barrel.js';
 import { CheckCommand } from './commands/check.js';
+import { DiffCommand } from './commands/diff.js';
 import { argvForClipanion } from './argv.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,5 +39,6 @@ cli.register(ExportCommand);
 cli.register(InitCommand);
 cli.register(BarrelCommand);
 cli.register(CheckCommand);
+cli.register(DiffCommand);
 
 await cli.runExit(argvForClipanion(process.argv.slice(2)));

@@ -247,6 +247,26 @@ impl NativeAnalysisRuntime {
         serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
     }
 
+    /// rq:["../../../reqlan rq/cli/diff.rq".diff]
+    /// rq:["../../../reqlan rq/cli/diff.rq".diff_verbosity]
+    #[napi]
+    pub fn diff_ideas(
+        &self,
+        from: Option<String>,
+        to: Option<String>,
+        verbosity: Option<String>,
+    ) -> Result<serde_json::Value> {
+        let verbosity =
+            reqlan_analytical::DiffVerbosity::parse(verbosity.as_deref().unwrap_or("summary"))
+                .ok_or_else(|| {
+                    Error::from_reason("verbosity must be summary, references, or text")
+                })?;
+        let rows = self.with_mut(|runtime| {
+            runtime.diff_ideas(from.as_deref(), to.as_deref(), verbosity).map_err(map_err)
+        })?;
+        serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
+    }
+
     #[napi]
     pub fn export_graph(&self, request: serde_json::Value) -> Result<serde_json::Value> {
         let dto: ExportRequestDto = serde_json::from_value(request)

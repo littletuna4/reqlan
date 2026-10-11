@@ -12,6 +12,7 @@
 - `click` is the canonical search and retrieval tool (compact unique context, ranked matches, or search hits)
 - `check` reports unresolved idea, comment, and file references as JSON
 - `completion_status` summarises graph completion; `prompt` routes retrieval through `click`
+- `diff` compares two git revisions and returns the same JSON as `reqlan diff --json`
 - Shared ideas index at `<workspace>/.reqlan/ideas-index.sqlite` (same path as the VS Code extension and CLI)
 
 ## Install

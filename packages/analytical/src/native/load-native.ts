@@ -106,6 +106,7 @@ export interface NativeAnalysisRuntimeHandle {
         skipTargets?: string[],
         skipGitignoredTargets?: boolean
     ): unknown;
+    diffIdeas(from?: string, to?: string, verbosity?: string): unknown;
     exportGraph(request: unknown): unknown;
     resolveRequirementReference(name?: string): unknown;
     resolveFileReference(pathPrefix?: string): unknown;

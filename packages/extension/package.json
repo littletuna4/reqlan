@@ -403,6 +403,11 @@
         "icon": "$(dashboard)"
       },
       {
+        "command": "reqlan.diffIdeas",
+        "title": "Diff Ideas",
+        "category": "reqlan"
+      },
+      {
         "command": "reqlan.installCursorSkills",
         "title": "Install Cursor Skills",
         "category": "reqlan"

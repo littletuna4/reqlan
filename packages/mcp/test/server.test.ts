@@ -3,18 +3,24 @@
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_click_retrieval]
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_tools_prompt]
  * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_check]
+ * rq:["../../../reqlan rq/extension/agent/skills-and-mcp.rq".mcp_diff]
+ * rq:["../../../reqlan rq/cli/diff.rq".diff]
  * rq:["../../../reqlan rq/core-architecture.rq".mcp_package]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
  */
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test, vi } from "vitest";
-import type { BrokenReferenceDto, ClickResult } from "@reqlan/analytical/core";
+import { openAnalysisApi, type BrokenReferenceDto, type ClickResult } from "@reqlan/analytical/core";
 import {
   handleCheckTool,
   handleClickTool,
+  handleDiffTool,
   handlePromptTool,
   type McpAnalysisApi,
 } from "../src/server.js";
@@ -49,17 +55,18 @@ function stubApi() {
       deprecated: [],
     }),
     check,
+    diffIdeas: vi.fn(async () => ({ from: "HEAD~1", to: "HEAD", implicit: true, rows: [] })),
   };
   return { api, click, check };
 }
 
 describe("MCP tool surface", () => {
-  test("MCP surface is click, check, completion_status, and prompt", async () => {
+  test("MCP surface is click, check, diff, completion_status, and prompt", async () => {
     const source = readFileSync(join(here, "../src/server.ts"), "utf8");
     const names = [...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(names).toEqual(["click", "check", "completion_status", "prompt"]);
+    expect(names).toEqual(["click", "check", "diff", "completion_status", "prompt"]);
 
     const pkg = JSON.parse(
       readFileSync(join(here, "../package.json"), "utf8"),
@@ -143,5 +150,111 @@ describe("MCP tool surface", () => {
     await expect(handleCheckTool(api, { glob: ["", "a/**"] })).rejects.toThrow(
       "glob must not be empty",
     );
+  });
+});
+
+function git(dir: string, args: string[]): string {
+  return execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+}
+
+function initRepo(dir: string): void {
+  git(dir, ["init", "-b", "main"]);
+  git(dir, ["config", "user.email", "diff@example.com"]);
+  git(dir, ["config", "user.name", "Diff Test"]);
+  git(dir, ["config", "commit.gpgsign", "false"]);
+}
+
+function commitAll(dir: string, message: string): string {
+  git(dir, ["add", "-A"]);
+  git(dir, ["commit", "-m", message]);
+  return git(dir, ["rev-parse", "HEAD"]);
+}
+
+describe("MCP diff", () => {
+  test("diff returns created JSON and text bodies", { timeout: 30_000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), "reqlan-mcp-diff-"));
+    try {
+      initRepo(root);
+      writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n");
+      const left = commitAll(root, "a");
+      writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n\nbeta {\n    two\n}\n");
+      const right = commitAll(root, "b");
+      const opened = await openAnalysisApi({ workspaceRoot: root });
+      try {
+        const created = await handleDiffTool(opened.api, { from: left, to: right });
+        const rows = JSON.parse(created.content[0]?.text ?? "[]") as Array<Record<string, unknown>>;
+        expect(rows).toEqual([{ change: "created", name: "beta", file: "reqs.rq" }]);
+        expect(created.content[0]?.text).not.toContain("\u001b");
+
+        writeFileSync(join(root, "body.rq"), "alpha {\n    one\n}\n");
+        const bodyLeft = commitAll(root, "body-a");
+        writeFileSync(join(root, "body.rq"), "alpha {\n    two\n}\n");
+        const bodyRight = commitAll(root, "body-b");
+        const text = await handleDiffTool(opened.api, {
+          from: bodyLeft,
+          to: bodyRight,
+          verbosity: "text",
+        });
+        const textRows = JSON.parse(text.content[0]?.text ?? "[]") as Array<{
+          text?: { before: string; after: string };
+        }>;
+        expect(textRows[0]?.text?.before).toBe("one");
+        expect(textRows[0]?.text?.after).toBe("two");
+      } finally {
+        await opened.dispose();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("omitted targets follow the clean and dirty defaults", { timeout: 30_000 }, async () => {
+    const root = mkdtempSync(join(tmpdir(), "reqlan-mcp-diff-default-"));
+    try {
+      initRepo(root);
+      writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n");
+      commitAll(root, "a");
+      writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n\nbeta {\n    two\n}\n");
+      commitAll(root, "b");
+      const opened = await openAnalysisApi({ workspaceRoot: root });
+      try {
+        const clean = await handleDiffTool(opened.api, {});
+        const rows = JSON.parse(clean.content[0]?.text ?? "[]") as Array<{ name: string; change: string }>;
+        expect(rows).toEqual([{ change: "created", name: "beta", file: "reqs.rq" }]);
+
+        writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n\ngamma {\n    three\n}\n");
+        const dirty = await handleDiffTool(opened.api, {});
+        const dirtyRows = JSON.parse(dirty.content[0]?.text ?? "[]") as Array<{
+          change: string;
+          name: string;
+          file: string;
+        }>;
+        expect(dirtyRows).toEqual([
+          { change: "deleted", name: "beta", file: "reqs.rq" },
+          { change: "created", name: "gamma", file: "reqs.rq" },
+        ]);
+      } finally {
+        await opened.dispose();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("a bad revision is a tool error", async () => {
+    const root = mkdtempSync(join(tmpdir(), "reqlan-mcp-diff-bad-"));
+    try {
+      initRepo(root);
+      writeFileSync(join(root, "reqs.rq"), "alpha {\n    one\n}\n");
+      commitAll(root, "a");
+      const opened = await openAnalysisApi({ workspaceRoot: root });
+      try {
+        await expect(handleDiffTool(opened.api, { from: "not-a-rev" })).rejects.toThrow(/bad_revision/);
+      } finally {
+        await opened.dispose();
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

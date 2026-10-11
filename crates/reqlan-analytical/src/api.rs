@@ -1,4 +1,5 @@
 use crate::click::{self, ClickOptions};
+use crate::diff::{self, DiffResult, DiffVerbosity};
 use crate::types::{
     from_index_summary, BrokenReferenceDto, ClickResult, CompletionSummary, DeprecationImpact,
     EdgeDto, ExportRequestDto, ExportResultDto, FileReferenceMatch, FileRelatedRequirements,
@@ -31,6 +32,10 @@ pub enum AnalysisError {
     Store(#[from] StoreError),
     #[error("export: {0}")]
     Export(String),
+    #[error("not_a_repository")]
+    NotARepository,
+    #[error("bad_revision")]
+    BadRevision,
     #[error("{0}")]
     Message(String),
 }
@@ -251,6 +256,17 @@ impl AnalysisRuntime {
 
     /// Compact local context with session-aware unique / ambiguous / search / revisit paths.
     /// rq:["../../../reqlan rq/cli/click.rq".click]
+    /// Compare ideas between two git revisions. Does not read or write the ideas index.
+    /// rq:["../../../reqlan rq/cli/diff.rq".diff]
+    pub fn diff_ideas(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        verbosity: DiffVerbosity,
+    ) -> Result<DiffResult, AnalysisError> {
+        diff::diff_ideas(&self.workspace_root, from, to, verbosity)
+    }
+
     pub fn click(&mut self, options: ClickOptions<'_>) -> Result<ClickResult, AnalysisError> {
         self.ensure_ready()?;
         click::click(&self.store, &self.workspace_root, &self.memory_path, options)

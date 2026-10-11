@@ -19,6 +19,7 @@ from "../extension/agent/skills-and-mcp.rq" import mcp_tools, cursor_skills_inst
 from "../core_analysis/html_export.rq" import html_export
 from "../extension/language/comment-references/functional-code-comment-references.rq" import references_in_functional_code_comments
 from "../cli/cli_package.rq" import cli_package, commands, init, function_parity
+from "../cli/diff.rq" import diff
 from "../docs/docs.rq" import docs_reqs
 from "../phonebook.rq" import phonebook
 import "../site/site.rq" as site_reqs
@@ -1446,7 +1447,7 @@ con_03_cli {
     Outcome: install and run `reqlan` / `rq`; [init] a [base]; run search, analyse, and parse; know `--cwd` / `--json` and one-base-per-run; know export shares [html_export] with the extension.
     Runtime: 9–11 min.
     Demo: advanced get-started end state of `reqlan-tutorials-demo` — `.reqlan` indexed, `reqs/product.rq` + `reqs/auth.rq` present; integrated terminal at workspace root; extension idle in background (not the focus).
-    Related: [cli_package] [commands] [init] [html_export] [base] [multi_base_environment] [llm_first] [function_parity]
+    Related: [cli_package] [commands] [init] [diff] [html_export] [base] [multi_base_environment] [llm_first] [function_parity]
     @example {
         ```bash
         # From reqlan-tutorials-demo/ (active base at root)
@@ -1459,6 +1460,7 @@ con_03_cli {
         npx reqlan parse reqs/auth.rq
         npx reqlan parse reqs/ --fail-on-diagnostics
         npx reqlan export --out ./docs-site
+        npx reqlan diff
 
         # Wrong folder? pin the base:
         npx reqlan --cwd reqlan-tutorials-demo search "empty password"

@@ -6,11 +6,15 @@
 mod api;
 mod click;
 mod click_sessions;
+mod diff;
 mod types;
 mod workspace_index;
 
 pub use api::{AnalysisError, AnalysisRuntime};
 pub use click::{check_name_ambiguity, click_memory_path, ClickOptions};
+pub use diff::{
+    diff_ideas, DiffChange, DiffReferences, DiffResult, DiffRow, DiffText, DiffVerbosity,
+};
 pub use reqlan_index::FileIssueDraft;
 pub use types::*;
 pub use workspace_index::{
@@ -43,6 +47,12 @@ pub fn type_collection() -> TypeCollection {
     types.register::<ClickCandidate>();
     types.register::<NameAmbiguity>();
     types.register::<ClickResult>();
+    types.register::<DiffChange>();
+    types.register::<DiffReferences>();
+    types.register::<DiffText>();
+    types.register::<DiffVerbosity>();
+    types.register::<DiffRow>();
+    types.register::<DiffResult>();
     types
 }
 

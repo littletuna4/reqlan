@@ -12,6 +12,7 @@ CLI for parsing, analysing, and exporting reqlan requirement graphs
 - `parse` — parse a `.rq` file and print diagnostics or an AST summary
 - `analyse` / `analyze` — file, idea, or workspace graph analysis via `AnalysisApi`
 - `search` — semantic search across indexed requirements (`--context`, `--json` for scripting)
+- `diff` — compare ideas in two git snapshots
 
 ## Install
 
@@ -77,7 +78,17 @@ reqlan parse <file> [--json]
 reqlan analyse [--file <path> | --idea <name>] [--depth <n>] [--cwd <dir>] [--json]
 reqlan analyze   # alias of analyse
 reqlan search <query> [--limit <n>] [--context <path|path#idea|name>]... [--cwd <dir>] [--json]
+reqlan diff A B
+reqlan diff
+reqlan diff HEAD~1
+reqlan diff --verbosity references
+reqlan diff --verbosity text
+reqlan diff --json
 ```
+
+`reqlan diff` with no arguments compares pending `.rq` edits with `HEAD`. When the tree is clean, `reqlan diff` compares `HEAD~1` with `HEAD`. One revision compares that revision with `HEAD`.
+
+Color follows the terminal and `NO_COLOR`. `--color` and `--no-color` override it.
 
 Set `REQLAN_WORKSPACE` or pass `--cwd` to override the workspace root.
 

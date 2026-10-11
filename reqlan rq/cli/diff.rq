@@ -1,0 +1,144 @@
+from "../ontology.rq" import idea, idea_name
+from "../reference_types.rq" import idea_reference
+from "../core_analysis/core.rq" import consumption_silence
+from "./cli_package.rq" import commands, architecture, function_parity
+import "../extension/agent/skills-and-mcp.rq" as skills_and_mcp
+import "../extension/host/features-commands.rq" as features_commands
+
+diff {
+    Compare ideas in two git snapshots.
+    The key is the file path plus the [idea_name].
+    The command reads `.rq` files from git and parses each snapshot.
+    It does not read or write the ideas index.
+    Line position does not count. The same body and attributes at a different line are unchanged.
+    Content is the idea body plus its attributes.
+    Change kinds:
+    - created — the key exists only on the right snapshot
+    - deleted — the key exists only on the left snapshot
+    - modified — the key exists on both snapshots and the content differs
+    - moved — the name exists in exactly one file on each side, the paths differ, and the content is the same
+    The same name in more than one file on one side stays on the path-plus-name key.
+    A renamed idea is deleted plus created.
+    Unchanged ideas are omitted.
+    A reference-only edit stays modified.
+    No arguments: if any `.rq` path is staged, unstaged, or untracked and not gitignored, the left side is `HEAD` and the right side is that pending snapshot. Otherwise the left side is `HEAD~1` and the right side is `HEAD`. A non-`.rq` change does not select the pending snapshot.
+    One argument: that revision against `HEAD`.
+    Two arguments: the first revision against the second.
+    A target is a branch, a commit, `HEAD`, `~N` (`HEAD~N`), or `<rev>~N`.
+    The pending snapshot uses the working-tree file for an unstaged edit, the index blob when the working tree matches `HEAD`, and the working-tree file when a path is both staged and unstaged.
+    An untracked `.rq` file that git does not ignore is included.
+    If `HEAD` has no parent, the left snapshot is empty and every idea on `HEAD` is created.
+    A missing revision or a directory that is not a git repository is an error. Exit status is 2. A successful diff exits 0, including an empty diff.
+    When a side is filled by a default, the human CLI and [diff_webview] print a header `Comparing <from> -> <to>` before the rows. Explicit two-argument runs omit that header. `--json` and MCP stay a row array only.
+    Surfaces: CLI `reqlan diff` ([commands]), MCP [skills_and_mcp.mcp_diff], and [diff_webview].
+    Engine: ["../../crates/reqlan-analytical/src/diff.rs"]. Git spawns stay hidden ([consumption_silence]).
+    Related: [architecture] [function_parity] [idea] [idea_reference] [diff_verbosity] [diff_cli_color]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/diff.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/diff.ts"]
+        ["../../packages/mcp/src/server.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/diff.rs:created_idea_is_listed_without_the_unchanged_idea"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:modified_body_is_modified"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:attribute_change_is_modified"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:deleted_idea_is_deleted"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:line_shift_is_not_a_change"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:one_argument_compares_with_head"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:tilde_count_matches_head_tilde"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:branch_against_head_and_two_branches"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:pending_unstaged_staged_and_layered_edits"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:clean_tree_compares_head_with_parent_and_ignores_non_rq"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:head_without_parent_lists_current_ideas_as_created"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:moved_idea_reports_both_paths"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:ambiguous_name_does_not_move"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:renamed_idea_is_deleted_and_created"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:same_revision_is_empty"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:missing_repository_and_revision_are_errors"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:implicit_targets_report_resolved_labels"]
+        ["../../packages/cli/test/diff.test.ts:lists a created idea and omits the unchanged idea"]
+        ["../../packages/cli/test/diff.test.ts:one argument matches an explicit HEAD on the right"]
+        ["../../packages/cli/test/diff.test.ts:tilde count matches HEAD~N"]
+        ["../../packages/cli/test/diff.test.ts:compares a branch with HEAD and with another branch"]
+        ["../../packages/cli/test/diff.test.ts:pending edits use the worktree, including a later unstaged layer"]
+        ["../../packages/cli/test/diff.test.ts:a clean tree compares HEAD~1 with HEAD and ignores a non-rq edit"]
+        ["../../packages/cli/test/diff.test.ts:a missing repository or revision exits 2"]
+    )
+    @example {
+        ```bash
+        reqlan diff A B
+        reqlan diff
+        reqlan diff HEAD~1
+        reqlan diff --verbosity references
+        reqlan diff --verbosity text
+        reqlan diff --json
+        ```
+    }
+}
+
+diff_verbosity {
+    Three levels. The default is summary.
+    CLI: `--verbosity summary|references|text`, or `-v` / `-vv`.
+    MCP and [diff_webview] use the same three values.
+    - summary — change kind, idea name, and file. `fromFile` only for moved.
+    - references — summary, plus [idea_reference] targets added on the right and removed from the left. Order each list by name. Omit a target that is on both sides.
+    - text — summary, plus the body and attributes before and after. Created shows the right side. Deleted shows the left side. Modified shows both. Moved has no text change. Do not list reference names at this level.
+    Attributes stay inside modified. The references level does not print attribute text. The text level prints body lines, then attribute lines as `@name` / `@name value`.
+    `--json` omits `references` and `text` at summary. It adds `references` at references only. It adds `text` at text only.
+    @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/diff.rs"]
+        ["../../packages/cli/src/format-diff.ts"]
+        ["../../packages/mcp/src/server.ts"]
+        ["../../packages/extension/src/index_host_module/diff/diff-row-model.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/diff.rs:summary_json_omits_references_and_text"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:reference_verbosity_lists_added_and_removed_names"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:text_verbosity_returns_before_and_after_body"]
+        ["../../crates/reqlan-analytical/tests/diff.rs:text_verbosity_includes_attributes"]
+        ["../../packages/cli/test/diff.test.ts:verbosity flags and JSON omit unused fields"]
+        ["../../packages/mcp/test/server.test.ts:diff returns created JSON and text bodies"]
+        ["../../packages/extension/test/diff-webview.test.ts:references lists added and removed names and hides the body"]
+        ["../../packages/extension/test/diff-webview.test.ts:text shows the before and after body"]
+    )
+}
+
+diff_cli_color {
+    Color the human text when stdout is a terminal and `NO_COLOR` is unset.
+    `--color` forces color. `--no-color` forces plain text. `--json` is never colored.
+    Created and added lines are green. Deleted and removed lines are red. Modified is yellow. Moved is cyan.
+    @status done
+    @implementation (
+        ["../../packages/cli/src/format-diff.ts"]
+        ["../../packages/cli/src/commands/diff.ts"]
+    )
+    @tests (
+        ["../../packages/cli/test/diff.test.ts:color is opt-in when stdout is not a terminal"]
+    )
+}
+
+diff_webview {
+    Command palette title Diff Ideas, category reqlan, id `reqlan.diffIdeas` ([features_commands.command_palette]).
+    The panel takes the same two targets and the same verbosity as [diff].
+    Each row uses the editor git decoration colors for created, deleted, and modified, and a distinct color for moved.
+    The references level lists added and removed reference names. The text level shows the body and attributes before and after.
+    The panel calls the shared engine. It does not parse git output.
+    When a side uses a default, the panel shows the same `Comparing <from> -> <to>` header as the CLI.
+    @status done
+    @implementation (
+        ["../../packages/extension/src/index_host_module/diff/diff-panel.ts"]
+        ["../../packages/extension/src/index_host_module/diff/diff-row-model.ts"]
+        ["../../packages/extension/src/index_host_module/diff/register-diff.ts"]
+        ["../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../packages/extension/test/diff-webview.test.ts:a created row uses the added theme token and hides the body"]
+        ["../../packages/extension/test/diff-webview.test.ts:references lists added and removed names and hides the body"]
+        ["../../packages/extension/test/diff-webview.test.ts:text shows the before and after body"]
+    )
+}

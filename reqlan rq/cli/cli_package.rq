@@ -80,6 +80,9 @@ commands {
       `--skip-gitignored-targets` omits file-reference issues whose missing target is gitignored
       (["../core_analysis/check.rq".check_skip_gitignored_targets]).
     - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/host/features-commands.rq".barrel_page]).
+    - `diff [<from>] [<to>]` — compare ideas between two git revisions (["./diff.rq".diff]).
+      No arguments compare pending `.rq` edits with `HEAD`, or `HEAD~1` with `HEAD` when those edits are absent.
+      `--verbosity` is `summary` (default), `references`, or `text`. `--json` prints the same rows as MCP.
     Extra args from `pnpm run`: [pnpm_extra_args].
 }
 

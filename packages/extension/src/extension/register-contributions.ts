@@ -12,6 +12,7 @@ import { registerWebviewModule } from '../ideas_summary_module/index.js';
 import { registerMutationHooksModule } from '../mutation_module/index.js';
 import { registerRefactorModule } from '../mutation_module/refactor/index.js';
 import { registerIndexDiagnosticsModule } from '../index_host_module/diagnostics/index.js';
+import { registerDiffModule } from '../index_host_module/diff/register-diff.js';
 import { registerGitDatesBackgroundIndexing } from '../index_host_module/register-git-dates-background.js';
 import { registerExportCommands } from '../export_module/register-export-commands.js';
 
@@ -45,5 +46,6 @@ export function registerExtensionContributions(
     registerStep('mutation hooks', () => registerMutationHooksModule(context, submodule));
     registerStep('refactor', () => registerRefactorModule(context, submodule));
     registerStep('index diagnostics', () => registerIndexDiagnosticsModule(context, submodule));
+    registerStep('diff', () => registerDiffModule(context));
     registerStep('git dates background', () => registerGitDatesBackgroundIndexing(context, submodule));
 }
