@@ -1,5 +1,11 @@
 # site
 
+## 0.21.6
+
+### Patch Changes
+
+- 798b868: Update configuration default handling
+
 ## 0.21.5
 
 ### Patch Changes

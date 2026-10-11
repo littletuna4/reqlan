@@ -1,5 +1,13 @@
 # @reqlan/language
 
+## 1.14.4
+
+### Patch Changes
+
+- 798b868: Update configuration default handling
+- Updated dependencies [798b868]
+  - @reqlan/analytical@1.17.4
+
 ## 1.14.3
 
 ### Patch Changes

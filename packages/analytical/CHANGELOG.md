@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.17.4
+
+### Patch Changes
+
+- 798b868: Update configuration default handling
+
 ## 1.17.3
 
 ### Patch Changes
