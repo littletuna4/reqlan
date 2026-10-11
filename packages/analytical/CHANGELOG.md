@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.18.0
+
+### Minor Changes
+
+- a6c9d7a: new diff function
+
 ## 1.17.4
 
 ### Patch Changes

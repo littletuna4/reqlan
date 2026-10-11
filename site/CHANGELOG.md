@@ -1,5 +1,11 @@
 # site
 
+## 0.21.7
+
+### Patch Changes
+
+- a6c9d7a: new diff function
+
 ## 0.21.6
 
 ### Patch Changes

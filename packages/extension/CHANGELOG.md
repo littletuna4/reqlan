@@ -1,5 +1,17 @@
 # reqlan-extension
 
+## 1.18.0
+
+### Minor Changes
+
+- a6c9d7a: new diff function
+
+### Patch Changes
+
+- Updated dependencies [a6c9d7a]
+  - @reqlan/analytical@1.18.0
+  - @reqlan/language@1.14.5
+
 ## 1.17.4
 
 ### Patch Changes

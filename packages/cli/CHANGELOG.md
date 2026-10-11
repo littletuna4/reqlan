@@ -1,5 +1,16 @@
 # @reqlan/cli
 
+## 0.14.0
+
+### Minor Changes
+
+- a6c9d7a: new diff function
+
+### Patch Changes
+
+- Updated dependencies [a6c9d7a]
+  - @reqlan/analytical@1.18.0
+
 ## 0.13.4
 
 ### Patch Changes
