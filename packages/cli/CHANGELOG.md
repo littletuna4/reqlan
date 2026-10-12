@@ -1,5 +1,16 @@
 # @reqlan/cli
 
+## 0.15.0
+
+### Minor Changes
+
+- e2f09ed: up
+
+### Patch Changes
+
+- Updated dependencies [e2f09ed]
+  - @reqlan/analytical@1.19.0
+
 ## 0.14.0
 
 ### Minor Changes

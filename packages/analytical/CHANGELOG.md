@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.19.0
+
+### Minor Changes
+
+- e2f09ed: up
+
 ## 1.18.0
 
 ### Minor Changes
