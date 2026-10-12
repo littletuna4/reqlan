@@ -580,7 +580,7 @@ impl Session {
         self.comment_definition_at(&text, &path, uri, pos)
     }
 
-    /// Go-to-definition for a resolved `rq:[…]` comment site.
+    /// Go-to-definition for a resolved comment reference site.
     /// Same resolution as document links and missing-idea diagnostics.
     fn comment_definition_at(
         &mut self,
