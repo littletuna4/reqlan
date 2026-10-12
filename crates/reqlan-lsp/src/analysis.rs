@@ -13,12 +13,11 @@ use lsp_types::{
 };
 use reqlan_index::{
     analyze_local_symbolic_from_parse, find_rq_ignore_error_target_lines, local_name_binding,
-    LocalNameBinding, LocalSymbolicDocument,
+    locate_authored_rq_path, LocalNameBinding, LocalSymbolicDocument,
 };
 use reqlan_parse::{
-    import_path_candidates, parse_document, resolve_rq_path, unquote_path, Attribute,
-    AttributeValue, BodyElement, Import, ImportRootMapping, ListItem, Model, ReferenceTarget,
-    RichPart, Span, TopLevelElement,
+    import_path_candidates, parse_document, unquote_path, Attribute, AttributeValue, BodyElement,
+    Import, ImportRootMapping, ListItem, Model, ReferenceTarget, RichPart, Span, TopLevelElement,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -103,6 +102,9 @@ pub struct DocModel {
     pub text: String,
     pub lines: LineMap,
     pub roots: Vec<ImportRootMapping>,
+    /// Workspace / applying-base folder for `@/` and other relative `resolve_rq_path` results.
+    /// Same join as `reqlan check` ([locate_authored_rq_path]).
+    workspace: Option<PathBuf>,
     file_path: Option<PathBuf>,
     pub(crate) names: Vec<NameLoc>,
     tokens: Vec<RawToken>,
@@ -123,11 +125,20 @@ struct RawToken {
 }
 
 impl DocModel {
-    pub fn parse(uri: &str, text: String, file_path: Option<&Path>) -> Self {
+    pub fn parse(
+        uri: &str,
+        text: String,
+        file_path: Option<&Path>,
+        workspace: Option<&Path>,
+    ) -> Self {
         let roots = file_path
-            .map(|path| reqlan_index::load_applying_rq_config(path, Some(path)).import_roots)
+            .map(|path| {
+                let from = path.to_string_lossy();
+                let ws = workspace.unwrap_or(path);
+                reqlan_index::import_roots_for_source(ws, &from)
+            })
             .unwrap_or_else(reqlan_parse::default_import_roots);
-        Self::parse_with_roots(uri, text, file_path, roots)
+        Self::parse_with_roots(uri, text, file_path, roots, workspace)
     }
 
     /// Parse with import roots already loaded for this file.
@@ -136,6 +147,7 @@ impl DocModel {
         text: String,
         file_path: Option<&Path>,
         roots: Vec<ImportRootMapping>,
+        workspace: Option<&Path>,
     ) -> Self {
         let parsed = parse_document(&text);
         let symbolic = analyze_local_symbolic_from_parse(uri, &text, &parsed, &roots);
@@ -151,6 +163,7 @@ impl DocModel {
             text,
             lines,
             roots,
+            workspace: workspace.map(Path::to_path_buf),
             file_path: file_path.map(Path::to_path_buf),
             names,
             tokens,
@@ -269,8 +282,12 @@ impl DocModel {
             .as_ref()
             .map(|path| path.to_string_lossy().to_string())
             .unwrap_or_default();
-        let resolved = resolve_rq_path(authored, &from, &self.roots);
-        existing_path(&resolved)
+        if let Some(workspace) = self.workspace.as_deref() {
+            // Same definition as `reqlan check` (workspace join after resolve_rq_path).
+            return locate_authored_rq_path(workspace, &from, authored, &self.roots);
+        }
+        // Absolute resolve_rq_path results (document-relative from an absolute from_file).
+        existing_path_candidates(authored, &from, &self.roots)
     }
 
     /// Import targets and import-bound local names for the open-file hot path.
@@ -1481,13 +1498,14 @@ impl DocModel {
         ) = self.ref_at(byte)
         {
             let range = self.lines.range(&self.text, span.start, span.end);
-            return Some(file_reference_value(file, range));
+            return Some(file_reference_value(file, range, self.locate(file)));
         }
         let import =
             self.model.imports.iter().find(|import| span_has(import_span(import), byte))?;
         let span = import_span(import);
         let range = self.lines.range(&self.text, span.start, span.end);
-        Some(file_reference_value(import.path()?, range))
+        let path = import.path()?;
+        Some(file_reference_value(path, range, self.locate(path)))
     }
 
     pub fn wildcard_at(&self, pos: Position, from_uri: &str) -> Option<serde_json::Value> {
@@ -2005,6 +2023,24 @@ fn existing_path(path: &str) -> Option<PathBuf> {
     None
 }
 
+fn existing_path_candidates(
+    authored: &str,
+    from_file: &str,
+    roots: &[ImportRootMapping],
+) -> Option<PathBuf> {
+    let unquoted = unquote_path(authored);
+    if unquoted.contains("://") {
+        return None;
+    }
+    for candidate in import_path_candidates(&unquoted) {
+        let resolved = reqlan_parse::resolve_rq_path(&candidate, from_file, roots);
+        if let Some(path) = existing_path(&resolved) {
+            return Some(path);
+        }
+    }
+    None
+}
+
 fn inbound_inlay(
     doc_uri: &str,
     idea: &str,
@@ -2161,9 +2197,8 @@ fn parse_url(uri: &str) -> Url {
     Url::parse(uri).unwrap_or_else(|_| Url::parse("file:///reqlan.rq").expect("static uri"))
 }
 
-fn file_reference_value(path: &str, range: Range) -> serde_json::Value {
+fn file_reference_value(path: &str, range: Range, existing: Option<PathBuf>) -> serde_json::Value {
     let trimmed = path.trim_matches('"').trim_matches('\'');
-    let existing = existing_path(trimmed);
     let is_dir = existing.as_ref().is_some_and(|path| path.is_dir());
     let target = existing
         .as_ref()
@@ -2205,9 +2240,16 @@ pub fn resolve_neighbor_file(
     from_file: &Path,
     authored: &str,
     roots: &[ImportRootMapping],
+    workspace: Option<&Path>,
 ) -> Option<PathBuf> {
-    let resolved = reqlan_parse::resolve_rq_path(authored, &from_file.display().to_string(), roots);
-    existing_path(&resolved).or_else(|| {
+    let from = from_file.display().to_string();
+    if let Some(root) = workspace {
+        return locate_authored_rq_path(root, &from, authored, roots).or_else(|| {
+            let parent = from_file.parent()?;
+            existing_path(&parent.join(authored.trim_matches('"')).display().to_string())
+        });
+    }
+    existing_path_candidates(authored, &from, roots).or_else(|| {
         let parent = from_file.parent()?;
         existing_path(&parent.join(authored.trim_matches('"')).display().to_string())
     })

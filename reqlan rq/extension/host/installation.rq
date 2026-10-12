@@ -75,10 +75,22 @@ base_installation {
 }
 
 base_config_seed {
-    New bases write a minimal `.reqlan/config.json` (`{}` today) via [create_base_impl].
+    New bases write `.reqlan/config.json` with `$schema` pointing at the public v1 schema URL via [create_base_impl].
+    Seed shape: `{"$schema":"https://reqlan.com/schemas/v1/config.schema.json"}`.
     Semantics and discovery of applying config: [configuration.configuration_location], [configuration.configuration_import_roots], [bases.base_configuration].
     Schema / editor validation: [configuration.configuration_schema_file].
     A child base does not inherit a parent base's config file.
+    Existing bases are not rewritten (idempotent create leaves them alone).
+    @status done
+    @implementation (
+        ["../../../crates/reqlan-index/src/ignore.rs"]
+        ["../../../packages/analytical/src/core/create-base.ts"]
+    )
+    @tests (
+        ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/config.json when creating a new base"]
+        ["../../../packages/language/test/config.test.ts:schema file documents importRoots mappings"]
+        ["../../../crates/reqlan-index/src/ignore.rs:create_base_seeds_config_with_public_schema"]
+    )
 }
 
 base_rqignore_seed {

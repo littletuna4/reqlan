@@ -15,7 +15,6 @@ use crate::extract::{
     EXTRACT_VERSION,
 };
 use crate::ignore::{is_binary_rqignore_path, RqIgnoreFilter};
-use crate::path_resolve::load_applying_rq_config;
 use crate::scan::{scan_workspace, ScanLimits};
 use crate::store::{IndexStore, StoreError};
 use crate::text::{read_index_text, IndexText};
@@ -116,7 +115,6 @@ pub fn sync_workspace(
     if options.hard_rebuild || stale_extract {
         store.clear()?;
     }
-    let import_roots = load_applying_rq_config(&options.workspace_root, None).import_roots;
     let scan = scan_workspace(
         std::slice::from_ref(&options.workspace_root),
         ScanLimits {
@@ -175,12 +173,13 @@ pub fn sync_workspace(
                 continue;
             }
         };
+        let import_roots = crate::import_roots_for_source(&options.workspace_root, &file_uri);
         let extracted = extract_indexed_document(
             &file_uri,
             &source,
             &ExtractOptions {
                 idea_candidates: catalog.clone(),
-                import_roots: import_roots.clone(),
+                import_roots,
                 local_symbolic: false,
             },
         );
@@ -211,7 +210,6 @@ pub fn sync_workspace(
             cancel,
             &mut progress,
             &mut file_issues,
-            &import_roots,
         )?;
         store.set_extract_version(EXTRACT_VERSION)?;
     }
@@ -228,7 +226,6 @@ fn index_code_files(
     cancel: &AtomicBool,
     progress: &mut SyncProgress,
     file_issues: &mut Vec<FileIssue>,
-    import_roots: &[ImportRootMapping],
 ) -> Result<(), StoreError> {
     let catalog = store.list_all_ideas()?;
     let mut keep = HashSet::new();
@@ -240,6 +237,7 @@ fn index_code_files(
         let file_uri = relative_posix(workspace_root, path);
         progress.current_file = Some(file_uri.clone());
         progress.processed += 1;
+        let import_roots = crate::import_roots_for_source(workspace_root, &file_uri);
         match index_code_file_path(
             store,
             path,
@@ -247,7 +245,7 @@ fn index_code_files(
             &catalog,
             stored_mtimes,
             force_reextract,
-            import_roots,
+            &import_roots,
         )? {
             CodeIndexOutcome::SkippedMtime => {
                 progress.skipped_mtime += 1;
@@ -340,7 +338,6 @@ fn refresh_indexed_code_documents(
     workspace_root: &Path,
 ) -> Result<(), StoreError> {
     let catalog = store.list_all_ideas()?;
-    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
     for file_uri in store.list_code_document_uris()? {
         let path = workspace_root.join(&file_uri);
         if !path.is_file() {
@@ -355,6 +352,7 @@ fn refresh_indexed_code_documents(
             }
         };
         let mtime_ms = file_mtime_ms(&path);
+        let import_roots = crate::import_roots_for_source(workspace_root, &file_uri);
         let _ = persist_code_source(store, &file_uri, &source, &catalog, mtime_ms, &import_roots)?;
     }
     Ok(())
@@ -391,7 +389,7 @@ pub fn index_one_file(
         return Ok(IndexOneFileResult { file_uri, diagnostics: Vec::new() });
     }
 
-    let import_roots = load_applying_rq_config(workspace_root, Some(&path)).import_roots;
+    let import_roots = crate::import_roots_for_source(workspace_root, &file_uri);
 
     if is_comment_index_path(&path) || is_binary_rqignore_path(&path) {
         let catalog = store.list_all_ideas()?;

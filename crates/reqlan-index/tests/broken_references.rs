@@ -363,15 +363,19 @@ fn check_skips_same_file_idea_refs_and_reports_true_missing() {
 
 #[test]
 fn check_accepts_import_root_alias_file_refs() {
+    // Shared with LSP: locate_authored_rq_path / crates/reqlan-lsp/tests/parity.rs:import_root_alias_file_refs_match_check
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     let root = scratch("ws-file");
     std::fs::create_dir_all(root.join(".reqlan")).unwrap();
     std::fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
     std::fs::create_dir_all(root.join("reqlan rq/site")).unwrap();
     std::fs::create_dir_all(root.join("site/src/app/support")).unwrap();
+    std::fs::create_dir_all(root.join("docs")).unwrap();
     std::fs::write(root.join("site/src/app/support/page.tsx"), "export {}\n").unwrap();
+    std::fs::write(root.join("docs/my file.ts"), "export {}\n").unwrap();
     std::fs::write(
         root.join("reqlan rq/site/host.rq"),
-        "host {\n    [\"@/site/src/app/support/page.tsx\"]\n    [\"@/site/src/app/support/gone.tsx\"]\n}\n",
+        "host {\n    [\"@/site/src/app/support/page.tsx\"]\n    [\"@/docs/my file.ts\"]\n    [\"@/site/src/app/support/gone.tsx\"]\n}\n",
     )
     .unwrap();
     let store = sync_root(&root);
@@ -380,6 +384,34 @@ fn check_accepts_import_root_alias_file_refs() {
         .iter()
         .any(|row| row.kind == "file_reference" && row.label == "@/site/src/app/support/gone.tsx"));
     assert!(rows.iter().all(|row| row.label != "@/site/src/app/support/page.tsx"));
+    assert!(rows.iter().all(|row| row.label != "@/docs/my file.ts"));
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn check_honours_import_roots_from_applying_config() {
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    // Shared with LSP: crates/reqlan-lsp/tests/parity.rs:import_root_config_file_refs_match_check
+    let root = scratch("ws-config-root");
+    std::fs::create_dir_all(root.join(".reqlan")).unwrap();
+    std::fs::write(
+        root.join(".reqlan/config.json"),
+        r#"{"importRoots":[{"alias":"@","root":"./lib"}]}"#,
+    )
+    .unwrap();
+    std::fs::create_dir_all(root.join("lib")).unwrap();
+    std::fs::write(root.join("lib/my file.ts"), "export {}\n").unwrap();
+    std::fs::create_dir_all(root.join("reqlan rq")).unwrap();
+    std::fs::write(
+        root.join("reqlan rq/host.rq"),
+        "host {\n    [\"@/my file.ts\"]\n    [\"@/gone.ts\"]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.iter().any(|row| row.kind == "file_reference" && row.label == "@/gone.ts"));
+    assert!(rows.iter().all(|row| row.label != "@/my file.ts"), "{rows:?}");
     std::fs::remove_dir_all(&root).ok();
 }
 

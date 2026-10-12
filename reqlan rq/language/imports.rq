@@ -106,6 +106,7 @@ configuration_import_root_alias {
         `from "@/path/relative/to/import/root.rq" import idea`
     }
 
+    File references and the language server use the same locate rule as ["../core_analysis/check.rq".check]: load `importRoots` from the applying `.reqlan/config.json` for the source file ([configuration.configuration_location]), then `resolve_rq_path` and join the workspace when the result is relative — including paths with spaces such as `["@/my file.ts"]`.
     @implementation (
         ["../../packages/language/src/reqlan-path-resolve.ts"]
         ["../../packages/language/src/file-path-rewrite.ts"]
@@ -116,7 +117,10 @@ configuration_import_root_alias {
         ["../../crates/reqlan-parse/src/path.rs"]
         ["../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-index/src/comment.rs"]
+        ["../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../crates/reqlan-lsp/src/session.rs"]
     )
     @tests (
         ["../../packages/language/test/path-resolve.test.ts:resolves import-root alias against the workspace folder"]
@@ -132,7 +136,12 @@ configuration_import_root_alias {
         ["../../packages/language/test/config.test.ts:aliased path uses workspace folder when root is omitted"]
         ["../../crates/reqlan-parse/src/path.rs:match_import_root_alias_requires_alias_then_slash"]
         ["../../crates/reqlan-parse/src/path.rs:resolves_default_alias_against_workspace_folder"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:locate_aliased_file_ref_joins_workspace_root"]
+        ["../../crates/reqlan-index/src/path_resolve.rs:locate_uses_import_roots_from_applying_config"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_honours_import_roots_from_applying_config"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:import_root_alias_file_refs_match_check"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:import_root_config_file_refs_match_check"]
         ["../../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
         ["../../crates/reqlan-index/src/comment.rs:resolves_aliased_qualified_comment_path"]
     )

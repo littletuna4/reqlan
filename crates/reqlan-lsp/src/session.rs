@@ -11,11 +11,11 @@ use crate::utf16::LineMap;
 use lsp_types::{
     CodeActionOrCommand, CodeLens, Command, CompletionItem, Diagnostic, DiagnosticSeverity,
     DocumentHighlight, DocumentLink, GotoDefinitionResponse, Hover, InlayHint, Location,
-    NumberOrString, Position, Range, SemanticTokens, TextEdit, Url, WorkspaceEdit,
+    LocationLink, NumberOrString, Position, Range, SemanticTokens, TextEdit, Url, WorkspaceEdit,
 };
 use reqlan_index::{
-    find_comment_references_in_text, find_rq_ignore_error_target_lines, idea_id, IdeaKind,
-    IndexStore,
+    find_applying_base_root, find_comment_references_in_text, find_rq_ignore_error_target_lines,
+    idea_id, IdeaKind, IndexStore,
 };
 use reqlan_parse::{
     import_path_candidates, parse_document, resolve_rq_path, ImportRootMapping, Model,
@@ -144,7 +144,8 @@ impl Session {
         if is_rq_uri(uri) {
             self.comments.remove(uri);
             let path = uri_to_path(uri);
-            let model = DocModel::parse(uri, text, path.as_deref());
+            let workspace = self.alias_workspace(path.as_deref());
+            let model = DocModel::parse(uri, text, path.as_deref(), workspace.as_deref());
             self.documents.insert(uri.to_string(), OpenDoc { model, path });
             return;
         }
@@ -165,7 +166,14 @@ impl Session {
         let Some(doc) = self.documents.remove(uri) else {
             return self.open(uri, text);
         };
-        let model = DocModel::parse_with_roots(uri, text, doc.path.as_deref(), doc.model.roots);
+        let workspace = self.alias_workspace(doc.path.as_deref());
+        let model = DocModel::parse_with_roots(
+            uri,
+            text,
+            doc.path.as_deref(),
+            doc.model.roots,
+            workspace.as_deref(),
+        );
         self.documents.insert(uri.to_string(), OpenDoc { model, path: doc.path });
     }
 
@@ -275,16 +283,27 @@ impl Session {
     }
 
     pub fn definition(&mut self, uri: &str, pos: Position) -> Option<GotoDefinitionResponse> {
+        // File document links are stripped in the host. Ctrl+click uses definition.
+        // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
+        // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+        if self.comments.contains_key(uri) {
+            let link = self.comment_definition_for(uri, pos)?;
+            return Some(GotoDefinitionResponse::Link(vec![link]));
+        }
         let Some(doc) = self.documents.remove(uri) else {
             return None;
         };
         let links = doc.model.definition(pos, uri, |path, idea| self.neighbor_range(path, idea));
-        self.documents.insert(uri.to_string(), doc);
-        if links.is_empty() {
-            None
-        } else {
-            Some(GotoDefinitionResponse::Link(links))
+        if !links.is_empty() {
+            self.documents.insert(uri.to_string(), doc);
+            return Some(GotoDefinitionResponse::Link(links));
         }
+        let path = doc.path.clone();
+        let text = doc.model.text.clone();
+        self.documents.insert(uri.to_string(), doc);
+        let link =
+            path.as_ref().and_then(|path| self.comment_definition_at(&text, path, uri, pos))?;
+        Some(GotoDefinitionResponse::Link(vec![link]))
     }
 
     pub fn hover(&mut self, uri: &str, pos: Position) -> Option<Hover> {
@@ -552,6 +571,59 @@ impl Session {
         self.comment_links(&text, &path)
     }
 
+    fn comment_definition_for(&mut self, uri: &str, pos: Position) -> Option<LocationLink> {
+        let Some(doc) = self.comments.get(uri) else {
+            return None;
+        };
+        let text = doc.text.clone();
+        let path = doc.path.clone();
+        self.comment_definition_at(&text, &path, uri, pos)
+    }
+
+    /// Go-to-definition for a resolved `rq:[…]` comment site.
+    /// Same resolution as document links and missing-idea diagnostics.
+    fn comment_definition_at(
+        &mut self,
+        text: &str,
+        source: &Path,
+        doc_uri: &str,
+        pos: Position,
+    ) -> Option<LocationLink> {
+        let lines = LineMap::new(text);
+        let byte = lines.byte_at(text, pos);
+        for site in self.comment_sites(text, source) {
+            let CommentSite::Link { start, end, idea, target } = site else {
+                continue;
+            };
+            if byte < start || byte >= end {
+                continue;
+            }
+            let range = self.neighbor_range(&target, &idea)?;
+            let target_range = if range.start == range.end {
+                Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 0, character: 1 },
+                }
+            } else {
+                range
+            };
+            let origin = lines.range(text, start, end);
+            let Ok(target_uri) = Url::from_file_path(&target) else {
+                continue;
+            };
+            if target_uri.as_str() == doc_uri && origin == target_range {
+                return None;
+            }
+            return Some(LocationLink {
+                origin_selection_range: Some(origin),
+                target_uri,
+                target_range,
+                target_selection_range: target_range,
+            });
+        }
+        None
+    }
+
     fn comment_links(&mut self, text: &str, source: &Path) -> Vec<DocumentLink> {
         let lines = LineMap::new(text);
         let mut links = Vec::new();
@@ -672,8 +744,8 @@ impl Session {
     }
 
     fn import_roots(&self, source: &Path) -> Vec<ImportRootMapping> {
-        let workspace = self.workspace_for(source).unwrap_or_else(|| source.to_path_buf());
-        reqlan_index::load_applying_rq_config(&workspace, Some(source)).import_roots
+        let workspace = self.alias_workspace(Some(source)).unwrap_or_else(|| source.to_path_buf());
+        reqlan_index::import_roots_for_source(&workspace, &source.to_string_lossy())
     }
 
     fn workspace_for(&self, source: &Path) -> Option<PathBuf> {
@@ -686,6 +758,12 @@ impl Session {
             }
         }
         best.map(Path::to_path_buf)
+    }
+
+    /// Workspace folder when set; otherwise the applying `.reqlan` base (same root check uses).
+    fn alias_workspace(&self, source: Option<&Path>) -> Option<PathBuf> {
+        let source = source?;
+        self.workspace_for(source).or_else(|| find_applying_base_root(source, Some(source)))
     }
 
     fn path_is_file(&self, path: &Path) -> bool {
@@ -874,7 +952,8 @@ impl Session {
         idea: &str,
         roots: &[reqlan_parse::ImportRootMapping],
     ) -> bool {
-        let Some(path) = resolve_neighbor_file(from, authored, roots) else {
+        let workspace = self.alias_workspace(Some(from));
+        let Some(path) = resolve_neighbor_file(from, authored, roots, workspace.as_deref()) else {
             return false;
         };
         self.path_declares(&path, idea)
@@ -887,7 +966,8 @@ impl Session {
         idea: &str,
         roots: &[reqlan_parse::ImportRootMapping],
     ) -> bool {
-        let Some(path) = resolve_neighbor_file(from, authored, roots) else {
+        let workspace = self.alias_workspace(Some(from));
+        let Some(path) = resolve_neighbor_file(from, authored, roots, workspace.as_deref()) else {
             return false;
         };
         if let Some(doc) = self.open_doc_at(&path) {
@@ -987,12 +1067,12 @@ pub(crate) fn is_rq_uri(uri: &str) -> bool {
 }
 
 fn absolute_candidate(resolved: &str, workspace: Option<&Path>, source: &Path) -> PathBuf {
+    if let Some(root) = workspace {
+        return reqlan_index::absolute_rq_path(root, resolved);
+    }
     let path = PathBuf::from(resolved);
     if path.is_absolute() {
         return path;
-    }
-    if let Some(root) = workspace {
-        return root.join(&path);
     }
     source.parent().unwrap_or(Path::new("/")).join(path)
 }

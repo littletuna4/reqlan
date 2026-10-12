@@ -15,6 +15,7 @@ file_reference_errors {
     Missing files: error underline, no document link.
     Do not underline examples inside [inline_code] or ["../../../language/syntax.rq".code_snippets].
     Empty files and files with parse errors: warning underline; the document link stays.
+    Import-root aliases such as `@/` resolve the same way as ["../../../core_analysis/check.rq".check] and ["../../../language/imports.rq".configuration_import_root_alias].
     Related: [general_errors], [comment_reference_resolution_error], [inline_code],
     ["./features-imports.rq".import_does_not_exist_error],
     ["../syntax/features-syntax.rq".file_references].
@@ -25,6 +26,8 @@ file_reference_errors {
         ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
         ["../../../../packages/language/src/reqlan-ignore-error.ts"]
         ["../../../../packages/language/src/reqlan-embedded-file-references.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-index/src/path_resolve.rs"]
     )
     @tests (
         ["../../../../packages/language/test/linking.test.ts:missing file references do not produce document links"]
@@ -35,5 +38,9 @@ file_reference_errors {
         ["../../../../packages/language/test/ignore-error.test.ts:reports a missing file reference as an error"]
         ["../../../../packages/language/test/ignore-error.test.ts:suppresses missing file reference errors on the line after //rq-ignore-error"]
         ["../../../../packages/language/test/ignore-error.test.ts:does not report file references inside inline code"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:import_root_alias_file_refs_match_check"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:import_root_config_file_refs_match_check"]
+        ["../../../../crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs"]
+        ["../../../../crates/reqlan-index/tests/broken_references.rs:check_honours_import_roots_from_applying_config"]
     )
 }

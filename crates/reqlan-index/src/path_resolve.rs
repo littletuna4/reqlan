@@ -8,9 +8,11 @@ use crate::ignore::{
     APPLICATION_MEMORY_DIR, CLICK_LIMIT_MIN, CONFIG_FILENAME, DEFAULT_CLICK_LIST_LIMIT,
     DEFAULT_CLICK_MAX_SESSIONS,
 };
-use reqlan_parse::{default_import_roots, ImportRootMapping};
+use reqlan_parse::{
+    default_import_roots, import_path_candidates, resolve_rq_path, unquote_path, ImportRootMapping,
+};
 use serde_json::Value;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RqConfig {
@@ -36,9 +38,7 @@ pub fn default_rq_config() -> RqConfig {
 }
 
 /// Walk ancestors from `start`. The first directory that owns `.reqlan/` is the applying base.
-/// Load that base's `config.json` when present; otherwise defaults.
-/// A child base does not inherit a parent base's config.
-pub fn load_applying_rq_config(workspace_root: &Path, start: Option<&Path>) -> RqConfig {
+pub fn find_applying_base_root(workspace_root: &Path, start: Option<&Path>) -> Option<PathBuf> {
     let mut dir = start
         .map(|path| {
             if path.is_file() {
@@ -54,20 +54,88 @@ pub fn load_applying_rq_config(workspace_root: &Path, start: Option<&Path>) -> R
     loop {
         let reqlan_dir = dir.join(APPLICATION_MEMORY_DIR);
         if reqlan_dir.is_dir() {
-            let config_path = reqlan_dir.join(CONFIG_FILENAME);
-            if config_path.is_file() {
-                return parse_rq_config_file(&config_path, &dir);
-            }
-            return default_rq_config();
+            return Some(dir);
         }
         let Some(parent) = dir.parent() else {
-            return default_rq_config();
+            return None;
         };
         if parent == dir {
-            return default_rq_config();
+            return None;
         }
         dir = parent.to_path_buf();
     }
+}
+
+/// Walk ancestors from `start`. The first directory that owns `.reqlan/` is the applying base.
+/// Load that base's `config.json` when present; otherwise defaults.
+/// A child base does not inherit a parent base's config.
+pub fn load_applying_rq_config(workspace_root: &Path, start: Option<&Path>) -> RqConfig {
+    let Some(dir) = find_applying_base_root(workspace_root, start) else {
+        return default_rq_config();
+    };
+    let config_path = dir.join(APPLICATION_MEMORY_DIR).join(CONFIG_FILENAME);
+    if config_path.is_file() {
+        return parse_rq_config_file(&config_path, &dir);
+    }
+    default_rq_config()
+}
+
+/// Join a `resolve_rq_path` result with the workspace when the result is relative.
+/// Same rule as check and the language server for `@/` file refs.
+/// rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+pub fn absolute_rq_path(workspace_root: &Path, resolved: &str) -> PathBuf {
+    let path = Path::new(resolved);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        workspace_root.join(path)
+    }
+}
+
+/// True when `resolved` exists after the same workspace join as [absolute_rq_path].
+pub fn rq_path_exists(workspace_root: &Path, resolved: &str) -> bool {
+    absolute_rq_path(workspace_root, resolved).exists()
+}
+
+/// Resolve an authored path with `resolve_rq_path`, then locate it on disk under `workspace_root`.
+/// Tries implicit `.rq` candidates the same way imports do.
+pub fn locate_authored_rq_path(
+    workspace_root: &Path,
+    from_file: &str,
+    authored: &str,
+    import_roots: &[ImportRootMapping],
+) -> Option<PathBuf> {
+    let unquoted = unquote_path(authored);
+    if unquoted.contains("://") {
+        return None;
+    }
+    for candidate in import_path_candidates(&unquoted) {
+        let resolved = resolve_rq_path(&candidate, from_file, import_roots);
+        let path = absolute_rq_path(workspace_root, &resolved);
+        if path.is_file() || path.is_dir() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// Import-root mappings from the applying `.reqlan/config.json` for `source_file`.
+/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_location]
+/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+pub fn import_roots_for_source(workspace_root: &Path, source_file: &str) -> Vec<ImportRootMapping> {
+    let path = Path::new(source_file);
+    let absolute = if path.is_absolute() { path.to_path_buf() } else { workspace_root.join(path) };
+    load_applying_rq_config(workspace_root, Some(&absolute)).import_roots
+}
+
+/// Locate an authored path using the applying config for `from_file`.
+pub fn locate_authored_rq_path_for_source(
+    workspace_root: &Path,
+    from_file: &str,
+    authored: &str,
+) -> Option<PathBuf> {
+    let roots = import_roots_for_source(workspace_root, from_file);
+    locate_authored_rq_path(workspace_root, from_file, authored, &roots)
 }
 
 fn parse_rq_config_file(config_path: &Path, base_root: &Path) -> RqConfig {
@@ -226,6 +294,54 @@ mod tests {
         assert_eq!(config.click_max_siblings, 3);
         assert_eq!(config.click_max_outbound, 4);
         assert_eq!(config.click_max_candidates, 5);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    #[test]
+    fn locate_aliased_file_ref_joins_workspace_root() {
+        let root = scratch("alias-file");
+        std::fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
+        std::fs::create_dir_all(root.join("docs")).unwrap();
+        std::fs::write(root.join("docs/my file.ts"), "export {}\n").unwrap();
+        let host = root.join("reqlan rq/host.rq");
+        std::fs::create_dir_all(host.parent().unwrap()).unwrap();
+        let found = locate_authored_rq_path(
+            &root,
+            &host.to_string_lossy(),
+            "@/docs/my file.ts",
+            &default_import_roots(),
+        );
+        assert_eq!(found.as_deref(), Some(root.join("docs/my file.ts").as_path()));
+        assert!(locate_authored_rq_path(
+            &root,
+            &host.to_string_lossy(),
+            "@/docs/gone.ts",
+            &default_import_roots(),
+        )
+        .is_none());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    #[test]
+    fn locate_uses_import_roots_from_applying_config() {
+        let root = scratch("alias-config");
+        std::fs::write(
+            root.join(".reqlan/config.json"),
+            r#"{"importRoots":[{"alias":"@","root":"./lib"}]}"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join("lib")).unwrap();
+        std::fs::write(root.join("lib/my file.ts"), "export {}\n").unwrap();
+        let host = "reqlan rq/host.rq";
+        std::fs::create_dir_all(root.join("reqlan rq")).unwrap();
+        let found = locate_authored_rq_path_for_source(&root, host, "@/my file.ts");
+        assert_eq!(found.as_deref(), Some(root.join("lib/my file.ts").as_path()));
+        // Without the configured root, workspace-relative `@/my file.ts` would miss.
+        assert!(locate_authored_rq_path(&root, host, "@/my file.ts", &default_import_roots(),)
+            .is_none());
         std::fs::remove_dir_all(&root).ok();
     }
 }

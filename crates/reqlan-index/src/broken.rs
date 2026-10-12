@@ -24,7 +24,6 @@ use crate::extract::{
     count_wildcard_matches, path_glob_matches, split_wildcard_label, WildcardIdeaCandidate,
 };
 use crate::ignore::WorkspaceGitignore;
-use crate::path_resolve::load_applying_rq_config;
 use crate::rq_ignore::find_rq_ignore_error_target_lines;
 use crate::store::{IndexStore, StoreError};
 use crate::types::{EdgeKind, EdgeRecord, IdeaKind};
@@ -217,10 +216,15 @@ fn target_is_skipped(label: &str, skip_targets: &[&str]) -> bool {
 
 fn omit_gitignored_file_targets(rows: &mut Vec<BrokenReference>, workspace_root: &Path) {
     let gitignore = WorkspaceGitignore::load(workspace_root);
-    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
+    let mut roots_cache: HashMap<String, Vec<ImportRootMapping>> = HashMap::new();
     rows.retain(|row| {
-        !is_gitignorable_missing_path(row)
-            || !file_target_is_gitignored(row, &gitignore, &import_roots)
+        if !is_gitignorable_missing_path(row) {
+            return true;
+        }
+        let import_roots = roots_cache
+            .entry(row.file_uri.clone())
+            .or_insert_with(|| crate::import_roots_for_source(workspace_root, &row.file_uri));
+        !file_target_is_gitignored(row, &gitignore, import_roots)
     });
 }
 
@@ -358,7 +362,6 @@ fn append_unresolved_import_rows(
     }
     let indexed_rq: HashSet<String> =
         store.list_document_uris()?.into_iter().filter(|uri| is_rq_uri(uri)).collect();
-    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
 
     for file_uri in store.list_document_uris()? {
         if !is_rq_uri(&file_uri) {
@@ -371,6 +374,7 @@ fn append_unresolved_import_rows(
         let Ok(source) = std::fs::read_to_string(&path) else {
             continue;
         };
+        let import_roots = crate::import_roots_for_source(workspace_root, &file_uri);
         let parsed = parse_document(&source);
         for import in &parsed.model.imports {
             push_unresolved_import_issues(
@@ -481,7 +485,7 @@ fn resolve_existing_import_path(
 ) -> Option<String> {
     for candidate in import_path_candidates(authored) {
         let resolved = resolve_rq_path(&candidate, source_file, import_roots);
-        if file_exists(workspace_root, &resolved) {
+        if crate::rq_path_exists(workspace_root, &resolved) {
             return Some(resolved);
         }
     }
@@ -526,7 +530,7 @@ pub fn list_broken_references(
     }
     let indexed_rq: HashSet<String> =
         store.list_document_uris()?.into_iter().filter(|uri| is_rq_uri(uri)).collect();
-    let import_roots = load_applying_rq_config(workspace_root, None).import_roots;
+    let mut roots_cache: HashMap<String, Vec<ImportRootMapping>> = HashMap::new();
 
     let mut broken = Vec::new();
     for (edge, source) in store.list_unresolved_idea_edges()? {
@@ -561,11 +565,14 @@ pub fn list_broken_references(
             let Ok(source) = std::fs::read_to_string(&path) else {
                 continue;
             };
+            let import_roots = roots_cache
+                .entry(file_uri.clone())
+                .or_insert_with(|| crate::import_roots_for_source(workspace_root, &file_uri));
             for reference in unresolved_comment_references(
                 &file_uri,
                 &source,
                 &catalog,
-                &import_roots,
+                import_roots,
                 Some(workspace_root),
             ) {
                 broken.push(broken_comment(&file_uri, &reference));
@@ -590,7 +597,10 @@ pub fn list_broken_references(
             if !list_source_in_scope(&options, &source.file_uri) {
                 continue;
             }
-            if !file_reference_missing(workspace_root, &edge.source_id, target, &import_roots) {
+            let import_roots = roots_cache.entry(source.file_uri.clone()).or_insert_with(|| {
+                crate::import_roots_for_source(workspace_root, &source.file_uri)
+            });
+            if !file_reference_missing(workspace_root, &edge.source_id, target, import_roots) {
                 continue;
             }
             broken.push(BrokenReference {
@@ -844,7 +854,7 @@ fn qualified_target_exposes_name(
     import_bindings: &mut HashMap<String, HashSet<String>>,
 ) -> bool {
     import_path_candidates(target_file).iter().any(|candidate| {
-        file_exists(workspace_root, candidate)
+        crate::rq_path_exists(workspace_root, candidate)
             && (file_declares_idea(workspace_root, candidate, idea, ideas_by_file, indexed_rq)
                 || file_binds_import_name(workspace_root, candidate, idea, import_bindings))
     })
@@ -883,7 +893,7 @@ fn qualified_target_is_rq(
     indexed_rq: &HashSet<String>,
 ) -> bool {
     import_path_candidates(target_file).iter().any(|candidate| {
-        if !file_exists(workspace_root, candidate) {
+        if !crate::rq_path_exists(workspace_root, candidate) {
             return false;
         }
         is_rq_uri(candidate) || indexed_rq.contains(candidate)
@@ -943,7 +953,7 @@ fn qualified_target_file_missing(workspace_root: &Path, target_file: &str) -> bo
     }
     !import_path_candidates(target_file)
         .iter()
-        .any(|candidate| file_exists(workspace_root, candidate))
+        .any(|candidate| crate::rq_path_exists(workspace_root, candidate))
 }
 
 fn file_reference_missing(
@@ -964,15 +974,11 @@ fn file_reference_missing(
     if !aliased && !path.contains('/') && !path.contains('\\') {
         return false;
     }
-    let resolved = resolve_rq_path(target_file, file_from_idea_id(source_id), import_roots);
-    !file_exists(workspace_root, &resolved)
-}
-
-fn file_exists(workspace_root: &Path, candidate: &str) -> bool {
-    let path = if Path::new(candidate).is_absolute() {
-        Path::new(candidate).to_path_buf()
-    } else {
-        workspace_root.join(candidate)
-    };
-    path.exists()
+    crate::locate_authored_rq_path(
+        workspace_root,
+        file_from_idea_id(source_id),
+        target_file,
+        import_roots,
+    )
+    .is_none()
 }

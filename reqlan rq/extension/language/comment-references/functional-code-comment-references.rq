@@ -8,21 +8,30 @@ references_in_functional_code_comments {
     # This has been built to comply with a qualified comment reference — which is very important.
     ```
 
-    Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support] and [comment_reference_import_root_alias].
+    With the rust language server, a resolved `rq:[…]` site is Ctrl+click navigable via go-to-definition.
+    File document links stay out of the editor (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
+    Missing ideas keep the error underline and have no definition target.
+    Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support], [comment_reference_import_root_alias],
+    ["../support/language-server-rust.rq".language_server_rust],
+    ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
 
     @demos (
         ["./features-code-comment.text.js"]
         ["./features-code-comment.text.py"]
     )
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+    )
     @tests (
         ["../../../../packages/language/test/linking.test.ts:comment references in source files resolve to rq ideas"]
         ["../../../../packages/language/test/references.test.ts:finds rq: references in feature demo source files"]
         ["../../../../packages/language/test/references.test.ts:finds rq: comment references in python triple-quoted comments"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
     )
-
-    @log:{
-        textmate injection was attempted, but the specific implementation failed, this is presently partially implemented as a link.
-    }
+    @status done
 }
 
 
@@ -51,6 +60,7 @@ comment_reference_resolution_error_state {
         ["../../../../packages/language/test/comment-reference-resolution.test.ts:revalidates comment-reference underlines when a matching idea is created on disk"]
         ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
     )
 }
 

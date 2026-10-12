@@ -41,12 +41,16 @@ describe('createBase', () => {
         expect(result.base.memoryPath).toBe(join(root, APPLICATION_MEMORY_DIR));
     });
 
+    // rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
     test('seeds .reqlan/config.json when creating a new base', async () => {
         const root = tempRoot();
         await createBase(root);
         const configPath = join(root, APPLICATION_MEMORY_DIR, CONFIG_FILENAME);
         expect(existsSync(configPath)).toBe(true);
-        expect(JSON.parse(readFileSync(configPath, 'utf8'))).toEqual({});
+        expect(JSON.parse(readFileSync(configPath, 'utf8'))).toEqual({
+            $schema: 'https://reqlan.com/schemas/v1/config.schema.json'
+        });
     });
 
     test('seeds .reqlan/.rqignore when creating a new base', async () => {

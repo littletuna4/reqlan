@@ -190,17 +190,28 @@ pub struct CreateBaseResult {
     pub memory_path: PathBuf,
 }
 
+/// Public JSON Schema URL seeded into new `.reqlan/config.json` files.
+/// Must match `$id` in `packages/extension/schemas/config.schema.json`.
+/// rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
+/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
+pub const CONFIG_SCHEMA_PUBLIC_URL: &str = "https://reqlan.com/schemas/v1/config.schema.json";
+
+fn default_config_file_contents() -> String {
+    format!("{{\n  \"$schema\": \"{CONFIG_SCHEMA_PUBLIC_URL}\"\n}}\n")
+}
+
 /// Ensure `<base_root>/.reqlan/` exists and seed `config.json`, `.rqignore`, and `.gitignore` when new.
 /// Idempotent: existing markers are left untouched and reported as `created: false`.
 /// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
 /// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 /// rq:["../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
+/// rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
 pub fn create_base(base_root: &Path) -> std::io::Result<CreateBaseResult> {
     let memory_path = base_root.join(APPLICATION_MEMORY_DIR);
     let created = !memory_path.exists();
     std::fs::create_dir_all(&memory_path)?;
     if created {
-        std::fs::write(memory_path.join(CONFIG_FILENAME), "{}\n")?;
+        std::fs::write(memory_path.join(CONFIG_FILENAME), default_config_file_contents())?;
         std::fs::write(memory_path.join(RQIGNORE_FILENAME), default_rqignore_file_contents())?;
         std::fs::write(memory_path.join(GITIGNORE_FILENAME), default_gitignore_file_contents())?;
     }
@@ -254,6 +265,20 @@ mod tests {
         let rqignore = std::fs::read_to_string(result.memory_path.join(RQIGNORE_FILENAME)).unwrap();
         assert!(rqignore.contains("*.bin"));
         assert!(rqignore.contains("!*.bin"));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    // rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
+    #[test]
+    fn create_base_seeds_config_with_public_schema() {
+        let root = scratch("create-base-config-schema");
+        let result = create_base(&root).unwrap();
+        assert!(result.created);
+        let config = std::fs::read_to_string(result.memory_path.join(CONFIG_FILENAME)).unwrap();
+        assert_eq!(config, default_config_file_contents());
+        let parsed: serde_json::Value = serde_json::from_str(&config).unwrap();
+        assert_eq!(parsed.get("$schema").and_then(|v| v.as_str()), Some(CONFIG_SCHEMA_PUBLIC_URL));
         std::fs::remove_dir_all(&root).ok();
     }
 

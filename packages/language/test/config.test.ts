@@ -35,13 +35,20 @@ function insertBaseMarker(fs: VirtualFileSystemProvider, baseUri: string): void 
     fs.insert(`${baseUri.replace(/\/$/, '')}/.reqlan/.keep`, '');
 }
 
+/** Public v1 schema URL — must match schema `$id` and create_base seed `$schema`. */
+const CONFIG_SCHEMA_PUBLIC_URL = 'https://reqlan.com/schemas/v1/config.schema.json';
+
 describe('config schema file', () => {
     // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
     // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
+    // rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
+    // rq:["../../../reqlan rq/site/site.rq".sync_config_schema]
     test('schema file documents importRoots mappings', () => {
         const schemaPath = join(repoDir, 'packages/extension/schemas/config.schema.json');
         const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
+            $id?: string;
             properties?: {
+                $schema?: { type?: string };
                 importRoots?: {
                     default?: Array<{ alias?: string }>;
                     items?: {
@@ -72,6 +79,8 @@ describe('config schema file', () => {
                 };
             };
         };
+        expect(schema.$id).toBe(CONFIG_SCHEMA_PUBLIC_URL);
+        expect(schema.properties?.$schema).toMatchObject({ type: 'string' });
         expect(schema.properties?.importRoots?.default).toEqual([{ alias: DEFAULT_IMPORT_ROOT_ALIAS }]);
         expect(schema.properties?.importRoots?.items?.required).toEqual(['alias']);
         expect(schema.properties?.importRoots?.items?.properties).toHaveProperty('alias');
@@ -104,6 +113,22 @@ describe('config schema file', () => {
             entry.fileMatch?.includes('**/.reqlan/config.json')
         );
         expect(validation?.url).toBe('./schemas/config.schema.json');
+
+        // Drift guard: Rust create_base seed URL must match schema $id.
+        const ignoreRs = readFileSync(
+            join(repoDir, 'crates/reqlan-index/src/ignore.rs'),
+            'utf8'
+        );
+        expect(ignoreRs).toContain(`CONFIG_SCHEMA_PUBLIC_URL: &str = "${CONFIG_SCHEMA_PUBLIC_URL}"`);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
+    // rq:["../../../reqlan rq/site/site.rq".sync_config_schema]
+    test('schema $id matches public v1 host path', () => {
+        const schemaPath = join(repoDir, 'packages/extension/schemas/config.schema.json');
+        const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as { $id?: string };
+        expect(schema.$id).toBe(CONFIG_SCHEMA_PUBLIC_URL);
+        expect(new URL(CONFIG_SCHEMA_PUBLIC_URL).pathname).toBe('/schemas/v1/config.schema.json');
     });
 
     // rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
@@ -207,6 +232,15 @@ describe('config schema edges', () => {
         expect(loaded).toEqual(defaultRqConfig());
         expect(loaded?.importRoots[0]?.alias).toBe(DEFAULT_IMPORT_ROOT_ALIAS);
         expect(loaded?.importRoots[0]?.rootUri).toBeUndefined();
+    });
+
+    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_schema_file]
+    // rq:["../../../reqlan rq/extension/host/installation.rq".base_config_seed]
+    test('$schema-only config uses default alias mapping', () => {
+        const fs = new VirtualFileSystemProvider();
+        insertConfig(fs, 'file:///workspace', { $schema: CONFIG_SCHEMA_PUBLIC_URL });
+        const loaded = loadApplyingRqConfig(URI.parse('file:///workspace'), fs);
+        expect(loaded).toEqual(defaultRqConfig());
     });
 
     // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]

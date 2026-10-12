@@ -1,11 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://reqlan.dev/schemas/config.schema.json",
+  "$id": "https://reqlan.com/schemas/v1/config.schema.json",
   "title": "reqlan base config",
   "description": "Optional per-base Reqlan configuration (.reqlan/config.json). For an .rq document, the applying file is the owning base's .reqlan/config.json (nearest ancestor directory that owns a .reqlan folder).",
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema URL. New bases seed this to the public v1 schema on reqlan.com."
+    },
     "importRoots": {
       "type": "array",
       "description": "Import-root alias mappings. Each entry binds an alias string to a directory. When omitted or empty after validation, the default mapping is the shared import-root alias with the workspace folder as root. When several aliases could match a path, the longest alias wins.",

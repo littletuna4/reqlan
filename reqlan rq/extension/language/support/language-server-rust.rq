@@ -16,8 +16,9 @@ language_server_rust {
     An idea hover shows styled idea content when ["../syntax/features-syntax.rq".idea_content_tooltip] is on.
     A closed file has no retained syntax tree.
     Go-to-definition cost is ["../syntax/features-syntax-highlighting.rq".reference_goto_definition_speed].
-    When the engine is `rust`, the server also serves `rq:[…]` links and missing-idea diagnostics in non-`.rq` comments.
-    One resolution supplies the link and the underline.
+    When the engine is `rust`, the server also serves `rq:[…]` document links, go-to-definition, and missing-idea diagnostics in non-`.rq` comments.
+    One resolution supplies the link, the definition target, and the underline.
+    The host strips file document links; Ctrl+click uses definition (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
     The host serves those links when the engine is `node`.
     Host commands prefer LSP custom requests, napi extract, and the ideas index.
     Move/delete planners still use Langium until index-backed planners land.
@@ -69,6 +70,8 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/stdio.rs:stdio_initialize_and_shutdown"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:same_file_idea_references_produce_document_links"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:missing_file_references_do_not_produce_document_links"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:import_root_alias_file_refs_match_check"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:import_root_config_file_refs_match_check"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:anonymous_import_path_does_not_report_an_unresolved_import"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_import_path_file_does_not_exist"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:reports_an_error_when_an_imported_idea_does_not_exist"]
@@ -85,6 +88,7 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/parity.rs:truncates_long_referencer_lists_with_a_remainder_suffix"]
         ["../../../../crates/reqlan-lsp/tests/parity.rs:omits_the_inlay_when_there_are_no_inbound_referencers"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
         ["../../../../packages/extension/test/language-server-launch.test.ts:defaults to the rust binary over stdio"]
         ["../../../../packages/extension/test/language-server-launch.test.ts:launches the release build and never a debug build"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_ignore_error_quick_fix_on_a_line_with_a_linking_error"]

@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "predev": "tsx scripts/validate-showcase-rq.mts && tsx scripts/sync-presentations.mts && tsx scripts/generate-highlights.mts",
+        "predev": "tsx scripts/validate-showcase-rq.mts && tsx scripts/sync-presentations.mts && tsx scripts/sync-config-schema.mts && tsx scripts/generate-highlights.mts",
         "dev": "next dev",
         "build": "tsx scripts/build-static.mts",
         "preview": "npx serve out -l 3000",
@@ -12,6 +12,7 @@
         "test": "tsx --test 'src/**/*.test.ts'",
         "validate:showcase": "tsx scripts/validate-showcase-rq.mts",
         "sync:presentations": "tsx scripts/sync-presentations.mts",
+        "sync:config-schema": "tsx scripts/sync-config-schema.mts",
         "generate:images": "node scripts/generate-images.mjs",
         "generate:docs-images": "tsx scripts/docs-images/capture.mts",
         "serve:site": "npx serve out -l 3000"

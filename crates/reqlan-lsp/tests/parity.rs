@@ -91,6 +91,74 @@ fn missing_file_references_do_not_produce_document_links() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// Same definition as check: `locate_authored_rq_path` / `resolve_rq_path` + workspace join.
+/// rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+/// oracle: crates/reqlan-index/tests/broken_references.rs:check_accepts_import_root_alias_file_refs
+#[test]
+fn import_root_alias_file_refs_match_check() {
+    let root = scratch("alias-file");
+    fs::create_dir_all(root.join(".reqlan")).unwrap();
+    fs::write(root.join(".reqlan/config.json"), r#"{"$schema":"x"}"#).unwrap();
+    fs::create_dir_all(root.join("docs")).unwrap();
+    fs::write(root.join("docs/my file.ts"), "export {}\n").unwrap();
+    fs::create_dir_all(root.join("reqlan rq")).unwrap();
+    let host = root.join("reqlan rq/host.rq");
+    let source = "host {\n    [\"@/docs/my file.ts\"]\n    [\"@/docs/gone.ts\"]\n}\n";
+    fs::write(&host, source).unwrap();
+    let uri = file_uri(&host);
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&uri, source.into());
+    let found = messages(&mut session, &uri);
+    assert!(found.iter().all(|message| !message.contains("@/docs/my file.ts")), "{found:?}");
+    assert!(
+        found.iter().any(|message| message == "Could not resolve file reference '@/docs/gone.ts'."),
+        "{found:?}"
+    );
+    let links = session.links(&uri);
+    assert!(
+        links.iter().any(|link| {
+            link.target.as_ref().is_some_and(|target| {
+                target.path().ends_with("my%20file.ts") || target.path().ends_with("my file.ts")
+            })
+        }),
+        "{links:?}"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// Applying `.reqlan/config.json` importRoots (relative root against the base).
+/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
+/// rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+/// oracle: crates/reqlan-index/tests/broken_references.rs:check_honours_import_roots_from_applying_config
+#[test]
+fn import_root_config_file_refs_match_check() {
+    let root = scratch("alias-config");
+    fs::create_dir_all(root.join(".reqlan")).unwrap();
+    fs::write(
+        root.join(".reqlan/config.json"),
+        r#"{"importRoots":[{"alias":"@","root":"./lib"}]}"#,
+    )
+    .unwrap();
+    fs::create_dir_all(root.join("lib")).unwrap();
+    fs::write(root.join("lib/my file.ts"), "export {}\n").unwrap();
+    fs::create_dir_all(root.join("reqlan rq")).unwrap();
+    let host = root.join("reqlan rq/host.rq");
+    let source = "host {\n    [\"@/my file.ts\"]\n    [\"@/gone.ts\"]\n}\n";
+    fs::write(&host, source).unwrap();
+    let uri = file_uri(&host);
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&uri, source.into());
+    let found = messages(&mut session, &uri);
+    assert!(found.iter().all(|message| !message.contains("@/my file.ts")), "{found:?}");
+    assert!(
+        found.iter().any(|message| message == "Could not resolve file reference '@/gone.ts'."),
+        "{found:?}"
+    );
+    let _ = fs::remove_dir_all(&root);
+}
+
 /// oracle: linking.test.ts does not report linking error for anonymous import path only
 #[test]
 fn anonymous_import_path_does_not_report_an_unresolved_import() {

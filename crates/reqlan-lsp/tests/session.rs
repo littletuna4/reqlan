@@ -259,6 +259,38 @@ fn comment_links_share_one_resolution() {
     let _ = fs::remove_dir_all(&root);
 }
 
+/// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+/// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
+/// rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
+#[test]
+fn comment_definition_follows_a_resolved_rq_reference() {
+    let root = scratch("comment-definition");
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(root.join("lib.rq"), "alpha {\n    summary\n}\n").unwrap();
+    let lib = file_uri(&root.join("lib.rq"));
+    let py = root.join("src").join("host.py");
+    let uri = file_uri(&py);
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&lib, "alpha {\n    summary\n}\n".into());
+    session.open(&uri, "# rq:[alpha]\n# rq:[missing]\n".into());
+
+    let Some(lsp_types::GotoDefinitionResponse::Link(links)) =
+        session.definition(&uri, Position { line: 0, character: 6 })
+    else {
+        panic!("definition");
+    };
+    assert_eq!(links.len(), 1, "{links:?}");
+    assert_eq!(links[0].target_uri.to_string(), lib);
+    assert_eq!(links[0].origin_selection_range.unwrap().start.character, 2);
+    assert_eq!(links[0].target_selection_range.start.line, 0);
+    assert!(links[0].target_selection_range.end.character > 0);
+
+    assert!(session.definition(&uri, Position { line: 1, character: 6 }).is_none());
+
+    let _ = fs::remove_dir_all(&root);
+}
+
 fn position_of(text: &str, needle: &str) -> Position {
     let (line_index, line) = text
         .lines()

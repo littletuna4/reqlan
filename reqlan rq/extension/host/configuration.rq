@@ -25,11 +25,23 @@ configuration_location {
 
 configuration_schema_file {
     The machine-readable JSON Schema for `.reqlan/config.json` is ["../../../packages/extension/schemas/config.schema.json"].
-    The extension contributes that schema for `**/.reqlan/config.json` via `jsonValidation` in ["../../../packages/extension/package.json"].
-    `.reqlan/config.json` is a JSON object. Unknown properties are not part of the schema and are ignored when loading.
+    That file is the single authoring source. Its `$id` is the public URL `https://reqlan.com/schemas/v1/config.schema.json`.
+    Path segment `v1` is schema compatibility version: additive keys stay on `v1`; breaking shape changes introduce `v2` and a new seed URL.
+    The site hosts a synced copy under `/schemas/v1/` (["../../site/site.rq".sync_config_schema]).
+    The extension contributes the local schema for `**/.reqlan/config.json` via `jsonValidation` in ["../../../packages/extension/package.json"] (offline editor path).
+    New bases seed `$schema` to the public `$id` (["./installation.rq".base_config_seed]).
+    `.reqlan/config.json` is a JSON object. Unknown properties are not part of the schema and are ignored when loading. `$schema` is an allowed property.
+    @status done
+    @implementation (
+        ["../../../packages/extension/schemas/config.schema.json"]
+        ["../../../packages/extension/package.json"]
+        ["../../../crates/reqlan-index/src/ignore.rs"]
+        ["../../../site/scripts/sync-config-schema.mts"]
+    )
     @tests (
         ["../../../packages/language/test/config.test.ts:unknown properties are ignored while known keys still apply"]
         ["../../../packages/language/test/config.test.ts:schema file documents importRoots mappings"]
+        ["../../../packages/language/test/config.test.ts:schema $id matches public v1 host path"]
     )
 }
 
@@ -61,6 +73,9 @@ configuration_import_roots {
         ["../../../crates/reqlan-parse/src/path.rs"]
         ["../../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../../crates/reqlan-index/src/broken.rs"]
+        ["../../../crates/reqlan-index/src/sync.rs"]
+        ["../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../crates/reqlan-lsp/src/session.rs"]
     )
     @tests (
         ["../../../packages/language/test/config.test.ts:empty object uses default alias mapping"]
@@ -88,6 +103,9 @@ configuration_import_roots {
         ["../../../packages/language/test/path-resolve.test.ts:toDirectoryUri does not parse a drive letter as a URI scheme"]
         ["../../../packages/language/test/completion.test.ts:completes import-root alias paths"]
         ["../../../packages/language/test/comment-reference-resolution.test.ts:creates a document link for an import-root aliased comment reference"]
+        ["../../../crates/reqlan-index/src/path_resolve.rs:locate_uses_import_roots_from_applying_config"]
+        ["../../../crates/reqlan-index/tests/broken_references.rs:check_honours_import_roots_from_applying_config"]
+        ["../../../crates/reqlan-lsp/tests/parity.rs:import_root_config_file_refs_match_check"]
         ["../../../crates/reqlan-parse/src/path.rs:resolves_default_alias_against_workspace_folder"]
         ["../../../crates/reqlan-index/src/path_resolve.rs:missing_import_roots_uses_default_alias"]
         ["../../../crates/reqlan-index/src/path_resolve.rs:relative_root_resolves_against_base"]

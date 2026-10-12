@@ -41,6 +41,9 @@ run("tsx", ["scripts/validate-showcase-rq.mts"]);
 console.log("Syncing tutorial presentations into public…");
 run("tsx", ["scripts/sync-presentations.mts"]);
 
+console.log("Syncing config JSON Schema into public…");
+run("tsx", ["scripts/sync-config-schema.mts"]);
+
 console.log("Generating syntax highlights…");
 run("tsx", ["scripts/generate-highlights.mts"]);
 

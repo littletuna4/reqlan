@@ -9,7 +9,7 @@ export const REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND = 'reqlan.openInboundRefe
 /** VS Code command invoked when clicking the file-top inbound file-reference CodeLens. */
 export const REQLAN_INBOUND_FILE_REFERENCES_SUMMARY_COMMAND = 'reqlan.openInboundFileReferencesSummary';
 
-export interface ReferenceInlayHintsSettings {
+export interface ReferenceInlayHintsSettings { 
     enabled?: boolean;
 }
 

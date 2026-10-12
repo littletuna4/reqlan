@@ -42,11 +42,15 @@ pub use ids::{edge_id, idea_id};
 pub use ignore::{
     click_sessions_path, create_base, default_gitignore_file_contents,
     default_rqignore_file_contents, CreateBaseResult, WorkspaceGitignore, CLICK_SESSIONS_FILENAME,
-    DEFAULT_CLICK_LIST_LIMIT, DEFAULT_CLICK_MAX_SESSIONS, GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME,
-    INDEX_DIAGNOSTICS_FILENAME,
+    CONFIG_SCHEMA_PUBLIC_URL, DEFAULT_CLICK_LIST_LIMIT, DEFAULT_CLICK_MAX_SESSIONS,
+    GITIGNORE_FILENAME, IDEAS_INDEX_FILENAME, INDEX_DIAGNOSTICS_FILENAME,
 };
 pub use overview::{compute_overview_coverage, OverviewCoverageScores};
-pub use path_resolve::{default_rq_config, load_applying_rq_config, RqConfig};
+pub use path_resolve::{
+    absolute_rq_path, default_rq_config, find_applying_base_root, import_roots_for_source,
+    load_applying_rq_config, locate_authored_rq_path, locate_authored_rq_path_for_source,
+    rq_path_exists, RqConfig,
+};
 pub use reqlan_parse::{file_from_idea_id, resolve_rq_path};
 pub use rq_ignore::find_rq_ignore_error_target_lines;
 pub use scan::{

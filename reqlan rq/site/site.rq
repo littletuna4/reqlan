@@ -528,6 +528,25 @@ sync_presentations {
     )
 }
 
+sync_config_schema {
+    `scripts/sync-config-schema.mts` copies the canonical base config JSON Schema from ["../../packages/extension/schemas/config.schema.json"] into `public/schemas/v1/config.schema.json`.
+    Public URL: `https://reqlan.com/schemas/v1/config.schema.json` (path `v1` is schema compatibility; not site package semver).
+    Canonical authoring and `$id`: ["../extension/host/configuration.rq".configuration_schema_file].
+    Init seed `$schema`: ["../extension/host/installation.rq".base_config_seed].
+    Wired into site `predev` and `build-static` (same pattern as [sync_presentations]). Deployed with existing `site/v*` pipeline.
+    Synced artifact is not a second authoring source; do not edit under `public/schemas/`.
+    @status done
+    @implementation (
+        ["../../site/scripts/sync-config-schema.mts"]
+        ["../../site/scripts/build-static.mts"]
+        ["../../packages/extension/schemas/config.schema.json"]
+    )
+    @tests (
+        ["../../packages/language/test/config.test.ts:schema $id matches public v1 host path"]
+        ["../../packages/language/test/config.test.ts:schema file documents importRoots mappings"]
+    )
+}
+
 presentation_player_route {
     `/presentations/player/` is a statically exported Next page that loads runtime deck JSON from `/presentations/decks/` and Reveal from `/presentations/vendor/reveal.js/`.
     Runtime JSON is generated from authored JSONC by [sync_presentations].
