@@ -1,5 +1,14 @@
 # @reqlan/mcp
 
+## 0.10.2
+
+### Patch Changes
+
+- 99f2c56: update the link resolution in inlay hints, update the diff display. support more language comments for rq comments
+- Updated dependencies [99f2c56]
+- Updated dependencies [99f2c56]
+  - @reqlan/analytical@1.19.2
+
 ## 0.10.1
 
 ### Patch Changes

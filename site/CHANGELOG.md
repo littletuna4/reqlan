@@ -1,5 +1,11 @@
 # site
 
+## 0.22.2
+
+### Patch Changes
+
+- 99f2c56: update the link resolution in inlay hints, update the diff display. support more language comments for rq comments
+
 ## 0.22.1
 
 ### Patch Changes

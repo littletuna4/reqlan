@@ -1,5 +1,12 @@
 # @reqlan/analytical
 
+## 1.19.2
+
+### Patch Changes
+
+- 99f2c56: update the link resolution in inlay hints, update the diff display. support more language comments for rq comments
+- 99f2c56: test deployment changes
+
 ## 1.19.1
 
 ### Patch Changes
