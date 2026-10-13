@@ -245,22 +245,17 @@ fn search_and_create_actions_invoke_extension_commands() {
 // Oracle: appends to an existing from-import for the same path
 #[test]
 fn appends_to_an_existing_from_import_for_the_same_path() {
-    let root = scratch("append");
-    let lib = root.join("lib.rq");
-    let host = root.join("host.rq");
-    fs::write(&lib, "beta {\n}\n").unwrap();
-    let lib_uri = file_uri(&lib);
-    let host_uri = file_uri(&host);
-    let mut session = Session::new();
-    session.open(&lib_uri, "beta {\n}\n".into());
-    session.open(&host_uri, "from \"./lib.rq\" import alpha\nhost {\n    [beta]\n}\n".into());
-    let diagnostics = session.diagnostics(&host_uri);
-    let unresolved: Vec<_> =
-        diagnostics.into_iter().filter(|d| d.message.contains("'beta'")).collect();
-    let actions = session.code_actions_for(&host_uri, unresolved[0].range, &unresolved, &[]);
-    let add = code_action(&actions, "Add import from \"./lib.rq\"");
-    assert_eq!(edit_text(add), ", beta");
-    let _ = fs::remove_dir_all(root);
+    let host = "from \"./lib.rq\" import alpha\nhost {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(applied, "from \"./lib.rq\" import alpha, beta\nhost {\n    [beta]\n}\n");
+}
+
+// Oracle: appends after an aliased specifier on the same from-import line
+#[test]
+fn appends_after_aliased_specifier_on_existing_from_import() {
+    let host = "from \"./lib.rq\" import alpha as a\nhost {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(applied, "from \"./lib.rq\" import alpha as a, beta\nhost {\n    [beta]\n}\n");
 }
 
 // Oracle: offers search code action when cursor is inside a resolved reference
@@ -392,4 +387,103 @@ fn offers_add_import_from_the_ideas_index() {
     let add = code_action(&actions, "Add import from \"./lib.rq\"");
     assert!(edit_text(add).contains("import indexed_idea"));
     let _ = fs::remove_dir_all(root);
+}
+
+fn first_edit<'a>(action: &'a lsp_types::CodeAction) -> &'a lsp_types::TextEdit {
+    action
+        .edit
+        .as_ref()
+        .and_then(|edit| edit.changes.as_ref())
+        .and_then(|changes| changes.values().next())
+        .and_then(|edits| edits.first())
+        .expect("expected text edit")
+}
+
+fn apply_text_edit(text: &str, edit: &lsp_types::TextEdit) -> String {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let start_line = edit.range.start.line as usize;
+    let start_char = edit.range.start.character as usize;
+    let end_line = edit.range.end.line as usize;
+    let end_char = edit.range.end.character as usize;
+    let mut start_off = 0usize;
+    for (index, line) in lines.iter().enumerate() {
+        if index == start_line {
+            start_off += start_char.min(line.len());
+            break;
+        }
+        start_off += line.len() + 1;
+    }
+    let mut end_off = 0usize;
+    for (index, line) in lines.iter().enumerate() {
+        if index == end_line {
+            end_off += end_char.min(line.len());
+            break;
+        }
+        end_off += line.len() + 1;
+    }
+    format!("{}{}{}", &text[..start_off], edit.new_text, &text[end_off..])
+}
+
+fn add_import_applied(host_text: &str, title: &str) -> String {
+    let root = scratch("add-import-cases");
+    let lib = root.join("lib.rq");
+    let other = root.join("other.rq");
+    let host = root.join("host.rq");
+    fs::write(&lib, "beta {\n}\n").unwrap();
+    fs::write(&other, "alpha {\n}\n").unwrap();
+    let host_uri = file_uri(&host);
+    let mut session = Session::new();
+    session.open(&file_uri(&lib), "beta {\n}\n".into());
+    session.open(&file_uri(&other), "alpha {\n}\n".into());
+    session.open(&host_uri, host_text.into());
+    let diagnostics = session.diagnostics(&host_uri);
+    let unresolved: Vec<_> =
+        diagnostics.into_iter().filter(|d| d.message.contains("'beta'")).collect();
+    assert!(!unresolved.is_empty(), "expected unresolved beta");
+    let actions = session.code_actions_for(&host_uri, unresolved[0].range, &unresolved, &[]);
+    let add = code_action(&actions, title);
+    let applied = apply_text_edit(host_text, first_edit(add));
+    let _ = fs::remove_dir_all(root);
+    applied
+}
+
+// Oracle: inserts a new from-import after an existing different-path from-import (blank line kept)
+#[test]
+fn inserts_new_from_import_after_existing_from_import_with_blank_line() {
+    let host = "from \"./other.rq\" import alpha\n\nhost {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(
+        applied,
+        "from \"./other.rq\" import alpha\nfrom \"./lib.rq\" import beta\n\nhost {\n    [beta]\n}\n"
+    );
+}
+
+// Oracle: inserts a new from-import after an existing from-import with no blank line
+#[test]
+fn inserts_new_from_import_after_existing_from_import_without_blank_line() {
+    let host = "from \"./other.rq\" import alpha\nhost {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(
+        applied,
+        "from \"./other.rq\" import alpha\nfrom \"./lib.rq\" import beta\nhost {\n    [beta]\n}\n"
+    );
+}
+
+// Oracle: inserts a new from-import after an existing namespace import
+#[test]
+fn inserts_new_from_import_after_existing_namespace_import() {
+    let host = "import \"./other.rq\" as other\n\nhost {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(
+        applied,
+        "import \"./other.rq\" as other\nfrom \"./lib.rq\" import beta\n\nhost {\n    [beta]\n}\n"
+    );
+}
+
+// Oracle: inserts a from-import at the top when the file has no imports
+#[test]
+fn inserts_from_import_at_top_when_file_has_no_imports() {
+    let host = "host {\n    [beta]\n}\n";
+    let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
+    assert_eq!(applied, "from \"./lib.rq\" import beta\n\nhost {\n    [beta]\n}\n");
 }

@@ -21,6 +21,7 @@
         "test:rust": "cargo test --manifest-path crates/Cargo.toml --workspace --exclude reqlan-napi",
         "test": "pnpm run test:js && pnpm run test:rust",
         "check": "node packages/cli/bin/cli.js check",
+        "val": "pnpm run check && pnpm run test && pnpm run build",
         "native:types": "cargo run --manifest-path crates/Cargo.toml -p reqlan-analytical --bin export-ts",
         "native:prepare": "node scripts/prepare-native-packages.mjs",
         "native:fetch": "node scripts/fetch-native-packages.mjs",

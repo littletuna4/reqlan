@@ -108,6 +108,29 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
+    // rq:["../../../reqlan rq/indexer/cache-reuse.rq".inbound_snapshot_events]
+    test('enqueueIndex notifies catalog when ready', async () => {
+        const root = await writeWorkspace({
+            'a.rq': 'alpha this is alpha\n'
+        });
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
+        await index.activate();
+
+        let catalogAfterReady = 0;
+        const unsub = index.subscribeCatalogUpdates(() => {
+            if (index.isReady) {
+                catalogAfterReady += 1;
+            }
+        });
+        await writeFile(join(root, 'a.rq'), 'alpha this is alpha\nalpha_two this is two\n', 'utf8');
+        await index.enqueueIndex(join(root, 'a.rq'), 'changed');
+        unsub();
+
+        expect(index.isReady).toBe(true);
+        expect(catalogAfterReady).toBeGreaterThan(0);
+        await index.deactivate();
+    });
+
     test('cancelSync stops an in-flight soft sync and stays ready', async () => {
         const files: Record<string, string> = {};
         for (let i = 0; i < 40; i++) {

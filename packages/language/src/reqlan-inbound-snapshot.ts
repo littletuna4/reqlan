@@ -1,5 +1,8 @@
 /**
  * SQLite inbound snapshot pushed from the extension host for inlay / code lens.
+ * Batches are incremental merges keyed by document URI; absent URIs stay last-good
+ * until replaced or cleared. The host must not push empty mid-sync wipes.
+ * rq:["../../../reqlan rq/indexer/cache-reuse.rq".inbound_snapshot_events]
  * rq:["../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  * rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  */
@@ -25,12 +28,14 @@ export interface InboundFileSnapshot {
 }
 
 export interface InboundSnapshotBatch {
+    /** Per-document merge; URIs not listed keep their previous snapshot. */
     snapshots: InboundFileSnapshot[];
 }
 
 export class InboundSnapshotStore {
     private readonly byDocumentUri = new Map<string, InboundFileSnapshot>();
 
+    /** Merge batch entries by document URI (incremental host events). */
     update(batch: InboundSnapshotBatch): void {
         for (const snapshot of batch.snapshots) {
             this.byDocumentUri.set(snapshot.documentUri, {

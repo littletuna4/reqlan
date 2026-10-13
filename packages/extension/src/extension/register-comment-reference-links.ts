@@ -16,22 +16,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { presentCommentReferences, type CommentReferencePresentation } from '@reqlan/language';
+import { COMMENT_REFERENCE_LANGUAGES } from './comment-reference-languages.js';
 import {
     clearCommentReferenceConfigCache,
     createCommentReferencePathContext
 } from './comment-reference-path-context.js';
 
-export const COMMENT_REFERENCE_LANGUAGES = [
-    'python',
-    'javascript',
-    'typescript',
-    'typescriptreact',
-    'java',
-    'go',
-    'rust',
-    'c',
-    'cpp'
-];
+export { COMMENT_REFERENCE_LANGUAGES } from './comment-reference-languages.js';
 
 const RQ_FILE_GLOB = '**/*.rq';
 const CONFIG_FILE_GLOB = '**/.reqlan/config.json';

@@ -1,6 +1,7 @@
 /**
  * Push SQLite inbound edges for visible editors to the language server.
- * Lazy: must not block open-file outbound links.
+ * Event-driven: only real ready-state batches; never wipe last-good mid-sync.
+ * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".inbound_snapshot_events]
  * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".unify_inbound_indexes]
  * rq:["../../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
  * rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
@@ -9,15 +10,21 @@
 import {
     REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
     type InboundFileSnapshot,
-    type InboundSnapshotBatch,
-    type InboundSnapshotReferencer
+    type InboundSnapshotBatch
 } from '@reqlan/language';
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
-import { resolveIndexFileUri, toIndexFileUri } from '../analytical_submodule/index-store/resolve-index-file-uri.js';
-import { toFileReferencerSnapshotRows } from './inbound-file-snapshot.js';
+import { buildInboundFileSnapshot } from './inbound-snapshot-push.js';
+import {
+    createCoalescedRunner,
+    shouldPushInboundSnapshots
+} from './inbound-snapshot-schedule.js';
 import type { FileInboundCodeLensProvider } from './register-file-inbound-code-lens.js';
+
+function inboundIdeaCount(snapshot: InboundFileSnapshot): number {
+    return Object.values(snapshot.byIdeaName).reduce((sum, rows) => sum + rows.length, 0);
+}
 
 export function registerInboundSqliteSync(
     context: vscode.ExtensionContext,
@@ -25,107 +32,141 @@ export function registerInboundSqliteSync(
     getClient: () => LanguageClient | undefined,
     fileInboundCodeLens?: FileInboundCodeLensProvider
 ): void {
+    /** True when a push was requested while the index was not ready. */
+    let deferredPush = false;
+
     const pushSnapshots = async (): Promise<void> => {
+        if (!shouldPushInboundSnapshots(index.isReady)) {
+            // Keep LSP last-good; remember so the ready-edge flushes.
+            if (!deferredPush) {
+                console.log(
+                    `[reqlan] inbound: defer push (index state=${index.state}, ready=false)`
+                );
+            }
+            deferredPush = true;
+            return;
+        }
+        deferredPush = false;
         const client = getClient();
         const editors = vscode.window.visibleTextEditors;
         const snapshots: InboundFileSnapshot[] = [];
-        if (!index.isReady) {
-            for (const editor of editors) {
-                const documentUri = editor.document.uri.toString();
-                snapshots.push({
-                    documentUri,
-                    indexedUri: toIndexFileUri(editor.document.uri),
-                    byIdeaName: {},
-                    fileReferencers: []
-                });
-            }
-            fileInboundCodeLens?.updateSnapshots(snapshots);
-            if (client) {
-                client.sendNotification(
-                    REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
-                    { snapshots } satisfies InboundSnapshotBatch
-                );
-            }
-            return;
-        }
-
         try {
             for (const editor of editors) {
-                const documentUri = editor.document.uri.toString();
-                const indexedUri = toIndexFileUri(editor.document.uri);
-                const rows = await index.indexStore.getInboundForFile(indexedUri);
-                const byIdeaName: Record<string, InboundSnapshotReferencer[]> = {};
-                for (const row of rows) {
-                    if (row.kind !== 'references' && row.kind !== 'wildcard_reference') {
-                        continue;
-                    }
-                    const targetName = row.targetName;
-                    const sourceName = row.sourceName;
-                    if (!targetName || !sourceName) {
-                        continue;
-                    }
-                    const sourceFileUri = row.sourceFileUri
-                        ? resolveIndexFileUri(row.sourceFileUri).toString()
-                        : documentUri;
-                    const line = row.sourceIdeaLine ?? (row.sourceLine !== undefined ? Math.max(0, row.sourceLine - 1) : 0);
-                    const list = byIdeaName[targetName] ?? [];
-                    list.push({
-                        name: sourceName,
-                        uri: sourceFileUri,
-                        line
-                    });
-                    byIdeaName[targetName] = list;
+                try {
+                    snapshots.push(await buildInboundFileSnapshot(index, editor.document.uri));
+                } catch (error) {
+                    console.error(
+                        `[reqlan] inbound: build failed for ${editor.document.uri.toString()}:`,
+                        error
+                    );
                 }
-                for (const name of Object.keys(byIdeaName)) {
-                    byIdeaName[name] = dedupeReferencers(byIdeaName[name]!);
-                }
-                const fileReferencers = toFileReferencerSnapshotRows(
-                    await index.indexStore.listInboundFileReferencers(indexedUri),
-                    sourceIndexedUri => resolveIndexFileUri(sourceIndexedUri).toString()
-                );
-                snapshots.push({
-                    documentUri,
-                    indexedUri,
-                    byIdeaName,
-                    fileReferencers: dedupeReferencers(fileReferencers)
-                });
             }
+            if (snapshots.length === 0) {
+                console.log(
+                    `[reqlan] inbound: skip push (ready, visibleEditors=${editors.length}, no snapshots)`
+                );
+                return;
+            }
+            const summary = snapshots
+                .map(snapshot => {
+                    const ideas = Object.keys(snapshot.byIdeaName).length;
+                    const refs = inboundIdeaCount(snapshot);
+                    const files = snapshot.fileReferencers?.length ?? 0;
+                    return `${snapshot.indexedUri}:{ideas=${ideas},inbound=${refs},fileRefs=${files}}`;
+                })
+                .join('; ');
             fileInboundCodeLens?.updateSnapshots(snapshots);
-            if (client) {
-                client.sendNotification(
-                    REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
-                    { snapshots } satisfies InboundSnapshotBatch
-                );
-                await client.sendRequest('workspace/inlayHint/refresh').catch(() => undefined);
-                await client.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+            if (!client) {
+                console.log(`[reqlan] inbound: built ${snapshots.length} snapshot(s) but no LSP client yet — ${summary}`);
+                return;
             }
+            client.sendNotification(
+                REQLAN_INBOUND_SNAPSHOT_NOTIFICATION,
+                { snapshots } satisfies InboundSnapshotBatch
+            );
+            await client.sendRequest('workspace/inlayHint/refresh').catch(() => undefined);
+            await client.sendRequest('workspace/codeLens/refresh').catch(() => undefined);
+            console.log(`[reqlan] inbound: pushed ${snapshots.length} snapshot(s) to LSP — ${summary}`);
         } catch (error) {
-            console.error('[reqlan] Failed to push inbound snapshot:', error);
+            console.error('[reqlan] inbound: push failed:', error);
         }
     };
 
-    const unsubscribe = index.subscribeCatalogUpdates(() => {
-        void pushSnapshots();
+    const schedulePush = createCoalescedRunner(pushSnapshots);
+    let wasReady = index.isReady;
+
+    const flushWhenReady = (reason: string): void => {
+        if (!index.isReady) {
+            if (!deferredPush) {
+                console.log(`[reqlan] inbound: defer (${reason}; state=${index.state})`);
+            }
+            deferredPush = true;
+            return;
+        }
+        console.log(`[reqlan] inbound: schedule push (${reason})`);
+        schedulePush();
+    };
+
+    const unsubscribeCatalog = index.subscribeCatalogUpdates(() => {
+        flushWhenReady('catalog');
     });
-    context.subscriptions.push({ dispose: unsubscribe });
+    const unsubscribeStatus = index.subscribeStatusUpdates(() => {
+        const ready = index.isReady;
+        // Ready-edge or a push deferred while Syncing / closed.
+        if (ready && (!wasReady || deferredPush)) {
+            const reason = !wasReady ? 'ready-edge' : 'deferred-flush';
+            console.log(`[reqlan] inbound: status ${reason} (state=${index.state})`);
+            schedulePush();
+        } else if (!ready && wasReady) {
+            console.log(`[reqlan] inbound: index left ready (state=${index.state})`);
+        }
+        wasReady = ready;
+    });
+    context.subscriptions.push({ dispose: unsubscribeCatalog });
+    context.subscriptions.push({ dispose: unsubscribeStatus });
     context.subscriptions.push(
         vscode.window.onDidChangeVisibleTextEditors(() => {
-            void pushSnapshots();
+            void (async () => {
+                if (!index.isReady) {
+                    // Idle release / late index: reopen so the first visible .rq gets a batch.
+                    console.log('[reqlan] inbound: visible editors changed; ensureOpenForUse');
+                    await index.ensureOpenForUse().catch(error => {
+                        console.error('[reqlan] inbound: ensureOpenForUse failed:', error);
+                    });
+                }
+                flushWhenReady('visible-editors');
+            })();
         })
     );
-    void pushSnapshots();
-}
+    context.subscriptions.push(
+        vscode.window.onDidChangeWindowState(state => {
+            if (!state.focused) {
+                return;
+            }
+            void (async () => {
+                if (!index.isReady) {
+                    console.log('[reqlan] inbound: window focused; ensureOpenForUse');
+                    await index.ensureOpenForUse().catch(error => {
+                        console.error('[reqlan] inbound: ensureOpenForUse failed:', error);
+                    });
+                }
+                flushWhenReady('window-focus');
+            })();
+        })
+    );
 
-function dedupeReferencers(rows: InboundSnapshotReferencer[]): InboundSnapshotReferencer[] {
-    const seen = new Set<string>();
-    const out: InboundSnapshotReferencer[] = [];
-    for (const row of rows) {
-        const key = `${row.uri}#${row.line}:${row.name}`;
-        if (seen.has(key)) {
-            continue;
+    // Client often starts before the index. Defer until ready, then push.
+    console.log(
+        `[reqlan] inbound: register sync (index ready=${index.isReady}, state=${index.state})`
+    );
+    void (async () => {
+        if (!index.isReady) {
+            deferredPush = true;
+            console.log('[reqlan] inbound: initial ensureOpenForUse');
+            await index.ensureOpenForUse().catch(error => {
+                console.error('[reqlan] inbound: initial ensureOpenForUse failed:', error);
+            });
         }
-        seen.add(key);
-        out.push(row);
-    }
-    return out.sort((left, right) => left.name.localeCompare(right.name));
+        flushWhenReady('initial');
+    })();
 }

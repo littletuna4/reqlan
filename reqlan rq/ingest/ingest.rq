@@ -2,7 +2,7 @@ _file {
     - This file is used for preingestion of ideas into the graph
     - It is for ideas that are being drafted, haven't been placed, haven't been linked or represent a significant superseding descructive change to the graph 
        - i.e. requiring careful integration to leave no trace of deprecated ideas, leave no duplication and leave no conflicts
-    - ingestion must pass validation (pnpm test, pnpm build, and reqlan check)
+    - ingestion must pass validation via `pnpm run val` (["../development/core.rq".pnpm_val]: check, test, build)
     - ingestion requires reqiurement integration into the graph, followed by actual implementation if requested.
 }
 
@@ -63,12 +63,10 @@ reqlan-check-glob-patterns {
 
 
 idea-tooltip-file-link-accuracy {
-
-    File links in the extenstion tool tips are broken. I.e. for the backlinks, clicking the links shows a file doesn't exist error.
-    THis needs to be fixed, and standardised - it shouldn't even be using it's own link builder.
-    @bug
-    @tests
-
+    Superseded by ["../extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]:
+    backlink tooltip targets use the shared document-link / goto URI builder.
+    @status done
+    @deprecated ["../extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
 }
 
 code-action-duplication {

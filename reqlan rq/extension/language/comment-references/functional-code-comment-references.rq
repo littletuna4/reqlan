@@ -10,6 +10,8 @@ references_in_functional_code_comments {
 
     With the rust language server, a resolved `rq:[…]` site is Ctrl+click navigable via go-to-definition.
     File document links stay out of the editor (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
+    Comment `rq:[…]` sites use TextMate `meta.link.reqlan markup.underline` so the resting editor shows they are link-shaped ([comment_reference_resting_underline]).
+    After that goto, Alt+Left restores the comment-host caret ([comment_reference_navigate_back]).
     Missing ideas keep the error underline and have no definition target.
     Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support], [comment_reference_import_root_alias],
     ["../support/language-server-rust.rq".language_server_rust],
@@ -23,6 +25,7 @@ references_in_functional_code_comments {
         ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../packages/extension/src/extension/main.ts"]
         ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../../packages/extension/grammars/reqlan-comment.injection.json"]
     )
     @tests (
         ["../../../../packages/language/test/linking.test.ts:comment references in source files resolve to rq ideas"]
@@ -30,8 +33,48 @@ references_in_functional_code_comments {
         ["../../../../packages/language/test/references.test.ts:finds rq: comment references in python triple-quoted comments"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:comment injection link scope includes markup.underline"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
     )
     @status done
+}
+
+comment_reference_resting_underline {
+    In non-`.rq` source comments, every `rq:[…]` token must show a resting underline so it is clear the site is link-shaped.
+    Use TextMate scope `meta.link.reqlan markup.underline` via the comment injection grammar.
+    Do not rely on file document links for that cue — those stay stripped (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
+    Navigation remains Ctrl+click go-to-definition for resolved sites ([references_in_functional_code_comments]).
+    Related: [references_in_functional_code_comments], ["../syntax/features-syntax.rq".comment_support].
+
+    @status done
+    @implementation (
+        ["../../../../packages/extension/grammars/reqlan-comment.injection.json"]
+        ["../../../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:comment injection link scope includes markup.underline"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
+    )
+}
+
+comment_reference_navigate_back {
+    A go-to-definition JUMP from a comment `rq:[…]` host must push the pre-jump caret onto the same navigate-back stack as `.rq` jumps.
+    The stack tracks comment-reference host languages (["../../../../packages/extension/src/extension/comment-reference-languages.ts"]) as well as `.rq`.
+    Alt+Left (`reqlan.navigateBack`) restores that caret when `reqlan.canNavigateBack` is set, in any focused editor.
+    Related: [references_in_functional_code_comments], ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
+
+    @status done
+    @implementation (
+        ["../../../../packages/extension/src/extension/definition-navigation.ts"]
+        ["../../../../packages/extension/src/extension/definition-navigation-stack.ts"]
+        ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
+        ["../../../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks comment-reference host languages for navigate-back"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:navigate-back keybinding is not limited to .rq editors"]
+    )
 }
 
 

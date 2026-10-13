@@ -13,7 +13,9 @@ code_completion {
 
 inlay_hints {
     Inbound-reference inlay hints. They appear when the inbound snapshot is ready
-    (["./support/open-file-sequencing.rq".lazy_features_after_outbound]).
+    (["./support/open-file-sequencing.rq".lazy_features_after_outbound])
+    and stay on last-good until the next ready-state incremental push
+    (["../../indexer/cache-reuse.rq".inbound_snapshot_events]).
 }
 
 code_actions {

@@ -33,11 +33,21 @@ import_error {
     @tests (
         ["../../../../packages/language/test/code-actions.test.ts"]
         ["../../../../packages/language/test/import-edits.test.ts"]
+        ["../../../../packages/language/test/import-edits.test.ts:inserts after an existing different-path from-import with a blank line"]
+        ["../../../../packages/language/test/import-edits.test.ts:inserts after an existing from-import with no blank line"]
+        ["../../../../packages/language/test/import-edits.test.ts:inserts after an existing namespace import"]
+        ["../../../../packages/language/test/import-edits.test.ts:inserts at the top when the file has no imports"]
+        ["../../../../packages/language/test/import-edits.test.ts:appends to an existing same-path from-import"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_and_rewrite_when_a_matching_idea_exists_elsewhere"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:uses_name_catalog_matches_when_documents_are_not_loaded"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:search_and_create_actions_invoke_extension_commands"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_to_an_existing_from_import_for_the_same_path"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_after_aliased_specifier_on_existing_from_import"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_from_the_ideas_index"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:inserts_new_from_import_after_existing_from_import_with_blank_line"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:inserts_new_from_import_after_existing_from_import_without_blank_line"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:inserts_new_from_import_after_existing_namespace_import"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:inserts_from_import_at_top_when_file_has_no_imports"]
     )
 }
 

@@ -1,6 +1,7 @@
 /**
  * Pure jump-stack rules for reqlan go-to-definition navigate-back.
  * rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
+ * rq:["../../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
  */
 
 /** vscode.TextEditorSelectionChangeKind.Command */
@@ -10,6 +11,18 @@ export interface EditorCaret {
     uri: string;
     line: number;
     character: number;
+}
+
+/** `.rq` editors and comment-reference host languages (source of comment rq gotos). */
+export function isNavigationTrackedLanguage(
+    languageId: string,
+    fileName: string,
+    commentLanguages: readonly string[]
+): boolean {
+    if (languageId === 'reqlan' || fileName.toLowerCase().endsWith('.rq')) {
+        return true;
+    }
+    return commentLanguages.some(language => language === languageId);
 }
 
 export function caretChanged(before: EditorCaret, after: EditorCaret): boolean {

@@ -22,6 +22,12 @@ pnpm {
     Must use pnpm for all js package management across the monorepo (packages, extension, site).
 }
 
+pnpm_val {
+    Root `pnpm run val` chains `check`, then `test`, then `build` (["../../package.json"]).
+    Use for local / ingestion validation (["../ingest/ingest.rq"._file]).
+    @status done
+}
+
 iconify_stack {
     Icons use Iconify offline — bundled at build time, not fetched from a CDN at runtime.
     Icon data comes from npm packages listed under the `icons` key in ["../phonebook.json"] per [phonebook_reqs.phonebook_icons].

@@ -3,7 +3,7 @@
     "injectionSelector": "L:comment",
     "patterns": [
         {
-            "name": "meta.link.reqlan",
+            "name": "meta.link.reqlan markup.underline",
             "match": "rq:\\[[^\\]]+\\]"
         }
     ]

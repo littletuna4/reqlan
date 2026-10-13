@@ -490,8 +490,14 @@ fn from_import_edit(
         if already {
             return None;
         }
-        let end = from.specifiers.last().map(|spec| spec.span.end).unwrap_or(from.span.end);
-        let at = request.lines.range(request.text, end, end).end;
+        // Specifier `span` includes the following comma/newline token; append after the
+        // written name (alias or idea), matching Langium CST end-of-token placement.
+        let end = from
+            .specifiers
+            .last()
+            .map(|spec| spec.alias_span.as_ref().map(|span| span.end).unwrap_or(spec.idea_span.end))
+            .unwrap_or(from.span.end);
+        let at = request.lines.position(request.text, end);
         return Some(TextEdit {
             range: Range { start: at, end: at },
             new_text: format!(", {name}"),
@@ -511,8 +517,12 @@ fn import_insert_point(request: &ActionRequest<'_>) -> (Position, bool) {
             Import::Qualified(qualified) => qualified.span,
             Import::InvalidFrom(invalid) => invalid.span,
         };
-        let end = request.lines.range(request.text, span.end, span.end).end;
-        return (Position { line: end.line + 1, character: 0 }, false);
+        // Import spans include the trailing newline token, so `span.end` is already the
+        // start of the next line. Only advance when the span ends mid-line (EOF, no nl).
+        let end = request.lines.position(request.text, span.end);
+        let position =
+            if end.character == 0 { end } else { Position { line: end.line + 1, character: 0 } };
+        return (position, false);
     }
     if let Some(element) = request.model.elements.first() {
         let span = match element {

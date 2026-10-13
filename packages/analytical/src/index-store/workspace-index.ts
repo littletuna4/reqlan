@@ -463,10 +463,10 @@ export class WorkspaceIndex {
         await this.syncQueue;
     }
 
-    enqueueIndex(filePath: string, change: 'created' | 'changed'): void {
+    enqueueIndex(filePath: string, change: 'created' | 'changed'): Promise<void> {
         const indexedUri = this.toIndexedUri(filePath);
         this.native?.recordWorkspaceChange(indexedUri, change);
-        this.syncQueue = this.syncQueue.then(async () => {
+        const work = this.syncQueue.then(async () => {
             if (this.syncInFlight) {
                 await this.syncInFlight;
             }
@@ -493,8 +493,16 @@ export class WorkspaceIndex {
                 native.dispatchIndex('synced');
             } finally {
                 this.notifyStatusUpdated();
+                // Ready-state catalog event so inbound / name / attribute consumers
+                // push after mid-sync notifies that they skipped while Syncing.
+                // rq:["../../../../reqlan rq/indexer/cache-reuse.rq".inbound_snapshot_events]
+                if (this.isReady) {
+                    this.notifyCatalogUpdated();
+                }
             }
         });
+        this.syncQueue = work.then(() => undefined, () => undefined);
+        return work;
     }
 
     enqueueDelete(filePathOrIndexedUri: string): void {

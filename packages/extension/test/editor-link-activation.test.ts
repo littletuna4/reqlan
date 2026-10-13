@@ -94,11 +94,41 @@ describe('editor reference activation', () => {
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
-    test('comment injection link scope is meta.link.reqlan', () => {
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resting_underline]
+    test('comment injection link scope includes markup.underline', () => {
         const grammar = JSON.parse(readFileSync(
             join(extensionRoot, 'grammars/reqlan-comment.injection.json'),
             'utf8'
         )) as { patterns: Array<{ name?: string }> };
-        expect(grammar.patterns[0]?.name).toBe('meta.link.reqlan');
+        expect(grammar.patterns[0]?.name).toBe('meta.link.reqlan markup.underline');
+    });
+
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resting_underline]
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+    test('package.json contributes comment.rq.injection', () => {
+        const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
+            contributes: {
+                grammars: Array<{
+                    scopeName?: string;
+                    injectTo?: string[];
+                    path?: string;
+                }>;
+            };
+        };
+        const injection = pkg.contributes.grammars.find(
+            grammar => grammar.scopeName === 'comment.rq.injection'
+        );
+        expect(injection?.path).toBe('./syntaxes/reqlan-comment.injection.json');
+        expect(injection?.injectTo).toEqual([
+            'source.python',
+            'source.js',
+            'source.ts',
+            'source.tsx',
+            'source.java',
+            'source.go',
+            'source.rust',
+            'source.c',
+            'source.cpp'
+        ]);
     });
 });

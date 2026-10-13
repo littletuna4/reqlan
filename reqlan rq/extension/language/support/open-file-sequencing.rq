@@ -354,9 +354,11 @@ lazy_features_after_outbound {
     - Attribute and name catalogs for completion and quick fixes.
     - Unqualified comment matches from that snapshot ([comment_backlink_sequence]).
 
-    Until the snapshot arrives, inlay hints and the file CodeLens stay empty.
+    Until the first ready snapshot arrives, inlay hints and the file CodeLens stay empty.
     Those handlers do not open SQLite and do not call `list_all_ideas`.
-    When the snapshot arrives, refresh the visible editors.
+    Later updates are incremental ready-state events
+    (["../../../indexer/cache-reuse.rq".inbound_snapshot_events]); last-good stays until replaced.
+    When a ready snapshot arrives, refresh the visible editors.
 
     ```mermaid
     sequenceDiagram
