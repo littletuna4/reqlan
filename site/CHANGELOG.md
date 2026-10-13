@@ -1,5 +1,11 @@
 # site
 
+## 0.22.3
+
+### Patch Changes
+
+- 2ef9025: update the html export template
+
 ## 0.22.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @reqlan/mcp
 
+## 0.10.3
+
+### Patch Changes
+
+- 2ef9025: update the html export template
+- Updated dependencies [2ef9025]
+  - @reqlan/analytical@1.19.3
+
 ## 0.10.2
 
 ### Patch Changes

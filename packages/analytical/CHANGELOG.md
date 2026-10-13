@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.19.3
+
+### Patch Changes
+
+- 2ef9025: update the html export template
+
 ## 1.19.2
 
 ### Patch Changes

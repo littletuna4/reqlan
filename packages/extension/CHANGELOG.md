@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.19.3
+
+### Patch Changes
+
+- 2ef9025: update the html export template
+- Updated dependencies [2ef9025]
+  - @reqlan/analytical@1.19.3
+  - @reqlan/language@1.15.3
+
 ## 1.19.2
 
 ### Patch Changes
