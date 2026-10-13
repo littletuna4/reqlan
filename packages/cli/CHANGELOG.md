@@ -1,5 +1,13 @@
 # @reqlan/cli
 
+## 0.15.1
+
+### Patch Changes
+
+- 7933774: rust engine regression fixes.
+- Updated dependencies [7933774]
+  - @reqlan/analytical@1.19.1
+
 ## 0.15.0
 
 ### Minor Changes

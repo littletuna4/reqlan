@@ -1,5 +1,11 @@
 # site
 
+## 0.22.1
+
+### Patch Changes
+
+- 7933774: rust engine regression fixes.
+
 ## 0.22.0
 
 ### Minor Changes

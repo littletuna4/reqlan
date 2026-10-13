@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.19.1
+
+### Patch Changes
+
+- 7933774: rust engine regression fixes.
+
 ## 1.19.0
 
 ### Minor Changes

@@ -1,5 +1,14 @@
 # reqlan-extension
 
+## 1.19.1
+
+### Patch Changes
+
+- 7933774: rust engine regression fixes.
+- Updated dependencies [7933774]
+  - @reqlan/analytical@1.19.1
+  - @reqlan/language@1.15.1
+
 ## 1.19.0
 
 ### Minor Changes
