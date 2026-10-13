@@ -92,7 +92,7 @@ graph_label_modes {
     On forces full opacity; off hides all labels; auto follows [graph_label_auto].
     Reset / default restore auto.
     Ideas Summary: control in ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"], mode persisted via ["../workspace-summary/ideas_summary/graphical_graph.rq".graph_ui_persistence].
-    HTML export: control in ["../../../crates/reqlan-export/src/html_template.rs"] / ["../../../crates/reqlan-export/assets/app.js"].
+    HTML export: control in ["../../../crates/reqlan-export/src/html_template/mod.rs"] / ["../../../crates/reqlan-export/assets/app.js"].
     Driven by the same viewport zoom as [view_controls].
     @status done
     @implementation (
@@ -100,7 +100,7 @@ graph_label_modes {
         ["../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts"]
         ["../../../crates/reqlan-export/assets/app.js"]
-        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../../packages/extension/test/graph-ui-state.test.ts"]
@@ -141,7 +141,7 @@ graph_status_tag_filters {
     @implementation (
         ["../../../packages/analytical/src/core/filter-specials.ts"]
         ["../../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../../crates/reqlan-export/assets/app.js"]
         ["../../../crates/reqlan-export/src/html_utils.rs"]
         ["../../../packages/analytical/src/index-store/webview-graph-queries.ts"]

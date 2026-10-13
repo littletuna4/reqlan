@@ -90,6 +90,30 @@ fn read(path: &std::path::Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
+/// Entity tiles from `render_entity_layout_card` must not emit a card-width resize handle.
+fn assert_entity_tiles_lack_width_resize(html: &str) {
+    let marker = r#"class="entity-card layout-card""#;
+    assert!(html.contains(marker), "expected entity tiles in {html}");
+    let mut rest = html;
+    while let Some(start) = rest.find(marker) {
+        let from = &rest[start..];
+        let body = from
+            .find(r#"class="layout-card-body""#)
+            .unwrap_or_else(|| panic!("entity tile missing body near {from}"));
+        let after_body = &from[body..];
+        let close = after_body
+            .find("\n        </div>")
+            .or_else(|| after_body.find("</div>"))
+            .unwrap_or_else(|| panic!("entity tile missing close near {from}"));
+        let card = &from[..body + close];
+        assert!(
+            !card.contains("data-layout-resize"),
+            "entity tile must not be width-resizable: {card}"
+        );
+        rest = &from[marker.len()..];
+    }
+}
+
 fn idea_table_row(html: &str, name: &str) -> String {
     let marker = format!(">{name}</a></strong>");
     let start = html.find(&marker).unwrap_or_else(|| panic!("missing idea link {name}"));
@@ -706,6 +730,98 @@ fn idea_links_show_content_tooltips() {
     assert!(app_js.contains("function wireIdeaTooltips"));
     assert!(app_js.contains("data-tip-body"));
     std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_layout_cards]
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_heading_tooltips]
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_table_columns]
+#[test]
+fn interactive_layout_cards_are_reorderable_collapsible_with_heading_tips() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let (alpha, _beta) = persist_pair(&mut store);
+    let output_dir = temp_out("layout-cards");
+    let request = html_request(&output_dir, "layout-cards");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+
+    let home = read(&result.output_dir.join(&snapshot.manifest.home.path));
+    assert!(home.contains(r#"data-layout-group="home-rollups""#), "{home}");
+    assert!(home.contains(r#"data-layout-id="status-rollup""#), "{home}");
+    assert!(home.contains(r#"data-layout-span="6""#), "{home}");
+    assert!(home.contains(r#"--layout-span: 6"#), "{home}");
+    assert!(home.contains(r#"data-heading-tip="Counts of ideas by status.""#), "{home}");
+    assert!(home.contains(r#"class="layout-card-head""#), "{home}");
+    assert!(home.contains(r#"draggable="true" data-layout-drag"#), "{home}");
+    assert!(home.contains(r#"data-layout-toggle"#), "{home}");
+    assert!(home.contains(r#"data-layout-resize"#), "{home}");
+    assert!(home.contains(r#"data-layout-group="home-clusters""#), "{home}");
+    assert!(home.contains(r#"class="entity-card layout-card""#), "{home}");
+
+    let rollups_start = home.find(r#"data-layout-group="home-rollups""#).expect("home-rollups");
+    let clusters_start = home.find(r#"data-layout-group="home-clusters""#).expect("home-clusters");
+    let rollups = &home[rollups_start..clusters_start];
+    assert!(rollups.contains("data-layout-resize"), "{rollups}");
+    assert_entity_tiles_lack_width_resize(&home);
+    assert!(home.contains("Double-click to fill or restore row"), "{home}");
+
+    let idea_html = read(&result.output_dir.join(&snapshot.ideas_by_id[&alpha.id].page.path));
+    assert!(idea_html.contains(r#"data-layout-group="idea-main""#), "{idea_html}");
+    assert!(idea_html.contains(r#"data-layout-id="idea-summary""#), "{idea_html}");
+    assert!(idea_html.contains(r#"data-layout-span="6""#), "{idea_html}");
+    assert!(idea_html.contains(r#"data-layout-span="12""#), "{idea_html}");
+    assert!(
+        idea_html.contains(r#"data-heading-tip="Idea body and quick jumps to references.""#),
+        "{idea_html}"
+    );
+    assert!(idea_html.contains(r#"data-layout-group="idea-nav-cards""#), "{idea_html}");
+    assert!(idea_html.contains("data-heading-tip="), "{idea_html}");
+    assert_entity_tiles_lack_width_resize(&idea_html);
+    assert!(
+        idea_html.contains("data-layout-resize"),
+        "top-level idea panels stay width-resizable: {idea_html}"
+    );
+
+    let print_dir = temp_out("layout-cards-print");
+    let print_request = ExportRequest {
+        runtime_mode: "print".into(),
+        ..html_request(&print_dir, "layout-cards-print")
+    };
+    let print_snapshot = build_export_snapshot(&store, &print_request).unwrap();
+    let print_result = write_html_export(&print_snapshot, &print_request).unwrap();
+    let print_home = read(&print_result.output_dir.join(&print_snapshot.manifest.home.path));
+    assert!(!print_home.contains("data-layout-drag"), "{print_home}");
+    assert!(print_home.contains("print-card"), "{print_home}");
+
+    let app_js = read(&result.output_dir.join("assets/app.js"));
+    let styles = read(&result.output_dir.join("assets/styles.css"));
+    assert!(app_js.contains("function wireLayoutCards"));
+    assert!(app_js.contains("data-heading-tip"));
+    assert!(app_js.contains("reqlan-export:layout:"));
+    assert!(app_js.contains("persistSpan"));
+    assert!(app_js.contains("spanBeforeFill"));
+    assert!(app_js.contains("toggleFillRow"));
+    assert!(app_js.contains("RESIZE_MOVE_THRESHOLD_PX"));
+    assert!(app_js.contains("isWidthResizable"));
+    assert!(app_js.contains("isEntityTile"));
+    assert!(app_js.contains("dblclick"));
+    assert!(app_js.contains("function mountTableColumnControls"));
+    assert!(app_js.contains("reqlan-export:table-cols:"));
+    assert!(app_js.contains("setUiDragLock"));
+    assert!(app_js.contains("col-visibility-toggle"));
+    assert!(app_js.contains("table-columns-toggle"));
+    assert!(styles.contains(".layout-card-head"));
+    assert!(styles.contains(".layout-card-resize"));
+    assert!(styles.contains(".layout-card.is-collapsed"));
+    assert!(styles.contains("grid-template-columns: repeat(12"));
+    assert!(styles.contains(".entity-list[data-layout-group]"));
+    assert!(styles.contains(".entity-card > .layout-card-resize"));
+    assert!(styles.contains(".col-visibility-toggle"));
+    assert!(styles.contains(".col-resize-handle"));
+    assert!(styles.contains("html.is-ui-dragging"));
+    assert!(styles.contains(".layout-card:hover > .layout-card-head > .layout-card-toggle"));
+
+    std::fs::remove_dir_all(&output_dir).ok();
+    std::fs::remove_dir_all(&print_dir).ok();
 }
 
 // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_katz_column]

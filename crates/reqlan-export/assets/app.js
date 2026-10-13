@@ -622,10 +622,33 @@ function isPlaceholderRow(row) {
 }
 
 const FILTER_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>';
+const COLUMNS_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16M15 4v16"></path></svg>';
+const EYE_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+const EYE_OFF_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
 
-function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState) {
+function setUiDragLock(locked) {
+    document.documentElement.classList.toggle('is-ui-dragging', locked);
+    if (!locked) return;
+    const selection = window.getSelection?.();
+    if (selection && typeof selection.removeAllRanges === 'function') {
+        selection.removeAllRanges();
+    }
+}
+
+function isLayoutDragInteractiveTarget(target, handle) {
+    if (!(target instanceof Element)) return false;
+    const interactive = target.closest(
+        'a, button, input, select, textarea, label, .actions, [data-layout-resize], .col-resize-handle, .col-visibility-toggle'
+    );
+    return Boolean(interactive && interactive !== handle);
+}
+
+function ensureTableActionsHost(table) {
     const shell = table.closest('.table-shell') || table.parentElement;
-    const toolbar = shell ? shell.querySelector(':scope > .toolbar') : null;
+    const toolbar = shell
+        ? (shell.querySelector(':scope > .layout-card-head.toolbar')
+            || shell.querySelector(':scope > .toolbar'))
+        : null;
     let actions = toolbar ? toolbar.querySelector('.actions') : null;
     if (toolbar && !actions) {
         actions = document.createElement('div');
@@ -637,7 +660,11 @@ function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState
         actions.className = 'actions table-filter-actions';
         table.parentElement?.insertBefore(actions, table);
     }
+    return actions;
+}
 
+function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState) {
+    const actions = ensureTableActionsHost(table);
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'table-filter-toggle';
@@ -657,6 +684,325 @@ function ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState
     });
     actions.appendChild(toggle);
     return toggle;
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_table_columns]
+function tableColumnStorageKey(table) {
+    const card = table.closest('[data-layout-id]');
+    const id = card?.getAttribute('data-layout-id')
+        || [...(table.tHead?.rows?.[0]?.cells || [])]
+            .map((th) => th.getAttribute('data-filter-key') || '')
+            .filter(Boolean)
+            .join('-')
+        || 'table';
+    return `reqlan-export:table-cols:${window.location.pathname}:${id}`;
+}
+
+function readTableColumnState(table) {
+    try {
+        const raw = window.localStorage.getItem(tableColumnStorageKey(table));
+        if (!raw) return { hidden: {}, widths: {} };
+        const parsed = JSON.parse(raw);
+        return {
+            hidden: parsed && typeof parsed.hidden === 'object' && parsed.hidden ? parsed.hidden : {},
+            widths: parsed && typeof parsed.widths === 'object' && parsed.widths ? parsed.widths : {},
+        };
+    } catch (_error) {
+        return { hidden: {}, widths: {} };
+    }
+}
+
+function writeTableColumnState(table, state) {
+    try {
+        window.localStorage.setItem(tableColumnStorageKey(table), JSON.stringify(state));
+    } catch (_error) {
+        // Ignore quota / private-mode failures.
+    }
+}
+
+function columnKeyForHeader(th, index) {
+    const filterKey = String(th.getAttribute('data-filter-key') || '').trim();
+    return filterKey || `col-${index}`;
+}
+
+function applyColumnHidden(table, index, hidden) {
+    const rows = [
+        ...(table.tHead ? [...table.tHead.rows] : []),
+        ...(table.tBodies[0] ? [...table.tBodies[0].rows] : []),
+    ];
+    for (const row of rows) {
+        const cell = row.cells[index];
+        if (cell) cell.classList.toggle('is-col-hidden', hidden);
+    }
+}
+
+function applyColumnWidth(table, index, widthPx) {
+    const header = table.tHead?.rows?.[0]?.cells?.[index];
+    if (!header) return;
+    if (widthPx == null || !Number.isFinite(widthPx) || widthPx <= 0) {
+        header.style.width = '';
+        header.style.minWidth = '';
+        header.style.maxWidth = '';
+        return;
+    }
+    const px = `${Math.round(widthPx)}px`;
+    header.style.width = px;
+    header.style.minWidth = px;
+    header.style.maxWidth = px;
+}
+
+function mountTableColumnControls(table, headers) {
+    if (document.body.getAttribute('data-runtime-mode') !== 'interactive') return null;
+    const state = readTableColumnState(table);
+    const labels = headers.map((th, index) => {
+        const sortLabel = th.querySelector('.sort-button span')?.textContent;
+        return String(sortLabel || th.textContent || `Column ${index + 1}`).trim();
+    });
+    let lastAnchor = -1;
+    let resizeSession = null;
+
+    function persist() {
+        writeTableColumnState(table, state);
+        syncSelectorChrome();
+    }
+
+    function setHidden(index, hidden, { persistState = true } = {}) {
+        const key = columnKeyForHeader(headers[index], index);
+        applyColumnHidden(table, index, hidden);
+        if (hidden) state.hidden[key] = true;
+        else delete state.hidden[key];
+        const eye = headers[index]?.querySelector('.col-visibility-toggle');
+        if (eye) {
+            eye.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+            eye.setAttribute('aria-label', hidden ? `Show ${labels[index]}` : `Hide ${labels[index]}`);
+            eye.innerHTML = hidden ? EYE_OFF_ICON_SVG : EYE_ICON_SVG;
+            eye.title = hidden ? 'Show column' : 'Hide column';
+        }
+        if (persistState) persist();
+        else syncSelectorChrome();
+    }
+
+    function visibleCount() {
+        return headers.reduce((count, th, index) => {
+            const key = columnKeyForHeader(th, index);
+            return count + (state.hidden[key] ? 0 : 1);
+        }, 0);
+    }
+
+    headers.forEach((th, index) => {
+        const key = columnKeyForHeader(th, index);
+        const eye = document.createElement('button');
+        eye.type = 'button';
+        eye.className = 'col-visibility-toggle';
+        eye.setAttribute('aria-pressed', 'false');
+        eye.setAttribute('aria-label', `Hide ${labels[index]}`);
+        eye.title = 'Hide column';
+        eye.innerHTML = EYE_ICON_SVG;
+        eye.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const willHide = !th.classList.contains('is-col-hidden');
+            if (willHide && visibleCount() <= 1) return;
+            setHidden(index, willHide);
+            renderSelectorList();
+        });
+        const handle = document.createElement('span');
+        handle.className = 'col-resize-handle';
+        handle.setAttribute('aria-hidden', 'true');
+        handle.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const startWidth = th.getBoundingClientRect().width;
+            resizeSession = {
+                index,
+                startX: event.clientX,
+                startWidth,
+                pointerId: event.pointerId,
+            };
+            th.classList.add('is-col-resizing');
+            setUiDragLock(true);
+            handle.setPointerCapture(event.pointerId);
+        });
+        th.append(eye, handle);
+        if (state.hidden[key]) setHidden(index, true, { persistState: false });
+        if (state.widths[key] != null) applyColumnWidth(table, index, Number(state.widths[key]));
+    });
+
+    const actions = ensureTableActionsHost(table);
+    const host = document.createElement('div');
+    host.className = 'table-columns';
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'table-columns-toggle';
+    toggle.setAttribute('aria-haspopup', 'listbox');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', 'Select visible columns');
+    toggle.title = 'Columns';
+    toggle.innerHTML = COLUMNS_ICON_SVG;
+    const panel = document.createElement('div');
+    panel.className = 'table-columns-panel';
+    panel.hidden = true;
+    panel.setAttribute('role', 'listbox');
+    panel.setAttribute('aria-multiselectable', 'true');
+    panel.setAttribute('aria-label', 'Visible columns');
+    const toolbar = document.createElement('div');
+    toolbar.className = 'table-columns-toolbar';
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 'table-columns-search';
+    search.placeholder = 'Search columns…';
+    search.setAttribute('aria-label', 'Search columns');
+    const selectAll = document.createElement('button');
+    selectAll.type = 'button';
+    selectAll.className = 'table-columns-action';
+    selectAll.textContent = 'Select all';
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'table-columns-action';
+    clearBtn.textContent = 'Clear';
+    const list = document.createElement('div');
+    list.className = 'table-columns-list';
+    toolbar.append(search, selectAll, clearBtn);
+    panel.append(toolbar, list);
+    host.append(toggle, panel);
+    actions.appendChild(host);
+
+    function syncSelectorChrome() {
+        const hiddenCount = headers.reduce((count, th, index) => {
+            const key = columnKeyForHeader(th, index);
+            return count + (state.hidden[key] ? 1 : 0);
+        }, 0);
+        host.classList.toggle('has-hidden', hiddenCount > 0);
+        toggle.classList.toggle('is-active', !panel.hidden);
+    }
+
+    function setOpen(open) {
+        panel.hidden = !open;
+        host.classList.toggle('is-open', open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        toggle.classList.toggle('is-active', open);
+        if (open) {
+            renderSelectorList();
+            search.focus();
+        }
+        syncSelectorChrome();
+    }
+
+    function renderSelectorList() {
+        const needle = lower(search.value.trim());
+        list.replaceChildren();
+        const visibleIndexes = [];
+        headers.forEach((th, index) => {
+            if (needle && !lower(labels[index]).includes(needle)) return;
+            visibleIndexes.push(index);
+            const key = columnKeyForHeader(th, index);
+            const row = document.createElement('label');
+            row.className = 'table-columns-option';
+            row.dataset.colIndex = String(index);
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = !state.hidden[key];
+            box.addEventListener('click', (event) => {
+                const willShow = box.checked;
+                if (!willShow && visibleCount() <= 1) {
+                    event.preventDefault();
+                    box.checked = true;
+                    return;
+                }
+                if (event.shiftKey && lastAnchor >= 0) {
+                    const from = Math.min(lastAnchor, index);
+                    const to = Math.max(lastAnchor, index);
+                    const hide = !willShow;
+                    for (let i = from; i <= to; i += 1) {
+                        if (hide && visibleCount() <= 1 && !headers[i].classList.contains('is-col-hidden')) {
+                            continue;
+                        }
+                        setHidden(i, hide, { persistState: false });
+                    }
+                    persist();
+                    lastAnchor = index;
+                    renderSelectorList();
+                    return;
+                }
+                setHidden(index, !willShow);
+                lastAnchor = index;
+                renderSelectorList();
+            });
+            const text = document.createElement('span');
+            text.textContent = labels[index];
+            row.append(box, text);
+            if (box.checked) row.classList.add('is-active');
+            list.appendChild(row);
+        });
+        if (visibleIndexes.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'table-columns-empty';
+            empty.textContent = 'No matches';
+            list.appendChild(empty);
+        }
+    }
+
+    toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(panel.hidden);
+    });
+    search.addEventListener('input', () => renderSelectorList());
+    selectAll.addEventListener('click', () => {
+        headers.forEach((_th, index) => setHidden(index, false, { persistState: false }));
+        persist();
+        renderSelectorList();
+    });
+    clearBtn.addEventListener('click', () => {
+        // Keep the first visible column so the table never empties.
+        let kept = false;
+        headers.forEach((_th, index) => {
+            if (!kept) {
+                setHidden(index, false, { persistState: false });
+                kept = true;
+                return;
+            }
+            setHidden(index, true, { persistState: false });
+        });
+        persist();
+        renderSelectorList();
+    });
+
+    document.addEventListener('pointerdown', (event) => {
+        if (panel.hidden) return;
+        if (!host.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden) {
+            setOpen(false);
+            toggle.focus();
+        }
+    });
+
+    document.addEventListener('pointermove', (event) => {
+        if (!resizeSession || event.pointerId !== resizeSession.pointerId) return;
+        event.preventDefault();
+        const next = Math.max(56, resizeSession.startWidth + (event.clientX - resizeSession.startX));
+        applyColumnWidth(table, resizeSession.index, next);
+        const key = columnKeyForHeader(headers[resizeSession.index], resizeSession.index);
+        state.widths[key] = next;
+    });
+    function endColResize(event) {
+        if (!resizeSession || event.pointerId !== resizeSession.pointerId) return;
+        headers[resizeSession.index]?.classList.remove('is-col-resizing');
+        persist();
+        resizeSession = null;
+        setUiDragLock(false);
+    }
+    document.addEventListener('pointerup', endColResize);
+    document.addEventListener('pointercancel', endColResize);
+    document.addEventListener('selectstart', (event) => {
+        if (resizeSession) event.preventDefault();
+    });
+
+    syncSelectorChrome();
+    return { setHidden, persist };
 }
 
 function wireTables(root) {
@@ -781,6 +1127,7 @@ function wireTables(root) {
         });
         thead.appendChild(filterRow);
         filterToggle = ensureTableFilterToggle(table, filterRow, filterInputs, syncToggleState);
+        mountTableColumnControls(table, headers);
         tableControllers.push(controller);
 
         let seeded = false;
@@ -1887,6 +2234,7 @@ function scheduleBackground(task) {
 }
 
 // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_idea_tooltips]
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_heading_tooltips]
 function wireIdeaTooltips(root) {
     const tip = document.createElement('div');
     tip.className = 'idea-tooltip';
@@ -1900,8 +2248,10 @@ function wireIdeaTooltips(root) {
 
     function anchorFrom(target) {
         if (!target || typeof target.closest !== 'function') return null;
-        const anchor = target.closest('[data-tip-name]');
-        return anchor && root.contains(anchor) ? anchor : null;
+        const idea = target.closest('[data-tip-name]');
+        if (idea && root.contains(idea)) return idea;
+        const heading = target.closest('[data-heading-tip]');
+        return heading && root.contains(heading) ? heading : null;
     }
 
     function holds(parent, node) {
@@ -1909,12 +2259,20 @@ function wireIdeaTooltips(root) {
     }
 
     function fill(anchor) {
+        tip.replaceChildren();
+        const headingTip = anchor.getAttribute('data-heading-tip');
+        if (headingTip != null && headingTip !== '' && !anchor.hasAttribute('data-tip-name')) {
+            const prose = document.createElement('div');
+            prose.className = 'idea-tooltip-body';
+            prose.textContent = headingTip;
+            tip.append(prose);
+            return true;
+        }
         const name = anchor.getAttribute('data-tip-name') || '';
         if (!name) return false;
         const file = anchor.getAttribute('data-tip-file') || '';
         const body = anchor.getAttribute('data-tip-body') || '';
         const status = anchor.getAttribute('data-tip-status') || '';
-        tip.replaceChildren();
         const head = document.createElement('div');
         head.className = 'idea-tooltip-head';
         const title = document.createElement('div');
@@ -2026,9 +2384,378 @@ function wireIdeaTooltips(root) {
     });
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_layout_cards]
+function wireLayoutCards(root) {
+    if (root.getAttribute('data-runtime-mode') !== 'interactive') return;
+
+    const LAYOUT_COLUMNS = 12;
+    const RESIZE_MOVE_THRESHOLD_PX = 4;
+    const storageKey = `reqlan-export:layout:${window.location.pathname}`;
+
+    function emptyState() {
+        return { groups: {}, collapsed: {}, spans: {}, spanBeforeFill: {} };
+    }
+
+    function readState() {
+        try {
+            const raw = window.localStorage.getItem(storageKey);
+            if (!raw) return emptyState();
+            const parsed = JSON.parse(raw);
+            return {
+                groups: parsed && typeof parsed.groups === 'object' && parsed.groups ? parsed.groups : {},
+                collapsed: parsed && typeof parsed.collapsed === 'object' && parsed.collapsed ? parsed.collapsed : {},
+                spans: parsed && typeof parsed.spans === 'object' && parsed.spans ? parsed.spans : {},
+                spanBeforeFill: parsed && typeof parsed.spanBeforeFill === 'object' && parsed.spanBeforeFill
+                    ? parsed.spanBeforeFill
+                    : {},
+            };
+        } catch (_error) {
+            return emptyState();
+        }
+    }
+
+    function writeState(state) {
+        try {
+            window.localStorage.setItem(storageKey, JSON.stringify(state));
+        } catch (_error) {
+            // Ignore quota / private-mode failures.
+        }
+    }
+
+    function groupKey(group) {
+        return group.getAttribute('data-layout-group') || '';
+    }
+
+    function cardId(card) {
+        return card.getAttribute('data-layout-id') || '';
+    }
+
+    function isEntityTile(card) {
+        return card.classList.contains('entity-card')
+            || Boolean(card.parentElement && card.parentElement.classList.contains('entity-list'));
+    }
+
+    function isWidthResizable(card) {
+        return Boolean(card.querySelector(':scope > [data-layout-resize]')) && !isEntityTile(card);
+    }
+
+    function clampSpan(value, maxCols = LAYOUT_COLUMNS) {
+        const n = Number(value);
+        const max = Math.max(1, maxCols);
+        if (!Number.isFinite(n)) return Math.min(LAYOUT_COLUMNS / 2, max);
+        return Math.max(1, Math.min(max, Math.round(n)));
+    }
+
+    function groupColumnCount(group) {
+        const styles = window.getComputedStyle(group);
+        const cols = styles.gridTemplateColumns;
+        if (!cols || cols === 'none') return LAYOUT_COLUMNS;
+        const count = cols.split(' ').filter(Boolean).length;
+        return count > 0 ? count : LAYOUT_COLUMNS;
+    }
+
+    function applySpan(card, span, maxCols = LAYOUT_COLUMNS) {
+        const next = clampSpan(span, maxCols);
+        card.setAttribute('data-layout-span', String(next));
+        card.style.setProperty('--layout-span', String(next));
+        const handle = card.querySelector(':scope > [data-layout-resize]');
+        if (handle) handle.setAttribute('aria-valuenow', String(next));
+        return next;
+    }
+
+    function persistSpan(card, span, maxCols = LAYOUT_COLUMNS) {
+        if (!isWidthResizable(card)) return;
+        const id = cardId(card);
+        if (!id) return;
+        const state = readState();
+        state.spans[id] = applySpan(card, span, maxCols);
+        writeState(state);
+    }
+
+    function setCollapsed(card, collapsed) {
+        const id = cardId(card);
+        const toggle = card.querySelector('[data-layout-toggle]');
+        card.classList.toggle('is-collapsed', collapsed);
+        if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        if (!id) return;
+        const state = readState();
+        if (collapsed) state.collapsed[id] = true;
+        else delete state.collapsed[id];
+        writeState(state);
+    }
+
+    function persistGroupOrder(group) {
+        const key = groupKey(group);
+        if (!key) return;
+        const order = Array.from(group.querySelectorAll(':scope > .layout-card'))
+            .map(cardId)
+            .filter(Boolean);
+        const state = readState();
+        state.groups[key] = order;
+        writeState(state);
+    }
+
+    function restoreGroup(group) {
+        const key = groupKey(group);
+        const state = readState();
+        const order = key && Array.isArray(state.groups[key]) ? state.groups[key] : null;
+        if (order && order.length) {
+            const byId = new Map();
+            Array.from(group.querySelectorAll(':scope > .layout-card')).forEach((card) => {
+                const id = cardId(card);
+                if (id) byId.set(id, card);
+            });
+            order.forEach((id) => {
+                const card = byId.get(id);
+                if (card) group.appendChild(card);
+            });
+        }
+        let spansDirty = false;
+        const cols = groupColumnCount(group);
+        Array.from(group.querySelectorAll(':scope > .layout-card')).forEach((card) => {
+            const id = cardId(card);
+            if (isEntityTile(card) || !isWidthResizable(card)) {
+                if (id && state.spans[id] != null) {
+                    delete state.spans[id];
+                    spansDirty = true;
+                }
+                if (id && state.spanBeforeFill[id] != null) {
+                    delete state.spanBeforeFill[id];
+                    spansDirty = true;
+                }
+            } else {
+                if (id && state.spans[id] != null) applySpan(card, state.spans[id], cols);
+                else applySpan(card, card.getAttribute('data-layout-span') || cols / 2, cols);
+                const handle = card.querySelector(':scope > [data-layout-resize]');
+                if (handle) {
+                    handle.setAttribute('aria-valuemin', '1');
+                    handle.setAttribute('aria-valuemax', String(cols));
+                }
+            }
+            if (id && state.collapsed[id]) setCollapsed(card, true);
+        });
+        if (spansDirty) writeState(state);
+    }
+
+    function toggleFillRow(card) {
+        if (!isWidthResizable(card) || card.classList.contains('is-collapsed')) return;
+        const group = card.parentElement;
+        if (!group || !group.hasAttribute('data-layout-group')) return;
+        const id = cardId(card);
+        if (!id) return;
+        const cols = groupColumnCount(group);
+        const current = clampSpan(card.getAttribute('data-layout-span') || cols / 2, cols);
+        const state = readState();
+        if (current >= cols) {
+            const restore = state.spanBeforeFill[id] != null
+                ? clampSpan(state.spanBeforeFill[id], cols)
+                : Math.min(LAYOUT_COLUMNS / 2, cols);
+            delete state.spanBeforeFill[id];
+            state.spans[id] = applySpan(card, restore, cols);
+            writeState(state);
+            return;
+        }
+        state.spanBeforeFill[id] = current;
+        state.spans[id] = applySpan(card, cols, cols);
+        writeState(state);
+    }
+
+    let dragCard = null;
+    let resizeSession = null;
+
+    root.addEventListener('click', (event) => {
+        const toggle = event.target && event.target.closest
+            ? event.target.closest('[data-layout-toggle]')
+            : null;
+        if (!toggle || !root.contains(toggle)) return;
+        event.preventDefault();
+        const card = toggle.closest('.layout-card');
+        if (!card) return;
+        setCollapsed(card, !card.classList.contains('is-collapsed'));
+    });
+
+    root.addEventListener('dragstart', (event) => {
+        if (resizeSession) {
+            event.preventDefault();
+            return;
+        }
+        const handle = event.target && event.target.closest
+            ? event.target.closest('[data-layout-drag]')
+            : null;
+        if (!handle || !root.contains(handle)) return;
+        if (isLayoutDragInteractiveTarget(event.target, handle)) {
+            event.preventDefault();
+            return;
+        }
+        const card = handle.closest('.layout-card');
+        if (!card) return;
+        dragCard = card;
+        card.classList.add('is-dragging');
+        setUiDragLock(true);
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', cardId(card));
+        }
+    });
+
+    root.addEventListener('dragend', () => {
+        if (dragCard) dragCard.classList.remove('is-dragging');
+        root.querySelectorAll('.layout-card.is-drop-target').forEach((el) => {
+            el.classList.remove('is-drop-target');
+        });
+        dragCard = null;
+        setUiDragLock(false);
+    });
+
+    root.addEventListener('dragover', (event) => {
+        if (!dragCard || resizeSession) return;
+        const over = event.target && event.target.closest
+            ? event.target.closest('.layout-card')
+            : null;
+        if (!over || over === dragCard) return;
+        const group = over.parentElement;
+        if (!group || !group.hasAttribute('data-layout-group')) return;
+        if (dragCard.parentElement !== group) return;
+        event.preventDefault();
+        root.querySelectorAll('.layout-card.is-drop-target').forEach((el) => {
+            if (el !== over) el.classList.remove('is-drop-target');
+        });
+        over.classList.add('is-drop-target');
+        const rect = over.getBoundingClientRect();
+        const before = event.clientY < rect.top + rect.height / 2;
+        if (before) group.insertBefore(dragCard, over);
+        else group.insertBefore(dragCard, over.nextSibling);
+    });
+
+    root.addEventListener('drop', (event) => {
+        if (!dragCard) return;
+        event.preventDefault();
+        const group = dragCard.parentElement;
+        if (group && group.hasAttribute('data-layout-group')) persistGroupOrder(group);
+        root.querySelectorAll('.layout-card.is-drop-target').forEach((el) => {
+            el.classList.remove('is-drop-target');
+        });
+    });
+
+    function endResize() {
+        if (!resizeSession) return;
+        const { card, span, moved, cols } = resizeSession;
+        card.classList.remove('is-resizing');
+        if (moved) persistSpan(card, span, cols);
+        resizeSession = null;
+        setUiDragLock(false);
+    }
+
+    root.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'touch' && event.button !== 0) return;
+        const handle = event.target && event.target.closest
+            ? event.target.closest('[data-layout-resize]')
+            : null;
+        if (!handle || !root.contains(handle)) return;
+        const card = handle.closest('.layout-card');
+        const group = card && card.parentElement;
+        if (!card || !group || !group.hasAttribute('data-layout-group')) return;
+        if (!isWidthResizable(card)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const cols = groupColumnCount(group);
+        const startSpan = clampSpan(card.getAttribute('data-layout-span') || cols, cols);
+        resizeSession = {
+            card,
+            group,
+            cols,
+            startX: event.clientX,
+            startSpan,
+            span: startSpan,
+            moved: false,
+            pointerId: event.pointerId,
+        };
+        setUiDragLock(true);
+        handle.setPointerCapture(event.pointerId);
+    });
+
+    root.addEventListener('dblclick', (event) => {
+        const handle = event.target && event.target.closest
+            ? event.target.closest('[data-layout-resize]')
+            : null;
+        if (!handle || !root.contains(handle)) return;
+        const card = handle.closest('.layout-card');
+        if (!card || !isWidthResizable(card)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (resizeSession) {
+            resizeSession.card.classList.remove('is-resizing');
+            resizeSession = null;
+            setUiDragLock(false);
+        }
+        toggleFillRow(card);
+    });
+
+    root.addEventListener('selectstart', (event) => {
+        if (resizeSession || dragCard) event.preventDefault();
+    });
+
+    root.addEventListener('pointermove', (event) => {
+        if (!resizeSession || event.pointerId !== resizeSession.pointerId) return;
+        event.preventDefault();
+        const { card, group, cols, startX, startSpan, moved } = resizeSession;
+        const dx = Math.abs(event.clientX - startX);
+        if (!moved && dx < RESIZE_MOVE_THRESHOLD_PX) return;
+        if (!moved) {
+            resizeSession.moved = true;
+            card.classList.add('is-resizing');
+        }
+        const width = group.getBoundingClientRect().width;
+        if (width <= 0) return;
+        const deltaCols = (event.clientX - startX) / (width / cols);
+        const next = clampSpan(startSpan + deltaCols, cols);
+        resizeSession.span = next;
+        applySpan(card, next, cols);
+    });
+
+    root.addEventListener('pointerup', (event) => {
+        if (!resizeSession || event.pointerId !== resizeSession.pointerId) return;
+        endResize();
+    });
+    root.addEventListener('pointercancel', (event) => {
+        if (!resizeSession || event.pointerId !== resizeSession.pointerId) return;
+        endResize();
+    });
+
+    root.addEventListener('keydown', (event) => {
+        const handle = event.target && event.target.closest
+            ? event.target.closest('[data-layout-resize]')
+            : null;
+        if (!handle || !root.contains(handle)) return;
+        const card = handle.closest('.layout-card');
+        if (!card || !isWidthResizable(card)) return;
+        const group = card.parentElement;
+        const cols = group && group.hasAttribute('data-layout-group')
+            ? groupColumnCount(group)
+            : LAYOUT_COLUMNS;
+        const current = clampSpan(card.getAttribute('data-layout-span') || cols / 2, cols);
+        if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            persistSpan(card, current + 1, cols);
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            persistSpan(card, current - 1, cols);
+        } else if (event.key === 'Home') {
+            event.preventDefault();
+            persistSpan(card, 1, cols);
+        } else if (event.key === 'End') {
+            event.preventDefault();
+            persistSpan(card, cols, cols);
+        }
+    });
+
+    Array.from(root.querySelectorAll('[data-layout-group]')).forEach(restoreGroup);
+}
+
 function boot() {
     const root = document.body;
     wireIdeaTooltips(root);
+    wireLayoutCards(root);
     // Interactive Status/Tags triggers before heavy table/graph init.
     enhanceScdPlaceholders(root);
     wireTables(root);

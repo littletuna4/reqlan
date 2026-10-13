@@ -17,6 +17,9 @@ html_export {
     [html_export_multi_file]
     [html_export_internal_links]
     [html_export_idea_tooltips]
+    [html_export_layout_cards]
+    [html_export_heading_tooltips]
+    [html_export_table_columns]
     [html_export_search]
     [html_export_list_views]
     [html_export_overview_links]
@@ -42,7 +45,7 @@ html_export {
     @status done
     @implementation (
         ["../../crates/reqlan-export/src/html.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
@@ -80,15 +83,82 @@ html_export_idea_tooltips {
     The tooltip must be a styled panel. The tooltip must not use the browser title text.
     The tooltip must stay inside the viewport.
     An unresolved reference must not show an idea tooltip.
+    Section and card heading tips follow [html_export_heading_tooltips].
     @status done
     @implementation (
         ["../../crates/reqlan-export/src/html_utils.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:idea_links_show_content_tooltips"]
+    )
+}
+
+html_export_layout_cards {
+    In interactive runtime mode, detail-page panels (panel, table-shell, graph-shell) and entity-card tiles are drag-reorderable within their layout group and collapsible.
+    In interactive mode, cards that are direct children of a page layout group and use panel, table-shell, or graph-shell chrome are width-resizable by column span.
+    Entity-card tiles inside an entity-list layout group are drag-reorderable and collapsible, but they are not width-resizable.
+    Column hide and column width on tables stay separate from card width.
+    Width-resizable cards sit in a responsive multi-column grid and snap to column spans so a card can take one column, several columns, or the full row.
+    Double-click on the card width handle fills the row. A second double-click restores the last non-full span. Collapsed cards ignore fill.
+    Narrow viewports collapse spans so cards stack without horizontal overflow.
+    The full card header is the drag handle. Links, buttons, and inputs in the header still activate on click.
+    The collapse caret stays hidden until the card is hovered or has focus within.
+    Collapse hides the card body and shrinks the card chrome so the layout does not keep empty body space.
+    Card-width and header drag must not lose control to text selection: pointer capture, select lock, and preventDefault on resize pointerdown.
+    Order, collapse, column-span, and fill-restore state persist in localStorage for that page path.
+    Document and print runtime modes keep a static layout with no rearrange, resize, or collapse behaviour.
+    Printable-report idea cards stay outside this idea ([html_export_print_idea_cards], [html_export_print_order_by]).
+    Table column chrome follows [html_export_table_columns].
+    Cross-refs [html_export_runtime_modes], [html_export_heading_tooltips].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/html_template/layout.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:interactive_layout_cards_are_reorderable_collapsible_with_heading_tips"]
+    )
+}
+
+html_export_table_columns {
+    In interactive runtime mode, tables inside layout cards let the user hide and resize columns.
+    An eye control on each column header toggles that column. The eye shows when the header cell is hovered or focused.
+    A column-selector control in the table card header opens a multiselect panel with search, select all, clear, and shift-click range selection.
+    Column resize must not lose control to text selection: pointer capture, select lock, and a resize handle above selectable header text.
+    Hidden columns and column widths persist in localStorage for that page path and table.
+    Document and print runtime modes keep all columns visible at default widths with no column chrome.
+    Cross-refs [html_export_layout_cards], [html_export_list_views].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:interactive_layout_cards_are_reorderable_collapsible_with_heading_tips"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
+    )
+}
+
+html_export_heading_tooltips {
+    Section headings on layout panels show a short descriptive tip via the styled tooltip panel when pointer or keyboard focus rests on the heading.
+    Entity-card title headings tip with that card's short summary text.
+    Idea title headings tip with the idea summary when present.
+    Heading tips must not use the browser title text.
+    Reuses the tooltip surface from [html_export_idea_tooltips].
+    Cross-refs [html_export_layout_cards].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/html_template/layout.rs"]
+        ["../../crates/reqlan-export/assets/app.js"]
+        ["../../crates/reqlan-export/assets/styles.css"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:interactive_layout_cards_are_reorderable_collapsible_with_heading_tips"]
     )
 }
 
@@ -105,14 +175,16 @@ html_export_list_views {
     Navigable facet cells in those tables (status, tags, paths, attribute values, cluster labels/kinds) should be links to the matching detail page or to a list page with the matching column filter applied via [html_export_overview_links].
     Long lists that sit above other page content follow [html_export_scrollable_lists].
     The ideas index count columns follow [html_export_ideas_ref_columns].
+    Column hide, resize, and selector chrome follow [html_export_table_columns].
     [html_export_ideas_ref_columns]
+    [html_export_table_columns]
     [html_export_attributes_index]
     [html_export_file_pages]
     [html_export_code_reference_pages]
     [html_export_scrollable_lists]
     [html_export_overview_links]
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
     )
@@ -130,7 +202,7 @@ html_export_ideas_ref_columns {
     Filter keys are `in` and `out`.
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
@@ -150,7 +222,7 @@ html_export_katz_column {
     @implementation (
         ["../../crates/reqlan-export/src/snapshot.rs"]
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:idea_tables_show_a_katz_column"]
@@ -167,7 +239,7 @@ html_export_overview_links {
     Cross-refs [html_export_list_views], [html_export_cluster_pages], [html_export_internal_links].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
     )
@@ -190,7 +262,7 @@ html_export_file_pages {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
@@ -207,7 +279,7 @@ html_export_code_reference_pages {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
@@ -228,7 +300,7 @@ html_export_attributes_index {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
@@ -244,7 +316,7 @@ html_export_attribute_pages {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
     @tests (
@@ -280,7 +352,7 @@ html_export_graph_page {
     [html_export_graph_metadata]
     @implementation (
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
         ["../../crates/reqlan-analytical/src/api.rs"]
     )
@@ -300,7 +372,7 @@ html_export_graph_links {
     Hosting-file linked nodes (["../extension/workspace-summary/ideas_summary/graphical_graph.rq".file_treatment_toggle] linked mode) prefer `hostFilePageUrl` stamped during graph URL enrichment
     (file / code-file page for the idea's `fileUri`), falling back to a member idea `pageUrl` when file pages are disabled.
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
     )
@@ -344,7 +416,7 @@ html_export_graph_background_load {
     @status done
     @implementation (
         ["../../crates/reqlan-export/assets/app.js"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
@@ -355,7 +427,7 @@ html_export_graph_subject {
     When a graph view has a subject or center idea, that node should be visually distinct from peers and externals.
     Subject styling should use the brand rust accent against cyan peer nodes.
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
@@ -378,7 +450,7 @@ html_export_graph_label_modes {
     @status done
     @implementation (
         ["../../crates/reqlan-export/assets/app.js"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
@@ -410,7 +482,7 @@ html_export_graph_interaction {
     ["../extension/workspace-summary/ideas_summary/graphical_graph.rq".webview_export_graph_parity].
     @implementation (
         ["../../crates/reqlan-export/assets/app.js"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
 }
 
@@ -419,7 +491,7 @@ html_export_graph_metadata {
     Attribute values declared on the idea should be reachable from the graph via the idea page and on-node attribute key summary.
     @implementation (
         ["../../crates/reqlan-export/assets/app.js"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
     )
 }
@@ -433,7 +505,7 @@ html_export_printable_pages {
     Stored idea body spaces on print pages follow [html_export_print_body_whitespace].
     Ordering of cards on the printable report is tracked by [html_export_print_order_by].
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
         ["../../crates/reqlan-export/src/html.rs"]
@@ -450,7 +522,7 @@ html_export_print_idea_cards {
     Cross-refs [html_export_printable_pages], [html_export_print_in_page_anchors], [html_export_print_all_attributes].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
@@ -471,7 +543,7 @@ html_export_print_body_whitespace {
     Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
@@ -487,7 +559,7 @@ html_export_print_in_page_anchors {
     Cross-refs [html_export_printable_pages], [html_export_print_idea_cards].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
@@ -502,7 +574,7 @@ html_export_print_all_attributes {
     Cross-refs [html_export_printable_pages], [html_export_idea_pages].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
     )
     @tests (
@@ -516,7 +588,7 @@ html_export_print_button {
     Cross-refs [html_export_printable_pages].
     @status done
     @implementation (
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
     )
     @tests (
@@ -545,7 +617,7 @@ html_export_scrollable_lists {
     Browser print of interactive pages should also expand constrained lists to full height.
     @implementation (
         ["../../crates/reqlan-export/assets/styles.css"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
@@ -562,7 +634,7 @@ html_export_header_link {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
         ["../../packages/cli/src/commands/export.ts"]
         ["../../site/scripts/export-spec.mts"]
@@ -584,7 +656,7 @@ html_export_url_base {
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../packages/cli/src/commands/export.ts"]
         ["../../site/scripts/export-spec.mts"]
     )

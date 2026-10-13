@@ -79,7 +79,7 @@ pdf_export {
     @status partial
     @implementation (
         ["../../crates/reqlan-export/src/html.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
     )

@@ -383,7 +383,7 @@ attribute_namespacing {
         ["../../packages/language/src/reqlan-semantic-token-provider.ts"]
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
-        ["../../crates/reqlan-export/src/html_template.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
     @tests (
         ["../../packages/language/test/linking.test.ts:resolves an idea attribute link to that attribute"]

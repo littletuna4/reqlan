@@ -78,7 +78,7 @@ wildcard_refs_toggle {
         ["../../../../packages/extension/webviews/shared/graph/graph-cytoscape.ts"]
         ["../../../../packages/extension/webviews/shared/graph/graph-theme.ts"]
         ["../../../../packages/extension/webviews/ideas-summary/styles/global.css"]
-        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
@@ -124,7 +124,7 @@ file_treatment_toggle {
         ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../../packages/extension/webviews/ideas-summary/components/GraphView.svelte"]
         ["../../../../packages/extension/src/ideas_summary_module/shared/graph-ui-state.ts"]
-        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
@@ -156,7 +156,7 @@ webview_export_graph_parity {
     @implementation (
         ["../../../../packages/extension/webviews/ideas-summary/components/GraphControls.svelte"]
         ["../../../../packages/extension/webviews/ideas-summary/components/FileTreatmentSelect.svelte"]
-        ["../../../../crates/reqlan-export/src/html_template.rs"]
+        ["../../../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../../../crates/reqlan-export/assets/app.js"]
     )
     @tests (
