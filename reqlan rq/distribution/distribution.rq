@@ -326,8 +326,36 @@ extension_distribution {
   Before tests Azure stages matrix artifacts into workspace packages (`prepare-native-packages.mjs --binary-dir`) and checks the host optionalDependency (`scripts/ensure-host-native.mjs --no-build`).
   VSIX packaging follows ["./distribution.rq".vsix_export]: one VSIX per [native_targets] tuple; Marketplace selects the VSIX matching the extension-host target ([extension_host_target]).
   Marketplace publish is complemented by Open VSX per ["./distribution.rq".openvsx_registry].
+  Pipeline cache and publish parallelism: [extension_pipeline_cache], [extension_pipeline_publish].
   @status in-progress
   @todo first multi-target Marketplace publish not yet run
+}
+
+extension_pipeline_cache {
+  Azure `build_native` mirrors GitHub `Swatinem/rust-cache` via `Cache@2`: cache rustup+cargo home under `$(Pipeline.Workspace)/rust-cache` (`CARGO_HOME` / `RUSTUP_HOME`) and `crates/target`, keyed by OS, `rustTarget`, and `crates/Cargo.lock`.
+  Install rustup only when `$CARGO_HOME/bin/rustc` is missing after restore; otherwise reuse the cached toolchain (`--no-modify-path`).
+  Azure `build_test_package` caches the pnpm store keyed by OS and `pnpm-lock.yaml` (same role as `cache: pnpm` on GitHub).
+  Do not cache VSIX or napi pipeline artifacts across tags; git at `ext/v*` stays canonical ([vsix_native_not_from_npm]).
+  Implementation: ["../../azure-pipelines.yml"].
+  Related: [extension_distribution], ["./distribution.rq".ci_gate] (GitHub rust-cache + pnpm).
+  @status done
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts:Azure extension pipeline caches rust and pnpm and publishes in parallel"]
+  )
+}
+
+extension_pipeline_publish {
+  Marketplace and Open VSX publish every per-target VSIX in parallel (`ForEach-Object -ThrottleLimit 6 -Parallel`), not one after another.
+  Open VSX uses the workspace `ovsx` package (`pnpm --filter ./packages/extension exec ovsx`); do not `pnpm dlx ovsx` per file.
+  Local `--openvsx` in ["../../scripts/package-extension-targets.mjs"] uses the same `pnpm exec ovsx` path.
+  Implementation: ["../../azure-pipelines.yml"], ["../../packages/extension/package.json"], ["../../scripts/package-extension-targets.mjs"].
+  Related: [extension_distribution], [openvsx_registry], [vsix_export].
+  @status done
+  @tests (
+    ["../../packages/analytical/test/native-packaging.test.ts"]
+    ["../../packages/analytical/test/native-packaging.test.ts:Azure extension pipeline caches rust and pnpm and publishes in parallel"]
+  )
 }
 
 openvsx_registry {
@@ -335,6 +363,7 @@ openvsx_registry {
   Publishing should use the same tag-driven `ext/v*` releases as ["./distribution.rq".extension_distribution].
   Each per-target VSIX from ["./distribution.rq".vsix_export] is published to Open VSX (Marketplace and Open VSX both select by extension-host `targetPlatform`).
   Azure DevOps is the authoritative publish workflow; Open VSX publish belongs in ["../../azure-pipelines.yml"] alongside marketplace deploy.
+  Publish path follows [extension_pipeline_publish].
   @status in-progress
   @todo first multi-target Open VSX publish not yet run
 }

@@ -1,5 +1,7 @@
 # Triggered by ext/v* tags created by .github/workflows/release.yml
-# per reqlan rq/distribution/distribution.rq extension_distribution / vsix_export.
+# per
+# rq:["@/reqlan rq/distribution/distribution.rq".extension_distribution]
+# vsix_export / extension_pipeline_cache / extension_pipeline_publish.
 # Git at this tag is canonical: package.json versions and the native matrix
 # are built here. Azure compiles reqlan-napi for every native_targets tuple
 # and packs VSIXes from those artifacts. It does not fetch binaries from npm.
@@ -51,6 +53,9 @@ jobs:
           installAarch64Gcc: "false"
     pool:
       vmImage: $(vmImage)
+    variables:
+      CARGO_HOME: $(Pipeline.Workspace)/rust-cache/cargo
+      RUSTUP_HOME: $(Pipeline.Workspace)/rust-cache/rustup
 
     steps:
       - checkout: self
@@ -63,22 +68,61 @@ jobs:
         displayName: Setup Node.js
         timeoutInMinutes: 10
 
+      # rq:["reqlan rq/distribution/distribution.rq".extension_pipeline_cache]
+      - task: Cache@2
+        displayName: Cache rustup + cargo home
+        timeoutInMinutes: 15
+        inputs:
+          key: 'rust-home | "$(Agent.OS)" | $(rustTarget) | "$(Build.SourcesDirectory)/crates/Cargo.lock"'
+          restoreKeys: |
+            rust-home | "$(Agent.OS)" | $(rustTarget)
+            rust-home | "$(Agent.OS)"
+          path: $(Pipeline.Workspace)/rust-cache
+
+      - task: Cache@2
+        displayName: Cache cargo target
+        timeoutInMinutes: 15
+        inputs:
+          key: 'cargo-tgt | "$(Agent.OS)" | $(rustTarget) | "$(Build.SourcesDirectory)/crates/Cargo.lock"'
+          restoreKeys: |
+            cargo-tgt | "$(Agent.OS)" | $(rustTarget)
+          path: $(Build.SourcesDirectory)/crates/target
+
       - bash: |
           set -euo pipefail
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
-          echo "##vso[task.prependpath]$HOME/.cargo/bin"
-        displayName: Install Rust (Unix)
+          mkdir -p "$CARGO_HOME" "$RUSTUP_HOME"
+          echo "##vso[task.prependpath]$CARGO_HOME/bin"
+          if [ ! -x "$CARGO_HOME/bin/rustc" ]; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal --no-modify-path
+          fi
+          rustup default stable
+          rustc --version
+          cargo --version
+        displayName: Ensure Rust (Unix)
         condition: ne(variables['Agent.OS'], 'Windows_NT')
         timeoutInMinutes: 10
+        env:
+          CARGO_HOME: $(CARGO_HOME)
+          RUSTUP_HOME: $(RUSTUP_HOME)
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe
-          ./rustup-init.exe -y --default-toolchain stable --profile minimal
-          Write-Host "##vso[task.prependpath]$env:USERPROFILE\.cargo\bin"
-        displayName: Install Rust (Windows)
+          New-Item -ItemType Directory -Force -Path $env:CARGO_HOME, $env:RUSTUP_HOME | Out-Null
+          Write-Host "##vso[task.prependpath]$env:CARGO_HOME\bin"
+          $rustc = Join-Path $env:CARGO_HOME "bin/rustc.exe"
+          if (-not (Test-Path $rustc)) {
+            Invoke-WebRequest -Uri https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe -OutFile rustup-init.exe
+            ./rustup-init.exe -y --default-toolchain stable --profile minimal --no-modify-path
+          }
+          rustup default stable
+          rustc --version
+          cargo --version
+        displayName: Ensure Rust (Windows)
         condition: eq(variables['Agent.OS'], 'Windows_NT')
         timeoutInMinutes: 10
+        env:
+          CARGO_HOME: $(CARGO_HOME)
+          RUSTUP_HOME: $(RUSTUP_HOME)
 
       - bash: |
           set -euo pipefail
@@ -90,6 +134,7 @@ jobs:
 
       - bash: |
           set -euo pipefail
+          echo "##vso[task.prependpath]$CARGO_HOME/bin"
           rustup target add "$(rustTarget)"
           if [ "$(installAarch64Gcc)" = "true" ]; then
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
@@ -99,15 +144,22 @@ jobs:
         workingDirectory: crates
         condition: ne(variables['Agent.OS'], 'Windows_NT')
         timeoutInMinutes: 40
+        env:
+          CARGO_HOME: $(CARGO_HOME)
+          RUSTUP_HOME: $(RUSTUP_HOME)
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
+          Write-Host "##vso[task.prependpath]$env:CARGO_HOME\bin"
           rustup target add "$(rustTarget)"
           cargo build -p reqlan-napi -p reqlan-lsp --release --target "$(rustTarget)"
         displayName: Build reqlan-napi (Windows)
         workingDirectory: crates
         condition: eq(variables['Agent.OS'], 'Windows_NT')
         timeoutInMinutes: 40
+        env:
+          CARGO_HOME: $(CARGO_HOME)
+          RUSTUP_HOME: $(RUSTUP_HOME)
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
@@ -147,8 +199,21 @@ jobs:
           corepack prepare pnpm@12.10.1 --activate
           node --version
           pnpm --version
+          $store = (pnpm store path).Trim()
+          Write-Host "PNPM_STORE_PATH=$store"
+          Write-Host "##vso[task.setvariable variable=PNPM_STORE_PATH]$store"
         displayName: Setup pnpm
         timeoutInMinutes: 10
+
+      # rq:["reqlan rq/distribution/distribution.rq".extension_pipeline_cache]
+      - task: Cache@2
+        displayName: Cache pnpm store
+        timeoutInMinutes: 15
+        inputs:
+          key: 'pnpm | "$(Agent.OS)" | "$(Build.SourcesDirectory)/pnpm-lock.yaml"'
+          restoreKeys: |
+            pnpm | "$(Agent.OS)"
+          path: $(PNPM_STORE_PATH)
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
@@ -262,8 +327,9 @@ jobs:
           ArtifactName: reqlan-vsix
           publishLocation: Container
 
+      # rq:["reqlan rq/distribution/distribution.rq".extension_pipeline_publish]
       - task: AzureCLI@2
-        displayName: Publish extension (all targets)
+        displayName: Publish extension to Marketplace (parallel)
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 30
         inputs:
@@ -274,18 +340,34 @@ jobs:
             $ErrorActionPreference = "Stop"
             # AzureCLI@2 logs in via the ARM service connection; vsce obtains the
             # Entra ID access token for the Marketplace resource via --azure-credential.
-            Get-ChildItem packages/extension/vsix-out/*.vsix | ForEach-Object {
-              Write-Host "Publishing $($_.FullName)"
-              pnpm --filter ./packages/extension exec vsce publish --no-dependencies --packagePath $_.FullName --azure-credential
+            $vsixFiles = @(Get-ChildItem packages/extension/vsix-out/*.vsix)
+            if ($vsixFiles.Count -eq 0) {
+              throw "No VSIX files found under packages/extension/vsix-out"
+            }
+            $vsixFiles | ForEach-Object -ThrottleLimit 6 -Parallel {
+              $ErrorActionPreference = "Stop"
+              Write-Host "Publishing Marketplace $($_.FullName)"
+              & pnpm --filter ./packages/extension exec vsce publish --no-dependencies --packagePath $_.FullName --azure-credential
+              if ($LASTEXITCODE -ne 0) {
+                throw "vsce publish failed for $($_.Name) (exit $LASTEXITCODE)"
+              }
             }
 
       - pwsh: |
           $ErrorActionPreference = "Stop"
-          Get-ChildItem packages/extension/vsix-out/*.vsix | ForEach-Object {
-            Write-Host "Open VSX $($_.FullName)"
-            pnpm dlx ovsx publish $_.FullName
+          $vsixFiles = @(Get-ChildItem packages/extension/vsix-out/*.vsix)
+          if ($vsixFiles.Count -eq 0) {
+            throw "No VSIX files found under packages/extension/vsix-out"
           }
-        displayName: Publish extension to Open VSX (all targets)
+          $vsixFiles | ForEach-Object -ThrottleLimit 6 -Parallel {
+            $ErrorActionPreference = "Stop"
+            Write-Host "Publishing Open VSX $($_.FullName)"
+            & pnpm --filter ./packages/extension exec ovsx publish $_.FullName
+            if ($LASTEXITCODE -ne 0) {
+              throw "ovsx publish failed for $($_.Name) (exit $LASTEXITCODE)"
+            }
+          }
+        displayName: Publish extension to Open VSX (parallel)
         condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/ext/v'))
         timeoutInMinutes: 30
         env:

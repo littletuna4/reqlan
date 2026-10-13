@@ -573,6 +573,7 @@ comment_reference {
     Comment reference syntax is `rq:[idea]` or `rq:["path".idea]` (quoted path, optional extra qualification).
     Qualified paths use the same path forms as imports, including import-root aliases such as `@/` — ["imports.rq".configuration_import_root_alias], ["../extension/language/comment-references/functional-code-comment-references.rq".comment_reference_import_root_alias].
     Discovery skips quoted strings, including Rust raw strings (`r#"…"#`, `r##"…"##`, `br#"…"#`), so `rq:[…]` text in a string is not a live comment.
+    Editor language coverage is a blocklist, not an allowlist: ["../extension/language/comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist].
     Indexed as `comment_link` by ["../indexer/indexer.rq".index_code_files].
     Unresolved targets: [comment_reference_resolution_error].
     Indexer listing: ["../core_analysis/core.rq".test_references].
@@ -585,6 +586,7 @@ comment_reference {
         ["../../packages/language/src/reqlan-path-resolve.ts"]
         ["../../packages/extension/src/extension/register-comment-reference-links.ts"]
         ["../../packages/extension/src/extension/comment-reference-path-context.ts"]
+        ["../../packages/extension/src/extension/comment-reference-languages.ts"]
     )
     @tests (
         ["../../crates/reqlan-index/src/comment.rs:ignores_rq_inside_strings"]

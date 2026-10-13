@@ -64,7 +64,7 @@ reqlan-check-glob-patterns {
 
 idea-tooltip-file-link-accuracy {
     Superseded by ["../extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]:
-    backlink tooltip targets use the shared document-link / goto URI builder.
+    inbound inlay label `location` and tooltip targets both use the shared goto / document-link URI builder.
     @status done
     @deprecated ["../extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
 }

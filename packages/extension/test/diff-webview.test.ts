@@ -3,7 +3,11 @@
  * rq:["../../../reqlan rq/cli/diff.rq".diff_verbosity]
  */
 import { describe, expect, test } from 'vitest';
-import { diffRowView, type DiffRowInput } from '../src/index_host_module/diff/diff-row-model.js';
+import {
+    diffChangeClass,
+    diffRowView,
+    type DiffRowInput
+} from '../src/index_host_module/diff/diff-row-model.js';
 
 const created: DiffRowInput = { change: 'created', name: 'beta', file: 'reqs.rq' };
 const references: DiffRowInput = {
@@ -48,5 +52,21 @@ describe('diff webview model', () => {
         expect(view.added).toEqual([]);
         expect(view.removed).toEqual([]);
         expect(view.colorToken).toBe('gitDecoration.modifiedResourceForeground');
+    });
+
+    test('modified and moved map to their git decoration classes', () => {
+        expect(diffChangeClass('created')).toBe('kind-created');
+        expect(diffChangeClass('deleted')).toBe('kind-deleted');
+        expect(diffChangeClass('modified')).toBe('kind-modified');
+        expect(diffChangeClass('moved')).toBe('kind-moved');
+        expect(diffRowView({ change: 'modified', name: 'a', file: 'f.rq' }, 'summary').colorToken).toBe(
+            'gitDecoration.modifiedResourceForeground'
+        );
+        expect(
+            diffRowView(
+                { change: 'moved', name: 'a', file: 'b.rq', fromFile: 'a.rq' },
+                'summary'
+            ).colorToken
+        ).toBe('gitDecoration.renamedResourceForeground');
     });
 });

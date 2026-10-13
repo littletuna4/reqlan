@@ -125,10 +125,14 @@ diff_cli_color {
 diff_webview {
     Command palette title Diff Ideas, category reqlan, id `reqlan.diffIdeas` ([features_commands.command_palette]).
     The panel takes the same two targets and the same verbosity as [diff].
+    Controls sit in a sticky themed strip: From, To, Detail, Diff. Inputs and the primary button use editor input and button theme tokens.
+    Enter in a control runs Diff. The panel runs once on open with empty targets.
     Each row uses the editor git decoration colors for created, deleted, and modified, and a distinct color for moved.
-    The references level lists added and removed reference names. The text level shows the body and attributes before and after.
+    A row shows kind, idea name, and path as separate fields. Moved shows both paths.
+    The references level lists added and removed reference names. The text level shows monospaced before and after body blocks; modified uses a two-column layout when width allows.
+    Empty results say there are no idea changes. Errors use validation theme colors. Diffing disables the Diff control and shows a loading status.
     The panel calls the shared engine. It does not parse git output.
-    When a side uses a default, the panel shows the same `Comparing <from> -> <to>` header as the CLI.
+    When a side uses a default, the panel shows the same `Comparing <from> -> <to>` header as the CLI under the strip.
     @status done
     @implementation (
         ["../../packages/extension/src/index_host_module/diff/diff-panel.ts"]
@@ -140,5 +144,6 @@ diff_webview {
         ["../../packages/extension/test/diff-webview.test.ts:a created row uses the added theme token and hides the body"]
         ["../../packages/extension/test/diff-webview.test.ts:references lists added and removed names and hides the body"]
         ["../../packages/extension/test/diff-webview.test.ts:text shows the before and after body"]
+        ["../../packages/extension/test/diff-webview.test.ts:modified and moved map to their git decoration classes"]
     )
 }

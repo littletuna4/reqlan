@@ -11,7 +11,10 @@ import {
     REQLAN_REFERENCE_INLAY_HINTS_SETTING,
     type Model
 } from '@reqlan/language';
-import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from '../src/reqlan-inlay-hint-settings.js';
+import {
+    REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND,
+    REQLAN_OPEN_INBOUND_REFERENCER_COMMAND
+} from '../src/reqlan-inlay-hint-settings.js';
 import { resolvedFileLinkTargetUri } from '../src/reqlan-file-link-resolver.js';
 import {
     buildInboundReferencesInlayLabel,
@@ -214,7 +217,10 @@ describe('Reference inlay hints', () => {
             kind: 'markdown',
             value: `**Referenced by**\n\n- ${referencerMarkdownLink({
                 name: 'source',
-                location: hintLabelParts(hints![0]).find(part => part.value === 'source')!.location!
+                location: {
+                    uri: document!.uri.toString(),
+                    range: { start: { line: 4, character: 0 }, end: { line: 4, character: 6 } }
+                }
             })}`
         });
         expect(hints![0].paddingLeft).toBe(true);
@@ -274,12 +280,13 @@ describe('Reference inlay hints', () => {
 
         const formatted = buildInboundReferencesInlayLabel([referrer], 'file:///workspace/target.rq', 'target');
         const part = formatted?.labelParts.find(item => item.value === 'cli_package');
-        expect(part?.location?.uri).toBe(realUri);
-        expect(part?.location?.range).toEqual(range);
+        expect(part?.location).toBeUndefined();
+        expect(part?.command?.command).toBe(REQLAN_OPEN_INBOUND_REFERENCER_COMMAND);
+        expect(part?.command?.arguments).toEqual([realUri, 11]);
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
-    test('attaches source locations to clickable referencer label parts', async () => {
+    test('attaches open command to clickable referencer label parts', async () => {
         document = await parse(s`
             target {
                 body
@@ -298,8 +305,10 @@ describe('Reference inlay hints', () => {
         const hints = await getInlayHintsForDocument(document);
         const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
 
-        expect(sourcePart?.location?.uri).toBe(document.uri.toString());
-        expect(sourcePart?.location?.range.start.line).toBeGreaterThanOrEqual(0);
+        expect(sourcePart?.location).toBeUndefined();
+        expect(sourcePart?.command?.command).toBe(REQLAN_OPEN_INBOUND_REFERENCER_COMMAND);
+        expect(sourcePart?.command?.arguments?.[0]).toBe(document.uri.toString());
+        expect(sourcePart?.command?.arguments?.[1]).toBe(4);
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]
@@ -408,7 +417,8 @@ describe('Reference inlay hints', () => {
         expect(hints).toHaveLength(1);
         expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (source)');
         const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
-        expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
+        expect(sourcePart?.command?.command).toBe(REQLAN_OPEN_INBOUND_REFERENCER_COMMAND);
+        expect(sourcePart?.command?.arguments?.[0]).toBe(sourceDoc.uri.toString());
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
@@ -444,7 +454,8 @@ describe('Reference inlay hints', () => {
         expect(hints).toHaveLength(1);
         expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (source)');
         const sourcePart = hintLabelParts(hints![0]!).find(part => part.value === 'source');
-        expect(sourcePart?.location?.uri).toBe(sourceDoc.uri.toString());
+        expect(sourcePart?.command?.command).toBe(REQLAN_OPEN_INBOUND_REFERENCER_COMMAND);
+        expect(sourcePart?.command?.arguments?.[0]).toBe(sourceDoc.uri.toString());
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".inbound_inlay_hints_whole_graph]
@@ -480,7 +491,8 @@ describe('Reference inlay hints', () => {
         expect(hints).toHaveLength(1);
         expect(hintLabelText(hints![0]!)).toBe('@referenced-by: (shared)');
         const sharedPart = hintLabelParts(hints![0]!).find(part => part.value === 'shared');
-        expect(sharedPart?.location?.uri).toBe(sourceDoc.uri.toString());
+        expect(sharedPart?.command?.command).toBe(REQLAN_OPEN_INBOUND_REFERENCER_COMMAND);
+        expect(sharedPart?.command?.arguments?.[0]).toBe(sourceDoc.uri.toString());
     });
 
     // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".view_references_as_inlay_hints]

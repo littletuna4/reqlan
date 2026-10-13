@@ -8,16 +8,18 @@
 import * as vscode from 'vscode';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { createIgnoreErrorCodeActions } from '@reqlan/language';
-import { COMMENT_REFERENCE_LANGUAGES } from './register-comment-reference-links.js';
+import { isCommentReferenceHostLanguage } from './comment-reference-languages.js';
 import { isReqlanCommentDiagnostic } from './ignore-error-comment-filter.js';
 
 export function registerIgnoreErrorCodeActions(context: vscode.ExtensionContext): void {
-    const selector = COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file', language }));
     context.subscriptions.push(
         vscode.languages.registerCodeActionsProvider(
-            selector,
+            { scheme: 'file' },
             {
                 provideCodeActions(document, _range, actionContext) {
+                    if (!isCommentReferenceHostLanguage(document.languageId)) {
+                        return [];
+                    }
                     return commentFileIgnoreErrorCodeActions(document, actionContext);
                 }
             },

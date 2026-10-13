@@ -105,6 +105,7 @@ describe('editor reference activation', () => {
 
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resting_underline]
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist]
     test('package.json contributes comment.rq.injection', () => {
         const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
             contributes: {
@@ -119,16 +120,14 @@ describe('editor reference activation', () => {
             grammar => grammar.scopeName === 'comment.rq.injection'
         );
         expect(injection?.path).toBe('./syntaxes/reqlan-comment.injection.json');
-        expect(injection?.injectTo).toEqual([
+        expect(injection?.injectTo?.length).toBeGreaterThan(40);
+        expect(injection?.injectTo).toEqual(expect.arrayContaining([
             'source.python',
-            'source.js',
             'source.ts',
-            'source.tsx',
-            'source.java',
-            'source.go',
-            'source.rust',
-            'source.c',
-            'source.cpp'
-        ]);
+            'source.ruby',
+            'source.yaml',
+            'source.shell',
+            'text.html.markdown'
+        ]));
     });
 });

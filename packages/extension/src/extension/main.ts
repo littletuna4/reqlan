@@ -12,7 +12,7 @@ import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand } from './register-folder-reference-handling.js';
 import { registerWildcardReferenceCommand } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
-import { COMMENT_REFERENCE_LANGUAGES, registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
+import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import {
     registerDefinitionNavigation,
     withEditorNavigationMiddleware
@@ -216,9 +216,7 @@ async function startLanguageClient(
                 },
         documentSelector: [
             { scheme: '*', language: 'reqlan' },
-            ...(launch.kind === 'rust'
-                ? COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file' as const, language }))
-                : [])
+            ...(launch.kind === 'rust' ? [{ scheme: 'file' as const }] : [])
         ]
     });
 

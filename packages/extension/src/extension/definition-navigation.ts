@@ -7,9 +7,10 @@
  */
 import * as vscode from 'vscode';
 import { pickOpenWorkspaceDocument } from '../analytical_submodule/index-store/open-index-file-pick.js';
-import { COMMENT_REFERENCE_LANGUAGES } from './comment-reference-languages.js';
+import { COMMENT_REFERENCE_LANGUAGE_BLOCKLIST } from './comment-reference-languages.js';
 import {
     isNavigationTrackedLanguage,
+    isReqlanNavigationTarget,
     shouldRecordDefinitionJump,
     type EditorCaret
 } from './definition-navigation-stack.js';
@@ -20,6 +21,7 @@ export const REQLAN_CAN_NAVIGATE_BACK_CONTEXT = 'reqlan.canNavigateBack';
 export {
     caretChanged,
     isNavigationTrackedLanguage,
+    isReqlanNavigationTarget,
     shouldRecordDefinitionJump,
     type EditorCaret
 } from './definition-navigation-stack.js';
@@ -88,7 +90,12 @@ export class DefinitionNavigationStack {
             return;
         }
         const after = caretFromEditor(event.textEditor);
-        if (!this.restoring && shouldRecordDefinitionJump(event.kind, this.origin, after)) {
+        // Only record landings in `.rq` so other language servers do not fill this stack.
+        if (
+            !this.restoring
+            && isReqlanEditor(event.textEditor)
+            && shouldRecordDefinitionJump(event.kind, this.origin, after)
+        ) {
             this.stack.push(this.origin);
             void vscode.commands.executeCommand('setContext', REQLAN_CAN_NAVIGATE_BACK_CONTEXT, true);
             this.origin = after;
@@ -154,6 +161,10 @@ function isTrackedEditor(editor: vscode.TextEditor): boolean {
     return isNavigationTrackedLanguage(
         editor.document.languageId,
         editor.document.fileName,
-        COMMENT_REFERENCE_LANGUAGES
+        COMMENT_REFERENCE_LANGUAGE_BLOCKLIST
     );
+}
+
+function isReqlanEditor(editor: vscode.TextEditor): boolean {
+    return isReqlanNavigationTarget(editor.document.languageId, editor.document.fileName);
 }

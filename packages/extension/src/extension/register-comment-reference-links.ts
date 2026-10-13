@@ -16,24 +16,27 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { presentCommentReferences, type CommentReferencePresentation } from '@reqlan/language';
-import { COMMENT_REFERENCE_LANGUAGES } from './comment-reference-languages.js';
+import { isCommentReferenceHostLanguage } from './comment-reference-languages.js';
 import {
     clearCommentReferenceConfigCache,
     createCommentReferencePathContext
 } from './comment-reference-path-context.js';
 
-export { COMMENT_REFERENCE_LANGUAGES } from './comment-reference-languages.js';
+export {
+    COMMENT_REFERENCE_LANGUAGE_BLOCKLIST,
+    isCommentReferenceHostLanguage
+} from './comment-reference-languages.js';
 
 const RQ_FILE_GLOB = '**/*.rq';
 const CONFIG_FILE_GLOB = '**/.reqlan/config.json';
 const commentReferenceFileSystem = NodeFileSystem.fileSystemProvider();
+const COMMENT_HOST_SELECTOR: vscode.DocumentSelector = { scheme: 'file' };
 
 export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionContext): void {
-    const selector = COMMENT_REFERENCE_LANGUAGES.map(language => ({ scheme: 'file', language }));
     const diagnostics = vscode.languages.createDiagnosticCollection('reqlan-comment-references');
     const presentations = new Map<string, CommentReferencePresentation>();
     const refresh = (document: vscode.TextDocument): void => {
-        if (!selector.some(item => item.language === document.languageId) || document.uri.scheme !== 'file') {
+        if (document.uri.scheme !== 'file' || !isCommentReferenceHostLanguage(document.languageId)) {
             return;
         }
         const presented = presentCommentReferences(
@@ -110,9 +113,12 @@ export function registerCommentReferenceDocumentLinks(context: vscode.ExtensionC
         configWatcher.onDidCreate(onConfigChange),
         configWatcher.onDidChange(onConfigChange),
         configWatcher.onDidDelete(onConfigChange),
-        vscode.languages.registerDocumentLinkProvider(selector, {
+        vscode.languages.registerDocumentLinkProvider(COMMENT_HOST_SELECTOR, {
             provideDocumentLinks(document) {
-                if (!document.getText().includes('rq:[')) {
+                if (
+                    !isCommentReferenceHostLanguage(document.languageId)
+                    || !document.getText().includes('rq:[')
+                ) {
                     return [];
                 }
                 let presented = presentations.get(document.uri.toString());

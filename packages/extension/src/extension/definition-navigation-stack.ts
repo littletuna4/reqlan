@@ -13,16 +13,21 @@ export interface EditorCaret {
     character: number;
 }
 
-/** `.rq` editors and comment-reference host languages (source of comment rq gotos). */
+/** `.rq` editors, or any language not on the comment-host blocklist. */
 export function isNavigationTrackedLanguage(
     languageId: string,
     fileName: string,
-    commentLanguages: readonly string[]
+    blockedLanguages: readonly string[]
 ): boolean {
     if (languageId === 'reqlan' || fileName.toLowerCase().endsWith('.rq')) {
         return true;
     }
-    return commentLanguages.some(language => language === languageId);
+    return !blockedLanguages.some(blocked => blocked === languageId);
+}
+
+/** Jump landings that belong on the reqlan navigate-back stack. */
+export function isReqlanNavigationTarget(languageId: string, fileName: string): boolean {
+    return languageId === 'reqlan' || fileName.toLowerCase().endsWith('.rq');
 }
 
 export function caretChanged(before: EditorCaret, after: EditorCaret): boolean {

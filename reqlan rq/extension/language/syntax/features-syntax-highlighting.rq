@@ -149,8 +149,9 @@ editor_reference_activation {
     Definition returns `LocationLink.originSelectionRange` for that token so the editor does not invent a word from brackets or quotes.
     Path segment names inside a quoted path are not reference tokens.
     The host does not register a DefinitionProvider for other languages, and does not rescan open source files for this activation.
-    When the engine is rust, the language-server document selector includes comment languages, and definition navigates resolved `rq:[…]` sites
-    (["../comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]).
+    When the engine is rust, the language-server document selector includes all file-scheme documents except the comment-host blocklist, and definition navigates resolved `rq:[…]` sites
+    (["../comment-references/functional-code-comment-references.rq".references_in_functional_code_comments],
+    ["../comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist]).
     A web URL and a command link (folder, wildcard) stay document links.
     A click on a web URL opens that URL in the browser.
     Related: [reference_document_links], [non_web_reference_navigation], [reference_goto_definition_speed].
@@ -179,7 +180,8 @@ editor_reference_activation {
         ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:records a command selection move as a definition jump"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks comment-reference host languages for navigate-back"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:records only landings in reqlan targets"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:navigate-back keybinding is not limited to .rq editors"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_origin_is_the_lexer_token_under_the_cursor"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
@@ -473,28 +475,30 @@ view_references_as_inlay_hints {
 
 
 traceable_inlay_hints {
-  A click on one inbound referencer opens that idea.
+  A click on one inbound referencer opens that idea via `reqlan.openInboundReferencer` → host openIndexFile (same path as activity-bar / index opens).
+  The inlay label part must not use raw LSP Location for the click gesture — Cursor rejects detached file:// opens that Location would trigger.
   A click on the remainder opens the inbound summary for that idea.
-  The backlink tooltip uses the document link file target, not a bespoke `#L` string builder.
-  The Rust server emits the same markdown tooltip (["../support/language-server-rust.rq".language_server_rust]).
-  The file target comes from the shared file URI builder that gotos use.
-  A file path with a space opens that file.
+  The backlink tooltip uses the shared document-link file URI builder (encoded path, `#L` fragment).
+  The Rust server emits the same markdown tooltip and open command (["../support/language-server-rust.rq".language_server_rust]).
+  A file path with a space opens that file from the inlay click and from the tooltip.
   A directory segment "reqlan rq" opens that file.
-  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../../packages/language/src/reqlan-path-resolve.ts"], ["../../../../packages/extension/src/ideas_summary_module/register-webview.ts"], and ["../../../../crates/reqlan-lsp/src/analysis.rs"].
+  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"], ["../../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../../packages/language/src/reqlan-path-resolve.ts"], and ["../../../../crates/reqlan-lsp/src/analysis.rs"].
   @implementation (
     ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
     ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"]
+    ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"]
+    ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"]
     ["../../../../packages/language/src/reqlan-file-link-resolver.ts"]
     ["../../../../packages/language/src/reqlan-path-resolve.ts"]
-    ["../../../../packages/extension/src/ideas_summary_module/register-webview.ts"]
     ["../../../../crates/reqlan-lsp/src/analysis.rs"]
   )
   @status done
   @tests (
     ["../../../../packages/language/test/inlay-hints.test.ts"]
     ["../../../../packages/language/test/inlay-hints.test.ts:backlink tooltip opens the real file URI when the path has a space"]
+    ["../../../../packages/language/test/inlay-hints.test.ts:attaches open command to clickable referencer label parts"]
     ["../../../../crates/reqlan-lsp/tests/parity.rs:formats_inbound_referencers_as_an_inlayed_attribute"]
-    ["../../../../crates/reqlan-lsp/tests/parity.rs:backlink_tooltip_encodes_spaces_like_document_links"]
+    ["../../../../crates/reqlan-lsp/tests/parity.rs:backlink_inlay_command_and_tooltip_encode_spaces_like_gotos"]
   )
 }
 

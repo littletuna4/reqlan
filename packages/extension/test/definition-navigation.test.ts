@@ -6,10 +6,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { COMMENT_REFERENCE_LANGUAGES } from '../src/extension/comment-reference-languages.js';
+import { COMMENT_REFERENCE_LANGUAGE_BLOCKLIST } from '../src/extension/comment-reference-languages.js';
 import {
     caretChanged,
     isNavigationTrackedLanguage,
+    isReqlanNavigationTarget,
     SELECTION_KIND_COMMAND,
     shouldRecordDefinitionJump,
     type EditorCaret
@@ -59,12 +60,14 @@ describe('definition navigation stack', () => {
     });
 
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
-    test('tracks comment-reference host languages for navigate-back', () => {
-        expect(isNavigationTrackedLanguage('reqlan', 'a.rq', COMMENT_REFERENCE_LANGUAGES)).toBe(true);
-        expect(isNavigationTrackedLanguage('plaintext', 'a.rq', COMMENT_REFERENCE_LANGUAGES)).toBe(true);
-        expect(isNavigationTrackedLanguage('typescript', 'a.ts', COMMENT_REFERENCE_LANGUAGES)).toBe(true);
-        expect(isNavigationTrackedLanguage('python', 'a.py', COMMENT_REFERENCE_LANGUAGES)).toBe(true);
-        expect(isNavigationTrackedLanguage('markdown', 'a.md', COMMENT_REFERENCE_LANGUAGES)).toBe(false);
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist]
+    test('tracks non-blocklisted languages for navigate-back', () => {
+        expect(isNavigationTrackedLanguage('reqlan', 'a.rq', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
+        expect(isNavigationTrackedLanguage('plaintext', 'a.rq', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
+        expect(isNavigationTrackedLanguage('typescript', 'a.ts', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
+        expect(isNavigationTrackedLanguage('ruby', 'a.rb', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
+        expect(isNavigationTrackedLanguage('markdown', 'a.md', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
+        expect(isNavigationTrackedLanguage('log', 'a.log', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(false);
         expect(
             shouldRecordDefinitionJump(
                 SELECTION_KIND_COMMAND,
@@ -72,6 +75,14 @@ describe('definition navigation stack', () => {
                 caret('file:///reqs/b.rq', 0, 0)
             )
         ).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
+    test('records only landings in reqlan targets', () => {
+        expect(isReqlanNavigationTarget('reqlan', 'a.rq')).toBe(true);
+        expect(isReqlanNavigationTarget('plaintext', 'a.rq')).toBe(true);
+        expect(isReqlanNavigationTarget('typescript', 'a.ts')).toBe(false);
+        expect(isReqlanNavigationTarget('python', 'a.py')).toBe(false);
     });
 
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]

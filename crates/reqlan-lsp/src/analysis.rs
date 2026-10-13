@@ -2084,11 +2084,23 @@ fn inbound_tooltip(referencers: &[InboundReferencer]) -> MarkupContent {
     MarkupContent { kind: MarkupKind::Markdown, value: format!("**Referenced by**\n\n{items}") }
 }
 
-fn referencer_markdown_link(referencer: &InboundReferencer) -> String {
-    if referencer.uri.is_empty() {
-        return referencer.name.clone();
+/// File URL for an inbound referencer — same encoding as goto (`Url::from_file_path`).
+/// Inlay label clicks use this as `location`; tooltips use it via `location_url`.
+/// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+fn referencer_file_url(uri: &str) -> Option<Url> {
+    if uri.is_empty() {
+        return None;
     }
-    format!("[{}]({}#L{})", referencer.name, referencer.uri, referencer.line.saturating_add(1))
+    Some(parse_url(uri))
+}
+
+fn referencer_markdown_link(referencer: &InboundReferencer) -> String {
+    let Some(base) = referencer_file_url(&referencer.uri) else {
+        return referencer.name.clone();
+    };
+    // Document-link fragment builder; markdown `#L` is 1-based.
+    let target = location_url(&base, referencer.line.saturating_add(1));
+    format!("[{}]({})", referencer.name, target.as_str())
 }
 
 fn inlay_text(value: &str) -> InlayHintLabelPart {
@@ -2097,12 +2109,13 @@ fn inlay_text(value: &str) -> InlayHintLabelPart {
 
 fn inlay_referencer(referencer: &InboundReferencer) -> InlayHintLabelPart {
     let link = referencer_markdown_link(referencer);
-    let location = Url::parse(&referencer.uri).ok().map(|uri| Location {
-        uri,
-        range: Range {
-            start: Position { line: referencer.line, character: 0 },
-            end: Position { line: referencer.line, character: utf16_len(&referencer.name) },
-        },
+    // Command only: when Location is also set, VS Code ignores the command on click.
+    // Host `reqlan.openInboundReferencer` opens via openIndexFile (same as activity bar).
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+    let command = referencer_file_url(&referencer.uri).map(|uri| Command {
+        title: format!("Open {}", referencer.name),
+        command: "reqlan.openInboundReferencer".into(),
+        arguments: Some(vec![serde_json::json!(uri.as_str()), serde_json::json!(referencer.line)]),
     });
     InlayHintLabelPart {
         value: referencer.name.clone(),
@@ -2110,8 +2123,8 @@ fn inlay_referencer(referencer: &InboundReferencer) -> InlayHintLabelPart {
             kind: MarkupKind::Markdown,
             value: link,
         })),
-        location,
-        command: None,
+        location: None,
+        command,
     }
 }
 
@@ -2193,8 +2206,37 @@ fn location_url(uri: &Url, line: u32) -> Url {
     url
 }
 
+/// Parse a document / referencer URI.
+/// File URIs round-trip through `Url::from_file_path` (goto encoding).
+/// Unencoded `file:` paths with spaces rebuild the same way — `file:` only.
 fn parse_url(uri: &str) -> Url {
-    Url::parse(uri).unwrap_or_else(|_| Url::parse("file:///reqlan.rq").expect("static uri"))
+    if let Ok(url) = Url::parse(uri) {
+        if let Ok(path) = url.to_file_path() {
+            if let Ok(normalized) = Url::from_file_path(path) {
+                return normalized;
+            }
+        }
+        return url;
+    }
+    if let Some(path) = raw_file_uri_path(uri) {
+        if let Ok(url) = Url::from_file_path(path) {
+            return url;
+        }
+    }
+    Url::parse("file:///reqlan.rq").expect("static uri")
+}
+
+/// Filesystem path from an unencoded `file:` URI or absolute path (not remote schemes).
+fn raw_file_uri_path(uri: &str) -> Option<PathBuf> {
+    if let Some(rest) = uri.strip_prefix("file://") {
+        if rest.starts_with('/') {
+            return Some(PathBuf::from(rest));
+        }
+        let (_, path) = rest.split_once('/')?;
+        return Some(PathBuf::from(format!("/{path}")));
+    }
+    let path = PathBuf::from(uri);
+    path.is_absolute().then_some(path)
 }
 
 fn file_reference_value(path: &str, range: Range, existing: Option<PathBuf>) -> serde_json::Value {

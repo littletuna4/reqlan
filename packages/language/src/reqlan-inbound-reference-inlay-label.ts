@@ -15,7 +15,10 @@ import {
 } from 'vscode-languageserver';
 import type { IdeaDeclaration, IdeaSet } from './generated/ast.js';
 import { resolvedFileLinkTargetUri } from './reqlan-file-link-resolver.js';
-import { REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND } from './reqlan-inlay-hint-settings.js';
+import {
+    REQLAN_INBOUND_REFERENCES_SUMMARY_COMMAND,
+    REQLAN_OPEN_INBOUND_REFERENCER_COMMAND
+} from './reqlan-inlay-hint-settings.js';
 import { sharedInboundSnapshot } from './reqlan-inbound-snapshot.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { toDirectoryUri } from './reqlan-path-resolve.js';
@@ -166,10 +169,19 @@ export function buildInboundReferencesInlayLabel(
             labelParts.push(InlayHintLabelPart.create(', '));
         }
         const referrer = inlineReferencers[index]!;
+        // Command (not Location): VS Code click uses location when both are set, and
+        // raw file:// locations miss the host openIndexFile / workspace-tab path.
+        // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+        const open = referencerOpenLocation(referrer);
         labelParts.push({
             value: referrer.name,
-            location: referencerOpenLocation(referrer),
-            tooltip: referencerPartTooltip(referrer)
+            tooltip: referencerPartTooltip(referrer),
+            command: Command.create(
+                `Open ${referrer.name}`,
+                REQLAN_OPEN_INBOUND_REFERENCER_COMMAND,
+                open.uri,
+                open.range.start.line
+            )
         });
     }
 

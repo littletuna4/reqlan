@@ -500,6 +500,41 @@ fn formats_inbound_referencers_as_an_inlayed_attribute() {
     assert!(tooltip.contains("[beta](file:///beta.rq#L4)"), "{tooltip}");
 }
 
+/// oracle: inlay-hints.test.ts backlink tooltip opens the real file URI when the path has a space
+/// Inlay name click uses `reqlan.openInboundReferencer` (host openIndexFile), not Location.
+/// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".traceable_inlay_hints]
+#[test]
+fn backlink_inlay_command_and_tooltip_encode_spaces_like_gotos() {
+    let mut session = Session::new();
+    let uri = "file:///target.rq";
+    session.open(uri, "target {\n}\n".into());
+    session.set_reference_inlay_hints(true);
+    let spaced = "file:///workspace/reqlan rq/cli/cli_package.rq";
+    let encoded = Url::from_file_path("/workspace/reqlan rq/cli/cli_package.rq").unwrap();
+    session.note_inbound(
+        uri,
+        vec![("target".into(), vec![referencer("cli_package", spaced, 11)])],
+        Vec::new(),
+    );
+    let hints = session.inlays(uri);
+    let tooltip = hint_tooltip(&hints[0]);
+    let expected = format!("[cli_package]({}#L12)", encoded.as_str());
+    assert!(tooltip.contains(&expected), "{tooltip}");
+    assert!(!tooltip.contains("file:///workspace/reqlan#"), "{tooltip}");
+    assert!(!tooltip.contains("reqlan rq"), "{tooltip}");
+
+    let lsp_types::InlayHintLabel::LabelParts(parts) = &hints[0].label else {
+        panic!("label parts");
+    };
+    let part = parts.iter().find(|part| part.value == "cli_package").expect("name part");
+    assert!(part.location.is_none(), "click must use command, not Location");
+    let command = part.command.as_ref().expect("inlay open command");
+    assert_eq!(command.command, "reqlan.openInboundReferencer");
+    let args = command.arguments.as_ref().expect("command args");
+    assert_eq!(args[0], serde_json::json!(encoded.as_str()));
+    assert_eq!(args[1], serde_json::json!(11));
+}
+
 fn hint_tooltip(hint: &lsp_types::InlayHint) -> String {
     match &hint.tooltip {
         Some(lsp_types::InlayHintTooltip::MarkupContent(markup)) => markup.value.clone(),

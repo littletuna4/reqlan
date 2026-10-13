@@ -8,6 +8,7 @@ references_in_functional_code_comments {
     # This has been built to comply with a qualified comment reference — which is very important.
     ```
 
+    Editor hosts are every language except [comment_reference_language_blocklist].
     With the rust language server, a resolved `rq:[…]` site is Ctrl+click navigable via go-to-definition.
     File document links stay out of the editor (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
     Comment `rq:[…]` sites use TextMate `meta.link.reqlan markup.underline` so the resting editor shows they are link-shaped ([comment_reference_resting_underline]).
@@ -59,9 +60,10 @@ comment_reference_resting_underline {
 
 comment_reference_navigate_back {
     A go-to-definition JUMP from a comment `rq:[…]` host must push the pre-jump caret onto the same navigate-back stack as `.rq` jumps.
-    The stack tracks comment-reference host languages (["../../../../packages/extension/src/extension/comment-reference-languages.ts"]) as well as `.rq`.
+    The stack tracks every non-blocklisted language (["../../../../packages/extension/src/extension/comment-reference-languages.ts"]) as well as `.rq`.
+    Only landings in `.rq` / `reqlan` are recorded, so other language servers do not fill the stack.
     Alt+Left (`reqlan.navigateBack`) restores that caret when `reqlan.canNavigateBack` is set, in any focused editor.
-    Related: [references_in_functional_code_comments], ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
+    Related: [references_in_functional_code_comments], [comment_reference_language_blocklist], ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
 
     @status done
     @implementation (
@@ -71,9 +73,33 @@ comment_reference_navigate_back {
         ["../../../../packages/extension/package.json"]
     )
     @tests (
-        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks comment-reference host languages for navigate-back"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:records only landings in reqlan targets"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:navigate-back keybinding is not limited to .rq editors"]
+    )
+}
+
+comment_reference_language_blocklist {
+    Comment rq editor features (goto, diagnostics, ignore actions, navigate-back origin tracking) apply to every language except a small blocklist.
+    The blocklist is `reqlan` plus non-source editor buffers (log, search-result, SCM input, git commit/rebase, github-issues).
+    The rust language client uses a file-scheme document selector and skips sync for blocklisted languages.
+    TextMate resting underline injects into a wide `injectTo` scope list (best-effort; goto still works without a matching grammar scope).
+    Related: [references_in_functional_code_comments], [comment_reference_resting_underline], ["../../../language/syntax.rq".comment_reference].
+
+    @status done
+    @implementation (
+        ["../../../../packages/extension/src/extension/comment-reference-languages.ts"]
+        ["../../../../packages/extension/src/extension/main.ts"]
+        ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
+        ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
+        ["../../../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
+        ["../../../../packages/extension/package.json"]
+    )
+    @tests (
+        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
+        ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
+        ["../../../../packages/extension/test/comment-reference-languages.test.ts:blocklist excludes reqlan and editor chrome"]
     )
 }
 

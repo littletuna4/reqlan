@@ -22,6 +22,18 @@ export const DIFF_COLOR_TOKEN: Record<DiffChange, string> = {
     moved: 'gitDecoration.renamedResourceForeground'
 };
 
+/** CSS class for a change kind in the Diff Ideas panel. */
+export const DIFF_CHANGE_CLASS: Record<DiffChange, string> = {
+    created: 'kind-created',
+    deleted: 'kind-deleted',
+    modified: 'kind-modified',
+    moved: 'kind-moved'
+};
+
+export function diffChangeClass(change: DiffChange): string {
+    return DIFF_CHANGE_CLASS[change];
+}
+
 export interface DiffRowView {
     change: DiffChange;
     name: string;

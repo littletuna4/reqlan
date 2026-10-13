@@ -189,7 +189,9 @@ function runVsce(args) {
 }
 
 function runOvsx(vsixPath) {
-    const result = spawnSync('pnpm', ['dlx', 'ovsx', 'publish', vsixPath], {
+    // Workspace-devDependency `ovsx` (same as Azure). Do not `pnpm dlx` per VSIX.
+    // rq:["../reqlan rq/distribution/distribution.rq".extension_pipeline_publish]
+    const result = spawnSync('pnpm', ['exec', 'ovsx', 'publish', vsixPath], {
         cwd: extensionDir,
         stdio: 'inherit',
         shell: process.platform === 'win32',

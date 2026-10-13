@@ -7,3 +7,4 @@
 - strictly type - don't use unsafe fallbacks or unkown.
 - User's stated intent and validation passes are secondary to doing things properly and with future clarity and graph hygeine in mind.
 - requirements are single source of sytnax truth, parser is single source of implementation. 
+- code removal without is rewarded

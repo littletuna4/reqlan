@@ -210,6 +210,37 @@ describe("native platform packaging", () => {
     expect(site).toContain("REQLAN_FORCE_NATIVE_BUILD");
   });
 
+  // rq:["../../../reqlan rq/distribution/distribution.rq".extension_pipeline_cache]
+  // rq:["../../../reqlan rq/distribution/distribution.rq".extension_pipeline_publish]
+  test("Azure extension pipeline caches rust and pnpm and publishes in parallel", () => {
+    const azure = readFileSync(join(root, "azure-pipelines.yml"), "utf8");
+    expect(azure).toContain("Cache@2");
+    expect(azure).toContain("Cache rustup + cargo home");
+    expect(azure).toContain("Cache cargo target");
+    expect(azure).toContain("Cache pnpm store");
+    expect(azure).toContain("CARGO_HOME");
+    expect(azure).toContain("RUSTUP_HOME");
+    expect(azure).toContain("--no-modify-path");
+    expect(azure).toMatch(/!\s*-x\s+"\$CARGO_HOME\/bin\/rustc"/);
+    expect(azure).toContain("ForEach-Object -ThrottleLimit 6 -Parallel");
+    expect(azure).toContain("pnpm --filter ./packages/extension exec ovsx publish");
+    expect(azure).not.toContain("pnpm dlx ovsx");
+
+    const packScript = readFileSync(
+      join(root, "scripts/package-extension-targets.mjs"),
+      "utf8",
+    );
+    expect(packScript).toContain("pnpm', ['exec', 'ovsx', 'publish'");
+    expect(packScript).not.toMatch(/\[['"]dlx['"]/);
+    expect(azure).not.toMatch(/pnpm\s+dlx\s+ovsx/);
+
+    const extPkg = JSON.parse(
+      readFileSync(join(root, "packages/extension/package.json"), "utf8"),
+    ) as { devDependencies: Record<string, string> };
+    expect(extPkg.devDependencies.ovsx).toBeTruthy();
+    expect(extPkg.devDependencies["@vscode/vsce"]).toBeTruthy();
+  });
+
   // rq:["../../../reqlan rq/distribution/distribution.rq".npm_distribution]
   // rq:["../../../reqlan rq/distribution/distribution.rq".rust_binary_distribution]
   test("deploy-npm publishes platform packages before @reqlan/analytical", () => {
