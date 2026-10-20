@@ -1,0 +1,16 @@
+markdown-rendering-in-html-export {
+    Exported html should fully render any refernced markdown content if reqlan is not expressive enough.
+    Including images, tables, katex, mermaid and other markdown extensions
+    @status plan and triage
+}
+
+scoring-on-depth-basis {
+    support for a depth score attribute
+    and search weighting on the basis of file depth and idea in file count
+    @status plan and triage
+}
+
+markdown-to-reqlan-and-markdown-to-markdown-support {
+    per title
+    @status plan and triage
+}
