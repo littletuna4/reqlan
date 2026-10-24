@@ -1,5 +1,18 @@
 # @reqlan/cli
 
+## 0.15.4
+
+### Patch Changes
+
+- 3bdbb10: `reqlan check` reports a qualified reference when the `.rq` file is missing. The language server reports that same target as an unresolved idea. A missing file does not also report a missing idea.
+- 3bdbb10: Build one bounded `CheckIndex` snapshot per `reqlan check` run and split the check engine into modular submodules under `reqlan-index::check`.
+- 3bdbb10: `reqlan check` accepts a code-symbol target and does not parse that target as a requirement file. The parser stops when a list makes no progress, so the check does not run out of memory.
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+  - @reqlan/analytical@1.20.0
+
 ## 0.15.3
 
 ### Patch Changes

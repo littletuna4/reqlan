@@ -1,5 +1,16 @@
 # @reqlan/language
 
+## 1.15.4
+
+### Patch Changes
+
+- 3bdbb10: Build one bounded `CheckIndex` snapshot per `reqlan check` run and split the check engine into modular submodules under `reqlan-index::check`.
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+  - @reqlan/analytical@1.20.0
+
 ## 1.15.3
 
 ### Patch Changes

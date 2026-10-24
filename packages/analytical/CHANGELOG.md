@@ -1,5 +1,56 @@
 # @reqlan/analytical
 
+## 1.20.0
+
+### Minor Changes
+
+- 3bdbb10: Added the ability to filter exported nodes by the presence or value of their
+  `attributes`. When the user supplies one or more `AttributeFilter` rules, the
+  Rust `ExportRequest.attribute_filters` vector is forwarded through the analysis
+  layer and used inside `filter_export_ideas` to keep only ideas whose attributes
+  satisfy every rule (present, absent, or equal to a given value).
+
+  ## Backwards incompatible changes
+
+  None.
+
+  ## Fixed
+
+  - `crates/reqlan-export/src/snapshot.rs`: `filter_export_ideas` now accepts the
+    raw per-idea attribute JSON map and applies `AttributeFilter` rules instead of
+    only excluding secret / ignored files.
+  - Updated the Rust `ExportRequest`, `ExportRequestDto`, specta-generated TS
+    types, and the `NativeAnalysisApi.exportFormat` builder to carry
+    `attribute_filters` end to end.
+
+  ## Added
+
+  - `packages/analytical/src/core/attribute-enumeration.ts` and its test —
+    enumerate the attribute keys used across a project.
+  - `reqlan rq/extension/attribute-enumeration.rq` requirements doc.
+  - `ExportRequest.attributeFilters: AttributeFilter[]` on the TypeScript `ExportRequest`.
+
+  ## Changed
+
+  - Export pipeline now receives explicit attribute filters at both the Rust
+    engine and the TypeScript API surfaces.
+
+  ## Removed
+
+  - Nothing removed.
+
+  ## Additional information
+
+  The current export command and extension UI pass `attributeFilters` through
+  transparently; interactive UI picking attribute keys/values/presence is
+  planned as a follow-up. Existing build and export tests remain green.
+
+### Patch Changes
+
+- 3bdbb10: `reqlan check` reports a qualified reference when the `.rq` file is missing. The language server reports that same target as an unresolved idea. A missing file does not also report a missing idea.
+- 3bdbb10: Build one bounded `CheckIndex` snapshot per `reqlan check` run and split the check engine into modular submodules under `reqlan-index::check`.
+- 3bdbb10: `reqlan check` accepts a code-symbol target and does not parse that target as a requirement file. The parser stops when a list makes no progress, so the check does not run out of memory.
+
 ## 1.19.3
 
 ### Patch Changes

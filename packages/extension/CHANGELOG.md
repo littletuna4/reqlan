@@ -1,5 +1,24 @@
 # reqlan-extension
 
+## 1.19.4
+
+### Patch Changes
+
+- 3bdbb10: `reqlan check` reports a qualified reference when the `.rq` file is missing. The language server reports that same target as an unresolved idea. A missing file does not also report a missing idea.
+- 3bdbb10: Build one bounded `CheckIndex` snapshot per `reqlan check` run and split the check engine into modular submodules under `reqlan-index::check`.
+- 3bdbb10: A Quick Fix can create every unresolved local idea in the current file, or write them into one new file and import them.
+- 3bdbb10: The language server applies each edit as a range instead of replacing the whole file on every keystroke. Open and close still send the full buffer, and the server reparses that buffer after the edits.
+- 3bdbb10: Path completion keeps its ranked file list and filters that list on the next keystroke. Find references, rename, and import fixes look up one idea name instead of loading the whole index. Workspace search reports progress when the percentage changes, not once per idea.
+- 3bdbb10: Expand Selection in `.rq` files follows the parse. A reference name grows through the bracket reference, the body line, and the enclosing idea. An attribute name grows through `@name`, the attribute, and the enclosing idea.
+- 3bdbb10: Semantic tokens now colour `import`, `from`, and `as`, and each name in a file-symbol reference. The editor maps those token types to the existing TextMate scopes.
+- 3bdbb10: `reqlan check` accepts a code-symbol target and does not parse that target as a requirement file. The parser stops when a list makes no progress, so the check does not run out of memory.
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+- Updated dependencies [3bdbb10]
+  - @reqlan/analytical@1.20.0
+  - @reqlan/language@1.15.4
+
 ## 1.19.3
 
 ### Patch Changes
