@@ -60,6 +60,8 @@ pub struct ExportRequest {
     pub include_attribute_pages: bool,
     #[serde(default = "default_true")]
     pub include_print_pages: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attribute_filters: Vec<AttributeFilter>,
     #[serde(default)]
     pub max_graph_nodes: Option<usize>,
     #[serde(default)]
@@ -91,6 +93,7 @@ impl Default for ExportRequest {
             include_cluster_pages: true,
             include_attribute_pages: true,
             include_print_pages: true,
+            attribute_filters: Vec::new(),
             max_graph_nodes: None,
             url_base: None,
             header_link: None,
@@ -273,6 +276,20 @@ impl ExportIdea {
     pub fn outbound_count(&self) -> usize {
         self.references.outbound.len()
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeFilter {
+    pub key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(default = "default_false")]
+    pub not_present: bool,
+}
+
+fn default_false() -> bool {
+    false
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

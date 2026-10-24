@@ -1,5 +1,3 @@
-from "../../bases/base.rq" import base_configuration
-
 configuration_location {
     An optional `.reqlan/config.json` may appear under a base's `.reqlan` directory.
     For a given `.rq` file, the applying base is the nearest ancestor directory that owns a `.reqlan` folder.
@@ -72,7 +70,7 @@ configuration_import_roots {
         ["../../../packages/extension/schemas/config.schema.json"]
         ["../../../crates/reqlan-parse/src/path.rs"]
         ["../../../crates/reqlan-index/src/path_resolve.rs"]
-        ["../../../crates/reqlan-index/src/broken.rs"]
+        ["../../../crates/reqlan-index/src/check/mod.rs"]
         ["../../../crates/reqlan-index/src/sync.rs"]
         ["../../../crates/reqlan-lsp/src/analysis.rs"]
         ["../../../crates/reqlan-lsp/src/session.rs"]
@@ -112,29 +110,22 @@ configuration_import_roots {
     )
 }
 
-configuration_rqignore {
-    Each base may define path ignore rules in `.reqlan/.rqignore` using **gitignore syntax**.
-    Patterns are relative to the base root (parent of `.reqlan`), not the `.reqlan` directory.
-    Owned by `@reqlan/analytical` so the CLI, MCP, and extension share one filter for discovery and indexing walks.
-    Built-in defaults always apply (dependencies, venvs, build output, VCS/editor stores, `*.db3` / sqlite DBs and SQLite sidecars, binary globs per ["../index-host/index.rq".binary_ignore], files that have no comments per ["../index-host/index.rq".commentless_file_ignore], `*.secret.rq`, hidden entries, and `.reqlan/` itself); the on-disk file adds or overrides via the same syntax, including `!` negation.
-    New bases seed `.reqlan/.rqignore` with those defaults (["../index-host/index.rq".rqignore]).
-    Missing or unreadable `.rqignore` still uses built-in defaults.
-    Location convention: [configuration_location]. Application memory: ["../index-host/index.rq".application_memory].
+unused_imports {
+    An optional per-base control for how to treat import bindings that are never referenced by any local reference.
+    Values:
+    - "warn" (default) — emit a warning diagnostic with `DiagnosticTag.Unnecessary` so the editor dims/fades the line
+    - "error" — emit an error diagnostic
+    - "off" — suppress the diagnostic entirely
+    Matches the [configuration_import_roots] discovery rule: the applying `.reqlan/config.json` is loaded per source file via [configuration_location]; if the owning base has no `unusedImports`, the default "warn" applies.
+    Related: [configuration_import_roots], [configuration_location], [configuration_schema_file].
+
+    @status in-progress
     @implementation (
-        ["../../../packages/analytical/src/core/rqignore.ts"]
-        ["../../../packages/analytical/src/core/application-memory.ts"]
-        ["../../../packages/analytical/src/core/create-base.ts"]
-        ["../../../packages/analytical/src/core/base-discovery.ts"]
-        ["../../../packages/analytical/src/index-store/workspace-index.ts"]
+        ["../../../packages/extension/schemas/config.schema.json"]
+        ["../../../packages/language/src/reqlan-path-resolve.ts"]
+        ["../../../crates/reqlan-index/src/path_resolve.rs"]
+        ["../../../packages/cli/src/commands/check.ts"]
     )
-    @tests (
-        ["../../../packages/analytical/test/rqignore.test.ts"]
-        ["../../../packages/analytical/test/rqignore.test.ts:inverse rqignore patterns opt binary files back in"]
-        ["../../../packages/analytical/test/create-base.test.ts:seeds .reqlan/.rqignore when creating a new base"]
-        ["../../../packages/analytical/test/base-discovery.test.ts:skips node_modules and does not treat .reqlan as a walkable base root"]
-        ["../../../packages/analytical/test/workspace-index.test.ts:skips .rq files under rqignore patterns"]
-    )
-    @status done
 }
 
 ai_naming {

@@ -1,5 +1,5 @@
 from "../../../ontology.rq" import referenced_files
-from "@/reqlan rq/extension/presentation/graph.rq" import graph_library, graph_cy_controller, graph_cytoscape, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
+from "@/reqlan rq/extension/presentation/graph.rq" import graph_library, graph_cy_controller, layout_physics, layout_options, physics_options, compound_graph, view_controls, reframe_view, manual_reframe, auto_reframe, reframe_animation, webview_threading, graph_labels, graph_label_modes, graph_label_auto, graph_status_tag_filters
 from "./webview.rq" import ideas_summary
 from "../../../core_analysis/html_export.rq" import html_export_graph_page
 

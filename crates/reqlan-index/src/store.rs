@@ -6,7 +6,8 @@ use crate::queries;
 use crate::schema::{version_migrations, BASE_MIGRATIONS, SCHEMA_VERSION};
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{
-    to_summary, EdgeKind, EdgeRecord, IdeaKind, IdeaRecord, IdeaSummary, IndexedDocument,
+    to_summary, EdgeKind, EdgeRecord, IdeaKind, IdeaNameRow, IdeaRecord, IdeaSummary,
+    IndexedDocument,
 };
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use serde_json::Value as JsonValue;
@@ -224,6 +225,53 @@ impl IndexStore {
         Ok(self.all_idea_records()?.iter().map(to_summary).collect())
     }
 
+    /// Ideas with this exact name. Uses `idx_ideas_name`.
+    pub fn ideas_named(&self, name: &str) -> Result<Vec<IdeaNameRow>, StoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, kind, file_uri, line_start FROM ideas WHERE name = ?1")?;
+        let rows = stmt.query_map([name], map_name_row)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    /// A bounded name prefix. An empty prefix returns the first `limit` names.
+    pub fn idea_names_with_prefix(
+        &self,
+        prefix: &str,
+        limit: usize,
+    ) -> Result<Vec<IdeaNameRow>, StoreError> {
+        let limit = limit as i64;
+        if prefix.is_empty() {
+            let mut stmt = self.conn.prepare(
+                "SELECT name, kind, file_uri, line_start FROM ideas ORDER BY name LIMIT ?1",
+            )?;
+            let rows = stmt.query_map([limit], map_name_row)?;
+            return rows.collect::<Result<Vec<_>, _>>().map_err(Into::into);
+        }
+        let Some(end) = prefix_upper_bound(prefix) else {
+            let mut stmt = self.conn.prepare(
+                "SELECT name, kind, file_uri, line_start FROM ideas
+                 WHERE name >= ?1 ORDER BY name LIMIT ?2",
+            )?;
+            let rows = stmt.query_map(rusqlite::params![prefix, limit], map_name_row)?;
+            return rows.collect::<Result<Vec<_>, _>>().map_err(Into::into);
+        };
+        let mut stmt = self.conn.prepare(
+            "SELECT name, kind, file_uri, line_start FROM ideas
+             WHERE name >= ?1 AND name < ?2 ORDER BY name LIMIT ?3",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![prefix, end, limit], map_name_row)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
+    /// Idea and edge totals via SQL `COUNT(*)` — never materialises the tables.
+    /// Counting by row length would load every idea and edge into memory.
+    pub fn counts(&self) -> Result<(usize, usize), StoreError> {
+        let ideas: i64 = self.conn.query_row("SELECT COUNT(*) FROM ideas", [], |row| row.get(0))?;
+        let edges: i64 = self.conn.query_row("SELECT COUNT(*) FROM edges", [], |row| row.get(0))?;
+        Ok((ideas.max(0) as usize, edges.max(0) as usize))
+    }
+
     pub fn all_idea_records(&self) -> Result<Vec<IdeaRecord>, StoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, name, kind, file_uri, line_start, line_end, summary, attributes_json, content_hash,
@@ -294,19 +342,6 @@ impl IndexStore {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
-    pub fn list_unresolved_idea_edges(&self) -> Result<Vec<(EdgeRecord, IdeaSummary)>, StoreError> {
-        let mut out = Vec::new();
-        for edge in self.get_all_edges()? {
-            if edge.is_resolved != Some(false) {
-                continue;
-            }
-            if let Some(idea) = self.get_idea(&edge.source_id)? {
-                out.push((edge, idea));
-            }
-        }
-        Ok(out)
-    }
-
     fn query_edges<P: rusqlite::Params>(
         &self,
         sql: &str,
@@ -353,6 +388,16 @@ impl IndexStore {
 
     pub fn connection(&self) -> &Connection {
         &self.conn
+    }
+
+    /// Checkpoint the WAL and close the SQLite handle deterministically.
+    /// Dropping the store also closes the handle, but only implicitly and
+    /// without reporting errors. Explicit close releases the file lock as
+    /// soon as it is called, so the artifact can be replaced or deleted.
+    /// rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+    pub fn close(self) -> Result<(), StoreError> {
+        let _ = self.conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+        self.conn.close().map_err(|(_, error)| StoreError::Sqlite(error))
     }
 
     // ---- webview table/graph query surface (see queries.rs) --------------------
@@ -476,6 +521,26 @@ pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
         params![SCHEMA_VERSION.to_string()],
     )?;
     Ok(())
+}
+
+fn map_name_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<IdeaNameRow> {
+    Ok(IdeaNameRow {
+        name: row.get(0)?,
+        kind: IdeaKind::parse(&row.get::<_, String>(1)?),
+        file_uri: row.get(2)?,
+        line_start: row.get(3)?,
+    })
+}
+
+fn prefix_upper_bound(prefix: &str) -> Option<String> {
+    let mut chars: Vec<char> = prefix.chars().collect();
+    while let Some(last) = chars.pop() {
+        if let Some(next) = char::from_u32(u32::from(last).checked_add(1)?) {
+            chars.push(next);
+            return Some(chars.into_iter().collect());
+        }
+    }
+    None
 }
 
 fn map_idea(row: &rusqlite::Row<'_>) -> rusqlite::Result<IdeaRecord> {

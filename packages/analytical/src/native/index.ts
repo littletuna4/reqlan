@@ -6,6 +6,13 @@
 export { createBase } from '../core/create-base.js';
 export type { CreateBaseResult } from '../core/create-base.js';
 export { barrelPage, planBarrelPage, rewriteSiblingRefs } from '../core/barrel-page.js';
+export { planIdeaDelete, planIdeaMove } from '../core/idea-refactor-plan.js';
+export type {
+    PlanIdeaMoveOptions,
+    PlannerDocumentEdits,
+    PlannerFileText,
+    PlannerTextEdit
+} from '../core/idea-refactor-plan.js';
 export type {
     BarrelPageChildPlan,
     BarrelPageOptions,

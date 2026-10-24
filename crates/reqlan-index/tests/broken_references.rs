@@ -15,8 +15,9 @@
 use reqlan_index::sync::{sync_workspace, SyncOptions};
 use reqlan_index::{
     check_references, extract_indexed_document, list_broken_references, path_glob_matches,
-    path_glob_may_match_under, CheckReferencesOptions, EdgeKind, EdgeRecord, ExtractOptions,
-    IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling, EXTRACT_VERSION,
+    path_glob_may_match_under, BrokenReference, CheckReferencesOptions, EdgeKind, EdgeRecord,
+    ExtractOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
+    EXTRACT_VERSION,
 };
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -59,6 +60,15 @@ fn run_check(
         .unwrap()
 }
 
+/// Lists broken references through the bounded check index.
+fn list_refs(
+    store: &IndexStore,
+    root: &std::path::Path,
+    options: ListBrokenReferencesOptions<'_>,
+) -> Vec<BrokenReference> {
+    list_broken_references(store, root, options).unwrap()
+}
+
 fn sparse_host(label: &str) -> (PathBuf, IndexStore) {
     let root = scratch(label);
     std::fs::create_dir_all(root.join("mods")).unwrap();
@@ -98,7 +108,7 @@ fn lists_broken_idea_references_and_filters_by_glob() {
     std::fs::write(root.join("reqs").join("host.rq"), "host {\n    [missing_idea]\n}\n").unwrap();
     std::fs::write(root.join("other").join("side.rq"), "side {\n    [also_missing]\n}\n").unwrap();
     let store = sync_root(&root);
-    let all = list_broken_references(
+    let all = list_refs(
         &store,
         &root,
         ListBrokenReferencesOptions {
@@ -106,12 +116,11 @@ fn lists_broken_idea_references_and_filters_by_glob() {
             include_comment_references: false,
             ..Default::default()
         },
-    )
-    .unwrap();
+    );
     assert!(all.iter().any(|row| row.label == "missing_idea" && row.file_uri == "reqs/host.rq"));
     assert!(all.iter().any(|row| row.label == "also_missing"));
 
-    let scoped = list_broken_references(
+    let scoped = list_refs(
         &store,
         &root,
         ListBrokenReferencesOptions {
@@ -119,8 +128,7 @@ fn lists_broken_idea_references_and_filters_by_glob() {
             include_comment_references: false,
             ..Default::default()
         },
-    )
-    .unwrap();
+    );
     assert_eq!(scoped.len(), 1);
     assert_eq!(scoped[0].label, "missing_idea");
     assert!(scoped.iter().all(|row| row.kind != "comment_link"));
@@ -138,7 +146,7 @@ fn optionally_includes_broken_comment_references() {
     )
     .unwrap();
     let store = sync_root(&root);
-    let without_comments = list_broken_references(
+    let without_comments = list_refs(
         &store,
         &root,
         ListBrokenReferencesOptions {
@@ -146,11 +154,10 @@ fn optionally_includes_broken_comment_references() {
             include_comment_references: false,
             ..Default::default()
         },
-    )
-    .unwrap();
+    );
     assert!(without_comments.iter().all(|row| row.kind != "comment_link"));
 
-    let with_comments = list_broken_references(
+    let with_comments = list_refs(
         &store,
         &root,
         ListBrokenReferencesOptions {
@@ -158,8 +165,7 @@ fn optionally_includes_broken_comment_references() {
             include_comment_references: true,
             ..Default::default()
         },
-    )
-    .unwrap();
+    );
     assert_eq!(with_comments.len(), 1);
     assert_eq!(with_comments[0].kind, "comment_link");
     assert_eq!(with_comments[0].label, "missing_from_comments");
@@ -212,12 +218,47 @@ fn check_reports_qualified_reference_to_a_missing_file() {
 }
 
 #[test]
+fn check_reports_qualified_reference_to_a_missing_rq_file() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+    let root = scratch("qual-missing-rq");
+    std::fs::write(root.join("host.rq"), "host {\n    [\"non-existant-file.rq\".idea]\n}\n")
+        .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(
+        rows.iter()
+            .any(|row| { row.kind == "file_reference" && row.label == "non-existant-file.rq" }),
+        "{rows:?}"
+    );
+    assert!(rows.iter().all(|row| row.kind != "references"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn check_accepts_qualified_reference_when_the_file_exists() {
     // rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
     let root = scratch("qual-exists");
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(root.join("src").join("app.ts"), "export const term = 1;\n").unwrap();
     std::fs::write(root.join("host.rq"), "host {\n    [\"./src/app.ts\".term]\n}\n").unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    assert!(rows.is_empty(), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/check_oom.rq".qualified_idea_targets_are_rq_only]
+#[test]
+fn check_accepts_code_symbol_targets_without_parsing_them_as_requirements() {
+    let root = scratch("qualified-code-symbol");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(
+        root.join("src/component.tsx"),
+        "function render() {\n    return (\n        <For each={nodes}>\n            {(node) => {\n                return (\n                    <Show when={node.visible} keyed>\n                        {(anchor) => (\n                            <div\n                                style={{ left: anchor.x, top: anchor.y }}\n                                active={node.active && anchor.ready}\n                            />\n                        )}\n                    </Show>\n                );\n            }}\n        </For>\n    );\n}\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("host.rq"), "host {\n    [\"./src/component.tsx\".render]\n}\n")
+        .unwrap();
     let store = sync_root(&root);
     let rows = run_check(&store, &root, None);
     assert!(rows.is_empty(), "{rows:?}");

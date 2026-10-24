@@ -1,4 +1,3 @@
-import "../../index-host/graph-analysers.rq" as graph_analysers
 import "../../../indexer/indexer.rq" as indexer
 import "../../presentation/graph.rq" as graph_lib
 import "../../workspace-summary/ideas_summary/graphical_graph.rq" as graphical_graph_doc

@@ -55,7 +55,9 @@ export type EdgeDto = { id: string; sourceId: string; targetId?: string | null; 
 
 export type ExportHeaderLinkDto = { href: string; label: string }
 
-export type ExportRequestDto = { format: string; outputDir: string; exportName: string; workspaceRoot?: string | null; templateId?: string; scope?: string; sourceFileUri?: string | null; includeRequirementsPage?: boolean; includeGraphPage?: boolean; printEntryFileName?: string; excludeSecretFiles?: boolean; excludeIgnoredFiles?: boolean; runtimeMode?: string; clusterStrategy?: string; includeIdeaPages?: boolean; includeFilePages?: boolean; includeCodeFilePages?: boolean; includeClusterPages?: boolean; includeAttributePages?: boolean; includePrintPages?: boolean; maxGraphNodes?: number | null; urlBase?: string | null; headerLink?: ExportHeaderLinkDto | null }
+export type AttributeFilter = { key: string; value?: string | null; notPresent?: boolean }
+
+export type ExportRequestDto = { format: string; outputDir: string; exportName: string; workspaceRoot?: string | null; templateId?: string; scope?: string; sourceFileUri?: string | null; includeRequirementsPage?: boolean; includeGraphPage?: boolean; printEntryFileName?: string; excludeSecretFiles?: boolean; excludeIgnoredFiles?: boolean; runtimeMode?: string; clusterStrategy?: string; includeIdeaPages?: boolean; includeFilePages?: boolean; includeCodeFilePages?: boolean; includeClusterPages?: boolean; includeAttributePages?: boolean; includePrintPages?: boolean; attributeFilters?: AttributeFilter[]; maxGraphNodes?: number | null; urlBase?: string | null; headerLink?: ExportHeaderLinkDto | null }
 
 export type ExportResultDto = { outputDir: string; indexFilePath: string; printFilePath: string; dataFilePath: string }
 

@@ -4,21 +4,29 @@
 //! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
 //! rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
 use crate::analysis::{
-    line_range, rename_edits, resolve_neighbor_file, AttributeCatalog, DocModel, InboundReferencer,
+    authored_path_span, file_landing_range, ident_span_from, line_range, location_url,
+    rename_edits, resolve_neighbor_file, span_has, AttributeCatalog, DocModel, InboundReferencer,
 };
-use crate::code_actions::SymbolHit;
+use crate::code_actions::{import_fix_names, plan_from_import_edit, SymbolHit};
+use crate::duty::{Checkpoint, Idle, Stopped};
+use crate::path_completion::{
+    collect_path_items, detect_site, file_symbols, relative_path_between, CompletionSite,
+    FileSymbols, PathCompletionCache, PathEdit,
+};
 use crate::utf16::LineMap;
 use lsp_types::{
-    CodeActionOrCommand, CodeLens, Command, CompletionItem, Diagnostic, DiagnosticSeverity,
-    DocumentHighlight, DocumentLink, GotoDefinitionResponse, Hover, InlayHint, Location,
-    LocationLink, NumberOrString, Position, Range, SemanticTokens, TextEdit, Url, WorkspaceEdit,
+    CodeActionOrCommand, CodeLens, Command, CompletionItem, CompletionItemKind, CompletionList,
+    CompletionTextEdit, Diagnostic, DiagnosticSeverity, DocumentHighlight, DocumentLink,
+    GotoDefinitionResponse, Hover, InlayHint, Location, LocationLink, NumberOrString, Position,
+    Range, SelectionRange, SemanticTokens, TextDocumentContentChangeEvent, TextEdit, Url,
+    WorkspaceEdit,
 };
 use reqlan_index::{
     find_applying_base_root, find_comment_references_in_text, find_rq_ignore_error_target_lines,
     idea_id, IdeaKind, IndexStore,
 };
 use reqlan_parse::{
-    import_path_candidates, parse_document, resolve_rq_path, ImportRootMapping, Model,
+    import_path_candidates, parse_document, resolve_rq_path, ImportRootMapping, Model, Span,
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -71,12 +79,15 @@ pub struct Session {
     file_referencers: HashMap<String, Vec<InboundReferencer>>,
     /// Host push of idea names for unresolved-reference quick fixes and completion.
     name_catalog: Vec<SymbolHit>,
+    catalog_by_name: HashMap<String, Vec<usize>>,
+    catalog_by_path: HashMap<PathBuf, Vec<usize>>,
     /// Host push of attribute keys and values for completion.
     attribute_catalog: AttributeCatalog,
     /// When true, a hover shows the styled idea body. Default is on.
     idea_content_tooltip: bool,
     /// When true, emit inbound reference inlay hints. Default is off (matches VS Code setting).
     reference_inlay_hints: bool,
+    path_cache: PathCompletionCache,
 }
 
 impl Session {
@@ -90,10 +101,17 @@ impl Session {
             inbound_names: HashMap::new(),
             file_referencers: HashMap::new(),
             name_catalog: Vec::new(),
+            catalog_by_name: HashMap::new(),
+            catalog_by_path: HashMap::new(),
             attribute_catalog: AttributeCatalog::endorsed(),
             idea_content_tooltip: true,
             reference_inlay_hints: false,
+            path_cache: PathCompletionCache::new(),
         }
+    }
+
+    pub fn path_completion_directory_reads(&self) -> u64 {
+        self.path_cache.directory_reads()
     }
 
     pub fn set_idea_content_tooltip(&mut self, enabled: bool) {
@@ -106,6 +124,14 @@ impl Session {
 
     pub fn note_name_catalog(&mut self, entries: Vec<SymbolHit>) {
         self.name_catalog = entries;
+        self.catalog_by_name.clear();
+        self.catalog_by_path.clear();
+        for (index, hit) in self.name_catalog.iter().enumerate() {
+            self.catalog_by_name.entry(hit.name.clone()).or_default().push(index);
+            if let Some(path) = path_of_file(&hit.file_uri) {
+                self.catalog_by_path.entry(path).or_default().push(index);
+            }
+        }
     }
 
     pub fn note_attribute_catalog(&mut self, catalog: AttributeCatalog) {
@@ -177,6 +203,43 @@ impl Session {
         self.documents.insert(uri.to_string(), OpenDoc { model, path: doc.path });
     }
 
+    /// Splice incremental `didChange` edits, then reparse the whole buffer.
+    /// An empty batch leaves the buffer. A ranged edit for a URI that is not open is dropped.
+    /// A rangeless edit for an unknown URI opens that text.
+    /// `.rq` buffers keep import roots via [Session::change]. Comment buffers go through [Session::open].
+    /// rq:["../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync]
+    pub fn apply_content_changes(
+        &mut self,
+        uri: &str,
+        changes: &[TextDocumentContentChangeEvent],
+    ) -> bool {
+        if changes.is_empty() {
+            return false;
+        }
+        let Some(current) = self.buffer_text(uri) else {
+            if changes[0].range.is_some() {
+                return false;
+            }
+            let text = crate::utf16::apply_content_changes("", changes);
+            self.open(uri, text);
+            return true;
+        };
+        let text = crate::utf16::apply_content_changes(&current, changes);
+        if self.documents.contains_key(uri) {
+            self.change(uri, text);
+        } else {
+            self.open(uri, text);
+        }
+        true
+    }
+
+    fn buffer_text(&self, uri: &str) -> Option<String> {
+        if let Some(doc) = self.documents.get(uri) {
+            return Some(doc.model.text.clone());
+        }
+        self.comments.get(uri).map(|doc| doc.text.clone())
+    }
+
     pub fn close(&mut self, uri: &str) {
         self.documents.remove(uri);
         self.comments.remove(uri);
@@ -196,20 +259,37 @@ impl Session {
 
     /// Hot-path diagnostics: this buffer plus import neighbors. No path-qualified confirm.
     pub fn diagnostics_hot(&mut self, uri: &str) -> Vec<Diagnostic> {
-        self.diagnostics_with(uri, false)
+        self.diagnostics_with(uri, false, &mut Idle).unwrap_or_default()
     }
 
     /// Full diagnostics after qualified neighbor confirm.
     pub fn diagnostics(&mut self, uri: &str) -> Vec<Diagnostic> {
-        self.diagnostics_with(uri, true)
+        self.diagnostics_with(uri, true, &mut Idle).unwrap_or_default()
     }
 
-    fn diagnostics_with(&mut self, uri: &str, confirm_path_qualified: bool) -> Vec<Diagnostic> {
+    /// Confirm-pass diagnostics. `Err` means a newer client message is waiting.
+    pub fn diagnostics_checked(
+        &mut self,
+        uri: &str,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<Diagnostic>, Stopped> {
+        self.diagnostics_with(uri, true, tick)
+    }
+
+    fn diagnostics_with(
+        &mut self,
+        uri: &str,
+        confirm_path_qualified: bool,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<Diagnostic>, Stopped> {
+        if tick.tick("Checking references", 0, 1) {
+            return Err(Stopped);
+        }
         if self.comments.contains_key(uri) {
-            return self.comment_diagnostics_for(uri);
+            return Ok(self.comment_diagnostics_for(uri));
         }
         let Some(doc) = self.documents.get(uri) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
         let path = doc.path.clone();
         let roots = doc.model.roots.clone();
@@ -217,10 +297,14 @@ impl Session {
         if confirm_path_qualified {
             outbound.extend(doc.model.qualified_neighbor_queries());
         }
+        let total = outbound.len().max(1) as u32;
         let mut confirmed = HashSet::new();
         let mut alias_confirmed = HashSet::new();
         if let Some(from) = path.as_deref() {
-            for (authored, idea) in outbound {
+            for (index, (authored, idea)) in outbound.into_iter().enumerate() {
+                if tick.tick("Checking references", index as u32, total) {
+                    return Err(Stopped);
+                }
                 if self.neighbor_has(from, &authored, &idea, &roots) {
                     confirmed.insert((authored, idea));
                 } else if self.neighbor_binds_import(from, &authored, &idea, &roots) {
@@ -230,7 +314,7 @@ impl Session {
         }
         let parsed = {
             let Some(doc) = self.documents.get(uri) else {
-                return Vec::new();
+                return Ok(Vec::new());
             };
             doc.model.diagnostics(
                 |authored, idea| confirmed.contains(&(authored.to_string(), idea.to_string())),
@@ -247,7 +331,7 @@ impl Session {
             }
             self.documents.insert(uri.to_string(), doc);
         }
-        out
+        Ok(out)
     }
 
     pub fn comment_diagnostics_for(&mut self, uri: &str) -> Vec<Diagnostic> {
@@ -352,12 +436,268 @@ impl Session {
         self.documents.get(uri).map(|doc| doc.model.highlights(pos)).unwrap_or_default()
     }
 
-    pub fn completion(&self, uri: &str, pos: Position) -> Vec<CompletionItem> {
-        let Some(doc) = self.documents.get(uri) else {
-            return Vec::new();
+    pub fn completion(&mut self, uri: &str, pos: Position) -> CompletionList {
+        self.completion_with(uri, pos, &mut Idle).unwrap_or_else(|_| completion_list(Vec::new()))
+    }
+
+    pub fn completion_with(
+        &mut self,
+        uri: &str,
+        pos: Position,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<CompletionList, Stopped> {
+        if tick.tick("Completing", 0, 1) {
+            return Err(Stopped);
+        }
+        let attribute_items = self.documents.get(uri).and_then(|doc| {
+            doc.model
+                .attribute_completion_site(pos)
+                .then(|| doc.model.completion(pos, &self.attribute_catalog))
+        });
+        if let Some(items) = attribute_items {
+            return Ok(completion_list(items));
+        }
+        if !self.documents.contains_key(uri) {
+            return Ok(completion_list(Vec::new()));
+        }
+        let site = self
+            .documents
+            .get(uri)
+            .and_then(|doc| detect_site(&doc.model.text, &doc.model.lines, pos));
+        match site {
+            Some(CompletionSite::ImportPath(edit)) => {
+                self.path_items(uri, &edit, Some(".rq"), tick)
+            }
+            Some(CompletionSite::AnonymousPath(edit)) => self.path_items(uri, &edit, None, tick),
+            Some(CompletionSite::QualifiedFile { path, idea_prefix, replace }) => {
+                Ok(self.qualified_items(uri, &path, &idea_prefix, replace))
+            }
+            Some(CompletionSite::Reference { prefix, replace }) => {
+                Ok(self.reference_items(uri, &prefix, replace))
+            }
+            None => Ok(completion_list(Vec::new())),
+        }
+    }
+
+    fn path_items(
+        &mut self,
+        uri: &str,
+        edit: &PathEdit,
+        extension: Option<&str>,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<CompletionList, Stopped> {
+        let (from, roots, workspace) = {
+            let Some(doc) = self.documents.get(uri) else {
+                return Ok(completion_list(Vec::new()));
+            };
+            (
+                doc.path.clone(),
+                doc.model.roots.clone(),
+                doc.model.workspace_root().map(Path::to_path_buf),
+            )
         };
-        let extra = self.completion_names(uri);
-        doc.model.completion(pos, &extra, &self.attribute_catalog)
+        let Some(from) = from else {
+            return Ok(completion_list(Vec::new()));
+        };
+        let items = collect_path_items(
+            &mut self.path_cache,
+            &from,
+            workspace.as_deref(),
+            &roots,
+            edit,
+            extension,
+            tick,
+        )?;
+        Ok(completion_list(items))
+    }
+
+    fn qualified_items(
+        &mut self,
+        uri: &str,
+        authored: &str,
+        idea_prefix: &str,
+        replace: Range,
+    ) -> CompletionList {
+        let resolved = self.documents.get(uri).and_then(|doc| doc.model.resolve_path(authored));
+        let mut symbols = resolved
+            .as_ref()
+            .map(|path| self.symbols_at(path))
+            .unwrap_or_else(|| FileSymbols { names: Vec::new(), sets: Vec::new() });
+        if let Some(path) = &resolved {
+            self.merge_catalog_symbols(&mut symbols, path);
+        }
+        completion_list(qualified_completion_items(&symbols, idea_prefix, authored, replace))
+    }
+
+    fn symbols_at(&mut self, path: &Path) -> FileSymbols {
+        if let Some(symbols) = self
+            .documents
+            .values()
+            .find(|doc| doc.path.as_deref() == Some(path))
+            .map(|doc| file_symbols(doc.model.syntax()))
+        {
+            return symbols;
+        }
+        self.ensure_neighbor(path)
+            .map(|neighbor| file_symbols(&neighbor.model))
+            .unwrap_or(FileSymbols { names: Vec::new(), sets: Vec::new() })
+    }
+
+    fn merge_catalog_symbols(&self, symbols: &mut FileSymbols, path: &Path) {
+        let Some(indexes) = self.catalog_by_path.get(path) else {
+            return;
+        };
+        for index in indexes {
+            let hit = &self.name_catalog[*index];
+            if symbols.names.iter().any(|(name, _)| name == &hit.name) {
+                continue;
+            }
+            symbols.names.push((hit.name.clone(), hit.kind != "ideaset"));
+        }
+    }
+
+    fn reference_items(&self, uri: &str, prefix: &str, replace: Range) -> CompletionList {
+        let (from, locals) = {
+            let Some(doc) = self.documents.get(uri) else {
+                return completion_list(Vec::new());
+            };
+            (doc.path.clone(), file_symbols(doc.model.syntax()).names)
+        };
+        let mut items = Vec::new();
+        let mut seen = HashSet::new();
+        for (name, _) in locals {
+            if !prefix.is_empty() && !name.starts_with(prefix) {
+                continue;
+            }
+            if !seen.insert(format!("local::{name}")) {
+                continue;
+            }
+            items.push(reference_item(&name, true, None, None, replace));
+        }
+        let mut remote = 0usize;
+        for (doc_uri, other) in &self.documents {
+            if doc_uri == uri {
+                continue;
+            }
+            let Some(path) = &other.path else {
+                continue;
+            };
+            let file_uri = Url::from_file_path(path)
+                .map(|url| url.to_string())
+                .unwrap_or_else(|_| doc_uri.clone());
+            for (name, importable) in file_symbols(other.model.syntax()).names {
+                if self.push_remote_item(
+                    uri,
+                    prefix,
+                    replace,
+                    &from,
+                    &name,
+                    &file_uri,
+                    importable,
+                    &mut items,
+                    &mut seen,
+                    &mut remote,
+                ) {
+                    return completion_list(items);
+                }
+            }
+        }
+        if !self.name_catalog.is_empty() {
+            for hit in &self.name_catalog {
+                if self.push_remote_item(
+                    uri,
+                    prefix,
+                    replace,
+                    &from,
+                    &hit.name,
+                    &hit.file_uri,
+                    hit.kind != "ideaset",
+                    &mut items,
+                    &mut seen,
+                    &mut remote,
+                ) {
+                    return completion_list(items);
+                }
+            }
+            return completion_list(items);
+        }
+        for index in &self.indexes {
+            let Ok(rows) = index.store.idea_names_with_prefix(prefix, 80) else {
+                continue;
+            };
+            for row in rows {
+                let Some(file_uri) = indexed_file_uri(index, &row.file_uri) else {
+                    continue;
+                };
+                if self.push_remote_item(
+                    uri,
+                    prefix,
+                    replace,
+                    &from,
+                    &row.name,
+                    &file_uri,
+                    row.kind != IdeaKind::Ideaset,
+                    &mut items,
+                    &mut seen,
+                    &mut remote,
+                ) {
+                    return completion_list(items);
+                }
+            }
+        }
+        completion_list(items)
+    }
+
+    /// `true` when the remote list is full.
+    fn push_remote_item(
+        &self,
+        uri: &str,
+        prefix: &str,
+        replace: Range,
+        from: &Option<PathBuf>,
+        name: &str,
+        file_uri: &str,
+        importable: bool,
+        items: &mut Vec<CompletionItem>,
+        seen: &mut HashSet<String>,
+        remote: &mut usize,
+    ) -> bool {
+        if *remote >= 80 {
+            return true;
+        }
+        if !prefix.is_empty() && !name.starts_with(prefix) {
+            return false;
+        }
+        let target = path_of_file(file_uri);
+        let same = match (from, &target) {
+            (Some(from), Some(target)) => from == target,
+            _ => file_uri == uri,
+        };
+        if same || !seen.insert(format!("{file_uri}::{name}")) {
+            return false;
+        }
+        let import_path = from
+            .as_ref()
+            .zip(target.as_ref())
+            .and_then(|(from, target)| relative_path_between(from, target));
+        let edit = if importable {
+            self.documents.get(uri).and_then(|doc| {
+                import_path.as_ref().and_then(|path| {
+                    plan_from_import_edit(
+                        &doc.model.text,
+                        &doc.model.lines,
+                        doc.model.syntax(),
+                        path,
+                        name,
+                    )
+                })
+            })
+        } else {
+            None
+        };
+        items.push(reference_item(name, false, import_path, edit, replace));
+        *remote += 1;
+        false
     }
 
     pub fn prepare_rename(&self, uri: &str, pos: Position) -> Option<Range> {
@@ -365,10 +705,28 @@ impl Session {
     }
 
     pub fn rename(&self, uri: &str, pos: Position, new_name: &str) -> Option<WorkspaceEdit> {
-        let old = self.documents.get(uri)?.model.name_at(pos)?;
+        self.rename_with(uri, pos, new_name, &mut Idle).ok().flatten()
+    }
+
+    pub fn rename_with(
+        &self,
+        uri: &str,
+        pos: Position,
+        new_name: &str,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Option<WorkspaceEdit>, Stopped> {
+        let Some(old) = self.documents.get(uri).and_then(|doc| doc.model.name_at(pos)) else {
+            return Ok(None);
+        };
         let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
         let mut touched: HashSet<String> = HashSet::new();
+        let total = (self.documents.len() + self.comments.len() + self.indexes.len()).max(1) as u32;
+        let mut done = 0u32;
         for (doc_uri, doc) in &self.documents {
+            if tick.tick("Renaming", done, total) {
+                return Err(Stopped);
+            }
+            done += 1;
             let edits = rename_edits(&doc.model.text, &doc.model.lines, &old, new_name);
             if !edits.is_empty() {
                 if let Ok(url) = Url::parse(doc_uri) {
@@ -378,6 +736,10 @@ impl Session {
             }
         }
         for (doc_uri, doc) in &self.comments {
+            if tick.tick("Renaming", done, total) {
+                return Err(Stopped);
+            }
+            done += 1;
             let edits = rename_edits(&doc.text, &LineMap::new(&doc.text), &old, new_name);
             if !edits.is_empty() {
                 if let Ok(url) = Url::parse(doc_uri) {
@@ -386,7 +748,7 @@ impl Session {
                 }
             }
         }
-        for (file_uri, text) in self.index_rename_texts(&old) {
+        for (file_uri, text) in self.index_rename_texts(&old, tick)? {
             if touched.contains(&file_uri) {
                 continue;
             }
@@ -399,23 +761,165 @@ impl Session {
             }
         }
         if changes.is_empty() {
-            None
+            Ok(None)
         } else {
-            Some(WorkspaceEdit {
+            Ok(Some(WorkspaceEdit {
                 changes: Some(changes),
                 document_changes: None,
                 change_annotations: None,
-            })
+            }))
         }
     }
 
+    /// Expand-selection chains for the open buffer. One chain per caret.
+    /// rq:["../../../reqlan rq/extension/language/vsc-primitives.rq".selection_range]
+    pub fn selection_ranges(
+        &self,
+        uri: &str,
+        positions: &[Position],
+    ) -> Option<Vec<SelectionRange>> {
+        let doc = self.documents.get(uri)?;
+        Some(positions.iter().copied().map(|pos| doc.model.selection_range(pos)).collect())
+    }
+
+    /// Outline symbols for the open buffer. One symbol per declared idea.
+    pub fn document_symbols(&self, uri: &str) -> Option<Vec<lsp_types::DocumentSymbol>> {
+        let doc = self.documents.get(uri)?;
+        let symbols: Vec<lsp_types::DocumentSymbol> = doc
+            .model
+            .names
+            .iter()
+            .map(|loc| {
+                #[allow(deprecated)]
+                lsp_types::DocumentSymbol {
+                    name: loc.name.clone(),
+                    detail: None,
+                    kind: lsp_types::SymbolKind::NAMESPACE,
+                    deprecated: None,
+                    tags: None,
+                    range: loc.range.clone(),
+                    selection_range: loc.range.clone(),
+                    children: None,
+                }
+            })
+            .collect();
+        Some(symbols)
+    }
+
+    /// Fold regions for ideas that span more than two lines and for block comments.
+    pub fn folding_ranges(&self, uri: &str) -> Vec<lsp_types::FoldingRange> {
+        let Some(doc) = self.documents.get(uri) else { return Vec::new() };
+        let mut out = Vec::new();
+        for loc in &doc.model.names {
+            let start = loc.range.start.line;
+            let end = loc.range.end.line;
+            if end.saturating_sub(start) < 2 {
+                continue;
+            }
+            out.push(lsp_types::FoldingRange {
+                start_line: start,
+                start_character: Some(0),
+                end_line: end - 1,
+                end_character: Some(0),
+                kind: Some(lsp_types::FoldingRangeKind::Region),
+                collapsed_text: None,
+            });
+        }
+        out.sort_by_key(|range| (range.start_line, range.end_line));
+        out
+    }
+
+    /// Workspace symbols from the open buffers and the host name catalog.
+    pub fn workspace_symbols(&self, query: &str) -> Vec<lsp_types::WorkspaceSymbol> {
+        self.workspace_symbols_with(query, &mut Idle).unwrap_or_default()
+    }
+
+    pub fn workspace_symbols_with(
+        &self,
+        query: &str,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<lsp_types::WorkspaceSymbol>, Stopped> {
+        let needle = query.to_lowercase();
+        let mut out = Vec::new();
+        let mut seen = HashSet::new();
+        let documents = self.documents.len().max(1) as u32;
+        for (index, (uri, doc)) in self.documents.iter().enumerate() {
+            if tick.tick("Searching workspace", index as u32, documents) {
+                return Err(Stopped);
+            }
+            for loc in &doc.model.names {
+                if !name_matches(&loc.name, &needle) {
+                    continue;
+                }
+                seen.insert(loc.name.clone());
+                let url = lsp_types::Url::parse(uri)
+                    .unwrap_or_else(|_| lsp_types::Url::parse("file:///reqlan.rq").unwrap());
+                out.push(lsp_types::WorkspaceSymbol {
+                    name: loc.name.clone(),
+                    kind: lsp_types::SymbolKind::NAMESPACE,
+                    tags: None,
+                    container_name: None,
+                    location: lsp_types::OneOf::Left(lsp_types::Location {
+                        uri: url,
+                        range: loc.range.clone(),
+                    }),
+                    data: None,
+                });
+            }
+        }
+        let catalog = self.name_catalog.len().max(1) as u32;
+        for (index, hit) in self.name_catalog.iter().enumerate() {
+            if index % 128 == 0 && tick.tick("Searching workspace", index as u32, catalog) {
+                return Err(Stopped);
+            }
+            if !name_matches(&hit.name, &needle) {
+                continue;
+            }
+            if !seen.insert(hit.name.clone()) {
+                continue;
+            }
+            let url = lsp_types::Url::parse(&hit.file_uri)
+                .unwrap_or_else(|_| lsp_types::Url::parse("file:///reqlan.rq").unwrap());
+            out.push(lsp_types::WorkspaceSymbol {
+                name: hit.name.clone(),
+                kind: lsp_types::SymbolKind::MODULE,
+                tags: None,
+                container_name: None,
+                location: lsp_types::OneOf::Left(lsp_types::Location {
+                    uri: url,
+                    range: Range::default(),
+                }),
+                data: None,
+            });
+        }
+        Ok(out)
+    }
+
     pub fn references(&self, uri: &str, pos: Position) -> Vec<Location> {
+        self.references_with(uri, pos, &mut Idle).unwrap_or_default()
+    }
+
+    pub fn references_with(
+        &self,
+        uri: &str,
+        pos: Position,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<Location>, Stopped> {
+        if tick.tick("Finding references", 0, 1) {
+            return Err(Stopped);
+        }
         let Some(name) = self.documents.get(uri).and_then(|doc| doc.model.name_at(pos)) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
         let mut out = Vec::new();
         let mut seen = HashSet::new();
+        let total = (self.documents.len() + self.comments.len()).max(1) as u32;
+        let mut done = 0u32;
         for (doc_uri, doc) in &self.documents {
+            if tick.tick("Finding references", done, total) {
+                return Err(Stopped);
+            }
+            done += 1;
             for location in doc.model.reference_locations(doc_uri, &name) {
                 let key = location_key(&location);
                 if seen.insert(key) {
@@ -424,6 +928,10 @@ impl Session {
             }
         }
         for (doc_uri, doc) in &self.comments {
+            if tick.tick("Finding references", done, total) {
+                return Err(Stopped);
+            }
+            done += 1;
             let lines = LineMap::new(&doc.text);
             for reference in find_comment_references_in_text(&doc.text) {
                 if reference.idea != name {
@@ -440,13 +948,13 @@ impl Session {
                 }
             }
         }
-        for location in self.index_reference_locations(&name) {
+        for location in self.index_reference_locations(&name, tick)? {
             let key = location_key(&location);
             if seen.insert(key) {
                 out.push(location);
             }
         }
-        out
+        Ok(out)
     }
 
     pub fn code_actions(&mut self, uri: &str, range: Range) -> Vec<CodeActionOrCommand> {
@@ -460,8 +968,19 @@ impl Session {
         context_diagnostics: &[Diagnostic],
         only: &[String],
     ) -> Vec<CodeActionOrCommand> {
+        let names = self.documents.get(uri).map(|doc| {
+            import_fix_names(
+                doc.model.syntax(),
+                &doc.model.lines,
+                &doc.model.text,
+                context_diagnostics,
+            )
+        });
+        let Some(names) = names else {
+            return Vec::new();
+        };
+        let symbols = self.symbols_named(uri, &names);
         let server_diagnostics = self.diagnostics(uri);
-        let symbols = self.foreign_symbols(uri);
         self.documents
             .get(uri)
             .map(|doc| {
@@ -477,47 +996,55 @@ impl Session {
             .unwrap_or_default()
     }
 
-    fn foreign_symbols(&self, from_uri: &str) -> Vec<SymbolHit> {
+    fn symbols_named(&self, from_uri: &str, names: &HashSet<String>) -> Vec<SymbolHit> {
+        if names.is_empty() {
+            return Vec::new();
+        }
         let mut symbols = Vec::new();
         for (uri, doc) in &self.documents {
             if uri == from_uri {
                 continue;
             }
             for (name, kind) in doc.model.exported_names() {
+                if !names.contains(&name) {
+                    continue;
+                }
                 symbols.push(SymbolHit { name, kind: kind.to_string(), file_uri: uri.clone() });
             }
         }
-        for hit in &self.name_catalog {
-            if hit.file_uri != from_uri {
-                symbols.push(hit.clone());
+        if !self.name_catalog.is_empty() {
+            for name in names {
+                let Some(indexes) = self.catalog_by_name.get(name) else {
+                    continue;
+                };
+                for index in indexes {
+                    let hit = &self.name_catalog[*index];
+                    if hit.file_uri != from_uri {
+                        symbols.push(hit.clone());
+                    }
+                }
             }
+            return symbols;
         }
         for index in &self.indexes {
-            let Ok(ideas) = index.store.list_all_ideas() else {
-                continue;
-            };
-            for idea in ideas {
-                if matches!(idea.kind, IdeaKind::Ideaset) {
+            for name in names {
+                let Ok(rows) = index.store.ideas_named(name) else {
                     continue;
+                };
+                for row in rows {
+                    if matches!(row.kind, IdeaKind::Ideaset) {
+                        continue;
+                    }
+                    let Some(file_uri) = indexed_file_uri(index, &row.file_uri) else {
+                        continue;
+                    };
+                    let kind = match row.kind {
+                        IdeaKind::Oneliner => "oneliner",
+                        IdeaKind::Block => "idea",
+                        IdeaKind::Ideaset => "ideaset",
+                    };
+                    symbols.push(SymbolHit { name: row.name, kind: kind.to_string(), file_uri });
                 }
-                let path = if Path::new(&idea.file_uri).is_absolute() {
-                    PathBuf::from(&idea.file_uri)
-                } else {
-                    index.root.join(&idea.file_uri)
-                };
-                let Ok(file_uri) = Url::from_file_path(&path) else {
-                    continue;
-                };
-                let kind = match idea.kind {
-                    IdeaKind::Oneliner => "oneliner",
-                    IdeaKind::Block => "idea",
-                    IdeaKind::Ideaset => "ideaset",
-                };
-                symbols.push(SymbolHit {
-                    name: idea.name,
-                    kind: kind.to_string(),
-                    file_uri: file_uri.to_string(),
-                });
             }
         }
         symbols
@@ -582,6 +1109,9 @@ impl Session {
 
     /// Go-to-definition for a resolved comment reference site.
     /// Same resolution as document links and missing-idea diagnostics.
+    // rq-ignore-error
+    /// Origin is the path string or idea id under the cursor — not the whole `rq:[…]`.
+    /// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_qualified_token_links]
     fn comment_definition_at(
         &mut self,
         text: &str,
@@ -592,50 +1122,81 @@ impl Session {
         let lines = LineMap::new(text);
         let byte = lines.byte_at(text, pos);
         for site in self.comment_sites(text, source) {
-            let CommentSite::Link { start, end, idea, target } = site else {
+            let CommentSite::Link { start, end, idea, target, path } = site else {
                 continue;
             };
-            if byte < start || byte >= end {
-                continue;
-            }
-            let range = self.neighbor_range(&target, &idea)?;
-            let target_range = if range.start == range.end {
-                Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 1 },
-                }
-            } else {
-                range
-            };
-            let origin = lines.range(text, start, end);
+            let statement = comment_token_span(start, end);
             let Ok(target_uri) = Url::from_file_path(&target) else {
                 continue;
             };
-            if target_uri.as_str() == doc_uri && origin == target_range {
-                return None;
+            if let Some(authored) = path.as_deref() {
+                if let Some(path_span) = authored_path_span(text, statement, authored) {
+                    if span_has(path_span, byte) {
+                        return comment_location_link(
+                            lines.range(text, path_span.start, path_span.end),
+                            target_uri,
+                            file_landing_range(),
+                            doc_uri,
+                        );
+                    }
+                }
             }
-            return Some(LocationLink {
-                origin_selection_range: Some(origin),
+            let Some(idea_span) = ident_span_from(text, statement, start, &idea) else {
+                continue;
+            };
+            if !span_has(idea_span, byte) {
+                continue;
+            }
+            let range = self.neighbor_range(&target, &idea)?;
+            let target_range = if range.start == range.end { file_landing_range() } else { range };
+            return comment_location_link(
+                lines.range(text, idea_span.start, idea_span.end),
                 target_uri,
                 target_range,
-                target_selection_range: target_range,
-            });
+                doc_uri,
+            );
         }
         None
     }
 
     fn comment_links(&mut self, text: &str, source: &Path) -> Vec<DocumentLink> {
+        // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_qualified_token_links]
         let lines = LineMap::new(text);
         let mut links = Vec::new();
         for site in self.comment_sites(text, source) {
-            let CommentSite::Link { start, end, idea, target } = site else {
+            let CommentSite::Link { start, end, idea, target, path } = site else {
                 continue;
             };
             let Ok(url) = Url::from_file_path(&target) else {
                 continue;
             };
+            let statement = comment_token_span(start, end);
+            if let Some(authored) = path.as_deref() {
+                if let Some(path_span) = authored_path_span(text, statement, authored) {
+                    links.push(DocumentLink {
+                        range: lines.range(text, path_span.start, path_span.end),
+                        target: Some(url.clone()),
+                        tooltip: None,
+                        data: None,
+                    });
+                }
+                if let Some(idea_span) = ident_span_from(text, statement, start, &idea) {
+                    if let Some(range) = self.neighbor_range(&target, &idea) {
+                        links.push(DocumentLink {
+                            range: lines.range(text, idea_span.start, idea_span.end),
+                            target: Some(location_url(&url, range.start.line)),
+                            tooltip: Some(idea),
+                            data: None,
+                        });
+                    }
+                }
+                continue;
+            }
+            let Some(idea_span) = ident_span_from(text, statement, start, &idea) else {
+                continue;
+            };
             links.push(DocumentLink {
-                range: lines.range(text, start, end),
+                range: lines.range(text, idea_span.start, idea_span.end),
                 target: Some(url),
                 tooltip: Some(idea),
                 data: None,
@@ -720,6 +1281,7 @@ impl Session {
                     end: reference.end,
                     idea: reference.idea.clone(),
                     target: file,
+                    path: Some(authored),
                 };
             }
             return CommentSite::MissingIdea {
@@ -734,6 +1296,7 @@ impl Session {
                 end: reference.end,
                 idea: reference.idea.clone(),
                 target,
+                path: None,
             };
         }
         CommentSite::MissingIdea {
@@ -791,39 +1354,14 @@ impl Session {
                 return Some(path.clone());
             }
         }
-        for hit in &self.name_catalog {
-            if hit.name == idea {
-                if let Some(path) =
-                    Url::parse(&hit.file_uri).ok().and_then(|url| url.to_file_path().ok())
-                {
+        if let Some(indexes) = self.catalog_by_name.get(idea) {
+            for index in indexes {
+                if let Some(path) = path_of_file(&self.name_catalog[*index].file_uri) {
                     return Some(path);
                 }
             }
         }
         None
-    }
-
-    fn completion_names(&self, from_uri: &str) -> Vec<String> {
-        let mut names = Vec::new();
-        let mut seen = HashSet::new();
-        for hit in &self.name_catalog {
-            if hit.file_uri != from_uri && seen.insert(hit.name.clone()) {
-                names.push(hit.name.clone());
-            }
-        }
-        if !names.is_empty() {
-            return names;
-        }
-        for index in &self.indexes {
-            if let Ok(ideas) = index.store.list_all_ideas() {
-                for idea in ideas {
-                    if seen.insert(idea.name.clone()) {
-                        names.push(idea.name);
-                    }
-                }
-            }
-        }
-        names
     }
 
     fn idea_inbound_names(&self, uri: &str) -> Vec<(String, Vec<InboundReferencer>)> {
@@ -844,17 +1382,22 @@ impl Session {
         0
     }
 
-    fn index_rename_texts(&self, idea: &str) -> Vec<(String, String)> {
+    fn index_rename_texts(
+        &self,
+        idea: &str,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<(String, String)>, Stopped> {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
-        for index in &self.indexes {
-            let Ok(ideas) = index.store.list_all_ideas() else {
+        let total = self.indexes.len().max(1) as u32;
+        for (index_no, index) in self.indexes.iter().enumerate() {
+            if tick.tick("Renaming", index_no as u32, total) {
+                return Err(Stopped);
+            }
+            let Ok(ideas) = index.store.ideas_named(idea) else {
                 continue;
             };
             for row in ideas {
-                if row.name != idea {
-                    continue;
-                }
                 let id = idea_id(&row.file_uri, &row.name);
                 let Ok(edges) = index.store.get_edges_to(&id) else {
                     continue;
@@ -885,19 +1428,24 @@ impl Session {
                 }
             }
         }
-        out
+        Ok(out)
     }
 
-    fn index_reference_locations(&self, idea: &str) -> Vec<Location> {
+    fn index_reference_locations(
+        &self,
+        idea: &str,
+        tick: &mut dyn Checkpoint,
+    ) -> Result<Vec<Location>, Stopped> {
         let mut out = Vec::new();
-        for index in &self.indexes {
-            let Ok(ideas) = index.store.list_all_ideas() else {
+        let total = self.indexes.len().max(1) as u32;
+        for (index_no, index) in self.indexes.iter().enumerate() {
+            if tick.tick("Finding references", index_no as u32, total) {
+                return Err(Stopped);
+            }
+            let Ok(ideas) = index.store.ideas_named(idea) else {
                 continue;
             };
             for row in ideas {
-                if row.name != idea {
-                    continue;
-                }
                 let path = if Path::new(&row.file_uri).is_absolute() {
                     PathBuf::from(&row.file_uri)
                 } else {
@@ -942,7 +1490,7 @@ impl Session {
                 }
             }
         }
-        out
+        Ok(out)
     }
 
     fn neighbor_has(
@@ -1055,9 +1603,30 @@ fn open_base_index(indexes: &mut Vec<BaseIndex>, folder: &Path) {
 }
 
 enum CommentSite {
-    Link { start: usize, end: usize, idea: String, target: PathBuf },
+    Link { start: usize, end: usize, idea: String, target: PathBuf, path: Option<String> },
     MissingFile { start: usize, end: usize, path: String },
     MissingIdea { start: usize, end: usize, idea: String },
+}
+
+fn comment_token_span(start: usize, end: usize) -> Span {
+    Span { start, end, line_start: 0, line_end: 0 }
+}
+
+fn comment_location_link(
+    origin: Range,
+    target_uri: Url,
+    target_range: Range,
+    doc_uri: &str,
+) -> Option<LocationLink> {
+    if target_uri.as_str() == doc_uri && origin == target_range {
+        return None;
+    }
+    Some(LocationLink {
+        origin_selection_range: Some(origin),
+        target_uri,
+        target_range,
+        target_selection_range: target_range,
+    })
 }
 
 pub(crate) fn is_rq_uri(uri: &str) -> bool {
@@ -1100,4 +1669,90 @@ fn location_key(location: &Location) -> String {
 
 fn utf16_len_name(name: &str) -> u32 {
     name.encode_utf16().count() as u32
+}
+
+fn indexed_file_uri(index: &BaseIndex, file_uri: &str) -> Option<String> {
+    let path = if Path::new(file_uri).is_absolute() {
+        PathBuf::from(file_uri)
+    } else {
+        index.root.join(file_uri)
+    };
+    Url::from_file_path(path).ok().map(|url| url.to_string())
+}
+
+fn name_matches(name: &str, needle: &str) -> bool {
+    needle.is_empty() || name.to_lowercase().contains(needle)
+}
+
+fn completion_list(items: Vec<CompletionItem>) -> CompletionList {
+    CompletionList { is_incomplete: true, items, ..CompletionList::default() }
+}
+
+fn path_of_file(value: &str) -> Option<PathBuf> {
+    if let Ok(url) = Url::parse(value) {
+        if let Ok(path) = url.to_file_path() {
+            return Some(path);
+        }
+    }
+    let path = PathBuf::from(value);
+    path.is_absolute().then_some(path)
+}
+
+fn qualified_completion_items(
+    symbols: &FileSymbols,
+    idea_prefix: &str,
+    authored: &str,
+    replace: Range,
+) -> Vec<CompletionItem> {
+    let labels = if let Some((qualifier, member_prefix)) = idea_prefix.split_once('.') {
+        symbols
+            .sets
+            .iter()
+            .filter(|(name, _)| name == qualifier)
+            .flat_map(|(_, members)| {
+                members
+                    .iter()
+                    .filter(|member| member.starts_with(member_prefix))
+                    .map(|member| format!("{qualifier}.{member}"))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+    } else {
+        symbols
+            .names
+            .iter()
+            .filter(|(name, _)| idea_prefix.is_empty() || name.starts_with(idea_prefix))
+            .map(|(name, _)| name.clone())
+            .collect()
+    };
+    labels
+        .into_iter()
+        .map(|label| CompletionItem {
+            label: label.clone(),
+            kind: Some(CompletionItemKind::REFERENCE),
+            detail: Some(authored.to_string()),
+            text_edit: Some(CompletionTextEdit::Edit(TextEdit { range: replace, new_text: label })),
+            ..CompletionItem::default()
+        })
+        .collect()
+}
+
+fn reference_item(
+    name: &str,
+    local: bool,
+    detail: Option<String>,
+    edit: Option<TextEdit>,
+    replace: Range,
+) -> CompletionItem {
+    CompletionItem {
+        label: name.to_string(),
+        kind: Some(if local { CompletionItemKind::CLASS } else { CompletionItemKind::REFERENCE }),
+        detail,
+        additional_text_edits: edit.map(|edit| vec![edit]),
+        text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+            range: replace,
+            new_text: name.to_string(),
+        })),
+        ..CompletionItem::default()
+    }
 }

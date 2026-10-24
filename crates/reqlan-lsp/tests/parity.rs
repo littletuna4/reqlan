@@ -595,3 +595,28 @@ fn golden_corpus_import_alias_is_not_an_unresolved_idea() {
     assert!(found.iter().all(|message| !message.contains("analysis_runtime")), "{found:?}");
     assert!(found.iter().any(|message| message.contains("missing_leaf")), "{found:?}");
 }
+
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+#[test]
+fn missing_qualified_rq_file_reports_unresolved_idea() {
+    let root = scratch("missing-qualified-rq");
+    let host = root.join("host.rq");
+    let source = "host {\n    [\"non-existant-file.rq\".idea]\n}\n";
+    fs::write(&host, source).unwrap();
+    let uri = file_uri(&host);
+    let mut session = Session::new();
+    session.open(&uri, source.into());
+    let diags = session.diagnostics(&uri);
+    let found: Vec<_> = diags.iter().map(|d| d.message.clone()).collect();
+    assert!(
+        found.iter().any(|m| m == "Could not resolve reference to IdeaDeclaration named 'idea'."),
+        "expected unresolved idea for missing .rq file, got: {found:?}"
+    );
+    assert!(
+        !found
+            .iter()
+            .any(|m| m.contains("Could not resolve import") || m.contains("file_reference")),
+        "LSP reports idea-unresolved, not file-reference: {found:?}"
+    );
+    let _ = fs::remove_dir_all(&root);
+}

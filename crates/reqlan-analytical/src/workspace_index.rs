@@ -197,6 +197,17 @@ impl WorkspaceIndexRuntime {
         self.store.connection()
     }
 
+    /// Explicitly release SQLite file locks (ideas + diagnostics).
+    /// Used by `NativeWorkspaceIndex.shutdown()` instead of relying solely on Drop.
+    pub fn close(self) -> Result<(), WorkspaceIndexError> {
+        let store_result = self.store.close();
+        let diag_result = self.diagnostics.close();
+        // Surface the first error, but both connections should be closed.
+        store_result?;
+        diag_result?;
+        Ok(())
+    }
+
     pub fn ensure_ready(&mut self) -> Result<SyncResultDto, WorkspaceIndexError> {
         if self.synced_once {
             return Ok(SyncResultDto::from_parts(SyncProgress::default(), Vec::new()));
@@ -377,7 +388,7 @@ impl WorkspaceIndexRuntime {
     }
 
     pub fn idea_counts(&self) -> Result<(usize, usize), WorkspaceIndexError> {
-        Ok((self.store.list_all_ideas()?.len(), self.store.get_all_edges()?.len()))
+        self.store.counts().map_err(WorkspaceIndexError::Store)
     }
 
     /// Rank ideas in-process; return only the capped hit list (no JS catalog).

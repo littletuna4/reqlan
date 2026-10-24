@@ -1,9 +1,8 @@
 import {
-    createSourceTextDocument,
+    findCommentReferenceAtInText,
+    findCommentReferencePartAtInText,
     findCommentIdeaRenameEdits,
-    findCommentReferencePartAt,
-    ideaTokenRangeInCommentReference,
-    findCommentReferenceAt
+    ideaTokenRangeInCommentReference
 } from '@reqlan/language';
 import * as vscode from 'vscode';
 
@@ -32,12 +31,12 @@ const CODE_LANGUAGE_IDS = [
 export function registerCommentRenameProvider(context: vscode.ExtensionContext): void {
     const provider: vscode.RenameProvider = {
         prepareRename(document, position) {
-            const langiumDoc = createSourceTextDocument(document.uri.toString(), document.getText());
-            const part = findCommentReferencePartAt(langiumDoc, position);
+            const text = document.getText();
+            const part = findCommentReferencePartAtInText(text, position);
             if (!part || part.property !== 'idea') {
                 throw new Error('No renamable comment idea reference at position');
             }
-            const ideaRange = ideaTokenRangeInCommentReference(document.getText(), part.reference);
+            const ideaRange = ideaTokenRangeInCommentReference(text, part.reference);
             if (!ideaRange) {
                 throw new Error('No renamable comment idea reference at position');
             }
@@ -49,8 +48,8 @@ export function registerCommentRenameProvider(context: vscode.ExtensionContext):
             );
         },
         provideRenameEdits(document, position, newName) {
-            const langiumDoc = createSourceTextDocument(document.uri.toString(), document.getText());
-            const reference = findCommentReferenceAt(langiumDoc, position);
+            const text = document.getText();
+            const reference = findCommentReferenceAtInText(text, position);
             if (!reference) {
                 return undefined;
             }
@@ -58,7 +57,7 @@ export function registerCommentRenameProvider(context: vscode.ExtensionContext):
             // Rename matching comment idea tokens across open-ish workspace files is handled
             // by scanning the current document here; broader workspace rename uses LSP for .rq.
             const edits = findCommentIdeaRenameEdits(
-                document.getText(),
+                text,
                 reference.idea,
                 newName,
                 { includePathless: true, targetPath: reference.path }

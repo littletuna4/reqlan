@@ -1,7 +1,7 @@
 from "../host/architecture.rq" import event_driven
-from "../../bases/base.rq" import base, base_ownership, multi_base_environment, active_base_switch
+from "../../bases/base.rq" import base_ownership, multi_base_environment
 from "../../indexer/sequencing.rq" import index_sequencing, idle_stale_check, headless_sync_on_ready
-from "../../indexer/consumers.rq" import index_consumers, extension_ui_consumers, headless_consumers
+from "../../indexer/consumers.rq" import headless_consumers
 import "../../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../../packages/analytical/src/index-store/base-registry.ts" as base_registry
 import "../../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index

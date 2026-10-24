@@ -5,7 +5,7 @@
  * extension, CLI, and MCP share one on-disk store per base — not VS Code globalStorage.
  * The presence of `.reqlan` marks a directory as a reqlan base.
  * Names live in defaults.json.
- * rq:["../../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
+ 
  * rq:["../../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".index_diagnostics_store]
  * rq:["../../../../reqlan rq/cli/click.rq".click_session]

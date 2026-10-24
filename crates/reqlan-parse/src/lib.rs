@@ -12,6 +12,7 @@ mod defaults;
 pub mod lexer;
 pub mod parser;
 pub mod path;
+pub mod refactor;
 pub mod token;
 
 pub use align::{
@@ -32,5 +33,8 @@ pub use path::{
     match_import_root_alias, match_import_root_mapping, parse_file_reference_string, posix_dirname,
     posix_join, resolve_rq_path, unquote_path, ImportRootMapping, ParsedFileReference,
     DEFAULT_IMPORT_ROOT_ALIAS,
+};
+pub use refactor::{
+    plan_idea_delete, plan_idea_move, DocumentEdits, FileText, PlanError, TextEdit,
 };
 pub use token::{Span, Token, TokenKind};

@@ -1,4 +1,3 @@
-import "../../core-architecture.rq" as core_architecture
 import "../../codestyle/typescript.rq" as typescript_codestyle
 
 event_driven the application should be event driven.

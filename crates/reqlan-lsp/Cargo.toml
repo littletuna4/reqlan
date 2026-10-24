@@ -12,6 +12,7 @@ name = "reqlan-lsp"
 path = "src/main.rs"
 
 [dependencies]
+crossbeam-channel = "0.5"
 lsp-server = "0.7"
 lsp-types = "0.95"
 reqlan-index = { path = "../reqlan-index" }

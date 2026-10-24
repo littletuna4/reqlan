@@ -1,0 +1,42 @@
+from "./refactor_support.rq" import refactor_symbol_move, refactor_symbol_delete
+
+refactor_native_planner {
+    Move and delete edit plans are pure text in the parse crate.
+    The host supplies source text, destination text, and extra file texts.
+    It applies the returned edits and reindexes.
+    The planner does not read the disk, the index, or a Langium document.
+    [refactor_symbol_move] [refactor_symbol_delete]
+    @status done
+    @implementation (
+        ["../../../crates/reqlan-parse/src/refactor.rs"]
+        ["../../../crates/reqlan-napi/src/lib.rs"]
+        ["../../../packages/analytical/src/core/idea-refactor-plan.ts"]
+        ["../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
+    )
+    @tests (
+        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_declaration_and_bracket_references"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_matching_comment_references"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_rewrites_qualified_comment_paths_for_the_moved_idea"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_removes_unused_source_imports_and_copies_them_to_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_adds_a_sibling_import_on_the_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_content_plan_leaves_a_source_stub_that_imports_the_moved_idea"]
+        ["../../../packages/analytical/test/idea-refactor-plan.test.ts:returns grouped edits that remove the declaration and a bracket reference"]
+        ["../../../packages/analytical/test/idea-refactor-plan.test.ts:inserts the idea into the destination and rewrites a qualified comment path"]
+    )
+    @plan {
+        goal
+            Native move and delete planners replace the Langium edit planners.
+
+        constraints
+            - Pure text. The host passes file texts.
+            - Edit shape matches the former Langium plans.
+            - Prompt, apply, and reindex stay in the extension host.
+
+        steps
+            1. Implement plan_idea_delete and plan_idea_move in reqlan-parse.
+            2. Expose them through napi and the analytical wrapper.
+            3. Call them from idea-extract-flow.ts.
+            4. Cover the former idea-refactor cases in Rust tests.
+    }
+}

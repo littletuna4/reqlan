@@ -164,12 +164,14 @@ token_colour_sequence {
         TextMate-->>Editor: Scopes for ideas, imports, links, comments
         Editor->>Lsp: semanticTokens/full
         Lsp->>Lsp: Walk the one parse
-        Lsp-->>Editor: Types, namespaces, strings, variables
+        Lsp-->>Editor: Types, namespaces, strings, variables, keywords, methods
     ```
 
     @status done
     @implementation (
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
+        ["../../../../packages/extension/package.json"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
         [semantic_tokens]
         [lsp_analysis]
         [language_server_main]
@@ -178,6 +180,7 @@ token_colour_sequence {
         ["../../../../packages/language/test/textmate-import-highlight.test.ts"]
         ["../../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_tokens_cover_import_keywords_and_file_symbols"]
     )
 }
 

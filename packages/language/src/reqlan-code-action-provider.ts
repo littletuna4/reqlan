@@ -8,6 +8,7 @@
  * rq:["../../../reqlan rq/extension/host/features-commands.rq".file_based_code_actions]
  * rq:["../../../reqlan rq/extension/host/features-commands.rq".code_actions_ignore_error]
  * rq:["../../../reqlan rq/extension/host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+ * rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
  */
 import type { LangiumDocument, URI } from 'langium';
 import { DocumentValidator, URI as UriCtor, UriUtils } from 'langium';
@@ -35,6 +36,7 @@ import {
 import { findReferenceSearchSite } from './reqlan-reference-search-site.js';
 import { createIgnoreErrorCodeActions } from './reqlan-ignore-error-action.js';
 import { createIdeaBelowCodeActions } from './reqlan-create-idea-below.js';
+import { createUnresolvedIdeasCodeActions } from './reqlan-create-unresolved-ideas.js';
 
 export const REQLAN_IMPORT_ERROR_SEARCH_COMMAND = 'reqlan.importError.search';
 export const REQLAN_IMPORT_ERROR_CREATE_COMMAND = 'reqlan.importError.createFile';
@@ -66,6 +68,8 @@ export interface ImportErrorCommandArgs {
     documentUri: string;
     refText: string;
     range: Diagnostic['range'];
+    /** Every unresolved local idea, when the action creates them in one new file. */
+    refTexts?: string[];
 }
 
 /** Args for reference search webview (replace existing ref or wrap prose). */
@@ -100,6 +104,7 @@ export class ReqlanCodeActionProvider implements CodeActionProvider {
                 params.context.diagnostics
             ));
             actions.push(...createIdeaBelowCodeActions(document, params.range));
+            actions.push(...createUnresolvedIdeasCodeActions(document));
         }
         const searchFromCursor = this.createSearchReferenceAction(document, params);
         if (searchFromCursor) {

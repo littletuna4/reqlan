@@ -38,7 +38,7 @@ fn analysis_api_lists_broken_refs_with_glob_and_comments() {
     assert_eq!(comments[0].label, "gone");
 
     let checked =
-        runtime.check(&[], &[], Default::default(), Default::default(), &[], false).unwrap();
+        runtime.check(&[], &[], Default::default(), Default::default(), &[], false, None).unwrap();
     assert!(checked.iter().any(|row| row.label == "missing_idea"));
     assert!(checked.iter().any(|row| row.kind == "comment_link" && row.label == "gone"));
     std::fs::remove_dir_all(&root).ok();
@@ -57,12 +57,13 @@ fn analysis_api_check_honours_skip_targets() {
     std::fs::create_dir_all(&storage).unwrap();
     let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
 
-    let all = runtime.check(&[], &[], Default::default(), Default::default(), &[], false).unwrap();
+    let all =
+        runtime.check(&[], &[], Default::default(), Default::default(), &[], false, None).unwrap();
     assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
     assert!(all.iter().any(|row| row.label.contains(".cursor")), "{all:?}");
 
     let skipped = runtime
-        .check(&[], &[], Default::default(), Default::default(), &["**/.cursor/**"], false)
+        .check(&[], &[], Default::default(), Default::default(), &["**/.cursor/**"], false, None)
         .unwrap();
     assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
     assert!(skipped.iter().all(|row| !row.label.contains(".cursor")), "{skipped:?}");
@@ -83,12 +84,13 @@ fn analysis_api_check_honours_skip_gitignored_targets() {
     std::fs::create_dir_all(&storage).unwrap();
     let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
 
-    let all = runtime.check(&[], &[], Default::default(), Default::default(), &[], false).unwrap();
+    let all =
+        runtime.check(&[], &[], Default::default(), Default::default(), &[], false, None).unwrap();
     assert!(all.iter().any(|row| row.label == "missing_idea"), "{all:?}");
     assert!(all.iter().any(|row| row.label.contains("build/out.js")), "{all:?}");
 
     let skipped =
-        runtime.check(&[], &[], Default::default(), Default::default(), &[], true).unwrap();
+        runtime.check(&[], &[], Default::default(), Default::default(), &[], true, None).unwrap();
     assert!(skipped.iter().any(|row| row.label == "missing_idea"), "{skipped:?}");
     assert!(skipped.iter().all(|row| !row.label.contains("build/")), "{skipped:?}");
     std::fs::remove_dir_all(&root).ok();
@@ -126,6 +128,7 @@ fn analysis_api_check_honours_multiple_globs_and_extra_paths() {
             Default::default(),
             &[],
             false,
+            None,
         )
         .unwrap();
     assert!(rows.iter().any(|row| row.label == "missing_a"), "{rows:?}");
@@ -140,13 +143,13 @@ fn analysis_api_check_honours_multiple_globs_and_extra_paths() {
 
     let mut scoped = AnalysisRuntime::open(&root, Some(&root.join(".reqlan-index-dir"))).unwrap();
     let dir_rows = scoped
-        .check(&["a/**"], &["c"], Default::default(), Default::default(), &[], false)
+        .check(&["a/**"], &["c"], Default::default(), Default::default(), &[], false, None)
         .unwrap();
     assert!(dir_rows.iter().any(|row| row.label == "missing_a"), "{dir_rows:?}");
     assert!(dir_rows.iter().all(|row| row.label != "leaf_missing"), "{dir_rows:?}");
     assert!(dir_rows.iter().all(|row| row.label != "decoy_missing"), "{dir_rows:?}");
 
-    let empty = runtime.check(&[""], &[], Default::default(), Default::default(), &[], false);
+    let empty = runtime.check(&[""], &[], Default::default(), Default::default(), &[], false, None);
     assert!(empty.is_err(), "{empty:?}");
     let missing = runtime.check(
         &["a/**"],
@@ -155,6 +158,7 @@ fn analysis_api_check_honours_multiple_globs_and_extra_paths() {
         Default::default(),
         &[],
         false,
+        None,
     );
     assert!(missing.is_err(), "{missing:?}");
     std::fs::remove_dir_all(&root).ok();

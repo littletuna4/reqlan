@@ -87,6 +87,9 @@ export class CheckCommand extends Command {
     wildcardOne = Option.String('--wildcard-one', 'warn', {
         description: `How to handle a wildcard that matches 1 idea (${HANDLING_VALUES})`
     });
+    unusedImports = Option.String('--unused-imports', 'off', {
+        description: `How to handle unused imports (${HANDLING_VALUES})`
+    });
     skipTargets = Option.Array('--skip-target', {
         description: 'Omit issues whose missing target matches this glob (repeatable)'
     });
@@ -117,6 +120,11 @@ export class CheckCommand extends Command {
             this.context.stderr.write(`--wildcard-one must be ${HANDLING_VALUES}.\n`);
             return 1;
         }
+        const unusedImports = parseHandling(this.unusedImports);
+        if (!unusedImports) {
+            this.context.stderr.write(`--unused-imports must be ${HANDLING_VALUES}.\n`);
+            return 1;
+        }
 
         try {
             return await withAnalysisApi(this.cwd, async api => {
@@ -126,7 +134,8 @@ export class CheckCommand extends Command {
                     wildcardZero,
                     wildcardOne,
                     skipTargets: this.skipTargets,
-                    skipGitignoredTargets: this.skipGitignoredTargets
+                    skipGitignoredTargets: this.skipGitignoredTargets,
+                    unusedImports
                 });
                 if (this.json) {
                     emit(rows, true);

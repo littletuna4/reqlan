@@ -3,6 +3,7 @@
  * Happy path uses LSP custom requests / index APIs — not Langium DI.
  * rq:["../../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
  * rq:["../../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
  */
 import * as path from 'node:path';
@@ -11,6 +12,10 @@ import {
     REQLAN_IMPORT_ERROR_SEARCH_COMMAND,
     REQLAN_REFERENCE_SEARCH_SITE_REQUEST,
     REQLAN_SEARCH_REFERENCE_COMMAND,
+    defaultNewIdeaFileName,
+    fromImportStatement,
+    ideaNamesFromCreateArgs,
+    newFileIdeaText,
     relativeRqImportPath,
     type ImportErrorCommandArgs,
     type SearchReferenceCommandArgs
@@ -59,7 +64,7 @@ export function registerImportErrorCommands(
         vscode.commands.registerCommand(
             REQLAN_IMPORT_ERROR_CREATE_COMMAND,
             async (args?: ImportErrorCommandArgs) => {
-                if (!args?.documentUri || !args.refText) {
+                if (!args?.documentUri || ideaNamesFromCreateArgs(args).length === 0) {
                     return;
                 }
                 await createFileAndImport(args);
@@ -198,13 +203,21 @@ function wordRangeAtPosition(
 }
 
 async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> {
+    const names = ideaNamesFromCreateArgs(args);
+    if (names.length === 0) {
+        return;
+    }
     const sourceUri = vscode.Uri.parse(args.documentUri);
-    const defaultName = `${args.refText}.rq`;
+    const defaultName = defaultNewIdeaFileName(names);
     const defaultUri = vscode.Uri.joinPath(dirnameUri(sourceUri), defaultName);
     const relativeDefault = vscode.workspace.asRelativePath(defaultUri);
+    const only = names.length === 1 ? names[0] : undefined;
+    const title = only
+        ? `Create idea '${only}'`
+        : `Create ${names.length} unresolved ideas`;
 
     const input = await vscode.window.showInputBox({
-        title: `Create idea '${args.refText}'`,
+        title,
         prompt: 'New .rq file path (workspace-relative, or ./relative to this file)',
         value: relativeDefault,
         validateInput: value => value.trim() ? undefined : 'Path is required'
@@ -214,7 +227,7 @@ async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> 
     }
 
     const newFileUri = resolveNewFileUri(sourceUri, input.trim());
-    const content = `${args.refText} {\n    \n}\n`;
+    const content = newFileIdeaText(names);
     const workspaceEdit = new vscode.WorkspaceEdit();
     workspaceEdit.createFile(newFileUri, {
         ignoreIfExists: true,
@@ -232,7 +245,7 @@ async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> 
     workspaceEdit.insert(
         sourceUri,
         new vscode.Position(insertLine, 0),
-        `from "${importPath}" import ${args.refText}\n${suffix}`
+        `${fromImportStatement(importPath, names)}\n${suffix}`
     );
 
     const applied = await vscode.workspace.applyEdit(workspaceEdit);

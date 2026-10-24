@@ -16,7 +16,7 @@ command_palette {
     Agent: [agent_ai.add_to_chat]. Index host: [index_diagnostics.open_index_diagnostics].
     Diff: [diff_webview].
     Export: [export_functions.export_html] and siblings. Mutation: [refactor_support], [barrel_page], [decompose].
-    Language: [search_code_actions], [code_actions_ignore_error], [create_idea_below_idea_containing_unresolved_reference_under_cursor].
+    Language: [search_code_actions], [code_actions_ignore_error], [create_idea_below_idea_containing_unresolved_reference_under_cursor], [create_all_unresolved_ideas].
     @status done
 }
 
@@ -206,5 +206,38 @@ create_idea_below_idea_containing_unresolved_reference_under_cursor {
         ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_the_caret_idea_has_no_unresolved_local_references"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_for_a_qualified_unresolved_reference"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_only_refactor_is_requested"]
+    )
+}
+
+create_all_unresolved_ideas {
+    A Quick Fix [code_actions] creates every unresolved local idea in the current file.
+    `Create all unresolved ideas in this file` appends one empty idea block per name at the end of the file.
+    `Create all unresolved ideas in a new file…` asks for one path, writes those ideas in that file, and adds one from-import in the current file.
+    The same name is created once. Names follow first-seen order.
+    A qualified reference or a missing import target stays unresolved by these actions.
+    The actions are omitted when the file has no unresolved local idea, and when the request allows only refactor actions.
+    One unresolved name still offers both actions. The caret can sit outside that reference.
+    [create_idea_below_idea_containing_unresolved_reference_under_cursor] inserts under the caret idea only.
+    @status done
+    @implementation (
+        ["../../../packages/language/src/reqlan-create-unresolved-ideas.ts"]
+        ["../../../packages/language/src/reqlan-code-action-provider.ts"]
+        ["../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../packages/extension/src/extension/register-import-error-commands.ts"]
+    )
+    @tests (
+        ["../../../packages/language/test/code-actions.test.ts:appends every unresolved local idea at the end of the file"]
+        ["../../../packages/language/test/code-actions.test.ts:offers one new file for every unresolved local idea"]
+        ["../../../packages/language/test/code-actions.test.ts:creates one stub when the same unresolved name occurs twice"]
+        ["../../../packages/language/test/code-actions.test.ts:omits file-level create when a qualified reference is unresolved"]
+        ["../../../packages/language/test/code-actions.test.ts:omits file-level create when only refactor is requested"]
+        ["../../../packages/language/test/code-actions.test.ts:offers file-level create when the caret idea has no unresolved reference"]
+        ["../../../packages/language/test/code-actions.test.ts:keeps valid idea names for a new file"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:appends_every_unresolved_local_idea_at_the_end_of_the_file"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_one_new_file_for_every_unresolved_local_idea"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:creates_one_stub_when_the_same_unresolved_name_occurs_twice"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_file_level_create_when_a_qualified_reference_is_unresolved"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:omits_file_level_create_when_only_refactor_is_requested"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_file_level_create_when_the_caret_idea_is_resolved"]
     )
 }

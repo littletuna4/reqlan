@@ -1,7 +1,7 @@
 /**
  * Base-local `.reqlan/.rqignore` — gitignore-syntax path filters for discovery and indexing.
  *
- * rq:["../../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
+ 
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".rqignore]
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".binary_ignore]
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".commentless_file_ignore]

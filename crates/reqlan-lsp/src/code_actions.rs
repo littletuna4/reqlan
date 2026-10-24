@@ -1,6 +1,7 @@
 //! Code actions that match the Langium provider titles and commands.
 //! rq:["../../../reqlan rq/extension/language/vsc-primitives.rq".code_actions]
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
+//! rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
 use crate::analysis::{walk_refs, NameLoc};
 use crate::utf16::LineMap;
 use lsp_types::{
@@ -40,6 +41,21 @@ pub struct ActionRequest<'a> {
     pub symbols: &'a [SymbolHit],
 }
 
+pub(crate) fn import_fix_names(
+    model: &Model,
+    lines: &LineMap,
+    text: &str,
+    diagnostics: &[Diagnostic],
+) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for diagnostic in diagnostics {
+        if let Some(name) = local_unresolved_name(model, lines, text, diagnostic) {
+            names.insert(name);
+        }
+    }
+    names
+}
+
 pub fn collect(request: ActionRequest<'_>) -> Vec<CodeActionOrCommand> {
     let mut actions = Vec::new();
     let mut searched = HashSet::new();
@@ -53,6 +69,7 @@ pub fn collect(request: ActionRequest<'_>) -> Vec<CodeActionOrCommand> {
     if kind_allowed(request.only, "quickfix") {
         push_ignore(&request, &mut actions);
         push_create_below(&request, &mut actions);
+        push_create_all(&request, &mut actions);
     }
     push_search_or_wrap(&request, &searched, &mut actions);
     push_refactor(&request, &mut actions);
@@ -102,7 +119,7 @@ fn push_import_fixes(
         CodeActionKind::QUICKFIX,
         SEARCH_COMMAND,
         None,
-        Some(diagnostic.clone()),
+        vec![diagnostic.clone()],
     ));
     let args = serde_json::json!({
         "documentUri": request.doc_uri,
@@ -114,7 +131,7 @@ fn push_import_fixes(
         CodeActionKind::QUICKFIX,
         CREATE_FILE_COMMAND,
         Some(vec![args]),
-        Some(diagnostic.clone()),
+        vec![diagnostic.clone()],
     ));
 }
 
@@ -213,6 +230,97 @@ fn push_create_below(request: &ActionRequest<'_>, actions: &mut Vec<CodeActionOr
     }
 }
 
+fn push_create_all(request: &ActionRequest<'_>, actions: &mut Vec<CodeActionOrCommand>) {
+    let unresolved = unresolved_local_names(request);
+    if unresolved.is_empty() {
+        return;
+    }
+    let names: Vec<String> = unresolved.iter().map(|(name, _)| name.clone()).collect();
+    let Some(first) = names.first().cloned() else {
+        return;
+    };
+    let diagnostics: Vec<Diagnostic> =
+        unresolved.into_iter().flat_map(|(_, items)| items).collect();
+    let end = request.lines.position(request.text, request.text.len());
+    let range = Range { start: end, end };
+    actions.push(quick_fix(
+        "Create all unresolved ideas in this file".into(),
+        request.doc_uri,
+        TextEdit { range, new_text: append_idea_stubs(request.text, &names) },
+        diagnostics.clone(),
+        false,
+    ));
+    let args = serde_json::json!({
+        "documentUri": request.doc_uri,
+        "refText": first,
+        "refTexts": names,
+        "range": serde_json::to_value(range).unwrap_or(serde_json::Value::Null),
+    });
+    actions.push(command_action(
+        "Create all unresolved ideas in a new file…".into(),
+        CodeActionKind::QUICKFIX,
+        CREATE_FILE_COMMAND,
+        Some(vec![args]),
+        diagnostics,
+    ));
+}
+
+fn unresolved_local_names(request: &ActionRequest<'_>) -> Vec<(String, Vec<Diagnostic>)> {
+    let mut order = Vec::new();
+    let mut by_name: HashMap<String, Vec<Diagnostic>> = HashMap::new();
+    walk_refs(request.model, &mut |target, _| {
+        let ReferenceTarget::Local { span, idea: name } = target else {
+            return;
+        };
+        if name.is_empty() {
+            return;
+        }
+        let range = request.lines.range(request.text, span.start, span.end);
+        let hits: Vec<Diagnostic> = request
+            .server_diagnostics
+            .iter()
+            .filter(|diagnostic| {
+                ranges_overlap(diagnostic.range, range)
+                    && unresolved_idea_name(&diagnostic.message) == Some(name.as_str())
+            })
+            .cloned()
+            .collect();
+        if hits.is_empty() {
+            return;
+        }
+        if let Some(existing) = by_name.get_mut(name) {
+            for hit in hits {
+                if !existing
+                    .iter()
+                    .any(|item| item.range == hit.range && item.message == hit.message)
+                {
+                    existing.push(hit);
+                }
+            }
+            return;
+        }
+        order.push(name.clone());
+        by_name.insert(name.clone(), hits);
+    });
+    order
+        .into_iter()
+        .filter_map(|name| by_name.remove(&name).map(|diagnostics| (name, diagnostics)))
+        .collect()
+}
+
+fn append_idea_stubs(text: &str, names: &[String]) -> String {
+    let stubs: Vec<_> = names.iter().map(|name| format!("{name} {{\n    \n}}")).collect();
+    let body = stubs.join("\n\n");
+    if text.is_empty() {
+        return format!("{body}\n");
+    }
+    if text.ends_with('\n') {
+        format!("\n{body}\n")
+    } else {
+        format!("\n\n{body}\n")
+    }
+}
+
 fn unresolved_in_caret_idea(request: &ActionRequest<'_>) -> Option<(Span, Vec<String>)> {
     let idea = containing_idea(request)?;
     let idea_range = request.lines.range(request.text, idea.start, idea.end);
@@ -282,7 +390,7 @@ fn push_search_or_wrap(
             CodeActionKind::REFACTOR,
             SEARCH_COMMAND,
             None,
-            None,
+            Vec::new(),
         ));
         return;
     }
@@ -294,7 +402,7 @@ fn push_search_or_wrap(
         CodeActionKind::REFACTOR,
         SEARCH_COMMAND,
         None,
-        None,
+        Vec::new(),
     ));
 }
 
@@ -425,7 +533,7 @@ fn push_refactor(request: &ActionRequest<'_>, actions: &mut Vec<CodeActionOrComm
             CodeActionKind::REFACTOR,
             command,
             Some(vec![args.clone()]),
-            None,
+            Vec::new(),
         ));
     }
 }
@@ -467,7 +575,7 @@ fn push_barrel(request: &ActionRequest<'_>, actions: &mut Vec<CodeActionOrComman
         CodeActionKind::new(BARREL_KIND),
         BARREL_COMMAND,
         None,
-        None,
+        Vec::new(),
     ));
 }
 
@@ -476,7 +584,18 @@ fn from_import_edit(
     import_path: &str,
     name: &str,
 ) -> Option<TextEdit> {
-    for import in &request.model.imports {
+    plan_from_import_edit(request.text, request.lines, request.model, import_path, name)
+}
+
+/// Insert or extend a from-import. `None` when that import already binds `name`.
+pub(crate) fn plan_from_import_edit(
+    text: &str,
+    lines: &LineMap,
+    model: &Model,
+    import_path: &str,
+    name: &str,
+) -> Option<TextEdit> {
+    for import in &model.imports {
         let Import::From(from) = import else {
             continue;
         };
@@ -497,20 +616,20 @@ fn from_import_edit(
             .last()
             .map(|spec| spec.alias_span.as_ref().map(|span| span.end).unwrap_or(spec.idea_span.end))
             .unwrap_or(from.span.end);
-        let at = request.lines.position(request.text, end);
+        let at = lines.position(text, end);
         return Some(TextEdit {
             range: Range { start: at, end: at },
             new_text: format!(", {name}"),
         });
     }
-    let (position, trailing) = import_insert_point(request);
+    let (position, trailing) = import_insert_point(text, lines, model);
     let line = format!("from \"{import_path}\" import {name}");
     let new_text = if trailing { format!("{line}\n\n") } else { format!("{line}\n") };
     Some(TextEdit { range: Range { start: position, end: position }, new_text })
 }
 
-fn import_insert_point(request: &ActionRequest<'_>) -> (Position, bool) {
-    if let Some(import) = request.model.imports.last() {
+fn import_insert_point(text: &str, lines: &LineMap, model: &Model) -> (Position, bool) {
+    if let Some(import) = model.imports.last() {
         let span = match import {
             Import::From(from) => from.span,
             Import::Namespace(ns) => ns.span,
@@ -519,19 +638,19 @@ fn import_insert_point(request: &ActionRequest<'_>) -> (Position, bool) {
         };
         // Import spans include the trailing newline token, so `span.end` is already the
         // start of the next line. Only advance when the span ends mid-line (EOF, no nl).
-        let end = request.lines.position(request.text, span.end);
+        let end = lines.position(text, span.end);
         let position =
             if end.character == 0 { end } else { Position { line: end.line + 1, character: 0 } };
         return (position, false);
     }
-    if let Some(element) = request.model.elements.first() {
+    if let Some(element) = model.elements.first() {
         let span = match element {
             TopLevelElement::Idea(idea) => idea.span,
             TopLevelElement::OneLiner(idea) => idea.span,
             TopLevelElement::IdeaSet(set) => set.span,
             TopLevelElement::Anonymous(block) => block.span,
         };
-        return (request.lines.range(request.text, span.start, span.start).start, true);
+        return (lines.range(text, span.start, span.start).start, true);
     }
     (Position { line: 0, character: 0 }, true)
 }
@@ -589,7 +708,7 @@ fn kind_allowed(only: &[String], kind: &str) -> bool {
     })
 }
 
-fn relative_import_path(from_uri: &str, to_uri: &str) -> Option<String> {
+pub(crate) fn relative_import_path(from_uri: &str, to_uri: &str) -> Option<String> {
     let from = Url::parse(from_uri).ok()?.to_file_path().ok()?;
     let to = Url::parse(to_uri).ok()?.to_file_path().ok()?;
     let from_dir = from.parent()?;
@@ -660,12 +779,12 @@ fn command_action(
     kind: CodeActionKind,
     command: &str,
     arguments: Option<Vec<serde_json::Value>>,
-    diagnostic: Option<Diagnostic>,
+    diagnostics: Vec<Diagnostic>,
 ) -> CodeActionOrCommand {
     CodeActionOrCommand::CodeAction(CodeAction {
         title: title.clone(),
         kind: Some(kind),
-        diagnostics: diagnostic.map(|item| vec![item]),
+        diagnostics: (!diagnostics.is_empty()).then_some(diagnostics),
         command: Some(Command { title, command: command.into(), arguments }),
         ..CodeAction::default()
     })

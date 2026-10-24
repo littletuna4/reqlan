@@ -356,31 +356,19 @@ export function findCommentReferencesInText(text: string, lineOffset = 0): Embed
     return references;
 }
 
-export function findCommentReferenceAt(
-    document: LangiumDocument,
-    position: Position
-): EmbeddedCommentReference | undefined {
-    const offset = document.textDocument.offsetAt(position);
-    return findCommentReferencesInText(document.textDocument.getText())
-        .find(reference => {
-            const start = document.textDocument.offsetAt(reference.range.start);
-            const end = document.textDocument.offsetAt(reference.range.end);
-            return offset >= start && offset <= end;
-        });
-}
-
-export function findCommentReferencePartAt(
-    document: LangiumDocument,
-    position: Position
+export function findCommentReferencePartAtInText(
+    text: string,
+    position: Position,
 ): { reference: EmbeddedCommentReference; property: 'path' | 'idea' } | undefined {
-    const reference = findCommentReferenceAt(document, position);
-    if (!reference) {
-        return undefined;
-    }
-    const lineText = document.textDocument.getText({
-        start: { line: position.line, character: 0 },
-        end: { line: position.line, character: Number.MAX_SAFE_INTEGER }
+    const references = findCommentReferencesInText(text);
+    const offset = text.split(/\r?\n/).slice(0, position.line).reduce((sum, line) => sum + line.length + 1, 0) + position.character;
+    const reference = references.find(r => {
+        const rStart = text.split(/\r?\n/).slice(0, r.range.start.line).reduce((sum, line) => sum + line.length + 1, 0) + r.range.start.character;
+        const rEnd = text.split(/\r?\n/).slice(0, r.range.end.line).reduce((sum, line) => sum + line.length + 1, 0) + r.range.end.character;
+        return offset >= rStart && offset <= rEnd;
     });
+    if (!reference) return undefined;
+    const lineText = text.split(/\r?\n/)[position.line] ?? '';
     const bracketMatch = /rq:\s*\[([^\]]+)\]/.exec(lineText);
     if (!bracketMatch || bracketMatch.index === undefined) {
         return { reference, property: 'idea' };
@@ -411,6 +399,30 @@ export function findCommentReferencePartAt(
         }
     }
     return { reference, property: 'idea' };
+}
+
+export function findCommentReferenceAt(
+    document: LangiumDocument,
+    position: Position
+): EmbeddedCommentReference | undefined {
+    return findCommentReferenceAtInText(document.textDocument.getText(), position);
+}
+
+export function findCommentReferenceAtInText(text: string, position: Position): EmbeddedCommentReference | undefined {
+    const references = findCommentReferencesInText(text);
+    const offset = text.split(/\r?\n/).slice(0, position.line).reduce((sum, line) => sum + line.length + 1, 0) + position.character;
+    return references.find(r => {
+        const rStart = text.split(/\r?\n/).slice(0, r.range.start.line).reduce((sum, line) => sum + line.length + 1, 0) + r.range.start.character;
+        const rEnd = text.split(/\r?\n/).slice(0, r.range.end.line).reduce((sum, line) => sum + line.length + 1, 0) + r.range.end.character;
+        return offset >= rStart && offset <= rEnd;
+    });
+}
+
+export function findCommentReferencePartAt(
+    document: LangiumDocument,
+    position: Position
+): { reference: EmbeddedCommentReference; property: 'path' | 'idea' } | undefined {
+    return findCommentReferencePartAtInText(document.textDocument.getText(), position);
 }
 
 export function resolveCommentReferenceIdea(

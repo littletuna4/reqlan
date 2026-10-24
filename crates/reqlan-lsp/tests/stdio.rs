@@ -52,6 +52,8 @@ fn stdio_initialize_and_shutdown() {
     stdin.flush().unwrap();
     let response = read_message(&mut stdout);
     assert!(response.contains("semanticTokensProvider"), "{response}");
+    assert!(response.contains("\"openClose\":true"), "{response}");
+    assert!(response.contains("\"change\":2"), "{response}");
     stdin.write_all(&frame(r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#)).unwrap();
     stdin
         .write_all(&frame(r#"{"jsonrpc":"2.0","id":2,"method":"shutdown","params":null}"#))

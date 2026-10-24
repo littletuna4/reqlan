@@ -56,7 +56,7 @@ test_references {
     Related: [analysers] [runtime] [indexer.index_code_files] ["../language/syntax.rq".comment_reference_resolution_error]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../packages/cli/src/commands/analyse.ts"]
     )

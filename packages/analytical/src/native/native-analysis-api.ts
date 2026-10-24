@@ -11,6 +11,7 @@ import type {
     IdeaSummary
 } from '../core/types.js';
 import type { ExportProgressCallback, ExportRequest, ExportResult } from '../export/types.js';
+import type { SqliteIndexStore } from '../index-store/sqlite-store.js';
 import { loadNativeEngine, type NativeAnalysisRuntimeHandle } from './load-native.js';
 import type {
     CompletionSummary as NativeCompletionSummary,
@@ -94,6 +95,8 @@ export interface CheckOptions {
     wildcardZero?: SparseWildcardHandling;
     /** How to handle a wildcard that matches 1 idea. */
     wildcardOne?: SparseWildcardHandling;
+    /** How to handle unused imports. */
+    unusedImports?: SparseWildcardHandling;
     /** Omit issues whose missing target matches one of these globs. */
     skipTargets?: string[];
     /** Omit file-reference issues whose missing target is gitignored. */
@@ -253,6 +256,21 @@ export class NativeAnalysisApi {
     }
 
     /**
+     * Enumerate the unique attribute keys used across all indexed ideas.
+     *
+     * Delegates to the provided {@link SqliteIndexStore} via the index store's
+     * native SQL connection (`listAttributeIdeaRows`), aggregating rows with
+     * the shared {@link aggregateAttributesFromRows}. When no store is supplied
+     * the method returns an empty array.
+     */
+    async enumerateProjectAttributes(store?: SqliteIndexStore): Promise<string[]> {
+        if (!store) {
+            return [];
+        }
+        return store.enumerateProjectAttributes();
+    }
+
+    /**
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_wildcard_zero]
@@ -267,7 +285,8 @@ export class NativeAnalysisApi {
             options?.wildcardZero,
             options?.wildcardOne,
             options?.skipTargets,
-            options?.skipGitignoredTargets
+            options?.skipGitignoredTargets,
+            options?.unusedImports
         ) as NativeBrokenReference[];
     }
 
@@ -378,6 +397,7 @@ export class NativeAnalysisApi {
                     paths: 'Optional extra paths. A file outside the globs is checked alone.',
                     wildcardZero: 'warn (default), error, or off for 0-match wildcards',
                     wildcardOne: 'warn (default), error, or off for 1-match wildcards',
+                    unusedImports: 'warn (default), error, or off for unused imports',
                     skipTargets: 'Optional globs; omit issues whose missing target matches',
                     skipGitignoredTargets: 'Optional: omit missing file targets that gitignore ignores'
                 }
@@ -476,6 +496,7 @@ export class NativeAnalysisApi {
             includeClusterPages: request.includeClusterPages ?? true,
             includeAttributePages: request.includeAttributePages ?? true,
             includePrintPages: request.includePrintPages ?? true,
+            attributeFilters: request.attributeFilters ?? undefined,
             maxGraphNodes: request.maxGraphNodes,
             urlBase: request.urlBase,
             headerLink: request.headerLink

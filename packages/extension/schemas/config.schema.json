@@ -73,6 +73,12 @@
         }
       }
     },
+    "unusedImports": {
+      "type": "string",
+      "description": "How to treat import bindings with no local reference. warn (default) = warning diagnostic with Unnecessary tag; error = error diagnostic; off = suppress.",
+      "enum": ["warn", "error", "off"],
+      "default": "warn"
+    },
     "export": {
       "type": "object",
       "description": "Optional export defaults used by Reqlan export commands. These values provide defaults for prompt-driven exports and can be overridden per run.",

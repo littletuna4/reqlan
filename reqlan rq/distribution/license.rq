@@ -1,5 +1,3 @@
-import "../phonebook.rq" as phonebook_reqs
-
 repo_license {
   The repository root must declare the same licence as the publishable packages and crates.
   SPDX id: `AGPL-3.0-only`.

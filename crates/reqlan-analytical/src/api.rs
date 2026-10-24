@@ -8,7 +8,8 @@ use crate::types::{
 };
 use reqlan_export::{
     build_export_snapshot, write_csv_export, write_html_export, write_json_export,
-    write_markdown_export, ExportFormat, ExportHeaderLink, ExportRequest,
+    write_markdown_export, AttributeFilter as ExportAttributeFilter, ExportFormat,
+    ExportHeaderLink, ExportRequest,
 };
 use reqlan_index::ignore::{application_memory_path, ideas_index_path};
 use reqlan_index::sync::{sync_workspace, to_indexed_uri, SyncOptions};
@@ -285,9 +286,11 @@ impl AnalysisRuntime {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::from([(center_id.to_string(), depth)]);
         while let Some((current, remaining)) = queue.pop_front() {
-            if !visited.insert(current.clone()) {
+            // Track visited per node; if already visited, handle appropriately (skip).
+            if visited.contains(&current) {
                 continue;
             }
+            visited.insert(current.clone());
             if let Some(idea) = self.store.get_idea(&current)? {
                 nodes.insert(idea.id.clone(), idea);
             }
@@ -390,7 +393,7 @@ impl AnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
-    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unused_imports]
     pub fn check(
         &mut self,
         path_globs: &[&str],
@@ -399,6 +402,7 @@ impl AnalysisRuntime {
         wildcard_one: SparseWildcardHandling,
         skip_targets: &[&str],
         skip_gitignored_targets: bool,
+        unused_imports: Option<SparseWildcardHandling>,
     ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
         let scan = prepare_check_scan(&self.workspace_root, path_globs, paths)?;
         if scan.globs.is_empty() || self.ready {
@@ -428,6 +432,7 @@ impl AnalysisRuntime {
                 wildcard_one,
                 skip_targets,
                 skip_gitignored_targets,
+                unused_imports,
             },
         )?;
         Ok(rows.into_iter().map(to_broken_dto).collect())
@@ -489,6 +494,15 @@ impl AnalysisRuntime {
             include_cluster_pages: request.include_cluster_pages,
             include_attribute_pages: request.include_attribute_pages,
             include_print_pages: request.include_print_pages,
+            attribute_filters: request
+                .attribute_filters
+                .into_iter()
+                .map(|f| ExportAttributeFilter {
+                    key: f.key,
+                    value: f.value,
+                    not_present: f.not_present,
+                })
+                .collect(),
             max_graph_nodes: request.max_graph_nodes.map(|n| n as usize),
             url_base: request.url_base,
             header_link: request

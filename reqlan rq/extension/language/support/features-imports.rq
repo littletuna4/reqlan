@@ -9,6 +9,26 @@ remote_imports {
     Barrel imports should be recommended for token efficiency when many symbols are needed from one remote file.
 }
 
+unused_import_diagnostics {
+    Unused import bindings are detected per-file: every specifier of `from "path" import a, b`, every alias of `import "path" as ns`, and every bound name of `import "path".ideaset.idea [as alias]` is checked against all `Local` references (`[name]` / `[[name]]` or `[qualifier.idea]` where qualifier matches the alias) and `IdeaSet` members.
+    If the config is `"warn"` (default), each unused specifier emits a `warning` diagnostic with `DiagnosticTag.Unnecessary`; `"error"` emits `error`; `"off"` suppresses the diagnostic entirely.
+    The `reqlan.check` CLI accepts `--unused-imports <warn|error|off>`; per-file `.reqlan/config.json` `unusedImports` setting applies per source file's base.
+    Lines after `//rq-ignore-error` suppress this diagnostic, matching ["../../../language/syntax.rq".comment_reference_ignore].
+    In the editor, emit `DiagnosticSeverity.Warning` or `Error` with code `"unused-import"` and tag `Unnecessary`. Provide a Quick Fix that removes the specifier (with its comma) from `from` imports or the entire import line for namespace/qualified/bare imports.
+    Related: ["../../../language/imports.rq".import_tokenisation], ["../../../language/imports.rq".anonymous_imports_allowed], [import_does_not_exist_error], ["../../host/configuration.rq".configuration_import_roots].
+
+    @status in-progress
+    @implementation (
+        ["../../../../packages/extension/schemas/config.schema.json"]
+        ["../../../../crates/reqlan-parse/src/ast.rs"]
+        ["../../../../crates/reqlan-index/src/check/imports.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../../packages/extension/package.json"]
+        ["../../../../packages/cli/src/commands/check.ts"]
+    )
+}
+
 from_import_syntax {
     Multiple symbols should be allowd to be be imported with `from "path" import symbol1, symbol2, symbol3` syntax.
     Each imported name is its own link (["../../../language/imports.rq".import_from]).
@@ -21,6 +41,7 @@ import_error {
         - Rewrite the reference to an anonymous qualified form `["path".name]`
         - Search the index for matching ideas, ideasets, or files (same `reqlan.searchReference` path as [code_actions] / ["../../host/features-commands.rq".search_code_actions]), then insert an import
         - Create the idea in a new .rq file and import it
+        - Create every unresolved local idea in this file, or in one new file with one from-import (["../../host/features-commands.rq".create_all_unresolved_ideas])
     [general_errors]
     [code_actions]
     [quick_fixes]
@@ -90,6 +111,7 @@ import_folder_targets {
 
 import_code_completion {
     Import path code completion for `import` / `from` strings (and shared anonymous paths).
+    The Rust server is the default engine. The TypeScript provider remains for the node engine.
     [code_completion]
     [import_code_completion_explicit_extension]
     [import_code_completion_path_segments]
@@ -97,8 +119,37 @@ import_code_completion {
     [import_code_completion_ranking]
     [anonymous_reference_code_completion]
     [import_code_completion_auto_file_import]
-
     [import_code_completion_rendering]
+    @status done
+    @plan {
+        goal
+            The Rust language server completes import paths, anonymous file paths, and the from-import insert on a cross-file idea.
+        constraints
+            - Import strings offer `.rq` files and directories. Anonymous bracket paths offer every file and directory.
+            - Rank by directory hops, then directories before files, then path. filterText is the typed prefix. The list is incomplete.
+            - Cache directory listings. Do not walk again on the next keystroke inside the cache window.
+            - A quoted path then a dot completes names in that one file. No from-import edit on that site.
+            - Idea-graph hop ranking stays out of this work.
+        steps
+            1. Site detection, match, rank, and the cached walk.
+            2. Session dispatch, qualified-file names, and the from-import edit.
+            3. Triggers and a CompletionList.
+            4. Tests and these requirement links.
+        open
+            - none
+    }
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs"]
+        ["../../../../packages/language/test/completion.test.ts"]
+    )
 }
 
 import_code_completion_rendering {
@@ -109,9 +160,11 @@ import_code_completion_rendering {
     [import_code_completion_auto_file_import]
     @status done
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:reference_completions_show_source_path_and_auto_import"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
     )
 }
@@ -126,9 +179,13 @@ import_code_completion_auto_file_import {
     [import_error]
     @status done
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:reference_completions_show_source_path_and_auto_import"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:skips_auto_import_when_the_idea_is_already_imported"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-import-edits.ts"]
     )
@@ -139,9 +196,11 @@ import_code_completion_explicit_extension {
     Hand-written imports may still omit the extension; completion prefers the written form with `.rq`.
 
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_relative_import_paths_with_explicit_rq"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
     )
@@ -151,9 +210,12 @@ import_code_completion_path_segments {
     In a folder context, show next path segments (directories with a trailing `/`).
     After `../`, offer `../path/` before nested `../path/file.rq`.
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:shows_next_path_segments_in_a_folder_context"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_directory_segments_before_nested_files"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
     )
@@ -164,9 +226,11 @@ import_code_completion_substring_match {
     Typing `path` should match `../../parent/path.rq`.
     Typing `hellopath` should match `../../hello/inbetween/path/file.rq` (characters matched in order across path segments).
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:matches_import_paths_by_substring"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
     )
@@ -187,7 +251,8 @@ import_does_not_exist_error {
     @implementation (
         ["../../../../packages/language/src/reqlan-validator.ts"]
         ["../../../../packages/language/src/reqlan-imports.ts"]
-        ["../../../../crates/reqlan-index/src/broken.rs"]
+        ["../../../../crates/reqlan-index/src/check/imports.rs"]
+        ["../../../../crates/reqlan-index/src/path_resolve.rs"]
     )
 }
 
@@ -196,9 +261,11 @@ import_code_completion_ranking {
     Example: typing `../` ranks `../close.rq` before `../../../path.rq`.
     Emit sortText for that order, and set filterText so the editor does not re-rank by label fuzzy score over proximity.
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_import_paths_by_proximity_then_alphabetically"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
     )
@@ -208,9 +275,12 @@ anonymous_reference_code_completion {
     Anonymous imports should share the same code completion
     e.g. ["@/reqlan rq/extension/language/syntax/features-syntax.rq"] should complete the same as `import "@/reqlan rq/extension/language/syntax/features-syntax.rq" as code_completion`. they should share the same code and logic
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:anonymous_paths_share_import_path_completion"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:incomplete_anonymous_alias_paths_match_import_alias_paths"]
         ["../../../../packages/language/test/completion.test.ts"]
     )
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-completion-context.ts"]

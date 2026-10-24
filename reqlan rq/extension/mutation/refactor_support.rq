@@ -84,19 +84,19 @@ refactor_symbol_move {
     [refactor_support] [refactor_changes]
     @status done
     @implementation (
-        ["../../../packages/language/src/reqlan-idea-refactor.ts"]
-        ["../../../packages/language/src/reqlan-idea-move-imports.ts"]
+        ["../../../crates/reqlan-parse/src/refactor.rs"]
+        ["../../../packages/analytical/src/core/idea-refactor-plan.ts"]
         ["../../../packages/language/src/reqlan-code-action-provider.ts"]
         ["../../../crates/reqlan-lsp/src/code_actions.rs"]
         ["../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
         ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"]
     )
     @tests (
-        ["../../../packages/language/test/idea-refactor.test.ts:move plan cuts from source and inserts into destination"]
-        ["../../../packages/language/test/idea-refactor.test.ts:move plan rewrites qualified comment paths for the moved idea"]
-        ["../../../packages/language/test/idea-refactor.test.ts:move plan removes unused source imports and copies them to destination"]
-        ["../../../packages/language/test/idea-refactor.test.ts:move plan adds a sibling import on the destination"]
-        ["../../../packages/language/test/idea-refactor.test.ts:move content plan leaves a source stub that imports the moved idea"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_rewrites_qualified_comment_paths_for_the_moved_idea"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_removes_unused_source_imports_and_copies_them_to_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_adds_a_sibling_import_on_the_destination"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_content_plan_leaves_a_source_stub_that_imports_the_moved_idea"]
         ["../../../packages/language/test/code-actions.test.ts:offers move and delete actions at an idea declaration"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_move_and_delete_actions_at_an_idea_declaration"]
         ["../../../packages/extension/test/extension-package.test.ts:package.json contributes move idea and move idea content commands"]
@@ -108,10 +108,10 @@ refactor_symbol_delete {
     Deleting should remove the declaration, clear or rewrite AST and comment references
     that targeted it ([comment_reference_refactor_support]), and reindex affected files.
     [refactor_support] [refactor_changes]
-    Implemented by ["../../../packages/language/src/reqlan-idea-refactor.ts"], ["../../../packages/language/src/reqlan-code-action-provider.ts"], ["../../../crates/reqlan-lsp/src/code_actions.rs"], and ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"].
+    Implemented by ["../../../crates/reqlan-parse/src/refactor.rs"], ["../../../packages/language/src/reqlan-code-action-provider.ts"], ["../../../crates/reqlan-lsp/src/code_actions.rs"], and ["../../../packages/extension/src/mutation_module/refactor/register-idea-refactor-commands.ts"].
     @tests (
-        ["../../../packages/language/test/idea-refactor.test.ts:delete plan removes declaration and bracket references"]
-        ["../../../packages/language/test/idea-refactor.test.ts:delete plan removes matching comment references"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_declaration_and_bracket_references"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_matching_comment_references"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs:offers_move_and_delete_actions_at_an_idea_declaration"]
     )
 }
@@ -127,7 +127,7 @@ comment_reference_refactor_support {
     @implementation (
         ["../../../packages/language/src/reqlan-path-references.ts"]
         ["../../../packages/language/src/file-path-rewrite.ts"]
-        ["../../../packages/language/src/reqlan-idea-refactor.ts"]
+        ["../../../crates/reqlan-parse/src/refactor.rs"]
         ["../../../packages/language/src/reqlan-comment-rename.ts"]
         ["../../../packages/extension/src/mutation_module/file-move-plan.ts"]
         ["../../../packages/extension/src/mutation_module/expand-renamed-paths.ts"]
@@ -138,8 +138,8 @@ comment_reference_refactor_support {
     @tests (
         ["../../../packages/language/test/file-path-rewrite.test.ts:rewrites inbound comment paths when the target rq file moves"]
         ["../../../packages/language/test/file-path-rewrite.test.ts:finds comment paths in moved rq files together with imports"]
-        ["../../../packages/language/test/idea-refactor.test.ts:move plan rewrites qualified comment paths for the moved idea"]
-        ["../../../packages/language/test/idea-refactor.test.ts:delete plan removes matching comment references"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_rewrites_qualified_comment_paths_for_the_moved_idea"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_matching_comment_references"]
         ["../../../packages/extension/test/collect-inbound-referencers.test.ts:includes comment_link target files when an rq file moves"]
         ["../../../packages/language/test/comment-rename.test.ts:builds rename edits for matching comment idea tokens"]
     )

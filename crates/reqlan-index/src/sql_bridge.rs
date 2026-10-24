@@ -57,6 +57,13 @@ impl SqlBridge {
     pub fn connection(&self) -> &Connection {
         &self.conn
     }
+
+    /// Checkpoint the WAL and close the SQLite handle deterministically.
+    /// rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+    pub fn close(self) -> Result<(), SqlBridgeError> {
+        let _ = self.conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+        self.conn.close().map_err(|(_, error)| SqlBridgeError::Sqlite(error))
+    }
 }
 
 pub fn execute_batch(conn: &Connection, sql: &str) -> Result<(), SqlBridgeError> {

@@ -600,8 +600,14 @@ impl<'s> Parser<'s> {
     fn parse_list_items(&mut self) -> Vec<ListItem> {
         let mut items = Vec::new();
         loop {
+            if self.check_budget() {
+                break;
+            }
             self.skip_nl();
-            if self.at(TokenKind::RParen) || self.at(TokenKind::Eof) {
+            if matches!(
+                self.kind(),
+                TokenKind::RParen | TokenKind::RBrace | TokenKind::At | TokenKind::Eof
+            ) {
                 break;
             }
             if self.at(TokenKind::Comma) {
@@ -638,13 +644,25 @@ impl<'s> Parser<'s> {
         let mut body = Vec::new();
         while !matches!(
             self.kind(),
-            TokenKind::Comma | TokenKind::RParen | TokenKind::Nl | TokenKind::Eof
+            TokenKind::Comma
+                | TokenKind::RParen
+                | TokenKind::RBrace
+                | TokenKind::At
+                | TokenKind::Nl
+                | TokenKind::Eof
         ) {
             if let Some(part) = self.parse_rich_part(true) {
                 body.push(part);
             } else {
                 break;
             }
+        }
+        if body.is_empty() {
+            let token = self.bump();
+            body.push(RichPart::Text {
+                span: Span::from_token(&token),
+                text: self.token_text(&token),
+            });
         }
         ListItem::OneLiner(body)
     }

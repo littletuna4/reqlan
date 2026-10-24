@@ -323,6 +323,14 @@ impl IndexDiagnosticsStore {
         execute(self.bridge.connection(), &sql, &[json!(cap.max(0))])?;
         Ok(())
     }
+
+    /// Checkpoint WAL and close the diagnostics SQLite handle deterministically.
+    /// rq:["../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+    pub fn close(self) -> Result<(), DiagnosticsError> {
+        let conn = self.bridge.connection();
+        let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+        Ok(self.bridge.close()?)
+    }
 }
 
 /// Current unix time in milliseconds (matches JS `Date.now()`).

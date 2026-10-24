@@ -91,6 +91,7 @@ export interface RqClickConfig {
 }
 
 export interface RqConfig {
+    unusedImports?: "warn" | "error" | "off";
     importRoots: ImportRootMapping[];
     export?: RqExportConfig;
     click?: RqClickConfig;
@@ -121,10 +122,11 @@ export function defaultRqConfig(): RqConfig {
 }
 
 export function matchImportRootAlias(path: string, alias: string): string | undefined {
-    if (!alias || !path.startsWith(alias)) {
+    const normalized = path.replace(/\\/g, '/');
+    if (!alias || !normalized.startsWith(alias)) {
         return undefined;
     }
-    const afterAlias = path.slice(alias.length);
+    const afterAlias = normalized.slice(alias.length);
     if (!afterAlias.startsWith('/')) {
         return undefined;
     }
@@ -230,6 +232,9 @@ function parseRqConfig(
     }
     if (parsedClick) {
         config.click = parsedClick;
+    }
+    if (record.unusedImports === 'warn' || record.unusedImports === 'error' || record.unusedImports === 'off') {
+        config.unusedImports = record.unusedImports;
     }
     return config;
 }
@@ -418,19 +423,24 @@ export function resolveImportRootUri(
 /**
  * Resolves a path string against the document directory, or against an import root when aliased.
  */
+function normalizePathSeparators(path: string): string {
+    return path.replace(/\\/g, '/');
+}
+
 export function resolveDocumentPathUri(
     path: string,
     document: LangiumDocument,
     context?: PathResolveContext
 ): URI {
+    const normalized = normalizePathSeparators(path);
     const config = resolveRqConfig(document, context);
-    const matched = matchImportRootMapping(path, config.importRoots);
+    const matched = matchImportRootMapping(normalized, config.importRoots);
     if (!matched) {
-        return UriUtils.resolvePath(UriUtils.dirname(document.uri), path);
+        return UriUtils.resolvePath(UriUtils.dirname(document.uri), normalized);
     }
     const importRoot = resolveImportRootUri(document, context, matched.mapping);
     if (!importRoot) {
-        return UriUtils.resolvePath(UriUtils.dirname(document.uri), path);
+        return UriUtils.resolvePath(UriUtils.dirname(document.uri), normalized);
     }
     return UriUtils.resolvePath(importRoot, matched.remainder);
 }
@@ -446,13 +456,14 @@ export function authoredPathUriCandidates(
     document: LangiumDocument,
     context?: PathResolveContext
 ): URI[] {
-    const primary = resolveDocumentPathUri(path, document, context);
+    const normalized = normalizePathSeparators(path);
+    const primary = resolveDocumentPathUri(normalized, document, context);
     const uris = [primary];
-    if (!path.split(/[\\/]/).includes('..')) {
+    if (!normalized.split(/[\\/]/).includes('..')) {
         return uris;
     }
     const config = resolveRqConfig(document, context);
-    if (matchImportRootMapping(path, config.importRoots)) {
+    if (matchImportRootMapping(normalized, config.importRoots)) {
         return uris;
     }
     const workspace = context?.workspaceFolderUri
@@ -467,7 +478,7 @@ export function authoredPathUriCandidates(
             break;
         }
         dir = parent;
-        const candidate = UriUtils.resolvePath(dir, path);
+        const candidate = UriUtils.resolvePath(dir, normalized);
         if (!uris.some(uri => UriUtils.equals(uri, candidate))) {
             uris.push(candidate);
         }
@@ -508,15 +519,16 @@ export function resolveAuthoredFsPath(
     resolvePath: (fromDir: string, relativePath: string) => string,
     context?: PathResolveContext
 ): string {
+    const normalized = normalizePathSeparators(path);
     const document = documentFromSourceDir(sourceDir);
     const config = resolveRqConfig(document, context);
-    const matched = matchImportRootMapping(path, config.importRoots);
+    const matched = matchImportRootMapping(normalized, config.importRoots);
     if (!matched) {
-        return resolvePath(sourceDir, path);
+        return resolvePath(sourceDir, normalized);
     }
     const importRoot = resolveImportRootUri(document, context, matched.mapping);
     if (!importRoot) {
-        return resolvePath(sourceDir, path);
+        return resolvePath(sourceDir, normalized);
     }
     return resolvePath(importRoot.fsPath, matched.remainder);
 }

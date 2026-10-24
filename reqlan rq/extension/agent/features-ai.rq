@@ -1,4 +1,3 @@
-from "./chat-participant.rq" import chat_participant, chat_participant_completion
 import "./skills-and-mcp.rq" as skills_and_mcp
 
 ai_api should use the chat participant api. which should be in a module. that consumes analysis functions from other modules. https://code.visualstudio.com/api/extension-guides/ai/chat

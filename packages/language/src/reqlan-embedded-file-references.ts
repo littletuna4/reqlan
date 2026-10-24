@@ -17,7 +17,7 @@ export interface EmbeddedFileReference {
 }
 
 const BRACKETED_FILE_REFERENCE_PATTERN = new RegExp(`\\[\\s*(${REQLAN_QUOTED_STRING_CAPTURE})\\s*\\]`, 'g');
-const FILE_REFERENCE_LIKE = /(?:\.\w[\w.]*|\/)/;
+const FILE_REFERENCE_LIKE = /(?:\\|\.\w[\w.]*|\/)/;
 
 export function findEmbeddedFileReferencesInText(text: string, lineOffset = 0): EmbeddedFileReference[] {
     const references: EmbeddedFileReference[] = [];

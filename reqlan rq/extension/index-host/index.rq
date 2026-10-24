@@ -4,7 +4,6 @@ import "../../../packages/mcp/src/server.ts" as mcp_server
 import "../../../packages/extension/src/analytical_submodule/index.ts" as analytical_submodule
 import "./graph-analysers.rq" as graph_analysers
 import "../../indexer/indexer.rq" as indexer
-import "../host/configuration.rq" as configuration
 
 application_memory {
     Base-local application memory for reqlan tools lives under `<base>/.reqlan/`.
@@ -17,7 +16,7 @@ application_memory {
     Diagnostics schema: ["../../indexer/diagnostics-schema.rq".diagnostics_sqlite].
     WAL sidecars and JSON siblings: ["../../indexer/sidecars.rq".reqlan_directory_layout].
     Export form defaults (all formats via ["../export/export.rq".export_webview], including HTML options in ["../export/html-export.rq".html_export_form]) persist as `export_settings.json` in the same directory (active base).
-    Path ignore rules live as `.rqignore` in the same directory ([rqignore] / [configuration.configuration_rqignore]).
+    Path ignore rules live as `.rqignore` in the same directory ([rqignore]).
     Git ignore for SQLite stores lives as `.gitignore` in the same directory (["../../bases/base.rq".base_initialisation_ignore]).
     Path resolution is owned by [application_memory_impl] (`resolveApplicationMemoryPath`); consumers must use it (or `REQLAN_INDEX_PATH` override for a single store) so tools read and write the same store for a given base.
     Multi-base discovery/registry: ["../../bases/base.rq".multi_base_environment]. Index engine ownership: ["../../indexer/indexer.rq".ownership]. Extension wiring: [analytical_submodule].
@@ -46,7 +45,6 @@ rqignore {
     Defaults cover `node_modules/`, virtualenvs, build dirs (`bin/`, `generated/`, `out/`), VCS/editor stores, database files (`*.db3`, sqlite) and SQLite sidecars, binary globs ([binary_ignore]), `*.html`, secrets, and hidden entries.
     Walks also skip common files that have no comments ([commentless_file_ignore]).
     New bases seed the file via [rqignore_initialisation].
-    Product configuration statement: [configuration.configuration_rqignore].
     @implementation (
         [rqignore_impl]
         [application_memory_impl]
@@ -93,7 +91,7 @@ binary_ignore {
     Opt in with a gitignore negation in `.reqlan/.rqignore`. Example: `!*.bin` includes files with a `.bin` extension.
     Opted-in files can receive ["../../indexer/indexer.rq".index_code_files] comment indexing. They are not parsed as `.rq` sources.
     The editor source watcher stays on allowlisted text extensions. A soft sync indexes opted-in binary paths from the scan list. Idle stats stored paths and does not walk.
-    Same filter as [configuration.configuration_rqignore].
+    Same filter as [rqignore].
     @status done
     @implementation (
         [rqignore_impl]

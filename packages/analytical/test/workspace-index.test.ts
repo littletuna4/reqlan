@@ -275,7 +275,6 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
-    // rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
     // rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
     test('skips .rq files under rqignore patterns', async () => {
         const root = await writeWorkspace({

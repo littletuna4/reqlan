@@ -195,7 +195,7 @@ overview_page {
 overview_coverage_scores {
     Collapsible "Coverage" section on [overview_page] / [OverviewPanel].
     Product-facing metrics for how thoroughly ideas map into the active base's project files
-    (respecting ["../../host/configuration.rq".configuration_rqignore]):
+    (respecting [index_reqs.rqignore]):
     - Linked files: percent of project files (non-requirement, non-ignored) that ideas reference —
       exact path match after resolve, or under a referenced folder. Show "N of M project files".
     - Requirement density: ideas per thousand lines of eligible project code; also show idea count and line count.

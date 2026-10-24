@@ -25,7 +25,14 @@ import {
     sharedNameCatalog,
     IGNORE_ERROR_ACTION_TITLE,
     CREATE_ALL_UNRESOLVED_IDEAS_BELOW_TITLE,
+    CREATE_ALL_UNRESOLVED_IDEAS_IN_FILE_TITLE,
+    CREATE_ALL_UNRESOLVED_IDEAS_IN_NEW_FILE_TITLE,
+    appendIdeaStubs,
     createIdeaBelowTitle,
+    defaultNewIdeaFileName,
+    fromImportStatement,
+    ideaNamesFromCreateArgs,
+    newFileIdeaText,
     isIdea,
     type NameCatalog
 } from '@reqlan/language';
@@ -673,5 +680,167 @@ describe('Create idea below unresolved reference', () => {
             context: { diagnostics: unresolved, only: ['refactor'] }
         }).filter(isCodeAction);
         expect(actions.some(action => action.title.includes('below'))).toBe(false);
+    });
+});
+
+describe('Create all unresolved ideas in the file', () => {
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('appends every unresolved local idea at the end of the file', async () => {
+        const document = await parse(s`
+            alpha {
+                [beta_missing]
+            }
+            gamma {
+                [delta_missing]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('delta_missing');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const create = actions.find(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_FILE_TITLE);
+        expect(create?.kind).toBe('quickfix');
+        const edit = create?.edit?.changes?.[document.textDocument.uri]?.[0];
+        const end = document.textDocument.positionAt(text.length);
+        expect(edit?.range).toEqual({ start: end, end });
+        expect(edit?.newText).toBe(appendIdeaStubs(text, ['beta_missing', 'delta_missing']));
+        expect(edit?.newText).toContain('beta_missing {\n    \n}');
+        expect(edit?.newText).toContain('delta_missing {\n    \n}');
+        expect(actions.some(action => action.title === createIdeaBelowTitle('beta_missing'))).toBe(false);
+        expect(actions.some(action => action.title === createIdeaBelowTitle('delta_missing'))).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('offers one new file for every unresolved local idea', async () => {
+        const document = await parse(s`
+            alpha {
+                [beta_missing]
+            }
+            gamma {
+                [delta_missing]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+
+        const create = actions.find(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_NEW_FILE_TITLE);
+        expect(create?.kind).toBe('quickfix');
+        expect(create?.command?.command).toBe(REQLAN_IMPORT_ERROR_CREATE_COMMAND);
+        const args = create?.command?.arguments?.[0] as { refText?: string; refTexts?: string[] };
+        expect(args.refText).toBe('beta_missing');
+        expect(args.refTexts).toEqual(['beta_missing', 'delta_missing']);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('creates one stub when the same unresolved name occurs twice', async () => {
+        const document = await parse(s`
+            alpha {
+                [beta_missing]
+            }
+            gamma {
+                [beta_missing]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+        const edit = actions
+            .find(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_FILE_TITLE)
+            ?.edit?.changes?.[document.textDocument.uri]?.[0];
+        expect(edit?.newText.match(/beta_missing/g)?.length).toBe(1);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('omits file-level create when a qualified reference is unresolved', async () => {
+        const document = await parse(s`
+            from "./missing.rq" import ghost
+            consumer {
+                ["./missing.rq".ghost]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: { line: 2, character: 8 }, end: { line: 2, character: 8 } },
+            context: { diagnostics: document.diagnostics ?? [] }
+        }).filter(isCodeAction);
+        expect(actions.some(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_FILE_TITLE)).toBe(false);
+        expect(actions.some(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_NEW_FILE_TITLE)).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('omits file-level create when only refactor is requested', async () => {
+        const document = await parse(s`
+            alpha {
+                [beta_missing]
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: { line: 1, character: 6 }, end: { line: 1, character: 6 } },
+            context: { diagnostics: document.diagnostics ?? [], only: ['refactor'] }
+        }).filter(isCodeAction);
+        expect(actions.some(action => action.title.startsWith('Create all unresolved'))).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('offers file-level create when the caret idea has no unresolved reference', async () => {
+        const document = await parse(s`
+            alpha {
+                [beta_missing]
+            }
+            beta {
+                local body
+            }
+        `);
+        await services.shared.workspace.DocumentBuilder.build([document], { validation: true });
+        const text = document.textDocument.getText();
+        const offset = text.indexOf('local body');
+        const position = document.textDocument.positionAt(offset);
+        const provider = services.Reqlan.lsp.CodeActionProvider as ReqlanCodeActionProvider;
+        const actions = provider.getCodeActions(document, {
+            textDocument: { uri: document.textDocument.uri },
+            range: { start: position, end: position },
+            context: { diagnostics: [] }
+        }).filter(isCodeAction);
+        expect(actions.some(action => action.title.includes('below'))).toBe(false);
+        expect(actions.some(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_FILE_TITLE)).toBe(true);
+        expect(actions.some(action => action.title === CREATE_ALL_UNRESOLVED_IDEAS_IN_NEW_FILE_TITLE)).toBe(true);
+    });
+
+    // rq:["../../../reqlan rq/extension/host/features-commands.rq".create_all_unresolved_ideas]
+    test('keeps valid idea names for a new file', () => {
+        expect(ideaNamesFromCreateArgs({
+            refTexts: ['alpha', 'alpha', 'bad name', 'beta']
+        })).toEqual(['alpha', 'beta']);
+        expect(ideaNamesFromCreateArgs({ refText: 'only_one' })).toEqual(['only_one']);
+        expect(defaultNewIdeaFileName(['alpha'])).toBe('alpha.rq');
+        expect(defaultNewIdeaFileName(['alpha', 'beta'])).toBe('unresolved.rq');
+        expect(newFileIdeaText(['alpha', 'beta'])).toBe('alpha {\n    \n}\n\nbeta {\n    \n}\n');
+        expect(fromImportStatement('./unresolved.rq', ['alpha', 'beta'])).toBe(
+            'from "./unresolved.rq" import alpha, beta'
+        );
+        expect(appendIdeaStubs('host {\n}\n', ['alpha'])).toBe('\nalpha {\n    \n}\n');
+        expect(appendIdeaStubs('host {\n}', ['alpha'])).toBe('\n\nalpha {\n    \n}\n');
     });
 });

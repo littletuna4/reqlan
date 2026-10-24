@@ -26,6 +26,7 @@ code_actions {
     - File-level source action: barrel page — ["../host/features-commands.rq".barrel_page]
     - Quick Fix: insert `//rq-ignore-error` before a line with diagnostics — ["../host/features-commands.rq".code_actions_ignore_error]
     - Quick Fix: create a missing local idea below the idea that contains the unresolved reference — ["../host/features-commands.rq".create_idea_below_idea_containing_unresolved_reference_under_cursor]
+    - Quick Fix: create every unresolved local idea in this file, or in one new file — ["../host/features-commands.rq".create_all_unresolved_ideas]
     The Rust server returns the same set (["./support/language-server-rust.rq".language_server_rust]).
     Command-backed search/replace and barrel actions omit LSP command arguments so VS Code does not cache disposable delegating ids; the extension resolves the active editor (or document) when the command runs.
     The same Quick Fix appears once in one request.
@@ -48,21 +49,43 @@ code_actions {
         ["../../../packages/extension/src/extension/register-ignore-error-code-actions.ts"]
         ["../../../packages/language/src/reqlan-ignore-error-action.ts"]
         ["../../../packages/language/src/reqlan-create-idea-below.ts"]
+        ["../../../packages/language/src/reqlan-create-unresolved-ideas.ts"]
     )
     @tests (
         ["../../../packages/language/test/code-actions.test.ts"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs"]
+        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
         ["../../../packages/language/test/code-actions.test.ts:keeps one quick fix set after repeated builds"]
         ["../../../packages/extension/test/extension-package.test.ts"]
         ["../../../packages/extension/test/barrel-page-apply.test.ts"]
-        ["../../../packages/language/test/idea-refactor.test.ts"]
         ["../../../packages/language/test/ignore-error-action.test.ts"]
         ["../../../packages/extension/test/ignore-error-code-action.test.ts"]
         ["../../../packages/language/test/code-actions.test.ts:creates the missing idea below the containing idea when only one is unresolved"]
         ["../../../packages/language/test/code-actions.test.ts:offers all or a specific unresolved idea when the caret idea has several"]
+        ["../../../packages/language/test/code-actions.test.ts:appends every unresolved local idea at the end of the file"]
+        ["../../../crates/reqlan-lsp/tests/code_actions.rs:appends_every_unresolved_local_idea_at_the_end_of_the_file"]
     )
 }
 
 quick_fixes {
-    Quick-fix subset of [code_actions] (import errors, ignore-error, create-below).
+    Quick-fix subset of [code_actions] (import errors, ignore-error, create-below, create-all-unresolved).
+}
+
+selection_range {
+    Expand Selection follows the parse.
+    The caret inside a reference name grows through that name, the bracket reference, the body line, and the enclosing idea.
+    The caret on an attribute name grows through `@` plus the name, the attribute, and the enclosing idea.
+    The whole buffer is the outermost range.
+    The activity bar selection is the editor selection.
+    A definition link's origin range is the token under the caret.
+    @status done
+    @implementation (
+        ["../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../crates/reqlan-lsp/src/server.rs"]
+    )
+    @tests (
+        ["../../../crates/reqlan-lsp/tests/session.rs:selection_range_grows_from_the_reference_name_to_the_idea"]
+        ["../../../crates/reqlan-lsp/tests/session.rs:selection_range_grows_from_an_attribute_name"]
+    )
 }

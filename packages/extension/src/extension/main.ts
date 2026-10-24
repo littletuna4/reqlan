@@ -137,7 +137,13 @@ function scheduleBackgroundStartup(
     const languageClientStartGate = activityBarPainted.waitOrTimeout(
         LANGUAGE_CLIENT_FALLBACK_DELAY_MS
     );
-    void languageClientStartGate.then(() => {
+    // 1. Sequential native resource loading: language-server native process waits
+    // for the workspace index to open its native store / SQLite handles first.
+    // rq:["../../../../reqlan rq/extension/host/startup-performance.rq".deferred_startup_sequence]
+    void Promise.all([
+        submodule.index.indexOpened.ready,
+        languageClientStartGate
+    ]).then(() => {
         void startLanguageClient(context, submodule)
             .then(started => {
                 client = started;

@@ -31,8 +31,9 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "clipanion": "3.2.1",
-        "@reqlan/analytical": "workspace:*"
+        "@reqlan/analytical": "workspace:*",
+        "@reqlan/cli": "link:",
+        "clipanion": "3.2.1"
     },
     "devDependencies": {
         "shx": "~0.4.0",

@@ -1,9 +1,9 @@
 import "../../host/features-commands.rq" as commands
 import "../../../core_analysis/search.rq" as core_search
 import "../../workspace-summary/ideas_summary/webview.rq" as ideas_summary_doc
-import "../../../../packages/extension/src/shared/fuzzy-search.ts" as fuzzy_search_impl
+
 import "../../../../packages/analytical/src/native/native-workspace-index.ts" as native_workspace_index
-import "../../../../packages/extension/src/activity_bar_module/search-results-meta.ts" as search_results_meta
+
 import "../../../../packages/extension/webviews/activity-bar/components/SearchPane.svelte" as SearchPane
 import "../../../../packages/extension/webviews/activity-bar/components/SearchHighlight.svelte" as SearchHighlight
 import "../../../../packages/extension/webviews/activity-bar/components/AddToChatButton.svelte" as AddToChatButton

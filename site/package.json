@@ -43,7 +43,7 @@
         "eslint": "^9",
         "eslint-plugin-react-hooks": "^7.0.1",
         "langium": "~4.3.0",
-        "playwright": "^1.62.1",
+        "playwright": "^1.64.1",
         "sharp": "^0.34.5",
         "tailwindcss": "^4",
         "to-ico": "^1.1.5",

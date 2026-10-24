@@ -206,6 +206,15 @@ impl LocalSymbolicDocument {
     }
 }
 
+/// Name lookup row. It omits summary, attributes, and git columns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdeaNameRow {
+    pub name: String,
+    pub kind: IdeaKind,
+    pub file_uri: String,
+    pub line_start: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdeaSummary {

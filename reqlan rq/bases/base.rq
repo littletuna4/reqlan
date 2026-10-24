@@ -117,7 +117,7 @@ base_modes {
 }
 
 base_initialisation {
-    Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see [extension_configuration.configuration_rqignore]), `.reqlan/.gitignore` ([base_initialisation_ignore]), and a sqlite ideas index under `.reqlan` ([base_ownership]).
+    Bases are initialised with `<base>/.reqlan/config.json`, `.reqlan/.rqignore` (gitignore-syntax path filters; see [app_memory_doc.rqignore]), `.reqlan/.gitignore` ([base_initialisation_ignore]), and a sqlite ideas index under `.reqlan` ([base_ownership]).
     [create_base_impl] creates the `.reqlan` marker and seeds a minimal `config.json`, default `.rqignore` (["../extension/index-host/index.rq".rqignore_initialisation]), and `.gitignore` when the base is new.
     Full install sequencing (extension welcome vs base seeds vs agent files): ["../extension/host/installation.rq".base_installation].
 }
@@ -125,7 +125,7 @@ base_initialisation {
 base_initialisation_ignore {
     New bases seed `<base>/.reqlan/.gitignore` so Git does not track SQLite application-memory files.
     Patterns cover the ideas index ([base_ownership]), the diagnostics store ([app_memory_doc.index_diagnostics_store]), and SQLite sidecars (`*.sqlite`, `*.sqlite-journal`, `*.sqlite-shm`, `*.sqlite-wal`).
-    This file is Git ignore for `.reqlan/`. Path filters for discovery stay in `.rqignore` ([extension_configuration.configuration_rqignore] / [app_memory_doc.rqignore]).
+    This file is Git ignore for `.reqlan/`. Path filters for discovery stay in `.rqignore` ([app_memory_doc.rqignore]).
     Written by [create_base_impl] as part of [base_initialisation] / ["../extension/host/installation.rq".base_installation].
     @implementation (
         [create_base_impl]

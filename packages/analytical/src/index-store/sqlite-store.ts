@@ -55,6 +55,7 @@ import {
     attributeValuesForKeys,
     filterAndPageAttributes
 } from './webview-table-queries.js';
+import { enumerateProjectAttributes } from '../core/attribute-enumeration.js';
 
 interface SqliteDatabase {
     conn: NativeSqlConnection;
@@ -584,6 +585,16 @@ export class SqliteIndexStore {
     async listAttributesPage(query: AttributesTableQuery): Promise<AttributeTableRow[]> {
         const { rows } = await this.queryAttributesPage(query);
         return rows;
+    }
+
+    /**
+     * Enumerate unique attribute keys used across all indexed ideas.
+     * 
+     * @returns Array of unique attribute keys (sorted)
+     */
+    async enumerateProjectAttributes(): Promise<string[]> {
+        const rows = this.db.conn.listAttributeIdeaRows() as Array<{ id: string; attributes_json: string }>;
+        return enumerateProjectAttributes(() => rows);
     }
 
     private async queryAttributesPage(

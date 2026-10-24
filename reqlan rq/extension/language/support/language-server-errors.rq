@@ -1,4 +1,3 @@
-from "../../../core-architecture.rq" import language_server
 from "../../../reference_types.rq" import file_reference
 from "../../../language/syntax.rq" import comment_reference_ignore, comment_reference_resolution_error, inline_code
 

@@ -29,14 +29,8 @@ export * from './reqlan-path-references.js';
 export * from './reqlan-comment-rename.js';
 export { ReqlanRenameProvider } from './reqlan-rename-provider.js';
 export {
-    ideaDeclarationText,
     isRefactorIdeaDeclaration,
-    planIdeaDeleteEdits,
-    planIdeaMoveEdits,
     findIdeaDeclarationAtRange,
-    listRefactorIdeaDeclarations,
-    type DocumentTextEdits,
-    type PlanIdeaMoveInput,
     type RefactorIdeaDeclaration
 } from './reqlan-idea-refactor.js';
 export * from './reqlan-path-resolve.js';
@@ -56,6 +50,7 @@ export * from './reqlan-completion-provider.js';
 export * from './reqlan-path-completion.js';
 export * from './reqlan-code-action-provider.js';
 export * from './reqlan-create-idea-below.js';
+export * from './reqlan-create-unresolved-ideas.js';
 export * from './reqlan-idea-reference-site.js';
 export * from './reqlan-reference-search-site.js';
 export * from './reqlan-import-edits.js';

@@ -125,6 +125,12 @@
           ],
           "operator": [
             "punctuation.definition.attribute.reqlan"
+          ],
+          "keyword": [
+            "keyword.control.reqlan"
+          ],
+          "method": [
+            "entity.name.function.reqlan"
           ]
         }
       }
@@ -622,7 +628,7 @@
     "build:syntaxes": "shx mkdir -p ./syntaxes/ && shx cp -f ../language/syntaxes/reqlan.tmLanguage.json ./syntaxes/reqlan.tmLanguage.json && shx cp -f ./grammars/reqlan-comment.injection.json ./syntaxes/reqlan-comment.injection.json",
     "sync:cursor": "node ../../scripts/sync-cursor-ai.mjs",
     "build:prepare": "pnpm run build:syntaxes && pnpm run sync:cursor",
-    "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/onboarding/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts",
+    "build:webviews": "npx vite build --config webviews/ideas-summary/vite.config.ts && npx vite build --config webviews/activity-bar/vite.config.ts && npx vite build --config webviews/export-form/vite.config.ts && npx vite build --config webviews/index-diagnostics/vite.config.ts",
     "build": "node scripts/build.mjs",
     "build:force": "node scripts/build.mjs --force",
     "build:clean": "pnpm run clean && pnpm run build",

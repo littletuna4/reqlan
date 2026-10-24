@@ -884,6 +884,21 @@ pub fn path_glob_matches(glob: &str, path: &str) -> bool {
     glob_to_regex(&normalize_scan_glob(glob), true).is_match(&path)
 }
 
+/// True when any non-empty glob in `path_globs` matches `file_uri`.
+/// An empty string in the list matches nothing (does not select every file).
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_glob_patterns]
+pub fn glob_list_matches(path_globs: &[&str], file_uri: &str) -> bool {
+    path_globs.iter().any(|glob| {
+        let glob = glob.trim();
+        !glob.is_empty() && path_glob_matches(glob, file_uri)
+    })
+}
+
+/// True when `file_uri` matches an explicit file in `extra_files`.
+pub fn extra_file_matches(extra_files: &[&str], file_uri: &str) -> bool {
+    extra_files.iter().any(|path| crate::path_resolve::same_indexed_path(path, file_uri))
+}
+
 /// True when a file under `dir_rel` can match `glob`.
 /// An empty glob matches nothing here. It is not a match-all scan.
 /// `dir_rel` is a workspace-relative directory. An empty directory is the workspace root.

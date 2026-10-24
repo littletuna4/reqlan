@@ -68,6 +68,26 @@ fn find_line_comment_start(line: &str) -> Option<usize> {
     None
 }
 
+/// True when `line` (0-based) in `file_uri` is suppressed by `//rq-ignore-error`,
+/// caching parsed target lines per file across calls.
+pub fn is_line_rq_ignored(
+    workspace_root: &std::path::Path,
+    file_uri: &str,
+    source_line: Option<u32>,
+    cache: &mut std::collections::HashMap<String, HashSet<u32>>,
+) -> bool {
+    let Some(line) = source_line else {
+        return false;
+    };
+    let ignored = cache.entry(file_uri.to_string()).or_insert_with(|| {
+        let path = workspace_root.join(file_uri);
+        std::fs::read_to_string(&path)
+            .map(|text| find_rq_ignore_error_target_lines(&text))
+            .unwrap_or_default()
+    });
+    ignored.contains(&line)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -31,6 +31,12 @@ describe('import root alias', () => {
     });
 
     // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+    test('matchImportRootAlias accepts backslash separators', () => {
+        expect(matchImportRootAlias(String.raw`@\reqs\style.rq`, '@')).toBe('reqs/style.rq');
+        expect(matchImportRootAlias(String.raw`#\x.rq`, '#')).toBe('x.rq');
+    });
+
+    // rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
     test('findWorkspaceFolderUri picks the longest matching folder', () => {
         const nested = URI.parse('file:///ws/pkg');
         const root = URI.parse('file:///ws');

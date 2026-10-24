@@ -26,12 +26,16 @@ syntax_highlighting {
         ["../../../../packages/language/scripts/patch-textmate.mjs"]
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../packages/extension/package.json"]
     )
     @tests (
         ["../../../../packages/language/test/textmate-wildcard-highlight.test.ts"]
         ["../../../../packages/language/test/textmate-import-highlight.test.ts"]
         ["../../../../packages/language/test/textmate-idea-highlight.test.ts"]
         ["../../../../packages/language/test/semantic-tokens-wildcard.test.ts"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_tokens_cover_import_keywords_and_file_symbols"]
     )
 }
 
@@ -107,7 +111,7 @@ code_completion {
 refactor_support {
     syntactic symbols should be available for renaming, moving, and deleting. the extension should watch for the change.
     Detailed behaviour lives in ["../../mutation/refactor_support.rq"].
-    Implemented by ["../../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../../packages/language/src/reqlan-idea-refactor.ts"], and ["../../../../packages/extension/src/mutation_module/refactor/index.ts"].
+    Implemented by ["../../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../../crates/reqlan-parse/src/refactor.rs"], ["../../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"], and ["../../../../packages/extension/src/mutation_module/refactor/index.ts"].
 }
 
 file_references {

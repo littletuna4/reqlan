@@ -1,7 +1,7 @@
 import "../../indexer/indexer.rq" as indexer
 import "./index.rq" as app_memory
 import "../local-context/activitybar-panels/workspace.rq" as workspace_pane
-import "../host/features-commands.rq" as commands
+
 import "../../../packages/analytical/src/index-store/index-diagnostics-store.ts" as diagnostics_store
 import "../../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../../../packages/extension/src/index_host_module/diagnostics/index-diagnostics-panel.ts" as diagnostics_panel

@@ -11,6 +11,13 @@ describe('resolveReferencedFilePath', () => {
         ).toBe('packages/extension/src/foo.ts');
     });
 
+    test('accepts both forward and back slash separators', () => {
+        const fwd = resolveReferencedFilePath('my/file/with/fwdslash', 'a/b.rq');
+        const back = resolveReferencedFilePath('my\\file\\with\\back\\slash', 'a/b.rq');
+        expect(fwd).toBe('a/my/file/with/fwdslash');
+        expect(back).toBe('a/my/file/with/back/slash');
+    });
+
     test('leaves absolute and scheme paths unchanged', () => {
         expect(resolveReferencedFilePath('/abs/foo.ts', 'a/b.rq#x')).toBe('/abs/foo.ts');
         expect(resolveReferencedFilePath('file:///tmp/x.ts', 'a/b.rq#x')).toBe('file:///tmp/x.ts');

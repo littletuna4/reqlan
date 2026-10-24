@@ -96,7 +96,7 @@ base_config_seed {
 base_rqignore_seed {
     New bases write `.reqlan/.rqignore` with gitignore-syntax defaults (dependencies, venvs, build output, DBs such as `*.db3` and SQLite sidecars, binary globs, [app_memory.commentless_file_ignore], secrets, hidden entries, `.reqlan/` itself).
     Comment text in the seed: [app_memory.rqignore_initialisation].
-    Built-in defaults always apply even if the file is missing; the seeded file is the editable surface ([configuration.configuration_rqignore] / [app_memory.rqignore] / [app_memory.binary_ignore]).
+    Built-in defaults always apply even if the file is missing; the seeded file is the editable surface ([app_memory.rqignore] / [app_memory.binary_ignore]).
     Used by analytical discovery and indexing walks (CLI and extension share `@reqlan/analytical`).
 }
 

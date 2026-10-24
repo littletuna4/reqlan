@@ -283,22 +283,29 @@ export class WorkspaceIndex {
         }
     }
 
-    async deactivate(): Promise<void> {
+    /**
+ * Drop the native runtime first (which WAL-checkpoints + releases rusqlite handles),
+ * then close TS-side SqliteIndexStore connections. Ordering matters: the native
+ * shutdown runs `PRAGMA wal_checkpoint(TRUNCATE)` before dropping the connection,
+ * so file handles are released cleanly and base artifacts become deletable.
+ * rq:["../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+ */
+async deactivate(): Promise<void> {
         const native = this.native;
         if (native?.canDispatchIndex('deactivate')) {
             native.dispatchIndex('deactivate');
         }
-        await this.sqlite?.close();
-        this.sqlite = undefined;
-        await this.diagnostics?.close();
-        this.diagnostics = undefined;
-        // Return the FSM to `uninitialized` before dropping the runtime handle.
-        // shutdown checkpoints WAL so `.sqlite` / sidecars can be deleted.
-        // rq:["../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".sqlite_artifact_lifecycle]
+        // Ensure WAL checkpoint before closing SQLite connections; shutdown() does this.
+        // Close native runtime first so WAL checkpoint runs before sqlite connections drop.
         if (native?.canDispatchIndex('closed')) {
             native.dispatchIndex('closed');
         }
         native?.close();
+        // Now close SQLite connections; underlying native runtime has already released locks.
+        await this.sqlite?.close();
+        this.sqlite = undefined;
+        await this.diagnostics?.close();
+        this.diagnostics = undefined;
         this.native = undefined;
         this.notifyStatusUpdated();
     }

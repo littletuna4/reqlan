@@ -1,9 +1,8 @@
-from "./indexer.rq" import index, nonblocking_index, triggers, indexing_incrementality
+from "./indexer.rq" import nonblocking_index, indexing_incrementality
 from "../extension/index-host/graph-analysers.rq" import indexing_trigger_auto
 from "../extension/language/support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
 from "../extension/language/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
 from "../extension/workspace-summary/ideas_summary/graphical_graph.rq" import graphical_graph
-import "../../packages/extension/src/analytical_submodule/index-store/index-service.ts" as editor_index_adapter
 import "../../packages/analytical/src/index-store/workspace-index.ts" as workspace_index
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/language/src/reqlan-path-completion.ts" as path_completion
@@ -94,6 +93,9 @@ path_completion_listing_cache {
 
 avoid_full_list_all_ideas {
     Prefer `fuzzySearch`, paged SQL, or catalog deltas over materialising every idea.
+    The language server looks up one idea name with `ideas_named`, or a prefix with `idea_names_with_prefix`.
+    It does not call `list_all_ideas` for completion, code actions, references, or rename.
+    A pushed name catalog answers those lookups. SQLite is the fallback when the catalog is empty.
     Avoid:
     - reference-search / wildcard panels calling `listAllIdeas` when search APIs suffice
     - Ideas Summary `sendFullGraph` dumping all ideas and edges ([graphical_graph] guidance)
@@ -101,6 +103,10 @@ avoid_full_list_all_ideas {
     [index_cache_reuse]
     [consumers.extension_ui_consumers]
     @status draft
+    @implementation (
+        ["../../crates/reqlan-index/src/store.rs"]
+        ["../../crates/reqlan-lsp/src/session.rs"]
+    )
 }
 
 unify_inbound_indexes {

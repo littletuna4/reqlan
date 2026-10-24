@@ -1,0 +1,140 @@
+from "./language-server-rust.rq" import language_server_rust
+from "./features-imports.rq" import import_code_completion, import_code_completion_rendering, import_code_completion_auto_file_import
+from "./initialisation-and-sequencing.rq" import lsp_file_watch
+from "../../mutation/refactor_support.rq" import refactor_symbol_move, refactor_symbol_delete
+
+lsp_migration_remainder {
+    The default language server is [language_server_rust].
+    The Rust process serves the editor methods the product uses: sync, diagnostics, definition, highlight, links, hover, semantic tokens, inlay hints, code lens, completion, code actions, rename, references, document symbols, folding, and workspace symbols.
+    Custom requests are file reference, wildcard reference, and reference-search site.
+    The host pushes the inbound snapshot, settings, attribute catalog, name catalog, and bases.
+    Import and file-path completion run in the Rust server ([import_code_completion], [import_code_completion_rendering], [import_code_completion_auto_file_import]).
+    Triggers are `[`, `@`, `.`, `/`, and `"`.
+    Import strings complete `.rq` files and directories.
+    Anonymous bracket paths complete every file and directory, with the same ranking and alias rules.
+    A cross-file idea shows its relative import path and inserts a from-import on accept when that name is not already imported.
+    Move and delete text plans are native ([refactor_symbol_move], [refactor_symbol_delete]).
+    The host passes open texts and index referencers. It does not build a Langium document.
+    Barrel page planning is native.
+    Document symbols and folding are flat idea lists.
+    Semantic tokens include `keyword` (`import`, `from`, `as`) and file-symbol `method` spans.
+    The theme maps `decorator`, `operator`, `keyword`, and `method` onto TextMate scopes.
+    [lsp_file_watch] is the node document manager.
+    The Rust server keeps no closed syntax tree.
+    A neighbor read checks the file stamp.
+    The index host watches `**/*.rq`.
+    Do not port the Langium watch rebuild.
+    `textDocument/selectionRange` grows with the parse (["../vsc-primitives.rq".selection_range]).
+    The activity bar's `selectionRange` is the editor selection.
+    A definition link's `originSelectionRange` is the token under the caret.
+    Rust text sync is incremental ([lsp_incremental_sync]).
+    The node server keeps Langium incremental sync.
+    Rust cancellation and work-done progress are [lsp_work_progress].
+    The node connection already accepts cancel tokens.
+    Index and search progress stay on the extension host.
+    The Rust parser applies relative body indent.
+    The node process (`packages/extension/src/language/main.ts` and the Langium providers) is the fallback when the setting is `node` or the binary is missing.
+    The extension host stays in TypeScript: the language client, command UI, index, webviews, and TextMate.
+    Comment rename in non-`.rq` files is a host rename provider.
+    It reads the comment text.
+    It does not build a Langium document.
+    @status in-progress
+    @todo The node language server remains the fallback when the setting is node or the binary is missing.
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+        ["../../../../crates/reqlan-parse/src/parser.rs"]
+        ["../../../../crates/reqlan-parse/src/barrel.rs"]
+        ["../../../../crates/reqlan-parse/src/refactor.rs"]
+        ["../../../../packages/language/src/reqlan-completion-provider.ts"]
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+        ["../../../../packages/extension/src/language/main.ts"]
+        ["../../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
+    )
+}
+
+lsp_incremental_sync {
+    The Rust server syncs open buffers with incremental didChange.
+    didOpen sends the full text. Each didChange applies its content changes in order, then reparses the whole buffer.
+    A change with no range replaces the buffer. A change with a range splices that UTF-16 range. rangeLength is ignored.
+    .rq and comment buffers both splice.
+    Open and close notifications stay on.
+    The node server keeps Langium incremental sync.
+    Related: [language_server_rust], [lsp_migration_remainder].
+    @status done
+    @plan {
+        goal
+            Rust didChange applies ordered UTF-16 edits, then the existing full reparse.
+        constraints
+            - TextDocumentSyncOptions sets openClose and change Incremental.
+            - Positions are UTF-16. The buffer is UTF-8.
+            - Several edits in one notification apply in order against the updated buffer.
+            - Parse, diagnostics, and the hot/confirm sequence stay as they are.
+        steps
+            1. apply_content_changes in utf16.rs.
+            2. Session applies the result through change or open.
+            3. Advertise the sync options.
+            4. Tests below.
+        open
+            - none
+    }
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/utf16.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:replaces_a_word"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:inserts_a_newline"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:deletes_across_a_newline"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:applies_later_ranges_to_the_updated_buffer"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:snaps_a_surrogate_pair_to_the_next_char"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:omitted_range_replaces_the_buffer"]
+        ["../../../../crates/reqlan-lsp/src/utf16.rs:range_length_does_not_move_the_splice"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:incremental_change_renames_an_unresolved_idea"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:incremental_change_updates_a_comment_reference"]
+    )
+}
+
+lsp_work_progress {
+    The Rust server honors `$/cancelRequest` and reports work-done progress.
+    A cancel that arrives before its request returns error -32800.
+    The handler does not run.
+    A cancel seen at a checkpoint aborts the walk.
+    The response is that error.
+    No success result follows.
+    Hover, definition, highlight, links, semantic tokens, code lens, inlays, document symbols, folding, and selection range check cancel when the request ends.
+    They do not advertise work-done progress.
+    References, rename, completion, and workspace symbol advertise `workDoneProgress`.
+    Each of those walks checks cancel per document, index, or directory.
+    A catalog scan checks cancel every 128 names.
+    A request that carries `workDoneToken` sends `$/progress` begin, report, and end on that token.
+    A report is sent when the percentage changes. Repeated ticks at the same percentage send nothing.
+    Begin waits 150ms, so a fast request sends no progress.
+    End runs on every exit, including cancel.
+    The confirm pass has no client token.
+    When the client allows work-done progress, the server creates a token and reports "Checking references" after the same delay.
+    A client message that arrives during that walk puts the URI back on the confirm queue.
+    The server publishes no diagnostics for that stale walk.
+    The waiting message is handled next.
+    A request therefore does not wait behind the rest of the confirm pass.
+    Related: [language_server_rust], [lsp_migration_remainder].
+    @status done
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/duty.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/src/duty.rs:cancel_before_the_request_skips_the_handler"]
+        ["../../../../crates/reqlan-lsp/src/duty.rs:checkpoint_cancel_stops_the_walk"]
+        ["../../../../crates/reqlan-lsp/src/duty.rs:progress_reports_on_the_client_token"]
+        ["../../../../crates/reqlan-lsp/src/duty.rs:progress_stays_quiet_inside_the_delay"]
+        ["../../../../crates/reqlan-lsp/src/duty.rs:progress_collapses_one_percentage"]
+        ["../../../../crates/reqlan-lsp/src/server.rs:aborted_confirm_keeps_the_uri"]
+    )
+}
+

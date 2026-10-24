@@ -105,6 +105,25 @@ mybadidea3\n";
     );
 }
 
+// rq:["../../../reqlan rq/core_analysis/check_oom.rq".parser_list_progress]
+#[test]
+fn unclosed_list_stops_at_attribute_and_enclosing_block() {
+    let source =
+        "host {\n    items (\n        first\n    @status pending\n}\nnext { still parsed }\n";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none(), "{:?}", result.diagnostics);
+    assert_eq!(idea_names(source), vec!["host", "next"]);
+}
+
+// rq:["../../../reqlan rq/core_analysis/check_oom.rq".parser_list_progress]
+#[test]
+fn unclosed_list_stops_before_enclosing_block_close() {
+    let source = "host {\n    items (\n        first\n}\nnext { still parsed }\n";
+    let result = parse_document(source);
+    assert!(result.incomplete.is_none(), "{:?}", result.diagnostics);
+    assert_eq!(idea_names(source), vec!["host", "next"]);
+}
+
 // rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
 #[test]
 fn keeps_inline_prose_braces() {

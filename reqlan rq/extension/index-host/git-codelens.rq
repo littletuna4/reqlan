@@ -1,5 +1,4 @@
 import "../local-context/context-scope.rq" as context_scope
-import "./graph-analysers.rq" as graph_analysers
 import "../../indexer/indexer.rq" as indexer
 import "../workspace-summary/ideas_summary/webview.rq" as ideas_summary_webview
 

@@ -1,0 +1,19 @@
+attribute_enumeration {
+    Enumerate unique attribute keys across all indexed ideas in a project.
+    Function {@code enumerateProjectAttributes} in {@code packages/analytical/src/core/attribute-enumeration.ts}
+    returns a sorted array of distinct attribute keys found in all indexed idea rows,
+    using the existing {@code aggregateAttributesFromRows} and
+    {@code listAttributeIdeaRows} / {@code SqliteIndexStore}.
+    @implementation (
+        ["../../packages/analytical/src/core/attribute-enumeration.ts"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"] (SqliteIndexStore.enumerateProjectAttributes)
+        ["../../packages/analytical/src/index-store/webview-table-queries.ts"] (aggregateAttributesFromRows)
+        ["../../packages/analytical/src/native/native-analysis-api.ts"] (NativeAnalysisApi.enumerateProjectAttributes)
+        ["../../packages/analytical/src/native/native-sql-db.ts"] (listAttributeIdeaRows)
+    )
+    @tests (
+        ["../../packages/analytical/test/attribute-enumeration.test.ts"] (*)
+    )
+    @status done
+    @tags (analytical, attribute, enumeration)
+}

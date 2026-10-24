@@ -116,7 +116,7 @@ configuration_import_root_alias {
         ["../../packages/extension/src/extension/register-comment-reference-links.ts"]
         ["../../crates/reqlan-parse/src/path.rs"]
         ["../../crates/reqlan-index/src/path_resolve.rs"]
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-index/src/comment.rs"]
         ["../../crates/reqlan-lsp/src/analysis.rs"]
@@ -163,6 +163,28 @@ anonymous_imports_allowed {
         ["../../packages/language/test/linking.test.ts:quoted-path qualified idea is not limited to from-import specifiers"]
         ["../../packages/language/test/linking.test.ts:quoted-path qualified idea is not limited to a qualified import of the same file"]
         ["../../packages/language/test/linking.test.ts:sqlite-schema quoted path reaches indexer ideas that are not from-imported"]
+    )
+}
+
+unused_imports {
+    An import binding that is never referenced by any local reference in the importing file is unused.
+    A `from "path" import idea` binds `idea`; a `from "path" import idea as alias` binds `alias`; `import "path" as ns` binds `ns`; `import "path".ideaset.idea [as alias]` binds `alias` or `idea`; a bare `import "path"` (no `as`) binds nothing and is always unused since anonymous references (`["path".idea]`) never need it.
+    Used names are those that appear as `Local` (`[name]` / `[[name]]` or `[qualifier.idea]` with qualifier = alias) or as `IdeaSet` members (`ideaset foo { member1, member2 }`).
+    The severity is configurable per `.reqlan/config.json` (`unusedImports`: `"warn"` | `"error"` | `"off"`, default `"warn"`) and via VS Code setting `reqlan.unusedImports`. The `reqlan.check` CLI accepts `--unused-imports <warn|error|off>`, overriding the config for that run.
+    When set to `warn`, emit `warning`; when `error`, emit `error`; when `off`, suppress the diagnostic entirely.
+    Lines preceded by `//rq-ignore-error` suppress the unused import diagnostic, matching ["./syntax.rq".comment_reference_ignore].
+    Editor: emit `DiagnosticTag.Unnecessary` so VS Code dims/fades the line; provide a Quick Fix (`Remove unused import`) that removes the specifier (with its comma) for `from` imports or the entire import line for namespace/qualified/bare imports.
+    Related: [import_tokenisation], [anonymous_imports_allowed], ["../extension/language/support/features-imports.rq".import_does_not_exist_error], ["../extension/host/configuration.rq".configuration_import_roots].
+
+    @status in-progress
+    @implementation (
+        ["../../packages/extension/schemas/config.schema.json"]
+        ["../../crates/reqlan-parse/src/ast.rs"]
+        ["../../crates/reqlan-index/src/check/imports.rs"]
+        ["../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../packages/extension/package.json"]
+        ["../../packages/cli/src/commands/check.ts"]
     )
 }
 

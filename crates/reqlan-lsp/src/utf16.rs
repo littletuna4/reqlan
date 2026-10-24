@@ -1,6 +1,7 @@
 //! UTF-8 byte offsets to LSP UTF-16 positions.
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
-use lsp_types::{Position, Range};
+//! rq:["../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync]
+use lsp_types::{Position, Range, TextDocumentContentChangeEvent};
 
 #[derive(Debug, Clone)]
 pub struct LineMap {
@@ -50,6 +51,35 @@ impl LineMap {
     }
 }
 
+/// Apply LSP content changes in order.
+/// A missing range replaces the buffer. `range_length` is ignored.
+/// Each later range refers to the buffer after the earlier changes.
+/// rq:["../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync]
+pub fn apply_content_changes(text: &str, changes: &[TextDocumentContentChangeEvent]) -> String {
+    let mut current = text.to_string();
+    for change in changes {
+        current = match change.range {
+            None => change.text.clone(),
+            Some(range) => splice(&current, range, &change.text),
+        };
+    }
+    current
+}
+
+fn splice(text: &str, range: Range, replacement: &str) -> String {
+    let lines = LineMap::new(text);
+    let start = lines.byte_at(text, range.start).min(text.len());
+    let mut end = lines.byte_at(text, range.end).min(text.len());
+    if start > end {
+        end = start;
+    }
+    let mut out = String::with_capacity(text.len() - (end - start) + replacement.len());
+    out.push_str(&text[..start]);
+    out.push_str(replacement);
+    out.push_str(&text[end..]);
+    out
+}
+
 pub fn utf16_len(text: &str) -> u32 {
     text.chars().map(|ch| if (ch as u32) > 0xFFFF { 2 } else { 1 }).sum()
 }
@@ -79,7 +109,25 @@ fn position_lt(left: Position, right: Position) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::LineMap;
+    use super::{apply_content_changes, LineMap};
+    use lsp_types::{Position, Range, TextDocumentContentChangeEvent};
+
+    fn ranged(
+        start_line: u32,
+        start: u32,
+        end_line: u32,
+        end: u32,
+        text: &str,
+    ) -> TextDocumentContentChangeEvent {
+        TextDocumentContentChangeEvent {
+            range: Some(Range {
+                start: Position { line: start_line, character: start },
+                end: Position { line: end_line, character: end },
+            }),
+            range_length: None,
+            text: text.to_string(),
+        }
+    }
 
     #[test]
     fn emoji_column_counts_two_utf16_units() {
@@ -88,5 +136,55 @@ mod tests {
         let pos = lines.position(text, text.len());
         assert_eq!(pos.character, 3);
         assert_eq!(lines.byte_at(text, pos), text.len());
+    }
+
+    #[test]
+    fn replaces_a_word() {
+        let text = apply_content_changes("alpha beta", &[ranged(0, 6, 0, 10, "gamma")]);
+        assert_eq!(text, "alpha gamma");
+    }
+
+    #[test]
+    fn inserts_a_newline() {
+        let text = apply_content_changes("ab", &[ranged(0, 1, 0, 1, "\n")]);
+        assert_eq!(text, "a\nb");
+    }
+
+    #[test]
+    fn deletes_across_a_newline() {
+        let text = apply_content_changes("a\nb\nc", &[ranged(0, 1, 2, 0, "")]);
+        assert_eq!(text, "ac");
+    }
+
+    #[test]
+    fn applies_later_ranges_to_the_updated_buffer() {
+        let text =
+            apply_content_changes("ab", &[ranged(0, 1, 0, 1, "12"), ranged(0, 2, 0, 4, "Z")]);
+        assert_eq!(text, "a1Z");
+    }
+
+    #[test]
+    fn snaps_a_surrogate_pair_to_the_next_char() {
+        let replaced = apply_content_changes("a😀b", &[ranged(0, 1, 0, 3, "x")]);
+        assert_eq!(replaced, "axb");
+        let inserted = apply_content_changes("a😀", &[ranged(0, 2, 0, 2, "x")]);
+        assert_eq!(inserted, "a😀x");
+    }
+
+    #[test]
+    fn omitted_range_replaces_the_buffer() {
+        let change = TextDocumentContentChangeEvent {
+            range: None,
+            range_length: Some(4),
+            text: "zz".into(),
+        };
+        assert_eq!(apply_content_changes("hello", &[change]), "zz");
+    }
+
+    #[test]
+    fn range_length_does_not_move_the_splice() {
+        let mut change = ranged(0, 1, 0, 3, "Z");
+        change.range_length = Some(99);
+        assert_eq!(apply_content_changes("abcdef", &[change]), "aZdef");
     }
 }

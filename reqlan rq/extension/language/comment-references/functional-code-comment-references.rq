@@ -15,6 +15,7 @@ references_in_functional_code_comments {
     After that goto, Alt+Left restores the comment-host caret ([comment_reference_navigate_back]).
     Missing ideas keep the error underline and have no definition target.
     Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support], [comment_reference_import_root_alias],
+    [comment_reference_qualified_token_links],
     ["../support/language-server-rust.rq".language_server_rust],
     ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
 
@@ -160,5 +161,24 @@ comment_reference_import_root_alias {
         ["../../../../packages/extension/test/comment-reference-path-context.test.ts:resolves @/ against the workspace folder for extension comment links"]
         ["../../../../crates/reqlan-index/src/comment.rs:resolves_aliased_qualified_comment_path"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+    )
+}
+
+comment_reference_qualified_token_links {
+    A resolved `rq:["path".idea]` comment site is two links, not one span over `rq:[…]`.
+    Document-link and definition origin ranges cover the quoted path string and the idea id only — same token rule as body qualified refs (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
+    Path navigates to the file; idea navigates to the declaration.
+    Unqualified `rq:[idea]` underlines the idea id only.
+    Related: [references_in_functional_code_comments], [comment_reference_resolution_error_state].
+
+    @status done
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_links_cover_path_and_idea_tokens"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_definition_origin_is_the_token_under_the_cursor"]
     )
 }

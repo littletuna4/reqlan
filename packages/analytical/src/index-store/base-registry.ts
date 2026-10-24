@@ -94,6 +94,25 @@ export class BaseRegistry {
     }
 
     /**
+     * Open one base's native store + SQLite handles without syncing.
+     * Lets the host settle native resources before the heavy sync pass.
+     * rq:["../../../../reqlan rq/extension/host/startup-performance.rq".deferred_startup_sequence]
+     */
+    async openBase(baseId: string): Promise<boolean> {
+        const entry = this.entries.get(baseId);
+        if (!entry) {
+            return false;
+        }
+        try {
+            await entry.index.open();
+            return true;
+        } catch {
+            // Per-base store already recorded the open error.
+            return false;
+        }
+    }
+
+    /**
      * Refresh path used by editor Refresh buttons and create-base follow-up:
      * always rediscover `.reqlan` markers under `roots`, then soft-sync the
      * preferred / default active base when `allRqFiles` is provided.
@@ -110,6 +129,12 @@ export class BaseRegistry {
             bases?: BaseDescriptor[];
             /** When set, soft-sync this base after rediscovery (defaults to preferred/default). */
             syncActive?: boolean;
+            /**
+             * Invoked once the active base's native store + SQLite handles are
+             * open, before the sync pass starts.
+             * rq:["../../../../reqlan rq/extension/host/startup-performance.rq".deferred_startup_sequence]
+             */
+            onOpened?: (baseId: string) => void;
         }
     ): Promise<BaseRegistryRefreshResult> {
         const bases = options?.bases ?? this.rediscover(roots);
@@ -129,6 +154,10 @@ export class BaseRegistry {
 
         let synced = false;
         if (options?.syncActive !== false && activeId && options?.allRqFiles) {
+            // Open native resources first so the host can settle them before
+            // the heavy sync pass; then sync the same base.
+            await this.openBase(activeId);
+            options?.onOpened?.(activeId);
             synced = await this.ensureBaseReady(activeId, options.allRqFiles);
         }
 

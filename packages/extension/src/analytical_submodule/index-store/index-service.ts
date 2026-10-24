@@ -34,6 +34,7 @@ import {
 import { toIndexFileUri } from './resolve-index-file-uri.js';
 import { shareInFlight, type InFlightSlot } from '../../shared/share-in-flight.js';
 import { PendingRenamePaths } from './pending-rename-paths.js';
+import { StartupGate } from '../../extension/startup-gate.js';
 
 export type { IndexStatusSnapshot, IndexSyncProgress } from '@reqlan/analytical';
 export type { BaseDescriptor, BaseStatusEntry, RegisteredBase };
@@ -79,6 +80,8 @@ export class IndexService {
      * Rename old→new paths while `onDidRenameFiles` plans import rewrites.
      * Watcher delete would otherwise clear the pre-move index URI first.
      */
+    /** Resolves when the workspace index has opened its native store (before sync). */
+    readonly indexOpened = new StartupGate();
     private readonly pendingRenames = new PendingRenamePaths();
     private pendingRenameClearTimer?: ReturnType<typeof setTimeout>;
 
@@ -355,6 +358,9 @@ export class IndexService {
             }
         } catch {
             // open/sync already recorded errors on per-base stores
+        } finally {
+            // Never leave the language-server startup gate pending.
+            this.indexOpened.signal();
         }
     }
 
@@ -605,7 +611,8 @@ export class IndexService {
             cwd: this.activeEditorPath(),
             bases: descriptorsFromScan(scan, roots),
             allRqFiles: files,
-            syncActive: true
+            syncActive: true,
+            onOpened: () => this.indexOpened.signal()
         });
         this.rewireRegistryListeners();
         this.activeBaseId = result.activeId;
@@ -818,19 +825,20 @@ export class IndexService {
      * When unfocused, release every base so artifacts can be deleted.
      */
     private async releaseUnusedArtifacts(): Promise<void> {
-        const keepId = vscode.window.state.focused ? this.getActiveBaseId() : undefined;
         for (const base of this.registry.list()) {
-            if (keepId && base.id === keepId) {
-                continue;
-            }
             const entry = this.registry.get(base.id);
             if (!entry) {
                 continue;
             }
-            if (entry.index.state === 'uninitialized') {
-                continue;
+            // Release all open SQLite handles during idle.
+            // Descriptors stay registered so the next event can reopen the same base.
+            // Idle must not leave connections open after a heal/sync, and must not schedule
+            // another open unless a real host event arrives (file change, pin/switch,
+            // focus reopen, command, UI query).
+            // rq:["../../../../../reqlan rq/extension/index-host/sqlite-artifact-lifecycle.rq".release_when_idle]
+            if (entry.index.state !== 'uninitialized') {
+                await entry.index.deactivate();
             }
-            await entry.index.deactivate();
         }
         this.notifyStatus();
         this.notifyCatalog();

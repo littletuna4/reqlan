@@ -9,14 +9,16 @@ check {
     - ensure all rq [reference] point to real nodes, unless rq ignored with [comment_reference_ignore].
     - this tests rqcomments point to real parts of the namespace, that code references exist, and that rq references exists.
     - report unresolved imports: [check_unresolved_imports].
+    - report unused imports: [check_unused_imports].
     - report a comment reference with invalid syntax: [code_comment_syntax_errors].
+    - report an `.rq` parse failure: [check_rq_syntax].
     - report a qualified reference whose file is not on disk: [check_qualified_missing_file].
     - report a qualified reference whose `.rq` file does not declare the idea: [check_qualified_missing_idea].
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
     Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Path globs: [check_glob_patterns]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../crates/reqlan-index/src/rq_ignore.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
@@ -71,7 +73,7 @@ check_glob_patterns {
     Related: [check]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
@@ -100,7 +102,7 @@ check_order_by_target {
     Related: [check] ["../cli/cli_package.rq".commands]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../packages/cli/src/format-broken-refs.ts"]
         ["../../packages/cli/src/commands/check.ts"]
     )
@@ -120,7 +122,7 @@ check_wildcard_sparse {
     Related: [check] ["../language/imports.rq".wildcard_references]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/wildcards.rs"]
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../packages/cli/src/format-broken-refs.ts"]
         ["../../packages/language/src/reqlan-validator.ts"]
@@ -146,7 +148,8 @@ check_wildcard_zero {
     Related: [check] [check_wildcard_sparse] [check_wildcard_one]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
+        ["../../crates/reqlan-index/src/check/wildcards.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
@@ -171,7 +174,8 @@ check_wildcard_one {
     Related: [check] [check_wildcard_sparse] [check_wildcard_zero] ["../language/imports.rq".wildcard_references]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
+        ["../../crates/reqlan-index/src/check/wildcards.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
@@ -198,7 +202,7 @@ check_skip_targets {
     Related: [check] [check_skip_gitignored_targets] [check_meta_implementation]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../crates/reqlan-napi/src/lib.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
@@ -227,7 +231,7 @@ check_skip_gitignored_targets {
     Related: [check] [check_skip_targets] [check_unresolved_imports] [check_meta_implementation]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/ignore.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../crates/reqlan-napi/src/lib.rs"]
@@ -256,10 +260,12 @@ check_qualified_missing_file {
     Related: [check] [check_qualified_missing_idea] ["../language/syntax.rq".reference_file] ["../extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/qualified.rs"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
     )
     @tests (
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_rq_file"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
     )
 }
@@ -281,7 +287,8 @@ check_qualified_missing_idea {
     Related: [check] [check_qualified_missing_file] ["../language/syntax.rq".reference_qualified]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/qualified.rs"]
+        ["../../crates/reqlan-index/src/check/index.rs"]
         ["../../crates/reqlan-parse/src/ast.rs"]
         ["../../crates/reqlan-lsp/src/analysis.rs"]
         ["../../crates/reqlan-lsp/src/session.rs"]
@@ -292,10 +299,33 @@ check_qualified_missing_idea {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_idea"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_namespace_qualified_reference_to_a_missing_idea"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_qualified_missing_idea_on_rq_ignore_error"]
+        ["../../crates/reqlan-lsp/tests/parity.rs:missing_qualified_rq_file_reports_unresolved_idea"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
         ["../../crates/reqlan-index/tests/golden_corpus.rs:qualified_reference_to_an_import_alias_is_not_a_missing_idea"]
         ["../../crates/reqlan-lsp/tests/parity.rs:golden_corpus_import_alias_is_not_an_unresolved_idea"]
+    )
+}
+
+check_unused_imports {
+    `check_references` reports an unused import when the import path resolves, the named idea exists, and the bound name produced by the import specifier or import alias is never referenced in the file body (no `Local` reference to the bound name, no `Qualified` reference with qualifier = alias, no `IdeaSet` member with that name).
+    Issue kind is `unused_import`. Severity defaults to `warning` (controlled by `unusedImports`: `"warn"` | `"error"` | `"off"`, default `"warn"`).
+    CLI flag: `--unused-imports <warn|error|off>`. Per-file `unusedImports` is read from `.reqlan/config.json` for the source file's applying base.
+    Suppressed when the preceding line is `//rq-ignore-error`.
+    Related: [check], [check_unresolved_imports], ["../language/imports.rq".unused_imports], ["../extension/host/configuration.rq".configuration_import_roots].
+
+    @status in-progress
+    @implementation (
+        ["../../packages/cli/src/commands/check.ts"]
+        ["../../packages/mcp/src/server.ts"]
+        ["../../crates/reqlan-index/src/check/imports.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+    )
+    @tests (
+        ["../../packages/cli/test/check.test.ts:unused-imports reports unused specifiers"]
+        ["../../packages/cli/test/check.test.ts:unused-imports honours warn and error"]
+        ["../../packages/cli/test/check.test.ts:unused-imports honours off"]
     )
 }
 
@@ -314,7 +344,8 @@ check_unresolved_imports {
     Related: [check] [check_order_by_target] [import_does_not_exist_error]
     @status done
     @implementation (
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/imports.rs"]
+        ["../../crates/reqlan-index/src/path_resolve.rs"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../packages/mcp/src/server.ts"]
         ["../../packages/extension/skills/rq-fix-stale-references/SKILL.md"]
@@ -347,11 +378,11 @@ code_comment_syntax_errors {
     An unresolved valid target stays a `comment_link` issue.
     A source file that contains only a syntax error stays in the code index.
     [comment_reference_ignore] suppresses the syntax error on the next line.
-    Related: [check] ["../extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
+    Related: [check] [check_rq_syntax] ["../extension/language/comment-references/functional-code-comment-references.rq".references_in_functional_code_comments]
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/comment.rs"]
-        ["../../crates/reqlan-index/src/broken.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../packages/cli/src/commands/check.ts"]
     )
@@ -362,6 +393,28 @@ code_comment_syntax_errors {
         ["../../crates/reqlan-index/src/comment.rs:ignores_malformed_rq_inside_strings_and_raw_strings"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_a_malformed_comment_reference"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_comment_syntax_on_rq_ignore_error"]
+    )
+}
+
+check_rq_syntax {
+    [check] reports a syntax error when an `.rq` file fails to parse.
+    The parser (`reqlan-parse`) is the single source of the message and span.
+    Example message: `expected idea, ideaset, or one-liner`.
+    The language server already shows these diagnostics (["../extension/language/support/language-server-rust.rq".language_server_rust]).
+    [check] must emit the same class of issue so CLI and CI catch what the editor underlines.
+    Issue kind is `syntax`. The label is the parser message. Severity follows the parser diagnostic.
+    A file that only fails to parse still appears in the issue list even when it contributes no ideas or references.
+    [comment_reference_ignore] suppresses a syntax error on the next line (same rule as the language server).
+    Comment-reference syntax in non-`.rq` files stays [code_comment_syntax_errors].
+    Related: [check] [code_comment_syntax_errors] ["../core-architecture.rq".grammar_and_parser]
+    @status pending
+    @todo Surface `reqlan-parse` diagnostics through `check_references`; cover CLI/JSON and `//rq-ignore-error`.
+    @implementation (
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../packages/cli/src/commands/check.ts"]
     )
 }
 

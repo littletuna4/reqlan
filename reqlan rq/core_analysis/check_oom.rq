@@ -1,0 +1,72 @@
+from "./check.rq" import check, check_glob_patterns, check_unresolved_imports
+from "../indexer/indexer.rq" import index
+
+check_oom {
+    [check] validates qualified idea targets only when the target is an `.rq` file.
+    The parser checks its budget while it reads a list.
+    It stops a list at an attribute or the enclosing block close.
+    A list item always advances the parser.
+    Related: [check] [check_glob_patterns] [check_unresolved_imports] [index] [check_single_index_snapshot] [parser_list_progress] [qualified_idea_targets_are_rq_only]
+    @status done
+    @tests (
+        ["../../crates/reqlan-index/tests/broken_references.rs:lists_broken_idea_references_and_filters_by_glob"]
+    )
+    @implementation (
+        ["../../crates/reqlan-index/src/check/qualified.rs"]
+        ["../../crates/reqlan-index/src/check/index.rs"]
+        ["../../crates/reqlan-parse/src/parser.rs"]
+        ["../../crates/reqlan-index/src/comment.rs"]
+    )
+}
+
+check_single_index_snapshot {
+    [check] builds one `CheckIndex` snapshot per call and shares it across check phases.
+    Related: [check_oom] [check]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/check/index.rs"]
+        ["../../crates/reqlan-index/src/check/mod.rs"]
+        ["../../crates/reqlan-index/src/comment.rs"]
+    )
+    @tests ["../../crates/reqlan-index/tests/broken_references.rs:lists_broken_idea_references_and_filters_by_glob"]
+}
+
+parser_list_progress {
+    Parsing a list checks the parse budget.
+    A list stops at `@` or the enclosing `}` when `)` is missing.
+    Parsing a list item consumes a token or stops at a list boundary.
+    Related: [check_oom] [check]
+    @status done
+    @implementation ["../../crates/reqlan-parse/src/parser.rs"]
+    @tests (
+        ["../../crates/reqlan-parse/tests/parser.rs:unclosed_list_stops_at_attribute_and_enclosing_block"]
+        ["../../crates/reqlan-parse/tests/parser.rs:unclosed_list_stops_before_enclosing_block_close"]
+    )
+}
+
+qualified_idea_targets_are_rq_only {
+    [check] parses an on-disk qualified target to validate an idea only when that target is an `.rq` file.
+    A code-file symbol reference checks that its file exists; it does not parse that file as Reqlan.
+    Related: [check_oom] ["./check.rq".check_qualified_missing_idea] ["./check.rq".check_qualified_missing_file]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/check/qualified.rs"]
+        ["../../crates/reqlan-index/src/check/index.rs"]
+        ["../../crates/reqlan-index/src/comment.rs"]
+    )
+    @tests ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_code_symbol_targets_without_parsing_them_as_requirements"]
+}
+
+walk_visited_cycle (
+    Graph walking (`local_graph` / `listReferencesWithinHopDepth` / `listAncestorChain`) tracks visited nodes and skips a node that it has already visited.
+    Related: [check_oom] ["./core.rq".test_references]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/api.rs:local_graph"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts:listReferencesWithinHopDepth"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts:listAncestorChain"]
+    )
+    @tests (
+        ["../../packages/cli/test/check.test.ts"]
+    )
+)

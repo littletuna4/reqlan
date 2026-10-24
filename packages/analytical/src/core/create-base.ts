@@ -4,7 +4,7 @@
  * (SQLite artifacts); this wrapper returns the base descriptor.
  *
  * rq:["../../../../reqlan rq/extension/index-host/index.rq".rqignore]
- * rq:["../../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
+ 
  * rq:["../../../../reqlan rq/bases/base.rq".base_initialisation_ignore]
  * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  */

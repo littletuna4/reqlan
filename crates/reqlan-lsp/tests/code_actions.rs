@@ -480,6 +480,109 @@ fn inserts_new_from_import_after_existing_namespace_import() {
     );
 }
 
+const CREATE_ALL_IN_FILE: &str = "Create all unresolved ideas in this file";
+const CREATE_ALL_IN_NEW_FILE: &str = "Create all unresolved ideas in a new file…";
+
+// Oracle: appends every unresolved local idea at the end of the file
+#[test]
+fn appends_every_unresolved_local_idea_at_the_end_of_the_file() {
+    let mut session = Session::new();
+    let uri = "file:///create-all.rq";
+    let text = "alpha {\n    [beta_missing]\n}\ngamma {\n    [delta_missing]\n}\n";
+    session.open(uri, text.into());
+    let actions = session.code_actions_for(uri, point(4, 6), &[], &[]);
+    let found = titles(&actions);
+    assert!(found.contains(&CREATE_ALL_IN_FILE), "{found:?}");
+    assert!(found.contains(&"Create 'delta_missing' below"), "{found:?}");
+    assert!(!found.contains(&"Create 'beta_missing' below"), "{found:?}");
+    let create = code_action(&actions, CREATE_ALL_IN_FILE);
+    assert_eq!(create.kind.as_ref().map(|kind| kind.as_str()), Some("quickfix"));
+    assert_eq!(edit_text(create), "\nbeta_missing {\n    \n}\n\ndelta_missing {\n    \n}\n");
+    let edit = create.edit.as_ref().unwrap().changes.as_ref().unwrap().values().next().unwrap();
+    assert_eq!(edit[0].range.start, Position { line: 6, character: 0 });
+    assert_eq!(edit[0].range.end, Position { line: 6, character: 0 });
+}
+
+// Oracle: offers one new file for every unresolved local idea
+#[test]
+fn offers_one_new_file_for_every_unresolved_local_idea() {
+    let mut session = Session::new();
+    let uri = "file:///create-all-new.rq";
+    session.open(uri, "alpha {\n    [beta_missing]\n}\ngamma {\n    [delta_missing]\n}\n".into());
+    let actions = session.code_actions_for(uri, point(0, 0), &[], &[]);
+    let create = code_action(&actions, CREATE_ALL_IN_NEW_FILE);
+    assert_eq!(create.kind.as_ref().map(|kind| kind.as_str()), Some("quickfix"));
+    let command = create.command.as_ref().unwrap();
+    assert_eq!(command.command, "reqlan.importError.createFile");
+    let args = command.arguments.as_ref().unwrap();
+    assert_eq!(args[0]["documentUri"], uri);
+    assert_eq!(args[0]["refText"], "beta_missing");
+    let names = args[0]["refTexts"].as_array().unwrap();
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[0], "beta_missing");
+    assert_eq!(names[1], "delta_missing");
+}
+
+// Oracle: creates one stub when the same unresolved name occurs twice
+#[test]
+fn creates_one_stub_when_the_same_unresolved_name_occurs_twice() {
+    let mut session = Session::new();
+    let uri = "file:///create-all-dup.rq";
+    session.open(uri, "alpha {\n    [beta_missing]\n}\ngamma {\n    [beta_missing]\n}\n".into());
+    let actions = session.code_actions_for(uri, point(0, 0), &[], &[]);
+    let text = edit_text(code_action(&actions, CREATE_ALL_IN_FILE));
+    assert_eq!(text.matches("beta_missing").count(), 1, "{text}");
+    let args = code_action(&actions, CREATE_ALL_IN_NEW_FILE)
+        .command
+        .as_ref()
+        .unwrap()
+        .arguments
+        .as_ref()
+        .unwrap();
+    assert_eq!(args[0]["refTexts"].as_array().unwrap().len(), 1);
+}
+
+// Oracle: omits file-level create when a qualified reference is unresolved
+#[test]
+fn omits_file_level_create_when_a_qualified_reference_is_unresolved() {
+    let mut session = Session::new();
+    let uri = "file:///create-all-qualified.rq";
+    session.open(
+        uri,
+        "from \"./missing.rq\" import ghost\nconsumer {\n    [\"./missing.rq\".ghost]\n}\n".into(),
+    );
+    let diagnostics = session.diagnostics(uri);
+    let actions = session.code_actions_for(uri, point(2, 8), &diagnostics, &[]);
+    let found = titles(&actions);
+    assert!(!found.contains(&CREATE_ALL_IN_FILE), "{found:?}");
+    assert!(!found.contains(&CREATE_ALL_IN_NEW_FILE), "{found:?}");
+}
+
+// Oracle: omits file-level create when only refactor is requested
+#[test]
+fn omits_file_level_create_when_only_refactor_is_requested() {
+    let mut session = Session::new();
+    let uri = "file:///create-all-refactor.rq";
+    session.open(uri, "alpha {\n    [beta_missing]\n}\n".into());
+    let diagnostics = session.diagnostics(uri);
+    let actions = session.code_actions_for(uri, point(1, 6), &diagnostics, &["refactor".into()]);
+    assert!(titles(&actions).iter().all(|title| !title.starts_with("Create all unresolved")));
+}
+
+// Oracle: offers file-level create when the caret idea is resolved
+#[test]
+fn offers_file_level_create_when_the_caret_idea_is_resolved() {
+    let mut session = Session::new();
+    let uri = "file:///create-all-other.rq";
+    session.open(uri, "alpha {\n    [beta_missing]\n}\nbeta {\n    local body\n}\n".into());
+    let actions = session.code_actions_for(uri, point(3, 6), &[], &[]);
+    let found = titles(&actions);
+    assert!(found.iter().all(|title| !title.contains("below")), "{found:?}");
+    assert!(found.contains(&CREATE_ALL_IN_FILE), "{found:?}");
+    assert!(found.contains(&CREATE_ALL_IN_NEW_FILE), "{found:?}");
+    assert_eq!(edit_text(code_action(&actions, CREATE_ALL_IN_FILE)), "\nbeta_missing {\n    \n}\n");
+}
+
 // Oracle: inserts a from-import at the top when the file has no imports
 #[test]
 fn inserts_from_import_at_top_when_file_has_no_imports() {

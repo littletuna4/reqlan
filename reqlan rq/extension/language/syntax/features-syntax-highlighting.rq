@@ -1,5 +1,4 @@
 
-from "../vsc-primitives.rq" import code_completion
 
 
 complementary_information_rendering {
@@ -32,11 +31,15 @@ import_statement_highlighting {
         ["../../../../packages/language/scripts/patch-textmate.mjs"]
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/server.rs"]
+        ["../../../../packages/extension/package.json"]
     )
     @tests (
         ["../../../../packages/language/test/textmate-import-highlight.test.ts"]
         ["../../../../packages/language/test/textmate-import-highlight.test.ts:e2e: from-import line scopes path and import keyword"]
         ["../../../../packages/language/test/textmate-import-highlight.test.ts:e2e: namespace import line scopes path and as"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_tokens_cover_import_keywords_and_file_symbols"]
     )
 }
 
@@ -391,11 +394,16 @@ reference_code_completion_objects {
 
     @status done
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-completion-context.ts"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
     )
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:anonymous_file_references_complete_code_files_folders_and_rq_files"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideas_after_a_quoted_file_path"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideaset_members_after_a_quoted_path"]
         ["../../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
         ["../../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
         ["../../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
@@ -406,20 +414,25 @@ reference_code_completion_performance {
     [reference_code_completion_objects] must stay interactive on large workspaces.
     Path completion must not re-walk the filesystem on every keystroke: cache directory listings and reuse them for import and anonymous file-reference completion.
     Ranking must precompute proximity keys rather than recomputing hop distance per comparator call.
+    The Rust server keeps that ranked list for the listing TTL. A later keystroke filters the list. It does not rebuild relative paths or hop keys.
     Idea-graph ranking must reuse per-document adjacency across completion requests while document versions are unchanged.
     Anonymous file-reference completion may omit distant candidates after proximity ranking so the list stays bounded.
-    Implemented by ["../../../../packages/language/src/reqlan-path-completion.ts"]
+    Implemented by ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+    (`PathCompletionCache`, listing cache),
+    ["../../../../packages/language/src/reqlan-path-completion.ts"]
     (`clearPathCompletionCaches`, listing cache, `sortPathCompletionCandidates`),
     ["../../../../packages/language/src/reqlan-completion-provider.ts"],
     and ["../../../../packages/language/src/reqlan-completion-context.ts"].
 
     @status done
     @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-completion-context.ts"]
     )
     @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:cached_path_completion_does_not_re_read_directories"]
         ["../../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
         ["../../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
         ["../../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]

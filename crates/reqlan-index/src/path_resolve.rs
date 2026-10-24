@@ -4,6 +4,7 @@
 //! rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
 //! rq:["../../../reqlan rq/cli/click.rq".click_session_limit]
 
+use crate::check::SparseWildcardHandling;
 use crate::ignore::{
     APPLICATION_MEMORY_DIR, CLICK_LIMIT_MIN, CONFIG_FILENAME, DEFAULT_CLICK_LIST_LIMIT,
     DEFAULT_CLICK_MAX_SESSIONS,
@@ -24,6 +25,7 @@ pub struct RqConfig {
     pub click_max_siblings: u32,
     pub click_max_outbound: u32,
     pub click_max_candidates: u32,
+    pub unused_imports: Option<SparseWildcardHandling>,
 }
 
 pub fn default_rq_config() -> RqConfig {
@@ -34,6 +36,7 @@ pub fn default_rq_config() -> RqConfig {
         click_max_siblings: DEFAULT_CLICK_LIST_LIMIT,
         click_max_outbound: DEFAULT_CLICK_LIST_LIMIT,
         click_max_candidates: DEFAULT_CLICK_LIST_LIMIT,
+        unused_imports: None,
     }
 }
 
@@ -138,6 +141,108 @@ pub fn locate_authored_rq_path_for_source(
     locate_authored_rq_path(workspace_root, from_file, authored, &roots)
 }
 
+/// Resolve an authored import path against `source_file` and `import_roots`,
+/// returning the first candidate that exists on disk under `workspace_root`.
+pub fn resolve_existing_import_path(
+    workspace_root: &Path,
+    source_file: &str,
+    authored: &str,
+    import_roots: &[ImportRootMapping],
+) -> Option<String> {
+    for candidate in import_path_candidates(authored) {
+        let resolved = resolve_rq_path(&candidate, source_file, import_roots);
+        if rq_path_exists(workspace_root, &resolved) {
+            return Some(resolved);
+        }
+    }
+    None
+}
+
+/// Resolve `label` relative to `source_file` (with `import_roots`) into a
+/// workspace-relative POSIX path, or `None` for URLs, absolute paths, and `../` escapes.
+pub fn resolved_workspace_relative_path(
+    source_file: &str,
+    label: &str,
+    import_roots: &[ImportRootMapping],
+) -> Option<String> {
+    if label.contains("://") {
+        return None;
+    }
+    let resolved = resolve_rq_path(label, source_file, import_roots);
+    if reqlan_parse::is_absolute_uri_or_path(&resolved) {
+        return None;
+    }
+    if resolved.is_empty() || resolved == "." || resolved.starts_with("../") {
+        return None;
+    }
+    Some(resolved)
+}
+
+/// Normalize an indexed path by converting backslashes to `/` and stripping leading `./`.
+pub fn normalize_indexed_path(path: &str) -> String {
+    let mut path = path.replace('\\', "/");
+    while let Some(stripped) = path.strip_prefix("./") {
+        path = stripped.to_string();
+    }
+    path
+}
+
+/// True when two workspace-relative paths normalize to the same indexed path.
+pub fn same_indexed_path(left: &str, right: &str) -> bool {
+    normalize_indexed_path(left) == normalize_indexed_path(right)
+}
+
+/// True when `file_uri` ends with `.rq` (case-insensitive).
+pub fn is_rq_uri(file_uri: &str) -> bool {
+    file_uri.to_ascii_lowercase().ends_with(".rq")
+}
+
+/// True when `path` is a remote URL (`scheme://...`).
+pub fn is_remote_import_path(path: &str) -> bool {
+    path.contains("://")
+}
+
+/// True when a file reference target from `source_id` does not resolve on disk.
+/// rq:["../../../reqlan rq/language/syntax.rq".reference_file]
+/// rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+pub fn file_reference_missing(
+    workspace_root: &Path,
+    source_id: &str,
+    target_file: &str,
+    import_roots: &[ImportRootMapping],
+) -> bool {
+    if target_file.contains("://") {
+        return false;
+    }
+    let parsed = reqlan_parse::parse_file_reference_string(&unquote_path(target_file));
+    let path = parsed.file_path.replace('\\', "/");
+    if path.trim().is_empty() {
+        return true;
+    }
+    let aliased = reqlan_parse::match_import_root_mapping(&path, import_roots).is_some();
+    if !aliased && !path.contains('/') && !path.contains('\\') {
+        return false;
+    }
+    locate_authored_rq_path(
+        workspace_root,
+        reqlan_parse::file_from_idea_id(source_id),
+        target_file,
+        import_roots,
+    )
+    .is_none()
+}
+
+/// True when a resolved qualified target file path does not exist on disk.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_qualified_missing_file]
+pub fn qualified_target_file_missing(workspace_root: &Path, target_file: &str) -> bool {
+    if target_file.contains("://") {
+        return false;
+    }
+    !import_path_candidates(target_file)
+        .iter()
+        .any(|candidate| rq_path_exists(workspace_root, candidate))
+}
+
 fn parse_rq_config_file(config_path: &Path, base_root: &Path) -> RqConfig {
     let Ok(text) = std::fs::read_to_string(config_path) else {
         return default_rq_config();
@@ -171,6 +276,11 @@ fn parse_rq_config_json(text: &str, base_root: &Path) -> Option<RqConfig> {
         }
         if let Some(max) = click.get("maxCandidates").and_then(Value::as_u64) {
             config.click_max_candidates = normalize_click_u32(max);
+        }
+    }
+    if let Some(value) = object.get("unusedImports").and_then(Value::as_str) {
+        if let Some(handling) = SparseWildcardHandling::parse(value) {
+            config.unused_imports = Some(handling);
         }
     }
     Some(config)

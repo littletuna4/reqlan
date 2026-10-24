@@ -47,6 +47,13 @@ export type { RqIgnoreFilter } from './core/rqignore.js';
 export { createBase } from './core/create-base.js';
 export type { CreateBaseResult } from './core/create-base.js';
 export { barrelPage, planBarrelPage, rewriteSiblingRefs } from './core/barrel-page.js';
+export { planIdeaDelete, planIdeaMove } from './core/idea-refactor-plan.js';
+export type {
+    PlanIdeaMoveOptions,
+    PlannerDocumentEdits,
+    PlannerFileText,
+    PlannerTextEdit
+} from './core/idea-refactor-plan.js';
 export type {
     BarrelPageChildPlan,
     BarrelPageOptions,
@@ -184,6 +191,7 @@ export {
     tagsAreNotPresent,
     tagsFilterKeysFromAttributes
 } from './core/filter-specials.js';
+export { enumerateProjectAttributes } from './core/attribute-enumeration.js';
 export type { AttributePresence } from './core/filter-specials.js';
 export { WorkspaceIndex, WorkspaceIndex as HeadlessIndexService } from './index-store/workspace-index.js';
 export type { FuzzySearchResult, IdleCheckResult } from './index-store/workspace-index.js';

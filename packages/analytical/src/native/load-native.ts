@@ -104,7 +104,8 @@ export interface NativeAnalysisRuntimeHandle {
         wildcardZero?: string,
         wildcardOne?: string,
         skipTargets?: string[],
-        skipGitignoredTargets?: boolean
+        skipGitignoredTargets?: boolean,
+        unusedImports?: string
     ): unknown;
     diffIdeas(from?: string, to?: string, verbosity?: string): unknown;
     exportGraph(request: unknown): unknown;
@@ -142,6 +143,18 @@ export interface NativeModule {
     findRqIgnoreErrorTargetLines?(source: string): number[];
     /** Barrel-page plan from source text (no filesystem writes). */
     barrelPagePlan?(source: string, containerName: string | undefined, sourceFileName: string): unknown;
+    /** Idea-delete plan from source text and extra file texts. */
+    planIdeaDelete?(sourceUri: string, source: string, ideaName: string, filesJson: string): unknown;
+    /** Idea-move plan from source and destination text. */
+    planIdeaMove?(
+        sourceUri: string,
+        source: string,
+        destUri: string,
+        dest: string,
+        ideaName: string,
+        leaveStub: boolean,
+        filesJson: string
+    ): unknown;
     /** Seed a reqlan base marker (`.reqlan/` + `config.json` + `.rqignore`). */
     createBase?(baseRoot: string): unknown;
 }
@@ -458,6 +471,13 @@ export function tryLoadNativeEngine(): NativeModule | undefined {
 }
 
 export function loadNativeEngine(): NativeModule {
+    const mem = process.memoryUsage();
+    // Fail-fast before attempting dlopen if the process is already near its
+    // available heap / RSS budget (prevents repeated large .node loads from
+    // pushing the extension host over the limit).
+    if (mem.heapUsed > 512 * 1024 * 1024 || mem.rss > 1024 * 1024 * 1024) {
+        throw new Error('Native engine load aborted: extension host near memory budget (heapUsed=' + mem.heapUsed + ', rss=' + mem.rss + ').');
+    }
     const loaded = loadCached();
     if (loaded) {
         return loaded;

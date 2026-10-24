@@ -1,0 +1,32 @@
+build_filter_issue {
+    User query (documented because directional): why does `pnpm build --filter cli` build LSP/native, and why does it break?
+}
+
+q1_filter_applied_to_sync_only {
+    `pnpm build --filter cli` runs the root `build` script (`pnpm run build:tsc && pnpm -r run build && pnpm run sync:cursor --filter cli`). The `--filter cli` is appended to the LAST `&&` segment (`sync:cursor`), not to `pnpm -r run build`. Therefore `pnpm -r run build` executes across all 13 workspace packages (extension, site, etc.), triggering extension `stage-host-native.mjs` which builds `reqlan-napi` + `reqlan-lsp` via cargo.
+    @status fixed-by-use `pnpm --filter @reqlan/cli run build` for CLI-only.
+    @implementation ["../../packages/cli/package.json"]
+}
+
+q2_rust_type_error {
+    `reqlan-napi/src/lib.rs` added `unused_imports: Option<String>` to `check_references` but passed `unused_imports.unwrap_or(SparseWildcardHandling::Warn)` to `.check()` which expects `Option<SparseWildcardHandling>`. `unwrap_or` on `Option<String>` requires a `String` default; the enum value caused E0308 in both directions.
+    @status fixed `parse_sparse_wildcard_handling("unusedImports", unused_imports)?` + pass `Some(unused_imports)` to `.check()`.
+    @implementation ["../../crates/reqlan-napi/src/lib.rs"]
+    @tests (cargo check -p reqlan-napi passes)
+}
+
+q2_cli_omission {
+    `packages/cli/src/commands/check.ts` validated `unusedImports` but never forwarded it to `api.check({ ... })`, so `--unused-imports` was ignored even when valid.
+    @status fixed add `unusedImports` to the `api.check()` call.
+    @implementation ["../../packages/cli/src/commands/check.ts"]
+}
+
+q2_site_sigkill {
+    `site` package (Next/Vite) failed with SIGKILL after extension cargo release build consumed memory. Concurrent workspace builds and cargo + vite together exceed available RAM.
+    @status work-around build sequentially (`pnpm --filter @reqlan/cli run build`) or with `REQLAN_SKIP_NATIVE_BUILD=1` / `--no-build` when native binary already exists.
+    @implementation ["../../scripts/stage-host-native.mjs"]
+}
+
+graph_hygiene {
+    Parser (`langium` grammar) and analytical `check` are single sources; the NAPI bridge must mirror both. The CLI option parsing (Clipanion) must pass through to the Rust `check` without omission.
+}

@@ -204,6 +204,7 @@ describe("comment reference resolution", () => {
     expect(presented.diagnostics).toHaveLength(0);
     expect(presented.links[0]?.targetPath).toBe(lib);
   });
+
 });
 
 describe("comment reference resolution in .rq documents", () => {

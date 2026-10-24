@@ -109,6 +109,24 @@ impl WorkspaceGitignore {
         }
         nested_gitignore_matches(&self.workspace_root, &normalized)
     }
+
+    /// True when `target_label` resolved from `source_file` (with `import_roots`) is gitignored.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    pub fn ignores_resolved_target(
+        &self,
+        source_file: &str,
+        target_label: &str,
+        import_roots: &[reqlan_parse::ImportRootMapping],
+    ) -> bool {
+        let Some(relative) = crate::path_resolve::resolved_workspace_relative_path(
+            source_file,
+            target_label,
+            import_roots,
+        ) else {
+            return false;
+        };
+        self.ignores(&relative)
+    }
 }
 
 fn normalize_workspace_relative(relative_path: &str) -> Option<String> {
@@ -150,7 +168,6 @@ fn nested_gitignore_matches(workspace_root: &Path, relative_path: &str) -> bool 
 }
 
 /// Text seeded into a new base's `.reqlan/.rqignore` (comments + built-in defaults).
-/// rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_rqignore]
 /// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore_initialisation]
 pub fn default_rqignore_file_contents() -> String {
     let mut lines: Vec<String> =

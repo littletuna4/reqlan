@@ -223,9 +223,11 @@ impl NativeAnalysisRuntime {
         wildcard_one: Option<String>,
         skip_targets: Option<Vec<String>>,
         skip_gitignored_targets: Option<bool>,
+        unused_imports: Option<String>,
     ) -> Result<serde_json::Value> {
         let wildcard_zero = parse_sparse_wildcard_handling("wildcardZero", wildcard_zero)?;
         let wildcard_one = parse_sparse_wildcard_handling("wildcardOne", wildcard_one)?;
+        let unused_imports = parse_sparse_wildcard_handling("unusedImports", unused_imports)?;
         let skip_owned = skip_targets.unwrap_or_default();
         let skip_refs: Vec<&str> = skip_owned.iter().map(String::as_str).collect();
         let globs_owned = path_globs.unwrap_or_default();
@@ -241,6 +243,7 @@ impl NativeAnalysisRuntime {
                     wildcard_one,
                     &skip_refs,
                     skip_gitignored_targets.unwrap_or(false),
+                    Some(unused_imports),
                 )
                 .map_err(map_err)
         })?;
@@ -1450,9 +1453,9 @@ impl NativeWorkspaceIndex {
     pub fn shutdown(&self) -> Result<()> {
         let mut guard = self.lock()?;
         if let Some(runtime) = guard.take() {
-            let _ = runtime.ideas_connection().execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-            let _ = runtime.diagnostics_execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-            drop(runtime);
+            // Explicit connection close (not Drop) so the file lock is released
+            // and the artifact can be replaced or deleted immediately.
+            runtime.close().map_err(map_workspace_err)?;
         }
         Ok(())
     }
@@ -1702,4 +1705,73 @@ mod tests {
         assert_eq!(summary["elements"][0]["type"], "OneLinerIdea");
         assert_eq!(summary["elements"][0]["name"], "hello");
     }
+}
+
+fn parse_planner_files(files_json: &str) -> Result<Vec<reqlan_parse::FileText>> {
+    #[derive(serde::Deserialize)]
+    struct Wire {
+        uri: String,
+        text: String,
+    }
+    let wires: Vec<Wire> = serde_json::from_str(files_json)
+        .map_err(|error| Error::from_reason(format!("bad files: {error}")))?;
+    Ok(wires
+        .into_iter()
+        .map(|file| reqlan_parse::FileText { uri: file.uri, text: file.text })
+        .collect())
+}
+
+fn planner_json(docs: Vec<reqlan_parse::DocumentEdits>) -> serde_json::Value {
+    serde_json::json!({
+        "documents": docs.iter().map(|doc| serde_json::json!({
+            "uri": doc.uri,
+            "edits": doc.edits.iter().map(|edit| serde_json::json!({
+                "range": {
+                    "start": { "line": edit.start_line, "character": edit.start_character },
+                    "end": { "line": edit.end_line, "character": edit.end_character }
+                },
+                "newText": edit.new_text
+            })).collect::<Vec<_>>()
+        })).collect::<Vec<_>>()
+    })
+}
+
+/// Plan idea-delete edits from source text and extra file texts.
+/// rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+#[napi(js_name = "planIdeaDelete")]
+pub fn plan_idea_delete(
+    source_uri: String,
+    source: String,
+    idea_name: String,
+    files_json: String,
+) -> Result<serde_json::Value> {
+    let files = parse_planner_files(&files_json)?;
+    let docs = reqlan_parse::plan_idea_delete(&source_uri, &source, &idea_name, &files);
+    Ok(planner_json(docs))
+}
+
+/// Plan idea-move edits from source and destination text.
+/// rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+#[napi(js_name = "planIdeaMove")]
+pub fn plan_idea_move(
+    source_uri: String,
+    source: String,
+    dest_uri: String,
+    dest: String,
+    idea_name: String,
+    leave_stub: bool,
+    files_json: String,
+) -> Result<serde_json::Value> {
+    let files = parse_planner_files(&files_json)?;
+    let docs = reqlan_parse::plan_idea_move(
+        &source_uri,
+        &source,
+        &dest_uri,
+        &dest,
+        &idea_name,
+        leave_stub,
+        &files,
+    )
+    .map_err(|error| Error::from_reason(error.to_string()))?;
+    Ok(planner_json(docs))
 }

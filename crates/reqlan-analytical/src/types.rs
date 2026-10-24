@@ -103,6 +103,17 @@ pub struct ExportHeaderLinkDto {
     pub label: String,
 }
 
+/// Attribute presence or value filter applied to exported nodes.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AttributeFilter {
+    pub key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(default)]
+    pub not_present: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportRequestDto {
@@ -143,6 +154,8 @@ pub struct ExportRequestDto {
     pub include_attribute_pages: bool,
     #[serde(default = "default_true")]
     pub include_print_pages: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attribute_filters: Vec<AttributeFilter>,
     #[serde(default)]
     pub max_graph_nodes: Option<u32>,
     #[serde(default)]
@@ -174,6 +187,7 @@ impl Default for ExportRequestDto {
             include_cluster_pages: true,
             include_attribute_pages: true,
             include_print_pages: true,
+            attribute_filters: Vec::new(),
             max_graph_nodes: None,
             url_base: None,
             header_link: None,

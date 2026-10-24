@@ -6,7 +6,6 @@ import "../development/core.rq" as development_core
 import "../core_analysis/html_export.rq" as html_export
 import "../cli/cli_package.rq" as cli_package
 import "../../site/src/components/Contact.tsx" as contact_component
-import "../../site/src/components/Hero.tsx" as hero_component
 import "../../site/src/components/PhonebookIcon.tsx" as phonebook_icon_tsx_component
 import "../../site/src/lib/phonebook-icons.ts" as phonebook_icon_registry
 

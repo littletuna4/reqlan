@@ -8,8 +8,8 @@ use lsp_types::{
     CodeActionOrCommand, Command, CompletionItem, CompletionItemKind, Diagnostic,
     DiagnosticSeverity, DocumentHighlight, DocumentHighlightKind, DocumentLink, InlayHint,
     InlayHintLabel, InlayHintLabelPart, InlayHintLabelPartTooltip, InlayHintTooltip, Location,
-    LocationLink, MarkupContent, MarkupKind, Position, Range, SemanticToken, SemanticTokens,
-    TextEdit, Url,
+    LocationLink, MarkupContent, MarkupKind, Position, Range, SelectionRange, SemanticToken,
+    SemanticTokens, TextEdit, Url,
 };
 use reqlan_index::{
     analyze_local_symbolic_from_parse, find_rq_ignore_error_target_lines, local_name_binding,
@@ -29,6 +29,8 @@ const TYPE_VARIABLE: u32 = 2;
 const TYPE_STRING: u32 = 3;
 const TYPE_DECORATOR: u32 = 4;
 const TYPE_OPERATOR: u32 = 5;
+const TYPE_KEYWORD: u32 = 6;
+const TYPE_METHOD: u32 = 7;
 const MOD_DEFINITION: u32 = 1;
 
 /// Endorsed attribute keys used until the host pushes a catalog.
@@ -472,10 +474,12 @@ impl DocModel {
     }
 
     pub fn semantic_tokens(&self) -> SemanticTokens {
+        let mut ordered = self.tokens.clone();
+        ordered.sort_by_key(|token| (token.start, token.end));
         let mut data = Vec::new();
         let mut prev_line = 0u32;
         let mut prev_start = 0u32;
-        for token in &self.tokens {
+        for token in &ordered {
             let range = self.lines.range(&self.text, token.start, token.end);
             let line = range.start.line;
             let start = range.start.character;
@@ -1300,12 +1304,32 @@ impl DocModel {
         out
     }
 
-    pub fn completion(
-        &self,
-        pos: Position,
-        extra: &[String],
-        catalog: &AttributeCatalog,
-    ) -> Vec<CompletionItem> {
+    pub(crate) fn syntax(&self) -> &Model {
+        &self.model
+    }
+
+    /// Expand-selection chain, innermost range first.
+    /// rq:["../../../reqlan rq/extension/language/vsc-primitives.rq".selection_range]
+    pub fn selection_range(&self, pos: Position) -> SelectionRange {
+        let mut byte = self.lines.byte_at(&self.text, pos);
+        if byte >= self.text.len() && !self.text.is_empty() {
+            byte = self.text.len() - 1;
+        }
+        let mut spans = Vec::new();
+        if !self.text.is_empty() {
+            collect_selection_spans(&self.text, &self.model, byte, &mut spans);
+            spans.push((0, self.text.len()));
+        }
+        chain_selection(nested_selection_ranges(&self.text, &self.lines, byte, spans))
+            .unwrap_or(SelectionRange { range: Range { start: pos, end: pos }, parent: None })
+    }
+
+    pub(crate) fn workspace_root(&self) -> Option<&Path> {
+        self.workspace.as_deref()
+    }
+
+    /// Attribute key and value completion. Other sites return an empty list.
+    pub fn completion(&self, pos: Position, catalog: &AttributeCatalog) -> Vec<CompletionItem> {
         let prefix = line_prefix(&self.text, &self.lines, pos);
         let mut items = Vec::new();
         if let Some((key, value_prefix)) = attribute_value_prefix(&prefix) {
@@ -1339,28 +1363,12 @@ impl DocModel {
             }
             return items;
         }
-        if let Some(filter) = reference_prefix(&prefix) {
-            let mut seen = std::collections::BTreeSet::new();
-            for idea in &self.names {
-                if idea.name.starts_with(filter) && seen.insert(idea.name.clone()) {
-                    items.push(CompletionItem {
-                        label: idea.name.clone(),
-                        kind: Some(CompletionItemKind::CLASS),
-                        ..CompletionItem::default()
-                    });
-                }
-            }
-            for name in extra {
-                if name.starts_with(filter) && seen.insert(name.clone()) && items.len() < 80 {
-                    items.push(CompletionItem {
-                        label: name.clone(),
-                        kind: Some(CompletionItemKind::REFERENCE),
-                        ..CompletionItem::default()
-                    });
-                }
-            }
-        }
         items
+    }
+
+    pub(crate) fn attribute_completion_site(&self, pos: Position) -> bool {
+        let prefix = line_prefix(&self.text, &self.lines, pos);
+        attribute_value_prefix(&prefix).is_some() || attribute_prefix(&prefix).is_some()
     }
 
     pub fn reference_locations(&self, doc_uri: &str, name: &str) -> Vec<Location> {
@@ -1650,14 +1658,7 @@ fn collect_model(
     names: &mut Vec<NameLoc>,
 ) {
     for import in &model.imports {
-        if let Some(span) = import.path_span() {
-            tokens.push(RawToken {
-                start: span.start,
-                end: span.end,
-                kind: TYPE_STRING,
-                modifiers: 0,
-            });
-        }
+        push_import_tokens(text, import, tokens);
     }
     for element in &model.elements {
         match element {
@@ -1790,9 +1791,22 @@ fn token_for_target(text: &str, target: &ReferenceTarget, tokens: &mut Vec<RawTo
                 tokens.push(RawToken { start, end, kind: TYPE_VARIABLE, modifiers: 0 });
             }
         }
-        ReferenceTarget::File { span, file } | ReferenceTarget::FileSymbol { span, file, .. } => {
+        ReferenceTarget::File { span, file } => {
             if let Some((start, end)) = find_in_span(text, *span, file) {
                 tokens.push(RawToken { start, end, kind: TYPE_STRING, modifiers: 0 });
+            }
+        }
+        ReferenceTarget::FileSymbol { span, file, symbols } => {
+            let mut cursor = span.start;
+            if let Some((start, end)) = find_in_span(text, *span, file) {
+                tokens.push(RawToken { start, end, kind: TYPE_STRING, modifiers: 0 });
+                cursor = end;
+            }
+            for symbol in symbols {
+                if let Some((start, end)) = find_keyword(text, cursor, span.end, symbol) {
+                    tokens.push(RawToken { start, end, kind: TYPE_METHOD, modifiers: 0 });
+                    cursor = end;
+                }
             }
         }
         ReferenceTarget::Url { span, url } => {
@@ -1873,7 +1887,7 @@ struct DottedParts {
     idea: Span,
 }
 
-fn authored_path_span(text: &str, statement: Span, path: &str) -> Option<Span> {
+pub(crate) fn authored_path_span(text: &str, statement: Span, path: &str) -> Option<Span> {
     let double = format!("\"{path}\"");
     let single = format!("'{path}'");
     let (start, end) = find_in_span(text, statement, &double)
@@ -1882,7 +1896,7 @@ fn authored_path_span(text: &str, statement: Span, path: &str) -> Option<Span> {
     Some(Span { start, end, line_start: statement.line_start, line_end: statement.line_end })
 }
 
-fn ident_span_from(text: &str, span: Span, from: usize, name: &str) -> Option<Span> {
+pub(crate) fn ident_span_from(text: &str, span: Span, from: usize, name: &str) -> Option<Span> {
     if name.is_empty() {
         return None;
     }
@@ -1912,6 +1926,90 @@ fn ident_span_from(text: &str, span: Span, from: usize, name: &str) -> Option<Sp
 
 fn is_ident_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-'
+}
+
+fn push_import_tokens(text: &str, import: &Import, tokens: &mut Vec<RawToken>) {
+    match import {
+        Import::From(from) => {
+            push_keyword(text, from.span.start, from.path_span.start, "from", tokens);
+            push_span(tokens, from.path_span, TYPE_STRING);
+            if !from.specifiers.is_empty() {
+                push_keyword(text, from.path_span.end, from.span.end, "import", tokens);
+            }
+            if let Some(alias) = from.alias_span {
+                push_keyword(text, from.path_span.end, alias.start, "as", tokens);
+            }
+            for specifier in &from.specifiers {
+                if let Some(alias) = specifier.alias_span {
+                    push_keyword(text, specifier.idea_span.end, alias.start, "as", tokens);
+                }
+            }
+        }
+        Import::Namespace(namespace) => {
+            push_keyword(text, namespace.span.start, namespace.path_span.start, "import", tokens);
+            push_span(tokens, namespace.path_span, TYPE_STRING);
+            if let Some(alias) = namespace.alias_span {
+                push_keyword(text, namespace.path_span.end, alias.start, "as", tokens);
+            }
+        }
+        Import::Qualified(qualified) => {
+            push_keyword(text, qualified.span.start, qualified.path_span.start, "import", tokens);
+            push_span(tokens, qualified.path_span, TYPE_STRING);
+            if let Some(alias) = qualified.alias_span {
+                push_keyword(text, qualified.idea_span.end, alias.start, "as", tokens);
+            }
+        }
+        Import::InvalidFrom(invalid) => {
+            push_keyword(text, invalid.span.start, invalid.span.end, "from", tokens);
+        }
+    }
+}
+
+fn push_span(tokens: &mut Vec<RawToken>, span: Span, kind: u32) {
+    tokens.push(RawToken { start: span.start, end: span.end, kind, modifiers: 0 });
+}
+
+fn push_keyword(text: &str, from: usize, limit: usize, word: &str, tokens: &mut Vec<RawToken>) {
+    if let Some((start, end)) = find_keyword(text, from, limit, word) {
+        tokens.push(RawToken { start, end, kind: TYPE_KEYWORD, modifiers: 0 });
+    }
+}
+
+/// Whole-word match. Quoted strings are skipped so a path cannot supply the keyword.
+fn find_keyword(text: &str, from: usize, limit: usize, word: &str) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let start = from.min(bytes.len());
+    let end = limit.min(bytes.len()).max(start);
+    let needle = word.as_bytes();
+    if needle.is_empty() || start + needle.len() > end {
+        return None;
+    }
+    let mut index = start;
+    while index + needle.len() <= end {
+        let byte = bytes[index];
+        if byte == b'"' || byte == b'\'' {
+            let quote = byte;
+            index += 1;
+            while index < end && bytes[index] != quote {
+                if bytes[index] == b'\\' {
+                    index += 1;
+                }
+                index += 1;
+            }
+            index += 1;
+            continue;
+        }
+        let before_ok = index == 0 || !is_ident_byte(bytes[index - 1]);
+        if before_ok && bytes[index..].starts_with(needle) {
+            let after = index + needle.len();
+            let after_ok = after >= bytes.len() || !is_ident_byte(bytes[after]);
+            if after_ok && after <= end {
+                return Some((index, after));
+            }
+        }
+        index += 1;
+    }
+    None
 }
 
 fn find_in_span(text: &str, span: Span, needle: &str) -> Option<(usize, usize)> {
@@ -1998,15 +2096,6 @@ fn attribute_value_prefix(prefix: &str) -> Option<(&str, &str)> {
         return None;
     }
     Some((key, value))
-}
-
-fn reference_prefix(prefix: &str) -> Option<&str> {
-    let start = prefix.rfind('[')?;
-    let rest = &prefix[start + 1..];
-    if rest.contains(']') {
-        return None;
-    }
-    Some(rest.trim_start_matches('"').trim_start_matches('\''))
 }
 
 fn existing_path(path: &str) -> Option<PathBuf> {
@@ -2128,8 +2217,310 @@ fn inlay_referencer(referencer: &InboundReferencer) -> InlayHintLabelPart {
     }
 }
 
-fn span_has(span: Span, byte: usize) -> bool {
+pub(crate) fn span_has(span: Span, byte: usize) -> bool {
     span.start <= byte && byte < span.end
+}
+
+fn collect_selection_spans(text: &str, model: &Model, byte: usize, out: &mut Vec<(usize, usize)>) {
+    push_covered(out, model.span, byte, text.len());
+    for import in &model.imports {
+        collect_import(text, import, byte, out);
+    }
+    for element in &model.elements {
+        collect_top(text, element, byte, out);
+    }
+}
+
+fn collect_import(text: &str, import: &Import, byte: usize, out: &mut Vec<(usize, usize)>) {
+    match import {
+        Import::From(from) => {
+            push_covered(out, from.span, byte, text.len());
+            push_covered(out, from.path_span, byte, text.len());
+            if let Some(span) = from.alias_span {
+                push_covered(out, span, byte, text.len());
+            }
+            for specifier in &from.specifiers {
+                push_covered(out, specifier.span, byte, text.len());
+                push_covered(out, specifier.idea_span, byte, text.len());
+                if let Some(span) = specifier.alias_span {
+                    push_covered(out, span, byte, text.len());
+                }
+            }
+        }
+        Import::Namespace(import) => {
+            push_covered(out, import.span, byte, text.len());
+            push_covered(out, import.path_span, byte, text.len());
+            if let Some(span) = import.alias_span {
+                push_covered(out, span, byte, text.len());
+            }
+        }
+        Import::Qualified(import) => {
+            push_covered(out, import.span, byte, text.len());
+            push_covered(out, import.path_span, byte, text.len());
+            push_covered(out, import.ideaset_span, byte, text.len());
+            push_covered(out, import.idea_span, byte, text.len());
+            if let Some(span) = import.alias_span {
+                push_covered(out, span, byte, text.len());
+            }
+        }
+        Import::InvalidFrom(import) => push_covered(out, import.span, byte, text.len()),
+    }
+}
+
+fn collect_top(text: &str, element: &TopLevelElement, byte: usize, out: &mut Vec<(usize, usize)>) {
+    match element {
+        TopLevelElement::Idea(idea) => {
+            push_covered(out, idea.span, byte, text.len());
+            push_leading_name(text, idea.span, &idea.name, byte, out);
+            collect_body(text, &idea.elements, byte, out);
+        }
+        TopLevelElement::IdeaSet(set) => {
+            push_covered(out, set.span, byte, text.len());
+            push_leading_name(text, set.span, &set.name, byte, out);
+            push_piece(text, set.span, byte, out);
+        }
+        TopLevelElement::OneLiner(idea) => {
+            push_covered(out, idea.span, byte, text.len());
+            push_leading_name(text, idea.span, &idea.name, byte, out);
+            collect_parts(text, &idea.body, byte, out);
+        }
+        TopLevelElement::Anonymous(block) => {
+            push_covered(out, block.span, byte, text.len());
+            collect_body(text, &block.elements, byte, out);
+        }
+    }
+}
+
+fn collect_body(text: &str, elements: &[BodyElement], byte: usize, out: &mut Vec<(usize, usize)>) {
+    for element in elements {
+        match element {
+            BodyElement::Attribute(attr) => collect_attribute(text, attr, byte, out),
+            BodyElement::CodeSnippet(snippet) => push_covered(out, snippet.span, byte, text.len()),
+            BodyElement::NamedList(list) => {
+                push_covered(out, list.span, byte, text.len());
+                push_leading_name(text, list.span, &list.label, byte, out);
+                collect_items(text, &list.items, byte, out);
+            }
+            BodyElement::NestedList(list) => {
+                push_covered(out, list.span, byte, text.len());
+                collect_items(text, &list.items, byte, out);
+            }
+            BodyElement::BodyLine(line) => {
+                push_covered(out, line.span, byte, text.len());
+                collect_parts(text, &line.parts, byte, out);
+            }
+        }
+    }
+}
+
+fn collect_attribute(text: &str, attr: &Attribute, byte: usize, out: &mut Vec<(usize, usize)>) {
+    push_covered(out, attr.span, byte, text.len());
+    if let Some(span) = attribute_key_span(text, attr) {
+        push_covered(out, span, byte, text.len());
+    }
+    match &attr.value {
+        Some(AttributeValue::Scalar(value)) => {
+            push_covered(out, value.span, byte, text.len());
+            collect_parts(text, &value.parts, byte, out);
+        }
+        Some(AttributeValue::List(value)) => {
+            push_covered(out, value.span, byte, text.len());
+            collect_items(text, &value.items, byte, out);
+        }
+        Some(AttributeValue::Block(value)) => {
+            push_covered(out, value.span, byte, text.len());
+            collect_body(text, &value.elements, byte, out);
+        }
+        None => {}
+    }
+}
+
+fn collect_items(text: &str, items: &[ListItem], byte: usize, out: &mut Vec<(usize, usize)>) {
+    for item in items {
+        match item {
+            ListItem::OneLiner(parts) => {
+                if let Some(span) = parts_span(parts) {
+                    push_covered(out, span, byte, text.len());
+                }
+                collect_parts(text, parts, byte, out);
+            }
+            ListItem::Anonymous(block) => {
+                push_covered(out, block.span, byte, text.len());
+                collect_body(text, &block.elements, byte, out);
+            }
+            ListItem::NamedBlock(item) => {
+                push_covered(out, item.span, byte, text.len());
+                push_leading_name(text, item.span, &item.name, byte, out);
+                collect_body(text, &item.elements, byte, out);
+            }
+            ListItem::Nested(list) => {
+                push_covered(out, list.span, byte, text.len());
+                collect_items(text, &list.items, byte, out);
+            }
+        }
+    }
+}
+
+fn collect_parts(text: &str, parts: &[RichPart], byte: usize, out: &mut Vec<(usize, usize)>) {
+    for part in parts {
+        push_covered(out, part.span(), byte, text.len());
+        match part {
+            RichPart::BracketRef { target, .. } | RichPart::WikiLink { target, .. } => {
+                push_covered(out, target.span(), byte, text.len());
+                push_piece(text, target.span(), byte, out);
+            }
+            RichPart::InlineCode { span, .. } | RichPart::MarkdownLink { span, .. } => {
+                push_piece(text, *span, byte, out);
+            }
+            RichPart::Text { .. } => {}
+        }
+    }
+}
+
+fn attribute_key_span(text: &str, attr: &Attribute) -> Option<Span> {
+    if attr.name.is_empty() {
+        return None;
+    }
+    let start = attr.span.start.min(text.len());
+    let end = attr.span.end.min(text.len()).max(start);
+    let bytes = text.as_bytes();
+    if bytes.get(start) != Some(&b'@') {
+        return ident_span_from(text, attr.span, start, &attr.name);
+    }
+    let name_at = start + 1;
+    if name_at + attr.name.len() > end || !text[name_at..].starts_with(&attr.name) {
+        return ident_span_from(text, attr.span, start, &attr.name);
+    }
+    let mut key_end = name_at + attr.name.len();
+    if attr.negated && bytes.get(key_end) == Some(&b'!') {
+        key_end += 1;
+    }
+    Some(Span {
+        start,
+        end: key_end,
+        line_start: attr.span.line_start,
+        line_end: attr.span.line_end,
+    })
+}
+
+fn parts_span(parts: &[RichPart]) -> Option<Span> {
+    let mut spans = parts.iter().map(RichPart::span);
+    let first = spans.next()?;
+    let mut start = first.start;
+    let mut end = first.end;
+    let mut line_start = first.line_start;
+    let mut line_end = first.line_end;
+    for span in spans {
+        start = start.min(span.start);
+        end = end.max(span.end);
+        line_start = line_start.min(span.line_start);
+        line_end = line_end.max(span.line_end);
+    }
+    Some(Span { start, end, line_start, line_end })
+}
+
+fn push_leading_name(
+    text: &str,
+    span: Span,
+    name: &str,
+    byte: usize,
+    out: &mut Vec<(usize, usize)>,
+) {
+    if name.is_empty() {
+        return;
+    }
+    let found = if text.get(span.start..).is_some_and(|rest| rest.starts_with(name)) {
+        Some(Span {
+            start: span.start,
+            end: span.start + name.len(),
+            line_start: span.line_start,
+            line_end: span.line_end,
+        })
+    } else {
+        ident_span_from(text, span, span.start, name)
+    };
+    if let Some(found) = found {
+        push_covered(out, found, byte, text.len());
+    }
+}
+
+/// The identifier or quoted string under `byte`, when it is smaller than `span`.
+fn push_piece(text: &str, span: Span, byte: usize, out: &mut Vec<(usize, usize)>) {
+    let start = span.start.min(text.len());
+    let end = span.end.min(text.len()).max(start);
+    if !span_has(Span { start, end, line_start: 0, line_end: 0 }, byte) {
+        return;
+    }
+    let bytes = text.as_bytes();
+    let mut index = start;
+    while index < end {
+        if bytes[index] == b'"' || bytes[index] == b'\'' {
+            let quote = bytes[index];
+            let piece_start = index;
+            index += 1;
+            while index < end && bytes[index] != quote {
+                index += 1;
+            }
+            if index < end {
+                index += 1;
+            }
+            if piece_start <= byte && byte < index && (piece_start > start || index < end) {
+                out.push((piece_start, index));
+            }
+            continue;
+        }
+        if is_ident_byte(bytes[index]) {
+            let piece_start = index;
+            while index < end && is_ident_byte(bytes[index]) {
+                index += 1;
+            }
+            if piece_start <= byte && byte < index && (piece_start > start || index < end) {
+                out.push((piece_start, index));
+            }
+            continue;
+        }
+        index += 1;
+    }
+}
+
+fn push_covered(out: &mut Vec<(usize, usize)>, span: Span, byte: usize, text_len: usize) {
+    let start = span.start.min(text_len);
+    let end = span.end.min(text_len).max(start);
+    if start < end && start <= byte && byte < end {
+        out.push((start, end));
+    }
+}
+
+fn nested_selection_ranges(
+    text: &str,
+    lines: &LineMap,
+    byte: usize,
+    mut spans: Vec<(usize, usize)>,
+) -> Vec<Range> {
+    spans.retain(|(start, end)| *start <= byte && byte < *end && start < end);
+    spans.sort_by_key(|(start, end)| (*end - *start, *start));
+    spans.dedup();
+    let mut kept: Vec<(usize, usize)> = Vec::new();
+    for (start, end) in spans {
+        if let Some((prev_start, prev_end)) = kept.last() {
+            if start > *prev_start || end < *prev_end {
+                continue;
+            }
+            if start == *prev_start && end == *prev_end {
+                continue;
+            }
+        }
+        kept.push((start, end));
+    }
+    kept.into_iter().map(|(start, end)| lines.range(text, start, end)).collect()
+}
+
+fn chain_selection(ranges: Vec<Range>) -> Option<SelectionRange> {
+    let mut parent = None;
+    for range in ranges.into_iter().rev() {
+        parent = Some(SelectionRange { range, parent: parent.map(Box::new) });
+    }
+    parent
 }
 
 pub(crate) fn line_range(line: u32, name: &str) -> Range {
@@ -2184,7 +2575,7 @@ fn encode_uri_component(value: &str) -> String {
 
 /// One character at the file start. An empty 0:0–0:0 range does not move the caret, so the
 /// editor may skip the JUMP that Alt+Left (navigate-back) needs.
-fn file_landing_range() -> Range {
+pub(crate) fn file_landing_range() -> Range {
     Range { start: Position { line: 0, character: 0 }, end: Position { line: 0, character: 1 } }
 }
 
@@ -2200,7 +2591,7 @@ fn location_uri(doc_uri: &str, line: u32) -> Url {
     location_url(&parse_url(doc_uri), line)
 }
 
-fn location_url(uri: &Url, line: u32) -> Url {
+pub(crate) fn location_url(uri: &Url, line: u32) -> Url {
     let mut url = uri.clone();
     url.set_fragment(Some(&format!("L{line}")));
     url

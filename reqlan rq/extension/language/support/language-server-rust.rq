@@ -9,6 +9,8 @@ language_server_rust {
     A Rust binary replaces the Langium language-server process.
     The extension launches `reqlan-lsp` over stdio.
     Open `.rq` buffers parse with [parser_rust].
+    Open buffer changes use incremental didChange (["./ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync]).
+    Long walks report work-done progress and stop on `$/cancelRequest` (["./ts-lsp-vs-rust-gaps.rq".lsp_work_progress]).
     The open sequence is ["open-file-sequencing.rq".open_file_algorithm].
     Workspace names and rename targets come from the ideas index under [application_memory].
     Inbound hints wait for the host snapshot of that index.
@@ -21,23 +23,28 @@ language_server_rust {
     The host strips file document links; Ctrl+click uses definition (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
     The host serves those links when the engine is `node`.
     Host commands prefer LSP custom requests, napi extract, and the ideas index.
-    Move/delete planners still use Langium until index-backed planners land.
+    Move and delete plans are native (["../../mutation/refactor_native_planner.rq".refactor_native_planner]).
+    Barrel page planning is native.
     The setting `reqlan.languageServer.engine` selects the binary.
     The default is `rust`.
     `node` remains only when the setting says so, or when the binary is not on disk yet.
     A local extension build compiles this binary with the napi addon ([extension_host_native_stage]).
     The extension launches `bin/reqlan-lsp`, else that release build. It never launches a debug build, because a debug build is slow and the extension build does not refresh it.
-    Code actions match ["../vsc-primitives.rq".code_actions]: ignore, create below, import fixes, search or wrap, idea move and delete, and barrel page.
-    Attribute and name catalogs drive completion. Rename and find-references use open buffers plus the ideas index.
+    Code actions match ["../vsc-primitives.rq".code_actions]: ignore, create below, create all unresolved ideas, import fixes, search or wrap, idea move and delete, and barrel page.
+    Expand selection follows the parse (["../vsc-primitives.rq".selection_range]).
+    Attribute and name catalogs drive idea and attribute completion.
+    Import and file paths complete from the workspace tree (["./features-imports.rq".import_code_completion]).
+    A cross-file idea completion shows the relative import path and inserts a from-import when the idea is not already imported.
+    Rename and find-references use open buffers plus the ideas index.
     Inlay hints honour `reqlan.referencesInlayHints.enabled` and the host inbound snapshot.
     An import link uses the parser token span ([import_from]).
     The path links to the file.
     An imported idea name and its alias each link to that declaration.
     A namespace reference links the alias and the idea as separate names.
     A missing leaf reports an unresolved idea on that name.
-    Related: [language_server], [grammar_and_parser], [analytical_rust_port], [vsix_export].
+    Related: [language_server], [grammar_and_parser], [analytical_rust_port], [vsix_export], ["./ts-lsp-vs-rust-gaps.rq".lsp_migration_remainder], ["./ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync], ["./ts-lsp-vs-rust-gaps.rq".lsp_work_progress].
     @status in-progress
-    @todo Move/delete and barrel-page host planners still call Langium DI. Finish those off napi/index/LSP.
+    @todo The node language server remains the fallback when the setting is node or the binary is missing.
     @implementation (
         ["../../../../crates/reqlan-lsp/src/lib.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
@@ -55,6 +62,7 @@ language_server_rust {
     @tests (
         ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_tokens_cover_import_keywords_and_file_symbols"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_hover_highlight_and_link"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_uses_the_open_neighbor_parse"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_does_not_reread_a_cached_neighbor"]
@@ -98,6 +106,12 @@ language_server_rust {
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_the_caret_idea_has_no_unresolved_local_references"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_for_a_qualified_unresolved_reference"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_create_below_when_only_refactor_is_requested"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_every_unresolved_local_idea_at_the_end_of_the_file"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_one_new_file_for_every_unresolved_local_idea"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:creates_one_stub_when_the_same_unresolved_name_occurs_twice"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_file_level_create_when_a_qualified_reference_is_unresolved"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:omits_file_level_create_when_only_refactor_is_requested"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_file_level_create_when_the_caret_idea_is_resolved"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_and_rewrite_when_a_matching_idea_exists_elsewhere"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:uses_name_catalog_matches_when_documents_are_not_loaded"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:search_and_create_actions_invoke_extension_commands"]
@@ -134,6 +148,6 @@ language_server_rust {
             7. Keep Langium only for host helpers. The server process does not load it when the engine is rust.
 
         open
-            - Host move/delete/barrel planners still use Langium DI.
+            - The node language server remains the fallback.
     }
 }

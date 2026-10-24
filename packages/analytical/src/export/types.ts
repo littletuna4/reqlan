@@ -57,6 +57,27 @@ export interface ExportRequest {
     urlBase?: string;
     /** Optional topbar link back to a parent site or home page. */
     headerLink?: ExportHeaderLink;
+    /**
+     * Optional attribute filters. When present, only ideas whose attributes match
+     * all filter rules are included in the export.
+     */
+    attributeFilters?: AttributeFilter[];
+}
+
+/** Filter rule for an attribute key, value, or presence. */
+export interface AttributeFilter {
+    /** Attribute key to filter on. */
+    key: string;
+    /**
+     * Optional value to match. When omitted, the filter checks for the key's
+     * presence (i.e. the attribute must be set, regardless of value).
+     */
+    value?: string;
+    /**
+     * When true, the attribute must be absent from the idea.
+     * Mutually exclusive with `value`.
+     */
+    notPresent?: boolean;
 }
 
 export interface ExportCounts {

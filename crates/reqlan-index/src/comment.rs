@@ -8,11 +8,34 @@
 
 use crate::extract::{extract_indexed_document, hash_text, ExtractOptions};
 use crate::ids::edge_id;
+use crate::path_resolve::is_rq_uri;
 use crate::text::MAX_INDEX_FILE_BYTES;
 use crate::types::{EdgeKind, EdgeRecord, IdeaSummary};
 use reqlan_parse::{import_path_candidates, resolve_rq_path, ImportRootMapping};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+
+/// Bounded view over an idea row. `check` builds one compact catalog
+/// ([CheckIdea]) and shares it across every phase instead of re-reading
+/// [IndexStore::list_all_ideas] three times.
+/// rq:["../../../reqlan rq/core_analysis/check_oom.rq".check_single_index_snapshot]
+pub trait IdeaRef {
+    fn id(&self) -> &str;
+    fn name(&self) -> &str;
+    fn file_uri(&self) -> &str;
+}
+
+impl IdeaRef for IdeaSummary {
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn file_uri(&self) -> &str {
+        &self.file_uri
+    }
+}
 
 const CODE_FILE_EXTENSIONS: &[&str] = &[
     "ts", "tsx", "js", "jsx", "mjs", "cjs", "cts", "mts", "py", "pyi", "rs", "go", "java", "kt",
@@ -143,10 +166,10 @@ pub(crate) fn scan_comment_references(text: &str) -> CommentReferenceScan {
     CommentReferenceScan { references, syntax_errors }
 }
 
-pub fn comment_link_edges(
+pub fn comment_link_edges<C: IdeaRef>(
     code_file_uri: &str,
     source: &str,
-    catalog: &[IdeaSummary],
+    catalog: &[C],
     import_roots: &[ImportRootMapping],
 ) -> Vec<EdgeRecord> {
     let (by_file_name, by_name) = comment_catalog_maps(catalog);
@@ -156,17 +179,17 @@ pub fn comment_link_edges(
         for idea in
             comment_targets(&reference, code_file_uri, &by_file_name, &by_name, import_roots)
         {
-            let key = idea.id.clone();
+            let key = idea.id().to_string();
             if !seen.insert(key.clone()) {
                 continue;
             }
             edges.push(EdgeRecord {
-                id: edge_id(&idea.id, EdgeKind::CommentLink.as_str(), code_file_uri),
-                source_id: idea.id.clone(),
+                id: edge_id(idea.id(), EdgeKind::CommentLink.as_str(), code_file_uri),
+                source_id: idea.id().to_string(),
                 target_id: None,
                 target_file: Some(code_file_uri.to_string()),
                 kind: EdgeKind::CommentLink,
-                label: Some(idea.name.clone()),
+                label: Some(idea.name().to_string()),
                 source_line: Some(reference.line),
                 snippet: Some(reference.snippet.clone()),
                 is_resolved: Some(true),
@@ -180,10 +203,10 @@ pub fn comment_link_edges(
 
 /// Comment reference sites in `source` that do not resolve against the idea catalog
 /// or, for qualified paths, against the target `.rq` file on disk.
-pub fn unresolved_comment_references(
+pub fn unresolved_comment_references<C: IdeaRef>(
     code_file_uri: &str,
     source: &str,
-    catalog: &[IdeaSummary],
+    catalog: &[C],
     import_roots: &[ImportRootMapping],
     workspace_root: Option<&Path>,
 ) -> Vec<CommentReference> {
@@ -205,23 +228,25 @@ pub fn unresolved_comment_references(
         .collect()
 }
 
-fn comment_catalog_maps(
-    catalog: &[IdeaSummary],
-) -> (HashMap<(String, String), &IdeaSummary>, HashMap<String, Vec<&IdeaSummary>>) {
-    let by_file_name: HashMap<(String, String), &IdeaSummary> =
-        catalog.iter().map(|idea| ((idea.file_uri.clone(), idea.name.clone()), idea)).collect();
-    let mut by_name: HashMap<String, Vec<&IdeaSummary>> = HashMap::new();
+fn comment_catalog_maps<C: IdeaRef>(
+    catalog: &[C],
+) -> (HashMap<(String, String), &C>, HashMap<String, Vec<&C>>) {
+    let by_file_name: HashMap<(String, String), &C> = catalog
+        .iter()
+        .map(|idea| ((idea.file_uri().to_string(), idea.name().to_string()), idea))
+        .collect();
+    let mut by_name: HashMap<String, Vec<&C>> = HashMap::new();
     for idea in catalog {
-        by_name.entry(idea.name.clone()).or_default().push(idea);
+        by_name.entry(idea.name().to_string()).or_default().push(idea);
     }
     (by_file_name, by_name)
 }
 
-fn comment_reference_resolves<'a>(
+fn comment_reference_resolves<'a, C: IdeaRef>(
     reference: &CommentReference,
     code_file_uri: &str,
-    by_file_name: &HashMap<(String, String), &'a IdeaSummary>,
-    by_name: &HashMap<String, Vec<&'a IdeaSummary>>,
+    by_file_name: &HashMap<(String, String), &'a C>,
+    by_name: &HashMap<String, Vec<&'a C>>,
     import_roots: &[ImportRootMapping],
     workspace_root: Option<&Path>,
     disk_names: &mut HashMap<String, HashSet<String>>,
@@ -246,6 +271,9 @@ fn disk_file_declares_idea(
     idea: &str,
     cache: &mut HashMap<String, HashSet<String>>,
 ) -> bool {
+    if !is_rq_uri(file_uri) {
+        return false;
+    }
     let Some(root) = workspace_root else {
         return false;
     };
@@ -267,13 +295,13 @@ fn disk_file_declares_idea(
     names.contains(idea)
 }
 
-fn comment_targets<'a>(
+fn comment_targets<'a, C: IdeaRef>(
     reference: &CommentReference,
     code_file_uri: &str,
-    by_file_name: &HashMap<(String, String), &'a IdeaSummary>,
-    by_name: &HashMap<String, Vec<&'a IdeaSummary>>,
+    by_file_name: &HashMap<(String, String), &'a C>,
+    by_name: &HashMap<String, Vec<&'a C>>,
     import_roots: &[ImportRootMapping],
-) -> Vec<&'a IdeaSummary> {
+) -> Vec<&'a C> {
     if let Some(path) = &reference.path {
         for candidate in comment_file_candidates(code_file_uri, path, import_roots) {
             if let Some(idea) = by_file_name.get(&(candidate, reference.idea.clone())).copied() {
@@ -766,7 +794,8 @@ mod tests {
             git_change_count: None,
         }];
         let source = "// rq:[alpha]\n// rq:[missing_idea]\n";
-        let unresolved = unresolved_comment_references("src/app.ts", source, &catalog, &[], None);
+        let unresolved =
+            unresolved_comment_references::<IdeaSummary>("src/app.ts", source, &catalog, &[], None);
         assert_eq!(unresolved.len(), 1);
         assert_eq!(unresolved[0].idea, "missing_idea");
     }
@@ -790,7 +819,7 @@ mod tests {
             git_change_count: None,
         }];
         let source = "// rq:[\"@/reqs/demo.rq\".alpha]\n// rq:[\"@/reqs/demo.rq\".missing]\n";
-        let unresolved = unresolved_comment_references(
+        let unresolved = unresolved_comment_references::<IdeaSummary>(
             "packages/pkg/src/core/app.ts",
             source,
             &catalog,
@@ -819,10 +848,10 @@ mod tests {
         )
         .unwrap();
         let source = std::fs::read_to_string(root.join("site/src/content/quickstart.ts")).unwrap();
-        let unresolved = unresolved_comment_references(
+        let unresolved = unresolved_comment_references::<IdeaSummary>(
             "site/src/content/quickstart.ts",
             &source,
-            &[],
+            &[] as &[IdeaSummary],
             &[],
             Some(&root),
         );
