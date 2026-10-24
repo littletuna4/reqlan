@@ -5,7 +5,6 @@ packages:
   - site
 # rq:["reqlan rq/development/build.rq".typescript_compile]
 overrides:
-  '@reqlan/cli': link:packages/cli
   langium-cli>jsonschema: 1.4.1
 allowBuilds:
   sqlite3: true

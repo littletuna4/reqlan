@@ -163,7 +163,6 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@reqlan/cli': link:packages/cli
   langium-cli>jsonschema: 1.4.1
 
 packageExtensionsChecksum: sha256-d9jc9dExVu1elF5XfKZTnUlXQal+YTS/+CX5RMFRio4=
@@ -179,7 +178,7 @@ importers:
         specifier: workspace:*
         version: link:packages/analytical
       '@reqlan/cli':
-        specifier: link:packages/cli
+        specifier: workspace:*
         version: link:packages/cli
       '@reqlan/language':
         specifier: workspace:*
@@ -258,9 +257,6 @@ importers:
       '@reqlan/analytical':
         specifier: workspace:*
         version: link:../analytical
-      '@reqlan/cli':
-        specifier: link:.
-        version: 'link:'
       clipanion:
         specifier: 3.2.1
         version: 3.2.1(typanion@3.14.0)

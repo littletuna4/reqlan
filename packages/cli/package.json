@@ -32,7 +32,6 @@
     },
     "dependencies": {
         "@reqlan/analytical": "workspace:*",
-        "@reqlan/cli": "link:",
         "clipanion": "3.2.1"
     },
     "devDependencies": {
