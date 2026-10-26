@@ -133,9 +133,13 @@ editor_reference_activation {
     A target in another file opens in the active editor group.
     The editor does not open a second copy of the current file.
     The editor does not open a browser page for a file or idea reference.
-    Alt+Left is navigate-back. It restores the caret from before go-to-definition.
-    The extension keeps that JUMP on a reqlan stack because Cursor often skips the editor history entry for same-file definition.
-    The stack also records jumps that start in comment-reference host languages
+    Alt+Left is Go Back (`workbench.action.navigateBack`). Alt+Right is Go Forward (`workbench.action.navigateForward`).
+    Those commands walk one editor stack for every language.
+    A definition result is a location. The editor applies that location and records the jump.
+    A later editor, such as a TypeScript file, stays on that stack between the reference and the target.
+    Go Back returns to the previous entry. Go Forward walks those entries toward the newest one.
+    The extension returns the location and leaves the caret move to the editor.
+    Jumps that start in a comment-reference host use this same editor stack
     (["../comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]).
     Definition targets prefer an open workspace tab URI so Cursor does not open a detached file copy.
     The definition target range must move the caret (not an empty 0:0–0:0 range).
@@ -168,7 +172,6 @@ editor_reference_activation {
         ["../../../../packages/extension/src/extension/editor-link-activation.ts"]
         ["../../../../packages/extension/src/extension/register-editor-link-activation.ts"]
         ["../../../../packages/extension/src/extension/definition-navigation.ts"]
-        ["../../../../packages/extension/src/extension/definition-navigation-stack.ts"]
         ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
         ["../../../../packages/extension/src/extension/main.ts"]
         ["../../../../crates/reqlan-lsp/src/analysis.rs"]
@@ -181,11 +184,7 @@ editor_reference_activation {
         ["../../../../packages/extension/test/editor-link-activation.test.ts:go-to-definition does not send the buffer"]
         ["../../../../packages/extension/test/editor-link-activation.test.ts:comment injection link scope includes markup.underline"]
         ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:records a command selection move as a definition jump"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:records only landings in reqlan targets"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:navigate-back keybinding is not limited to .rq editors"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:package.json leaves go back and go forward to the editor"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_origin_is_the_lexer_token_under_the_cursor"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
     )

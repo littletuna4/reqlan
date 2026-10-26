@@ -6,94 +6,23 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { COMMENT_REFERENCE_LANGUAGE_BLOCKLIST } from '../src/extension/comment-reference-languages.js';
-import {
-    caretChanged,
-    isNavigationTrackedLanguage,
-    isReqlanNavigationTarget,
-    SELECTION_KIND_COMMAND,
-    shouldRecordDefinitionJump,
-    type EditorCaret
-} from '../src/extension/definition-navigation-stack.js';
 
 const extensionRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-const caret = (uri: string, line: number, character: number): EditorCaret => ({
-    uri,
-    line,
-    character
-});
-
-describe('definition navigation stack', () => {
-    test('records a command selection move as a definition jump', () => {
-        const origin = caret('file:///a.rq', 1, 9);
-        const target = caret('file:///a.rq', 3, 0);
-        expect(shouldRecordDefinitionJump(SELECTION_KIND_COMMAND, origin, target)).toBe(true);
-        expect(caretChanged(origin, target)).toBe(true);
-    });
-
-    test('ignores mouse and keyboard selection moves', () => {
-        const origin = caret('file:///a.rq', 1, 9);
-        const target = caret('file:///a.rq', 3, 0);
-        expect(shouldRecordDefinitionJump(1, origin, target)).toBe(false);
-        expect(shouldRecordDefinitionJump(2, origin, target)).toBe(false);
-    });
-
-    test('records an undefined-kind line jump when the host omits Command', () => {
-        const origin = caret('file:///a.rq', 1, 9);
-        const target = caret('file:///a.rq', 3, 0);
-        expect(shouldRecordDefinitionJump(undefined, origin, target)).toBe(true);
-        expect(
-            shouldRecordDefinitionJump(undefined, origin, caret('file:///a.rq', 1, 12))
-        ).toBe(false);
-    });
-
-    test('ignores a no-op command selection', () => {
-        const origin = caret('file:///a.rq', 3, 0);
-        expect(shouldRecordDefinitionJump(SELECTION_KIND_COMMAND, origin, origin)).toBe(false);
-    });
-
-    test('records a cross-file command jump from the prior caret', () => {
-        const origin = caret('file:///a.rq', 1, 9);
-        const target = caret('file:///b.rq', 0, 0);
-        expect(shouldRecordDefinitionJump(SELECTION_KIND_COMMAND, origin, target)).toBe(true);
-    });
-
+describe('definition navigation', () => {
+    // rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
     // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
-    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist]
-    test('tracks non-blocklisted languages for navigate-back', () => {
-        expect(isNavigationTrackedLanguage('reqlan', 'a.rq', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
-        expect(isNavigationTrackedLanguage('plaintext', 'a.rq', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
-        expect(isNavigationTrackedLanguage('typescript', 'a.ts', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
-        expect(isNavigationTrackedLanguage('ruby', 'a.rb', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
-        expect(isNavigationTrackedLanguage('markdown', 'a.md', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(true);
-        expect(isNavigationTrackedLanguage('log', 'a.log', COMMENT_REFERENCE_LANGUAGE_BLOCKLIST)).toBe(false);
-        expect(
-            shouldRecordDefinitionJump(
-                SELECTION_KIND_COMMAND,
-                caret('file:///src/a.ts', 4, 8),
-                caret('file:///reqs/b.rq', 0, 0)
-            )
-        ).toBe(true);
-    });
-
-    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
-    test('records only landings in reqlan targets', () => {
-        expect(isReqlanNavigationTarget('reqlan', 'a.rq')).toBe(true);
-        expect(isReqlanNavigationTarget('plaintext', 'a.rq')).toBe(true);
-        expect(isReqlanNavigationTarget('typescript', 'a.ts')).toBe(false);
-        expect(isReqlanNavigationTarget('python', 'a.py')).toBe(false);
-    });
-
-    // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_navigate_back]
-    test('navigate-back keybinding is not limited to .rq editors', () => {
+    test('package.json leaves go back and go forward to the editor', () => {
         const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
-            contributes: { keybindings: Array<{ command?: string; when?: string }> };
+            contributes: {
+                keybindings?: Array<{ command?: string; key?: string; mac?: string }>;
+                commands?: Array<{ command?: string }>;
+            };
         };
-        const binding = pkg.contributes.keybindings.find(
-            item => item.command === 'reqlan.navigateBack'
-        );
-        expect(binding?.when).toBe('reqlan.canNavigateBack && editorTextFocus');
-        expect(binding?.when).not.toContain('editorLangId');
+        const bindings = pkg.contributes.keybindings ?? [];
+        const commands = pkg.contributes.commands ?? [];
+        expect(bindings.some(item => item.command === 'reqlan.navigateBack')).toBe(false);
+        expect(commands.some(item => item.command === 'reqlan.navigateBack')).toBe(false);
+        expect(bindings.some(item => item.key === 'alt+left' || item.mac === 'ctrl+-')).toBe(false);
     });
 });

@@ -325,7 +325,8 @@ comment_backlink_sequence {
     An unqualified name searches open `.rq` buffers first.
     The index snapshot may add a match later ([lazy_features_after_outbound]).
     Do not call `list_all_ideas` for that search.
-    Do not create a document link when the idea is not confirmed.
+    Do not create an idea link when the idea is not confirmed.
+    Keep the path link when that same resolution found the file ([comment_reference_resolution_error_state]).
     Related: [comment_reference_resolution_error_state].
 
     @status in-progress

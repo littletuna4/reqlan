@@ -15,6 +15,7 @@ native_host_binary {
     Do not load a binary for a different tuple.
     If the platform and the arch are not in ["./distribution.rq".native_targets], fail.
     If the binary is missing, fail. Do not use sql.js.
+    A normal extension-host heap must not block the load ([native_engine_load_budget]).
     Keep the loader map the same as ["../../scripts/native-targets.mjs"].
     Local development: [native_host_binary_development].
     Production distribution: [native_host_binary_distributed].
@@ -84,6 +85,19 @@ native_host_binary_distributed {
         ["../../packages/analytical/test/load-native.test.ts"]
         ["../../packages/analytical/test/native-packaging.test.ts"]
     )
+}
+
+native_engine_load_budget {
+    The loader returns a cached engine without a memory refusal.
+    A Windows extension host often uses more than 512MB of heap after `onStartupFinished`.
+    That heap size is not an out-of-memory condition.
+    The loader refuses a first dlopen only when `heapUsed` is above 90 percent of the V8 heap size limit.
+    It does not use a fixed 512MB heap limit.
+    It does not use a fixed 1GB RSS limit.
+    Related: [native_host_binary]
+    @status done
+    @implementation ["../../packages/analytical/src/native/load-native.ts"]
+    @tests ["../../packages/analytical/test/load-native.test.ts:allows a normal extension-host heap"]
 }
 
 published_host_native_install {

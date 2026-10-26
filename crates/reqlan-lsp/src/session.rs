@@ -77,10 +77,6 @@ pub struct Session {
     inbound_names: HashMap<String, Vec<(String, Vec<InboundReferencer>)>>,
     /// Host push of file-level inbound referencers for the file CodeLens.
     file_referencers: HashMap<String, Vec<InboundReferencer>>,
-    /// Host push of idea names for unresolved-reference quick fixes and completion.
-    name_catalog: Vec<SymbolHit>,
-    catalog_by_name: HashMap<String, Vec<usize>>,
-    catalog_by_path: HashMap<PathBuf, Vec<usize>>,
     /// Host push of attribute keys and values for completion.
     attribute_catalog: AttributeCatalog,
     /// When true, a hover shows the styled idea body. Default is on.
@@ -100,9 +96,6 @@ impl Session {
             neighbors: VecDeque::new(),
             inbound_names: HashMap::new(),
             file_referencers: HashMap::new(),
-            name_catalog: Vec::new(),
-            catalog_by_name: HashMap::new(),
-            catalog_by_path: HashMap::new(),
             attribute_catalog: AttributeCatalog::endorsed(),
             idea_content_tooltip: true,
             reference_inlay_hints: false,
@@ -120,18 +113,6 @@ impl Session {
 
     pub fn set_reference_inlay_hints(&mut self, enabled: bool) {
         self.reference_inlay_hints = enabled;
-    }
-
-    pub fn note_name_catalog(&mut self, entries: Vec<SymbolHit>) {
-        self.name_catalog = entries;
-        self.catalog_by_name.clear();
-        self.catalog_by_path.clear();
-        for (index, hit) in self.name_catalog.iter().enumerate() {
-            self.catalog_by_name.entry(hit.name.clone()).or_default().push(index);
-            if let Some(path) = path_of_file(&hit.file_uri) {
-                self.catalog_by_path.entry(path).or_default().push(index);
-            }
-        }
     }
 
     pub fn note_attribute_catalog(&mut self, catalog: AttributeCatalog) {
@@ -519,13 +500,10 @@ impl Session {
         replace: Range,
     ) -> CompletionList {
         let resolved = self.documents.get(uri).and_then(|doc| doc.model.resolve_path(authored));
-        let mut symbols = resolved
+        let symbols = resolved
             .as_ref()
             .map(|path| self.symbols_at(path))
             .unwrap_or_else(|| FileSymbols { names: Vec::new(), sets: Vec::new() });
-        if let Some(path) = &resolved {
-            self.merge_catalog_symbols(&mut symbols, path);
-        }
         completion_list(qualified_completion_items(&symbols, idea_prefix, authored, replace))
     }
 
@@ -541,19 +519,6 @@ impl Session {
         self.ensure_neighbor(path)
             .map(|neighbor| file_symbols(&neighbor.model))
             .unwrap_or(FileSymbols { names: Vec::new(), sets: Vec::new() })
-    }
-
-    fn merge_catalog_symbols(&self, symbols: &mut FileSymbols, path: &Path) {
-        let Some(indexes) = self.catalog_by_path.get(path) else {
-            return;
-        };
-        for index in indexes {
-            let hit = &self.name_catalog[*index];
-            if symbols.names.iter().any(|(name, _)| name == &hit.name) {
-                continue;
-            }
-            symbols.names.push((hit.name.clone(), hit.kind != "ideaset"));
-        }
     }
 
     fn reference_items(&self, uri: &str, prefix: &str, replace: Range) -> CompletionList {
@@ -601,25 +566,6 @@ impl Session {
                     return completion_list(items);
                 }
             }
-        }
-        if !self.name_catalog.is_empty() {
-            for hit in &self.name_catalog {
-                if self.push_remote_item(
-                    uri,
-                    prefix,
-                    replace,
-                    &from,
-                    &hit.name,
-                    &hit.file_uri,
-                    hit.kind != "ideaset",
-                    &mut items,
-                    &mut seen,
-                    &mut remote,
-                ) {
-                    return completion_list(items);
-                }
-            }
-            return completion_list(items);
         }
         for index in &self.indexes {
             let Ok(rows) = index.store.idea_names_with_prefix(prefix, 80) else {
@@ -829,7 +775,7 @@ impl Session {
         out
     }
 
-    /// Workspace symbols from the open buffers and the host name catalog.
+    /// Workspace symbols from the open buffers and a prefix query on the ideas index.
     pub fn workspace_symbols(&self, query: &str) -> Vec<lsp_types::WorkspaceSymbol> {
         self.workspace_symbols_with(query, &mut Idle).unwrap_or_default()
     }
@@ -867,30 +813,44 @@ impl Session {
                 });
             }
         }
-        let catalog = self.name_catalog.len().max(1) as u32;
-        for (index, hit) in self.name_catalog.iter().enumerate() {
-            if index % 128 == 0 && tick.tick("Searching workspace", index as u32, catalog) {
+        let indexes = self.indexes.len().max(1) as u32;
+        for (index_no, index) in self.indexes.iter().enumerate() {
+            if tick.tick("Searching workspace", index_no as u32, indexes) {
                 return Err(Stopped);
             }
-            if !name_matches(&hit.name, &needle) {
+            let Ok(rows) = index.store.idea_names_with_prefix(query, 80) else {
                 continue;
+            };
+            for row in rows {
+                if !name_matches(&row.name, &needle) {
+                    continue;
+                }
+                if !seen.insert(row.name.clone()) {
+                    continue;
+                }
+                let Some(file_uri) = indexed_file_uri(index, &row.file_uri) else {
+                    continue;
+                };
+                let url = lsp_types::Url::parse(&file_uri)
+                    .unwrap_or_else(|_| lsp_types::Url::parse("file:///reqlan.rq").unwrap());
+                out.push(lsp_types::WorkspaceSymbol {
+                    name: row.name.clone(),
+                    kind: lsp_types::SymbolKind::MODULE,
+                    tags: None,
+                    container_name: None,
+                    location: lsp_types::OneOf::Left(lsp_types::Location {
+                        uri: url,
+                        range: Range {
+                            start: Position { line: row.line_start, character: 0 },
+                            end: Position {
+                                line: row.line_start,
+                                character: utf16_len_name(&row.name),
+                            },
+                        },
+                    }),
+                    data: None,
+                });
             }
-            if !seen.insert(hit.name.clone()) {
-                continue;
-            }
-            let url = lsp_types::Url::parse(&hit.file_uri)
-                .unwrap_or_else(|_| lsp_types::Url::parse("file:///reqlan.rq").unwrap());
-            out.push(lsp_types::WorkspaceSymbol {
-                name: hit.name.clone(),
-                kind: lsp_types::SymbolKind::MODULE,
-                tags: None,
-                container_name: None,
-                location: lsp_types::OneOf::Left(lsp_types::Location {
-                    uri: url,
-                    range: Range::default(),
-                }),
-                data: None,
-            });
         }
         Ok(out)
     }
@@ -1012,20 +972,6 @@ impl Session {
                 symbols.push(SymbolHit { name, kind: kind.to_string(), file_uri: uri.clone() });
             }
         }
-        if !self.name_catalog.is_empty() {
-            for name in names {
-                let Some(indexes) = self.catalog_by_name.get(name) else {
-                    continue;
-                };
-                for index in indexes {
-                    let hit = &self.name_catalog[*index];
-                    if hit.file_uri != from_uri {
-                        symbols.push(hit.clone());
-                    }
-                }
-            }
-            return symbols;
-        }
         for index in &self.indexes {
             for name in names {
                 let Ok(rows) = index.store.ideas_named(name) else {
@@ -1107,11 +1053,13 @@ impl Session {
         self.comment_definition_at(&text, &path, uri, pos)
     }
 
-    /// Go-to-definition for a resolved comment reference site.
+    /// Go-to-definition for a comment reference site.
     /// Same resolution as document links and missing-idea diagnostics.
     // rq-ignore-error
     /// Origin is the path string or idea id under the cursor — not the whole `rq:[…]`.
+    /// A found file stays a path target when the idea is absent.
     /// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_qualified_token_links]
+    /// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
     fn comment_definition_at(
         &mut self,
         text: &str,
@@ -1122,32 +1070,32 @@ impl Session {
         let lines = LineMap::new(text);
         let byte = lines.byte_at(text, pos);
         for site in self.comment_sites(text, source) {
-            let CommentSite::Link { start, end, idea, target, path } = site else {
+            let Some(target) = site.target.as_ref() else {
                 continue;
             };
-            let statement = comment_token_span(start, end);
-            let Ok(target_uri) = Url::from_file_path(&target) else {
+            let Ok(target_uri) = Url::from_file_path(target) else {
                 continue;
             };
-            if let Some(authored) = path.as_deref() {
-                if let Some(path_span) = authored_path_span(text, statement, authored) {
-                    if span_has(path_span, byte) {
-                        return comment_location_link(
-                            lines.range(text, path_span.start, path_span.end),
-                            target_uri,
-                            file_landing_range(),
-                            doc_uri,
-                        );
-                    }
+            if let Some(path_span) = site.path_span {
+                if span_has(path_span, byte) {
+                    return comment_location_link(
+                        lines.range(text, path_span.start, path_span.end),
+                        target_uri,
+                        file_landing_range(),
+                        doc_uri,
+                    );
                 }
             }
-            let Some(idea_span) = ident_span_from(text, statement, start, &idea) else {
+            let Some(idea_span) = site.idea_span else {
                 continue;
             };
-            if !span_has(idea_span, byte) {
+            if !span_has(idea_span, byte) || !site.idea_found {
                 continue;
             }
-            let range = self.neighbor_range(&target, &idea)?;
+            let range = match site.idea_at {
+                Some(range) => range,
+                None => self.neighbor_range(target, &site.idea)?,
+            };
             let target_range = if range.start == range.end { file_landing_range() } else { range };
             return comment_location_link(
                 lines.range(text, idea_span.start, idea_span.end),
@@ -1161,44 +1109,42 @@ impl Session {
 
     fn comment_links(&mut self, text: &str, source: &Path) -> Vec<DocumentLink> {
         // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_qualified_token_links]
+        // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
         let lines = LineMap::new(text);
         let mut links = Vec::new();
         for site in self.comment_sites(text, source) {
-            let CommentSite::Link { start, end, idea, target, path } = site else {
+            let Some(target) = site.target.as_ref() else {
                 continue;
             };
-            let Ok(url) = Url::from_file_path(&target) else {
+            let Ok(url) = Url::from_file_path(target) else {
                 continue;
             };
-            let statement = comment_token_span(start, end);
-            if let Some(authored) = path.as_deref() {
-                if let Some(path_span) = authored_path_span(text, statement, authored) {
-                    links.push(DocumentLink {
-                        range: lines.range(text, path_span.start, path_span.end),
-                        target: Some(url.clone()),
-                        tooltip: None,
-                        data: None,
-                    });
-                }
-                if let Some(idea_span) = ident_span_from(text, statement, start, &idea) {
-                    if let Some(range) = self.neighbor_range(&target, &idea) {
-                        links.push(DocumentLink {
-                            range: lines.range(text, idea_span.start, idea_span.end),
-                            target: Some(location_url(&url, range.start.line)),
-                            tooltip: Some(idea),
-                            data: None,
-                        });
-                    }
-                }
+            if let Some(path_span) = site.path_span {
+                links.push(DocumentLink {
+                    range: lines.range(text, path_span.start, path_span.end),
+                    target: Some(url.clone()),
+                    tooltip: None,
+                    data: None,
+                });
+            }
+            if !site.idea_found {
                 continue;
             }
-            let Some(idea_span) = ident_span_from(text, statement, start, &idea) else {
+            let Some(idea_span) = site.idea_span else {
                 continue;
+            };
+            let target_url = if site.path.is_some() {
+                let Some(range) = site.idea_at else {
+                    continue;
+                };
+                location_url(&url, range.start.line)
+            } else {
+                url
             };
             links.push(DocumentLink {
                 range: lines.range(text, idea_span.start, idea_span.end),
-                target: Some(url),
-                tooltip: Some(idea),
+                target: Some(target_url),
+                tooltip: Some(site.idea),
                 data: None,
             });
         }
@@ -1206,23 +1152,12 @@ impl Session {
     }
 
     fn comment_diagnostics(&mut self, text: &str, source: &Path) -> Vec<Diagnostic> {
+        // rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
         let lines = LineMap::new(text);
         let mut out = Vec::new();
         for site in self.comment_sites(text, source) {
-            let (start, end, message, code) = match site {
-                CommentSite::Link { .. } => continue,
-                CommentSite::MissingFile { start, end, path } => (
-                    start,
-                    end,
-                    format!("Could not resolve comment reference file '{path}'."),
-                    "comment-reference-missing-file",
-                ),
-                CommentSite::MissingIdea { start, end, idea } => (
-                    start,
-                    end,
-                    format!("Could not resolve comment reference to idea '{idea}'."),
-                    "comment-reference-missing-idea",
-                ),
+            let Some((start, end, message, code)) = comment_issue(&site) else {
+                continue;
             };
             out.push(Diagnostic {
                 range: lines.range(text, start, end),
@@ -1242,68 +1177,71 @@ impl Session {
         let workspace = self.workspace_for(source);
         let mut sites = Vec::new();
         for reference in find_comment_references_in_text(text) {
-            let site = self.resolve_comment(source, &reference, workspace.as_deref(), &roots);
-            if matches!(site, CommentSite::Link { .. }) || !ignored.contains(&reference.line) {
+            let site = self.resolve_comment(text, source, &reference, workspace.as_deref(), &roots);
+            if !site.has_issue() || !ignored.contains(&reference.line) {
                 sites.push(site);
             }
         }
         sites
     }
 
+    /// One path read. The site keeps the file when that read does not find the idea.
     fn resolve_comment(
         &mut self,
+        text: &str,
         source: &Path,
         reference: &reqlan_index::CommentReference,
         workspace: Option<&Path>,
         roots: &[ImportRootMapping],
     ) -> CommentSite {
-        let from = source.to_string_lossy();
-        if let Some(authored) = reference.path.clone() {
-            let mut found = None;
-            for candidate in import_path_candidates(&authored) {
+        let statement = comment_token_span(reference.start, reference.end);
+        let path_span =
+            reference.path.as_deref().and_then(|path| authored_path_span(text, statement, path));
+        let idea_span = ident_span_from(text, statement, reference.start, &reference.idea);
+        let (target, idea_found, idea_at) = if let Some(authored) = reference.path.as_deref() {
+            let from = source.to_string_lossy();
+            let mut hit = None;
+            for candidate in import_path_candidates(authored) {
                 let resolved = resolve_rq_path(&candidate, &from, roots);
                 let absolute = absolute_candidate(&resolved, workspace, source);
-                if self.path_is_file(&absolute) {
-                    found = Some(absolute);
+                if let FileIdea::Present { idea_at } = self.file_idea(&absolute, &reference.idea) {
+                    hit = Some((absolute, idea_at));
                     break;
                 }
             }
-            let Some(file) = found else {
-                return CommentSite::MissingFile {
-                    start: reference.start,
-                    end: reference.end,
-                    path: authored,
-                };
-            };
-            if self.path_declares(&file, &reference.idea) {
-                return CommentSite::Link {
-                    start: reference.start,
-                    end: reference.end,
-                    idea: reference.idea.clone(),
-                    target: file,
-                    path: Some(authored),
-                };
+            match hit {
+                Some((file, idea_at)) => (Some(file), idea_at.is_some(), idea_at),
+                None => (None, false, None),
             }
-            return CommentSite::MissingIdea {
-                start: reference.start,
-                end: reference.end,
-                idea: reference.idea.clone(),
-            };
-        }
-        if let Some(target) = self.unqualified_file(&reference.idea) {
-            return CommentSite::Link {
-                start: reference.start,
-                end: reference.end,
-                idea: reference.idea.clone(),
-                target,
-                path: None,
-            };
-        }
-        CommentSite::MissingIdea {
+        } else if let Some(target) = self.unqualified_file(&reference.idea) {
+            (Some(target), true, None)
+        } else {
+            (None, false, None)
+        };
+        CommentSite {
             start: reference.start,
             end: reference.end,
             idea: reference.idea.clone(),
+            path: reference.path.clone(),
+            path_span,
+            idea_span,
+            target,
+            idea_found,
+            idea_at,
         }
+    }
+
+    /// One read of `path`. `Present` is that file; `idea_at` is set only when the same read declares `idea`.
+    fn file_idea(&mut self, path: &Path, idea: &str) -> FileIdea {
+        if let Some(doc) = self.open_doc_at(path) {
+            let idea_at = if doc.model.has_idea(idea) { doc.model.idea_range(idea) } else { None };
+            return FileIdea::Present { idea_at };
+        }
+        let Some(entry) = self.ensure_neighbor(path) else {
+            return FileIdea::Absent;
+        };
+        let idea_at = entry.names.iter().find(|(name, _)| name == idea).map(|(_, range)| *range);
+        FileIdea::Present { idea_at }
     }
 
     fn import_roots(&self, source: &Path) -> Vec<ImportRootMapping> {
@@ -1329,10 +1267,6 @@ impl Session {
         self.workspace_for(source).or_else(|| find_applying_base_root(source, Some(source)))
     }
 
-    fn path_is_file(&self, path: &Path) -> bool {
-        self.documents.values().any(|doc| doc.path.as_deref() == Some(path)) || path.is_file()
-    }
-
     fn path_declares(&mut self, path: &Path, idea: &str) -> bool {
         if let Some(doc) = self.open_doc_at(path) {
             return doc.model.has_idea(idea);
@@ -1354,9 +1288,15 @@ impl Session {
                 return Some(path.clone());
             }
         }
-        if let Some(indexes) = self.catalog_by_name.get(idea) {
-            for index in indexes {
-                if let Some(path) = path_of_file(&self.name_catalog[*index].file_uri) {
+        for index in &self.indexes {
+            let Ok(rows) = index.store.ideas_named(idea) else {
+                continue;
+            };
+            for row in rows {
+                let Some(file_uri) = indexed_file_uri(index, &row.file_uri) else {
+                    continue;
+                };
+                if let Some(path) = path_of_file(&file_uri) {
                     return Some(path);
                 }
             }
@@ -1602,10 +1542,56 @@ fn open_base_index(indexes: &mut Vec<BaseIndex>, folder: &Path) {
     }
 }
 
-enum CommentSite {
-    Link { start: usize, end: usize, idea: String, target: PathBuf, path: Option<String> },
-    MissingFile { start: usize, end: usize, path: String },
-    MissingIdea { start: usize, end: usize, idea: String },
+/// One comment-reference resolution. A qualified file can be present while `idea_found` is false.
+struct CommentSite {
+    start: usize,
+    end: usize,
+    idea: String,
+    path: Option<String>,
+    path_span: Option<Span>,
+    idea_span: Option<Span>,
+    target: Option<PathBuf>,
+    idea_found: bool,
+    idea_at: Option<Range>,
+}
+
+impl CommentSite {
+    fn has_issue(&self) -> bool {
+        (self.path.is_some() && self.target.is_none()) || !self.idea_found
+    }
+}
+
+enum FileIdea {
+    Absent,
+    Present { idea_at: Option<Range> },
+}
+
+fn comment_issue(site: &CommentSite) -> Option<(usize, usize, String, &'static str)> {
+    if let Some(path) = site.path.as_deref() {
+        if site.target.is_none() {
+            let (start, end) = token_or_whole(site.path_span, site.start, site.end);
+            return Some((
+                start,
+                end,
+                format!("Could not resolve comment reference file '{path}'."),
+                "comment-reference-missing-file",
+            ));
+        }
+    }
+    if !site.idea_found {
+        let (start, end) = token_or_whole(site.idea_span, site.start, site.end);
+        return Some((
+            start,
+            end,
+            format!("Could not resolve comment reference to idea '{}'.", site.idea),
+            "comment-reference-missing-idea",
+        ));
+    }
+    None
+}
+
+fn token_or_whole(span: Option<Span>, start: usize, end: usize) -> (usize, usize) {
+    span.map(|span| (span.start, span.end)).unwrap_or((start, end))
 }
 
 fn comment_token_span(start: usize, end: usize) -> Span {

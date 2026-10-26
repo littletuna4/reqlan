@@ -7,6 +7,7 @@
  */
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, statSync } from 'node:fs';
+import { getHeapStatistics } from 'node:v8';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { NativeSqlDbHandle } from './native-sql-db.js';
@@ -470,17 +471,32 @@ export function tryLoadNativeEngine(): NativeModule | undefined {
     return loadCached();
 }
 
+/**
+ * A first dlopen is refused only when V8 is already near its own heap limit.
+ * A fixed 512MB heap or 1GB RSS cutoff is a normal Windows extension host after
+ * onStartupFinished, not an out-of-memory condition.
+ * rq:["../../../../reqlan rq/distribution/native_host_binary.rq".native_engine_load_budget]
+ */
+export function nativeEngineLoadNearHeapLimit(heapUsed: number, heapSizeLimit: number): boolean {
+    return heapSizeLimit > 0 && heapUsed > heapSizeLimit * 0.9;
+}
+
 export function loadNativeEngine(): NativeModule {
-    const mem = process.memoryUsage();
-    // Fail-fast before attempting dlopen if the process is already near its
-    // available heap / RSS budget (prevents repeated large .node loads from
-    // pushing the extension host over the limit).
-    if (mem.heapUsed > 512 * 1024 * 1024 || mem.rss > 1024 * 1024 * 1024) {
-        throw new Error('Native engine load aborted: extension host near memory budget (heapUsed=' + mem.heapUsed + ', rss=' + mem.rss + ').');
-    }
     const loaded = loadCached();
     if (loaded) {
         return loaded;
+    }
+    const mem = process.memoryUsage();
+    const heapSizeLimit = getHeapStatistics().heap_size_limit;
+    const nearLimit = nativeEngineLoadNearHeapLimit(mem.heapUsed, heapSizeLimit);
+    if (nearLimit) {
+        throw new Error(
+            'Native engine load aborted: extension host near V8 heap limit (heapUsed=' +
+                mem.heapUsed +
+                ', heapSizeLimit=' +
+                heapSizeLimit +
+                ').'
+        );
     }
     const spec = hostNativeBindingSpec();
     if (!spec) {

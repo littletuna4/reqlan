@@ -13,7 +13,7 @@ references_in_functional_code_comments {
     File document links stay out of the editor (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
     Comment `rq:[…]` sites use TextMate `meta.link.reqlan markup.underline` so the resting editor shows they are link-shaped ([comment_reference_resting_underline]).
     After that goto, Alt+Left restores the comment-host caret ([comment_reference_navigate_back]).
-    Missing ideas keep the error underline and have no definition target.
+    Missing ideas keep the error underline on the idea id and have no idea definition target.
     Relates to ["../../mutation/refactor_support.rq".comment_reference_refactor_support], [comment_reference_import_root_alias],
     [comment_reference_qualified_token_links],
     ["../support/language-server-rust.rq".language_server_rust],
@@ -60,29 +60,25 @@ comment_reference_resting_underline {
 }
 
 comment_reference_navigate_back {
-    A go-to-definition JUMP from a comment `rq:[…]` host must push the pre-jump caret onto the same navigate-back stack as `.rq` jumps.
-    The stack tracks every non-blocklisted language (["../../../../packages/extension/src/extension/comment-reference-languages.ts"]) as well as `.rq`.
-    Only landings in `.rq` / `reqlan` are recorded, so other language servers do not fill the stack.
-    Alt+Left (`reqlan.navigateBack`) restores that caret when `reqlan.canNavigateBack` is set, in any focused editor.
+    A go-to-definition from a comment `rq:[…]` host is an editor jump on the shared Go Back / Go Forward stack.
+    Go Back restores the comment-host caret. Go Forward returns to the idea.
+    Alt+Left and Alt+Right stay `workbench.action.navigateBack` and `workbench.action.navigateForward` in every editor.
+    The extension returns a location for that jump. A later file in another language stays on the editor stack.
     Related: [references_in_functional_code_comments], [comment_reference_language_blocklist], ["../syntax/features-syntax-highlighting.rq".editor_reference_activation].
 
     @status done
     @implementation (
         ["../../../../packages/extension/src/extension/definition-navigation.ts"]
-        ["../../../../packages/extension/src/extension/definition-navigation-stack.ts"]
         ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
         ["../../../../packages/extension/package.json"]
     )
     @tests (
-        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:records only landings in reqlan targets"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:records a cross-file command jump from the prior caret"]
-        ["../../../../packages/extension/test/definition-navigation.test.ts:navigate-back keybinding is not limited to .rq editors"]
+        ["../../../../packages/extension/test/definition-navigation.test.ts:package.json leaves go back and go forward to the editor"]
     )
 }
 
 comment_reference_language_blocklist {
-    Comment rq editor features (goto, diagnostics, ignore actions, navigate-back origin tracking) apply to every language except a small blocklist.
+    Comment rq editor features (goto, diagnostics, ignore actions) apply to every language except a small blocklist.
     The blocklist is `reqlan` plus non-source editor buffers (log, search-result, SCM input, git commit/rebase, github-issues).
     The rust language client uses a file-scheme document selector and skips sync for blocklisted languages.
     TextMate resting underline injects into a wide `injectTo` scope list (best-effort; goto still works without a matching grammar scope).
@@ -98,7 +94,6 @@ comment_reference_language_blocklist {
         ["../../../../packages/extension/package.json"]
     )
     @tests (
-        ["../../../../packages/extension/test/definition-navigation.test.ts:tracks non-blocklisted languages for navigate-back"]
         ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
         ["../../../../packages/extension/test/comment-reference-languages.test.ts:blocklist excludes reqlan and editor chrome"]
     )
@@ -107,10 +102,10 @@ comment_reference_language_blocklist {
 
 comment_reference_resolution_error_state {
     [comment_reference_resolution_error]
-    The language server must share one resolution result for clickable links and the error underline.
-    Resolve comment references once against the loaded idea index, then reuse that result for both consumers.
-    When you create an idea that matches a comment reference, the language server must clear the underline and the missing-idea message.
-    Resolution and the index should be performed once and shared between consumers.
+    One resolution reads the target file and looks up the idea in that same read.
+    Links, definition, and the error underline use that result.
+    A found file stays on that result when the idea is absent ([comment_reference_qualified_token_links]).
+    When you create an idea that matches a comment reference, clear the underline and the missing-idea message.
     @status done
     @implementation (
         ["../../../../packages/language/src/reqlan-comment-diagnostics.ts"]
@@ -131,6 +126,7 @@ comment_reference_resolution_error_state {
         ["../../../../packages/language/test/outbound-hop.test.ts:comment references confirm the neighbor idea without loading Langium"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_missing_idea_underlines_the_idea_token"]
     )
 }
 
@@ -168,6 +164,9 @@ comment_reference_qualified_token_links {
     A resolved `rq:["path".idea]` comment site is two links, not one span over `rq:[…]`.
     Document-link and definition origin ranges cover the quoted path string and the idea id only — same token rule as body qualified refs (["../syntax/features-syntax-highlighting.rq".editor_reference_activation]).
     Path navigates to the file; idea navigates to the declaration.
+    When that file exists and does not declare the idea, the error underline covers the idea id only.
+    The path stays a link. The idea is not a link.
+    A missing path underlines the path token only.
     Unqualified `rq:[idea]` underlines the idea id only.
     Related: [references_in_functional_code_comments], [comment_reference_resolution_error_state].
 
@@ -180,5 +179,6 @@ comment_reference_qualified_token_links {
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_links_share_one_resolution"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_links_cover_path_and_idea_tokens"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_definition_origin_is_the_token_under_the_cursor"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:qualified_comment_missing_idea_underlines_the_idea_token"]
     )
 }

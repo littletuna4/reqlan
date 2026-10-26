@@ -15,6 +15,7 @@ import {
     addNativeEngineSearchDirs,
     hostNativeBindingSpec,
     listNativeEngineCandidates,
+    nativeEngineLoadNearHeapLimit,
     nativeEngineRequested,
     resetNativeEngineCache,
     resetNativeEngineSearchDirs,
@@ -200,6 +201,17 @@ describe('load-native', () => {
     });
 
     // rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_host_binary_development]
+    // rq:["../../../reqlan rq/distribution/native_host_binary.rq".native_engine_load_budget]
+    it('allows a normal extension-host heap', () => {
+        const windowsHostHeap = 538_606_488;
+        const fourGigabyteLimit = 4 * 1024 * 1024 * 1024;
+        expect(nativeEngineLoadNearHeapLimit(windowsHostHeap, fourGigabyteLimit)).toBe(false);
+        expect(nativeEngineLoadNearHeapLimit(512 * 1024 * 1024, fourGigabyteLimit)).toBe(false);
+        expect(nativeEngineLoadNearHeapLimit(Math.floor(fourGigabyteLimit * 0.91), fourGigabyteLimit)).toBe(
+            true
+        );
+    });
+
     it('lists the Windows cargo dll among win32-x64 candidates', () => {
         const candidates = listNativeEngineCandidates('win32', 'x64');
         expect(candidates).toContain('@reqlan/analytical-win32-x64-msvc');

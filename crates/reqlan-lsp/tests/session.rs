@@ -402,11 +402,9 @@ fn comment_links_share_one_resolution() {
     let mut session = Session::new();
     session.set_workspace_folders(std::slice::from_ref(&root));
     session.open(&lib, "alpha {\n    summary\n}\n".into());
-    session.open(
-        &uri,
-        "# rq:[alpha]\n# rq:[missing]\n# rq:[\"./../lib.rq\".alpha]\n# rq:[\"@/lib.rq\".alpha]\n"
-            .into(),
-    );
+    let text =
+        "# rq:[alpha]\n# rq:[missing]\n# rq:[\"./../lib.rq\".alpha]\n# rq:[\"@/lib.rq\".alpha]\n";
+    session.open(&uri, text.into());
 
     let links = session.links(&uri);
     // unqualified idea + two qualified sites (path + idea each)
@@ -427,6 +425,8 @@ fn comment_links_share_one_resolution() {
         diagnostics[0].code,
         Some(lsp_types::NumberOrString::String("comment-reference-missing-idea".into()))
     );
+    let missing_line = text.lines().nth(1).unwrap();
+    assert_eq!(range_text(missing_line, &diagnostics[0].range), "missing");
 
     session.open(&uri, "# //rq-ignore-error\n# rq:[missing]\n".into());
     assert!(session.diagnostics(&uri).is_empty(), "{:?}", session.diagnostics(&uri));
@@ -468,6 +468,59 @@ fn qualified_comment_links_cover_path_and_idea_tokens() {
     }));
     assert!(links[1].target.as_ref().is_some_and(|target| target.to_string().contains("#L0")));
     assert_eq!(links[1].tooltip.as_deref(), Some("alpha"));
+    let _ = fs::remove_dir_all(&root);
+}
+
+/// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_qualified_token_links]
+/// rq:["../../../reqlan rq/extension/language/comment-references/functional-code-comment-references.rq".comment_reference_resolution_error_state]
+#[test]
+fn qualified_comment_missing_idea_underlines_the_idea_token() {
+    let root = scratch("comment-partial");
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(root.join("lib.rq"), "alpha {\n    summary\n}\n").unwrap();
+    let lib = file_uri(&root.join("lib.rq"));
+    let py = root.join("src").join("host.py");
+    let uri = file_uri(&py);
+    let text = "# rq:[\"./../lib.rq\".absent]\n# rq:[\"./missing.rq\".alpha]\n";
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&lib, "alpha {\n    summary\n}\n".into());
+    session.open(&uri, text.into());
+
+    let links = session.links(&uri);
+    assert_eq!(links.len(), 1, "{links:?}");
+    let idea_line = text.lines().next().unwrap();
+    assert_eq!(range_text(idea_line, &links[0].range), "\"./../lib.rq\"");
+    assert!(links[0].target.as_ref().is_some_and(|target| target.to_string().ends_with("lib.rq")));
+
+    let diagnostics = session.diagnostics(&uri);
+    assert_eq!(diagnostics.len(), 2, "{diagnostics:?}");
+    let idea = diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code
+                == Some(lsp_types::NumberOrString::String("comment-reference-missing-idea".into()))
+        })
+        .expect("missing idea");
+    assert_eq!(range_text(idea_line, &idea.range), "absent");
+    assert!(idea.message.contains("'absent'"), "{}", idea.message);
+
+    let file_line = text.lines().nth(1).unwrap();
+    let file = diagnostics
+        .iter()
+        .find(|diagnostic| {
+            diagnostic.code
+                == Some(lsp_types::NumberOrString::String("comment-reference-missing-file".into()))
+        })
+        .expect("missing file");
+    assert_eq!(range_text(file_line, &file.range), "\"./missing.rq\"");
+
+    let path = definition_at(&mut session, &uri, position_of(text, "lib.rq"));
+    let path_origin = path.origin_selection_range.expect("path origin");
+    assert_eq!(range_text(idea_line, &path_origin), "\"./../lib.rq\"");
+    assert!(path.target_uri.to_string().ends_with("lib.rq"));
+    assert!(session.definition(&uri, position_of(text, "absent")).is_none());
+    assert!(session.definition(&uri, position_of(text, "missing.rq")).is_none());
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -541,6 +594,10 @@ fn comment_definition_follows_a_resolved_rq_reference() {
     assert!(session.definition(&uri, Position { line: 1, character: 6 }).is_none());
 
     let _ = fs::remove_dir_all(&root);
+}
+
+fn range_text<'a>(line: &'a str, range: &Range) -> &'a str {
+    &line[range.start.character as usize..range.end.character as usize]
 }
 
 fn position_of(text: &str, needle: &str) -> Position {

@@ -13,10 +13,7 @@ import { registerFolderReferenceCommand } from './register-folder-reference-hand
 import { registerWildcardReferenceCommand } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
 import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
-import {
-    registerDefinitionNavigation,
-    withEditorNavigationMiddleware
-} from './register-definition-navigation.js';
+import { withEditorNavigationMiddleware } from './register-definition-navigation.js';
 import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-actions.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
 import { registerReferenceCodeLens } from './register-reference-code-lens.js';
@@ -58,7 +55,6 @@ export function activate(context: vscode.ExtensionContext): void {
     // Each step is isolated so a failure in one cannot abort activation and leave
     // the extension stuck (which would keep the activity bar view unresolved and
     // commands unavailable).
-    runStep('definition navigation', () => registerDefinitionNavigation(context));
     runStep('reference inlay hints', () =>
         registerReferenceInlayHintsToggle(context, () => client)
     );
