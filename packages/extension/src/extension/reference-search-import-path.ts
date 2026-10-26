@@ -3,9 +3,8 @@
  * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import * as path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { relativeRqImportPath } from '@reqlan/language';
-import * as vscode from 'vscode';
 
 /**
  * Index ideas store workspace-relative paths like `reqlan rq/site/site.rq`.
@@ -13,7 +12,7 @@ import * as vscode from 'vscode';
  */
 export function absoluteFileUriFromIndex(indexFileUri: string, workspaceRootFsPath?: string): string {
     if (indexFileUri.includes('://')) {
-        return vscode.Uri.parse(indexFileUri).toString();
+        return new URL(indexFileUri).href;
     }
     if (path.isAbsolute(indexFileUri)) {
         return pathToFileURL(indexFileUri).href;
@@ -40,9 +39,9 @@ export function isSameIndexedFile(
     indexFileUri: string,
     workspaceRootFsPath?: string
 ): boolean {
-    const left = vscode.Uri.parse(documentUri).fsPath;
-    const right = vscode.Uri.parse(
+    const left = fileURLToPath(documentUri);
+    const right = fileURLToPath(
         absoluteFileUriFromIndex(indexFileUri, workspaceRootFsPath)
-    ).fsPath;
+    );
     return path.normalize(left) === path.normalize(right);
 }
