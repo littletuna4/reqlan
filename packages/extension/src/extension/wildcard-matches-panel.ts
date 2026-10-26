@@ -1,7 +1,9 @@
 /**
  * Webview listing stats + matching ideas/files for a wildcard reference.
  * rq:["../../../../reqlan rq/language/imports.rq".wildcard_references_webview]
+ * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
  */
+import type { IdeaSummary } from '@reqlan/analytical';
 import type { WildcardReferenceArgs } from '@reqlan/language';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
@@ -13,6 +15,8 @@ import {
     type WildcardMatchesPayload
 } from '../activity_bar_module/wildcard-matches-payload.js';
 import type { ActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
+
+const IDEA_PAGE_SIZE = 400;
 
 const VIEW_TYPE = 'reqlan.wildcardMatches';
 
@@ -78,7 +82,19 @@ export class WildcardMatchesPanel {
     }
 
     private async load(): Promise<void> {
-        const ideas = await this.index.indexStore.listAllIdeas();
+        const ideas: IdeaSummary[] = [];
+        let offset = 0;
+        for (;;) {
+            const page = await this.index.indexStore.listIdeaSummariesPage(offset, IDEA_PAGE_SIZE);
+            if (page.length === 0) {
+                break;
+            }
+            ideas.push(...page);
+            offset += page.length;
+            if (page.length < IDEA_PAGE_SIZE) {
+                break;
+            }
+        }
         this.payload = buildWildcardMatchesPayload(this.args, ideas, fileUri =>
             vscode.workspace.asRelativePath(fileUri)
         );

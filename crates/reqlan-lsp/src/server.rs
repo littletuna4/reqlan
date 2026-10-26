@@ -5,7 +5,6 @@
 //! rq:["../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_incremental_sync]
 //! rq:["../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_work_progress]
 use crate::analysis::AttributeCatalog;
-use crate::code_actions::SymbolHit;
 use crate::duty::{
     cancelled_response, title_for, tracked_method, work_token, Duty, PROGRESS_DELAY,
 };
@@ -308,10 +307,6 @@ fn dispatch_notification(
             note_attribute_catalog(session, &notification.params);
             Vec::new()
         }
-        "reqlan/nameCatalog" => {
-            note_name_catalog(session, &notification.params);
-            Vec::new()
-        }
         "reqlan/bases" => {
             note_bases(session, &notification.params);
             Vec::new()
@@ -391,23 +386,6 @@ fn note_attribute_catalog(session: &mut Session, params: &Value) {
         catalog.values_by_key.insert(key, values);
     }
     session.note_attribute_catalog(catalog);
-}
-
-fn note_name_catalog(session: &mut Session, params: &Value) {
-    let Some(entries) = params.get("entries").and_then(|value| value.as_array()) else {
-        return;
-    };
-    let catalog = entries
-        .iter()
-        .filter_map(|entry| {
-            Some(SymbolHit {
-                name: entry.get("name")?.as_str()?.to_string(),
-                kind: entry.get("kind")?.as_str()?.to_string(),
-                file_uri: entry.get("fileUri")?.as_str()?.to_string(),
-            })
-        })
-        .collect();
-    session.note_name_catalog(catalog);
 }
 
 fn note_bases(session: &mut Session, params: &Value) {

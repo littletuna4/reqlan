@@ -25,14 +25,30 @@ export function resolveWorkspaceRoot(cwd?: string): string {
     }
 }
 
+export interface WithAnalysisApiOptions {
+    /**
+     * Skip the on-disk ideas-index SQLite for this process.
+     * rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+     */
+    noCache?: boolean;
+    /**
+     * Record per-file sync actions on the initial ensureReady (CLI `-vv` / `-vvv`).
+     * rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+     */
+    recordFileEvents?: boolean;
+}
+
 export async function withAnalysisApi<T>(
     cwd: string | undefined,
-    run: (api: HeadlessAnalysisApi) => Promise<T>
+    run: (api: HeadlessAnalysisApi) => Promise<T>,
+    options?: WithAnalysisApiOptions
 ): Promise<T> {
     const workspaceRoot = resolveWorkspaceRoot(cwd);
     const opened = await openAnalysisApi({
         workspaceRoot,
-        storagePath: process.env.REQLAN_INDEX_PATH
+        storagePath: process.env.REQLAN_INDEX_PATH,
+        noCache: options?.noCache === true,
+        recordFileEvents: options?.recordFileEvents === true
     });
     try {
         return await run(opened.api);

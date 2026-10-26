@@ -3,9 +3,12 @@
  *
  * Soft sync loads document mtimes once (`listDocumentMtimes`) then skips
  * unchanged files in memory — not one SQLite round-trip per file.
+ * The native `beginIndexPass` / `endIndexPass` pair loads the idea catalog once
+ * for the whole soft-sync loop (not `list_all_ideas` per `indexFile`).
  *
  * rq:["../../../../reqlan rq/indexer/indexer.rq".nonblocking_index]
  * rq:["../../../../reqlan rq/indexer/indexer.rq".indexing_incrementality]
+ * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
  * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_auto]
  * rq:["../../../../reqlan rq/extension/index-host/graph-analysers.rq".indexing_trigger_open]
  * rq:["../../../../reqlan rq/extension/index-host/index-diagnostics.rq".index_diagnostics_metrics]
@@ -71,61 +74,67 @@ export async function runSoftSync(deps: SoftSyncDeps, filePaths?: string[]): Pro
 
         // One SQLite read for the whole pass; skip decisions use the in-memory map.
         const storedMtimes = await deps.sqlite.listDocumentMtimes();
+        // One native idea catalog for every indexFile in this pass.
+        native.beginIndexPass();
 
         deps.setSyncProgress({ processed: 0, total: files.length });
         deps.notifyStatusUpdated();
 
         let processed = 0;
         let currentFile: string | undefined;
-        for (const filePath of files) {
-            if (deps.getCancelRequested()) {
-                cancelled = true;
-                break;
-            }
-            const indexedUri = deps.toIndexedUri(filePath);
-            currentFile = deps.relativePath(indexedUri);
-            deps.setSyncProgress({ processed, total: files.length, currentFile });
-            deps.notifyStatusUpdated();
-            try {
-                if (await isUnchangedByMtime(filePath, indexedUri, storedMtimes)) {
-                    skippedMtime += 1;
+        try {
+            for (const filePath of files) {
+                if (deps.getCancelRequested()) {
+                    cancelled = true;
+                    break;
+                }
+                const indexedUri = deps.toIndexedUri(filePath);
+                currentFile = deps.relativePath(indexedUri);
+                deps.setSyncProgress({ processed, total: files.length, currentFile });
+                deps.notifyStatusUpdated();
+                try {
+                    if (await isUnchangedByMtime(filePath, indexedUri, storedMtimes)) {
+                        skippedMtime += 1;
+                        fileTimings.push({
+                            fileUri: indexedUri,
+                            durationMs: 0,
+                            outcome: 'mtime_skip',
+                            pathDepth: pathDepthFromUri(indexedUri)
+                        });
+                    } else {
+                        const result = await deps.indexFile(filePath);
+                        indexedFiles += 1;
+                        if (result.outcome === 'error') {
+                            errorFiles += 1;
+                        }
+                        fileTimings.push({
+                            fileUri: result.fileUri,
+                            durationMs: result.durationMs,
+                            outcome: result.outcome,
+                            pathDepth: result.pathDepth
+                        });
+                    }
+                } catch (error) {
+                    errorFiles += 1;
+                    recordCaughtFileIssue(
+                        (fileUri, issues) => native.recordFileIssues(fileUri, issues),
+                        indexedUri,
+                        error,
+                        `Failed to index ${deps.relativePath(indexedUri)}`
+                    );
                     fileTimings.push({
                         fileUri: indexedUri,
                         durationMs: 0,
-                        outcome: 'mtime_skip',
+                        outcome: 'error',
                         pathDepth: pathDepthFromUri(indexedUri)
                     });
-                } else {
-                    const result = await deps.indexFile(filePath);
-                    indexedFiles += 1;
-                    if (result.outcome === 'error') {
-                        errorFiles += 1;
-                    }
-                    fileTimings.push({
-                        fileUri: result.fileUri,
-                        durationMs: result.durationMs,
-                        outcome: result.outcome,
-                        pathDepth: result.pathDepth
-                    });
                 }
-            } catch (error) {
-                errorFiles += 1;
-                recordCaughtFileIssue(
-                    (fileUri, issues) => native.recordFileIssues(fileUri, issues),
-                    indexedUri,
-                    error,
-                    `Failed to index ${deps.relativePath(indexedUri)}`
-                );
-                fileTimings.push({
-                    fileUri: indexedUri,
-                    durationMs: 0,
-                    outcome: 'error',
-                    pathDepth: pathDepthFromUri(indexedUri)
-                });
+                processed += 1;
+                deps.setSyncProgress({ processed, total: files.length, currentFile });
+                deps.notifyStatusUpdated();
             }
-            processed += 1;
-            deps.setSyncProgress({ processed, total: files.length, currentFile });
-            deps.notifyStatusUpdated();
+        } finally {
+            native.endIndexPass();
         }
 
         if (!native.dispatchIndex('synced')) {

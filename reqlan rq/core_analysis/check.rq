@@ -15,7 +15,7 @@ check {
     - report a qualified reference whose file is not on disk: [check_qualified_missing_file].
     - report a qualified reference whose `.rq` file does not declare the idea: [check_qualified_missing_idea].
     - it should really just be a wrapper of the [index] and return the issues (as a pipe, terminal output, or json).
-    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Path globs: [check_glob_patterns]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
+    Issue order: [check_order_by_target]. Sparse wildcards: [check_wildcard_sparse] via flags [check_wildcard_zero] and [check_wildcard_one]. Path globs: [check_glob_patterns]. Skip missing targets: [check_skip_targets] [check_skip_gitignored_targets]. Bypass ideas-index SQLite: [check_no_cache]. Sync diagnostics on stderr: [check_verbose]. CLI: ["../cli/cli_package.rq".commands]. MCP: ["../extension/agent/skills-and-mcp.rq".mcp_check]. CI: [check_meta_implementation]. Site demo: ["../site/site.rq".broken_links_showcase].
     @status done
     @implementation (
         ["../../crates/reqlan-index/src/check/mod.rs"]
@@ -52,6 +52,66 @@ check {
         ["../../crates/reqlan-index/tests/broken_references.rs:check_orders_issues_by_missing_target"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_warns_when_a_wildcard_matches_zero_or_one_idea"]
         ["../../packages/mcp/test/server.test.ts:check returns JSON issue rows"]
+        ["../../packages/cli/test/check.test.ts:--no-cache does not open or write ideas-index.sqlite"]
+    )
+}
+
+check_no_cache {
+    [check] accepts `--no-cache`.
+    The flag bypasses the on-disk ideas-index SQLite (`<base>/.reqlan/ideas-index.sqlite`).
+    This is not the soft mtime skip used by indexer sync (["../indexer/indexer.rq".nonblocking_index]).
+    With the flag, the process does not open, read, or write that SQLite file.
+    [check] builds an in-memory ideas index from source files on disk and reports issues from that view.
+    Default [check] may still open and soft-sync the on-disk ideas index.
+    `--json`, `--pipe`, `--glob`, skip flags, wildcard flags, and [check_verbose] still apply.
+    CLI: ["../cli/cli_package.rq".commands].
+    API open: `AnalysisRuntime::open_uncached` / `openAnalysisApi({ noCache: true })`.
+    Related: [check] [check_verbose] ["../extension/index-host/index.rq".application_memory] ["../indexer/sqlite-schema.rq".ideas_index_sqlite]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/runtime.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/broken_references.rs:analysis_api_check_no_cache_skips_ideas_index_sqlite"]
+        ["../../packages/cli/test/check.test.ts:--no-cache does not open or write ideas-index.sqlite"]
+    )
+}
+
+check_verbose {
+    [check] accepts `-v`, `-vv`, and `-vvv`.
+    These flags write sync diagnostics to stderr.
+    They do not change stdout, `--json`, or `--pipe` issue output.
+    Default (no flag): stderr stays quiet except command errors.
+    `-v`: index mode (`disk` or `memory` from [check_no_cache]), sync totals (indexed, skipped_mtime, errors, processed/total), and issue count.
+    `-vv`: also one stderr line per sync file action (`indexed`, `skipped_mtime`, `error`, `skipped`).
+    `-vvv`: also appends skip and error detail on those file lines.
+    With [check_no_cache], file lines come from the from-source index pass.
+    That pass must not report process-local soft mtime skips against the in-memory rows just written.
+    Default disk check may still report `skipped_mtime` against the on-disk ideas index.
+    API: `openAnalysisApi({ recordFileEvents })` then `checkReport` / `AnalysisRuntime::check_report`.
+    CLI: ["../cli/cli_package.rq".commands].
+    Related: [check] [check_no_cache] ["../indexer/indexer.rq".nonblocking_index]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/analytical/src/native/open-analysis-api.ts"]
+        ["../../packages/cli/src/runtime.ts"]
+        ["../../packages/cli/src/format-check-verbose.ts"]
+        ["../../packages/cli/src/commands/check.ts"]
+    )
+    @tests (
+        ["../../packages/cli/test/check.test.ts:-v writes index mode and sync totals to stderr"]
+        ["../../packages/cli/test/check.test.ts:-vv lists per-file sync actions on stderr"]
+        ["../../packages/cli/test/check.test.ts:--no-cache -vv does not report process-local mtime skips"]
+        ["../../packages/cli/test/check.test.ts:-vvv includes skip detail on stderr"]
+        ["../../packages/cli/test/format-check-verbose.test.ts:formats verbosity levels"]
     )
 }
 

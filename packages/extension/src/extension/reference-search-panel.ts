@@ -1,18 +1,15 @@
 /**
  * Webview modal for fuzzy/paginated idea search used by reference code actions.
  * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
+ * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
  */
 import {
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
-import type { IdeaSummary } from '@reqlan/analytical';
-import { filterAndScoreIdeas } from '../shared/fuzzy-search.js';
 import * as vscode from 'vscode';
 import type { IndexService } from '../analytical_submodule/index-store/index-service.js';
 import { applyIdeaReferenceEdit } from './insert-idea-reference.js';
 import { safeWebviewPost } from '../shared/safe-webview-post.js';
-
-export { filterAndScoreIdeas } from '../shared/fuzzy-search.js';
 
 const VIEW_TYPE = 'reqlan.referenceSearch';
 const PAGE_SIZE = 8;
@@ -48,7 +45,6 @@ export class ReferenceSearchPanel {
     private readonly panel: vscode.WebviewPanel;
     private readonly index: IndexService;
     private readonly args: SearchReferenceCommandArgs;
-    private ideas: IdeaSummary[] = [];
     private query: string;
     private page = 0;
 
@@ -74,7 +70,7 @@ export class ReferenceSearchPanel {
                 ReferenceSearchPanel.current = undefined;
             }
         });
-        void this.loadIdeas().then(() => this.postResults('init'));
+        this.postResults('init');
     }
 
     static async show(index: IndexService, args: SearchReferenceCommandArgs): Promise<void> {
@@ -89,10 +85,6 @@ export class ReferenceSearchPanel {
             ...args,
             mode: args.mode ?? 'replace'
         });
-    }
-
-    private async loadIdeas(): Promise<void> {
-        this.ideas = await this.index.indexStore.listAllIdeas();
     }
 
     private async onMessage(message: WebviewToHost): Promise<void> {
@@ -124,13 +116,16 @@ export class ReferenceSearchPanel {
     }
 
     private postResults(type: 'init' | 'results'): void {
-        const hits = filterAndScoreIdeas(this.ideas, this.query);
-        const total = hits.length;
+        const page = this.index.fuzzySearch(this.query, {
+            limit: PAGE_SIZE,
+            offset: this.page * PAGE_SIZE,
+            requireQuery: false
+        });
+        const total = page.total;
         const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
         if (this.page >= totalPages) {
             this.page = totalPages - 1;
         }
-        const slice = hits.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE);
         const payload: HostToWebview = {
             type,
             query: this.query,
@@ -139,7 +134,7 @@ export class ReferenceSearchPanel {
             totalPages,
             mode: this.args.mode ?? 'replace',
             context: this.args.context,
-            results: slice.map(hit => ({
+            results: page.hits.map(hit => ({
                 name: hit.name,
                 kind: hit.kind,
                 path: vscode.workspace.asRelativePath(hit.fileUri),

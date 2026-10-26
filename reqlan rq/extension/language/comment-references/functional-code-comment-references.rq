@@ -80,13 +80,18 @@ comment_reference_navigate_back {
 comment_reference_language_blocklist {
     Comment rq editor features (goto, diagnostics, ignore actions) apply to every language except a small blocklist.
     The blocklist is `reqlan` plus non-source editor buffers (log, search-result, SCM input, git commit/rebase, github-issues).
-    The rust language client uses a file-scheme document selector and skips sync for blocklisted languages.
+    The rust client syncs .rq files.
+    The rust client syncs other files only when the text contains `rq:`.
+    The rust client does not sync blocklisted languages.
+    When a later edit adds `rq:`, the client sends the full text.
+    When the text no longer contains `rq:`, the client stops the sync.
     TextMate resting underline injects into a wide `injectTo` scope list (best-effort; goto still works without a matching grammar scope).
     Related: [references_in_functional_code_comments], [comment_reference_resting_underline], ["../../../language/syntax.rq".comment_reference].
 
     @status done
     @implementation (
         ["../../../../packages/extension/src/extension/comment-reference-languages.ts"]
+        ["../../../../packages/extension/src/extension/document-sync.ts"]
         ["../../../../packages/extension/src/extension/main.ts"]
         ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
         ["../../../../packages/extension/src/extension/register-comment-reference-links.ts"]
@@ -96,6 +101,8 @@ comment_reference_language_blocklist {
     @tests (
         ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
         ["../../../../packages/extension/test/comment-reference-languages.test.ts:blocklist excludes reqlan and editor chrome"]
+        ["../../../../packages/extension/test/document-sync.test.ts:syncs reqlan files and other files only when the text contains rq:"]
+        ["../../../../packages/extension/test/document-sync.test.ts:sends the full text when a later edit adds rq:"]
     )
 }
 

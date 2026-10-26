@@ -45,8 +45,8 @@ pub struct WildcardIdeaCandidate {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExtractOptions {
-    pub idea_candidates: Vec<WildcardIdeaCandidate>,
+pub struct ExtractOptions<'a> {
+    pub idea_candidates: &'a [WildcardIdeaCandidate],
     pub import_roots: Vec<ImportRootMapping>,
     /// When true, ignore `idea_candidates` so outbound extract stays file-local
     /// (wildcards stay one unresolved pattern edge).
@@ -54,10 +54,10 @@ pub struct ExtractOptions {
     pub local_symbolic: bool,
 }
 
-impl Default for ExtractOptions {
+impl Default for ExtractOptions<'static> {
     fn default() -> Self {
         Self {
-            idea_candidates: Vec::new(),
+            idea_candidates: &[],
             import_roots: reqlan_parse::default_import_roots(),
             local_symbolic: false,
         }
@@ -102,7 +102,7 @@ pub fn analyze_local_symbolic_from_parse(
         file_uri,
         source,
         parsed,
-        &ExtractOptions { idea_candidates: Vec::new(), import_roots: roots, local_symbolic: true },
+        &ExtractOptions { idea_candidates: &[], import_roots: roots, local_symbolic: true },
     );
     let mut symbolic = crate::types::LocalSymbolicDocument::from_indexed(doc);
     symbolic.import_bindings = import_bindings;
@@ -112,7 +112,7 @@ pub fn analyze_local_symbolic_from_parse(
 pub fn extract_indexed_document(
     file_uri: &str,
     source: &str,
-    options: &ExtractOptions,
+    options: &ExtractOptions<'_>,
 ) -> IndexedDocument {
     let parsed = parse_document(source);
     extract_from_parse(file_uri, source, &parsed, options)
@@ -122,7 +122,7 @@ pub fn extract_from_parse(
     file_uri: &str,
     source: &str,
     parsed: &ParseResult,
-    options: &ExtractOptions,
+    options: &ExtractOptions<'_>,
 ) -> IndexedDocument {
     let content_hash = hash_text(source);
     let mut ideas = Vec::new();
@@ -224,11 +224,11 @@ pub fn extract_from_parse(
     IndexedDocument { file_uri: file_uri.to_string(), content_hash, ideas, edges }
 }
 
-fn candidates(options: &ExtractOptions) -> &[WildcardIdeaCandidate] {
+fn candidates<'a>(options: &ExtractOptions<'a>) -> &'a [WildcardIdeaCandidate] {
     if options.local_symbolic {
         &[]
     } else {
-        &options.idea_candidates
+        options.idea_candidates
     }
 }
 

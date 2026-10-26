@@ -2,13 +2,14 @@
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 
+use reqlan_index::extract::WildcardIdeaCandidate;
 use reqlan_index::ignore::{application_memory_path, ideas_index_path, index_diagnostics_path};
 use reqlan_index::queries::{
     GraphViewQuery, IdeasTableQuery, IdeasetsTableQuery, ReferencesTableQuery,
 };
 use reqlan_index::sync::{
-    index_one_file, sync_workspace, FileIssue, IndexOneFileResult, SyncOptions, SyncProgress,
-    SyncResult,
+    index_one_file, index_one_file_with_catalog, index_paths, load_idea_catalog, sync_workspace,
+    FileIssue, IndexOneFileResult, SyncOptions, SyncProgress, SyncResult,
 };
 use reqlan_index::{now_ms, FileIssueDraft, IndexDiagnosticsStore, IndexStore, StoreError};
 use reqlan_search::{fuzzy_search, FuzzySearchResult, SearchIdeasOptions};
@@ -119,7 +120,7 @@ pub struct FileIssueDto {
 
 impl From<SyncResult> for SyncResultDto {
     fn from(result: SyncResult) -> Self {
-        let SyncResult { progress, file_issues } = result;
+        let SyncResult { progress, file_issues, file_events: _ } = result;
         Self::from_parts(progress, file_issues)
     }
 }
@@ -158,6 +159,9 @@ pub struct WorkspaceIndexRuntime {
     edge_count: usize,
     last_error: Option<IndexErrorState>,
     sync_progress: Option<SyncProgressState>,
+    /// In-process idea catalog for one soft-sync / batch pass (see begin_index_pass).
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
+    sync_catalog: Option<Vec<WildcardIdeaCandidate>>,
 }
 
 impl WorkspaceIndexRuntime {
@@ -181,6 +185,7 @@ impl WorkspaceIndexRuntime {
             edge_count: 0,
             last_error: None,
             sync_progress: None,
+            sync_catalog: None,
         })
     }
 
@@ -224,6 +229,7 @@ impl WorkspaceIndexRuntime {
                 hard_rebuild,
                 path_globs: Vec::new(),
                 include_files: Vec::new(),
+                record_file_events: false,
             },
             &self.cancel,
         )?;
@@ -235,13 +241,46 @@ impl WorkspaceIndexRuntime {
         self.cancel.store(true, Ordering::Relaxed);
     }
 
+    /// Load one idea catalog for the soft-sync loop; subsequent [`index_file`] calls reuse it.
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
+    pub fn begin_index_pass(&mut self) -> Result<(), WorkspaceIndexError> {
+        self.sync_catalog = Some(load_idea_catalog(&self.store)?);
+        Ok(())
+    }
+
+    pub fn end_index_pass(&mut self) {
+        self.sync_catalog = None;
+    }
+
     pub fn index_file(
         &mut self,
         file_path_or_uri: &str,
     ) -> Result<IndexOneFileResult, WorkspaceIndexError> {
-        let result = index_one_file(&mut self.store, &self.workspace_root, file_path_or_uri)?;
+        let result = if let Some(catalog) = self.sync_catalog.as_mut() {
+            index_one_file_with_catalog(
+                &mut self.store,
+                &self.workspace_root,
+                file_path_or_uri,
+                catalog,
+            )?
+        } else {
+            index_one_file(&mut self.store, &self.workspace_root, file_path_or_uri)?
+        };
         self.synced_once = true;
         Ok(result)
+    }
+
+    /// Index an explicit path list with one shared catalog (no second directory walk).
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
+    pub fn index_files(
+        &mut self,
+        file_paths: &[String],
+    ) -> Result<SyncResultDto, WorkspaceIndexError> {
+        self.cancel.store(false, Ordering::Relaxed);
+        let paths: Vec<PathBuf> = file_paths.iter().map(PathBuf::from).collect();
+        let result = index_paths(&mut self.store, &self.workspace_root, &paths, &self.cancel)?;
+        self.synced_once = !result.progress.cancelled;
+        Ok(result.into())
     }
 
     // ---- index lifecycle FSM + status (formerly the Zustand analytical store) --

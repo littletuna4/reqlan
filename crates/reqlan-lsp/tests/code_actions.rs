@@ -2,7 +2,7 @@
 //! rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
 use lsp_types::{CodeActionOrCommand, Position, Range, Url};
 use reqlan_index::{index_one_file, IndexStore};
-use reqlan_lsp::{Session, SymbolHit};
+use reqlan_lsp::Session;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -185,23 +185,30 @@ fn offers_add_import_and_rewrite_when_a_matching_idea_exists_elsewhere() {
     let _ = fs::remove_dir_all(root);
 }
 
-// Oracle: uses name catalog matches when documents are not loaded
+// Oracle: uses ideas-index matches when documents are not loaded
 #[test]
-fn uses_name_catalog_matches_when_documents_are_not_loaded() {
+fn uses_ideas_index_matches_when_documents_are_not_loaded() {
+    let root = scratch("index-closed");
+    fs::create_dir_all(root.join(".reqlan")).unwrap();
+    fs::create_dir_all(root.join("remote")).unwrap();
+    fs::create_dir_all(root.join("app")).unwrap();
+    let db = root.join(".reqlan").join("ideas-index.sqlite");
+    let mut store = IndexStore::open(&db).unwrap();
+    let catalog = root.join("remote").join("catalog.rq");
+    fs::write(&catalog, "catalog_only {\n}\n").unwrap();
+    index_one_file(&mut store, &root, catalog.to_str().unwrap()).unwrap();
+    drop(store);
+
     let mut session = Session::new();
-    session.note_name_catalog(vec![SymbolHit {
-        name: "catalog_only".into(),
-        kind: "idea".into(),
-        file_uri: "file:///workspace/remote/catalog.rq".into(),
-    }]);
-    let uri = "file:///workspace/app/consumer.rq";
-    session.open(uri, "consumer {\n    [catalog_only]\n}\n".into());
-    let diagnostics = session.diagnostics(uri);
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    let uri = file_uri(&root.join("app").join("consumer.rq"));
+    session.open(&uri, "consumer {\n    [catalog_only]\n}\n".into());
+    let diagnostics = session.diagnostics(&uri);
     let unresolved: Vec<_> = diagnostics
         .into_iter()
         .filter(|diagnostic| diagnostic.message.contains("catalog_only"))
         .collect();
-    let actions = session.code_actions_for(uri, unresolved[0].range, &unresolved, &[]);
+    let actions = session.code_actions_for(&uri, unresolved[0].range, &unresolved, &[]);
     let add = actions
         .iter()
         .find_map(|action| match action {
@@ -213,6 +220,7 @@ fn uses_name_catalog_matches_when_documents_are_not_loaded() {
         .expect("add import");
     assert!(edit_text(add).contains("import catalog_only"), "{}", edit_text(add));
     assert!(edit_text(add).contains("../remote/catalog.rq"), "{}", edit_text(add));
+    let _ = fs::remove_dir_all(root);
 }
 
 // Oracle: search and create actions invoke extension commands

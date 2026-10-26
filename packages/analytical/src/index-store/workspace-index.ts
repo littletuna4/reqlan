@@ -634,6 +634,12 @@ async deactivate(): Promise<void> {
         if (diagnostics.length > 0 && persisted.length === 0) {
             return finish('error');
         }
+        // Native Empty (too-large / unreadable / non-indexable) writes no documents row.
+        // Do not report that as `persisted`.
+        // rq:["../../../../reqlan rq/indexer/cache-reuse.rq".code_file_negative_cache]
+        if (hashAfter === undefined && diagnostics.length === 0) {
+            return finish('empty');
+        }
         if (hashBefore !== undefined && hashBefore === hashAfter && diagnostics.length === 0) {
             return finish('hash_skip');
         }

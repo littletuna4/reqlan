@@ -103,6 +103,8 @@ documents_table {
     - `mtime_ms` REAL (schema v3) — soft sync skip when FS mtime matches
     Soft sync and idle stale checks use this table
     (["./sequencing.rq".soft_sync], ["./sequencing.rq".idle_stale_check]).
+    Code files with no comment refs still get a row (hash + mtime only) for
+    ["./cache-reuse.rq".code_file_negative_cache]; idea queries ignore empty docs.
     [ideas_index_sqlite]
 }
 

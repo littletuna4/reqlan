@@ -9,6 +9,7 @@ import { NativeSqlConnection } from '../native/native-sql-db.js';
 import type {
     EdgeKind,
     EdgeRecord,
+    IdeaAttributeMap,
     IdeaRecord,
     IdeaReferenceChip,
     IdeaSummary,
@@ -158,16 +159,82 @@ export class SqliteIndexStore {
         this.db.conn.clearAll();
     }
 
+    /**
+     * One page of idea summaries in file order.
+     * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
+     */
+    async listIdeaSummariesPage(offset: number, limit: number): Promise<IdeaSummary[]> {
+        const page = await this.listIdeasRawPage(offset, limit);
+        return page.map(idea => ideaSummaryFromParts({
+            id: idea.id,
+            name: idea.name,
+            kind: idea.kind,
+            fileUri: idea.fileUri,
+            lineStart: idea.lineStart,
+            summary: idea.summary,
+            gitCreatedAt: idea.gitCreatedAt,
+            gitModifiedAt: idea.gitModifiedAt,
+            gitChangeCount: idea.gitChangeCount
+        }, idea.attributesJson));
+    }
+
     async listAllIdeas(): Promise<IdeaSummary[]> {
-        const rows = this.db.conn.listAllIdeaRows() as unknown as SummaryRow[];
         const ideas: IdeaSummary[] = [];
-        for (let index = 0; index < rows.length; index += 1) {
-            if (index > 0 && index % 250 === 0) {
-                await new Promise<void>(resolve => setTimeout(resolve, 0));
+        const pageSize = 250;
+        let offset = 0;
+        for (;;) {
+            const page = await this.listIdeaSummariesPage(offset, pageSize);
+            if (page.length === 0) {
+                break;
             }
-            ideas.push(this.toSummary(rows[index]!));
+            ideas.push(...page);
+            offset += page.length;
+            if (page.length < pageSize) {
+                break;
+            }
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
         }
         return ideas;
+    }
+
+    /** Collect every raw idea by pages. Prefer scoped or paged reads when possible. */
+    async getAllIdeasRaw(): Promise<IdeaRecord[]> {
+        const ideas: IdeaRecord[] = [];
+        const pageSize = 250;
+        let offset = 0;
+        for (;;) {
+            const page = await this.listIdeasRawPage(offset, pageSize);
+            if (page.length === 0) {
+                break;
+            }
+            ideas.push(...page);
+            offset += page.length;
+            if (page.length < pageSize) {
+                break;
+            }
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+        }
+        return ideas;
+    }
+
+    /** Collect every edge by pages. Prefer hop queries when possible. */
+    async getAllEdges(): Promise<EdgeRecord[]> {
+        const edges: EdgeRecord[] = [];
+        const pageSize = 500;
+        let offset = 0;
+        for (;;) {
+            const page = await this.listEdgesPage(offset, pageSize);
+            if (page.length === 0) {
+                break;
+            }
+            edges.push(...page);
+            offset += page.length;
+            if (page.length < pageSize) {
+                break;
+            }
+            await new Promise<void>(resolve => setTimeout(resolve, 0));
+        }
+        return edges;
     }
 
     async getIdea(id: string): Promise<IdeaSummary | undefined> {
@@ -385,8 +452,21 @@ export class SqliteIndexStore {
         return collectInboundFileReferencers(edges, indexed);
     }
 
-    async getAllEdges(): Promise<EdgeRecord[]> {
-        const rows = this.db.conn.getAllEdgeRows() as unknown as SqliteEdgeRow[];
+    /**
+     * One page of edge rows. Callers that need every edge walk this.
+     * The array or JSON they build is the result, not a second cache.
+     * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
+     */
+    async listEdgesPage(offset: number, limit: number): Promise<EdgeRecord[]> {
+        const bounds = pageBounds(offset, limit);
+        if (!bounds) {
+            return [];
+        }
+        const rows = this.db.conn.all(
+            'SELECT * FROM edges ORDER BY id LIMIT ? OFFSET ?',
+            bounds.limit,
+            bounds.offset
+        ) as unknown as SqliteEdgeRow[];
         return rows.map(mapEdgeRow);
     }
 
@@ -402,8 +482,30 @@ export class SqliteIndexStore {
         }));
     }
 
-    async getAllIdeasRaw(): Promise<IdeaRecord[]> {
-        const rows = this.db.conn.allIdeaRawRows() as unknown as SqliteIdeaRow[];
+    /**
+     * One page of idea rows in file order.
+     * A full export or graph dump walks these pages. That walk's result is the product.
+     * rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
+     */
+    async listIdeasRawPage(offset: number, limit: number): Promise<IdeaRecord[]> {
+        const bounds = pageBounds(offset, limit);
+        if (!bounds) {
+            return [];
+        }
+        const rows = this.db.conn.all(
+            'SELECT * FROM ideas ORDER BY file_uri, line_start, id LIMIT ? OFFSET ?',
+            bounds.limit,
+            bounds.offset
+        ) as unknown as SqliteIdeaRow[];
+        return rows.map(mapIdeaRow);
+    }
+
+    /** Idea rows in one file. Use this for a file-scoped export. */
+    async listIdeasRawInFile(fileUri: string): Promise<IdeaRecord[]> {
+        const rows = this.db.conn.all(
+            'SELECT * FROM ideas WHERE file_uri = ? ORDER BY line_start, id',
+            fileUri
+        ) as unknown as SqliteIdeaRow[];
         return rows.map(mapIdeaRow);
     }
 
@@ -421,26 +523,21 @@ export class SqliteIndexStore {
     }
 
     async getAttributeCatalog(): Promise<{ keys: string[]; valuesByKey: Record<string, string[]> }> {
-        const ideas = await this.getAllIdeasRaw();
         const keys = new Set<string>();
         const valuesByKey = new Map<string, Set<string>>();
-        for (const idea of ideas) {
-            const attributes = parseAttributes(idea.attributesJson);
-            for (const [key, value] of Object.entries(attributes)) {
-                keys.add(key);
-                if (!valuesByKey.has(key)) {
-                    valuesByKey.set(key, new Set());
-                }
-                const bucket = valuesByKey.get(key)!;
-                if (typeof value === 'string' && value) {
-                    bucket.add(value);
-                } else if (Array.isArray(value)) {
-                    for (const entry of value) {
-                        if (entry) {
-                            bucket.add(String(entry));
-                        }
-                    }
-                }
+        const pageSize = 200;
+        let offset = 0;
+        for (;;) {
+            const page = await this.listIdeasRawPage(offset, pageSize);
+            if (page.length === 0) {
+                break;
+            }
+            for (const idea of page) {
+                addCatalogAttributes(keys, valuesByKey, parseAttributes(idea.attributesJson));
+            }
+            offset += page.length;
+            if (page.length < pageSize) {
+                break;
             }
         }
         return {
@@ -680,22 +777,17 @@ export class SqliteIndexStore {
     }
 
     private toSummary(row: SummaryRow): IdeaSummary {
-        const attributes = parseAttributes(row.attributes_json);
-        return {
+        return ideaSummaryFromParts({
             id: row.id,
             name: row.name,
             kind: row.kind as IdeaSummary['kind'],
             fileUri: row.file_uri,
             lineStart: row.line_start,
             summary: row.summary,
-            status: ideaStatus(attributes),
-            statusKey: statusFilterKeyFromAttributes(attributes),
-            tags: ideaTags(attributes),
-            tagsKeys: tagsFilterKeysFromAttributes(attributes),
             gitCreatedAt: row.git_created_at ?? undefined,
             gitModifiedAt: row.git_modified_at ?? undefined,
             gitChangeCount: row.git_change_count ?? undefined
-        };
+        }, row.attributes_json);
     }
 
     private async migrate(): Promise<void> {
@@ -708,6 +800,70 @@ function isMissingFileError(error: unknown): boolean {
         && error !== null
         && 'code' in error
         && error.code === 'ENOENT';
+}
+
+function pageBounds(offset: number, limit: number): { offset: number; limit: number } | undefined {
+    const safeOffset = Math.max(0, Math.floor(offset));
+    const safeLimit = Math.max(0, Math.floor(limit));
+    if (safeLimit === 0) {
+        return undefined;
+    }
+    return { offset: safeOffset, limit: safeLimit };
+}
+
+function ideaSummaryFromParts(
+    parts: {
+        id: string;
+        name: string;
+        kind: IdeaSummary['kind'];
+        fileUri: string;
+        lineStart: number;
+        summary: string;
+        gitCreatedAt?: string;
+        gitModifiedAt?: string;
+        gitChangeCount?: number;
+    },
+    attributesJson: string
+): IdeaSummary {
+    const attributes = parseAttributes(attributesJson);
+    return {
+        id: parts.id,
+        name: parts.name,
+        kind: parts.kind,
+        fileUri: parts.fileUri,
+        lineStart: parts.lineStart,
+        summary: parts.summary,
+        status: ideaStatus(attributes),
+        statusKey: statusFilterKeyFromAttributes(attributes),
+        tags: ideaTags(attributes),
+        tagsKeys: tagsFilterKeysFromAttributes(attributes),
+        gitCreatedAt: parts.gitCreatedAt,
+        gitModifiedAt: parts.gitModifiedAt,
+        gitChangeCount: parts.gitChangeCount
+    };
+}
+
+function addCatalogAttributes(
+    keys: Set<string>,
+    valuesByKey: Map<string, Set<string>>,
+    attributes: IdeaAttributeMap
+): void {
+    for (const [key, value] of Object.entries(attributes)) {
+        keys.add(key);
+        if (!valuesByKey.has(key)) {
+            valuesByKey.set(key, new Set());
+        }
+        const bucket = valuesByKey.get(key)!;
+        if (typeof value === 'string' && value) {
+            bucket.add(value);
+        } else if (Array.isArray(value)) {
+            for (const entry of value) {
+                if (entry) {
+                    bucket.add(String(entry));
+                }
+            }
+        }
+    }
 }
 
 interface SummaryRow {

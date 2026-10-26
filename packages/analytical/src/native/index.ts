@@ -37,6 +37,10 @@ export { NativeAnalysisApi } from './native-analysis-api.js';
 export type {
     AnalysisRuntimeOptions,
     CheckOptions,
+    CheckReport,
+    CheckSyncFileAction,
+    CheckSyncFileEvent,
+    CheckSyncProgress,
     ClickOptions,
     ClickResult,
     NameAmbiguity,

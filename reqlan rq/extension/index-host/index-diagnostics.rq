@@ -19,7 +19,7 @@ index_diagnostics_metrics {
     - wall-clock **sum / total duration** of the pass
     - **file count** (visited), skipped-by-mtime count, indexed (parse/persist attempted) count, error count
     - **average path depth** of visited files (segments under the base root)
-    - per-file **duration** and outcome (`mtime_skip` | `mtime_refresh` | `hash_skip` | `persisted` | `error`)
+    - per-file **duration** and outcome (`mtime_skip` | `mtime_refresh` | `hash_skip` | `persisted` | `empty` | `error`)
     Runs are attributable to a trigger (`soft_sync` | `rebuild` | `enqueue` | `stale`).
     Instrumentation wraps [workspace_index] soft sync and [indexer.nonblocking_index] single-file paths via [diagnostics_store].
     @implementation (

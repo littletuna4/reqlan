@@ -8,6 +8,8 @@
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_verbose]
  * rq:["../../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  * rq:["../../../../reqlan rq/core_analysis/check.rq".code_comment_syntax_errors]
@@ -17,6 +19,7 @@ import type { SparseWildcardHandling } from '@reqlan/analytical/core';
 import { withAnalysisApi } from '../runtime.js';
 import { emit } from '../output.js';
 import { formatCheckIssues, formatCheckPipe } from '../format-broken-refs.js';
+import { formatCheckVerbose, parseCheckVerbosity } from '../format-check-verbose.js';
 
 const HANDLING_VALUES = 'warn, error, or off';
 
@@ -52,6 +55,10 @@ export class CheckCommand extends Command {
             A positional directory outside the globs is not walked.
             Repeat --skip-target <glob> to omit issues whose missing target matches a glob.
             --skip-gitignored-targets omits missing file targets that Git ignore rules ignore.
+            --no-cache skips the on-disk ideas-index SQLite and checks from source files only.
+            -v writes index mode and sync totals to stderr.
+            -vv also lists each sync file action.
+            -vvv adds skip and error detail on those lines.
             Exit status is 1 when the command finds issues.
             Use --json or --pipe for machine output.
         `,
@@ -65,7 +72,11 @@ export class CheckCommand extends Command {
             ['Treat empty wildcards as errors', '$0 check --wildcard-zero error'],
             ['Skip singleton-wildcard warnings', '$0 check --wildcard-one off'],
             ['Skip gitignored Cursor paths', '$0 check --skip-target "**/.cursor/**"'],
-            ['Skip gitignored file targets', '$0 check --skip-gitignored-targets']
+            ['Skip gitignored file targets', '$0 check --skip-gitignored-targets'],
+            ['Check from source without the ideas-index SQLite', '$0 check --no-cache'],
+            ['Verbose sync summary on stderr', '$0 check -v'],
+            ['Per-file sync lines on stderr', '$0 check -vv'],
+            ['Per-file sync with skip reasons', '$0 check -vvv']
         ]
     });
 
@@ -95,6 +106,19 @@ export class CheckCommand extends Command {
     });
     skipGitignoredTargets = Option.Boolean('--skip-gitignored-targets', false, {
         description: 'Omit file-reference issues whose missing target is gitignored'
+    });
+    noCache = Option.Boolean('--no-cache', false, {
+        description:
+            'Do not open or write the ideas-index SQLite; parse and check from source files only'
+    });
+    verbose = Option.Boolean('-v', false, {
+        description: 'Index mode and sync totals on stderr'
+    });
+    veryVerbose = Option.Boolean('-vv', false, {
+        description: 'Also list each sync file action on stderr'
+    });
+    debugVerbose = Option.Boolean('-vvv', false, {
+        description: 'Also include skip and error detail on stderr'
     });
     pathArgs = Option.Rest({ name: 'path' });
 
@@ -126,29 +150,49 @@ export class CheckCommand extends Command {
             return 1;
         }
 
+        const verbosity = parseCheckVerbosity(
+            process.argv,
+            this.verbose,
+            this.veryVerbose,
+            this.debugVerbose
+        );
+
         try {
-            return await withAnalysisApi(this.cwd, async api => {
-                const rows = await api.check({
-                    pathGlobs: globs.length > 0 ? globs : undefined,
-                    paths: paths.length > 0 ? paths : undefined,
-                    wildcardZero,
-                    wildcardOne,
-                    skipTargets: this.skipTargets,
-                    skipGitignoredTargets: this.skipGitignoredTargets,
-                    unusedImports
-                });
-                if (this.json) {
-                    emit(rows, true);
-                } else if (this.pipe) {
-                    const body = formatCheckPipe(rows);
-                    if (body.length > 0) {
-                        emit(body, false);
+            return await withAnalysisApi(
+                this.cwd,
+                async api => {
+                    const report = await api.checkReport({
+                        pathGlobs: globs.length > 0 ? globs : undefined,
+                        paths: paths.length > 0 ? paths : undefined,
+                        wildcardZero,
+                        wildcardOne,
+                        skipTargets: this.skipTargets,
+                        skipGitignoredTargets: this.skipGitignoredTargets,
+                        unusedImports,
+                        recordFileEvents: verbosity >= 2
+                    });
+                    const verboseText = formatCheckVerbose(report, verbosity);
+                    if (verboseText.length > 0) {
+                        this.context.stderr.write(verboseText);
                     }
-                } else {
-                    emit(formatCheckIssues(rows), false);
+                    const rows = report.issues;
+                    if (this.json) {
+                        emit(rows, true);
+                    } else if (this.pipe) {
+                        const body = formatCheckPipe(rows);
+                        if (body.length > 0) {
+                            emit(body, false);
+                        }
+                    } else {
+                        emit(formatCheckIssues(rows), false);
+                    }
+                    return rows.length > 0 ? 1 : 0;
+                },
+                {
+                    noCache: this.noCache,
+                    recordFileEvents: verbosity >= 2
                 }
-                return rows.length > 0 ? 1 : 0;
-            });
+            );
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.context.stderr.write(`${message}\n`);

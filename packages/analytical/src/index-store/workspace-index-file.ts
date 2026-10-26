@@ -1,6 +1,6 @@
 /**
  * Per-file index outcome shape shared by the soft-sync loop and the facade.
- * The native engine (`NativeWorkspaceIndex.indexFile` / `syncWorkspace`) owns
+ * The native engine (`NativeWorkspaceIndex.indexFile` / `indexFiles` / `syncWorkspace`) owns
  * parse → extract → persist; this only carries the timing/outcome summary.
  *
  * rq:["../../../../reqlan rq/indexer/indexer.rq".index]

@@ -156,7 +156,10 @@ editor_reference_activation {
     Definition returns `LocationLink.originSelectionRange` for that token so the editor does not invent a word from brackets or quotes.
     Path segment names inside a quoted path are not reference tokens.
     The host does not register a DefinitionProvider for other languages, and does not rescan open source files for this activation.
-    When the engine is rust, the language-server document selector includes all file-scheme documents except the comment-host blocklist, and definition navigates resolved `rq:[…]` sites
+    When the engine is rust, the client syncs .rq files.
+    The rust client syncs other files only when the text contains `rq:`.
+    The rust client does not sync blocklisted languages.
+    Definition navigates resolved `rq:[…]` sites
     (["../comment-references/functional-code-comment-references.rq".references_in_functional_code_comments],
     ["../comment-references/functional-code-comment-references.rq".comment_reference_language_blocklist]).
     A web URL and a command link (folder, wildcard) stay document links.
@@ -173,6 +176,7 @@ editor_reference_activation {
         ["../../../../packages/extension/src/extension/register-editor-link-activation.ts"]
         ["../../../../packages/extension/src/extension/definition-navigation.ts"]
         ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
+        ["../../../../packages/extension/src/extension/document-sync.ts"]
         ["../../../../packages/extension/src/extension/main.ts"]
         ["../../../../crates/reqlan-lsp/src/analysis.rs"]
         ["../../../../crates/reqlan-lsp/src/session.rs"]
@@ -185,6 +189,8 @@ editor_reference_activation {
         ["../../../../packages/extension/test/editor-link-activation.test.ts:comment injection link scope includes markup.underline"]
         ["../../../../packages/extension/test/editor-link-activation.test.ts:package.json contributes comment.rq.injection"]
         ["../../../../packages/extension/test/definition-navigation.test.ts:package.json leaves go back and go forward to the editor"]
+        ["../../../../packages/extension/test/document-sync.test.ts:syncs reqlan files and other files only when the text contains rq:"]
+        ["../../../../packages/extension/test/document-sync.test.ts:sends the full text when a later edit adds rq:"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:definition_origin_is_the_lexer_token_under_the_cursor"]
         ["../../../../crates/reqlan-lsp/tests/session.rs:comment_definition_follows_a_resolved_rq_reference"]
     )

@@ -101,9 +101,11 @@ lazy_runtime_dependencies {
     - Constructing `WorkspaceIndex` does not construct Langium/Chevrotain services; index sync uses the core native engine (rusqlite).
     - The host-matching `reqlan_napi` `.node` is required at activate; there is no sql.js vendor bundle in the extension host.
     - Export/physics source is generated at build time rather than read via extension-runtime URLs.
+    - Rust language-server activation does not static-import Langium; comment-link registration stays on the Node/Langium path and loads only then.
     ["../../../packages/analytical/src/index-store/workspace-index.ts"]
     ["../../../packages/analytical/src/index-store/sqlite-store.ts"]
     ["../../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
+    ["../../../packages/extension/src/extension/main.ts"]
     ["../../../packages/extension/esbuild.mjs"]
     @tests ("../../../packages/analytical/src/index-store/workspace-index.ts")
     @status done

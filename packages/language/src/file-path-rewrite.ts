@@ -175,16 +175,22 @@ export function rewriteQuotedPath(
     return rewritten === undefined ? undefined : JSON.stringify(rewritten);
 }
 
+function asUri(value: string | URI): URI {
+    return typeof value === 'string' ? URI.parse(value) : value;
+}
+
 export function buildPathRewriteEdits(
     references: PathReference[],
-    oldFileUri: URI,
-    newFileUri: URI,
+    oldFileUri: string | URI,
+    newFileUri: string | URI,
     formatReplacement: (path: string, newPath: string, range: Range) => string | undefined,
     options?: PathRewriteOptions
 ): PathRewriteEdit[] {
+    const oldUri = asUri(oldFileUri);
+    const newUri = asUri(newFileUri);
     const edits: PathRewriteEdit[] = [];
     for (const reference of references) {
-        const newPath = rewriteRelativePath(reference.path, oldFileUri, newFileUri, options);
+        const newPath = rewriteRelativePath(reference.path, oldUri, newUri, options);
         if (newPath === undefined) {
             continue;
         }
@@ -199,19 +205,22 @@ export function buildPathRewriteEdits(
 
 export function buildInboundPathRewriteEdits(
     references: PathReference[],
-    referencingFileUri: URI,
-    oldTargetUri: URI,
-    newTargetUri: URI,
+    referencingFileUri: string | URI,
+    oldTargetUri: string | URI,
+    newTargetUri: string | URI,
     formatReplacement: (path: string, newPath: string, range: Range) => string | undefined,
     options?: PathRewriteOptions
 ): PathRewriteEdit[] {
+    const referencingUri = asUri(referencingFileUri);
+    const oldUri = asUri(oldTargetUri);
+    const newUri = asUri(newTargetUri);
     const edits: PathRewriteEdit[] = [];
     for (const reference of references) {
         const newPath = rewritePathToMovedTarget(
             reference.path,
-            referencingFileUri,
-            oldTargetUri,
-            newTargetUri,
+            referencingUri,
+            oldUri,
+            newUri,
             options
         );
         if (newPath === undefined) {

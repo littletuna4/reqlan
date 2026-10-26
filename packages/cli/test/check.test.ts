@@ -8,12 +8,14 @@
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
  * rq:["../../../reqlan rq/core_analysis/check.rq".check_unresolved_imports]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+ * rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
  * rq:["../../../reqlan rq/cli/cli_package.rq".commands]
  * rq:["../../../reqlan rq/cli/cli_package.rq".pnpm_extra_args]
  * rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -423,6 +425,112 @@ describe('CLI check', () => {
             const bad = runCheck(root, ['--glob', '']);
             expect(bad.status, bad.stderr).toBe(1);
             expect(bad.stderr).toContain('Each --glob value must be a non-empty path glob');
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('--no-cache does not open or write ideas-index.sqlite', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-no-cache-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            // Directory at the SQLite path fails Connection::open if the flag is ignored.
+            mkdirSync(join(root, '.reqlan', 'ideas-index.sqlite'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    [missing_idea]\n}\n');
+
+            const json = runCheck(root, ['--json', '--no-cache']);
+            expect(json.status, json.stderr).toBe(1);
+            const rows = JSON.parse(json.stdout) as Array<{ label: string }>;
+            expect(rows.some(row => row.label === 'missing_idea')).toBe(true);
+            expect(statSync(join(root, '.reqlan', 'ideas-index.sqlite')).isDirectory()).toBe(true);
+            expect(existsSync(join(root, '.reqlan', 'ideas-index.sqlite-wal'))).toBe(false);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('-v writes index mode and sync totals to stderr', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-v-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    [missing_idea]\n}\n');
+
+            const result = runCheck(root, ['--json', '--no-cache', '-v']);
+            expect(result.status, result.stderr).toBe(1);
+            expect(result.stderr).toContain('check: index=memory');
+            expect(result.stderr).toMatch(
+                /check: sync indexed=[1-9]\d* skipped_mtime=\d+ errors=\d+ processed=[1-9]\d*\/[1-9]\d*/
+            );
+            expect(result.stderr).toContain('check: issues=1');
+            expect(result.stderr).not.toContain('check: indexed host.rq');
+            expect(result.stderr).not.toContain('check: skipped_mtime host.rq');
+            const rows = JSON.parse(result.stdout) as Array<{ label: string }>;
+            expect(rows.some(row => row.label === 'missing_idea')).toBe(true);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('-vv lists per-file sync actions on stderr', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-vv-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    [missing_idea]\n}\n');
+
+            const result = runCheck(root, ['--json', '--no-cache', '-vv']);
+            expect(result.status, result.stderr).toBe(1);
+            expect(result.stderr).toContain('check: index=memory');
+            expect(result.stderr).toContain('check: indexed host.rq');
+            expect(result.stderr).not.toContain('mtime unchanged');
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('--no-cache -vv does not report process-local mtime skips', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-no-cache-vv-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    [missing_idea]\n}\n');
+            writeFileSync(join(root, 'note.ts'), 'export {}\n');
+
+            const result = runCheck(root, ['--json', '--no-cache', '-vv']);
+            expect(result.status, result.stderr).toBe(1);
+            expect(result.stderr).toContain('check: index=memory');
+            expect(result.stderr).toMatch(/skipped_mtime=0/);
+            expect(result.stderr).not.toContain('check: skipped_mtime ');
+            expect(result.stderr).toContain('check: indexed host.rq');
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    });
+
+    test('-vvv includes skip detail on stderr', { timeout: 30_000 }, () => {
+        // rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-cli-check-vvv-'));
+        try {
+            mkdirSync(join(root, '.reqlan'));
+            mkdirSync(join(root, '.git'));
+            writeFileSync(join(root, 'host.rq'), 'host {\n    local\n}\n');
+            writeFileSync(join(root, 'src.ts'), 'export {}\n');
+
+            // First pass indexes; second pass with disk index should mtime-skip.
+            const warm = runCheck(root, ['--json']);
+            expect(warm.status, warm.stderr).toBe(0);
+
+            const result = runCheck(root, ['--json', '-vvv']);
+            expect(result.status, result.stderr).toBe(0);
+            expect(result.stderr).toContain('check: index=disk');
+            expect(result.stderr).toMatch(/check: skipped_mtime .+\(mtime unchanged\)/);
         } finally {
             rmSync(root, { recursive: true, force: true });
         }

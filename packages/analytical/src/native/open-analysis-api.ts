@@ -25,7 +25,7 @@ export interface OpenedAnalysisApi {
 export async function openAnalysisApi(options: AnalysisRuntimeOptions): Promise<OpenedAnalysisApi> {
     loadNativeEngine();
     const api = new NativeAnalysisApi(options);
-    await api.ensureReady();
+    await api.ensureReady(options.recordFileEvents === true);
     return {
         api,
         engine: 'native',

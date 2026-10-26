@@ -70,6 +70,28 @@ describe('WorkspaceIndex', () => {
         await index.deactivate();
     });
 
+    // rq:["../../../reqlan rq/indexer/cache-reuse.rq".code_file_negative_cache]
+    test('soft sync mtime-skips code files without comment refs', async () => {
+        const root = await writeWorkspace({
+            'demo.rq': 'alpha this is alpha\n',
+            'plain.ts': 'export const n = 1;\n'
+        });
+        const index = new WorkspaceIndex(join(root, '.reqlan'), root);
+        await index.activate();
+
+        expect(await index.indexStore.getDocumentHash('plain.ts')).toBeDefined();
+        expect((await index.indexStore.listAllIdeas()).map(idea => idea.name)).toEqual(['alpha']);
+
+        const ok = await index.syncWorkspace([join(root, 'demo.rq'), join(root, 'plain.ts')]);
+        expect(ok).toBe(true);
+        const runs = await index.listIndexDiagnosticRuns();
+        expect(runs[0]?.skippedMtime).toBe(2);
+        expect(runs[0]?.indexedFiles).toBe(0);
+        const timings = await index.listIndexDiagnosticFileTimings(runs[0]!.id);
+        expect(timings.every(row => row.outcome === 'mtime_skip')).toBe(true);
+        await index.deactivate();
+    });
+
     test('soft sync reindexes when mtime changes', async () => {
         const root = await writeWorkspace({
             'demo.rq': 'alpha this is alpha\n'

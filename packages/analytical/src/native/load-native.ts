@@ -77,7 +77,7 @@ const extraSearchDirs: string[] = [];
 let loadFailures: string[] = [];
 
 export interface NativeAnalysisRuntimeHandle {
-    ensureReady(): void;
+    ensureReady(recordFileEvents?: boolean): void;
     /** Release SQLite locks held by this runtime. */
     close?: () => void;
     searchRequirements(query: string, limit: number, context?: string[], katz?: boolean): unknown;
@@ -106,7 +106,8 @@ export interface NativeAnalysisRuntimeHandle {
         wildcardOne?: string,
         skipTargets?: string[],
         skipGitignoredTargets?: boolean,
-        unusedImports?: string
+        unusedImports?: string,
+        recordFileEvents?: boolean
     ): unknown;
     diffIdeas(from?: string, to?: string, verbosity?: string): unknown;
     exportGraph(request: unknown): unknown;
@@ -116,7 +117,11 @@ export interface NativeAnalysisRuntimeHandle {
 
 export interface NativeModule {
     NativeAnalysisRuntime: {
-        open(workspaceRoot: string, storagePath?: string): NativeAnalysisRuntimeHandle;
+        open(
+            workspaceRoot: string,
+            storagePath?: string,
+            noCache?: boolean
+        ): NativeAnalysisRuntimeHandle;
     };
     NativeSqlDb: {
         open(path: string): NativeSqlDbHandle;

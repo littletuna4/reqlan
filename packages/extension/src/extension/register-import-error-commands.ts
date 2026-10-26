@@ -20,7 +20,6 @@ import {
     type ImportErrorCommandArgs,
     type SearchReferenceCommandArgs
 } from '@reqlan/language';
-import { URI } from 'langium';
 import * as vscode from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { State } from 'vscode-languageclient/node';
@@ -236,10 +235,7 @@ async function createFileAndImport(args: ImportErrorCommandArgs): Promise<void> 
     });
 
     const document = await vscode.workspace.openTextDocument(sourceUri);
-    const importPath = relativeRqImportPath(
-        URI.parse(args.documentUri),
-        URI.parse(newFileUri.toString())
-    );
+    const importPath = relativeRqImportPath(args.documentUri, newFileUri.toString());
     const insertLine = findPlainImportInsertLine(document.getText());
     const suffix = insertLine === 0 ? '\n' : '';
     workspaceEdit.insert(

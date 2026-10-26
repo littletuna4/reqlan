@@ -1,4 +1,5 @@
-from "./indexer.rq" import nonblocking_index, indexing_incrementality
+from "./indexer.rq" import nonblocking_index, indexing_incrementality, index_code_files
+from "../language/syntax.rq" import comment_reference
 from "../extension/index-host/graph-analysers.rq" import indexing_trigger_auto
 from "../extension/language/support/features-imports.rq" import import_code_completion_ranking, anonymous_reference_code_completion
 from "../extension/language/syntax/features-syntax-highlighting.rq" import reference_code_completion_objects, reference_code_completion_sequencing
@@ -7,6 +8,8 @@ import "../../packages/analytical/src/index-store/workspace-index.ts" as workspa
 import "../../packages/analytical/src/native/open-analysis-api.ts" as analysis_runtime
 import "../../packages/language/src/reqlan-path-completion.ts" as path_completion
 import "../../packages/language/src/reqlan-completion-provider.ts" as completion_provider
+import "../../crates/reqlan-index/src/queries.rs" as index_queries
+import "../../crates/reqlan-index/src/store.rs" as index_store
 import "./sqlite-schema.rq" as ideas_schema
 import "./consumers.rq" as consumers
 import "./sequencing.rq" as sequencing
@@ -25,10 +28,34 @@ index_cache_reuse {
 already_cached {
     Mechanisms that already reuse stored state:
     - Soft sync mtime skip on [ideas_schema.documents_table] ([nonblocking_index])
+    - Code-file negative cache ([code_file_negative_cache]) so no-`rq:` sources skip on later soft syncs
     - Idle stale check that indexes only dirty paths ([indexing_trigger_auto])
     - Git date columns on [ideas_schema.ideas_table] (no git walk on every UI paint)
     - Fuzzy search and paged Ideas Summary SQL over SQLite (avoid full in-memory dumps when used)
     [index_cache_reuse]
+}
+
+code_file_negative_cache {
+    Allowlisted code files with no [comment_reference] still get a [ideas_schema.documents_table]
+    row (`content_hash` + `mtime_ms`, no ideas, no edges). Soft [sequencing.soft_sync] and
+    [sequencing.idle_stale_check] then mtime-skip them instead of re-reading forever.
+    Do not invent fake ideas or edges. `extract_version` mismatch and hard rebuild still force
+    re-scan. Idea listing stays correct with empty documents. Diagnostics must not call a
+    no-row Empty write `persisted` (use `empty`).
+    Related: [index_code_files], [sequencing.soft_sync], [nonblocking_index].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-index/src/store.rs"]
+        ["../../packages/analytical/src/index-store/workspace-index.ts"]
+        ["../../packages/analytical/src/index-store/index-diagnostics-store.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/code_file_index.rs:soft_sync_mtime_skips_code_files_without_comment_refs"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:dropping_comment_refs_keeps_document_without_edges"]
+        ["../../crates/reqlan-index/tests/code_file_index.rs:hard_rebuild_rescans_negative_cached_code_file"]
+        ["../../packages/analytical/test/workspace-index.test.ts:soft sync mtime-skips code files without comment refs"]
+    )
 }
 
 single_sync_walk {
@@ -95,17 +122,61 @@ avoid_full_list_all_ideas {
     Prefer `fuzzySearch`, paged SQL, or catalog deltas over materialising every idea.
     The language server looks up one idea name with `ideas_named`, or a prefix with `idea_names_with_prefix`.
     It does not call `list_all_ideas` for completion, code actions, references, or rename.
-    A pushed name catalog answers those lookups. SQLite is the fallback when the catalog is empty.
+    It does not keep a pushed name catalog in the host.
+    SQLite answers those lookups.
     Avoid:
-    - reference-search / wildcard panels calling `listAllIdeas` when search APIs suffice
+    - reference-search calling `listAllIdeas` when `fuzzySearch` pages suffice
+    - wildcard / AI pickers holding the full catalog when a page walk or search hit list suffices
     - Ideas Summary `sendFullGraph` dumping all ideas and edges ([graphical_graph] guidance)
-    - repeated full-catalog pushes when only a few documents changed
+    - export attribute loads that pull every raw idea when the export scope is a file set
+    - soft sync / batch index calling `list_all_ideas` once per file ([sync_pass_idea_catalog])
     [index_cache_reuse]
     [consumers.extension_ui_consumers]
-    @status draft
+    @status done
     @implementation (
         ["../../crates/reqlan-index/src/store.rs"]
         ["../../crates/reqlan-lsp/src/session.rs"]
+        ["../../packages/analytical/src/index-store/sqlite-store.ts"]
+        ["../../packages/analytical/src/export/build-export-snapshot.ts"]
+        ["../../packages/extension/src/extension/reference-search-panel.ts"]
+        ["../../packages/extension/src/extension/wildcard-matches-panel.ts"]
+        ["../../packages/extension/src/agent_module/ai_commands/register-ai-commands.ts"]
+        ["../../packages/extension/src/extension/register-name-catalog-sync.ts"]
+    )
+    @tests (
+        ["../../packages/extension/test/document-sync.test.ts"]
+        ["../../crates/reqlan-lsp/tests/session.rs:uses_ideas_index_matches_when_documents_are_not_loaded"]
+    )
+}
+
+sync_pass_idea_catalog {
+    One sync or batch index pass loads the idea catalog once (`list_all_ideas` / `load_idea_catalog`).
+    It passes that catalog by mutable reference while indexing; it does not clone the full Vec per `.rq` file
+    and does not reload SQLite ideas per code file.
+    After each `.rq` persist, drop that file's prior catalog rows and push the new idea names
+    (rename-safe; wildcards in later files see ideas already indexed in this pass).
+    Code-document refresh after an idea-name change reuses the same in-memory catalog.
+    Extension soft sync opens a native catalog session (`beginIndexPass` / `endIndexPass`) around the
+    per-file loop so `indexFile` does not reload ideas each time; `indexFiles` / `index_paths` keep one
+    catalog for an explicit path list without a second walk.
+    Single-file watcher enqueue may still call `list_all_ideas` once (one file, not a full pass).
+    [index_cache_reuse]
+    [avoid_full_list_all_ideas]
+    ["./sequencing.rq".soft_sync]
+    ["./indexer.rq".index_code_files]
+    @status done
+    @implementation (
+        ["../../crates/reqlan-index/src/sync.rs"]
+        ["../../crates/reqlan-analytical/src/workspace_index.rs"]
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../packages/analytical/src/index-store/workspace-index-sync.ts"]
+        ["../../packages/analytical/src/native/native-workspace-index.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/sync.rs:soft_sync_skips_unchanged_mtime"]
+        ["../../crates/reqlan-index/tests/sync.rs:sync_pass_catalog_sees_earlier_file_ideas_for_wildcards"]
+        ["../../crates/reqlan-index/tests/sync.rs:sync_pass_catalog_drops_renamed_idea_names"]
+        ["../../crates/reqlan-index/tests/sync.rs:index_paths_shares_one_catalog_across_files"]
     )
 }
 
@@ -182,4 +253,27 @@ overview_coverage_reuse {
     [index_cache_reuse]
     [sequencing.soft_sync]
     @status draft
+}
+
+batched_document_upsert {
+    Persist N extracted documents in one SQLite transaction (`BEGIN` … `COMMIT`).
+    Each document still replaces its ideas and edges the same way as a single-file upsert.
+    Soft sync may call this after extract so many changed files share one commit.
+    Empty code files may write nothing; batching helps when many files do persist.
+    On error or cancel of the batch write: fail the whole batch and roll back.
+    Do not commit a successful prefix. Same atomicity as multi-document delete.
+    Single-file upsert stays for watcher incremental ([sequencing.watcher_incremental]).
+    Related: [index_cache_reuse], [sequencing.soft_sync], [ideas_schema.documents_table],
+    [nonblocking_index].
+
+    @status done
+    @implementation (
+        [index_queries]
+        [index_store]
+    )
+    @tests (
+        ["../../crates/reqlan-index/tests/batch_upsert.rs:persist_extracted_batch_commits_multiple_documents"]
+        ["../../crates/reqlan-index/tests/batch_upsert.rs:persist_extracted_batch_empty_is_noop"]
+        ["../../crates/reqlan-index/tests/batch_upsert.rs:upsert_documents_rolls_back_entire_batch_on_error"]
+    )
 }

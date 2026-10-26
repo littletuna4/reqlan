@@ -1,0 +1,60 @@
+purpose {
+    An unobstructive validation layer for reqlan.
+}
+
+typed-reqlan {
+    - Require specific attributes
+    - constrain attributes to specific literals: e.g. status must be 
+    - Require attribues of certain types (including nested types, includeing lists of nested types)
+    - require references to other types
+    - forbid references to other types
+    - reference instances of types
+    - reference instances of unions and intersections of types
+    - filter by type
+
+    @todo triage and implement
+}
+
+syntax {
+
+    @todo triage and implement
+}
+
+type-semantics {
+    like the reqlan core, the semantics must e 
+}
+
+type-composition {
+    either through type declarations, through "templates"?, or by combining through intersection and union.
+    @tbc
+    @todo triage and implement
+}
+
+type-attachement {
+    define at consumption, at definition, or implicitly: i.e. in the file, or at a reference, or by location.
+    e.g.
+       - an idea might say "i'm a x type", or
+       - a reference might say - "i require this to be an x-type", or
+       - a file might say - all ideas inside this file need to be x-types, or
+       - a folder/project might say - all ideas inside this project/folder need to be x-types,
+          - e.g. optional status attribute that is one of a set of literals
+       - a combination - which is when an interesection is required.
+}
+
+type-register {
+    @todo triage and implement
+}
+
+type-resolution {
+
+}
+
+type-validation {
+    peformed in reqlan check.
+    Objects need to be validated against their types.
+    @todo triage and implement
+}
+
+type-example {
+    a type, after "composition", may have an example specified - or generated.
+}

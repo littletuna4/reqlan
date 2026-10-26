@@ -1,4 +1,3 @@
-import { URI } from 'langium';
 import { statSync } from 'node:fs';
 import {
     buildInboundPathRewriteEdits,
@@ -37,8 +36,8 @@ export async function planFileMoveChanges(
                 const references = findPathReferencesInMovedFile(document.getText(), isRqFile);
                 const outboundEdits = buildPathRewriteEdits(
                     references,
-                    URI.parse(oldUri.toString()),
-                    URI.parse(newUri.toString()),
+                    oldUri.toString(),
+                    newUri.toString(),
                     (_path, newPath) => JSON.stringify(newPath)
                 );
                 mergeChange(changesByUri, {
@@ -70,9 +69,9 @@ export async function planFileMoveChanges(
             const inboundRefs = findPathReferencesInMovedFile(inboundDoc.getText(), inboundIsRq);
             const inboundEdits = buildInboundPathRewriteEdits(
                 inboundRefs,
-                URI.parse(inboundUri.toString()),
-                URI.parse(oldUri.toString()),
-                URI.parse(newUri.toString()),
+                inboundUri.toString(),
+                oldUri.toString(),
+                newUri.toString(),
                 (_path, newPath) => JSON.stringify(newPath)
             );
             if (inboundEdits.length === 0) {

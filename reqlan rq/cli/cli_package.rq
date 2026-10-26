@@ -79,6 +79,10 @@ commands {
       (["../core_analysis/check.rq".check_skip_targets]).
       `--skip-gitignored-targets` omits file-reference issues whose missing target is gitignored
       (["../core_analysis/check.rq".check_skip_gitignored_targets]).
+      `--no-cache` skips the on-disk ideas-index SQLite and checks from source only
+      (["../core_analysis/check.rq".check_no_cache]).
+      `-v` / `-vv` / `-vvv` write sync diagnostics to stderr
+      (["../core_analysis/check.rq".check_verbose]).
     - `barrel <file>` — split a large `.rq` page into one file per idea and a container import page (["../extension/host/features-commands.rq".barrel_page]).
     - `diff [<from>] [<to>]` — compare ideas between two git revisions (["./diff.rq".diff]).
       No arguments compare pending `.rq` edits with `HEAD`, or `HEAD~1` with `HEAD` when those edits are absent.

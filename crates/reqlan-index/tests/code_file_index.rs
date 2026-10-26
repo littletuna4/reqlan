@@ -33,6 +33,7 @@ fn indexes_comment_references_from_non_rq_files() {
         hard_rebuild: false,
         path_globs: Vec::new(),
         include_files: Vec::new(),
+        record_file_events: false,
     };
     let result = sync_workspace(&mut store, &options, &cancel).unwrap();
     assert!(result.progress.indexed >= 2, "indexed={}", result.progress.indexed);
@@ -65,6 +66,7 @@ fn unqualified_comment_ref_matches_catalog_idea_name() {
             hard_rebuild: false,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &cancel,
     )
@@ -92,6 +94,7 @@ fn rq_reindex_restores_comment_links() {
         hard_rebuild: false,
         path_globs: Vec::new(),
         include_files: Vec::new(),
+        record_file_events: false,
     };
     sync_workspace(&mut store, &options, &cancel).unwrap();
     assert_eq!(
@@ -141,6 +144,7 @@ fn rq_reindex_relinks_code_files_only_when_idea_names_change() {
         hard_rebuild: false,
         path_globs: Vec::new(),
         include_files: Vec::new(),
+        record_file_events: false,
     };
     sync_workspace(&mut store, &options, &AtomicBool::new(false)).unwrap();
     assert_eq!(comment_link_sources(&store), vec!["demo.rq#alpha"]);
@@ -187,6 +191,7 @@ fn skips_nested_child_base_code_and_rq_files() {
             hard_rebuild: false,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )
@@ -195,6 +200,139 @@ fn skips_nested_child_base_code_and_rq_files() {
     assert!(names.contains(&"parent_idea".to_string()));
     assert!(!names.contains(&"child_idea".to_string()));
     assert!(store.list_code_document_uris().unwrap().is_empty());
+    std::fs::remove_dir_all(&root).ok();
+}
+
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".code_file_negative_cache]
+#[test]
+fn soft_sync_mtime_skips_code_files_without_comment_refs() {
+    let root = scratch("neg-cache");
+    std::fs::write(root.join("demo.rq"), "alpha {\n    first\n}\n").unwrap();
+    std::fs::write(root.join("plain.ts"), "export const n = 1;\n").unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let cancel = AtomicBool::new(false);
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+        record_file_events: false,
+    };
+    let first = sync_workspace(&mut store, &options, &cancel).unwrap();
+    assert!(first.progress.indexed >= 2, "indexed={}", first.progress.indexed);
+    assert_eq!(store.list_code_document_uris().unwrap(), vec!["plain.ts".to_string()]);
+    assert!(store.get_document_hash("plain.ts").unwrap().is_some());
+    assert!(store.get_document_mtime_ms("plain.ts").unwrap().is_some());
+    assert_eq!(
+        store
+            .get_all_edges()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::CommentLink)
+            .count(),
+        0
+    );
+    let idea_names: Vec<_> =
+        store.list_all_ideas().unwrap().into_iter().map(|idea| idea.name).collect();
+    assert_eq!(idea_names, vec!["alpha".to_string()]);
+
+    let second = sync_workspace(&mut store, &options, &cancel).unwrap();
+    assert!(second.progress.skipped_mtime >= 2, "skipped_mtime={}", second.progress.skipped_mtime);
+    assert_eq!(second.progress.indexed, 0);
+    assert_eq!(store.list_code_document_uris().unwrap(), vec!["plain.ts".to_string()]);
+
+    // mtime change forces re-scan; still no fake ideas/edges.
+    let plain = root.join("plain.ts");
+    let meta = std::fs::metadata(&plain).unwrap();
+    let later = meta.modified().unwrap() + std::time::Duration::from_secs(2);
+    let file = std::fs::File::options().write(true).open(&plain).unwrap();
+    file.set_modified(later).unwrap();
+    drop(file);
+    let third = sync_workspace(&mut store, &options, &cancel).unwrap();
+    assert!(third.progress.indexed >= 1, "indexed={}", third.progress.indexed);
+    assert_eq!(store.list_code_document_uris().unwrap(), vec!["plain.ts".to_string()]);
+    assert_eq!(
+        store
+            .get_all_edges()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::CommentLink)
+            .count(),
+        0
+    );
+
+    std::fs::remove_dir_all(&root).ok();
+}
+
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".code_file_negative_cache]
+#[test]
+fn dropping_comment_refs_keeps_document_without_edges() {
+    let root = scratch("neg-drop");
+    std::fs::write(root.join("demo.rq"), "alpha {\n    first\n}\n").unwrap();
+    std::fs::write(root.join("app.ts"), "// rq:[alpha]\nexport const n = 1;\n").unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let cancel = AtomicBool::new(false);
+    let options = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+        record_file_events: false,
+    };
+    sync_workspace(&mut store, &options, &cancel).unwrap();
+    assert_eq!(
+        store
+            .get_all_edges()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::CommentLink)
+            .count(),
+        1
+    );
+
+    std::fs::write(root.join("app.ts"), "export const n = 1;\n").unwrap();
+    index_one_file(&mut store, &root, root.join("app.ts").to_str().unwrap()).unwrap();
+    assert_eq!(store.list_code_document_uris().unwrap(), vec!["app.ts".to_string()]);
+    assert!(store.get_document_hash("app.ts").unwrap().is_some());
+    assert_eq!(
+        store
+            .get_all_edges()
+            .unwrap()
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::CommentLink)
+            .count(),
+        0
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".code_file_negative_cache]
+#[test]
+fn hard_rebuild_rescans_negative_cached_code_file() {
+    let root = scratch("neg-hard");
+    std::fs::write(root.join("demo.rq"), "alpha {\n    first\n}\n").unwrap();
+    std::fs::write(root.join("plain.ts"), "export const n = 1;\n").unwrap();
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let cancel = AtomicBool::new(false);
+    let soft = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: false,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+        record_file_events: false,
+    };
+    sync_workspace(&mut store, &soft, &cancel).unwrap();
+    let hard = SyncOptions {
+        workspace_root: root.clone(),
+        hard_rebuild: true,
+        path_globs: Vec::new(),
+        include_files: Vec::new(),
+        record_file_events: false,
+    };
+    let rebuilt = sync_workspace(&mut store, &hard, &cancel).unwrap();
+    assert_eq!(rebuilt.progress.skipped_mtime, 0);
+    assert!(rebuilt.progress.indexed >= 2, "indexed={}", rebuilt.progress.indexed);
+    assert_eq!(store.list_code_document_uris().unwrap(), vec!["plain.ts".to_string()]);
     std::fs::remove_dir_all(&root).ok();
 }
 
@@ -212,6 +350,7 @@ fn skips_binary_comment_files_unless_rqignore_negation() {
         hard_rebuild: false,
         path_globs: Vec::new(),
         include_files: Vec::new(),
+        record_file_events: false,
     };
     sync_workspace(&mut store, &options, &cancel).unwrap();
     assert!(store.list_code_document_uris().unwrap().is_empty());

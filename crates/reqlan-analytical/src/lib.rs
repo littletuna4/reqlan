@@ -10,7 +10,7 @@ mod diff;
 mod types;
 mod workspace_index;
 
-pub use api::{AnalysisError, AnalysisRuntime};
+pub use api::{AnalysisError, AnalysisRuntime, CheckIndexMode, CheckReport};
 pub use click::{check_name_ambiguity, click_memory_path, ClickOptions};
 pub use diff::{
     diff_ideas, DiffChange, DiffReferences, DiffResult, DiffRow, DiffText, DiffVerbosity,

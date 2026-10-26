@@ -92,6 +92,10 @@ scan_limits {
 soft_sync {
     Soft full sync (`syncWorkspace` / Refresh) indexes the path list from [cache_reuse.single_sync_walk].
     It skips files whose FS mtime matches [ideas_schema.documents_table].`mtime_ms`, and upserts changed files only.
+    Code files without comment refs keep a documents row so they skip on later passes
+    ([cache_reuse.code_file_negative_cache]).
+    When many files need a write, prefer [cache_reuse.batched_document_upsert] over one transaction per file.
+    One in-process idea catalog for the pass ([cache_reuse.sync_pass_idea_catalog]).
     Progress and cancel follow [nonblocking_index].
     Prefer a single walk ([cache_reuse.single_sync_walk]).
     Triggers: [indexing_trigger_open], [indexing_trigger_manual] (Refresh).

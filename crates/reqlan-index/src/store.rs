@@ -2,7 +2,7 @@
 //! rq:["../../../reqlan rq/indexer/indexer.rq".index]
 //! rq:["../../../reqlan rq/indexer/indexer.rq".indexer_rust]
 
-use crate::queries;
+use crate::queries::{self, DocumentUpsert};
 use crate::schema::{version_migrations, BASE_MIGRATIONS, SCHEMA_VERSION};
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{
@@ -151,6 +151,14 @@ impl IndexStore {
         mtime_ms: Option<f64>,
     ) -> Result<(), StoreError> {
         queries::upsert_document(&self.conn, file_uri, content_hash, ideas, edges, mtime_ms)?;
+        Ok(())
+    }
+
+    /// Upsert many documents in one SQLite transaction.
+    /// On error, roll back the whole batch.
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".batched_document_upsert]
+    pub fn upsert_documents(&mut self, documents: &[DocumentUpsert<'_>]) -> Result<(), StoreError> {
+        queries::upsert_documents(&self.conn, documents)?;
         Ok(())
     }
 
@@ -357,17 +365,36 @@ impl IndexStore {
         document: IndexedDocument,
         mtime_ms: Option<f64>,
     ) -> Result<(), StoreError> {
-        let mut ideas = document.ideas;
-        for idea in &mut ideas {
-            idea.content_hash = document.content_hash.clone();
+        self.persist_extracted_batch([(document, mtime_ms)])
+    }
+
+    /// Persist many extracted documents in one SQLite transaction.
+    /// Soft sync can call this after extract; on error, nothing in the batch is committed.
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".batched_document_upsert]
+    pub fn persist_extracted_batch(
+        &mut self,
+        documents: impl IntoIterator<Item = (IndexedDocument, Option<f64>)>,
+    ) -> Result<(), StoreError> {
+        let mut prepared: Vec<(IndexedDocument, Option<f64>)> = documents.into_iter().collect();
+        if prepared.is_empty() {
+            return Ok(());
         }
-        self.upsert_document(
-            &document.file_uri,
-            &document.content_hash,
-            &ideas,
-            &document.edges,
-            mtime_ms,
-        )
+        for (document, _) in &mut prepared {
+            for idea in &mut document.ideas {
+                idea.content_hash = document.content_hash.clone();
+            }
+        }
+        let upserts: Vec<DocumentUpsert<'_>> = prepared
+            .iter()
+            .map(|(document, mtime_ms)| DocumentUpsert {
+                file_uri: &document.file_uri,
+                content_hash: &document.content_hash,
+                ideas: &document.ideas,
+                edges: &document.edges,
+                mtime_ms: *mtime_ms,
+            })
+            .collect();
+        self.upsert_documents(&upserts)
     }
 
     pub fn sql_query(&self, sql: &str, params: &[JsonValue]) -> Result<Vec<JsonValue>, StoreError> {

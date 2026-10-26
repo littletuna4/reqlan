@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import type {
     IdeaAttributeMap,
+    IdeaRecord,
     IdeaSummary
 } from '../core/types.js';
 import { parseAttributes } from '../core/types.js';
@@ -162,8 +163,7 @@ async function buildIdeaRecords(
     store: SqliteIndexStore,
     ideas: IdeaSummary[]
 ): Promise<ExportIdeaRecord[]> {
-    const rawIdeas = await store.getAllIdeasRaw();
-    const rawById = new Map(rawIdeas.map(idea => [idea.id, idea]));
+    const rawById = await loadRawIdeasForExport(store, ideas);
     const records = await Promise.all(ideas.map(async idea => {
         const references = await buildReferenceGroups(store, idea.id);
         const ancestors = await store.buildAncestorChainResult(idea.id);
@@ -203,6 +203,23 @@ async function buildReferenceGroups(
 
 function loadAttributes(attributesJson: string | undefined): IdeaAttributeMap {
     return attributesJson ? parseAttributes(attributesJson) : {};
+}
+
+/** Load raw idea rows for export scope by file, not the whole catalog at once. */
+async function loadRawIdeasForExport(
+    store: SqliteIndexStore,
+    ideas: IdeaSummary[]
+): Promise<Map<string, IdeaRecord>> {
+    const rawById = new Map<string, IdeaRecord>();
+    const needed = new Set(ideas.map(idea => idea.id));
+    for (const fileUri of new Set(ideas.map(idea => idea.fileUri))) {
+        for (const raw of await store.listIdeasRawInFile(fileUri)) {
+            if (needed.has(raw.id)) {
+                rawById.set(raw.id, raw);
+            }
+        }
+    }
+    return rawById;
 }
 
 function buildFileRecords(

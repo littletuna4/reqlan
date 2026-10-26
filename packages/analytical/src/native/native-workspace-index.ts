@@ -100,7 +100,12 @@ export interface NativeWorkspaceIndexHandle extends NativeQuerySurface {
     ensureReady(): NativeSyncResult;
     syncWorkspace(hardRebuild: boolean): NativeSyncResult;
     cancelSync(): void;
+    /** One idea catalog for the soft-sync loop; pair with endIndexPass. */
+    beginIndexPass(): void;
+    endIndexPass(): void;
     indexFile(filePathOrUri: string): NativeIndexFileResult;
+    /** Batch index with one shared catalog (no directory walk). */
+    indexFiles(filePaths: string[]): NativeSyncResult;
     deleteDocument(fileUri: string): void;
     shutdown?: () => void;
     clearIdeas(): void;
@@ -182,12 +187,24 @@ export class NativeWorkspaceIndex {
         this.handle.cancelSync();
     }
 
+    beginIndexPass(): void {
+        this.handle.beginIndexPass();
+    }
+
+    endIndexPass(): void {
+        this.handle.endIndexPass();
+    }
+
     indexFile(filePathOrUri: string): NativeIndexFileResult {
         const result = this.handle.indexFile(filePathOrUri);
         return {
             fileUri: result.fileUri,
             diagnostics: result.diagnostics ?? []
         };
+    }
+
+    indexFiles(filePaths: string[]): NativeSyncResult {
+        return this.handle.indexFiles(filePaths);
     }
 
     close(): void {

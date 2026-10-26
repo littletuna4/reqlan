@@ -248,6 +248,7 @@ fn qualified_reference_to_an_import_alias_is_not_a_missing_idea() {
             hard_rebuild: true,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )

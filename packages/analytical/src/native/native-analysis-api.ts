@@ -31,6 +31,17 @@ import type {
 export interface AnalysisRuntimeOptions {
     workspaceRoot: string;
     storagePath?: string;
+    /**
+     * Skip the on-disk ideas-index SQLite (`<base>/.reqlan/ideas-index.sqlite`).
+     * Index from source into memory for this process only.
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+     */
+    noCache?: boolean;
+    /**
+     * Record per-file sync actions during the initial ensureReady pass (CLI `-vv` / `-vvv`).
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_verbose]
+     */
+    recordFileEvents?: boolean;
 }
 
 export interface RequirementMatch {
@@ -101,6 +112,40 @@ export interface CheckOptions {
     skipTargets?: string[];
     /** Omit file-reference issues whose missing target is gitignored. */
     skipGitignoredTargets?: boolean;
+    /**
+     * Record per-file sync actions (`files` on the report).
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_verbose]
+     */
+    recordFileEvents?: boolean;
+}
+
+/** Sync totals from the check index pass. */
+export interface CheckSyncProgress {
+    processed: number;
+    total: number;
+    skippedMtime: number;
+    indexed: number;
+    errors: number;
+    cancelled: boolean;
+}
+
+export type CheckSyncFileAction = 'indexed' | 'skipped_mtime' | 'error' | 'skipped';
+
+export interface CheckSyncFileEvent {
+    file: string;
+    action: CheckSyncFileAction;
+    detail?: string | null;
+}
+
+/**
+ * Check issues plus sync diagnostics for CLI `-v` / `-vv` / `-vvv`.
+ * rq:["../../../../reqlan rq/core_analysis/check.rq".check_verbose]
+ */
+export interface CheckReport {
+    issues: NativeBrokenReference[];
+    indexMode: 'disk' | 'memory';
+    sync: CheckSyncProgress;
+    files: CheckSyncFileEvent[];
 }
 
 export type ClickResult = NativeClickResult;
@@ -115,10 +160,16 @@ export interface InteractionDescriptor {
 export class NativeAnalysisApi {
     private readonly native: NativeAnalysisRuntimeHandle;
     private closed = false;
+    private readonly recordFileEventsOnReady: boolean;
 
     constructor(options: AnalysisRuntimeOptions) {
         const engine = loadNativeEngine();
-        this.native = engine.NativeAnalysisRuntime.open(options.workspaceRoot, options.storagePath);
+        this.recordFileEventsOnReady = options.recordFileEvents === true;
+        this.native = engine.NativeAnalysisRuntime.open(
+            options.workspaceRoot,
+            options.storagePath,
+            options.noCache === true
+        );
     }
 
     /**
@@ -136,8 +187,8 @@ export class NativeAnalysisApi {
         }
     }
 
-    async ensureReady(): Promise<void> {
-        this.native.ensureReady();
+    async ensureReady(recordFileEvents?: boolean): Promise<void> {
+        this.native.ensureReady(recordFileEvents ?? this.recordFileEventsOnReady);
     }
 
     async searchRequirements(
@@ -279,6 +330,15 @@ export class NativeAnalysisApi {
      * rq:["../../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
      */
     async check(options?: CheckOptions): Promise<NativeBrokenReference[]> {
+        const report = await this.checkReport(options);
+        return report.issues;
+    }
+
+    /**
+     * Check with sync diagnostics for CLI verbosity.
+     * rq:["../../../../reqlan rq/core_analysis/check.rq".check_verbose]
+     */
+    async checkReport(options?: CheckOptions): Promise<CheckReport> {
         return this.native.checkReferences(
             options?.pathGlobs,
             options?.paths,
@@ -286,8 +346,9 @@ export class NativeAnalysisApi {
             options?.wildcardOne,
             options?.skipTargets,
             options?.skipGitignoredTargets,
-            options?.unusedImports
-        ) as NativeBrokenReference[];
+            options?.unusedImports,
+            options?.recordFileEvents === true
+        ) as CheckReport;
     }
 
     async exportHtml(

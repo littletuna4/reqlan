@@ -5,6 +5,7 @@
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
 //! rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+//! rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
 
 use reqlan_analytical::AnalysisRuntime;
 use std::path::PathBuf;
@@ -161,5 +162,25 @@ fn analysis_api_check_honours_multiple_globs_and_extra_paths() {
         None,
     );
     assert!(missing.is_err(), "{missing:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn analysis_api_check_no_cache_skips_ideas_index_sqlite() {
+    // rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+    let root = scratch("api-no-cache");
+    std::fs::create_dir_all(root.join(".reqlan")).unwrap();
+    // A directory at the ideas-index path makes Connection::open fail if attempted.
+    std::fs::create_dir_all(root.join(".reqlan").join("ideas-index.sqlite")).unwrap();
+    std::fs::write(root.join("host.rq"), "host {\n    [missing_idea]\n}\n").unwrap();
+
+    let mut runtime = AnalysisRuntime::open_uncached(&root, None).unwrap();
+    let rows =
+        runtime.check(&[], &[], Default::default(), Default::default(), &[], false, None).unwrap();
+    assert!(rows.iter().any(|row| row.label == "missing_idea"), "{rows:?}");
+    assert!(
+        root.join(".reqlan").join("ideas-index.sqlite").is_dir(),
+        "ideas-index.sqlite must stay a directory (never replaced by a SQLite file)"
+    );
     std::fs::remove_dir_all(&root).ok();
 }

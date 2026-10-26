@@ -1099,6 +1099,17 @@ pub fn remove_documents(conn: &Connection, file_uris: &[String]) -> Result<(), S
     Ok(())
 }
 
+/// One document's ideas + edges for [`upsert_documents`].
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".batched_document_upsert]
+#[derive(Debug, Clone, Copy)]
+pub struct DocumentUpsert<'a> {
+    pub file_uri: &'a str,
+    pub content_hash: &'a str,
+    pub ideas: &'a [IdeaRecord],
+    pub edges: &'a [EdgeRecord],
+    pub mtime_ms: Option<f64>,
+}
+
 /// Replace a document's ideas + edges, preserving analyser-populated git columns.
 /// Mirrors the historic TS `upsertDocument` transaction.
 pub fn upsert_document(
@@ -1109,10 +1120,46 @@ pub fn upsert_document(
     edges: &[EdgeRecord],
     mtime_ms: Option<f64>,
 ) -> Result<(), SqlBridgeError> {
-    use std::collections::HashMap;
+    upsert_documents(conn, &[DocumentUpsert { file_uri, content_hash, ideas, edges, mtime_ms }])
+}
+
+/// Replace many documents' ideas + edges in one BEGIN/COMMIT.
+/// On error, roll back the whole batch (no prefix commit). Same atomicity as [`remove_documents`].
+/// rq:["../../../reqlan rq/indexer/cache-reuse.rq".batched_document_upsert]
+pub fn upsert_documents(
+    conn: &Connection,
+    documents: &[DocumentUpsert<'_>],
+) -> Result<(), SqlBridgeError> {
+    if documents.is_empty() {
+        return Ok(());
+    }
     let tx = conn.unchecked_transaction()?;
+    for document in documents {
+        upsert_document_in_tx(
+            &tx,
+            document.file_uri,
+            document.content_hash,
+            document.ideas,
+            document.edges,
+            document.mtime_ms,
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Body of a document upsert. Caller must already hold an open transaction.
+fn upsert_document_in_tx(
+    conn: &Connection,
+    file_uri: &str,
+    content_hash: &str,
+    ideas: &[IdeaRecord],
+    edges: &[EdgeRecord],
+    mtime_ms: Option<f64>,
+) -> Result<(), SqlBridgeError> {
+    use std::collections::HashMap;
     let existing: HashMap<String, (Option<String>, Option<String>, Option<i64>)> = {
-        let mut stmt = tx.prepare(
+        let mut stmt = conn.prepare(
             "SELECT id, git_created_at, git_modified_at, git_change_count FROM ideas WHERE file_uri = ?1",
         )?;
         let rows = stmt.query_map([file_uri], |row| {
@@ -1132,19 +1179,19 @@ pub fn upsert_document(
     };
     // `comment_link` edges belong to the code file that holds the comment, so kept ideas
     // update in place; deleting a removed idea cascades to its comment links.
-    tx.execute(
+    conn.execute(
         "DELETE FROM edges WHERE kind != 'comment_link'
            AND source_id IN (SELECT id FROM ideas WHERE file_uri = ?1)",
         [file_uri],
     )?;
     {
-        let mut delete_idea = tx.prepare("DELETE FROM ideas WHERE id = ?1")?;
+        let mut delete_idea = conn.prepare("DELETE FROM ideas WHERE id = ?1")?;
         for id in existing.keys().filter(|id| !ideas.iter().any(|idea| &idea.id == *id)) {
             delete_idea.execute([id])?;
         }
     }
     {
-        let mut insert_idea = tx.prepare(
+        let mut insert_idea = conn.prepare(
             "INSERT INTO ideas (
                 id, name, kind, file_uri, line_start, line_end, summary,
                 attributes_json, content_hash, git_created_at, git_modified_at, git_change_count
@@ -1176,7 +1223,7 @@ pub fn upsert_document(
         }
     }
     {
-        let mut insert_edge = tx.prepare(
+        let mut insert_edge = conn.prepare(
             "INSERT OR IGNORE INTO edges (
                 id, source_id, target_id, target_file, kind, label, source_line, snippet, is_resolved
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
@@ -1195,13 +1242,12 @@ pub fn upsert_document(
             ])?;
         }
     }
-    tx.execute(
+    conn.execute(
         "INSERT INTO documents(file_uri, content_hash, indexed_at, mtime_ms)
          VALUES (?1, ?2, datetime('now'), ?3)
          ON CONFLICT(file_uri) DO UPDATE SET content_hash = excluded.content_hash, indexed_at = excluded.indexed_at, mtime_ms = excluded.mtime_ms",
         params![file_uri, content_hash, mtime_ms],
     )?;
-    tx.commit()?;
     Ok(())
 }
 

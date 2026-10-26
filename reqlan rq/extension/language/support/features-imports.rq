@@ -37,7 +37,7 @@ from_import_syntax {
 import_error {
     "Could not resolve reference" errors offer Quick Fix code actions (lightbulb and editor right-click Quick Fix).
     Fixes:
-        - Add import from a matching idea found in loaded documents or the name catalog pushed from the index
+        - Add import from a matching idea in an open document or the ideas index. The fix reads the ideas index for that name. It does not use a pushed full name catalog.
         - Rewrite the reference to an anonymous qualified form `["path".name]`
         - Search the index for matching ideas, ideasets, or files (same `reqlan.searchReference` path as [code_actions] / ["../../host/features-commands.rq".search_code_actions]), then insert an import
         - Create the idea in a new .rq file and import it
@@ -49,6 +49,7 @@ import_error {
     @implementation (
         ["../../../../packages/language/src/reqlan-code-action-provider.ts"]
         ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../packages/extension/src/extension/register-import-error-commands.ts"]
     )
     @tests (
@@ -60,7 +61,7 @@ import_error {
         ["../../../../packages/language/test/import-edits.test.ts:inserts at the top when the file has no imports"]
         ["../../../../packages/language/test/import-edits.test.ts:appends to an existing same-path from-import"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_add_import_and_rewrite_when_a_matching_idea_exists_elsewhere"]
-        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:uses_name_catalog_matches_when_documents_are_not_loaded"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:uses_ideas_index_matches_when_documents_are_not_loaded"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:search_and_create_actions_invoke_extension_commands"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_to_an_existing_from_import_for_the_same_path"]
         ["../../../../crates/reqlan-lsp/tests/code_actions.rs:appends_after_aliased_specifier_on_existing_from_import"]

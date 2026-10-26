@@ -43,7 +43,7 @@ fn extract_host(
     extract_indexed_document(
         "host.rq",
         source,
-        &ExtractOptions { idea_candidates: candidates, ..Default::default() },
+        &ExtractOptions { idea_candidates: &candidates, ..Default::default() },
     )
 }
 
@@ -85,6 +85,7 @@ fn sync_root(root: &Path) -> IndexStore {
             hard_rebuild: false,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )

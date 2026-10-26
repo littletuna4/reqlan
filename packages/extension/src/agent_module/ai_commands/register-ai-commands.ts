@@ -423,14 +423,34 @@ async function pickIdeaset(
   preferred: IdeaSummary[] = [],
 ): Promise<IdeaSummary | undefined> {
   await ensureIndex(submodule);
-  const all = (await submodule.index.indexStore.listAllIdeas()).filter(
-    (idea) => idea.kind === "ideaset",
-  );
-  const preferredIds = new Set(preferred.map((idea) => idea.id));
-  const ideasets = [
-    ...preferred,
-    ...all.filter((idea) => !preferredIds.has(idea.id)),
-  ];
+  if (preferred.length > 0) {
+    return pickFromIdeas(preferred, "Select an ideaset to add to chat");
+  }
+
+  const query = await vscode.window.showInputBox({
+    prompt: "Filter ideasets (optional)",
+    placeHolder: "Select an ideaset to add to chat",
+  });
+  const needle = query?.trim() ?? "";
+  const page = submodule.index.fuzzySearch(needle, {
+    limit: 50,
+    requireQuery: false,
+  });
+  const ideasets = page.hits
+    .filter((hit) => hit.kind === "ideaset")
+    .map(
+      (hit): IdeaSummary => ({
+        id: hit.id,
+        name: hit.name,
+        kind: "ideaset",
+        fileUri: hit.fileUri,
+        lineStart: hit.lineStart,
+        summary: hit.summary,
+        statusKey: "",
+        tags: [],
+        tagsKeys: [],
+      }),
+    );
   if (ideasets.length === 0) {
     void vscode.window.showInformationMessage(
       "No ideasets found in the workspace.",
@@ -438,28 +458,7 @@ async function pickIdeaset(
     return undefined;
   }
 
-  if (preferred.length > 0) {
-    return pickFromIdeas(ideasets, "Select an ideaset to add to chat");
-  }
-
-  const query = await vscode.window.showInputBox({
-    prompt: "Filter ideasets (optional)",
-    placeHolder: "Select an ideaset to add to chat",
-  });
-  const needle = query?.trim().toLowerCase() ?? "";
-  const filtered = needle
-    ? ideasets.filter(
-        (idea) =>
-          idea.name.toLowerCase().includes(needle) ||
-          idea.summary.toLowerCase().includes(needle) ||
-          vscode.workspace
-            .asRelativePath(idea.fileUri)
-            .toLowerCase()
-            .includes(needle),
-      )
-    : ideasets;
-
-  return pickFromIdeas(filtered, "Select an ideaset to add to chat");
+  return pickFromIdeas(ideasets, "Select an ideaset to add to chat");
 }
 
 async function pickRqFile(): Promise<

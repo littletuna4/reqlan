@@ -39,6 +39,7 @@ fn sync_root(root: &PathBuf) -> IndexStore {
             hard_rebuild: true,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )
@@ -797,6 +798,7 @@ fn sync_drops_stale_inline_code_file_refs_when_extract_version_changes() {
             hard_rebuild: false,
             path_globs: Vec::new(),
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )
@@ -1031,6 +1033,7 @@ fn check_two_globs_report_an_outside_target_and_skip_outside_directories() {
             hard_rebuild: true,
             path_globs: vec!["a/**".into(), "b/**".into()],
             include_files: Vec::new(),
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )
@@ -1080,6 +1083,7 @@ fn check_includes_an_explicit_file_outside_the_globs() {
             hard_rebuild: true,
             path_globs: vec!["a/**".into()],
             include_files: vec![root.join("c"), root.join("c").join("leaf.rq")],
+            record_file_events: false,
         },
         &AtomicBool::new(false),
     )

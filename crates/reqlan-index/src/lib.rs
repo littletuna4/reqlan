@@ -53,6 +53,7 @@ pub use path_resolve::{
     qualified_target_file_missing, resolve_existing_import_path, resolved_workspace_relative_path,
     rq_path_exists, same_indexed_path, RqConfig,
 };
+pub use queries::DocumentUpsert;
 pub use reqlan_parse::{file_from_idea_id, resolve_rq_path};
 pub use rq_ignore::{find_rq_ignore_error_target_lines, is_line_rq_ignored};
 pub use scan::{
@@ -62,7 +63,8 @@ pub use scan::{
 pub use sql_bridge::{SqlBridge, SqlBridgeError};
 pub use store::{IndexStore, StoreError};
 pub use sync::{
-    index_one_file, sync_workspace, IndexOneFileResult, SyncOptions, SyncProgress, SyncResult,
+    index_one_file, index_one_file_with_catalog, index_paths, load_idea_catalog, sync_workspace,
+    IndexOneFileResult, SyncFileAction, SyncFileEvent, SyncOptions, SyncProgress, SyncResult,
 };
 pub use text::{
     prefix_rejects, read_index_text, IndexText, MAX_INDEX_FILE_BYTES, TEXT_SNIFF_BYTES,

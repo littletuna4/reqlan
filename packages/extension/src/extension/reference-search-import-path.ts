@@ -3,8 +3,9 @@
  * rq:["../../../../reqlan rq/extension/host/features-commands.rq".search_code_actions]
  */
 import * as path from 'node:path';
-import { URI } from 'langium';
+import { pathToFileURL } from 'node:url';
 import { relativeRqImportPath } from '@reqlan/language';
+import * as vscode from 'vscode';
 
 /**
  * Index ideas store workspace-relative paths like `reqlan rq/site/site.rq`.
@@ -12,15 +13,15 @@ import { relativeRqImportPath } from '@reqlan/language';
  */
 export function absoluteFileUriFromIndex(indexFileUri: string, workspaceRootFsPath?: string): string {
     if (indexFileUri.includes('://')) {
-        return URI.parse(indexFileUri).toString();
+        return vscode.Uri.parse(indexFileUri).toString();
     }
     if (path.isAbsolute(indexFileUri)) {
-        return URI.file(indexFileUri).toString();
+        return pathToFileURL(indexFileUri).href;
     }
     if (workspaceRootFsPath) {
-        return URI.file(path.resolve(workspaceRootFsPath, indexFileUri)).toString();
+        return pathToFileURL(path.resolve(workspaceRootFsPath, indexFileUri)).href;
     }
-    return URI.file(path.resolve(indexFileUri)).toString();
+    return pathToFileURL(path.resolve(indexFileUri)).href;
 }
 
 export function relativeImportPathForIndexedFile(
@@ -29,8 +30,8 @@ export function relativeImportPathForIndexedFile(
     workspaceRootFsPath?: string
 ): string {
     return relativeRqImportPath(
-        URI.parse(documentUri),
-        URI.parse(absoluteFileUriFromIndex(indexFileUri, workspaceRootFsPath))
+        documentUri,
+        absoluteFileUriFromIndex(indexFileUri, workspaceRootFsPath)
     );
 }
 
@@ -39,7 +40,9 @@ export function isSameIndexedFile(
     indexFileUri: string,
     workspaceRootFsPath?: string
 ): boolean {
-    const left = URI.parse(documentUri).fsPath;
-    const right = URI.parse(absoluteFileUriFromIndex(indexFileUri, workspaceRootFsPath)).fsPath;
+    const left = vscode.Uri.parse(documentUri).fsPath;
+    const right = vscode.Uri.parse(
+        absoluteFileUriFromIndex(indexFileUri, workspaceRootFsPath)
+    ).fsPath;
     return path.normalize(left) === path.normalize(right);
 }

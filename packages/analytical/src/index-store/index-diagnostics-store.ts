@@ -17,6 +17,7 @@ export type IndexFileOutcome =
     | 'mtime_refresh'
     | 'hash_skip'
     | 'persisted'
+    | 'empty'
     | 'error';
 
 export interface IndexFileTimingRecord {

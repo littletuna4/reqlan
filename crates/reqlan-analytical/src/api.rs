@@ -12,7 +12,9 @@ use reqlan_export::{
     ExportHeaderLink, ExportRequest,
 };
 use reqlan_index::ignore::{application_memory_path, ideas_index_path};
-use reqlan_index::sync::{sync_workspace, to_indexed_uri, SyncOptions};
+use reqlan_index::sync::{
+    sync_workspace, to_indexed_uri, SyncFileEvent, SyncOptions, SyncProgress, SyncResult,
+};
 use reqlan_index::{
     check_references, is_deprecated, list_broken_references, parse_attributes, path_glob_matches,
     CheckReferencesOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
@@ -46,6 +48,39 @@ pub struct AnalysisRuntime {
     memory_path: PathBuf,
     store: IndexStore,
     ready: bool,
+    /// True when opened via [`AnalysisRuntime::open_uncached`].
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+    uncached: bool,
+    /// Last sync totals / file events for verbose check after `ensure_ready`.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+    last_sync: Option<SyncResult>,
+}
+
+/// Index open mode for verbose check output.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckIndexMode {
+    Disk,
+    Memory,
+}
+
+impl CheckIndexMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Disk => "disk",
+            Self::Memory => "memory",
+        }
+    }
+}
+
+/// Check issues plus the sync pass that prepared the index.
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+#[derive(Debug)]
+pub struct CheckReport {
+    pub issues: Vec<BrokenReferenceDto>,
+    pub index_mode: CheckIndexMode,
+    pub sync: SyncProgress,
+    pub file_events: Vec<SyncFileEvent>,
 }
 
 impl AnalysisRuntime {
@@ -53,45 +88,127 @@ impl AnalysisRuntime {
         workspace_root: impl Into<PathBuf>,
         storage_path: Option<&Path>,
     ) -> Result<Self, AnalysisError> {
+        Self::open_inner(workspace_root, storage_path, false)
+    }
+
+    /// Open with an in-memory ideas index.
+    /// Does not open, read, or write `<base>/.reqlan/ideas-index.sqlite`.
+    /// Use for `reqlan check --no-cache` (parse and check from source files only).
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+    pub fn open_uncached(
+        workspace_root: impl Into<PathBuf>,
+        storage_path: Option<&Path>,
+    ) -> Result<Self, AnalysisError> {
+        Self::open_inner(workspace_root, storage_path, true)
+    }
+
+    fn open_inner(
+        workspace_root: impl Into<PathBuf>,
+        storage_path: Option<&Path>,
+        no_cache: bool,
+    ) -> Result<Self, AnalysisError> {
         let workspace_root = workspace_root.into();
         let memory = application_memory_path(&workspace_root, storage_path);
-        let db_path = ideas_index_path(&memory);
-        let store = IndexStore::open(&db_path)?;
-        Ok(Self { workspace_root, memory_path: memory, store, ready: false })
+        let store = if no_cache {
+            IndexStore::open_in_memory()?
+        } else {
+            IndexStore::open(&ideas_index_path(&memory))?
+        };
+        Ok(Self {
+            workspace_root,
+            memory_path: memory,
+            store,
+            ready: false,
+            uncached: no_cache,
+            last_sync: None,
+        })
+    }
+
+    pub fn index_mode(&self) -> CheckIndexMode {
+        if self.uncached {
+            CheckIndexMode::Memory
+        } else {
+            CheckIndexMode::Disk
+        }
     }
 
     pub fn ensure_ready(&mut self) -> Result<(), AnalysisError> {
-        if self.ready {
-            return Ok(());
-        }
-        let cancel = AtomicBool::new(false);
-        sync_workspace(
-            &mut self.store,
-            &SyncOptions {
-                workspace_root: self.workspace_root.clone(),
-                hard_rebuild: false,
-                path_globs: Vec::new(),
-                include_files: Vec::new(),
-            },
-            &cancel,
-        )?;
-        self.ready = true;
+        self.ensure_ready_for_check(false)
+    }
+
+    /// Soft-sync the index; optionally record per-file events for verbose check.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+    pub fn ensure_ready_for_check(
+        &mut self,
+        record_file_events: bool,
+    ) -> Result<(), AnalysisError> {
+        self.ensure_ready_sync(record_file_events)?;
         Ok(())
     }
 
-    pub fn sync(&mut self, hard: bool) -> Result<(), AnalysisError> {
+    fn ensure_ready_sync(&mut self, record_file_events: bool) -> Result<SyncResult, AnalysisError> {
+        if self.ready {
+            if !record_file_events {
+                return Ok(self.last_sync_snapshot());
+            }
+            // Reuse a prior recording pass when present (open already recorded for -vv/-vvv).
+            if self.last_sync.as_ref().is_some_and(|sync| !sync.file_events.is_empty()) {
+                return Ok(self.last_sync_snapshot());
+            }
+            // Uncached: hard rebuild so verbose lines are the from-source pass, not a
+            // second soft sync that mtime-skips the process-local in-memory rows.
+            // rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+            // rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
+            return self.run_sync(self.uncached, true, Vec::new(), Vec::new());
+        }
+        self.run_sync(false, record_file_events, Vec::new(), Vec::new())
+    }
+
+    fn last_sync_snapshot(&self) -> SyncResult {
+        match &self.last_sync {
+            Some(result) => SyncResult {
+                progress: result.progress.clone(),
+                file_issues: result.file_issues.clone(),
+                file_events: result.file_events.clone(),
+            },
+            None => SyncResult {
+                progress: SyncProgress::default(),
+                file_issues: Vec::new(),
+                file_events: Vec::new(),
+            },
+        }
+    }
+
+    fn run_sync(
+        &mut self,
+        hard_rebuild: bool,
+        record_file_events: bool,
+        path_globs: Vec<String>,
+        include_files: Vec<PathBuf>,
+    ) -> Result<SyncResult, AnalysisError> {
         let cancel = AtomicBool::new(false);
-        sync_workspace(
+        let result = sync_workspace(
             &mut self.store,
             &SyncOptions {
                 workspace_root: self.workspace_root.clone(),
-                hard_rebuild: hard,
-                path_globs: Vec::new(),
-                include_files: Vec::new(),
+                hard_rebuild,
+                path_globs,
+                include_files,
+                record_file_events,
             },
             &cancel,
         )?;
+        self.last_sync = Some(SyncResult {
+            progress: result.progress.clone(),
+            file_issues: result.file_issues.clone(),
+            file_events: result.file_events.clone(),
+        });
         self.ready = true;
+        Ok(result)
+    }
+
+    pub fn sync(&mut self, hard: bool) -> Result<(), AnalysisError> {
+        self.run_sync(hard, false, Vec::new(), Vec::new())?;
         Ok(())
     }
 
@@ -404,22 +521,39 @@ impl AnalysisRuntime {
         skip_gitignored_targets: bool,
         unused_imports: Option<SparseWildcardHandling>,
     ) -> Result<Vec<BrokenReferenceDto>, AnalysisError> {
+        Ok(self
+            .check_report(
+                path_globs,
+                paths,
+                wildcard_zero,
+                wildcard_one,
+                skip_targets,
+                skip_gitignored_targets,
+                unused_imports,
+                false,
+            )?
+            .issues)
+    }
+
+    /// Same as [`AnalysisRuntime::check`], with sync totals and optional per-file events.
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+    pub fn check_report(
+        &mut self,
+        path_globs: &[&str],
+        paths: &[&str],
+        wildcard_zero: SparseWildcardHandling,
+        wildcard_one: SparseWildcardHandling,
+        skip_targets: &[&str],
+        skip_gitignored_targets: bool,
+        unused_imports: Option<SparseWildcardHandling>,
+        record_file_events: bool,
+    ) -> Result<CheckReport, AnalysisError> {
         let scan = prepare_check_scan(&self.workspace_root, path_globs, paths)?;
-        if scan.globs.is_empty() || self.ready {
-            self.ensure_ready()?;
+        let sync = if scan.globs.is_empty() || self.ready {
+            self.ensure_ready_sync(record_file_events)?
         } else {
-            let cancel = AtomicBool::new(false);
-            sync_workspace(
-                &mut self.store,
-                &SyncOptions {
-                    workspace_root: self.workspace_root.clone(),
-                    hard_rebuild: false,
-                    path_globs: scan.globs.clone(),
-                    include_files: scan.include_files,
-                },
-                &cancel,
-            )?;
-        }
+            self.run_sync(false, record_file_events, scan.globs.clone(), scan.include_files)?
+        };
         let glob_refs: Vec<&str> = scan.globs.iter().map(String::as_str).collect();
         let extra_refs: Vec<&str> = scan.extra_files.iter().map(String::as_str).collect();
         let rows = check_references(
@@ -435,7 +569,12 @@ impl AnalysisRuntime {
                 unused_imports,
             },
         )?;
-        Ok(rows.into_iter().map(to_broken_dto).collect())
+        Ok(CheckReport {
+            issues: rows.into_iter().map(to_broken_dto).collect(),
+            index_mode: self.index_mode(),
+            sync: sync.progress,
+            file_events: sync.file_events,
+        })
     }
 
     pub fn get_deprecation_impact(&mut self) -> Result<Vec<DeprecationImpact>, AnalysisError> {

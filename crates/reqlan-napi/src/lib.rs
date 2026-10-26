@@ -4,7 +4,7 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use reqlan_analytical::{
-    AnalysisRuntime, ExportRequestDto, FileIssueDraft, SearchRequirementsOptions,
+    AnalysisRuntime, CheckReport, ExportRequestDto, FileIssueDraft, SearchRequirementsOptions,
     SyncProgressState, WorkspaceIndexRuntime,
 };
 use reqlan_index::queries::{
@@ -12,7 +12,7 @@ use reqlan_index::queries::{
 };
 use reqlan_index::{
     scan_workspace as scan_workspace_paths, EdgeRecord, IdeaRecord, ScanLimits,
-    SparseWildcardHandling, SqlBridge,
+    SparseWildcardHandling, SqlBridge, SyncFileAction, SyncFileEvent, SyncProgress,
 };
 use reqlan_parse::{parse_document, Severity};
 use std::path::PathBuf;
@@ -61,12 +61,21 @@ pub struct NativeAnalysisRuntime {
 
 #[napi]
 impl NativeAnalysisRuntime {
+    /// When `no_cache` is true, use an in-memory ideas index and do not open
+    /// `<base>/.reqlan/ideas-index.sqlite` (CLI `check --no-cache`).
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_no_cache]
     #[napi(factory)]
-    pub fn open(workspace_root: String, storage_path: Option<String>) -> Result<Self> {
-        let runtime = AnalysisRuntime::open(
-            workspace_root,
-            storage_path.as_deref().map(std::path::Path::new),
-        )
+    pub fn open(
+        workspace_root: String,
+        storage_path: Option<String>,
+        no_cache: Option<bool>,
+    ) -> Result<Self> {
+        let storage = storage_path.as_deref().map(std::path::Path::new);
+        let runtime = if no_cache.unwrap_or(false) {
+            AnalysisRuntime::open_uncached(workspace_root, storage)
+        } else {
+            AnalysisRuntime::open(workspace_root, storage)
+        }
         .map_err(|error| Error::from_reason(error.to_string()))?;
         Ok(Self { inner: Mutex::new(Some(runtime)) })
     }
@@ -80,9 +89,12 @@ impl NativeAnalysisRuntime {
         Ok(())
     }
 
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
     #[napi]
-    pub fn ensure_ready(&self) -> Result<()> {
-        self.with_mut(|runtime| runtime.ensure_ready().map_err(map_err))
+    pub fn ensure_ready(&self, record_file_events: Option<bool>) -> Result<()> {
+        self.with_mut(|runtime| {
+            runtime.ensure_ready_for_check(record_file_events.unwrap_or(false)).map_err(map_err)
+        })
     }
 
     #[napi]
@@ -214,6 +226,7 @@ impl NativeAnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_wildcard_one]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
+    /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
     #[napi]
     pub fn check_references(
         &self,
@@ -224,6 +237,7 @@ impl NativeAnalysisRuntime {
         skip_targets: Option<Vec<String>>,
         skip_gitignored_targets: Option<bool>,
         unused_imports: Option<String>,
+        record_file_events: Option<bool>,
     ) -> Result<serde_json::Value> {
         let wildcard_zero = parse_sparse_wildcard_handling("wildcardZero", wildcard_zero)?;
         let wildcard_one = parse_sparse_wildcard_handling("wildcardOne", wildcard_one)?;
@@ -234,9 +248,9 @@ impl NativeAnalysisRuntime {
         let paths_owned = paths.unwrap_or_default();
         let glob_refs: Vec<&str> = globs_owned.iter().map(String::as_str).collect();
         let path_refs: Vec<&str> = paths_owned.iter().map(String::as_str).collect();
-        let rows = self.with_mut(|runtime| {
+        let report = self.with_mut(|runtime| {
             runtime
-                .check(
+                .check_report(
                     &glob_refs,
                     &path_refs,
                     wildcard_zero,
@@ -244,10 +258,11 @@ impl NativeAnalysisRuntime {
                     &skip_refs,
                     skip_gitignored_targets.unwrap_or(false),
                     Some(unused_imports),
+                    record_file_events.unwrap_or(false),
                 )
                 .map_err(map_err)
         })?;
-        serde_json::to_value(rows).map_err(|error| Error::from_reason(error.to_string()))
+        Ok(check_report_json(report))
     }
 
     /// rq:["../../../reqlan rq/cli/diff.rq".diff]
@@ -821,6 +836,21 @@ impl NativeWorkspaceIndex {
         })
     }
 
+    /// Start a soft-sync catalog session so each [`index_file`] reuses one idea list.
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
+    #[napi]
+    pub fn begin_index_pass(&self) -> Result<()> {
+        self.with_mut(|inner| inner.begin_index_pass().map_err(map_workspace_err))
+    }
+
+    #[napi]
+    pub fn end_index_pass(&self) -> Result<()> {
+        self.with_mut(|inner| {
+            inner.end_index_pass();
+            Ok(())
+        })
+    }
+
     #[napi]
     pub fn index_file(&self, file_path_or_uri: String) -> Result<serde_json::Value> {
         self.with_mut(|inner| {
@@ -829,6 +859,16 @@ impl NativeWorkspaceIndex {
                 "fileUri": result.file_uri,
                 "diagnostics": result.diagnostics,
             }))
+        })
+    }
+
+    /// Batch-index paths with one shared catalog (no directory walk).
+    /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".sync_pass_idea_catalog]
+    #[napi]
+    pub fn index_files(&self, file_paths: Vec<String>) -> Result<serde_json::Value> {
+        self.with_mut(|inner| {
+            let result = inner.index_files(&file_paths).map_err(map_workspace_err)?;
+            serde_json::to_value(result).map_err(|error| Error::from_reason(error.to_string()))
         })
     }
 
@@ -1658,6 +1698,41 @@ fn parse_sparse_wildcard_handling(
 
 fn map_err(error: reqlan_analytical::AnalysisError) -> Error {
     Error::from_reason(error.to_string())
+}
+
+/// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+fn check_report_json(report: CheckReport) -> serde_json::Value {
+    serde_json::json!({
+        "issues": report.issues,
+        "indexMode": report.index_mode.as_str(),
+        "sync": sync_progress_json(&report.sync),
+        "files": report.file_events.iter().map(sync_file_event_json).collect::<Vec<_>>(),
+    })
+}
+
+fn sync_progress_json(progress: &SyncProgress) -> serde_json::Value {
+    serde_json::json!({
+        "processed": progress.processed,
+        "total": progress.total,
+        "skippedMtime": progress.skipped_mtime,
+        "indexed": progress.indexed,
+        "errors": progress.errors,
+        "cancelled": progress.cancelled,
+    })
+}
+
+fn sync_file_event_json(event: &SyncFileEvent) -> serde_json::Value {
+    let action = match event.action {
+        SyncFileAction::Indexed => "indexed",
+        SyncFileAction::SkippedMtime => "skipped_mtime",
+        SyncFileAction::Error => "error",
+        SyncFileAction::Skipped => "skipped",
+    };
+    serde_json::json!({
+        "file": event.file_uri,
+        "action": action,
+        "detail": event.detail,
+    })
 }
 
 fn map_workspace_err(error: reqlan_analytical::WorkspaceIndexError) -> Error {

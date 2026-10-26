@@ -12,7 +12,6 @@ import { resolveLanguageServerRuntime } from './language-server-runtime.js';
 import { registerFolderReferenceCommand } from './register-folder-reference-handling.js';
 import { registerWildcardReferenceCommand } from './register-wildcard-reference-handling.js';
 import { getActivityBarWebviewProvider } from '../activity_bar_module/activity-bar-webview-provider.js';
-import { registerCommentReferenceDocumentLinks } from './register-comment-reference-links.js';
 import { withEditorNavigationMiddleware } from './register-definition-navigation.js';
 import { registerIgnoreErrorCodeActions } from './register-ignore-error-code-actions.js';
 import { registerReferenceInlayHintsToggle } from './register-reference-inlay-hints.js';
@@ -232,6 +231,11 @@ async function startLanguageClient(
 
     registerFolderReferenceCommand(context);
     if (launch.kind !== 'rust') {
+        // Dynamic import keeps Langium out of the rust-host activation heap.
+        // rq:["../../../../reqlan rq/extension/host/startup-performance.rq".lazy_runtime_dependencies]
+        const { registerCommentReferenceDocumentLinks } = await import(
+            './register-comment-reference-links.js'
+        );
         registerCommentReferenceDocumentLinks(context);
     }
     registerIgnoreErrorCodeActions(context);

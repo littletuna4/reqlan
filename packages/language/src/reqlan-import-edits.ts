@@ -4,8 +4,8 @@
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_error]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_auto_file_import]
  */
-import type { LangiumDocument, URI } from 'langium';
-import { UriUtils } from 'langium';
+import type { LangiumDocument } from 'langium';
+import { URI, UriUtils } from 'langium';
 import type { Position, TextEdit } from 'vscode-languageserver';
 import {
     isFromImport,
@@ -16,9 +16,11 @@ import {
 } from './generated/ast.js';
 import { unquoteReqlanString } from './reqlan-references.js';
 
-export function relativeRqImportPath(fromUri: URI, toUri: URI): string {
-    const sourceDir = UriUtils.dirname(fromUri);
-    let relativePath = UriUtils.relative(sourceDir, toUri);
+export function relativeRqImportPath(fromUri: string | URI, toUri: string | URI): string {
+    const from = typeof fromUri === 'string' ? URI.parse(fromUri) : fromUri;
+    const to = typeof toUri === 'string' ? URI.parse(toUri) : toUri;
+    const sourceDir = UriUtils.dirname(from);
+    let relativePath = UriUtils.relative(sourceDir, to);
     if (!relativePath.startsWith('./') && !relativePath.startsWith('../')) {
         relativePath = `./${relativePath}`;
     }
