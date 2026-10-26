@@ -1,6 +1,6 @@
 {
     "name": "@reqlan/analytical-win32-arm64-msvc",
-    "version": "1.20.0",
+    "version": "1.21.0",
     "description": "Native reqlan analytical engine for win32-arm64-msvc",
     "license": "AGPL-3.0-only",
     "repository": {

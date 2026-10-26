@@ -1,5 +1,18 @@
 # @reqlan/cli
 
+## 0.16.0
+
+### Minor Changes
+
+- 452fe8b: update to rq error specifity; remove go back keybinding overrides; oom mitigations
+- 7628288: verbose logging; check --no-cache flag; other minor
+
+### Patch Changes
+
+- Updated dependencies [452fe8b]
+- Updated dependencies [7628288]
+  - @reqlan/analytical@1.21.0
+
 ## 0.15.4
 
 ### Patch Changes

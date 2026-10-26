@@ -1,7 +1,7 @@
 {
   "name": "reqlan-extension",
   "description": "Language support for the reqlan language",
-  "version": "1.19.4",
+  "version": "1.20.0",
   "private": true,
   "displayName": "reqlan language support",
   "icon": "media/logo.png",
@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/littletuna4/reqlan.git"
   },
- "engines": {
+  "engines": {
     "vscode": "^1.91.0"
   },
   "categories": [

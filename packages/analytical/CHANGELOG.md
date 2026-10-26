@@ -1,5 +1,12 @@
 # @reqlan/analytical
 
+## 1.21.0
+
+### Minor Changes
+
+- 452fe8b: update to rq error specifity; remove go back keybinding overrides; oom mitigations
+- 7628288: verbose logging; check --no-cache flag; other minor
+
 ## 1.20.0
 
 ### Minor Changes
