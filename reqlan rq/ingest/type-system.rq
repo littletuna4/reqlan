@@ -16,7 +16,7 @@ typed-reqlan {
 }
 
 syntax {
-
+    
     @todo triage and implement
 }
 
