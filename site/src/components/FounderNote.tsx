@@ -28,6 +28,9 @@ export function FounderNote() {
         />
 
         <div className={styles.body}>
+          <span className={styles.mark} aria-hidden="true">
+            &ldquo;
+          </span>
           <blockquote className={styles.quote}>
             {founderNote.quote.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
@@ -39,7 +42,7 @@ export function FounderNote() {
             <span className={styles.role}>{founderNote.role}</span>
           </figcaption>
 
-          <ul className={styles.links}>
+          <ul className={styles.links} aria-label="Get in touch">
             {founderNote.links.map((link) => {
               const isExternal = link.href.startsWith("http");
               return (
