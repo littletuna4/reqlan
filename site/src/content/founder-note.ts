@@ -12,8 +12,7 @@ export const founderNote = {
     alt: "Tony Cerqui, smiling, with shoulder-length curly brown hair",
   },
   quote: [
-    "Hi, I'm Tony. Code got cheap to write and hard to hold in your head, so I started writing down the ideas that actually matter - named, and linked to the code and tests that prove them. reqlan grew out of that, and it's built using itself.",
-    "Honest status: it's mostly one person and a fair few AI agents, some of it is still pretty vibe coded, and the roadmap above is the real one. If something breaks or doesn't make sense, I'd genuinely like to hear about it.",
+    "Hi, I'm Tony. These days code's easy to write but hard to keep in your head, especially with AI agents doing half the typing. reqlan started as my way of writing down the ideas that actually matter and tying them to the code that proves them. It's mostly just me (plus a few agents), and it's built using itself. In a sea of agents, I'm a real, friendly human on the other end, so if it helps you, breaks on you, or you just need a hand, let me know.",
   ],
   name: "Tony Cerqui",
   role: "Process engineer & software developer · Brisbane, Australia",

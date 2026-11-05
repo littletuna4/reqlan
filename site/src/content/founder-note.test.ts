@@ -11,7 +11,9 @@ describe("founder note", () => {
   });
 
   it("keeps the note short and signed", () => {
-    assert.ok(founderNote.quote.length <= 2);
+    assert.equal(founderNote.quote.length, 1);
+    assert.match(founderNote.quote[0], /real, friendly human/);
+    assert.doesNotMatch(founderNote.quote.join(" "), /Honest status/);
     assert.equal(founderNote.name, "Tony Cerqui");
   });
 

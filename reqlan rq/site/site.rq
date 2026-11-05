@@ -447,12 +447,12 @@ roadmap_section {
 
 founder_note_section {
     Landing `#founder-note` after [roadmap_section] and before links.
-    A short, signed first-person note from the maker with a real headshot - so visitors know a person is behind reqlan and how to reach him.
+    A short, signed, single-paragraph first-person note from the maker with a real headshot - so visitors know a real, friendly human is behind reqlan and how to reach him.
     Honest over polished: no invented user counts, testimonials, credentials or dates. Only claims the maker can stand behind.
-    Photo is a real headshot (never generated), served small from ["../../site/public/people/tony-cerqui.webp"] with descriptive alt text.
+    Photo is a real headshot (never generated), served small from ["../../site/public/people/tony-cerqui.webp"] with descriptive alt text, cropped so head and shoulders sit centred in the circle.
     Offers a way to get in touch: GitHub issues, email (phonebook) and the maker's site.
     Copy lives in ["../../site/src/content/founder-note.ts"] per [copy]. Sidebar child under Home per [sidebar_nav].
-    Stacks vertically on narrow screens. Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
+    Photo is vertically centred beside the note on wide screens; stacks vertically with the photo centred on narrow screens. Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
     @status done
     @implementation (
         ["../../site/src/components/FounderNote.tsx"]

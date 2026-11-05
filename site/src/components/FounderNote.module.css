@@ -1,6 +1,6 @@
 .card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1.5rem;
   max-width: 42rem;
   margin: 0;
@@ -20,6 +20,7 @@
   height: 6rem;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center;
   background: color-mix(in srgb, var(--color-rust) 22%, var(--color-surface-raised));
   border: 2px solid color-mix(in srgb, var(--color-aqua) 35%, var(--color-border));
 }
@@ -93,12 +94,17 @@
 @media (max-width: 560px) {
   .card {
     flex-direction: column;
+    align-items: center;
     gap: 1rem;
     padding: 1.1rem 1.15rem;
   }
 
   .photo {
-    width: 5rem;
-    height: 5rem;
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .body {
+    align-self: stretch;
   }
 }
