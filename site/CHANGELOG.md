@@ -1,5 +1,11 @@
 # site
 
+## 0.24.0
+
+### Minor Changes
+
+- 1d188f6: Add founder note with headshot to the landing page
+
 ## 0.23.0
 
 ### Minor Changes
