@@ -78,7 +78,7 @@ To try it on a larger sample, open the [`example_rq_project`](./example_rq_proje
 | Ideaset | A named list of ideas that acts as a namespace. Each file is also an implicit ideaset. | `my_ideaset ( myidea, "my idea2" )` |
 | Reference | A link to an idea, attribute, ideaset, or file. | `[[myidea]]`, `[[myidea\|label]]`, `["./apythonfile.py"]` |
 | Import | Bring ideas from another `.rq` file into scope. | `from "main.rq" import myidea`, `import "./exampleimport.rq"`, `import "exampleimport2.rq" as alias` |
-| Code comment link | A comment in any source file that points to an idea. | `# rq:["./file.rq".idea_name]` |
+| Code comment link | A comment in any source file that points to an idea. | `# rq:["./testdata/golden-corpus/language/syntax.rq".idea_name]` |
 | Comments | Meta comments inside `.rq` files. | `// line` and `/* block */` |
 
 More examples:

@@ -86,6 +86,7 @@ components {
         - syntax per [syntax_section]
         - example per [example_section]
         - roadmap per [roadmap_section]
+        - founder note per [founder_note_section]
     - CTA:
         - install the extension and the CLI
         per [cta_icon]
@@ -429,7 +430,7 @@ quickstart_page {
 }
 
 roadmap_section {
-    Landing page section `#roadmap` after example and before links.
+    Landing page section `#roadmap` after example and before [founder_note_section].
     Compact vertical scaled-center carousel (snap + distance-based scale/opacity peeks).
     Flat Now / Next / Later items — one focused at a time; neighbours peek smaller.
     Copy lives in ["../../site/src/content/roadmap.ts"] (per [copy]); nav and sticky page graph include the section.
@@ -442,6 +443,27 @@ roadmap_section {
         ["../../site/src/components/NavGraph.tsx"]
     )
     @todo refresh items when product priorities shift
+}
+
+founder_note_section {
+    Landing `#founder-note` after [roadmap_section] and before links.
+    A short, signed, single-paragraph first-person note from the maker with a real headshot - so visitors know a real, friendly human is behind reqlan and how to reach him.
+    Honest over polished: no invented user counts, testimonials, credentials or dates. Only claims the maker can stand behind.
+    Photo is a real headshot (never generated), served small from ["../../site/public/people/tony-cerqui.webp"] with descriptive alt text, cropped so head and shoulders sit centred in the circle.
+    Offers a way to get in touch: GitHub issues, email (phonebook) and the maker's site.
+    Copy lives in ["../../site/src/content/founder-note.ts"] per [copy]. Sidebar child under Home per [sidebar_nav].
+    Photo is vertically centred beside the note on wide screens; stacks vertically with the photo centred on narrow screens. Styling per [styling_architecture]. Must stay compatible with [simple_lightweight_and_static].
+    @status done
+    @implementation (
+        ["../../site/src/components/FounderNote.tsx"]
+        ["../../site/src/components/FounderNote.module.css"]
+        ["../../site/src/content/founder-note.ts"]
+        ["../../site/src/views/HomePage.tsx"]
+        ["../../site/src/content/nav.ts"]
+    )
+    @tests (
+        ["../../site/src/content/founder-note.test.ts"]
+    )
 }
 
 tutorials_section {
@@ -619,7 +641,7 @@ copy {
     Copy stays decoupled from layout/styling.
     Copy should be really super minimal and concise if at all. (show don't tell)
     Copy should be user facing; not simply a description of the feature requirements. Production code doesn't have latent dev notes in visible components.
-    Landing modules: [hero_section], [elevator_pitch_section], [featured_in_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node], [quiz_sticker_tab].
+    Landing modules: [hero_section], [elevator_pitch_section], [featured_in_section], [motivation_section], [syntax_section], [example_section], [roadmap_section], [founder_note_section], [nav_graph], [faq_page], [sidebar_nav], [links], [footer], [sticky_cta_node], [quiz_sticker_tab].
     @status done
     @implementation (
         ["../../site/src/content/types.ts"]

@@ -17,6 +17,7 @@ export const nav = [
       { id: "syntax", label: "Syntax" },
       { id: "example", label: "Example" },
       { id: "roadmap", label: "Roadmap" },
+      { id: "founder-note", label: "From the maker" },
       { id: "contact", label: "Links" },
     ],
   },
