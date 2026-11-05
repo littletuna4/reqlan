@@ -2,6 +2,7 @@ import { Contact } from "@/components/Contact";
 import { ElevatorPitch } from "@/components/ElevatorPitch";
 import { Example } from "@/components/Example";
 import { FeaturedIn } from "@/components/FeaturedIn";
+import { FounderNote } from "@/components/FounderNote";
 import { Hero } from "@/components/Hero";
 import { Motivation } from "@/components/Motivation";
 import { NavGraph } from "@/components/NavGraph";
@@ -21,6 +22,7 @@ export function HomePage() {
   // rq:["../../../reqlan rq/site/site.rq".syntax_section]
   // rq:["../../../reqlan rq/site/site.rq".example_section]
   // rq:["../../../reqlan rq/site/site.rq".roadmap_section]
+  // rq:["../../../reqlan rq/site/site.rq".founder_note_section]
   // rq:["../../../reqlan rq/site/site.rq".nav_graph]
   // rq:["../../../reqlan rq/site/site.rq".quiz_sticker_tab]
   return (
@@ -35,6 +37,7 @@ export function HomePage() {
           <Syntax />
           <Example />
           <Roadmap />
+          <FounderNote />
           <Contact />
         </div>
         <NavGraph />

@@ -22,6 +22,7 @@ import { contact } from "@/content/contact";
 import { example } from "@/content/example";
 import { faq } from "@/content/faq";
 import { featured } from "@/content/featured";
+import { founderNote } from "@/content/founder-note";
 import { cta, hero } from "@/content/hero";
 import { brand, footer, meta, pages } from "@/content/meta";
 import { motivation } from "@/content/motivation";
@@ -45,6 +46,7 @@ export const siteContent = {
   syntax,
   example,
   roadmap,
+  founderNote,
   contact,
   faq,
   support,
