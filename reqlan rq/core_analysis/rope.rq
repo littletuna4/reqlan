@@ -1,0 +1,93 @@
+from "./core.rq" import analysers
+from "../ai-support.rq" import cli
+from "../extension/agent/chat-participant.rq" import mcp
+from "../modelling/advanced_analysis.rq" import katz_centrality
+from "../ontology.rq" import idea
+
+roping {
+    Roping is an operation that an agent can perform to quickly orientate themselves in a project.
+    The idea is that, an agent can search for an idea, then, using `reqlan rope`, collect all of the higher [rope-idea-cardinality] context to a projects constitution.
+    @todo
+    @evaluating
+}
+
+rope {
+    Rope is the command/function used for [roping],
+    It is used in the [analysers] and the [cli]/[mcp].
+    Surface: CLI `reqlan rope <target> [--fray <n>] [--tuning <mode>]`, MCP tool `rope`, and AnalysisApi `rope`.
+    Default `fray` = 2 (includes 2 hops of adjacent ideas).
+    Returns compact context around the target idea, respecting click session deduplication.
+    @todo
+    @evaluating
+}
+
+rope-idea-cardinality {
+    rope [idea] cardinality is defined by a combination of the file position (i.e. depth), the number of ideas linked one directionally to the [idea] lower on the same branch, and the idea's position in a page, the idea's references, and the idea's [katz_centrality].
+    Many cardinality signals may be combined.
+    Formula: `cardinality = depth_weight * depth + branch_factor * direction_links + position_weight * page_position + reference_weight * inbound_refs + katz_weight * katz_centrality`
+    Each weight is configurable; default: depth_weight=0.3, branch_factor=1.5, position_weight=0.2, reference_weight=0.2, katz_weight=0.3
+}
+
+fray {
+    Fray is like temperature. it describes how many adjacent ideas are included in a [rope] response.
+    This should have a default, but user can [rope-tuning] to adjust the [fray].
+    May throw in random ideas to support incremental/incidental link discovery and deduplication.
+    @drafting
+    @todo
+}
+
+click-store-context-optimisation {
+    [roping] should be served through the ["../ontology.rq".click], store.
+    This is to prevent the retreival of the same idea into context multiple times.
+    click session should be used to track visited ideas and avoid duplicates.
+    When an idea is already in click session, rope should respect session context.
+    When the idea is not in session, but session has ideas, adjust fray based on graph distance.
+}
+
+rope-tuning {
+    Depending on model, or harness, or user input, the [fray] can be adjusted.
+    Tuning modes: `default`, `focused`, `exploratory`, `deep`.
+    User input `--tuning <mode>` adjusts the fray accordingly.
+    @todo
+    @drafting
+}
+
+dynamic-rope-tuning {
+    Default [rope-tuning] may be considerate of spec graph topology.
+    For example, as graph gets more complex, the [fray] should be adjusted to include more adjacent ideas.
+    As requested node gets close to the root, the [fray] should be adjusted to include more adjacent ideas.
+    Graph complexity metric: total idea count, edge density, centrality variance.
+    Root proximity: shortest path distance from idea to any file-level ideaset.
+    @drafting
+    @todo
+}
+
+algorithm {
+    [rope] should:
+    1. Resolve target: idea name, `path#idea`, file, or code file.
+    2. Calculate rope-idea-cardinality for the target and neighbors.
+    3. Determine fray based on mode, user input, and dynamic tuning:
+       - default: base_fray + complexity_adjustment + root_proximity_adjustment
+       - focused: base_fray (minimal)
+       - exploratory: base_fray * 1.5 + random_injection
+       - deep: base_fray * 2.0
+    4. Perform breadth-first search from target up to fray hops.
+    5. Filter by cardinality: include ideas above cardinality_threshold (default 0.5).
+    6. Deduplicate using click session store: skip ideas already shown.
+    7. Order by cardinality (descending), then by file position, then by random.
+    8. Return compact context: idea names + summaries, and optional bodies when within session.
+    9. Track new ideas in click session.
+}
+
+implementation {
+    CLI: ["../../packages/cli/src/commands/rope.ts"]
+    MCP: ["../../packages/mcp/src/tools/rope.ts"]
+    AnalysisApi: ["../../packages/analytical/src/native/native-analysis-api.ts"]
+    Rust engine: ["../../crates/reqlan-analytical/src/rope.rs"]
+    Click session: ["../../crates/reqlan-analytical/src/click_sessions.rs"]
+}
+
+@status draft
+@todo complete algorithm implementation
+@todo implement dynamic tuning logic
+@todo add tests
