@@ -1,6 +1,6 @@
 //! Import statements planned for the destination and cleaned up in the source.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
 
 use crate::ast::{FromImport, FromImportSpecifier, Import, Model, TopLevelElement};
 use crate::barrel::file_basename_alias;

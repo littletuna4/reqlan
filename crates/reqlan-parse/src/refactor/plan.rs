@@ -1,7 +1,7 @@
 //! The public move and delete planners.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
 
 use crate::barrel::file_basename_alias;
 use crate::parser::parse_document;
@@ -18,6 +18,7 @@ use super::pathing::{is_rq_uri, relative_import};
 use super::refs::clear_name_hits;
 use super::types::{DocumentEdits, FileText, PlanError, TextEdit};
 
+//rq-ignore-error
 /// Remove the idea and clear bracket, wiki, and `rq:[…]` hits of that name.
 pub fn plan_idea_delete(
     source_uri: &str,

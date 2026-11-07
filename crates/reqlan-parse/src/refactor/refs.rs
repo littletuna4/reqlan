@@ -1,6 +1,6 @@
 //! Bracket and wiki references that name an idea.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
 
 use crate::ast::RichPart;
 use crate::parser::parse_document;

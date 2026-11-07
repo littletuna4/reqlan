@@ -1,5 +1,5 @@
 //! Traversal that visits every rich-text part of a parsed model.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
 
 use crate::ast::{AttributeValue, BodyElement, ListItem, Model, RichPart, TopLevelElement};
 

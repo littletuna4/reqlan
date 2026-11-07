@@ -1,5 +1,5 @@
 //! Byte offsets mapped to UTF-16 line and column positions, plus edit bookkeeping.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
 
 use crate::token::Span;
 use std::collections::BTreeMap;

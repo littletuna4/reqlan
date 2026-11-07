@@ -1,7 +1,7 @@
 //! Authored import paths resolved, compared, and rewritten between files.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_file_moves]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
 
 use crate::path::{
     import_path_with_implicit_extension, match_import_root_alias, normalize_posix_segments,

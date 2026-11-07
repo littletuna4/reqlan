@@ -1,7 +1,7 @@
 //! Plan data types the host consumes.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_native_planner.rq".refactor_native_planner]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
 
 /// One file the host already loaded.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,7 +1,8 @@
+//rq-ignore-error
 //! `rq:[…]` comment reference scanning, clearing, and path rewriting.
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
-//! rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".comment_reference_refactor_support]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
 
 use crate::token::Span;
 use std::collections::BTreeMap;
