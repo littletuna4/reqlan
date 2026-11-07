@@ -1,0 +1,11 @@
+quoted_name_reference {
+    Bracket references can resolve to quoted idea names.
+}
+
+"my idea2" {
+    It works now with bracket references in body.
+}
+
+"another idea" {
+    this has a reference to ["my idea2"].
+}

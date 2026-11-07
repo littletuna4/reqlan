@@ -80,7 +80,7 @@ selection_range {
     A definition link's origin range is the token under the caret.
     @status done
     @implementation (
-        ["../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../crates/reqlan-lsp/src/analysis/selection.rs"]
         ["../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../crates/reqlan-lsp/src/server.rs"]
     )

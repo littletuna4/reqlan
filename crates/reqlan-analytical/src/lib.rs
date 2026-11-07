@@ -7,6 +7,7 @@ mod api;
 mod click;
 mod click_sessions;
 mod diff;
+mod rope;
 mod types;
 mod workspace_index;
 
@@ -16,6 +17,7 @@ pub use diff::{
     diff_ideas, DiffChange, DiffReferences, DiffResult, DiffRow, DiffText, DiffVerbosity,
 };
 pub use reqlan_index::FileIssueDraft;
+pub use rope::{rope, RopeOptions, RopeTuning};
 pub use types::*;
 pub use workspace_index::{
     FileIssueDto, IndexState, SyncProgressState, SyncResultDto, WorkspaceIndexError,

@@ -208,7 +208,7 @@ pub fn file_basename(file_uri: &str) -> &str {
     file_uri.rsplit(['/', '\\']).next().filter(|part| !part.is_empty()).unwrap_or(file_uri)
 }
 
-fn file_stem(name: &str) -> &str {
+pub fn file_stem(name: &str) -> &str {
     name.strip_suffix(".rq")
         .or_else(|| name.strip_suffix(".RQ"))
         .or_else(|| name.rsplit_once('.').map(|(stem, _)| stem))

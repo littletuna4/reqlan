@@ -88,64 +88,74 @@ fn top_level_element(element: &TopLevelElement) -> AlignElement {
 }
 
 fn walk_model(model: &Model, snapshot: &mut ParseAlignSnapshot) {
+    let local_names: Vec<&str> = model
+        .elements
+        .iter()
+        .filter_map(|element| match element {
+            TopLevelElement::Idea(idea) => Some(idea.name.as_str()),
+            TopLevelElement::OneLiner(one) => Some(one.name.as_str()),
+            TopLevelElement::IdeaSet(set) => Some(set.name.as_str()),
+            TopLevelElement::Anonymous(_) => None,
+        })
+        .collect();
     for element in &model.elements {
         match element {
-            TopLevelElement::Idea(idea) => walk_body(&idea.elements, snapshot),
-            TopLevelElement::OneLiner(one) => walk_parts(&one.body, snapshot),
-            TopLevelElement::Anonymous(block) => walk_body(&block.elements, snapshot),
+            TopLevelElement::Idea(idea) => walk_body(&idea.elements, snapshot, &local_names),
+            TopLevelElement::OneLiner(one) => walk_parts(&one.body, snapshot, &local_names),
+            TopLevelElement::Anonymous(block) => walk_body(&block.elements, snapshot, &local_names),
             TopLevelElement::IdeaSet(_) => {}
         }
     }
 }
 
-fn walk_body(elements: &[BodyElement], snapshot: &mut ParseAlignSnapshot) {
+fn walk_body(elements: &[BodyElement], snapshot: &mut ParseAlignSnapshot, local_names: &[&str]) {
     for element in elements {
         match element {
-            BodyElement::Attribute(attribute) => walk_attribute(attribute, snapshot),
+            BodyElement::Attribute(attribute) => walk_attribute(attribute, snapshot, local_names),
             BodyElement::CodeSnippet(_) => snapshot.code_snippet_count += 1,
-            BodyElement::NamedList(list) => walk_list_items(&list.items, snapshot),
-            BodyElement::NestedList(list) => walk_list_items(&list.items, snapshot),
-            BodyElement::BodyLine(line) => walk_parts(&line.parts, snapshot),
+            BodyElement::NamedList(list) => walk_list_items(&list.items, snapshot, local_names),
+            BodyElement::NestedList(list) => walk_list_items(&list.items, snapshot, local_names),
+            BodyElement::BodyLine(line) => walk_parts(&line.parts, snapshot, local_names),
         }
     }
 }
 
-fn walk_attribute(attribute: &Attribute, snapshot: &mut ParseAlignSnapshot) {
+fn walk_attribute(attribute: &Attribute, snapshot: &mut ParseAlignSnapshot, local_names: &[&str]) {
     match &attribute.value {
-        Some(AttributeValue::Scalar(scalar)) => walk_parts(&scalar.parts, snapshot),
-        Some(AttributeValue::List(list)) => walk_list_items(&list.items, snapshot),
-        Some(AttributeValue::Block(block)) => walk_body(&block.elements, snapshot),
+        Some(AttributeValue::Scalar(scalar)) => walk_parts(&scalar.parts, snapshot, local_names),
+        Some(AttributeValue::List(list)) => walk_list_items(&list.items, snapshot, local_names),
+        Some(AttributeValue::Block(block)) => walk_body(&block.elements, snapshot, local_names),
         None => {}
     }
 }
 
-fn walk_list_items(items: &[ListItem], snapshot: &mut ParseAlignSnapshot) {
+fn walk_list_items(items: &[ListItem], snapshot: &mut ParseAlignSnapshot, local_names: &[&str]) {
     for item in items {
         match item {
-            ListItem::OneLiner(parts) => walk_parts(parts, snapshot),
-            ListItem::Anonymous(block) => walk_body(&block.elements, snapshot),
-            ListItem::NamedBlock(block) => walk_body(&block.elements, snapshot),
-            ListItem::Nested(list) => walk_list_items(&list.items, snapshot),
+            ListItem::OneLiner(parts) => walk_parts(parts, snapshot, local_names),
+            ListItem::Anonymous(block) => walk_body(&block.elements, snapshot, local_names),
+            ListItem::NamedBlock(block) => walk_body(&block.elements, snapshot, local_names),
+            ListItem::Nested(list) => walk_list_items(&list.items, snapshot, local_names),
         }
     }
 }
 
-fn walk_parts(parts: &[RichPart], snapshot: &mut ParseAlignSnapshot) {
+fn walk_parts(parts: &[RichPart], snapshot: &mut ParseAlignSnapshot, local_names: &[&str]) {
     for part in parts {
         match part {
             RichPart::InlineCode { .. } => snapshot.inline_code_count += 1,
             RichPart::BracketRef { target, .. } => {
-                snapshot.refs.push(align_ref("bracket", target));
+                snapshot.refs.push(align_ref("bracket", target, local_names));
             }
             RichPart::WikiLink { target, .. } => {
-                snapshot.refs.push(align_ref("wiki", target));
+                snapshot.refs.push(align_ref("wiki", target, local_names));
             }
             RichPart::Text { .. } | RichPart::MarkdownLink { .. } => {}
         }
     }
 }
 
-fn align_ref(form: &str, target: &ReferenceTarget) -> AlignRef {
+fn align_ref(form: &str, target: &ReferenceTarget, local_names: &[&str]) -> AlignRef {
     let (kind, label) = match target {
         ReferenceTarget::Local { idea, .. } => ("local", idea.clone()),
         ReferenceTarget::Qualified { qualifier, path, ideaset, idea, .. } => {
@@ -157,7 +167,14 @@ fn align_ref(form: &str, target: &ReferenceTarget) -> AlignRef {
             };
             ("qualified", label)
         }
-        ReferenceTarget::File { file, .. } => ("file", unquote_path(file)),
+        ReferenceTarget::File { file, .. } => {
+            let unquoted = unquote_path(file);
+            if local_names.contains(&unquoted.as_str()) {
+                ("local", unquoted)
+            } else {
+                ("file", unquoted)
+            }
+        }
         ReferenceTarget::Url { url, .. } => ("url", url.clone()),
         ReferenceTarget::FileSymbol { file, symbols, .. } => {
             ("file_symbol", format!("{}.{}", unquote_path(file), symbols.join(".")))

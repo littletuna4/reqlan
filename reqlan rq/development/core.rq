@@ -18,6 +18,29 @@ stack {
     - Extension build pipeline is documented in ["./build.rq"]
 }
 
+napi_module_barrel {
+    per [stack]
+    `crates/reqlan-napi/src/lib.rs` is a barrel: it only declares modules and re-exports the napi items. Logic lives in one module per binding surface.
+    Modules: `scan.rs` (scanWorkspace task, createBase), `analysis.rs` (NativeAnalysisRuntime), `sql_db.rs` (NativeSqlDb), `workspace_index.rs` (NativeWorkspaceIndex), `source.rs` (parse/extract/local-symbolic source helpers), `planner.rs` (barrel/move/delete plan), `util.rs` (shared error mappers, wire-JSON helpers).
+    Invariants: the JS surface and generated napi `.d.ts` do not change; modules stay flat in `src/` so `rq:[...]` comment paths keep `../../../reqlan rq` depth; `rq:` doc comments move with their items; `@implementation` refs in ["../../reqlan rq"] point at the module that holds the item, not the barrel.
+    New analysis bindings must follow ["../core_analysis/rope.rq".rope]: engine item in `reqlan-analytical`, `analysis.rs` binding, AnalysisApi facade, and cross-referenced tests.
+    @status done
+    @implementation (
+        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
+        ["../../crates/reqlan-napi/src/planner.rs"]
+        ["../../crates/reqlan-napi/src/scan.rs"]
+        ["../../crates/reqlan-napi/src/source.rs"]
+        ["../../crates/reqlan-napi/src/sql_db.rs"]
+        ["../../crates/reqlan-napi/src/util.rs"]
+        ["../../crates/reqlan-napi/src/workspace_index.rs"]
+    )
+    @tests (
+        ["../../packages/analytical/test/load-native.test.ts"]
+        ["../../packages/analytical/test/open-analysis-api.test.ts"]
+    )
+}
+
 pnpm {
     Must use pnpm for all js package management across the monorepo (packages, extension, site).
 }

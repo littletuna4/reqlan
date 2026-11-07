@@ -609,14 +609,12 @@ fn missing_qualified_rq_file_reports_unresolved_idea() {
     let diags = session.diagnostics(&uri);
     let found: Vec<_> = diags.iter().map(|d| d.message.clone()).collect();
     assert!(
-        found.iter().any(|m| m == "Could not resolve reference to IdeaDeclaration named 'idea'."),
-        "expected unresolved idea for missing .rq file, got: {found:?}"
+        found.iter().any(|m| m == "Could not resolve file reference 'non-existant-file.rq'."),
+        "expected file reference for missing .rq file, got: {found:?}"
     );
     assert!(
-        !found
-            .iter()
-            .any(|m| m.contains("Could not resolve import") || m.contains("file_reference")),
-        "LSP reports idea-unresolved, not file-reference: {found:?}"
+        !found.iter().any(|m| m.contains("Could not resolve import")),
+        "LSP does not report an unresolvable import for a qualified file ref: {found:?}"
     );
     let _ = fs::remove_dir_all(&root);
 }

@@ -26,16 +26,16 @@ use crate::types::{
     IndexedDocument,
 };
 use reqlan_parse::{
-    lex, parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
-    BodyElement, Import, ImportRootMapping, ListItem, ParseBudget, ParseResult, ReferenceTarget,
-    RichPart, TokenKind, TopLevelElement,
+    parse_document, resolve_rq_path, unquote_path, Attribute, AttributeValue as AstAttrValue,
+    BodyElement, Import, ImportRootMapping, ListItem, ParseResult, ReferenceTarget, RichPart,
+    TopLevelElement,
 };
 use sha2::{Digest, Sha256};
 
 /// Bump when extract rules change so mtime skip does not keep stale edges.
 /// rq:["../../../reqlan rq/language/syntax.rq".inline_code]
 /// rq:["../../../reqlan rq/indexer/indexer.rq".index]
-pub const EXTRACT_VERSION: i64 = 6;
+pub const EXTRACT_VERSION: i64 = 7;
 
 #[derive(Debug, Clone)]
 pub struct WildcardIdeaCandidate {
@@ -218,8 +218,6 @@ pub fn extract_from_parse(
             TopLevelElement::IdeaSet(_) | TopLevelElement::Anonymous(_) => {}
         }
     }
-
-    collect_file_reference_edges(source, file_uri, &ideas, &mut edges);
 
     IndexedDocument { file_uri: file_uri.to_string(), content_hash, ideas, edges }
 }
@@ -535,7 +533,20 @@ fn reference_to_edges(
             meta_snippet.clone(),
         ),
         ReferenceTarget::File { file, .. } => {
-            vec![file_edge(source_id, file, source_line, snippet)]
+            let unquoted = unquote_if_needed(file);
+            if local_names.iter().any(|name| *name == unquoted) {
+                let target_id = idea_id(file_uri, &unquoted);
+                vec![ref_edge(
+                    source_id,
+                    Some(target_id),
+                    &unquoted,
+                    true,
+                    source_line,
+                    meta_snippet,
+                )]
+            } else {
+                vec![file_edge(source_id, file, source_line, snippet)]
+            }
         }
         ReferenceTarget::Url { url, .. } => {
             vec![url_edge(source_id, url, source_line, snippet)]
@@ -1129,68 +1140,6 @@ fn glob_match_from(pat: &[u8], pi: usize, hay: &[u8], hi: usize) -> bool {
     false
 }
 
-fn collect_file_reference_edges(
-    source: &str,
-    file_uri: &str,
-    ideas: &[IdeaRecord],
-    edges: &mut Vec<EdgeRecord>,
-) {
-    let source_id =
-        ideas.first().map(|idea| idea.id.clone()).unwrap_or_else(|| format!("{file_uri}#__file__"));
-    for (file, line) in find_embedded_file_references(source) {
-        edges.push(EdgeRecord {
-            id: edge_id(&source_id, EdgeKind::FileReference.as_str(), &file),
-            source_id: source_id.clone(),
-            target_id: None,
-            target_file: Some(file.clone()),
-            kind: EdgeKind::FileReference,
-            label: Some(file),
-            source_line: Some(line),
-            snippet: None,
-            is_resolved: Some(true),
-            source_offset_start: None,
-            source_offset_end: None,
-        });
-    }
-}
-
-fn find_embedded_file_references(source: &str) -> Vec<(String, u32)> {
-    // STRING tokens are produced only in string-literal context. A file reference
-    // is a quoted path inside brackets. Import paths and quoted idea names are not.
-    // Inline code and fenced blocks are opaque lexer tokens, so quotes inside them are not refs.
-    // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
-    // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
-    // rq:["../../../reqlan rq/reference_types.rq".reference_edgecase]
-    let lexed = lex(source, ParseBudget::unlimited());
-    let mut files = Vec::new();
-    for token in &lexed.tokens {
-        if token.kind != TokenKind::String {
-            continue;
-        }
-        if !is_bracketed_quoted_path(source, token.start, token.end) {
-            continue;
-        }
-        let inner = unquote_path(token.text(source));
-        if inner.contains('*') || inner.contains('?') {
-            continue;
-        }
-        if inner.contains('/') || inner.contains('\\') || looks_file_ref(&inner) {
-            files.push((inner, token.line + 1));
-        }
-    }
-    files
-}
-
-fn is_bracketed_quoted_path(source: &str, start: usize, end: usize) -> bool {
-    let before = source.get(..start).unwrap_or("").trim_end_matches([' ', '\t']);
-    let after = source.get(end..).unwrap_or("").trim_start_matches([' ', '\t']);
-    before.ends_with('[') && after.starts_with(']')
-}
-
-fn looks_file_ref(value: &str) -> bool {
-    value.contains('/') || value.contains('\\') || value.contains('.')
-}
-
 pub fn hash_text(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
@@ -1200,16 +1149,8 @@ pub fn hash_text(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_indexed_document, find_embedded_file_references, ExtractOptions};
+    use super::{extract_indexed_document, ExtractOptions};
     use crate::types::EdgeKind;
-
-    #[test]
-    fn embedded_scan_skips_backticked_file_ref_with_line_range() {
-        // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
-        let source = concat!("host {\n", "    `[\"", "./plc/interlock.stL#41-58", "\"]`\n", "}\n");
-        let found = find_embedded_file_references(source);
-        assert!(found.iter().all(|(path, _)| !path.contains("interlock.st")), "{found:?}");
-    }
 
     #[test]
     fn extract_skips_backticked_file_only_ref() {
@@ -1230,10 +1171,6 @@ mod tests {
         // rq:["../../../reqlan rq/language/syntax.rq".inline_code]
         // rq:["../../../reqlan rq/language/syntax.rq".code_snippets]
         let source = include_str!("../../../reqlan rq/site/site.rq");
-        let found = find_embedded_file_references(source);
-        let leaked: Vec<_> =
-            found.iter().filter(|(path, _)| path.contains("interlock.st")).collect();
-        assert!(leaked.is_empty(), "{leaked:?}");
         let doc =
             extract_indexed_document("reqlan rq/site/site.rq", source, &ExtractOptions::default());
         let files: Vec<String> = doc
@@ -1255,12 +1192,6 @@ mod tests {
             "    and './also-not-a-reference.ts'\n",
             "    but this is: [\"./live.ts\"]\n",
             "}\n",
-        );
-        let found = find_embedded_file_references(source);
-        assert_eq!(
-            found.iter().map(|(path, _)| path.as_str()).collect::<Vec<_>>(),
-            vec!["./live.ts"],
-            "{found:?}"
         );
         let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
         let files: Vec<String> = doc
@@ -1286,8 +1217,45 @@ mod tests {
     #[test]
     fn import_quoted_path_is_not_an_embedded_file_reference() {
         let source = "from \"./imports.rq\" import seed\nhost {\n    body\n}\n";
-        let found = find_embedded_file_references(source);
-        assert!(found.is_empty(), "{found:?}");
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        let files: Vec<&str> = doc
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::FileReference)
+            .filter_map(|edge| edge.label.as_deref())
+            .collect();
+        assert!(files.is_empty(), "{files:?}");
+    }
+
+    // rq:["../../../reqlan rq/reference_types.rq".file_reference]
+    #[test]
+    fn embedded_refs_index_from_the_owning_idea() {
+        let source = concat!(
+            "first {\n",
+            "    body\n",
+            "}\n",
+            "second {\n",
+            "    see [\"./missing.ts\"]\n",
+            "}\n"
+        );
+        let doc = extract_indexed_document("host.rq", source, &ExtractOptions::default());
+        let sources: Vec<(String, String)> = doc
+            .edges
+            .iter()
+            .filter(|edge| edge.kind == EdgeKind::FileReference)
+            .map(|edge| {
+                (
+                    edge.source_id.clone(),
+                    edge.label.clone().unwrap_or_default().trim_matches('"').to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            sources,
+            vec![("host.rq#second".to_string(), "./missing.ts".to_string())],
+            "{:?}",
+            doc.edges
+        );
     }
 
     // rq:["../../../reqlan rq/reference_types.rq".url_reference]

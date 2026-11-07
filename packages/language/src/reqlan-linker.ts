@@ -4,20 +4,33 @@
  * rq:["../../../reqlan rq/language/imports.rq".import_namespace]
  * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
  */
-import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, LinkingError, MultiReferenceItem, ReferenceInfo } from 'langium';
-import { AstUtils, DefaultLinker, DocumentState, type DefaultMultiReference, type DefaultReference } from 'langium';
+import type { AstNode, FileSystemProvider, LangiumDocument, LangiumDocuments, LinkingError, MultiReferenceItem, Reference, ReferenceInfo } from 'langium';
+import { AstUtils, Cancellation, DefaultLinker, DocumentState, type DefaultMultiReference, type DefaultReference } from 'langium';
+import type { CancellationToken } from 'vscode-languageserver';
 import {
     findDeclaredAttribute,
     ownerIsAttributeHost,
     unresolvedAttributeMessage
 } from './reqlan-attribute-links.js';
-import { isIdea, isIdeaSet, isLocalReference, isModel, isOneLinerIdea, isQualifiedReference } from './generated/ast.js';
+import {
+    isBracketReference,
+    isFileReference,
+    isIdea,
+    isIdeaSet,
+    isLocalReference,
+    isModel,
+    isOneLinerIdea,
+    isQualifiedReference,
+    type IdeaDeclaration,
+    type LocalReference
+} from './generated/ast.js';
 import { isOpaqueFileReferencePath } from './reqlan-file-references.js';
 import { findNamespaceImportByAlias } from './reqlan-import-bindings.js';
 import { isResolvableImportPath } from './reqlan-imports.js';
 import type { ReqlanServices } from './reqlan-module.js';
 import { pathResolveContextFromServices } from './reqlan-path-resolve.js';
 import { unquoteReqlanString } from './reqlan-references.js';
+import type { ReqlanScopeProvider } from './reqlan-scope.js';
 
 /** Marks a reference that resolves to a file rather than to an AST node. */
 export const UnlinkedFileTarget = Symbol('UnlinkedFileTarget');
@@ -33,6 +46,48 @@ export class ReqlanLinker extends DefaultLinker {
         this.documents = services.shared.workspace.LangiumDocuments;
         this.fileSystem = services.shared.workspace.FileSystemProvider;
         this.services = services;
+    }
+
+    override async link(document: LangiumDocument, cancelToken: CancellationToken = Cancellation.CancellationToken.None): Promise<void> {
+        this.resolveQuotedBracketReferences(document);
+        await super.link(document, cancelToken);
+    }
+
+    private resolveQuotedBracketReferences(document: LangiumDocument): void {
+        const model = document.parseResult?.value;
+        if (!isModel(model)) {
+            return;
+        }
+        const scopeProvider = this.scopeProvider as ReqlanScopeProvider;
+        const scope = scopeProvider.scopeForFileIdeas(document);
+        for (const node of AstUtils.streamAst(model)) {
+            if (isBracketReference(node) && isFileReference(node.target)) {
+                const fileRef = node.target;
+                const ideaName = unquoteReqlanString(fileRef.file);
+                const description = scope.getElement(ideaName);
+                if (description) {
+                    const localRef: LocalReference = {
+                        $type: 'LocalReference',
+                        $container: node,
+                        $containerProperty: 'target',
+                        $cstNode: fileRef.$cstNode,
+                        idea: undefined as unknown as Reference<IdeaDeclaration>
+                    };
+                    const ref = this.buildReference(
+                        localRef,
+                        'idea',
+                        fileRef.$cstNode,
+                        ideaName
+                    ) as unknown as Reference<IdeaDeclaration>;
+                    localRef.idea = ref;
+                    (localRef as unknown as { file: unknown }).file = ref;
+                    node.target = localRef;
+                    if (fileRef.$cstNode) {
+                        (fileRef.$cstNode as { astNode?: AstNode }).astNode = localRef;
+                    }
+                }
+            }
+        }
     }
 
     protected override doLink(refInfo: ReferenceInfo, document: LangiumDocument): void {

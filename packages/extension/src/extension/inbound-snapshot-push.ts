@@ -24,7 +24,8 @@ export async function buildInboundFileSnapshot(
     documentUri: vscode.Uri
 ): Promise<InboundFileSnapshot> {
     const indexedUri = toIndexFileUri(documentUri);
-    const rows = await index.indexStore.getInboundForFile(indexedUri);
+    const store = index.indexStore;
+    const rows = await store.getInboundForFile(indexedUri);
     const byIdeaName: Record<string, InboundSnapshotReferencer[]> = {};
     for (const row of rows) {
         if (row.kind !== 'references' && row.kind !== 'wildcard_reference') {

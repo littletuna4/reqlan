@@ -1,11 +1,16 @@
-//! Fuzzy / contextual / semantic ranking.
+//! Fuzzy / contextual / semantic / file / unified ranking.
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".search_rust]
 //! rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search]
+//! rq:["../../../reqlan rq/core_analysis/search.rq".file_search]
+//! rq:["../../../reqlan rq/core_analysis/search.rq".contextual_search]
+//! rq:["../../../reqlan rq/core_analysis/search.rq".katz_search]
+//! rq:["../../../reqlan rq/core_analysis/search.rq".unified_search]
 
 mod contextual;
 mod fuzzy;
 mod katz;
 mod semantic;
+mod unified;
 
 pub use contextual::{
     apply_context_distance_scoring, hop_distances_from_centers, normalize_context_ref,
@@ -18,3 +23,7 @@ pub use fuzzy::{
 };
 pub use katz::{apply_katz_search_bias, citation_edge_pairs, katz_centrality, MissingKatzScore};
 pub use semantic::semantic_search;
+pub use unified::{
+    unified_search, unified_text_score, UnifiedHitKind, UnifiedSearchHit, UnifiedSearchOptions,
+    UnifiedSearchResult,
+};

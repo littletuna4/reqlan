@@ -29,6 +29,7 @@ check {
     @tests (
         ["../../crates/reqlan-index/tests/broken_references.rs:skips_idea_and_comment_refs_on_rq_ignore_error_lines"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_missing_file_refs_and_skips_existing"]
+        ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_each_missing_file_once_from_the_owning_idea"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_file"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_accepts_qualified_reference_when_the_file_exists"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_reports_qualified_reference_to_a_missing_idea"]
@@ -70,7 +71,7 @@ check_no_cache {
     @status done
     @implementation (
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/runtime.ts"]
         ["../../packages/cli/src/commands/check.ts"]
@@ -99,7 +100,7 @@ check_verbose {
     @implementation (
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/analytical/src/native/open-analysis-api.ts"]
         ["../../packages/cli/src/runtime.ts"]
@@ -137,7 +138,7 @@ check_glob_patterns {
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../packages/mcp/src/server.ts"]
@@ -264,7 +265,7 @@ check_skip_targets {
     @implementation (
         ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/commands/check.ts"]
     )
@@ -294,7 +295,7 @@ check_skip_gitignored_targets {
         ["../../crates/reqlan-index/src/check/mod.rs"]
         ["../../crates/reqlan-index/src/ignore.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/commands/check.ts"]
         ["../../.github/workflows/ci.yml"]
@@ -380,7 +381,7 @@ check_unused_imports {
         ["../../packages/mcp/src/server.ts"]
         ["../../crates/reqlan-index/src/check/imports.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
     )
     @tests (
         ["../../packages/cli/test/check.test.ts:unused-imports reports unused specifiers"]

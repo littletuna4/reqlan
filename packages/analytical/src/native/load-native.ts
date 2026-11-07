@@ -95,6 +95,12 @@ export interface NativeAnalysisRuntimeHandle {
         maxOutbound?: number,
         maxCandidates?: number
     ): unknown;
+    rope(
+        target: string,
+        sessionKey?: string,
+        fray?: number,
+        tuning?: 'default' | 'focused' | 'exploratory' | 'deep'
+    ): unknown;
     checkNameAmbiguity(name: string): unknown;
     getCompletionStatus(): unknown;
     getDeprecationImpact(): unknown;

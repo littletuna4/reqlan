@@ -30,7 +30,10 @@ export function resolveLanguageServerLaunch(input: LanguageServerLaunchInput): L
     };
 }
 
-/** A debug build is never launched: only the release build is refreshed by the extension build. */
+/**
+ * bin/reqlan-lsp is staged per-target by scripts/package-extension-targets.mjs;
+ * the crates/target/release fallback covers local cargo builds.
+ */
 function findRustLanguageServer(extensionPath: string): string | undefined {
     const exe = process.platform === 'win32' ? 'reqlan-lsp.exe' : 'reqlan-lsp';
     const candidates = [

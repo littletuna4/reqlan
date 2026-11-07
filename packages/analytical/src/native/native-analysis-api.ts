@@ -3,12 +3,15 @@
  * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".native_bridge]
  * rq:["../../../../reqlan rq/core_analysis/rust_port.rq".ts_interface]
  */
+import type { ClickResult } from './generated.js';
 import type {
     CompletionSummary,
     DeprecationImpact,
     FileRelatedRequirements,
     GraphSlice,
-    IdeaSummary
+    IdeaSummary,
+    RopeOptions,
+    RopeTuning
 } from '../core/types.js';
 import type { ExportProgressCallback, ExportRequest, ExportResult } from '../export/types.js';
 import type { SqliteIndexStore } from '../index-store/sqlite-store.js';
@@ -22,7 +25,6 @@ import type {
     GraphSlice as NativeGraphSlice,
     IdeaSummary as NativeIdeaSummary,
     BrokenReferenceDto as NativeBrokenReference,
-    ClickResult as NativeClickResult,
     DiffResult as NativeDiffResult,
     NameAmbiguity as NativeNameAmbiguity,
     RequirementMatch as NativeRequirementMatch
@@ -148,7 +150,7 @@ export interface CheckReport {
     files: CheckSyncFileEvent[];
 }
 
-export type ClickResult = NativeClickResult;
+export type { ClickResult, RopeOptions, RopeTuning };
 export type NameAmbiguity = NativeNameAmbiguity;
 
 export interface InteractionDescriptor {
@@ -245,6 +247,7 @@ export class NativeAnalysisApi {
     /**
      * rq:["../../../../reqlan rq/cli/click.rq".click]
      * rq:["../../../../reqlan rq/cli/click.rq".click_session]
+     * rq:["../../../../reqlan rq/core_analysis/rope.rq".rope]
      */
     async click(target: string, options?: ClickOptions): Promise<ClickResult> {
         return this.native.click(
@@ -255,7 +258,29 @@ export class NativeAnalysisApi {
             options?.maxSiblings,
             options?.maxOutbound,
             options?.maxCandidates
-        ) as NativeClickResult;
+        ) as ClickResult;
+    }
+
+    /**
+     * rq:["../../../../reqlan rq/core_analysis/rope.rq".rope]
+     */
+    async rope(target: string, options?: RopeOptions): Promise<ClickResult> {
+        return this.native.rope(
+            target,
+            options?.sessionKey,
+            options?.fray,
+            this._resolveTuning(options?.tuning)
+        ) as ClickResult;
+    }
+
+    private _resolveTuning(tuning: string | undefined): "default" | "focused" | "exploratory" | "deep" {
+        if (!tuning) return "default";
+        switch (tuning.toLowerCase()) {
+            case "focused": return "focused";
+            case "exploratory": return "exploratory";
+            case "deep": return "deep";
+            default: return "default";
+        }
     }
 
     /**
@@ -420,6 +445,17 @@ export class NativeAnalysisApi {
                 }
             },
             {
+                name: 'rope',
+                description:
+                    'Return compact context for a target idea, respecting cardinality, fray, and click-session deduplication.',
+                parameters: {
+                    target: 'Idea name, path#idea, .rq file, or indexed code file',
+                    sessionKey: 'Optional click session key from a prior click',
+                    fray: 'Optional number of adjacent ideas to include (default 2)',
+                    tuning: 'Optional tuning mode: default, focused, exploratory, deep'
+                }
+            },
+            {
                 name: 'summarize_subtree',
                 description: 'Summarise a requirement subtree rooted at a named requirement.',
                 parameters: { requirementName: 'Requirement name or search text', depth: 'Optional hop depth' }
@@ -557,7 +593,7 @@ export class NativeAnalysisApi {
             includeClusterPages: request.includeClusterPages ?? true,
             includeAttributePages: request.includeAttributePages ?? true,
             includePrintPages: request.includePrintPages ?? true,
-            attributeFilters: request.attributeFilters ?? undefined,
+            attributeFilters: request.attributeFilters ?? [],
             maxGraphNodes: request.maxGraphNodes,
             urlBase: request.urlBase,
             headerLink: request.headerLink

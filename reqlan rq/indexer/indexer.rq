@@ -127,7 +127,7 @@ local_symbolic_analysis {
     @implementation (
         ["../../crates/reqlan-index/src/extract.rs"]
         ["../../crates/reqlan-index/src/types.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/source.rs"]
         ["../../packages/analytical/src/native/parse-source.ts"]
         ["../../packages/analytical/src/core/local-symbolic-references.ts"]
         ["../../packages/language/src/reqlan-document-link-provider.ts"]

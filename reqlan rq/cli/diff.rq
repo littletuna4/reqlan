@@ -37,7 +37,7 @@ diff {
     @implementation (
         ["../../crates/reqlan-analytical/src/diff.rs"]
         ["../../crates/reqlan-analytical/src/api.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../packages/cli/src/commands/diff.ts"]
         ["../../packages/mcp/src/server.ts"]

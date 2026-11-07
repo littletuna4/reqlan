@@ -11,7 +11,7 @@ q1_filter_applied_to_sync_only {
 q2_rust_type_error {
     `reqlan-napi/src/lib.rs` added `unused_imports: Option<String>` to `check_references` but passed `unused_imports.unwrap_or(SparseWildcardHandling::Warn)` to `.check()` which expects `Option<SparseWildcardHandling>`. `unwrap_or` on `Option<String>` requires a `String` default; the enum value caused E0308 in both directions.
     @status fixed `parse_sparse_wildcard_handling("unusedImports", unused_imports)?` + pass `Some(unused_imports)` to `.check()`.
-    @implementation ["../../crates/reqlan-napi/src/lib.rs"]
+    @implementation ["../../crates/reqlan-napi/src/analysis.rs"]
     @tests (cargo check -p reqlan-napi passes)
 }
 

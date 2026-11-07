@@ -11,11 +11,13 @@ import {
   type CompletionSummary,
   type HeadlessAnalysisApi,
   type OpenedAnalysisApi,
+  type RopeOptions,
   type SparseWildcardHandling,
 } from "@reqlan/analytical/core";
 
 export type McpAnalysisApi = {
   click(target: string, options?: ClickOptions): Promise<ClickResult>;
+  rope(target: string, options?: RopeOptions): Promise<ClickResult>;
   formatClickResult(result: ClickResult): string;
   getCompletionStatus(): Promise<CompletionSummary>;
   check(options?: CheckOptions): Promise<BrokenReferenceDto[]>;
@@ -34,6 +36,13 @@ export type ClickToolInput = {
   maxSiblings?: number;
   maxOutbound?: number;
   maxCandidates?: number;
+};
+
+export type RopeToolInput = {
+  target: string;
+  sessionKey?: string;
+  fray?: number;
+  tuning?: 'default' | 'focused' | 'exploratory' | 'deep';
 };
 
 export type PromptToolInput = {
@@ -111,6 +120,21 @@ export async function handleClickTool(
     maxSiblings: input.maxSiblings,
     maxOutbound: input.maxOutbound,
     maxCandidates: input.maxCandidates,
+  });
+  return textContent(api.formatClickResult(result));
+}
+
+/**
+ * rq:["../../../reqlan rq/core_analysis/rope.rq".rope]
+ */
+export async function handleRopeTool(
+  api: McpAnalysisApi,
+  input: RopeToolInput,
+) {
+  const result = await api.rope(input.target, {
+    sessionKey: input.sessionKey,
+    fray: input.fray,
+    tuning: input.tuning,
   });
   return textContent(api.formatClickResult(result));
 }
@@ -247,6 +271,21 @@ export function createReqlanMcpServer(api: McpAnalysisApi): McpServer {
       },
     },
     async (input) => handleClickTool(api, input),
+  );
+
+  server.registerTool(
+    "rope",
+    {
+      description:
+        "Return compact local context for a target idea, respecting cardinality, fray, and click-session deduplication. Target may be an idea name, path#idea, .rq file, or indexed code file.",
+      inputSchema: {
+        target: z.string().describe("Idea name, path#idea, .rq file, or indexed code file"),
+        sessionKey: z.string().optional().describe("Click session key from a prior click response"),
+        fray: z.number().int().positive().optional().describe("Number of adjacent ideas to include (default: 2)"),
+        tuning: z.enum(["default", "focused", "exploratory", "deep"]).optional().describe("Tuning mode: default, focused, exploratory, deep"),
+      },
+    },
+    async (input) => handleRopeTool(api, input),
   );
 
   server.registerTool(

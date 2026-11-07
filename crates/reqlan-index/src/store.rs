@@ -46,10 +46,7 @@ impl IndexStore {
     /// Read an existing ideas index. Does not create the file or run migrations.
     /// rq:["../../../reqlan rq/extension/language/support/language-server-rust.rq".language_server_rust]
     pub fn open_read_only(path: &Path) -> Result<Self, StoreError> {
-        let conn = Connection::open_with_flags(
-            path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
+        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         Ok(Self { conn })
     }
 

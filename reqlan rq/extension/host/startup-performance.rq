@@ -122,6 +122,15 @@ development_bundle_freshness {
     @status done
 }
 
+development_host_launch_isolation {
+    Extension development host debugging requires process and storage isolation:
+    - Launch arguments specify `--new-window` and `--user-data-dir` to prevent window reuse and storage lock contention with the primary profile.
+    - Debug configurations declare an extended timeout for remote inspector handshakes.
+    - Source map resolution patterns cover `.cjs` bundle outputs alongside `.js` modules.
+    ["../../../.vscode/launch.json"]
+    @status done
+}
+
 startup_diagnostics {
     Diagnosis order:
     1. Read the development extension host's `remoteexthost.log`; find `ExtensionService#_doActivateExtension reqlan.reqlan-extension`.

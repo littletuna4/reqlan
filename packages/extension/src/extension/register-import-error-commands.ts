@@ -89,16 +89,7 @@ async function resolveSearchArgsFromEditor(
 
     const documentUri = editor.document.uri.toString();
     const text = editor.document.getText();
-    const range = {
-        start: {
-            line: editor.selection.start.line,
-            character: editor.selection.start.character
-        },
-        end: {
-            line: editor.selection.end.line,
-            character: editor.selection.end.character
-        }
-    };
+    const selectionRange = editor.selection;
 
     const client = getClient();
     if (client && client.state === State.Running) {
@@ -108,7 +99,16 @@ async function resolveSearchArgsFromEditor(
                 {
                     uri: documentUri,
                     text,
-                    range
+                    range: {
+                        start: {
+                            line: selectionRange.start.line,
+                            character: selectionRange.start.character
+                        },
+                        end: {
+                            line: selectionRange.end.line,
+                            character: selectionRange.end.character
+                        }
+                    }
                 }
             );
             if (site) {
@@ -119,7 +119,10 @@ async function resolveSearchArgsFromEditor(
         }
     }
 
-    const localSite = resolveSearchSiteLocally(documentUri, text, range, editor);
+    const localSite = resolveSearchSiteLocally(documentUri, text, {
+        start: { line: selectionRange.start.line, character: selectionRange.start.character },
+        end: { line: selectionRange.end.line, character: selectionRange.end.character }
+    }, editor);
     if (localSite) {
         return localSite;
     }
@@ -134,15 +137,24 @@ async function resolveSearchArgsFromEditor(
         }
         return undefined;
     }
+
     return {
         documentUri,
         refText,
         range: selected
-            ? range
-            : wordRangeAtPosition(editor.document, editor.selection.active) ?? range,
+            ? {
+                start: { line: editor.selection.start.line, character: editor.selection.start.character },
+                end: { line: editor.selection.end.line, character: editor.selection.end.character }
+            }
+            : wordRangeAtPosition(editor.document, editor.selection.active) ?? {
+                start: { line: editor.selection.start.line, character: editor.selection.start.character },
+                end: { line: editor.selection.end.line, character: editor.selection.end.character }
+            },
         mode: selected.startsWith('[') ? 'replace' : 'wrap'
     };
 }
+
+
 
 /** Text fallback when the language client is unavailable — no Langium DI. */
 function resolveSearchSiteLocally(
@@ -156,7 +168,9 @@ function resolveSearchSiteLocally(
         const inner = selected.slice(1, -1).trim();
         const idea = inner.includes('.') ? inner.slice(inner.lastIndexOf('.') + 1).replace(/^["']|["']$/g, '') : inner;
         if (idea) {
-            return { documentUri, refText: idea, range, mode: 'replace' };
+            const startPos = { line: range.start.line, character: range.start.character + 1 };
+            const endPos = { line: range.end.line, character: range.end.character - 1 };
+            return { documentUri, refText: idea, range: { start: startPos, end: endPos }, mode: 'replace' };
         }
     }
     const line = text.split(/\r?\n/)[range.start.line] ?? '';
@@ -167,7 +181,18 @@ function resolveSearchSiteLocally(
             ? inner.slice(inner.lastIndexOf('.') + 1).replace(/^["']|["']$/g, '')
             : inner;
         if (idea) {
-            return { documentUri, refText: idea, range, mode: 'replace' };
+            const lineText = text.split(/\r?\n/)[range.start.line] ?? '';
+            const openBracketIdx = lineText.indexOf('[');
+            if (openBracketIdx !== -1) {
+                const startChar = openBracketIdx + 1;
+                const endChar = startChar + bracket[1].length;
+                return {
+                    documentUri,
+                    refText: idea,
+                    range: { start: { line: range.start.line, character: startChar }, end: { line: range.start.line, character: endChar } },
+                    mode: 'replace'
+                };
+            }
         }
     }
     const word = wordAtPosition(editor.document, editor.selection.active);

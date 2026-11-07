@@ -96,6 +96,11 @@ reference_brackets {
     Single-bracket references use square brackets around a target.
     Forms include ideaset-only, idea-only, ideaset dot idea, and idea dot attribute targets.
     An idea dot attribute target follows [attribute_namespacing].
+    A bracket reference can use a quoted string to reference an idea with spaces.
+
+    @tests (
+        ["../../packages/language/test/quoted-bracket-ref.test.ts"]
+    )
 }
 
 same_file_reference {
@@ -110,6 +115,7 @@ same_file_reference {
         ["../../crates/reqlan-index/src/extract.rs"]
     )
     @tests (
+        ["../../packages/language/test/quoted-bracket-ref.test.ts"]
         ["../../packages/language/test/linking.test.ts:resolve same-file bracket reference to local idea"]
         ["../../packages/language/test/linking.test.ts:resolve forward reference to later idea in the same file"]
         ["../../packages/language/test/linking.test.ts:resolve circular same-file references"]
@@ -560,7 +566,6 @@ inline_code {
         ["../../crates/reqlan-parse/tests/align.rs:inline_code_file_only_line_range_is_not_a_live_ref"]
         ["../../crates/reqlan-parse/tests/lexer.rs:backticked_bracketed_file_ref_is_one_inline_code_token"]
         ["../../crates/reqlan-index/tests/broken_references.rs:check_skips_file_refs_inside_inline_code_and_fences"]
-        ["../../crates/reqlan-index/src/extract.rs:embedded_scan_skips_backticked_file_ref_with_line_range"]
         ["../../crates/reqlan-index/src/extract.rs:extract_skips_backticked_file_only_ref"]
         ["../../crates/reqlan-index/src/extract.rs:site_rq_does_not_index_backticked_interlock_path"]
         ["../../crates/reqlan-index/tests/broken_references.rs:sync_drops_stale_inline_code_file_refs_when_extract_version_changes"]

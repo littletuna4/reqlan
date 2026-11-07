@@ -21,8 +21,6 @@ export interface InboundFileReferencer {
     line: number;
 }
 
-const FILE_IDEA_SENTINEL = '__file__';
-
 export function normalizeIndexedPath(path: string): string {
     return path.replace(/\\/g, '/').replace(/^\.\//, '');
 }
@@ -39,12 +37,12 @@ export function ideaNameFromId(sourceId: string): string {
 
 export function inboundFileReferencerDisplayName(sourceId: string): string {
     const name = ideaNameFromId(sourceId);
-    if (name && name !== FILE_IDEA_SENTINEL) {
+    if (name) {
         return name;
     }
     const file = fileFromIdeaId(sourceId);
     const base = posix.basename(normalizeIndexedPath(file));
-    return base || name || sourceId;
+    return base || sourceId;
 }
 
 export function inboundFileTargetMatches(

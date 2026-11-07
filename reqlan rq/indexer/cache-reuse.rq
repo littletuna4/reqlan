@@ -168,7 +168,7 @@ sync_pass_idea_catalog {
     @implementation (
         ["../../crates/reqlan-index/src/sync.rs"]
         ["../../crates/reqlan-analytical/src/workspace_index.rs"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/workspace_index.rs"]
         ["../../packages/analytical/src/index-store/workspace-index-sync.ts"]
         ["../../packages/analytical/src/native/native-workspace-index.ts"]
     )

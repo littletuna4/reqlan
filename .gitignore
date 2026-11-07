@@ -69,6 +69,8 @@ target/
 # Generated native package binaries (package.json skeletons are tracked)
 packages/analytical-native/**/*.node
 artifacts/
+# Staged rust language server binaries (package-extension-targets.mjs)
+packages/extension/bin/
 
 *.secret.rq
 

@@ -354,6 +354,26 @@ fn check_accepts_url_references() {
 }
 
 #[test]
+fn check_reports_each_missing_file_once_from_the_owning_idea() {
+    // rq:["../../../reqlan rq/reference_types.rq".file_reference]
+    let root = scratch("file-owner");
+    std::fs::write(
+        root.join("host.rq"),
+        "first {\n    body\n}\nsecond {\n    [\"./missing.ts\"]\n}\n",
+    )
+    .unwrap();
+    let store = sync_root(&root);
+    let rows = run_check(&store, &root, None);
+    let missing: Vec<&BrokenReference> = rows
+        .iter()
+        .filter(|row| row.kind == "file_reference" && row.label == "./missing.ts")
+        .collect();
+    assert_eq!(missing.len(), 1, "{rows:?}");
+    assert_eq!(missing[0].source_name.as_deref(), Some("second"), "{rows:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
 fn check_strips_test_name_and_line_suffix_before_file_exists() {
     let root = scratch("suffix");
     std::fs::create_dir_all(root.join("src")).unwrap();

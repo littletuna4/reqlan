@@ -186,11 +186,13 @@ fn opaque_file_examples_do_not_extract_inline_or_fenced_paths() {
     );
 
     let doc = extract_indexed_document(rel, &source, &ExtractOptions::default());
+    // Labels keep the authored quotes; compare the unquoted path.
     let file_labels: Vec<String> = doc
         .edges
         .iter()
         .filter(|edge| edge.kind.as_str() == "file_reference")
         .filter_map(|edge| edge.label.clone())
+        .map(|label| label.trim_matches('"').to_string())
         .collect();
     assert!(
         file_labels.iter().any(|label| label == "./present.ts"),

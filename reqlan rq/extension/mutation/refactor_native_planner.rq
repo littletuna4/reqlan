@@ -9,7 +9,7 @@ refactor_native_planner {
     @status done
     @implementation (
         ["../../../crates/reqlan-parse/src/refactor.rs"]
-        ["../../../crates/reqlan-napi/src/lib.rs"]
+        ["../../../crates/reqlan-napi/src/planner.rs"]
         ["../../../packages/analytical/src/core/idea-refactor-plan.ts"]
         ["../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
     )

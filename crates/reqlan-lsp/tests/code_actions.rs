@@ -598,3 +598,192 @@ fn inserts_from_import_at_top_when_file_has_no_imports() {
     let applied = add_import_applied(host, "Add import from \"./lib.rq\"");
     assert_eq!(applied, "from \"./lib.rq\" import beta\n\nhost {\n    [beta]\n}\n");
 }
+
+// Oracle: offers file reference quick-fix suggestions for missing file references
+#[test]
+fn offers_file_ref_quick_fix_for_missing_file_reference() {
+    let root = scratch("file-ref-quickfix");
+    fs::create_dir_all(root.join("lib")).unwrap();
+    let shared_lib = root.join("lib").join("shared.rq");
+    fs::write(&shared_lib, "shared_idea {\n}\n").unwrap();
+
+    let consumer = root.join("consumer.rq");
+    fs::write(&consumer, "consumer {\n    [\"./lib/missing.rq\"]\n}\n").unwrap();
+
+    let consumer_uri = file_uri(&consumer);
+    let shared_lib_uri = file_uri(&shared_lib);
+
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&shared_lib_uri, "shared_idea {\n}\n".into());
+    session.open(&consumer_uri, "consumer {\n    [\"./lib/missing.rq\"]\n}\n".into());
+
+    let diagnostics = session.diagnostics(&consumer_uri);
+    let file_ref_diags: Vec<_> = diagnostics
+        .into_iter()
+        .filter(|d| d.message.contains("Could not resolve file reference"))
+        .collect();
+
+    assert!(!file_ref_diags.is_empty(), "Expected at least one file reference diagnostic");
+
+    let actions =
+        session.code_actions_for(&consumer_uri, file_ref_diags[0].range, &file_ref_diags, &[]);
+
+    // Should have at least one "Use \"...\"" quick-fix action
+    let use_actions: Vec<&str> = titles(&actions)
+        .into_iter()
+        .filter(|t| t.starts_with("Use \"") && t.ends_with("\""))
+        .collect();
+    assert!(
+        !use_actions.is_empty(),
+        "Expected at least one 'Use \"...\"' quick-fix action, got: {:?}",
+        titles(&actions)
+    );
+
+    // There should also be a "Search for file…" command action
+    let has_search = actions.iter().any(|a| {
+        matches!(
+            a,
+            CodeActionOrCommand::CodeAction(action) if action.title == "Search for file…"
+        )
+    });
+    assert!(has_search, "Expected a 'Search for file…' command action");
+
+    let _ = fs::remove_dir_all(root);
+}
+
+// Oracle: top file ref quick-fix is preferred when a workspace file shares trailing chars
+#[test]
+fn top_file_ref_quick_fix_is_preferred_on_trailing_match() {
+    let root = scratch("file-ref-quickfix-preferred");
+
+    // Create workspace files with different trailing-character overlap with "missing.rq"
+    // "other.rq" shares ".rq" (3 chars) with "missing.rq"
+    // "longer_match.rq" also shares ".rq" (3 chars) but is longer
+    let other = root.join("other.rq");
+    fs::write(&other, "other_idea {\n}\n").unwrap();
+
+    let longer_match = root.join("longer_match.rq");
+    fs::write(&longer_match, "longer_match_idea {\n}\n").unwrap();
+
+    let consumer = root.join("consumer.rq");
+    fs::write(&consumer, "consumer {\n    [\"./lib/missing.rq\"]\n}\n").unwrap();
+
+    let consumer_uri = file_uri(&consumer);
+    let other_uri = file_uri(&other);
+    let longer_match_uri = file_uri(&longer_match);
+
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&other_uri, "other_idea {\n}\n".into());
+    session.open(&longer_match_uri, "longer_match_idea {\n}\n".into());
+    session.open(&consumer_uri, "consumer {\n    [\"./lib/missing.rq\"]\n}\n".into());
+
+    let diagnostics = session.diagnostics(&consumer_uri);
+    let file_ref_diags: Vec<_> = diagnostics
+        .into_iter()
+        .filter(|d| d.message.contains("Could not resolve file reference"))
+        .collect();
+
+    assert!(!file_ref_diags.is_empty(), "Expected at least one file reference diagnostic");
+
+    let actions =
+        session.code_actions_for(&consumer_uri, file_ref_diags[0].range, &file_ref_diags, &[]);
+
+    let use_actions: Vec<&str> = titles(&actions)
+        .into_iter()
+        .filter(|t| t.starts_with("Use \"") && t.ends_with("\""))
+        .collect();
+
+    // Both files share ".rq" (3 chars), so they tie on score.
+    // Tiebreaker is shorter path length: "other.rq" < "longer_match.rq"
+    assert!(
+        use_actions.first().map(|t| *t) == Some("Use \"other.rq\""),
+        "Top suggestion should be 'other.rq' (shorter path tiebreaker), got: {:?}",
+        use_actions
+    );
+
+    // The top action should be preferred
+    let top = code_action(&actions, use_actions.first().unwrap());
+    assert_eq!(top.is_preferred, Some(true));
+
+    let _ = fs::remove_dir_all(root);
+}
+
+// Oracle: file ref quick-fix is triggered for qualified reference with missing path
+#[test]
+fn file_ref_quick_fix_for_qualified_reference_with_missing_path() {
+    let root = scratch("file-ref-qualified-missing-path");
+    fs::create_dir_all(root.join("lib")).unwrap();
+
+    let target_lib = root.join("lib").join("shared.rq");
+    fs::write(&target_lib, "shared_idea {\n}\n").unwrap();
+
+    let consumer = root.join("consumer.rq");
+    // Qualified reference with path that does not exist; note the missing path prefix
+    // referencing a nonexistent directory sibling
+    fs::write(
+        &consumer,
+        "consumer {\n    [\"./lib/nonexistent/build_filter_issue.rq\".q2_rust_type_error]\n}\n",
+    )
+    .unwrap();
+
+    let consumer_uri = file_uri(&consumer);
+    let target_lib_uri = file_uri(&target_lib);
+
+    let mut session = Session::new();
+    session.set_workspace_folders(std::slice::from_ref(&root));
+    session.open(&target_lib_uri, "shared_idea {\n}\n".into());
+    session.open(
+        &consumer_uri,
+        "consumer {\n    [\"./lib/nonexistent/build_filter_issue.rq\".q2_rust_type_error]\n}\n"
+            .into(),
+    );
+
+    let diagnostics = session.diagnostics(&consumer_uri);
+    let file_ref_diags: Vec<_> = diagnostics
+        .clone()
+        .into_iter()
+        .filter(|d| d.message.contains("Could not resolve file reference"))
+        .collect();
+
+    assert!(
+        !file_ref_diags.is_empty(),
+        "Expected at least one file reference diagnostic for qualified path: {:?}",
+        diagnostics
+    );
+
+    // The diagnostic should cover the full span including the path part
+    let diag = &file_ref_diags[0];
+    assert!(
+        diag.message.contains("nonexistent/build_filter_issue.rq"),
+        "Diagnostic message should include authored path: {:?}",
+        diag.message
+    );
+
+    let actions = session.code_actions_for(&consumer_uri, diag.range, &file_ref_diags, &[]);
+
+    // Should offer "Use ..." quick-fix actions based on path matching
+    let use_actions: Vec<&str> = titles(&actions)
+        .into_iter()
+        .filter(|t| t.starts_with("Use \"") && t.ends_with("\""))
+        .collect();
+
+    assert!(
+        !use_actions.is_empty(),
+        "Expected at least one 'Use \"...\"' quick-fix action for qualified ref, got: {:?}",
+        titles(&actions)
+    );
+
+    // The edit replaces only the quoted path segment; the idea suffix is untouched text
+    let use_action = actions.iter().find_map(|a| match a {
+        CodeActionOrCommand::CodeAction(action) if action.title.starts_with("Use \"") => {
+            Some(action)
+        }
+        _ => None,
+    });
+    let new_text = edit_text(use_action.expect("Use action"));
+    assert_eq!(new_text, "\"lib/shared.rq\"", "{new_text}");
+
+    let _ = fs::remove_dir_all(root);
+}

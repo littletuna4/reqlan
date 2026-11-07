@@ -22,7 +22,15 @@ pub struct IdeaSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
+pub enum RequirementMatchKind {
+    Idea,
+    File,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
 pub struct RequirementMatch {
+    pub kind: RequirementMatchKind,
     pub idea: IdeaSummary,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub score: Option<f64>,

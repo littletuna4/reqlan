@@ -39,6 +39,7 @@ pub struct ActionRequest<'a> {
     pub only: &'a [String],
     pub server_diagnostics: &'a [Diagnostic],
     pub symbols: &'a [SymbolHit],
+    pub workspace_files: &'a [String],
 }
 
 pub(crate) fn import_fix_names(
@@ -64,6 +65,10 @@ pub fn collect(request: ActionRequest<'_>) -> Vec<CodeActionOrCommand> {
             local_unresolved_name(request.model, request.lines, request.text, diagnostic)
         {
             push_import_fixes(&request, diagnostic, &name, &mut searched, &mut actions);
+        }
+        // Also handle "Could not resolve file reference" diagnostics
+        if let Some(missing) = file_ref_missing_path(&diagnostic.message) {
+            push_file_ref_fixes(&request, diagnostic, &missing, &mut actions);
         }
     }
     if kind_allowed(request.only, "quickfix") {
@@ -706,6 +711,126 @@ fn kind_allowed(only: &[String], kind: &str) -> bool {
             || kind.starts_with(&format!("{requested}."))
             || requested.starts_with(&format!("{kind}."))
     })
+}
+
+/// Extract the missing path from messages like "Could not resolve file reference 'path'"
+fn file_ref_missing_path(message: &str) -> Option<String> {
+    let prefix = "Could not resolve file reference '";
+    if !message.starts_with(prefix) {
+        return None;
+    }
+    let rest = &message[prefix.len()..];
+    // Strip trailing period, then trailing quotes, then leading/trailing quotes
+    let trimmed = rest.trim_end_matches('.').trim_end_matches('\'');
+    let path = trimmed.trim_matches('"');
+    Some(path.to_string())
+}
+
+/// Add quick-fix actions for missing file references
+fn push_file_ref_fixes(
+    request: &ActionRequest<'_>,
+    diagnostic: &Diagnostic,
+    missing: &str,
+    actions: &mut Vec<CodeActionOrCommand>,
+) {
+    // Get workspace file URIs
+    let candidate_files = request.workspace_files;
+    if candidate_files.is_empty() {
+        return;
+    }
+
+    // A body qualified reference `["path".idea]` rewrites only the quoted path
+    // segment, keeping the idea suffix; a bare file ref replaces the whole range.
+    let fix_range = file_ref_edit_range(request, diagnostic);
+
+    // Compute relative paths from the document URI to each candidate
+    let mut scored: Vec<(usize, String)> = Vec::new();
+    for file_uri in candidate_files {
+        if same_file(&file_uri, request.doc_uri) {
+            continue;
+        }
+        let Some(rel_path) = relative_import_path(request.doc_uri, &file_uri) else {
+            continue;
+        };
+        let rel_path = rel_path.trim_start_matches("./");
+        let rel_path = rel_path.replace('\\', "/");
+
+        // Calculate suffix match score: count shared trailing characters
+        let mut score = 0;
+        let missing_rev: Vec<char> = missing.chars().rev().collect();
+        let path_rev: Vec<char> = rel_path.chars().rev().collect();
+
+        for (missing_char, path_char) in missing_rev.iter().zip(path_rev.iter()) {
+            if missing_char == path_char {
+                score += 1;
+            } else {
+                break;
+            }
+        }
+        scored.push((score, rel_path));
+    }
+
+    // Sort by score descending, then by shorter path length (tiebreaker)
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.len().cmp(&b.1.len())));
+
+    // Add quick-fix actions for top candidates (up to MAX_IMPORT_SUGGESTIONS)
+    for (idx, (score, file_path)) in scored.iter().enumerate().take(MAX_IMPORT_SUGGESTIONS) {
+        // Create edit that replaces the missing path with the file path in quotes
+        let edit = TextEdit { range: fix_range, new_text: format!("\"{}\"", file_path) };
+
+        // The first action (top candidate) should be preferred when there's any match
+        let preferred = idx == 0 && *score > 0;
+
+        actions.push(quick_fix(
+            format!("Use \"{}\"", file_path),
+            request.doc_uri,
+            edit,
+            vec![diagnostic.clone()],
+            preferred,
+        ));
+    }
+
+    // Add "search for file..." command as fallback
+    let args = serde_json::json!({
+        "documentUri": request.doc_uri,
+        "refText": missing,
+        "range": serde_json::to_value(diagnostic.range).unwrap_or(serde_json::Value::Null),
+    });
+    actions.push(command_action(
+        format!("Search for file…"),
+        CodeActionKind::QUICKFIX,
+        "reqlan.searchReference",
+        Some(vec![args]),
+        vec![diagnostic.clone()],
+    ));
+}
+
+/// Edit range for a missing file reference: the quoted path segment of a body
+/// qualified reference `["path".idea]`, or the whole diagnostic range otherwise.
+fn file_ref_edit_range(request: &ActionRequest<'_>, diagnostic: &Diagnostic) -> Range {
+    let mut fix_range = diagnostic.range;
+    walk_refs(request.model, &mut |target, _| {
+        let target_range =
+            request.lines.range(request.text, target.span().start, target.span().end);
+        if target_range != diagnostic.range {
+            return;
+        }
+        if let ReferenceTarget::Qualified { path: Some(_), .. } = target {
+            if let Some(range) = quoted_segment_range(request, target.span()) {
+                fix_range = range;
+            }
+        }
+    });
+    fix_range
+}
+
+/// LSP range of the first quoted segment inside `span`.
+fn quoted_segment_range(request: &ActionRequest<'_>, span: Span) -> Option<Range> {
+    let text = request.text.get(span.start..span.end)?;
+    let open = text.char_indices().find(|(_, ch)| *ch == '"' || *ch == '\'')?;
+    let after_open = open.0 + open.1.len_utf8();
+    let close = after_open + text[after_open..].char_indices().find(|(_, ch)| *ch == open.1)?.0;
+    Some(request.lines.range(request.text, span.start + open.0, span.start + close + 1))
 }
 
 pub(crate) fn relative_import_path(from_uri: &str, to_uri: &str) -> Option<String> {

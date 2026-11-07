@@ -26,7 +26,7 @@ syntax_highlighting {
         ["../../../../packages/language/scripts/patch-textmate.mjs"]
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/tokens.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
         ["../../../../packages/extension/package.json"]
     )
@@ -56,7 +56,7 @@ idea_content_tooltip {
     @status done
     @implementation (
         ["../../../../crates/reqlan-lsp/src/hover_content.rs"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/hover.rs"]
         ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
         ["../../../../packages/extension/src/extension/idea-content-tooltip.ts"]

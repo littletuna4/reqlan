@@ -28,6 +28,7 @@ use reqlan_index::{
 use reqlan_parse::{
     import_path_candidates, parse_document, resolve_rq_path, ImportRootMapping, Model, Span,
 };
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -57,7 +58,19 @@ struct FileStamp {
 
 struct BaseIndex {
     root: PathBuf,
-    store: IndexStore,
+    store: RefCell<Option<IndexStore>>,
+}
+
+impl BaseIndex {
+    fn store(&self) -> std::cell::Ref<'_, IndexStore> {
+        if self.store.borrow().is_none() {
+            let db = self.root.join(".reqlan").join("ideas-index.sqlite");
+            let opened =
+                IndexStore::open_read_only(&db).expect("failed to open ideas index read-only");
+            self.store.replace(Some(opened));
+        }
+        std::cell::Ref::map(self.store.borrow(), |s| s.as_ref().unwrap())
+    }
 }
 
 struct CommentDoc {
@@ -568,7 +581,7 @@ impl Session {
             }
         }
         for index in &self.indexes {
-            let Ok(rows) = index.store.idea_names_with_prefix(prefix, 80) else {
+            let Ok(rows) = index.store().idea_names_with_prefix(prefix, 80) else {
                 continue;
             };
             for row in rows {
@@ -818,7 +831,7 @@ impl Session {
             if tick.tick("Searching workspace", index_no as u32, indexes) {
                 return Err(Stopped);
             }
-            let Ok(rows) = index.store.idea_names_with_prefix(query, 80) else {
+            let Ok(rows) = index.store().idea_names_with_prefix(query, 80) else {
                 continue;
             };
             for row in rows {
@@ -944,6 +957,7 @@ impl Session {
         self.documents
             .get(uri)
             .map(|doc| {
+                let workspace_files = self.workspace_files();
                 doc.model.code_actions(
                     range,
                     uri,
@@ -951,9 +965,29 @@ impl Session {
                     only,
                     &server_diagnostics,
                     &symbols,
+                    &workspace_files,
                 )
             })
             .unwrap_or_default()
+    }
+
+    /// All workspace `.rq` file URIs (open buffers + index rows), used to rank
+    /// file-reference quick fixes when a path no longer exists.
+    fn workspace_files(&self) -> Vec<String> {
+        let mut out: Vec<String> = self.documents.keys().cloned().collect();
+        for index in &self.indexes {
+            let Ok(uris) = index.store().list_document_uris() else {
+                continue;
+            };
+            for uri in &uris {
+                if !out.contains(uri) {
+                    out.push(uri.clone());
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        out
     }
 
     fn symbols_named(&self, from_uri: &str, names: &HashSet<String>) -> Vec<SymbolHit> {
@@ -974,7 +1008,7 @@ impl Session {
         }
         for index in &self.indexes {
             for name in names {
-                let Ok(rows) = index.store.ideas_named(name) else {
+                let Ok(rows) = index.store().ideas_named(name) else {
                     continue;
                 };
                 for row in rows {
@@ -1289,7 +1323,7 @@ impl Session {
             }
         }
         for index in &self.indexes {
-            let Ok(rows) = index.store.ideas_named(idea) else {
+            let Ok(rows) = index.store().ideas_named(idea) else {
                 continue;
             };
             for row in rows {
@@ -1334,12 +1368,12 @@ impl Session {
             if tick.tick("Renaming", index_no as u32, total) {
                 return Err(Stopped);
             }
-            let Ok(ideas) = index.store.ideas_named(idea) else {
+            let Ok(ideas) = index.store().ideas_named(idea) else {
                 continue;
             };
             for row in ideas {
                 let id = idea_id(&row.file_uri, &row.name);
-                let Ok(edges) = index.store.get_edges_to(&id) else {
+                let Ok(edges) = index.store().get_edges_to(&id) else {
                     continue;
                 };
                 let mut files = HashSet::new();
@@ -1382,7 +1416,7 @@ impl Session {
             if tick.tick("Finding references", index_no as u32, total) {
                 return Err(Stopped);
             }
-            let Ok(ideas) = index.store.ideas_named(idea) else {
+            let Ok(ideas) = index.store().ideas_named(idea) else {
                 continue;
             };
             for row in ideas {
@@ -1404,7 +1438,7 @@ impl Session {
                     });
                 }
                 let id = idea_id(&row.file_uri, &row.name);
-                let Ok(edges) = index.store.get_edges_to(&id) else {
+                let Ok(edges) = index.store().get_edges_to(&id) else {
                     continue;
                 };
                 for edge in edges {
@@ -1538,7 +1572,7 @@ impl Default for Session {
 fn open_base_index(indexes: &mut Vec<BaseIndex>, folder: &Path) {
     let db = folder.join(".reqlan").join("ideas-index.sqlite");
     if let Ok(store) = IndexStore::open_read_only(&db) {
-        indexes.push(BaseIndex { root: folder.to_path_buf(), store });
+        indexes.push(BaseIndex { root: folder.to_path_buf(), store: RefCell::new(Some(store)) });
     }
 }
 

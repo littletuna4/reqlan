@@ -193,7 +193,7 @@ parser_align {
     @implementation (
         ["../../crates/reqlan-parse/src/align.rs"]
         ["../../packages/language/test/langium-rust-parse-align.test.ts"]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/source.rs"]
         ["../../packages/analytical/src/native/parse-source.ts"]
     )
     @tests (

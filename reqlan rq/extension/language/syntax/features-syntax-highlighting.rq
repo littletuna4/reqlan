@@ -31,7 +31,7 @@ import_statement_highlighting {
         ["../../../../packages/language/scripts/patch-textmate.mjs"]
         ["../../../../packages/language/syntaxes/reqlan.tmLanguage.json"]
         ["../../../../packages/language/src/reqlan-semantic-token-provider.ts"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/tokens.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
         ["../../../../packages/extension/package.json"]
     )
@@ -64,7 +64,8 @@ non_web_reference_navigation {
         ["../../../../packages/language/src/reqlan-local-symbolic-links.ts"]
         ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../../packages/language/src/reqlan-definition-provider.ts"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/links.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/definition.rs"]
     )
     @tests (
         ["../../../../packages/language/test/local-symbolic-links.test.ts:same-file idea links without DocumentBuilder / workspace link"]
@@ -93,7 +94,7 @@ unresolved_reference_diagnostics {
         ["../../../../packages/language/src/reqlan-neighbor-parse.ts"]
         ["../../../../packages/language/src/reqlan-outbound-presentation.ts"]
         ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/diagnostics.rs"]
         ["../../../../packages/language/src/reqlan-validator.ts"]
     )
     @tests (
@@ -178,7 +179,7 @@ editor_reference_activation {
         ["../../../../packages/extension/src/extension/register-definition-navigation.ts"]
         ["../../../../packages/extension/src/extension/document-sync.ts"]
         ["../../../../packages/extension/src/extension/main.ts"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/definition.rs"]
         ["../../../../crates/reqlan-lsp/src/session.rs"]
     )
     @tests (
@@ -327,7 +328,7 @@ reference_goto_definition_speed {
     @status done
     @implementation (
         ["../../../../crates/reqlan-lsp/src/session.rs"]
-        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/definition.rs"]
         ["../../../../crates/reqlan-lsp/src/server.rs"]
         ["../../../../packages/extension/src/extension/main.ts"]
         ["../../../../packages/extension/src/extension/register-folder-reference-handling.ts"]
@@ -500,7 +501,7 @@ traceable_inlay_hints {
   The Rust server emits the same markdown tooltip and open command (["../support/language-server-rust.rq".language_server_rust]).
   A file path with a space opens that file from the inlay click and from the tooltip.
   A directory segment "reqlan rq" opens that file.
-  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"], ["../../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../../packages/language/src/reqlan-path-resolve.ts"], and ["../../../../crates/reqlan-lsp/src/analysis.rs"].
+  Implemented by ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"], ["../../../../packages/language/src/reqlan-inlay-hint-settings.ts"], ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"], ["../../../../packages/language/src/reqlan-file-link-resolver.ts"], ["../../../../packages/language/src/reqlan-path-resolve.ts"], and ["../../../../crates/reqlan-lsp/src/analysis/inlays.rs"].
   @implementation (
     ["../../../../packages/language/src/reqlan-inbound-reference-inlay-label.ts"]
     ["../../../../packages/language/src/reqlan-inlay-hint-provider.ts"]
@@ -508,7 +509,7 @@ traceable_inlay_hints {
     ["../../../../packages/extension/src/extension/register-reference-inlay-hints.ts"]
     ["../../../../packages/language/src/reqlan-file-link-resolver.ts"]
     ["../../../../packages/language/src/reqlan-path-resolve.ts"]
-    ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+    ["../../../../crates/reqlan-lsp/src/analysis/inlays.rs"]
   )
   @status done
   @tests (

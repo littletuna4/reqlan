@@ -24,6 +24,7 @@ import {
     resolveApplicationMemoryPath,
     scanWorkspace,
     toBaseDescriptor,
+    SqliteIndexStore,
     type BaseDescriptor,
     type BaseStatusEntry,
     type IndexStatusSnapshot,
@@ -183,12 +184,16 @@ export class IndexService {
         return this.getActiveBase()?.index.isReady ?? false;
     }
 
-    get indexStore() {
+    get indexStore(): SqliteIndexStore {
         const entry = this.getActiveBase();
         if (!entry) {
             throw new Error('No reqlan base is active. Create a .reqlan folder to initialize a base.');
         }
-        return entry.index.indexStore;
+        const store = entry.index.indexStore;
+        if (!store) {
+            throw new Error('Index store is not open. Call ensureOpenForUse() first.');
+        }
+        return store;
     }
 
     fuzzySearch(
@@ -676,7 +681,11 @@ export class IndexService {
                 continue;
             }
             try {
-                const uris = await entry.index.indexStore.listDocumentUris();
+                const store = entry.index.indexStore;
+                if (!store) {
+                    continue;
+                }
+                const uris = await store.listDocumentUris();
                 for (const uri of uris) {
                     paths.push(vscode.Uri.joinPath(vscode.Uri.file(base.root), uri).fsPath);
                 }

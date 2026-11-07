@@ -1,5 +1,6 @@
 from "./core.rq" import analysers
 from "../ai-support.rq" import cli
+from "../cli/click.rq" import click
 from "../extension/agent/chat-participant.rq" import mcp
 from "../modelling/advanced_analysis.rq" import katz_centrality
 from "../ontology.rq" import idea
@@ -7,33 +8,58 @@ from "../ontology.rq" import idea
 roping {
     Roping is an operation that an agent can perform to quickly orientate themselves in a project.
     The idea is that, an agent can search for an idea, then, using `reqlan rope`, collect all of the higher [rope-idea-cardinality] context to a projects constitution.
-    @todo
-    @evaluating
+    @status in-progress
 }
 
 rope {
     Rope is the command/function used for [roping],
     It is used in the [analysers] and the [cli]/[mcp].
     Surface: CLI `reqlan rope <target> [--fray <n>] [--tuning <mode>]`, MCP tool `rope`, and AnalysisApi `rope`.
-    Default `fray` = 2 (includes 2 hops of adjacent ideas).
-    Returns compact context around the target idea, respecting click session deduplication.
-    @todo
-    @evaluating
+    Default `fray` is dynamic (see [dynamic-rope-tuning]); `--fray <n>` overrides it.
+    Returns compact context around the target idea, respecting click session deduplication ([click-store-context-optimisation]):
+    candidates carry `name`, `id`, `fileUri`, `cardinality score`, and `hops`; the centre target is returned as for [click].
+    Ambiguous targets return ranked matches; no match falls through to search.
+    Implemented by ["../../crates/reqlan-analytical/src/rope.rs"],
+    `rope` in ["../../crates/reqlan-analytical/src/api.rs"],
+    `rope` in ["../../crates/reqlan-napi/src/analysis.rs"],
+    `rope` in ["../../packages/analytical/src/native/native-analysis-api.ts"],
+    ["../../packages/cli/src/commands/rope.ts"],
+    and `handleRopeTool` in ["../../packages/mcp/src/server.ts"].
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs"]
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_returns_cardinality_ranked_hops"]
+        ["../../packages/analytical/test/rope.test.ts"]
+        ["../../packages/cli/test/rope.test.ts:rope command emits kind rope with frayed candidates"]
+        ["../../packages/mcp/test/server.test.ts:rope forwards target, session, fray, and tuning"]
+    )
 }
 
 rope-idea-cardinality {
     rope [idea] cardinality is defined by a combination of the file position (i.e. depth), the number of ideas linked one directionally to the [idea] lower on the same branch, and the idea's position in a page, the idea's references, and the idea's [katz_centrality].
     Many cardinality signals may be combined.
     Formula: `cardinality = depth_weight * depth + branch_factor * direction_links + position_weight * page_position + reference_weight * inbound_refs + katz_weight * katz_centrality`
-    Each weight is configurable; default: depth_weight=0.3, branch_factor=1.5, position_weight=0.2, reference_weight=0.2, katz_weight=0.3
+    Depth is the hop distance to the rope centre (farther means lower), `depth_gap = max_hops - hops`.
+    Implemented as fixed constants in `cardinality_raw` in ["../../crates/reqlan-analytical/src/rope.rs"];
+    default: depth_weight=0.3, branch_factor=1.5, position_weight=0.2, reference_weight=0.2, katz_weight=0.3.
+    @todo make each weight configurable
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_returns_cardinality_ranked_hops"]
+        ["../../packages/analytical/test/rope.test.ts:rope API returns kind rope with cardinality candidates"]
+    )
 }
 
 fray {
     Fray is like temperature. it describes how many adjacent ideas are included in a [rope] response.
     This should have a default, but user can [rope-tuning] to adjust the [fray].
-    May throw in random ideas to support incremental/incidental link discovery and deduplication.
-    @drafting
-    @todo
+    The effective fray is capped at 6; a user `--fray` is clamped the same way as a tuned one.
+    @todo throw in random ideas to support incremental/incidental link discovery and deduplication
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/src/rope.rs:effective_fray_follows_tuning_modes"]
+        ["../../packages/cli/test/rope.test.ts:rope command rejects an unknown --tuning value"]
+    )
 }
 
 click-store-context-optimisation {
@@ -41,53 +67,59 @@ click-store-context-optimisation {
     This is to prevent the retreival of the same idea into context multiple times.
     click session should be used to track visited ideas and avoid duplicates.
     When an idea is already in click session, rope should respect session context.
-    When the idea is not in session, but session has ideas, adjust fray based on graph distance.
+    When a [rope] target matches more than one idea, matches are ranked by [click] session context:
+    hop distance from the session's surfaced ideas (see ["../cli/click.rq".click_session]).
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_session_dedup_skips_already_surfaced_ideas"]
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_search_fallback_without_exact_target"]
+    )
 }
 
 rope-tuning {
     Depending on model, or harness, or user input, the [fray] can be adjusted.
     Tuning modes: `default`, `focused`, `exploratory`, `deep`.
-    User input `--tuning <mode>` adjusts the fray accordingly.
-    @todo
-    @drafting
+    Effective fray per [dynamic-rope-tuning] base:
+    `default` = base, `focused` = 1, `exploratory` = ceil(base * 1.5), `deep` = base * 2, always clamped to the [fray] cap.
+    User input `--tuning <mode>` adjusts the fray accordingly; unknown modes are an error.
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/src/rope.rs:effective_fray_follows_tuning_modes"]
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_focused_limits_to_adjacent_hops"]
+        ["../../packages/cli/test/rope.test.ts:rope command rejects an unknown --tuning value"]
+    )
 }
 
 dynamic-rope-tuning {
     Default [rope-tuning] may be considerate of spec graph topology.
     For example, as graph gets more complex, the [fray] should be adjusted to include more adjacent ideas.
     As requested node gets close to the root, the [fray] should be adjusted to include more adjacent ideas.
-    Graph complexity metric: total idea count, edge density, centrality variance.
-    Root proximity: shortest path distance from idea to any file-level ideaset.
-    @drafting
-    @todo
+    Implemented complexity metric: idea count and edge density only; base fray = 2 + edge density clamped to 0..4.
+    @todo metric: centrality variance
+    @todo metric: root proximity (shortest path distance from idea to any file-level ideaset)
+    @status partial
+    @tests (
+        ["../../crates/reqlan-analytical/src/rope.rs:dynamic_base_fray_defaults_to_two"]
+    )
 }
 
 algorithm {
-    [rope] should:
-    1. Resolve target: idea name, `path#idea`, file, or code file.
-    2. Calculate rope-idea-cardinality for the target and neighbors.
-    3. Determine fray based on mode, user input, and dynamic tuning:
-       - default: base_fray + complexity_adjustment + root_proximity_adjustment
-       - focused: base_fray (minimal)
-       - exploratory: base_fray * 1.5 + random_injection
-       - deep: base_fray * 2.0
-    4. Perform breadth-first search from target up to fray hops.
-    5. Filter by cardinality: include ideas above cardinality_threshold (default 0.5).
-    6. Deduplicate using click session store: skip ideas already shown.
-    7. Order by cardinality (descending), then by file position, then by random.
-    8. Return compact context: idea names + summaries, and optional bodies when within session.
-    9. Track new ideas in click session.
+    [rope] shall, in this order:
+    1. Resolve target: idea name, `path#idea`, file basename, or indexed code file.
+       More than one match returns cardinality-free candidates ranked by [click] session context; none falls through to search.
+    2. Determine base [fray]: user input `--fray` when given, else the [dynamic-rope-tuning] base.
+    3. Apply [rope-tuning] to reach the effective fray, clamped to the [fray] cap.
+    4. Perform breadth-first search from the target up to effective-fray hops over content edges
+       (ideaset membership, imports, and comment links are excluded; a file centre starts one hop out on ideas that reference it).
+    5. Score each neighbour with [rope-idea-cardinality]; normalise to the top candidate and drop ideas below a 0.5 ratio.
+    6. Deduplicate using the click session store: skip ideas already surfaced in the session ([click-store-context-optimisation]).
+    7. Order by cardinality (descending), then by hop distance (ascending), then by name.
+    8. Return compact context: the centre target plus candidate rows (names, ids, file URIs, scores, hops).
+    9. Track the centre and listed ideas in the click session store.
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs"]
+        ["../../packages/analytical/test/rope.test.ts"]
+        ["../../packages/cli/test/rope.test.ts"]
+    )
 }
-
-implementation {
-    CLI: ["../../packages/cli/src/commands/rope.ts"]
-    MCP: ["../../packages/mcp/src/tools/rope.ts"]
-    AnalysisApi: ["../../packages/analytical/src/native/native-analysis-api.ts"]
-    Rust engine: ["../../crates/reqlan-analytical/src/rope.rs"]
-    Click session: ["../../crates/reqlan-analytical/src/click_sessions.rs"]
-}
-
-@status draft
-@todo complete algorithm implementation
-@todo implement dynamic tuning logic
-@todo add tests

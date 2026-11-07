@@ -805,7 +805,7 @@ fn cap_limit(override_value: Option<u32>, config_value: u32) -> u32 {
     }
 }
 
-fn file_entry_id(uri: &str) -> String {
+pub(crate) fn file_entry_id(uri: &str) -> String {
     format!("{FILE_ID_PREFIX}{uri}")
 }
 

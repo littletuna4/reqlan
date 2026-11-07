@@ -367,6 +367,20 @@
       "kind": "block"
     }
   ],
+  "testdata/golden-corpus/language/quoted-name-reference.rq": [
+    {
+      "name": "quoted_name_reference",
+      "kind": "block"
+    },
+    {
+      "name": "my idea2",
+      "kind": "block"
+    },
+    {
+      "name": "another idea",
+      "kind": "block"
+    }
+  ],
   "testdata/golden-corpus/language/syntax-edge-cases.rq": [
     {
       "name": "nested_curly_braces",

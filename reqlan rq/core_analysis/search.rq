@@ -133,3 +133,38 @@ semantic_search {
     Prefer [fuzzy_search] for fast name-oriented lookup with separator-insensitive matching.
     @todo
 }
+
+unified_search {
+    Unified ranking engine combining [semantic_search] signals (name, summary, tokens, tags, edge labels)
+    with [fuzzy_search] signals (basename, stem, full path, separator-insensitive matching, word-order boost)
+    plus context hop decay ([contextual_search]) and Katz centrality bias ([katz_search]).
+    
+    Scoring per hit:
+    - Name exact (+3) / name contains (+1)
+    - Summary exact (+2) / summary contains (+1)
+    - Token overlap (+1 per token)
+    - Tag match (+1 per tag)
+    - Edge label match (+1 per label)
+    - File basename exact (+100) / basename contains (+80) / stem exact (+100) / stem contains (+50) / file URI contains (+50)
+    - Word order boost: ordered (+45) / reordered (+35)
+    - Empty query returns all ideas + files at score 100
+    
+    Applies context hop decay: score *= 2^(-minHop), unreachable floor = 8 hops.
+    Applies Katz centrality bias: score *= (1 + katzScore) for idea hits.
+    Dynamic candidate cap: limit * 8 (min 16) for non-empty query; 400 for empty query.
+    
+    Consumed by CLI `reqlan search` via [native_analysis_api] `searchRequirements`.
+    @implementation (
+        ["../../crates/reqlan-search/src/unified.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs".search_requirements]
+    )
+    @tests (
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_ranks_ideas_and_files_together"]
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_file_basename_exact_match"]
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_separator_insensitive"]
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_empty_query_returns_all"]
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_pagination"]
+        ["../../crates/reqlan-search/tests/unified.rs:unified_search_word_order_boost"]
+    )
+    @status done
+}

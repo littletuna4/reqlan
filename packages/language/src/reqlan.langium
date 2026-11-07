@@ -61,7 +61,7 @@ IdeaMemberName returns string:
     ID | STRING;
 
 ReferenceName returns string:
-    ID;
+    ID | STRING;
 
 // ---------------------------------------------------------------------------
 // block_idea body, reference_embedding, code_snippets
@@ -191,15 +191,15 @@ AliasPart:
 BracketReference:
     '[' target=ReferenceTarget ']';
 
-// Order and shape chosen so alternatives do not share a common LL prefix:
-// - WildcardReference is STRING.WILDCARD_NAME (idea pattern must contain * or ?)
-// - QualifiedReference covers STRING.ID / ID.ID (incl. idea.attribute surface form)
-// - FileSymbolReference only for STRING.ID.ID.ID+ (3+ symbol segments)
-// - FileReference is bare STRING
+// Order chosen so alternatives do not share a common LL prefix:
+// - WildcardReference is STRING.WILDCARD_NAME
+// - QualifiedReference covers STRING.ID / ID.ID
+// - FileSymbolReference only for STRING.ID.ID.ID+
 // - UrlReference is an unquoted scheme:// target
-// - LocalReference is a bare local name
+// - FileReference is bare STRING (parse first, then resolve against ideas at link time)
+// - LocalReference is a bare local name (unquoted or quoted string)
 ReferenceTarget:
-    WildcardReference | QualifiedReference | FileSymbolReference | FileReference | UrlReference | LocalReference;
+    WildcardReference | QualifiedReference | FileSymbolReference | UrlReference | FileReference | LocalReference;
 
 FileReference:
     file=STRING;

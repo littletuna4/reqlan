@@ -152,3 +152,43 @@ language_server_rust {
             - The node language server remains the fallback.
     }
 }
+
+analysis_barrel {
+    The open-buffer analysis of [language_server_rust] is a barrel module.
+    `crates/reqlan-lsp/src/analysis.rs` declares the feature modules and re-exports their surface. It holds no feature logic.
+    Each language feature is one module under `crates/reqlan-lsp/src/analysis/`:
+    - `model`: the parsed open document, its parse inputs, and its name, reference, and token stores.
+    - `text`: span and text primitives shared by all features.
+    - `refs`: the walk over parsed references.
+    - `tokens`: semantic token collection and encoding.
+    - `paths`: authored path location and neighbor file queries.
+    - `diagnostics`: parse, reference, and import errors.
+    - `links`: document links.
+    - `definition`: go-to-definition targets.
+    - `hover`: hover hits.
+    - `references`: highlights, find-references, and rename edits.
+    - `completion`: attribute key and value completion.
+    - `inlays`: inbound referencer hints.
+    - `selection`: expand selection over the parse tree.
+    - `sites`: file, wildcard, and search site payloads for host commands.
+    The barrel is the only surface: other modules import from `crate::analysis`, not from the feature modules.
+    Feature modules share no state beyond the document model.
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/analysis.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/model.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/text.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/refs.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/tokens.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/paths.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/diagnostics.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/links.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/definition.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/hover.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/references.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/completion.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/inlays.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/selection.rs"]
+        ["../../../../crates/reqlan-lsp/src/analysis/sites.rs"]
+    )
+    Related: [language_server_rust], ["./open-file-sequencing.rq".open_file_algorithm].
+}

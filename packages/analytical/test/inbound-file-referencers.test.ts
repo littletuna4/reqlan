@@ -70,8 +70,7 @@ describe('inbound file referencers', () => {
         ]);
     });
 
-    test('uses the source file name when the idea id is the file sentinel', () => {
-        expect(inboundFileReferencerDisplayName('reqs/host.rq#__file__')).toBe('host.rq');
+    test('uses the idea name from the id for display', () => {
         expect(inboundFileReferencerDisplayName('reqs/host.rq#real_idea')).toBe('real_idea');
     });
 });

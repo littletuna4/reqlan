@@ -91,6 +91,7 @@ file_reference {
     Non-`.rq` targets and inbound comment traffic: ["./ontology.rq".referenced_files].
     Markdown `[label](target)` also stores this edge kind — see [link_reference].
     Quoted body text is not this kind: [reference_edgecase].
+    Edge attribution: a [file_reference] indexes from the idea whose body contains it. A reference outside every idea body (anonymous block or file-level prose) is not indexed as an idea edge; editor links still come from ["../packages/language/src/reqlan-embedded-file-references.ts"]. An index edge never files onto another idea.
     @status done
     @implementation (
         [file_reference_resolve]
@@ -104,6 +105,8 @@ file_reference {
         ["../packages/language/test/linking.test.ts:empty file references produce document links and warning diagnostics"]
         ["../packages/language/test/linking.test.ts:folder file references resolve without reading the directory as a file"]
         ["../packages/language/test/references.test.ts:finds embedded file references in @tests lists"]
+        ["../crates/reqlan-index/src/extract.rs:embedded_refs_index_from_the_owning_idea"]
+        ["../crates/reqlan-index/tests/broken_references.rs:check_reports_each_missing_file_once_from_the_owning_idea"]
     )
 }
 

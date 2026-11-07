@@ -257,6 +257,30 @@ import_does_not_exist_error {
     )
 }
 
+file_ref_missing_quick_fix {
+    "Could not resolve file reference" diagnostics offer Quick Fix code actions.
+    A body qualified reference `["path".idea]` whose path does not resolve emits this same diagnostic across the whole reference (path plus idea), not an idea-unresolved diagnostic on the idea token. Its quick fix rewrites only the quoted path segment, keeping the `.idea` suffix. The source file itself is not offered as a candidate.
+    Fixes:
+        - Replace the missing path with a relative path to an existing workspace file.
+        - Candidates are ranked by shared trailing characters (suffix match) between the missing path and candidate file paths. Tiebreaker is shorter path length.
+        - The top candidate (when score > 0) is marked `isPreferred: true`.
+        - A "Search for file…" command fallback invokes `reqlan.searchReference` to let the user browse the workspace.
+    [code_actions]
+    [quick_fixes]
+    @status done
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/analysis/diagnostics.rs"]
+        ["../../../../crates/reqlan-lsp/src/code_actions.rs"]
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:offers_file_ref_quick_fix_for_missing_file_reference"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:top_file_ref_quick_fix_is_preferred_on_trailing_match"]
+        ["../../../../crates/reqlan-lsp/tests/code_actions.rs:file_ref_quick_fix_for_qualified_reference_with_missing_path"]
+        ["../../../../crates/reqlan-lsp/tests/parity.rs:missing_qualified_rq_file_reports_unresolved_idea"]
+    )
+}
+
 import_code_completion_ranking {
     Rank import path completions by directory proximity (hop count from the completing file's directory to the candidate's directory), then directories before files, then path alphabetically.
     Example: typing `../` ranks `../close.rq` before `../../../path.rq`.

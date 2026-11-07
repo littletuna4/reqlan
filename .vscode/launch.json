@@ -3,41 +3,123 @@
 // Hover to view descriptions of existing attributes.
 // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Run Extension",
-            "type": "extensionHost",
-            "request": "launch",
-            "preLaunchTask": "Build extension for debugging",
-            "args": [
-                // Cursor ignores --user-data-dir and --profile-temp for extensionHost launches;
-                // the dev host shares globalState with your main profile. Onboarding resets in
-                // ExtensionMode.Development instead — see onboarding-state.ts.
-                "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
-                // "${workspaceFolder}/reqlan-debug.code-workspace"
-                "${workspaceFolder}/../process-twin"
-            ],
-            "sourceMaps": true,
-            "outFiles": [
-                "${workspaceFolder}/packages/language/out/**/*.js",
-                "${workspaceFolder}/packages/extension/out/**/*.js"
-            ]
-        },
-        {
-            "name": "Attach to Language Server",
-            "type": "node",
-            "port": 6009,
-            "request": "attach",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "sourceMaps": true,
-            "outFiles": [
-                "${workspaceFolder}/packages/language/out/**/*.js",
-                "${workspaceFolder}/packages/extension/out/**/*.js",
-                "${workspaceFolder}/node_modules/langium"
-            ]
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Forces stock VS Code as the extension host, instead of whichever editor
+      // you press F5 in (extensionHost launches default to ${execPath}, i.e. Cursor).
+      // You are prompted for the launcher path; the default 'code' only works if
+      // it is stock VS Code on your PATH. Examples:
+      //   WSL -> Windows VS Code: /mnt/c/Users/<you>/AppData/Local/Programs/Microsoft VS Code/bin/code
+      //   Linux:                  /usr/share/code/bin/code
+      //   macOS:                  /Applications/Visual Studio Code.app/Contents/Resources/app/bin/code
+      // To avoid the prompt, replace "${input:vscodeExe}" with the literal path.
+      "name": "Run Extension (force VS Code)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${input:vscodeExe}",
+      "preLaunchTask": "Dev: build and verify extension",
+      "timeout": 30000,
+      "args": [
+        "--new-window",
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
+        "--user-data-dir=${workspaceFolder}/.vscode/dev-user-data"
+        // , "--disable-extensions"
+        // , "${workspaceFolder}/../process-twin"
+      ],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/packages/language/out/**/*.{js,cjs}",
+        "${workspaceFolder}/packages/extension/out/**/*.{js,cjs}"
+      ]
+    },
+    {
+      // Baseline: no folder argument, so no remote reconnect is triggered.
+      // Try this first. Use stock VS Code (not Cursor) as the launching editor.
+      "name": "Run Extension (no folder)",
+      "type": "extensionHost",
+      "request": "launch",
+      // Original pre-launch task (build only):
+      // "preLaunchTask": "Build extension for debugging",
+      // Build + verify 'main' exists:
+      "preLaunchTask": "Dev: build and verify extension",
+      "timeout": 30000,
+      "args": [
+        "--new-window",
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
+        "--user-data-dir=${workspaceFolder}/.vscode/dev-user-data"
+        // Isolate from other installed extensions (remember the comma on the line above when enabling):
+        // ,"--disable-extensions"
+      ],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/packages/language/out/**/*.{js,cjs}",
+        "${workspaceFolder}/packages/extension/out/**/*.{js,cjs}"
+      ]
+    },
+    {
+      // Original config, opens the sample project (outside the workspace).
+      // Only use once the baseline works.
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      // Original pre-launch task (build only):
+      // "preLaunchTask": "Build extension for debugging",
+      // Build + verify 'main' exists:
+      "preLaunchTask": "Dev: build and verify extension",
+      "timeout": 30000,
+      "args": [
+        "--new-window",
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
+        "--user-data-dir=${workspaceFolder}/.vscode/dev-user-data",
+        "${workspaceFolder}/../process-twin"
+        // "${workspaceFolder}/reqlan-debug.code-workspace"
+      ],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/packages/language/out/**/*.{js,cjs}",
+        "${workspaceFolder}/packages/extension/out/**/*.{js,cjs}"
+      ]
+    },
+    {
+      // Use with the "Dev: run extension in VS Code (CLI)" task, which starts
+      // VS Code with --inspect-extensions=5870. Attach after the window opens.
+      "name": "Attach to Extension Host (VS Code CLI)",
+      "type": "node",
+      "port": 5870,
+      "request": "attach",
+      // "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/packages/language/out/**/*.{js,cjs}",
+        "${workspaceFolder}/packages/extension/out/**/*.{js,cjs}"
+      ]
+    },
+    {
+      // Start the language server via an installed extension (see the
+      // "Dev: package and install into Cursor" task), then attach.
+      "name": "Attach to Language Server",
+      "type": "node",
+      "port": 6009,
+      "request": "attach",
+      // Reattach automatically when the server restarts:
+      // "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": [
+        "${workspaceFolder}/packages/language/out/**/*.{js,cjs}",
+        "${workspaceFolder}/packages/extension/out/**/*.{js,cjs}",
+        "${workspaceFolder}/node_modules/langium"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "vscodeExe",
+      "type": "promptString",
+      "description": "Stock VS Code launcher (full path, or 'code' if it is VS Code on PATH)",
+      "default": "code"
+    }
+  ]
 }

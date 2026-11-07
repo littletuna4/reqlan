@@ -283,3 +283,11 @@ export function isDeprecated(attributes: IdeaAttributeMap): boolean {
     }
     return ideaTags(attributes).some(tag => tag.toLowerCase() === 'deprecated');
 }
+
+export type RopeTuning = 'default' | 'focused' | 'exploratory' | 'deep';
+
+export interface RopeOptions {
+    sessionKey?: string;
+    fray?: number;
+    tuning?: RopeTuning;
+}

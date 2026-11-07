@@ -1,5 +1,6 @@
 use crate::click::{self, ClickOptions};
 use crate::diff::{self, DiffResult, DiffVerbosity};
+use crate::rope::{self, RopeOptions};
 use crate::types::{
     from_index_summary, BrokenReferenceDto, ClickResult, CompletionSummary, DeprecationImpact,
     EdgeDto, ExportRequestDto, ExportResultDto, FileReferenceMatch, FileRelatedRequirements,
@@ -15,14 +16,15 @@ use reqlan_index::ignore::{application_memory_path, ideas_index_path};
 use reqlan_index::sync::{
     sync_workspace, to_indexed_uri, SyncFileEvent, SyncOptions, SyncProgress, SyncResult,
 };
+use reqlan_index::EdgeRecord;
 use reqlan_index::{
     check_references, is_deprecated, list_broken_references, parse_attributes, path_glob_matches,
     CheckReferencesOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
     StoreError,
 };
 use reqlan_search::{
-    apply_katz_search_bias, citation_edge_pairs, katz_centrality, rerank_matches_with_context,
-    resolve_search_context_refs, semantic_search,
+    citation_edge_pairs, hop_distances_from_centers, katz_centrality, resolve_search_context_refs,
+    unified_search, UnifiedSearchOptions, CONTEXT_UNREACHABLE_HOP,
 };
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
@@ -221,35 +223,43 @@ impl AnalysisRuntime {
         self.ensure_ready()?;
         let context_refs = options.map(|opts| opts.context.clone()).unwrap_or_default();
         let use_katz = options.is_some_and(|opts| opts.katz);
-        let context_ids = if context_refs.is_empty() {
-            Vec::new()
+
+        // Resolve context idea ids from refs
+        let context_refs: Vec<String> = if context_refs.is_empty() {
+            vec![]
         } else {
             resolve_search_context_refs(&self.store, &self.workspace_root, &context_refs)?
         };
-        let fetch_limit =
-            if context_ids.is_empty() && !use_katz { limit } else { (limit * 3).max(24) };
-        let matches = semantic_search(&self.store, query, None, fetch_limit)?;
-        let ranked = if context_ids.is_empty() {
-            matches
+
+        // Run unified search
+        let result = unified_search(
+            &self.store,
+            query,
+            if context_refs.is_empty() { None } else { Some(&context_refs) },
+            use_katz,
+            UnifiedSearchOptions {
+                limit: Some(limit),
+                offset: 0,
+                require_query: false,
+                ..Default::default()
+            },
+        )?;
+
+        // Apply context reranking
+        let ranked = if context_refs.is_empty() {
+            result.hits
         } else {
-            rerank_matches_with_context(&self.store, matches, &context_ids)?
+            rerank_unified_with_context(&self.store, result.hits, &context_refs)?
         };
-        let ranked = if use_katz {
-            let scores = self.katz_score_map()?;
-            apply_katz_search_bias(true, ranked, &scores)
-                .map_err(|error| AnalysisError::Message(error.to_string()))?
-        } else {
-            ranked
-        };
-        Ok(ranked
-            .into_iter()
-            .take(limit)
-            .map(|match_| RequirementMatch {
-                idea: from_index_summary(match_.idea),
-                score: Some(match_.score),
-                reasons: Some(match_.reasons),
-            })
-            .collect())
+
+        // Apply Katz bias
+        let ranked = if use_katz { apply_katz_to_unified(ranked, &self.store)? } else { ranked };
+
+        // Convert to RequirementMatch
+        let matches: Vec<RequirementMatch> =
+            ranked.into_iter().take(limit).map(|hit| convert_to_match(hit)).collect();
+
+        Ok(matches)
     }
 
     /// Inbound Katz centrality for every indexed idea. The top score is 1.
@@ -388,6 +398,12 @@ impl AnalysisRuntime {
     pub fn click(&mut self, options: ClickOptions<'_>) -> Result<ClickResult, AnalysisError> {
         self.ensure_ready()?;
         click::click(&self.store, &self.workspace_root, &self.memory_path, options)
+    }
+
+    /// rq:["../../../reqlan rq/core_analysis/rope.rq".rope]
+    pub fn rope(&mut self, options: RopeOptions<'_>) -> Result<ClickResult, AnalysisError> {
+        self.ensure_ready()?;
+        rope::rope(&self.store, &self.workspace_root, &self.memory_path, options)
     }
 
     /// Classify a name or target as none, unique, or ambiguous.
@@ -845,4 +861,128 @@ fn normalize_scope_uri(path: &str) -> String {
         path = stripped.to_string();
     }
     path
+}
+
+fn convert_to_match(hit: reqlan_search::UnifiedSearchHit) -> RequirementMatch {
+    let kind = match hit.kind {
+        reqlan_search::UnifiedHitKind::Idea => crate::types::RequirementMatchKind::Idea,
+        reqlan_search::UnifiedHitKind::File => crate::types::RequirementMatchKind::File,
+    };
+    let idea_kind = match hit.kind {
+        reqlan_search::UnifiedHitKind::Idea => "block".to_string(),
+        reqlan_search::UnifiedHitKind::File => "oneliner".to_string(),
+    };
+    RequirementMatch {
+        kind,
+        idea: IdeaSummary {
+            id: hit.id,
+            name: hit.name,
+            kind: idea_kind,
+            file_uri: hit.file_uri,
+            line_start: hit.line_start,
+            summary: hit.summary,
+            status: None,
+            status_key: String::new(),
+            tags: vec![],
+            tags_keys: vec![],
+        },
+        score: Some(hit.score),
+        reasons: Some(hit.reasons),
+    }
+}
+
+fn rerank_unified_with_context(
+    store: &IndexStore,
+    matches: Vec<reqlan_search::UnifiedSearchHit>,
+    context_idea_ids: &[String],
+) -> Result<Vec<reqlan_search::UnifiedSearchHit>, StoreError> {
+    if matches.is_empty() {
+        return Ok(matches);
+    }
+
+    // Get all edges for hop distance computation
+    let hop_edges: Vec<(String, String)> = store
+        .get_all_edges()?
+        .into_iter()
+        .filter_map(|edge: EdgeRecord| edge.target_id.map(|target| (edge.source_id, target)))
+        .collect();
+
+    let distances = hop_distances_from_centers(context_idea_ids, &hop_edges);
+
+    // For files, compute min hop over their contained ideas
+    let mut file_to_ideas: HashMap<String, Vec<String>> = HashMap::new();
+    let all_ideas = store.list_all_ideas()?;
+    for idea in all_ideas {
+        file_to_ideas.entry(idea.file_uri).or_default().push(idea.id);
+    }
+
+    let mut ranked = Vec::with_capacity(matches.len());
+    for mut hit in matches {
+        let hop = match hit.kind {
+            reqlan_search::UnifiedHitKind::Idea => distances.get(&hit.id).map(|v| *v),
+            reqlan_search::UnifiedHitKind::File => {
+                if let Some(child_ids) = file_to_ideas.get(&hit.file_uri) {
+                    child_ids.iter().filter_map(|id| distances.get(id)).min().map(|v| *v)
+                } else {
+                    None
+                }
+            }
+        };
+        let effective = hop.unwrap_or(CONTEXT_UNREACHABLE_HOP);
+        let reason = hop
+            .map(|h| format!("context:{} hops", h))
+            .unwrap_or_else(|| "context:unreachable".into());
+        hit.score *= 0.5_f64.powi(effective as i32);
+        hit.reasons.push(reason);
+        ranked.push(hit);
+    }
+
+    ranked.sort_by(|left, right| {
+        right.score.partial_cmp(&left.score).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(ranked)
+}
+
+fn apply_katz_to_unified(
+    matches: Vec<reqlan_search::UnifiedSearchHit>,
+    store: &IndexStore,
+) -> Result<Vec<reqlan_search::UnifiedSearchHit>, StoreError> {
+    // Get all idea ids from matches
+    let node_ids: Vec<String> = matches
+        .iter()
+        .filter(|hit| hit.kind == reqlan_search::UnifiedHitKind::Idea)
+        .map(|hit| hit.id.clone())
+        .collect();
+
+    if node_ids.is_empty() {
+        return Ok(matches);
+    }
+
+    // Get edges among these ideas
+    let edges: Vec<(String, String)> = store
+        .get_all_edges()?
+        .into_iter()
+        .filter_map(|edge: EdgeRecord| edge.target_id.map(|target| (edge.source_id, target)))
+        .filter(|(s, t)| node_ids.iter().any(|id| id == s) && node_ids.iter().any(|id| id == t))
+        .collect();
+
+    let katz_scores: HashMap<String, f64> = katz_centrality(&node_ids, &edges);
+
+    let mut ranked = Vec::with_capacity(matches.len());
+    for mut hit in matches {
+        if hit.kind == reqlan_search::UnifiedHitKind::Idea {
+            if let Some(katz) = katz_scores.get(&hit.id) {
+                hit.score *= 1.0 + katz;
+                hit.reasons.push(format!("katz:{:.3}", katz));
+            }
+        }
+        ranked.push(hit);
+    }
+
+    ranked.sort_by(|left, right| {
+        right.score.partial_cmp(&left.score).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(ranked)
 }

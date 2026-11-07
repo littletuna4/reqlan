@@ -233,6 +233,8 @@ export type {
     InteractionDescriptor,
     KatzScore,
     RequirementMatch,
+    RopeOptions,
+    RopeTuning,
     SearchRequirementsOptions,
     SparseWildcardHandling
 } from './native/native-analysis-api.js';

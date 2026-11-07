@@ -22,6 +22,7 @@ import {
   handleClickTool,
   handleDiffTool,
   handlePromptTool,
+  handleRopeTool,
   type McpAnalysisApi,
 } from "../src/server.js";
 
@@ -44,6 +45,10 @@ function stubApi() {
       },
     ],
   );
+  const rope = vi.fn(async (_target: string): Promise<ClickResult> => ({
+    sessionKey: "clk-1",
+    kind: "rope",
+  }));
   const api: McpAnalysisApi = {
     click,
     formatClickResult: (result) => result.sessionKey,
@@ -56,17 +61,18 @@ function stubApi() {
     }),
     check,
     diffIdeas: vi.fn(async () => ({ from: "HEAD~1", to: "HEAD", implicit: true, rows: [] })),
+    rope,
   };
-  return { api, click, check };
+  return { api, click, check, rope };
 }
 
 describe("MCP tool surface", () => {
-  test("MCP surface is click, check, diff, completion_status, and prompt", async () => {
+  test("MCP surface is click, rope, check, diff, completion_status, and prompt", async () => {
     const source = readFileSync(join(here, "../src/server.ts"), "utf8");
     const names = [...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(names).toEqual(["click", "check", "diff", "completion_status", "prompt"]);
+    expect(names).toEqual(["click", "rope", "check", "diff", "completion_status", "prompt"]);
 
     const pkg = JSON.parse(
       readFileSync(join(here, "../package.json"), "utf8"),
@@ -95,6 +101,22 @@ describe("MCP tool surface", () => {
     });
     expect(click).toHaveBeenCalledWith("login");
     expect(prompt.content[0]?.text).toContain("Intent: auth");
+  });
+
+  test("rope forwards target, session, fray, and tuning", async () => {
+    const { api, rope } = stubApi();
+    const roped = await handleRopeTool(api, {
+      target: "alpha",
+      sessionKey: "clk-0",
+      fray: 3,
+      tuning: "deep",
+    });
+    expect(rope).toHaveBeenCalledWith("alpha", {
+      sessionKey: "clk-0",
+      fray: 3,
+      tuning: "deep",
+    });
+    expect(roped.content[0]?.text).toBe("clk-1");
   });
 
   test("check returns JSON issue rows", async () => {

@@ -187,7 +187,7 @@ export class ReqlanScopeProvider extends DefaultScopeProvider {
         return super.getScope(context);
     }
 
-    private scopeForFileIdeas(document: LangiumDocument): Scope {
+    scopeForFileIdeas(document: LangiumDocument): Scope {
         const key = document.uri.toString();
         const cached = this.fileIdeasCache.get(key);
         if (cached && cached.version === document.textDocument.version) {

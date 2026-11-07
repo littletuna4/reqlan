@@ -31,7 +31,7 @@ click {
         [native_analysis_api]
         [click_cli]
         [mcp_server]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
     )
     @tests (
         ["../../crates/reqlan-analytical/tests/click.rs:click_returns_unique_idea_without_edges"]
@@ -84,7 +84,7 @@ click_ambiguity {
     @status done
     @implementation (
         [click_rust]
-        ["../../crates/reqlan-napi/src/lib.rs"]
+        ["../../crates/reqlan-napi/src/analysis.rs"]
         [native_analysis_api]
     )
     @tests (
