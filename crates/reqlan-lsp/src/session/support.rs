@@ -1,5 +1,5 @@
 //! Small helpers shared by the session feature modules.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_underline_syntax_align]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_underline_syntax_align]
 
 use std::path::PathBuf;
 

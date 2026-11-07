@@ -1,6 +1,6 @@
 //! Base ideas-index queries shared by rename, references, completion, and code actions.
-//! rq:["../../../../reqlan rq/indexer/indexer.rq.index]
-//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq.avoid_full_list_all_ideas]
+//! rq:["../../../../reqlan rq/indexer/indexer.rq".index]
+//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 

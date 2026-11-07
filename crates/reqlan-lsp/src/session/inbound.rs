@@ -1,9 +1,9 @@
 //! Host-pushed inbound references: the file CodeLens and reference inlay hints.
-//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq.inlay_hints]
-//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq.codelens]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.file_inbound_code_lens]
-//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq.inbound_snapshot_events]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.lazy_features_after_outbound]
+//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq".inlay_hints]
+//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq".codelens]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".file_inbound_code_lens]
+//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq".inbound_snapshot_events]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
 
 use lsp_types::{CodeLens, Command, InlayHint, Range};
 

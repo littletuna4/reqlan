@@ -1,5 +1,5 @@
 //! The parsed open document and its name, reference, and token stores.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.ast_lifecycle]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -257,6 +257,7 @@ impl DocModel {
             .collect()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn code_actions(
         &self,
         range: Range,

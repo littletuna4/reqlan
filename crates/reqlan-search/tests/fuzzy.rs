@@ -203,7 +203,7 @@ fn ranks_file_name_hits_with_ideas() {
         SearchIdeasOptions { limit: Some(8), require_query: true, offset: 0 },
     );
     assert!(mixed.hits.iter().any(|hit| hit.kind == FuzzyHitKind::File && hit.name == "search.rq"));
-    assert!(mixed.hits.iter().any(|hit| hit.name == "cli_package") == false);
+    assert!(!mixed.hits.iter().any(|hit| hit.name == "cli_package"));
 }
 
 // rq:["../../../reqlan rq/core_analysis/search.rq".fuzzy_search_pages]

@@ -1,6 +1,6 @@
 //! Session lifecycle: construction, settings, workspace and base registration, and document open, change, and close.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.open_file_algorithm]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.ast_lifecycle]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};

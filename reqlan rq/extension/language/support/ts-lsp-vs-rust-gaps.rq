@@ -47,7 +47,7 @@ lsp_migration_remainder {
         ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../crates/reqlan-parse/src/parser.rs"]
         ["../../../../crates/reqlan-parse/src/barrel.rs"]
-        ["../../../../crates/reqlan-parse/src/refactor.rs"]
+        ["../../../../crates/reqlan-parse/src/refactor/mod.rs"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
         ["../../../../packages/extension/src/language/main.ts"]

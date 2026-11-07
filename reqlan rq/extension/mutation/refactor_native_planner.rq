@@ -8,19 +8,19 @@ refactor_native_planner {
     [refactor_symbol_move] [refactor_symbol_delete]
     @status done
     @implementation (
-        ["../../../crates/reqlan-parse/src/refactor.rs"]
+        ["../../../crates/reqlan-parse/src/refactor/mod.rs"]
         ["../../../crates/reqlan-napi/src/planner.rs"]
         ["../../../packages/analytical/src/core/idea-refactor-plan.ts"]
         ["../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"]
     )
     @tests (
-        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_declaration_and_bracket_references"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:delete_plan_removes_matching_comment_references"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_rewrites_qualified_comment_paths_for_the_moved_idea"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_removes_unused_source_imports_and_copies_them_to_destination"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_adds_a_sibling_import_on_the_destination"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_content_plan_leaves_a_source_stub_that_imports_the_moved_idea"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:delete_plan_removes_declaration_and_bracket_references"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:delete_plan_removes_matching_comment_references"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_plan_rewrites_qualified_comment_paths_for_the_moved_idea"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_plan_removes_unused_source_imports_and_copies_them_to_destination"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_plan_adds_a_sibling_import_on_the_destination"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_content_plan_leaves_a_source_stub_that_imports_the_moved_idea"]
         ["../../../packages/analytical/test/idea-refactor-plan.test.ts:returns grouped edits that remove the declaration and a bracket reference"]
         ["../../../packages/analytical/test/idea-refactor-plan.test.ts:inserts the idea into the destination and rewrites a qualified comment path"]
     )

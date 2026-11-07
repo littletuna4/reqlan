@@ -7,6 +7,9 @@ use napi_derive::napi;
 /// Plan a barrel transform from source text (no filesystem writes).
 /// The TS wrapper performs the writes; this keeps the plan engine native.
 /// rq:["../../../reqlan rq/extension/host/features-commands.rq".barrel_page]
+// Exported via napi to `@reqlan/analytical` (load-native.ts); `#[no_mangle]`
+// exports are not counted as live roots by the dead_code lint.
+#[allow(dead_code)]
 #[napi]
 pub fn barrel_page_plan(
     source: String,
@@ -31,6 +34,8 @@ pub fn barrel_page_plan(
         "preservedIdeasets": plan.preserved_ideasets,
     }))
 }
+// Helpers of the napi-exported planners above.
+#[allow(dead_code)]
 fn parse_planner_files(files_json: &str) -> Result<Vec<reqlan_parse::FileText>> {
     #[derive(serde::Deserialize)]
     struct Wire {
@@ -45,6 +50,7 @@ fn parse_planner_files(files_json: &str) -> Result<Vec<reqlan_parse::FileText>> 
         .collect())
 }
 
+#[allow(dead_code)]
 fn planner_json(docs: Vec<reqlan_parse::DocumentEdits>) -> serde_json::Value {
     serde_json::json!({
         "documents": docs.iter().map(|doc| serde_json::json!({
@@ -62,6 +68,7 @@ fn planner_json(docs: Vec<reqlan_parse::DocumentEdits>) -> serde_json::Value {
 
 /// Plan idea-delete edits from source text and extra file texts.
 /// rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_delete]
+#[allow(dead_code)]
 #[napi(js_name = "planIdeaDelete")]
 pub fn plan_idea_delete(
     source_uri: String,
@@ -76,6 +83,7 @@ pub fn plan_idea_delete(
 
 /// Plan idea-move edits from source and destination text.
 /// rq:["../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_move]
+#[allow(dead_code)]
 #[napi(js_name = "planIdeaMove")]
 pub fn plan_idea_move(
     source_uri: String,

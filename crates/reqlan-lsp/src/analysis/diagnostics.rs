@@ -1,4 +1,6 @@
 //! Parse, reference, and import diagnostics for an open buffer.
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".unresolved_reference_diagnostics]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
 
 use std::collections::HashSet;
 

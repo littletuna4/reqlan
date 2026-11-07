@@ -10,6 +10,9 @@ use reqlan_parse::{parse_document, Severity};
 /// rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
 /// rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_align]
 /// rq:["../../../reqlan rq/cli/cli_package.rq".commands]
+// Exported via napi to `@reqlan/analytical` (load-native.ts); `#[no_mangle]`
+// exports are not counted as live roots by the dead_code lint.
+#[allow(dead_code)]
 #[napi]
 pub fn parse_reqlan_source(source: String) -> Result<serde_json::Value> {
     Ok(parse_source_summary(&source))
@@ -17,6 +20,7 @@ pub fn parse_reqlan_source(source: String) -> Result<serde_json::Value> {
 
 /// 0-based line indexes whose diagnostics `//rq-ignore-error` suppresses.
 /// rq:["../../../reqlan rq/language/syntax.rq".comment_reference_ignore]
+#[allow(dead_code)]
 #[napi(js_name = "findRqIgnoreErrorTargetLines")]
 pub fn find_rq_ignore_error_target_lines(source: String) -> Vec<i64> {
     let mut lines: Vec<i64> = reqlan_index::find_rq_ignore_error_target_lines(&source)
@@ -29,6 +33,7 @@ pub fn find_rq_ignore_error_target_lines(source: String) -> Vec<i64> {
 
 /// Top-level idea names in a document — used by git-context historical extract.
 /// rq:["../../../reqlan rq/indexer/indexer.rq".git_dates]
+#[allow(dead_code)]
 #[napi]
 pub fn extract_idea_names(source: String) -> Vec<String> {
     let parsed = parse_document(&source);
@@ -46,6 +51,7 @@ pub fn extract_idea_names(source: String) -> Vec<String> {
 /// No workspace catalog, no SQLite.
 /// rq:["../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 /// rq:["../../../reqlan rq/language/syntax.rq".open_file_reference_sequencing]
+#[allow(dead_code)]
 #[napi]
 pub fn analyze_local_symbolic(
     file_uri: String,
@@ -57,6 +63,8 @@ pub fn analyze_local_symbolic(
     serde_json::to_value(doc).map_err(|error| Error::from_reason(error.to_string()))
 }
 
+// Helper of the napi-exported analyze_local_symbolic above.
+#[allow(dead_code)]
 fn parse_import_root_dtos(entries: &[serde_json::Value]) -> Vec<reqlan_parse::ImportRootMapping> {
     entries
         .iter()

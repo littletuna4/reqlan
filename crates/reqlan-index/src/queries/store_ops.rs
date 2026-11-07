@@ -5,6 +5,7 @@
 
 use rusqlite::{params, Connection};
 use serde_json::{json, Value as JsonValue};
+use std::collections::HashMap;
 
 use crate::sql_bridge::{execute, execute_batch, query, SqlBridgeError};
 use crate::types::{EdgeRecord, IdeaRecord};
@@ -402,6 +403,10 @@ pub fn upsert_documents(
     Ok(())
 }
 
+/// Existing git metadata for an idea, keyed by file URI:
+/// (git_created_at, git_modified_at, git_change_count).
+type IdeaGitMeta = HashMap<String, (Option<String>, Option<String>, Option<i64>)>;
+
 /// Body of a document upsert. Caller must already hold an open transaction.
 fn upsert_document_in_tx(
     conn: &Connection,
@@ -411,8 +416,7 @@ fn upsert_document_in_tx(
     edges: &[EdgeRecord],
     mtime_ms: Option<f64>,
 ) -> Result<(), SqlBridgeError> {
-    use std::collections::HashMap;
-    let existing: HashMap<String, (Option<String>, Option<String>, Option<i64>)> = {
+    let existing: IdeaGitMeta = {
         let mut stmt = conn.prepare(
             "SELECT id, git_created_at, git_modified_at, git_change_count FROM ideas WHERE file_uri = ?1",
         )?;

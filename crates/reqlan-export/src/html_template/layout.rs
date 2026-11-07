@@ -65,6 +65,7 @@ pub(crate) fn render_layout_card(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render_layout_card_with_actions(
     layout_id: &str,
     tag: &str,

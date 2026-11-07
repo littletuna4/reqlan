@@ -1,5 +1,5 @@
 //! Workspace symbol search over open buffers and the ideas index.
-//! rq:["../../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq.lsp_migration_remainder]
+//! rq:["../../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_migration_remainder]
 
 use std::collections::HashSet;
 
@@ -44,7 +44,7 @@ impl Session {
                     container_name: None,
                     location: lsp_types::OneOf::Left(lsp_types::Location {
                         uri: url,
-                        range: loc.range.clone(),
+                        range: loc.range,
                     }),
                     data: None,
                 });

@@ -1,5 +1,5 @@
 //! Rich-part collection walking over idea body elements.
-//! rq:["../../../../reqlan rq/ontology.rq.reference]
+//! rq:["../../../../reqlan rq/ontology.rq".reference]
 
 use reqlan_parse::{AttributeValue as AstAttrValue, BodyElement, ListItem, RichPart};
 

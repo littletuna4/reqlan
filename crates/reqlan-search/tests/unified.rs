@@ -1,9 +1,7 @@
 //! rq:["../../../reqlan rq/core_analysis/search.rq".unified_search]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".search_rust]
 
-use reqlan_index::{
-    EdgeKind, EdgeRecord, IdeaKind, IdeaRecord, IdeaSummary, IndexStore, FILTER_NOT_PRESENT,
-};
+use reqlan_index::{EdgeRecord, IdeaKind, IdeaRecord, IdeaSummary, IndexStore, FILTER_NOT_PRESENT};
 use reqlan_search::{unified_search, UnifiedHitKind, UnifiedSearchOptions};
 
 fn summary(name: &str, file_uri: &str, text: &str, tags: &[&str]) -> IdeaSummary {

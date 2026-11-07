@@ -1,5 +1,5 @@
 //! Attribute key and value completion.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.attribute_code_completion_attribute_key]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
 
 use std::collections::HashMap;
 
@@ -105,9 +105,7 @@ fn attribute_prefix(prefix: &str) -> Option<&str> {
 fn attribute_value_prefix(prefix: &str) -> Option<(&str, &str)> {
     let trimmed = prefix.trim_start();
     let rest = trimmed.strip_prefix('@')?;
-    let mut parts = rest.splitn(2, char::is_whitespace);
-    let key = parts.next()?;
-    let value = parts.next()?;
+    let (key, value) = rest.split_once(char::is_whitespace)?;
     if key.is_empty() {
         return None;
     }

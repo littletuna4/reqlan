@@ -7,9 +7,11 @@ use crate::html_utils::slug_attribute_key;
 use crate::types::{format_attribute_value, ExportAttribute, ExportAttributeValue, ExportIdea};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Idea IDs and per-value idea-ID sets grouped by attribute key.
+type AttributeRollup = BTreeMap<String, (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>)>;
+
 pub(crate) fn build_attribute_records(ideas: &[ExportIdea]) -> Vec<ExportAttribute> {
-    let mut by_key: BTreeMap<String, (BTreeSet<String>, BTreeMap<String, BTreeSet<String>>)> =
-        BTreeMap::new();
+    let mut by_key: AttributeRollup = BTreeMap::new();
     for idea in ideas {
         for (key, value) in &idea.attributes {
             let entry = by_key.entry(key.clone()).or_default();

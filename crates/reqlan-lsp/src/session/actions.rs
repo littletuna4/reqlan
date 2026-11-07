@@ -1,5 +1,5 @@
 //! Code actions, with quick fixes ranked against workspace symbols.
-//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq.code_actions]
+//! rq:["../../../../reqlan rq/extension/language/vsc-primitives.rq".code_actions]
 
 use std::collections::HashSet;
 

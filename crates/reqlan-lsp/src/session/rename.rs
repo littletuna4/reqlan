@@ -1,5 +1,5 @@
 //! Rename across open buffers, comment documents, and index-tracked files.
-//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq.refactor_symbol_rename]
+//! rq:["../../../../reqlan rq/extension/mutation/refactor_support.rq".refactor_symbol_rename]
 use std::collections::{HashMap, HashSet};
 
 use lsp_types::{Position, Range, TextEdit, Url, WorkspaceEdit};

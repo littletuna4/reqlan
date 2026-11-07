@@ -1,7 +1,7 @@
 //! Closed `.rq` neighbor files: a bounded parse cache and file-declaration queries.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.outbound_one_hop]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.open_file_hot_path]
-//! rq:["../../../../reqlan rq/indexer/indexer.rq.local_symbolic_analysis]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".outbound_one_hop]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+//! rq:["../../../../reqlan rq/indexer/indexer.rq".local_symbolic_analysis]
 
 use std::path::{Path, PathBuf};
 

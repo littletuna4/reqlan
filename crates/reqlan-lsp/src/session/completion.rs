@@ -1,8 +1,8 @@
 //! Completion: attribute, import path, qualified file, and reference sites.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.code_completion]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_code_completion]
-//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq.path_completion_listing_cache]
-//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq.avoid_full_list_all_ideas]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".code_completion]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion]
+//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq".path_completion_listing_cache]
+//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -201,6 +201,7 @@ impl Session {
     }
 
     /// `true` when the remote list is full.
+    #[allow(clippy::too_many_arguments)]
     fn push_remote_item(
         &self,
         uri: &str,
@@ -254,7 +255,7 @@ impl Session {
 }
 
 fn completion_list(items: Vec<CompletionItem>) -> CompletionList {
-    CompletionList { is_incomplete: true, items, ..CompletionList::default() }
+    CompletionList { is_incomplete: true, items }
 }
 
 fn qualified_completion_items(

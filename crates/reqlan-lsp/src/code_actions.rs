@@ -746,10 +746,10 @@ fn push_file_ref_fixes(
     // Compute relative paths from the document URI to each candidate
     let mut scored: Vec<(usize, String)> = Vec::new();
     for file_uri in candidate_files {
-        if same_file(&file_uri, request.doc_uri) {
+        if same_file(file_uri, request.doc_uri) {
             continue;
         }
-        let Some(rel_path) = relative_import_path(request.doc_uri, &file_uri) else {
+        let Some(rel_path) = relative_import_path(request.doc_uri, file_uri) else {
             continue;
         };
         let rel_path = rel_path.trim_start_matches("./");
@@ -797,7 +797,7 @@ fn push_file_ref_fixes(
         "range": serde_json::to_value(diagnostic.range).unwrap_or(serde_json::Value::Null),
     });
     actions.push(command_action(
-        format!("Search for file…"),
+        "Search for file…".to_string(),
         CodeActionKind::QUICKFIX,
         "reqlan.searchReference",
         Some(vec![args]),

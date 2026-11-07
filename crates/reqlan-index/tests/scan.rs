@@ -99,7 +99,7 @@ fn prefix_skip_does_not_index_non_text() {
 
     let nul = root.join("nul.rq");
     let mut big = vec![0u8, b'x'];
-    big.extend(std::iter::repeat(b'a').take(64 * 1024));
+    big.extend(std::iter::repeat_n(b'a', 64 * 1024));
     write(&nul, &big);
     assert!(matches!(read_index_text(&nul).unwrap(), IndexText::Skip));
     let skipped = index_one_file(&mut store, &root, nul.to_str().unwrap()).unwrap();

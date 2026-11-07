@@ -111,7 +111,7 @@ code_completion {
 refactor_support {
     syntactic symbols should be available for renaming, moving, and deleting. the extension should watch for the change.
     Detailed behaviour lives in ["../../mutation/refactor_support.rq"].
-    Implemented by ["../../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../../crates/reqlan-parse/src/refactor.rs"], ["../../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"], and ["../../../../packages/extension/src/mutation_module/refactor/index.ts"].
+    Implemented by ["../../../../packages/language/src/reqlan-rename-provider.ts"], ["../../../../crates/reqlan-parse/src/refactor/mod.rs"], ["../../../../packages/extension/src/mutation_module/refactor/idea-extract-flow.ts"], and ["../../../../packages/extension/src/mutation_module/refactor/index.ts"].
 }
 
 file_references {

@@ -63,8 +63,8 @@ fn persist_pair(store: &mut IndexStore) -> (IdeaRecord, IdeaRecord) {
             source_offset_end: None,
         },
     ];
-    store.upsert_document(file_a, "hash-a", &[alpha.clone()], &edges, None).unwrap();
-    store.upsert_document(file_b, "hash-b", &[beta.clone()], &[], None).unwrap();
+    store.upsert_document(file_a, "hash-a", std::slice::from_ref(&alpha), &edges, None).unwrap();
+    store.upsert_document(file_b, "hash-b", std::slice::from_ref(&beta), &[], None).unwrap();
     (alpha, beta)
 }
 
@@ -179,7 +179,6 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
             .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
             .collect::<String>()
             .trim_matches('-')
-            .to_string()
     );
     let beta_anchor_id = format!(
         "idea-{}",
@@ -189,7 +188,6 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
             .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
             .collect::<String>()
             .trim_matches('-')
-            .to_string()
     );
 
     assert!(index_html.contains("workspace-report"));
@@ -529,7 +527,13 @@ fn html_export_workspace_graph_includes_wildcard_refs_chip_and_edges() {
         .upsert_document("reqs/host.rq", "hash-host", &[host.clone(), friend], &edges, None)
         .unwrap();
     store
-        .upsert_document("reqs/mods/alpha.rq", "hash-widget", &[widget.clone()], &[], None)
+        .upsert_document(
+            "reqs/mods/alpha.rq",
+            "hash-widget",
+            std::slice::from_ref(&widget),
+            &[],
+            None,
+        )
         .unwrap();
 
     let output_dir = temp_out("wildcard-graph");
@@ -556,7 +560,9 @@ fn print_pages_keep_relative_body_indent() {
     // The index summary still collapses body whitespace. Feed the stored body directly.
     let body = "First body line\n    four extra spaces stay";
     let record = idea("reqs/indent.rq", "indent_body", body, "{}");
-    store.upsert_document("reqs/indent.rq", "hash-indent", &[record.clone()], &[], None).unwrap();
+    store
+        .upsert_document("reqs/indent.rq", "hash-indent", std::slice::from_ref(&record), &[], None)
+        .unwrap();
     let output_dir = temp_out("body-indent");
     let request = html_request(&output_dir, "body-indent");
     let snapshot = build_export_snapshot(&store, &request).unwrap();
@@ -637,7 +643,7 @@ fn attribute_link_opens_the_attribute_on_the_idea_page() {
         .expect("idea summary");
 
     assert!(owner_html.contains(r#"id="attr-example""#), "{owner_html}");
-    assert!(summary.contains(&format!("#attr-example")), "{summary}");
+    assert!(summary.contains("#attr-example"), "{summary}");
     assert!(summary.contains("Unresolved attribute missing on attribute_namespacing"), "{summary}");
     assert!(!summary.contains("missing.html"), "{summary}");
     assert!(summary.contains(&member_page) || summary.contains("subidea1"), "{summary}");
@@ -688,8 +694,8 @@ fn idea_links_show_content_tooltips() {
             source_offset_end: None,
         },
     ];
-    store.upsert_document(file_a, "hash-a", &[alpha.clone()], &edges, None).unwrap();
-    store.upsert_document(file_b, "hash-b", &[beta.clone()], &[], None).unwrap();
+    store.upsert_document(file_a, "hash-a", std::slice::from_ref(&alpha), &edges, None).unwrap();
+    store.upsert_document(file_b, "hash-b", std::slice::from_ref(&beta), &[], None).unwrap();
 
     let output_dir = temp_out("idea-tips");
     let request = html_request(&output_dir, "idea-tips");

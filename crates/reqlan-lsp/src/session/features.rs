@@ -1,10 +1,10 @@
 //! Open-buffer feature dispatch: tokens, links, definition, hover, highlights, selection, symbols, folds, and site payloads.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.token_colour_sequence]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.syntax_hovering]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.idea_content_tooltip]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_document_links]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_goto_definition_speed]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.file_references]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".token_colour_sequence]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".syntax_hovering]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".idea_content_tooltip]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
 
 use lsp_types::{
     DocumentHighlight, DocumentLink, GotoDefinitionResponse, Hover, Position, Range,
@@ -45,9 +45,7 @@ impl Session {
             let link = self.comment_definition_for(uri, pos)?;
             return Some(GotoDefinitionResponse::Link(vec![link]));
         }
-        let Some(doc) = self.documents.remove(uri) else {
-            return None;
-        };
+        let doc = self.documents.remove(uri)?;
         let links = doc.model.definition(pos, uri, |path, idea| self.neighbor_range(path, idea));
         if !links.is_empty() {
             self.documents.insert(uri.to_string(), doc);
@@ -129,8 +127,8 @@ impl Session {
                     kind: lsp_types::SymbolKind::NAMESPACE,
                     deprecated: None,
                     tags: None,
-                    range: loc.range.clone(),
-                    selection_range: loc.range.clone(),
+                    range: loc.range,
+                    selection_range: loc.range,
                     children: None,
                 }
             })

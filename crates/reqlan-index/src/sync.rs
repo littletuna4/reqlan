@@ -465,6 +465,7 @@ fn index_rq_path(
     Ok(Some(RqIndexOutcome { names_changed }))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn index_code_files(
     store: &mut IndexStore,
     workspace_root: &Path,
@@ -668,8 +669,6 @@ pub fn index_one_file_with_catalog(
     let file_uri = to_indexed_uri(workspace_root, file_path_or_uri);
     let path = if Path::new(file_path_or_uri).is_absolute() {
         PathBuf::from(file_path_or_uri)
-    } else if file_path_or_uri.starts_with("file://") {
-        workspace_root.join(&file_uri)
     } else {
         workspace_root.join(&file_uri)
     };

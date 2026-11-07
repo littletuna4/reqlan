@@ -1,6 +1,6 @@
 //! Wildcard reference edge expansion against the idea catalog.
-//! rq:["../../../../reqlan rq/indexer/indexer.rq.wildcard_reference_edges]
-//! rq:["../../../../reqlan rq/language/imports.rq.wildcard_references]
+//! rq:["../../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
+//! rq:["../../../../reqlan rq/language/imports.rq".wildcard_references]
 
 use super::glob::unquote_if_needed;
 use super::glob::{glob_to_regex, join_posix, looks_absolute, normalize_posix, parent_posix};
@@ -15,6 +15,7 @@ pub struct WildcardIdeaCandidate {
     pub idea_name: String,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn wildcard_edges(
     source_id: &str,
     path_pattern_quoted: &str,

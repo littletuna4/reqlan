@@ -33,9 +33,7 @@ impl Session {
         uri: &str,
         pos: Position,
     ) -> Option<LocationLink> {
-        let Some(doc) = self.comments.get(uri) else {
-            return None;
-        };
+        let doc = self.comments.get(uri)?;
         let text = doc.text.clone();
         let path = doc.path.clone();
         self.comment_definition_at(&text, &path, uri, pos)

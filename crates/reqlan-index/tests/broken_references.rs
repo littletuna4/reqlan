@@ -19,7 +19,7 @@ use reqlan_index::{
     ExtractOptions, IndexStore, ListBrokenReferencesOptions, SparseWildcardHandling,
     EXTRACT_VERSION,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -30,12 +30,12 @@ fn scratch(label: &str) -> PathBuf {
     dir
 }
 
-fn sync_root(root: &PathBuf) -> IndexStore {
+fn sync_root(root: &Path) -> IndexStore {
     let mut store = IndexStore::open_in_memory().unwrap();
     sync_workspace(
         &mut store,
         &SyncOptions {
-            workspace_root: root.clone(),
+            workspace_root: root.to_path_buf(),
             hard_rebuild: true,
             path_globs: Vec::new(),
             include_files: Vec::new(),

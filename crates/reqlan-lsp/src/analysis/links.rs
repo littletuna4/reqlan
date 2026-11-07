@@ -1,5 +1,5 @@
 //! Document links for local ideas, imports, file references, and wildcards.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_document_links]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_document_links]
 
 use std::path::Path;
 
@@ -140,6 +140,7 @@ impl DocModel {
         Url::from_file_path(path).ok()
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn push_dotted_links<N>(
         &self,
         links: &mut Vec<DocumentLink>,

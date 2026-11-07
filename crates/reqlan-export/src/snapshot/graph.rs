@@ -144,6 +144,7 @@ fn expand_from_center(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_slice(
     ideas: &[ExportIdea],
     edges: &[EdgeRecord],

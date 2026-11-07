@@ -266,6 +266,7 @@ fn collect_used_from_parts(parts: &[RichPart], names: &mut HashSet<String>) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_unused_import_issues(
     index: &CheckIndex,
     import: &Import,

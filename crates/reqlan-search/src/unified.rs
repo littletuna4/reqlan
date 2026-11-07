@@ -25,17 +25,11 @@ pub struct UnifiedSearchHit {
     pub reasons: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct UnifiedSearchOptions {
     pub limit: Option<usize>,
     pub offset: usize,
     pub require_query: bool,
-}
-
-impl Default for UnifiedSearchOptions {
-    fn default() -> Self {
-        Self { limit: None, offset: 0, require_query: false }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -190,11 +184,11 @@ pub fn unified_search(
     let ideas = store.list_all_ideas()?;
     let files = store.list_document_uris()?;
 
-    let mut candidates: Vec<UnifiedSearchHit> = Vec::new();
-    candidates.reserve(ideas.len().min(candidate_cap) + files.len().min(candidate_cap / 4));
+    let mut candidates: Vec<UnifiedSearchHit> =
+        Vec::with_capacity(ideas.len().min(candidate_cap) + files.len().min(candidate_cap / 4));
 
     for idea in ideas {
-        let (score, reasons) = unified_text_score(&store, &idea, &idea.file_uri, query);
+        let (score, reasons) = unified_text_score(store, &idea, &idea.file_uri, query);
         if score > 0.0 {
             candidates.push(UnifiedSearchHit {
                 id: idea.id,
@@ -211,7 +205,7 @@ pub fn unified_search(
 
     for file_uri in files {
         let (score, reasons) = unified_text_score(
-            &store,
+            store,
             &IdeaSummary {
                 id: "file".to_string(),
                 name: file_basename(&file_uri).to_string(),
@@ -266,13 +260,13 @@ pub fn unified_search(
     }
 
     let total = ranked.len();
-    let truncated = offset + total < total || offset < total; // simplified: always false after slicing
     let hits = if offset < total {
         let end = (offset + limit).min(total);
         ranked[offset..end].to_vec()
     } else {
         Vec::new()
     };
+    let truncated = offset + hits.len() < total;
 
     Ok(UnifiedSearchResult { hits, total, truncated })
 }

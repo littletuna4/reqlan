@@ -89,7 +89,7 @@ mod tests {
 
     fn seeded() -> IndexStore {
         let mut store = IndexStore::open_in_memory().unwrap();
-        let ideas = vec![
+        let ideas = [
             idea("f.rq#alpha", "alpha", "f.rq", 1, r#"{"status":"done","tags":["core"]}"#),
             idea("f.rq#beta", "beta", "f.rq", 2, r#"{"status":"pending","todo":"finish me"}"#),
             idea("g.rq#gamma", "gamma", "g.rq", 1, r#"{"tags":[]}"#),
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn inbound_for_file_returns_file_reference_targeting_file() {
         let mut store = IndexStore::open_in_memory().unwrap();
-        let ideas = vec![
+        let ideas = [
             idea("src.rq#alpha", "alpha", "src.rq", 1, "{}"),
             idea("g.rq#gamma", "gamma", "g.rq", 1, "{}"),
         ];

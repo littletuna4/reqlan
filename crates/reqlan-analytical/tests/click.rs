@@ -8,7 +8,7 @@
 //! rq:["../../../reqlan rq/cli/click.rq".click_code_file]
 
 use reqlan_analytical::{AnalysisRuntime, ClickOptions};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -19,7 +19,7 @@ fn scratch(label: &str) -> PathBuf {
     dir
 }
 
-fn write_graph(root: &PathBuf) {
+fn write_graph(root: &Path) {
     std::fs::write(
         root.join("graph.rq"),
         r#"alpha {

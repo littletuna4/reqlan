@@ -1,7 +1,7 @@
 //! Find references across open buffers, comment documents, and the ideas index.
-//! rq:["../../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq.lsp_migration_remainder]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.comment_backlink_sequence]
-//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq.avoid_full_list_all_ideas]
+//! rq:["../../../../reqlan rq/extension/language/support/ts-lsp-vs-rust-gaps.rq".lsp_migration_remainder]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".comment_backlink_sequence]
+//! rq:["../../../../reqlan rq/indexer/cache-reuse.rq".avoid_full_list_all_ideas]
 use std::collections::HashSet;
 
 use lsp_types::{Location, Position, Url};

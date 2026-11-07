@@ -237,12 +237,7 @@ impl AnalysisRuntime {
             query,
             if context_refs.is_empty() { None } else { Some(&context_refs) },
             use_katz,
-            UnifiedSearchOptions {
-                limit: Some(limit),
-                offset: 0,
-                require_query: false,
-                ..Default::default()
-            },
+            UnifiedSearchOptions { limit: Some(limit), offset: 0, require_query: false },
         )?;
 
         // Apply context reranking
@@ -257,7 +252,7 @@ impl AnalysisRuntime {
 
         // Convert to RequirementMatch
         let matches: Vec<RequirementMatch> =
-            ranked.into_iter().take(limit).map(|hit| convert_to_match(hit)).collect();
+            ranked.into_iter().take(limit).map(convert_to_match).collect();
 
         Ok(matches)
     }
@@ -527,6 +522,7 @@ impl AnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_unused_imports]
+    #[allow(clippy::too_many_arguments)]
     pub fn check(
         &mut self,
         path_globs: &[&str],
@@ -553,6 +549,7 @@ impl AnalysisRuntime {
 
     /// Same as [`AnalysisRuntime::check`], with sync totals and optional per-file events.
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
+    #[allow(clippy::too_many_arguments)]
     pub fn check_report(
         &mut self,
         path_globs: &[&str],
@@ -791,10 +788,10 @@ fn match_file_reference(
     {
         return Some("file");
     }
-    if !target.contains('.') || target_file.ends_with('/') {
-        if file == target || file.starts_with(&format!("{target}/")) {
-            return Some("folder");
-        }
+    if (!target.contains('.') || target_file.ends_with('/'))
+        && (file == target || file.starts_with(&format!("{target}/")))
+    {
+        return Some("folder");
     }
     if file.contains(&target) || target.contains(&file) {
         return Some("file");
@@ -919,10 +916,10 @@ fn rerank_unified_with_context(
     let mut ranked = Vec::with_capacity(matches.len());
     for mut hit in matches {
         let hop = match hit.kind {
-            reqlan_search::UnifiedHitKind::Idea => distances.get(&hit.id).map(|v| *v),
+            reqlan_search::UnifiedHitKind::Idea => distances.get(&hit.id).copied(),
             reqlan_search::UnifiedHitKind::File => {
                 if let Some(child_ids) = file_to_ideas.get(&hit.file_uri) {
-                    child_ids.iter().filter_map(|id| distances.get(id)).min().map(|v| *v)
+                    child_ids.iter().filter_map(|id| distances.get(id)).min().copied()
                 } else {
                     None
                 }

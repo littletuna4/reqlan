@@ -44,18 +44,15 @@ pub(crate) fn filter_export_ideas(
                         if !has_key {
                             return false;
                         }
-                        if let Some(actual_val) = attributes.get(&attr_filter.key) {
+                        match attributes.get(&attr_filter.key) {
                             // Compare as string; Text variant holds the actual text value
-                            if let reqlan_index::AttributeValue::Text(actual) = actual_val {
+                            Some(reqlan_index::AttributeValue::Text(actual)) => {
                                 if actual != val {
                                     return false;
                                 }
-                            } else {
-                                // Different variant; treat as mismatch
-                                return false;
                             }
-                        } else {
-                            return false;
+                            // Different variant; treat as mismatch
+                            _ => return false,
                         }
                     } else {
                         // value None => just check presence

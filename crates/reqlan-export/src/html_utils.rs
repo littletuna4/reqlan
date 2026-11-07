@@ -360,9 +360,12 @@ pub fn file_page_enabled(snapshot: &ExportSnapshot, kind: &str) -> bool {
     }
 }
 
+/// Callback mapping a definition-list key to an optional href target.
+type KeyHrefFn<'a> = &'a dyn Fn(&str) -> Option<String>;
+
 pub fn render_definition_list(
     values: &std::collections::BTreeMap<String, usize>,
-    href_for_key: Option<&dyn Fn(&str) -> Option<String>>,
+    href_for_key: Option<KeyHrefFn<'_>>,
 ) -> String {
     if values.is_empty() {
         return r#"<p class="subtle">No data available.</p>"#.into();
@@ -431,12 +434,7 @@ pub fn file_by_idea<'a>(snapshot: &'a ExportSnapshot, idea: &ExportIdea) -> Opti
 
 fn file_base_name(path: &str) -> String {
     let cleaned = path.trim().trim_matches(|ch| ch == '"' || ch == '\'');
-    cleaned
-        .split(['/', '\\'])
-        .filter(|part| !part.is_empty())
-        .next_back()
-        .unwrap_or(cleaned)
-        .to_string()
+    cleaned.split(['/', '\\']).rfind(|part| !part.is_empty()).unwrap_or(cleaned).to_string()
 }
 
 struct RefInner {
@@ -472,7 +470,7 @@ fn summary_ref_display_name(raw: &str) -> String {
     if parsed.target.starts_with('"') || parsed.target.starts_with('\'') {
         return file_base_name(target);
     }
-    target.split('.').filter(|part| !part.is_empty()).next_back().unwrap_or(target).to_string()
+    target.split('.').rfind(|part| !part.is_empty()).unwrap_or(target).to_string()
 }
 
 fn summary_ref_file_path(raw: &str) -> Option<String> {
@@ -777,7 +775,7 @@ fn render_attribute_link_html(
     };
     let class_name =
         if href.is_some() { "idea-ref idea-ref--idea" } else { "idea-ref idea-ref--unresolved" };
-    Some(linked_chip_html(&class_name, href.as_deref(), &label, &title, tip_idea))
+    Some(linked_chip_html(class_name, href.as_deref(), &label, &title, tip_idea))
 }
 
 fn linked_chip_html(

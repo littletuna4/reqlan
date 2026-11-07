@@ -1,7 +1,7 @@
 //! Diagnostics for open buffers and comment documents, in hot, full, and confirm-pass forms.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.open_file_hot_path]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.missing_reference_colour_sequence]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.lazy_features_after_outbound]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".lazy_features_after_outbound]
 
 use std::collections::HashSet;
 

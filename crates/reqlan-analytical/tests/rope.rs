@@ -5,7 +5,7 @@
 //! rq:["../../../reqlan rq/core_analysis/rope.rq".click-store-context-optimisation]
 
 use reqlan_analytical::{AnalysisRuntime, RopeOptions, RopeTuning};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn scratch(label: &str) -> PathBuf {
@@ -16,7 +16,7 @@ fn scratch(label: &str) -> PathBuf {
 }
 
 /// Chain alpha -> beta -> gamma -> delta so hop depth and cardinality are distinct.
-fn write_graph(root: &PathBuf) {
+fn write_graph(root: &Path) {
     std::fs::write(
         root.join("graph.rq"),
         r#"alpha {

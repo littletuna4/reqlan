@@ -805,7 +805,7 @@ fn bracket_before(text: &str, quote_at: usize) -> bool {
     if bracket_start == 0 {
         return true;
     }
-    before[..bracket_start].chars().next_back() != Some('[')
+    !before[..bracket_start].ends_with('[')
 }
 
 fn reference_site(prefix: &str, pos: Position) -> Option<(String, Range)> {

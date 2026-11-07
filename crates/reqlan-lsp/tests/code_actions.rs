@@ -397,7 +397,7 @@ fn offers_add_import_from_the_ideas_index() {
     let _ = fs::remove_dir_all(root);
 }
 
-fn first_edit<'a>(action: &'a lsp_types::CodeAction) -> &'a lsp_types::TextEdit {
+fn first_edit(action: &lsp_types::CodeAction) -> &lsp_types::TextEdit {
     action
         .edit
         .as_ref()
@@ -698,7 +698,7 @@ fn top_file_ref_quick_fix_is_preferred_on_trailing_match() {
     // Both files share ".rq" (3 chars), so they tie on score.
     // Tiebreaker is shorter path length: "other.rq" < "longer_match.rq"
     assert!(
-        use_actions.first().map(|t| *t) == Some("Use \"other.rq\""),
+        use_actions.first().copied() == Some("Use \"other.rq\""),
         "Top suggestion should be 'other.rq' (shorter path tiebreaker), got: {:?}",
         use_actions
     );

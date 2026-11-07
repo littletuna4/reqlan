@@ -537,7 +537,7 @@ fn qualified_comment_definition_origin_is_the_token_under_the_cursor() {
     let text = "# rq:[\"./../lib.rq\".alpha]\n";
     let mut session = Session::new();
     session.set_workspace_folders(std::slice::from_ref(&root));
-    session.open(&lib.to_string(), "alpha {\n    summary\n}\n".into());
+    session.open(lib.as_ref(), "alpha {\n    summary\n}\n".into());
     session.open(&uri, text.into());
 
     let path = definition_at(&mut session, &uri, position_of(text, "lib.rq"));

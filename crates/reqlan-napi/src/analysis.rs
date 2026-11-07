@@ -114,6 +114,7 @@ impl NativeAnalysisRuntime {
 
     /// rq:["../../../reqlan rq/cli/click.rq".click]
     #[napi]
+    #[allow(clippy::too_many_arguments)]
     pub fn click(
         &self,
         target: String,
@@ -217,6 +218,7 @@ impl NativeAnalysisRuntime {
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_skip_gitignored_targets]
     /// rq:["../../../reqlan rq/core_analysis/check.rq".check_verbose]
     #[napi]
+    #[allow(clippy::too_many_arguments)]
     pub fn check_references(
         &self,
         path_globs: Option<Vec<String>>,

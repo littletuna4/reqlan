@@ -1,7 +1,7 @@
 //! Session state records: open buffers, comment documents, neighbor parses, and base indexes.
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.ast_lifecycle]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.open_file_hot_path]
-//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.native_cache_retention]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".ast_lifecycle]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_hot_path]
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq".native_cache_retention]
 
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};

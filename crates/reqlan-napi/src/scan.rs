@@ -9,6 +9,9 @@ use std::path::PathBuf;
 /// One workspace directory walk. Runs off the extension-host thread.
 /// rq:["../../../reqlan rq/indexer/cache-reuse.rq".single_sync_walk]
 /// rq:["../../../reqlan rq/indexer/sequencing.rq".scan_limits]
+// `Task` behind napi's `AsyncTask` is not counted as a live root by the
+// dead_code lint; the scan runs via scan_workspace_task below.
+#[allow(dead_code)]
 pub struct WorkspaceScanTask {
     roots: Vec<PathBuf>,
     limits: ScanLimits,
@@ -29,6 +32,9 @@ impl Task for WorkspaceScanTask {
     }
 }
 
+// Exported via napi to `@reqlan/analytical` (load-native.ts); `#[no_mangle]`
+// exports are not counted as live roots by the dead_code lint.
+#[allow(dead_code)]
 #[napi(js_name = "scanWorkspace")]
 pub fn scan_workspace_task(
     roots: Vec<String>,
@@ -43,6 +49,7 @@ pub fn scan_workspace_task(
 }
 /// Seed a reqlan base marker (`.reqlan/` + `config.json` + `.rqignore`).
 /// rq:["../../../reqlan rq/extension/index-host/index.rq".rqignore]
+#[allow(dead_code)]
 #[napi]
 pub fn create_base(base_root: String) -> Result<serde_json::Value> {
     let result = reqlan_index::create_base(std::path::Path::new(&base_root))

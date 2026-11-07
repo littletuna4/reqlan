@@ -54,7 +54,7 @@ code_actions {
     @tests (
         ["../../../packages/language/test/code-actions.test.ts"]
         ["../../../crates/reqlan-lsp/tests/code_actions.rs"]
-        ["../../../crates/reqlan-parse/src/refactor.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
+        ["../../../crates/reqlan-parse/src/refactor/plan.rs:move_plan_cuts_from_source_and_inserts_into_destination"]
         ["../../../packages/language/test/code-actions.test.ts:keeps one quick fix set after repeated builds"]
         ["../../../packages/extension/test/extension-package.test.ts"]
         ["../../../packages/extension/test/barrel-page-apply.test.ts"]

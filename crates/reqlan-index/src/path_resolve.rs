@@ -59,9 +59,7 @@ pub fn find_applying_base_root(workspace_root: &Path, start: Option<&Path>) -> O
         if reqlan_dir.is_dir() {
             return Some(dir);
         }
-        let Some(parent) = dir.parent() else {
-            return None;
-        };
+        let parent = dir.parent()?;
         if parent == dir {
             return None;
         }

@@ -173,6 +173,7 @@ analysis_barrel {
     - `sites`: file, wildcard, and search site payloads for host commands.
     The barrel is the only surface: other modules import from `crate::analysis`, not from the feature modules.
     Feature modules share no state beyond the document model.
+    Each feature module carries `rq:[...]` backlinks to the ideas it implements; the barrel header carries the links for the whole concern.
     @implementation (
         ["../../../../crates/reqlan-lsp/src/analysis.rs"]
         ["../../../../crates/reqlan-lsp/src/analysis/model.rs"]
@@ -213,6 +214,7 @@ session_barrel {
     - `support`: small helpers shared by the session modules.
     The barrel is the only surface: other modules import from `crate::session`, not from the session modules.
     Session record fields and cross-module helpers are `pub(super)`: they stay invisible outside the session module tree.
+    Each session module carries `rq:[...]` backlinks to the ideas it implements; the barrel header carries the links for the whole concern.
     @implementation (
         ["../../../../crates/reqlan-lsp/src/session.rs"]
         ["../../../../crates/reqlan-lsp/src/session/records.rs"]

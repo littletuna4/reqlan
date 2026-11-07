@@ -1,5 +1,5 @@
 //! Walk over the reference targets of a parsed document.
-//! rq:["../../../../reqlan rq/language/syntax.rq.reference_resolution_order]
+//! rq:["../../../../reqlan rq/language/syntax.rq".reference_resolution_order]
 
 use reqlan_parse::{
     AttributeValue, BodyElement, ListItem, Model, ReferenceTarget, RichPart, Span, TopLevelElement,

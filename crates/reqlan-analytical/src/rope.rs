@@ -69,7 +69,7 @@ fn effective_fray(base: u32, tuning: RopeTuning) -> u32 {
         RopeTuning::Deep if base == 0 => 1,
         RopeTuning::Deep => base.saturating_mul(2).max(2),
     };
-    depth.max(1).min(MAX_EFFECTIVE_FRAY)
+    depth.clamp(1, MAX_EFFECTIVE_FRAY)
 }
 
 enum ResolvedTarget {
@@ -364,7 +364,7 @@ fn build_rope_result(
         .iter()
         .map(|(score, entry)| {
             let normalised = if top > 0.0 { score / top } else { 0.0 };
-            (normalised, (*entry).0.clone(), (*entry).1)
+            (normalised, entry.0.clone(), entry.1)
         })
         .filter(|(normalised, _, _)| *normalised >= CARDINALITY_THRESHOLD)
         .collect();
@@ -380,7 +380,7 @@ fn build_rope_result(
     // Step 6: session dedup — skip ideas this click session already surfaced.
     let already_clicked: HashSet<String> = sessions
         .hashes_for_role(session_key, ROLE_CLICKED)
-        .map(|rows| rows.into_iter().map(|(id, _)| id).collect())
+        .map(|rows| rows.into_keys().collect())
         .unwrap_or_default();
     let already_listed: HashSet<String> =
         sessions.listed_ids(session_key).map(|ids| ids.into_iter().collect()).unwrap_or_default();
@@ -390,13 +390,13 @@ fn build_rope_result(
     entries.push((
         centre_id.to_string(),
         ROLE_CLICKED.to_string(),
-        centre_idea.as_ref().map(|idea| idea_fingerprint(idea)).unwrap_or_default(),
+        centre_idea.as_ref().map(idea_fingerprint).unwrap_or_default(),
     ));
     if centre_idea.is_some() {
         entries.push((
             centre_id.to_string(),
             ROLE_CONTENT.to_string(),
-            centre_idea.as_ref().map(|idea| idea_fingerprint(idea)).unwrap_or_default(),
+            centre_idea.as_ref().map(idea_fingerprint).unwrap_or_default(),
         ));
     }
 
@@ -553,6 +553,22 @@ fn idea_fingerprint(idea: &IdeaSummary) -> String {
     format!("{}|{}|{}|{}", idea.name, idea.summary, status, tags.join(","))
 }
 
+/// Build the `file:`-prefixed summary used for file centres and ambiguity rows.
+fn file_summary(uri: &str) -> IdeaSummary {
+    IdeaSummary {
+        id: click_file_entry_id(uri),
+        name: file_basename(uri).to_string(),
+        kind: "file".into(),
+        file_uri: uri.to_string(),
+        line_start: 0,
+        summary: String::new(),
+        status: None,
+        status_key: String::new(),
+        tags: Vec::new(),
+        tags_keys: Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -570,21 +586,5 @@ mod tests {
     fn dynamic_base_fray_defaults_to_two() {
         let store = IndexStore::open_in_memory().unwrap();
         assert_eq!(dynamic_base_fray(&store), 2);
-    }
-}
-
-/// Build the `file:`-prefixed summary used for file centres and ambiguity rows.
-fn file_summary(uri: &str) -> IdeaSummary {
-    IdeaSummary {
-        id: click_file_entry_id(uri),
-        name: file_basename(uri).to_string(),
-        kind: "file".into(),
-        file_uri: uri.to_string(),
-        line_start: 0,
-        summary: String::new(),
-        status: None,
-        status_key: String::new(),
-        tags: Vec::new(),
-        tags_keys: Vec::new(),
     }
 }

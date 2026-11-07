@@ -1,6 +1,6 @@
 //! Go-to-definition targets and location URL encoding.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.editor_reference_activation]
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_goto_definition_speed]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".editor_reference_activation]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_goto_definition_speed]
 
 use std::path::{Path, PathBuf};
 

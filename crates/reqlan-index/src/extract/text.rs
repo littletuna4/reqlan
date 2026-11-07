@@ -1,5 +1,5 @@
 //! Attribute collection and plain-text summarization of idea bodies.
-//! rq:["../../../../reqlan rq/ontology.rq.attribute]
+//! rq:["../../../../reqlan rq/ontology.rq".attribute]
 
 use crate::types::{AttributeValue, IdeaAttributeMap};
 use reqlan_parse::{Attribute, AttributeValue as AstAttrValue, BodyElement, RichPart};

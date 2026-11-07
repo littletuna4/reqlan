@@ -1,5 +1,5 @@
 //! Path glob matching and POSIX path helpers for extract.
-//! rq:["../../../../reqlan rq/indexer/indexer.rq.wildcard_reference_edges]
+//! rq:["../../../../reqlan rq/indexer/indexer.rq".wildcard_reference_edges]
 
 pub(crate) fn looks_absolute(path: &str) -> bool {
     path.len() >= 3 && path.as_bytes()[0].is_ascii_alphabetic() && path.as_bytes()[1] == b':'

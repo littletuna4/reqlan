@@ -228,9 +228,10 @@ pub fn unresolved_comment_references<C: IdeaRef>(
         .collect()
 }
 
-fn comment_catalog_maps<C: IdeaRef>(
-    catalog: &[C],
-) -> (HashMap<(String, String), &C>, HashMap<String, Vec<&C>>) {
+/// Catalog lookup maps: ideas by `(file_uri, name)`, and idea groups by name.
+type CommentCatalogMaps<'a, C> = (HashMap<(String, String), &'a C>, HashMap<String, Vec<&'a C>>);
+
+fn comment_catalog_maps<C: IdeaRef>(catalog: &[C]) -> CommentCatalogMaps<'_, C> {
     let by_file_name: HashMap<(String, String), &C> = catalog
         .iter()
         .map(|idea| ((idea.file_uri().to_string(), idea.name().to_string()), idea))

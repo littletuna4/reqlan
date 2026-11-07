@@ -1,6 +1,6 @@
 //! File, wildcard, and search site payloads for host commands.
-//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.file_references]
-//! rq:["../../../../reqlan rq/indexer/indexer.rq.local_graph_analysis]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
+//! rq:["../../../../reqlan rq/indexer/indexer.rq".local_graph_analysis]
 
 use std::path::PathBuf;
 

@@ -1,7 +1,7 @@
 //! Reference edge construction: bracket refs, wiki links, markdown links, imports.
-//! rq:["../../../../reqlan rq/reference_types.rq.idea_reference]
-//! rq:["../../../../reqlan rq/reference_types.rq.file_reference]
-//! rq:["../../../../reqlan rq/reference_types.rq.link_reference]
+//! rq:["../../../../reqlan rq/reference_types.rq".idea_reference]
+//! rq:["../../../../reqlan rq/reference_types.rq".file_reference]
+//! rq:["../../../../reqlan rq/reference_types.rq".link_reference]
 
 use super::glob::unquote_if_needed;
 use super::wildcard::wildcard_edges;
@@ -12,6 +12,7 @@ use reqlan_parse::{
     resolve_rq_path, unquote_path, Import, ImportRootMapping, ReferenceTarget, RichPart,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn collect_parts_edges(
     file_uri: &str,
     idea_name: &str,
@@ -127,6 +128,7 @@ fn imported_idea_target_file(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn reference_to_edges(
     source_id: &str,
     file_uri: &str,
@@ -252,7 +254,7 @@ pub(crate) fn reference_to_edges(
                     } else {
                         Vec::new()
                     }
-                } else if local_names.iter().any(|name| *name == idea.as_str()) {
+                } else if local_names.contains(&idea.as_str()) {
                     let target_id = idea_id(file_uri, idea);
                     vec![ref_edge(
                         source_id,

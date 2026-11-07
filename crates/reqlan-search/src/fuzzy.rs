@@ -271,9 +271,10 @@ fn score_idea_match(
     for tag in &idea.tags {
         let tag_raw = tag.to_lowercase();
         let tag_norm = normalize_search_separators(tag);
-        if tag_raw.contains(raw_needle) || (!needle.is_empty() && tag_norm.contains(needle)) {
-            score = score.max(15.0) + 2.0;
-        } else if match_query_tokens(&split_search_tokens(tag), query_tokens).is_some() {
+        if tag_raw.contains(raw_needle)
+            || (!needle.is_empty() && tag_norm.contains(needle))
+            || match_query_tokens(&split_search_tokens(tag), query_tokens).is_some()
+        {
             score = score.max(15.0) + 2.0;
         }
     }
