@@ -90,6 +90,24 @@ rope-tuning {
     )
 }
 
+rope-output {
+    [rope] returns the ["../cli/click.rq".click_output] shape (`ClickResult`, camelCase JSON; optional fields are omitted, never null).
+    Always: `sessionKey` and `candidates` (empty array when nothing qualifies).
+    `kind` is `rope`, `ambiguous`, `search`, or `none` (never click's `unique`/`revisit`).
+    `rope`: `target` is the centre — idea centres carry `name`, `id` (`<file>#<name>`), `fileUri`, `lineStart`, body `content`, and optional `status`; file centres carry `id` (`file:<uri>`), `name` (basename), `fileUri`, `lineStart` 0, no content. `candidates` are cardinality-ordered `{name, id, kind, fileUri, score, hops}` with normalised cardinality `score` (top = 1, threshold 0.5, cap 24) and BFS `hops` (a file centre seeds its referencing ideas at hop 1); session-surfaced ideas are dropped.
+    `ambiguous`: no `target`; `candidates` ranked by click-session hop distance — `hops` 0 means already surfaced in the session, absent means unconnected; `score` = `1 / (1 + hops)`, `1/9` when unknown.
+    `search`: no `target`; fuzzy `candidates` with raw fuzzy `score` and no `hops`.
+    `none`: empty `candidates`, no `target`.
+    Rope never emits click's `outbound`, `backlinks`, `commentRefs`, `siblings`, or `connected`.
+    @status done
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs"]
+        ["../../packages/analytical/test/rope.test.ts"]
+        ["../../packages/cli/test/rope.test.ts:rope command emits kind rope with frayed candidates"]
+        ["../../packages/mcp/test/server.test.ts:rope forwards target, session, fray, and tuning"]
+    )
+}
+
 dynamic-rope-tuning {
     Default [rope-tuning] may be considerate of spec graph topology.
     For example, as graph gets more complex, the [fray] should be adjusted to include more adjacent ideas.

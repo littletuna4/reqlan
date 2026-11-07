@@ -1,4 +1,5 @@
 //! Semantic token collection and encoding.
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.token_colour_sequence]
 
 use lsp_types::{SemanticToken, SemanticTokens};
 use reqlan_index::LocalSymbolicDocument;

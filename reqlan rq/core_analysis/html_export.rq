@@ -63,6 +63,9 @@ html_export {
 html_export_multi_file {
     Html export should generate a multi-file static site rather than a single document.
     The export should include page families for overview, ideas, files, code files, clusters, attributes, graph, data, and print-focused pages.
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/manifest.rs"]
+    )
 }
 
 html_export_internal_links {
@@ -166,6 +169,9 @@ html_export_search {
     The interactive html export should provide a global search bar and page-local search bars.
     Search should work offline from generated data bundled with the export.
     Attribute keys and values should be searchable alongside ideas, files, code files, and clusters.
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/search.rs"]
+    )
 }
 
 html_export_list_views {
@@ -220,7 +226,7 @@ html_export_katz_column {
     The filter key is `katz`.
     File, cluster, and attribute index tables do not show this column.
     @implementation (
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/build.rs"]
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
     )
@@ -252,6 +258,9 @@ html_export_idea_pages {
     Html export should generate a dedicated page per idea.
     Idea pages should include summary, attributes, inbound references, outbound references, nearby context, and links to related ideas, files, clusters, graph views, and printable forms.
     Status and tags are nullable attributes: render them only when present.
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/ideas.rs"]
+    )
 }
 
 html_export_file_pages {
@@ -261,7 +270,7 @@ html_export_file_pages {
     Graph nodes and idea source-file links for hosting files should resolve to these pages when enabled.
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/files.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
@@ -278,7 +287,7 @@ html_export_code_reference_pages {
     Comment-linked files: ["../indexer/indexer.rq".index_code_files].
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/files.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
@@ -292,6 +301,9 @@ html_export_cluster_pages {
     Html export should support cluster pages that group related ideas.
     Deterministic clusters should at least include file, folder, tag, and status groupings.
     Optional computed clusters should use graph or semantic analysis when available without making export correctness depend on them.
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/clusters.rs"]
+    )
 }
 
 html_export_attributes_index {
@@ -299,7 +311,7 @@ html_export_attributes_index {
     Each attribute entry should summarize distinct values and idea counts, and link to the dedicated attribute page when [html_export_attribute_pages] is enabled.
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/attributes.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
@@ -315,7 +327,7 @@ html_export_attribute_pages {
     The attributes index, idea attribute tables, and search results should link to these pages when enabled.
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/attributes.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/src/html.rs"]
     )
@@ -351,7 +363,7 @@ html_export_graph_page {
     [html_export_graph_interaction]
     [html_export_graph_metadata]
     @implementation (
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/graph.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/app.js"]
         ["../../crates/reqlan-analytical/src/api.rs"]
@@ -492,7 +504,7 @@ html_export_graph_metadata {
     @implementation (
         ["../../crates/reqlan-export/assets/app.js"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/graph.rs"]
     )
 }
 
@@ -633,7 +645,7 @@ html_export_header_link {
     @status done
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/manifest.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../crates/reqlan-export/assets/styles.css"]
         ["../../packages/cli/src/commands/export.ts"]
@@ -655,7 +667,7 @@ html_export_url_base {
     @implementation (
         ["../../crates/reqlan-export/src/types.rs"]
         ["../../crates/reqlan-export/src/html_utils.rs"]
-        ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/build.rs"]
         ["../../crates/reqlan-export/src/html_template/mod.rs"]
         ["../../packages/cli/src/commands/export.ts"]
         ["../../site/scripts/export-spec.mts"]

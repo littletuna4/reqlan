@@ -1,4 +1,5 @@
 //! Span and text primitives shared by the open-buffer features.
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.editor_reference_activation]
 
 use crate::utf16::utf16_len;
 use lsp_types::{Position, Range};

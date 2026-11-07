@@ -1,4 +1,5 @@
 //! The parsed open document and its name, reference, and token stores.
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.ast_lifecycle]
 
 use std::cell::RefCell;
 use std::collections::HashMap;

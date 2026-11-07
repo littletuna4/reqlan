@@ -65,6 +65,7 @@ rust_crate_layout {
     - `reqlan-analytical` — facade matching `AnalysisApi` + `WorkspaceIndex` operations
     - `reqlan-napi` — Node binding for the core engine ([native_bridge])
     - `reqlan-lsp` — editor language server ([lsp_rust.language_server_rust])
+    `reqlan-index` query code is a barrel: `src/queries.rs` re-exports `src/queries/{common,filters,table_queries,graph_queries,page_queries,store_ops}`, and extract code is a barrel: `src/extract.rs` re-exports `src/extract/{document,glob,refs,text,walk,wildcard}`. Public access paths (`crate::queries::*`, `reqlan_index::queries::*`, `crate::extract::*`, `reqlan_index::extract::*`) and the `queries.rs:<test>` / `extract.rs:<test>` cross-references stay valid in the barrel files.
     Mature crates only (rusqlite, napi): no experimental parser generators for the lexer.
     Golden tests compare Rust extract against Langium on the frozen [golden_corpus], plus the language-test fixtures ported into `reqlan-parse` / `reqlan-index` tests.
     Format: ["../development/commit.rq".rust_fmt].

@@ -1,10 +1,10 @@
 - USE ASD-STE100
 - All non-trivial; or directional user requirements must be documented in an .rq file. The user is lazy - you should injest requests, link, deprecate and deduplicated proactively and agressively.
 - Graph content should be stateless/timeless
-- Implementation and tests should be cross referenced in rq.
+- Implementation and tests must be cross referenced in rq:["..."] comments.
 - verbosity is sin; as are code and req duplication.
 - Do not use the browser tool.
 - strictly type - don't use unsafe fallbacks or unkown.
 - User's stated intent and validation passes are secondary to doing things properly and with future clarity and graph hygeine in mind.
-- requirements are single source of sytnax truth, parser is single source of implementation. 
+- requirements are single source of sytnax truth, parser is single source of implementation.
 - code removal without is rewarded

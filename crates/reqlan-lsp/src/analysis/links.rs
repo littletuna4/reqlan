@@ -1,4 +1,5 @@
 //! Document links for local ideas, imports, file references, and wildcards.
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.reference_document_links]
 
 use std::path::Path;
 

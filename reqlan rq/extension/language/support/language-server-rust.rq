@@ -192,3 +192,51 @@ analysis_barrel {
     )
     Related: [language_server_rust], ["./open-file-sequencing.rq".open_file_algorithm].
 }
+
+session_barrel {
+    The language server session of [language_server_rust] is a barrel module.
+    `crates/reqlan-lsp/src/session.rs` declares the session modules and re-exports their surface. It holds no feature logic.
+    Each concern is one module under `crates/reqlan-lsp/src/session/`:
+    - `records`: the `Session` struct and its record types: open buffers, comment documents, neighbor parses, and base indexes.
+    - `state`: construction, settings, workspace and base registration, and document open, change, and close.
+    - `diagnostics`: hot, full, and confirm-pass diagnostics.
+    - `neighbors`: the bounded parse cache of closed `.rq` files and file-declaration queries.
+    - `comments`: comment-reference resolution: links, definitions, and diagnostics for `rq:` comments.
+    - `completion`: attribute, import path, qualified file, and reference completion.
+    - `references`: find references across buffers, comments, and the ideas index.
+    - `rename`: rename across buffers, comments, and index-tracked files.
+    - `actions`: code actions with quick fixes ranked against workspace symbols.
+    - `symbols`: workspace symbol search.
+    - `inbound`: host-pushed inbound references: the file CodeLens and reference inlay hints.
+    - `index`: base ideas-index queries shared by rename, references, completion, and code actions.
+    - `features`: open-buffer feature dispatch: tokens, links, definition, hover, highlights, selection, symbols, folds, and site payloads.
+    - `support`: small helpers shared by the session modules.
+    The barrel is the only surface: other modules import from `crate::session`, not from the session modules.
+    Session record fields and cross-module helpers are `pub(super)`: they stay invisible outside the session module tree.
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/records.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/state.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/diagnostics.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/neighbors.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/comments.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/completion.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/references.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/rename.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/actions.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/symbols.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/inbound.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/index.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/features.rs"]
+        ["../../../../crates/reqlan-lsp/src/session/support.rs"]
+    )
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/session.rs:open_file_diagnostics_and_close_drops_the_parse"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:semantic_token_range_matches_the_source_name"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:definition_uses_the_open_neighbor_parse"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:neighbor_confirm_suppresses_missing_idea"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:completion_rename_and_code_action"]
+        ["../../../../crates/reqlan-lsp/tests/session.rs:index_completion_inlay_and_custom_requests"]
+    )
+    Related: [language_server_rust], [analysis_barrel], ["./open-file-sequencing.rq".open_file_algorithm], ["./open-file-sequencing.rq".open_file_hot_path].
+}

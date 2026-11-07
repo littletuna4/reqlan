@@ -1,4 +1,5 @@
 //! Attribute key and value completion.
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq.attribute_code_completion_attribute_key]
 
 use std::collections::HashMap;
 

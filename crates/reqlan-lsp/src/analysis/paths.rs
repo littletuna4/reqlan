@@ -1,4 +1,5 @@
 //! Authored path location and neighbor file queries.
+//! rq:["../../../../reqlan rq/extension/language/support/open-file-sequencing.rq.outbound_one_hop]
 
 use std::path::{Path, PathBuf};
 

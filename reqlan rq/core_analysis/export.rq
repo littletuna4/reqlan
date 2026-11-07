@@ -14,6 +14,7 @@ export_pipeline {
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
         ["../../crates/reqlan-analytical/src/api.rs"]
         ["../../crates/reqlan-export/src/snapshot.rs"]
+        ["../../crates/reqlan-export/src/snapshot/filter.rs"]
         ["../../packages/analytical/src/export/types.ts"]
     )
     @tests (

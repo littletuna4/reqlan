@@ -1,4 +1,6 @@
 //! Hover hits for ideas, imports, paths, and wildcards.
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.syntax_hovering]
+//! rq:["../../../../reqlan rq/extension/language/syntax/features-syntax.rq.idea_content_tooltip]
 
 use lsp_types::{Position, Range};
 use reqlan_index::{local_name_binding, LocalNameBinding};
