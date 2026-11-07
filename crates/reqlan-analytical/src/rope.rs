@@ -82,6 +82,9 @@ fn resolve_target(
     workspace_root: &Path,
     raw: &str,
 ) -> Result<Vec<ResolvedTarget>, AnalysisError> {
+    if raw.trim() == "@root" {
+        return root_candidates(store);
+    }
     let token = normalize_context_ref(raw);
     if token.is_empty() {
         return Ok(Vec::new());
@@ -120,6 +123,28 @@ fn resolve_target(
         }
     }
     Ok(matches)
+}
+
+/// `@root`: the project constitution — ideas nothing references.
+/// Ideaset membership is structural, so it does not count as an inbound reference.
+/// rq:["../../../reqlan rq/core_analysis/rope.rq".rope-graph]
+fn root_candidates(store: &IndexStore) -> Result<Vec<ResolvedTarget>, AnalysisError> {
+    let mut referenced: HashSet<String> = HashSet::new();
+    for edge in store.get_all_edges()? {
+        if edge.kind == EdgeKind::IdeasetMember {
+            continue;
+        }
+        if let Some(target) = edge.target_id {
+            referenced.insert(target);
+        }
+    }
+    let mut roots = Vec::new();
+    for idea in store.list_all_ideas()? {
+        if idea.kind != reqlan_index::IdeaKind::Ideaset && !referenced.contains(&idea.id) {
+            roots.push(ResolvedTarget::Idea(from_index_summary(idea)));
+        }
+    }
+    Ok(roots)
 }
 
 /// Breadth-first seed edges: idea targets spread through content edges.
@@ -281,31 +306,32 @@ pub fn rope(
 
     // Steps 2 + 4: BFS from the target up to fray hops.
     let seeds = match &target {
-        ResolvedTarget::Idea(idea) => vec![(idea.clone(), 0u32)],
+        ResolvedTarget::Idea(idea) => vec![(idea.clone(), 0u32, idea.id.clone())],
         ResolvedTarget::File { uri } => {
+            let centre = click_file_entry_id(uri);
             let mut items = Vec::new();
             for id in file_adjacent_ids(store, uri)? {
                 if let Some(idea) = store.get_idea(&id)? {
-                    items.push((from_index_summary(idea), 1u32));
+                    items.push((from_index_summary(idea), 1u32, centre.clone()));
                 }
             }
             items
         }
     };
     let mut visited: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<(IdeaSummary, u32)> = VecDeque::new();
-    for (idea, hops) in seeds {
+    let mut queue: VecDeque<(IdeaSummary, u32, String)> = VecDeque::new();
+    for (idea, hops, parent) in seeds {
         if visited.insert(idea.id.clone()) {
-            queue.push_back((idea, hops));
+            queue.push_back((idea, hops, parent));
         }
     }
 
     let mut max_hops: u32 = 0;
-    let mut frontier: Vec<(IdeaSummary, u32)> = Vec::new();
-    while let Some((idea, hops)) = queue.pop_front() {
+    let mut frontier: Vec<(IdeaSummary, u32, String)> = Vec::new();
+    while let Some((idea, hops, parent)) = queue.pop_front() {
         if hops > 0 {
             max_hops = max_hops.max(hops);
-            frontier.push((idea.clone(), hops));
+            frontier.push((idea.clone(), hops, parent));
         }
         if hops >= fray {
             continue;
@@ -319,7 +345,7 @@ pub fn rope(
                     continue;
                 }
                 visited.insert(id);
-                queue.push_back((from_index_summary(next), hops + 1));
+                queue.push_back((from_index_summary(next), hops + 1, idea.id.clone()));
             }
         }
     }
@@ -344,7 +370,7 @@ fn build_rope_result(
     session_key: &str,
     centre_id: &str,
     centre_target: Option<ClickTarget>,
-    frontier: Vec<(IdeaSummary, u32)>,
+    frontier: Vec<(IdeaSummary, u32, String)>,
     max_hops: u32,
 ) -> Result<ClickResult, AnalysisError> {
     // Katz centrality across the indexed graph, computed once per rope call.
@@ -354,27 +380,26 @@ fn build_rope_result(
     let pairs = citation_edge_pairs(&node_ids, &edges);
     let katz = katz_centrality(&node_ids, &pairs);
 
-    let raw_scores: Vec<(f64, &(IdeaSummary, u32))> = frontier
+    let raw_scores: Vec<(f64, &(IdeaSummary, u32, String))> = frontier
         .iter()
         .map(|entry| (cardinality_raw(store, &entry.0, entry.1, max_hops, &katz), entry))
         .collect();
     let top = raw_scores.iter().map(|(score, _)| *score).fold(0.0_f64, f64::max);
 
-    let mut ranked: Vec<(f64, IdeaSummary, u32)> = raw_scores
+    let mut ranked: Vec<(f64, IdeaSummary, u32, String)> = raw_scores
         .iter()
         .map(|(score, entry)| {
             let normalised = if top > 0.0 { score / top } else { 0.0 };
-            (normalised, entry.0.clone(), entry.1)
+            (normalised, entry.0.clone(), entry.1, entry.2.clone())
         })
-        .filter(|(normalised, _, _)| *normalised >= CARDINALITY_THRESHOLD)
+        .filter(|(normalised, ..)| *normalised >= CARDINALITY_THRESHOLD)
         .collect();
     ranked.sort_by(|left, right| {
-        right
-            .0
-            .partial_cmp(&left.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then(left.2.cmp(&right.2))
-            .then(left.1.name.cmp(&right.1.name))
+        // Chain order: hop distance ascending, cardinality descending within a hop.
+        left.2
+            .cmp(&right.2)
+            .then_with(|| right.0.partial_cmp(&left.0).unwrap_or(std::cmp::Ordering::Equal))
+            .then_with(|| left.1.name.cmp(&right.1.name))
     });
 
     // Step 6: session dedup — skip ideas this click session already surfaced.
@@ -402,7 +427,7 @@ fn build_rope_result(
 
     let mut candidates: Vec<ClickCandidate> = Vec::new();
     let cap = 24usize;
-    for (normalised, idea, hops) in ranked {
+    for (normalised, idea, hops, parent) in ranked {
         if already_clicked.contains(&idea.id)
             || already_listed.contains(&idea.id)
             || idea.id == centre_id
@@ -418,6 +443,8 @@ fn build_rope_result(
             id: idea.id.clone(),
             kind: "idea".into(),
             file_uri: idea.file_uri.clone(),
+            summary: Some(idea.summary.clone()),
+            via: Some(parent),
             score: Some(normalised),
             hops: Some(hops),
         });
@@ -463,6 +490,8 @@ fn search_fallback(
                 "idea".into()
             },
             file_uri: hit.file_uri,
+            summary: Some(hit.summary),
+            via: None,
             score: Some(hit.score),
             hops: None,
         })
@@ -518,6 +547,8 @@ fn ambiguous_result(
             id: idea.id.clone(),
             kind: kind.into(),
             file_uri: idea.file_uri.clone(),
+            summary: if kind == "idea" { Some(idea.summary.clone()) } else { None },
+            via: None,
             score: Some(1.0 / (1.0 + hops.unwrap_or(8) as f64)),
             hops,
         })

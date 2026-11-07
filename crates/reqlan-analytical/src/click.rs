@@ -110,6 +110,11 @@ impl ResolvedTarget {
             id: self.id(),
             kind: self.kind_label().to_string(),
             file_uri: self.file_uri().to_string(),
+            summary: match self {
+                Self::Idea(idea) => Some(idea.summary.clone()),
+                Self::File { .. } => None,
+            },
+            via: None,
             score,
             hops,
         }
@@ -236,6 +241,8 @@ fn search_result(
                 "idea".into()
             },
             file_uri: hit.file_uri,
+            summary: Some(hit.summary),
+            via: None,
             score: Some(hit.score),
             hops: None,
         })

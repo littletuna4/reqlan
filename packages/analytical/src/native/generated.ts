@@ -14,7 +14,17 @@ export type BrokenReferenceDto = { fileUri: string; sourceId?: string | null; so
  * Ranked ambiguous or search hit.
  * rq:["../../../../reqlan rq/cli/click.rq".click_input]
  */
-export type ClickCandidate = { name: string; id: string; kind: string; fileUri: string; score?: number | null; hops?: number | null }
+export type ClickCandidate = { name: string; id: string; kind: string; fileUri: string; 
+/**
+ * Context text for idea rows; files carry none.
+ * rq:["../../../../reqlan rq/core_analysis/rope.rq".rope-output]
+ */
+summary?: string | null; 
+/**
+ * Rope chain parent: the idea id this row hangs from.
+ * rq:["../../../../reqlan rq/core_analysis/rope.rq".rope-graph]
+ */
+via?: string | null; score?: number | null; hops?: number | null }
 
 /**
  * Named neighbour or candidate in a click result.

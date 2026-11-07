@@ -14,11 +14,11 @@ roping {
 rope {
     Rope is the command/function used for [roping],
     It is used in the [analysers] and the [cli]/[mcp].
-    Surface: CLI `reqlan rope <target> [--fray <n>] [--tuning <mode>]`, MCP tool `rope`, and AnalysisApi `rope`.
+    Surface: CLI `reqlan rope <target> [--fray <n>] [--tuning <mode>] [--graph]`, MCP tool `rope`, and AnalysisApi `rope`.
     Default `fray` is dynamic (see [dynamic-rope-tuning]); `--fray <n>` overrides it.
-    Returns compact context around the target idea, respecting click session deduplication ([click-store-context-optimisation]):
-    candidates carry `name`, `id`, `fileUri`, `cardinality score`, and `hops`; the centre target is returned as for [click].
+    Returns the chain of ideas around the target with each idea's context, respecting click session deduplication ([click-store-context-optimisation]).
     Ambiguous targets return ranked matches; no match falls through to search.
+    The target may be `@root` ([rope-graph]).
     Implemented by ["../../crates/reqlan-analytical/src/rope.rs"],
     `rope` in ["../../crates/reqlan-analytical/src/api.rs"],
     `rope` in ["../../crates/reqlan-napi/src/analysis.rs"],
@@ -94,17 +94,40 @@ rope-output {
     [rope] returns the ["../cli/click.rq".click_output] shape (`ClickResult`, camelCase JSON; optional fields are omitted, never null).
     Always: `sessionKey` and `candidates` (empty array when nothing qualifies).
     `kind` is `rope`, `ambiguous`, `search`, or `none` (never click's `unique`/`revisit`).
-    `rope`: `target` is the centre — idea centres carry `name`, `id` (`<file>#<name>`), `fileUri`, `lineStart`, body `content`, and optional `status`; file centres carry `id` (`file:<uri>`), `name` (basename), `fileUri`, `lineStart` 0, no content. `candidates` are cardinality-ordered `{name, id, kind, fileUri, score, hops}` with normalised cardinality `score` (top = 1, threshold 0.5, cap 24) and BFS `hops` (a file centre seeds its referencing ideas at hop 1); session-surfaced ideas are dropped.
+    `rope`: `target` is the centre — idea centres carry `name`, `id` (`<file>#<name>`), `fileUri`, `lineStart`, body `content`, and optional `status`; file centres carry `id` (`file:<uri>`), `name` (basename), `fileUri`, `lineStart` 0, no content. `candidates` are the chain: ordered by hop distance ascending, then cardinality descending within a hop, each row `{name, id, kind, fileUri, summary, score, hops}` where `summary` is the idea's context text (absent for file rows), `score` is normalised cardinality (top = 1, threshold 0.5, cap 24), and `hops` is BFS distance (a file centre seeds its referencing ideas at hop 1); session-surfaced ideas are dropped.
     `ambiguous`: no `target`; `candidates` ranked by click-session hop distance — `hops` 0 means already surfaced in the session, absent means unconnected; `score` = `1 / (1 + hops)`, `1/9` when unknown.
     `search`: no `target`; fuzzy `candidates` with raw fuzzy `score` and no `hops`.
     `none`: empty `candidates`, no `target`.
+    Rope-kind candidate rows also carry `via`: the id of the idea the row hangs from (BFS parent; the centre id at hop 1, `file:<uri>` under a file centre). Other kinds omit `via`.
     Rope never emits click's `outbound`, `backlinks`, `commentRefs`, `siblings`, or `connected`.
+    CLI text output renders the chain and colours it when stdout is a terminal: bold centre, cyan idea names, dim hops and scores; JSON and MCP output stay plain.
     @status done
     @tests (
         ["../../crates/reqlan-analytical/tests/rope.rs"]
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_chain_orders_hops_then_cardinality"]
         ["../../packages/analytical/test/rope.test.ts"]
+        ["../../packages/analytical/test/rope.test.ts:formatClickResult colours the rope chain"]
         ["../../packages/cli/test/rope.test.ts:rope command emits kind rope with frayed candidates"]
+        ["../../packages/cli/test/rope.test.ts:rope text output prints the chain with context"]
         ["../../packages/mcp/test/server.test.ts:rope forwards target, session, fray, and tuning"]
+    )
+}
+
+rope-graph {
+    `--graph` on the CLI `rope` command renders the [rope-output] chain as a linearised graph in the terminal: the root at the top, then box-drawing lines (`├─`, `└─`, `│`) to each idea in chain order; the first drawn line runs from the root to the highest-cardinality idea. Each drawn node keeps its context lines, dim hops, and dim score per [rope-output].
+    Root selection: the target idea is the implicit root. The target `@root` ropes the project root instead: the ideas with no inbound content references (nothing references them; ideaset membership does not count) — the project's constitution. More than one root lists ranked matches; `@root` resolves before any other target form.
+    `--graph` is a CLI render mode only: JSON and MCP output carry the same `via` rows and stay plain.
+    @status done
+    @implementation (
+        ["../../crates/reqlan-analytical/src/rope.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/cli/src/commands/rope.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_via_tracks_bfs_parents"]
+        ["../../crates/reqlan-analytical/tests/rope.rs:rope_at_root_resolves_to_unreferenced_ideas"]
+        ["../../packages/analytical/test/rope.test.ts:formatClickResult draws the graph chain"]
+        ["../../packages/cli/test/rope.test.ts:rope --graph draws the linearised chain"]
     )
 }
 
@@ -131,7 +154,7 @@ algorithm {
        (ideaset membership, imports, and comment links are excluded; a file centre starts one hop out on ideas that reference it).
     5. Score each neighbour with [rope-idea-cardinality]; normalise to the top candidate and drop ideas below a 0.5 ratio.
     6. Deduplicate using the click session store: skip ideas already surfaced in the session ([click-store-context-optimisation]).
-    7. Order by cardinality (descending), then by hop distance (ascending), then by name.
+    7. Order the chain: hop distance ascending, then cardinality descending within a hop, then by name.
     8. Return compact context: the centre target plus candidate rows (names, ids, file URIs, scores, hops).
     9. Track the centre and listed ideas in the click session store.
     @status done

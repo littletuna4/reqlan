@@ -313,6 +313,14 @@ pub struct ClickCandidate {
     pub id: String,
     pub kind: String,
     pub file_uri: String,
+    /// Context text for idea rows; files carry none.
+    /// rq:["../../../reqlan rq/core_analysis/rope.rq".rope-output]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// Rope chain parent: the idea id this row hangs from.
+    /// rq:["../../../reqlan rq/core_analysis/rope.rq".rope-graph]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub via: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub score: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]

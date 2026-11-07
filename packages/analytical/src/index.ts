@@ -238,6 +238,7 @@ export type {
     SearchRequirementsOptions,
     SparseWildcardHandling
 } from './native/native-analysis-api.js';
+export type { FormatClickResultOptions } from './native/native-analysis-api.js';
 export {
     openAnalysisApi,
     type HeadlessAnalysisApi,

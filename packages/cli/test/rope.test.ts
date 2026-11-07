@@ -62,6 +62,47 @@ describe('rope command', () => {
         expect(again.candidates?.some(candidate => candidate.name === 'beta')).toBe(false);
     });
 
+    test('rope text output prints the chain with context', () => {
+        resetNativeEngineCache();
+        if (!nativeEngineAvailable()) {
+            return;
+        }
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-rope-cli-'));
+        mkdirSync(join(root, '.reqlan'), { recursive: true });
+        writeFileSync(
+            join(root, 'graph.rq'),
+            `alpha {\n    root\n    see [beta]\n}\n\nbeta {\n    neighbour\n}\n`,
+            'utf8'
+        );
+        const run = runRope(root, ['alpha']);
+        expect(run.status).toBe(0);
+        expect(run.stdout).toContain('chain:');
+        expect(run.stdout).toContain('- beta (graph.rq)');
+        expect(run.stdout).toContain('hops=1');
+        expect(run.stdout).toContain('neighbour');
+        // spawnSync pipes are not TTYs, so the text render stays plain.
+        expect(run.stdout).not.toContain('\x1b[');
+    });
+
+    test('rope --graph draws the linearised chain', () => {
+        resetNativeEngineCache();
+        if (!nativeEngineAvailable()) {
+            return;
+        }
+        const root = mkdtempSync(join(tmpdir(), 'reqlan-rope-cli-'));
+        mkdirSync(join(root, '.reqlan'), { recursive: true });
+        writeFileSync(
+            join(root, 'graph.rq'),
+            `alpha {\n    root\n    see [beta]\n}\n\nbeta {\n    neighbour\n}\n`,
+            'utf8'
+        );
+        const run = runRope(root, ['alpha', '--graph']);
+        expect(run.status).toBe(0);
+        expect(run.stdout).toContain('└─ beta');
+        expect(run.stdout).toContain('hops=1');
+        expect(run.stdout).not.toContain('\x1b[');
+    });
+
     test('rope rejects an unknown --tuning value', () => {
         resetNativeEngineCache();
         if (!nativeEngineAvailable()) {

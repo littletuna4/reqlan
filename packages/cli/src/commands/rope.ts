@@ -59,6 +59,9 @@ export class RopeCommand extends Command {
     session = Option.String('--session', {
         description: 'Click session key from a prior click'
     });
+    graph = Option.Boolean('--graph', false, {
+        description: 'Draw the chain as a linearised graph tree'
+    });
     cwd = Option.String('--cwd', {
         description: 'Workspace root (default: walk from cwd, or REQLAN_WORKSPACE)'
     });
@@ -78,7 +81,13 @@ export class RopeCommand extends Command {
                     emit(result, true);
                     return;
                 }
-                emit(api.formatClickResult(result), false);
+                emit(
+                    api.formatClickResult(result, {
+                        colour: process.stdout.isTTY === true,
+                        graph: this.graph === true
+                    }),
+                    false
+                );
             });
             return 0;
         } catch (error) {

@@ -528,14 +528,24 @@ export class NativeAnalysisApi {
      * rq:["../../../../reqlan rq/cli/click.rq".click_output]
      * rq:["../../../../reqlan rq/cli/click.rq".agent_advisory]
      */
-    formatClickResult(result: ClickResult): string {
+    formatClickResult(result: ClickResult, options?: FormatClickResultOptions): string {
+        const colour = options?.colour === true;
+        if (options?.graph === true && result.kind === 'rope') {
+            const lines = [`sessionKey: ${result.sessionKey}`, `kind: ${result.kind}`, ''];
+            pushGraphChain(lines, result, colour);
+            lines.push('');
+            lines.push('Pass sessionKey on the next click.');
+            return lines.join('\n');
+        }
         const lines = [`sessionKey: ${result.sessionKey}`, `kind: ${result.kind}`, ''];
         if (result.target) {
             const target = result.target;
             const label = target.kind === 'file' ? 'file' : 'idea';
-            lines.push(`${label}: ${target.name} (${target.fileUri})`);
+            lines.push(
+                `${label}: ${paint(target.name, ANSI_BOLD, colour)} ${paint(`(${target.fileUri})`, ANSI_DIM, colour)}`
+            );
             if (target.content) {
-                lines.push(`content: ${target.content}`);
+                lines.push(paint(target.content, ANSI_DIM, colour));
             }
             if (target.status) {
                 lines.push(`status: ${target.status}`);
@@ -557,10 +567,19 @@ export class NativeAnalysisApi {
             lines.push('');
         }
         if (result.candidates && result.candidates.length > 0) {
-            lines.push('candidates:');
+            lines.push(result.kind === 'rope' ? 'chain:' : 'candidates:');
             for (const item of result.candidates) {
-                const hops = item.hops !== undefined && item.hops !== null ? ` hops=${item.hops}` : '';
-                lines.push(`- ${item.name} (${item.fileUri})${hops}`);
+                const facts = [
+                    item.hops !== undefined && item.hops !== null ? `hops=${item.hops}` : undefined,
+                    item.score !== undefined && item.score !== null ? `score=${item.score}` : undefined
+                ]
+                    .filter((part): part is string => part !== undefined)
+                    .join(' ');
+                const suffix = facts.length > 0 ? ` ${paint(facts, ANSI_DIM, colour)}` : '';
+                lines.push(`- ${paint(item.name, ANSI_CYAN, colour)} ${paint(`(${item.fileUri})`, ANSI_DIM, colour)}${suffix}`);
+                if (item.summary) {
+                    pushIndented(lines, item.summary, '  ', colour);
+                }
             }
             lines.push('');
         }
@@ -647,6 +666,101 @@ function toGraph(graph: NativeGraphSlice): GraphSlice {
             label: edge.label ?? undefined
         }))
     };
+}
+
+/** rq:["../../../../reqlan rq/core_analysis/rope.rq".rope-output] */
+export interface FormatClickResultOptions {
+    /** ANSI-colour the text render; terminal-only, never JSON or MCP. */
+    colour?: boolean;
+    /** Linearised graph render for the rope chain (box-drawing tree). */
+    graph?: boolean;
+}
+
+const ANSI_RESET = '\x1b[0m';
+const ANSI_BOLD = '\x1b[1m';
+const ANSI_DIM = '\x1b[2m';
+const ANSI_CYAN = '\x1b[36m';
+
+function paint(text: string, code: string, colour: boolean): string {
+    return colour ? `${code}${text}${ANSI_RESET}` : text;
+}
+
+/** Push `text` with `indent` on every line so multi-line context stays aligned. */
+function pushIndented(lines: string[], text: string, indent: string, colour: boolean): void {
+    for (const line of text.split('\n')) {
+        lines.push(paint(`${indent}${line}`, ANSI_DIM, colour));
+    }
+}
+
+/** Node rows hang off their `via` parent; unknown parents fall back to the root. */
+function pushGraphChain(
+    lines: string[],
+    result: ClickResult,
+    colour: boolean
+): void {
+    const candidates = result.candidates ?? [];
+    const rootId = result.target?.id ?? '';
+    const children = new Map<string, NonNullable<ClickResult['candidates']>>();
+    for (const item of candidates) {
+        const key = item.via ?? rootId;
+        const rows = children.get(key);
+        if (rows) {
+            rows.push(item);
+        } else {
+            children.set(key, [item]);
+        }
+    }
+    const draw = (
+        node: {
+            id: string;
+            name: string;
+            fileUri: string;
+            summary?: string | null;
+            hops?: number | null;
+            score?: number | null;
+        },
+        branch: string,
+        subtree: string,
+        isRoot: boolean
+    ): void => {
+        const facts = [
+            node.hops !== undefined && node.hops !== null ? `hops=${node.hops}` : undefined,
+            node.score !== undefined && node.score !== null ? `score=${node.score}` : undefined
+        ]
+            .filter((part): part is string => part !== undefined)
+            .join(' ');
+        const suffix = facts.length > 0 ? ` ${paint(facts, ANSI_DIM, colour)}` : '';
+        const label = isRoot
+            ? paint(node.name, ANSI_BOLD, colour)
+            : paint(node.name, ANSI_CYAN, colour);
+        lines.push(`${branch}${label} ${paint(`(${node.fileUri})`, ANSI_DIM, colour)}${suffix}`);
+        if (node.summary) {
+            pushIndented(lines, node.summary, isRoot ? '   ' : branch.replace(/\S/g, ' '), colour);
+        }
+        const rows = children.get(node.id) ?? [];
+        rows.forEach((child, index) => {
+            const last = index === rows.length - 1;
+            draw(
+                child,
+                `${subtree}${last ? '└─ ' : '├─ '}`,
+                `${subtree}${last ? '   ' : '│  '}`,
+                false
+            );
+        });
+    };
+    draw(
+        {
+            id: rootId,
+            name: result.target?.name ?? '',
+            fileUri: result.target?.fileUri ?? '',
+            summary: result.target?.content,
+            hops: null,
+            score: null
+        },
+        '',
+        '',
+        true
+    );
 }
 
 function pushNameList(

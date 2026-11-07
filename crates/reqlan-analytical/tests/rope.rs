@@ -77,6 +77,51 @@ fn rope_returns_cardinality_ranked_hops() {
     assert_eq!(names, vec!["beta", "gamma"], "hop order first");
     let hops: Vec<_> = candidates.iter().map(|candidate| candidate.hops).collect();
     assert_eq!(hops, vec![Some(1), Some(2)], "{candidates:?}");
+    assert!(
+        candidates[0].summary.as_deref().is_some_and(|summary| summary.contains("neighbour")),
+        "chain rows carry context: {candidates:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn rope_chain_orders_hops_then_cardinality() {
+    let root = scratch("chain-order");
+    std::fs::write(
+        root.join("graph.rq"),
+        r#"alpha {
+    root
+    see [hub]
+    see [leaf]
+}
+
+hub {
+    hub body
+}
+
+leaf {
+    lonely
+}
+
+other {
+    filler
+    see [hub]
+}
+"#,
+    )
+    .unwrap();
+    let storage = root.join(".reqlan");
+    let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+    let result = rope(&mut runtime, "alpha", None, Some(1), RopeTuning::Default);
+    assert_eq!(result.kind, "rope");
+    let candidates = result.candidates.expect("rope candidates");
+    let rows: Vec<_> =
+        candidates.iter().map(|candidate| (candidate.name.as_str(), candidate.hops)).collect();
+    assert_eq!(rows, vec![("hub", Some(1)), ("leaf", Some(1))], "{candidates:?}");
+    assert!(
+        candidates[0].score.unwrap() > candidates[1].score.unwrap(),
+        "cardinality orders within a hop: {candidates:?}"
+    );
     std::fs::remove_dir_all(&root).ok();
 }
 
@@ -141,6 +186,64 @@ shared {
         "session-adjacent match first: {candidates:?}"
     );
     assert!(candidates[0].hops.is_some(), "{candidates:?}");
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn rope_via_tracks_bfs_parents() {
+    let root = scratch("via");
+    write_graph(&root);
+    let storage = root.join(".reqlan");
+    let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+    let result = rope(&mut runtime, "alpha", None, Some(2), RopeTuning::Default);
+    assert_eq!(result.kind, "rope");
+    let candidates = result.candidates.expect("rope candidates");
+    let via: Vec<_> = candidates.iter().map(|candidate| candidate.via.as_deref()).collect();
+    assert_eq!(
+        via,
+        vec![Some("graph.rq#alpha"), Some("graph.rq#beta")],
+        "rows hang from their BFS parent: {candidates:?}"
+    );
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn rope_at_root_resolves_to_unreferenced_ideas() {
+    let root = scratch("at-root");
+    std::fs::write(
+        root.join("graph.rq"),
+        r#"top {
+    root
+    see [next]
+}
+
+next {
+    leaf
+}
+"#,
+    )
+    .unwrap();
+    let storage = root.join(".reqlan");
+    let mut runtime = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+    let rooted = rope(&mut runtime, "@root", None, Some(1), RopeTuning::Default);
+    assert_eq!(rooted.kind, "rope");
+    assert_eq!(rooted.target.as_ref().expect("root target").name, "top");
+    // A second unreferenced idea makes @root ambiguous.
+    std::fs::write(
+        root.join("side.rq"),
+        r#"solo {
+    alone
+}
+"#,
+    )
+    .unwrap();
+    let reindexed = AnalysisRuntime::open(&root, Some(&storage)).unwrap();
+    let mut runtime = reindexed;
+    let ambiguous = rope(&mut runtime, "@root", None, None, RopeTuning::Default);
+    assert_eq!(ambiguous.kind, "ambiguous");
+    let names = candidate_names(&ambiguous);
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert!(names.contains(&"top") && names.contains(&"solo"), "{names:?}");
     std::fs::remove_dir_all(&root).ok();
 }
 
