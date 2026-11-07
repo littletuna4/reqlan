@@ -108,12 +108,19 @@ fn rope_ambiguous_ranks_by_session_hop_distance() {
         root.join("graph.rq"),
         r#"far {
     away
-    shared
+    see [shared]
 }
 
-near {
-    close to far
-    shared
+shared {
+    linker
+}
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("other.rq"),
+        r#"shared {
+    other
 }
 "#,
     )
@@ -124,14 +131,14 @@ near {
     assert_eq!(unranked.kind, "ambiguous");
     assert!(unranked.target.is_none());
     assert_eq!(candidate_names(&unranked).len(), 2);
-    // Surfacing `far` first must put far's `shared` before near's on revisit.
+    // Surfacing `far` first must put far's `shared` (one hop away) before the other file's.
     rope(&mut runtime, "far", Some("sess"), Some(1), RopeTuning::Default);
     let ranked = rope(&mut runtime, "shared", Some("sess"), None, RopeTuning::Default);
     let candidates = ranked.candidates.expect("ambiguous candidates");
-    let first_uri = candidates[0].file_uri.as_str();
     assert!(
-        first_uri.ends_with("graph.rq") && candidates[0].id.ends_with("far"),
-        "near-session match first: {candidates:?}"
+        candidates[0].id.ends_with("graph.rq#shared")
+            && candidates[0].file_uri.ends_with("graph.rq"),
+        "session-adjacent match first: {candidates:?}"
     );
     assert!(candidates[0].hops.is_some(), "{candidates:?}");
     std::fs::remove_dir_all(&root).ok();

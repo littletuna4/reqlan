@@ -320,15 +320,3 @@ click {
     see ["./cli/click.rq".click]
 }
 
-my_ref_test {
-    broken: ["@/hello/development/build_filter_issue.rq".q2_rust_type_error]
-    ---
-    current quickfix result (a bug): ["@/hello/development/build_filter_issue.rq"."./development/build_filter_issue.rq".q2_rust_type_error]
-    target fixed ref: ["@/reqlan rq/development/build_filter_issue.rq".q2_rust_type_error]
-    ---
-    current quick fix is dependent on selecting 
-    "@/hello/development/build_filter_issue.rq", or q2_rust_type_error in the target file
-    it is one reference, the quick fix should be aware of both.
-    it should recommend the file that most closesly matches the path "@/hello/development/build_filter_issue.rq" and has an idea most closely matches the target idea. q2_rust_type_error
- 
-}
