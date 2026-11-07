@@ -1,5 +1,17 @@
 # @reqlan/cli
 
+## 0.17.0
+
+### Minor Changes
+
+- fcd1858: initisialise rope, some quick fix fixes,
+
+### Patch Changes
+
+- Updated dependencies [fcd1858]
+- Updated dependencies [b65e0f3]
+  - @reqlan/analytical@1.22.0
+
 ## 0.16.0
 
 ### Minor Changes

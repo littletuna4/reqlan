@@ -1,5 +1,11 @@
 # site
 
+## 0.24.1
+
+### Patch Changes
+
+- fcd1858: initisialise rope, some quick fix fixes,
+
 ## 0.24.0
 
 ### Minor Changes
