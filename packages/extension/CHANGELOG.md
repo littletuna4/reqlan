@@ -1,5 +1,18 @@
 # reqlan-extension
 
+## 1.21.0
+
+### Minor Changes
+
+- fcd1858: initisialise rope, some quick fix fixes,
+
+### Patch Changes
+
+- Updated dependencies [fcd1858]
+- Updated dependencies [b65e0f3]
+  - @reqlan/analytical@1.22.0
+  - @reqlan/language@1.17.0
+
 ## 1.20.0
 
 ### Minor Changes
