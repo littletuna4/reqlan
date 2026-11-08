@@ -63,6 +63,31 @@ describe('extension VSIX packaging', () => {
         expect(isIgnoredByVsce(EXPORT_FORM_WEBVIEW_MEDIA_REL, patterns)).toBe(false);
         expect(isIgnoredByVsce(`${EXPORT_FORM_WEBVIEW_MEDIA_REL}/main.js`, patterns)).toBe(false);
     });
+
+    // rq:["../../../reqlan rq/development/build.rq".extension_release_bundle]
+    test('vscodeignore excludes source maps, stale vendor artifacts, and test outputs from the VSIX', () => {
+        const patterns = vscodeIgnorePatterns();
+
+        expect(isIgnoredByVsce('out/extension/main.cjs.map', patterns)).toBe(true);
+        expect(isIgnoredByVsce('out/language/reqlan-parse-worker.cjs.map', patterns)).toBe(true);
+        expect(isIgnoredByVsce('out/extension/vendor/sql-asm.cjs', patterns)).toBe(true);
+        expect(isIgnoredByVsce('out/tsconfig.tsbuildinfo', patterns)).toBe(true);
+        expect(isIgnoredByVsce('test/context-model.test.ts', patterns)).toBe(true);
+        expect(isIgnoredByVsce('native/reqlan_napi.node', patterns)).toBe(false);
+    });
+
+    // rq:["../../../reqlan rq/development/build.rq".extension_release_bundle]
+    test('prepublish bundles minified with no source maps', () => {
+        const pkg = JSON.parse(readFileSync(join(extensionRoot, 'package.json'), 'utf8')) as {
+            scripts: Record<string, string>;
+        };
+        expect(pkg.scripts['vscode:prepublish']).toContain('--minify');
+
+        const buildScript = readFileSync(join(extensionRoot, 'scripts/build.mjs'), 'utf8');
+        expect(buildScript).toContain('--minify');
+        expect(buildScript).toMatch(/minify \? "node esbuild\.mjs --minify" : "node esbuild\.mjs"/);
+        expect(buildScript).toContain('...(minify');
+    });
 });
 
 describe('search code action host wiring', () => {

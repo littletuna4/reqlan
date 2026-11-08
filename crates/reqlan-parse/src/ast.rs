@@ -3,6 +3,9 @@
 //! rq:["../../../reqlan rq/ontology.rq".idea]
 //! rq:["../../../reqlan rq/ontology.rq".import_statement]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".parser_rust]
+//! rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+
+use std::collections::HashSet;
 
 use crate::token::Span;
 
@@ -227,6 +230,75 @@ pub enum ReferenceTarget {
         path_pattern: String,
         idea_pattern: String,
     },
+}
+
+impl Model {
+    /// Attribute keys used anywhere in this document, each once, in first-use order.
+    /// Walks nested block values and list items too.
+    /// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
+    pub fn attribute_names(&self) -> Vec<&str> {
+        let mut names = Vec::new();
+        let mut seen = HashSet::new();
+        for element in &self.elements {
+            match element {
+                TopLevelElement::Idea(idea) => {
+                    walk_attribute_names(&idea.elements, &mut names, &mut seen);
+                }
+                TopLevelElement::OneLiner(_) | TopLevelElement::IdeaSet(_) => {}
+                TopLevelElement::Anonymous(block) => {
+                    walk_attribute_names(&block.elements, &mut names, &mut seen);
+                }
+            }
+        }
+        names
+    }
+}
+
+fn walk_attribute_names<'a>(
+    elements: &'a [BodyElement],
+    names: &mut Vec<&'a str>,
+    seen: &mut HashSet<&'a str>,
+) {
+    for element in elements {
+        match element {
+            BodyElement::Attribute(attribute) => {
+                if seen.insert(attribute.name.as_str()) {
+                    names.push(attribute.name.as_str());
+                }
+                walk_attribute_value(&attribute.value, names, seen);
+            }
+            BodyElement::NamedList(list) => walk_list_item_names(&list.items, names, seen),
+            BodyElement::NestedList(list) => walk_list_item_names(&list.items, names, seen),
+            BodyElement::BodyLine(_) | BodyElement::CodeSnippet(_) => {}
+        }
+    }
+}
+
+fn walk_attribute_value<'a>(
+    value: &'a Option<AttributeValue>,
+    names: &mut Vec<&'a str>,
+    seen: &mut HashSet<&'a str>,
+) {
+    match value {
+        Some(AttributeValue::Block(block)) => walk_attribute_names(&block.elements, names, seen),
+        Some(AttributeValue::List(list)) => walk_list_item_names(&list.items, names, seen),
+        Some(AttributeValue::Scalar(_)) | None => {}
+    }
+}
+
+fn walk_list_item_names<'a>(
+    items: &'a [ListItem],
+    names: &mut Vec<&'a str>,
+    seen: &mut HashSet<&'a str>,
+) {
+    for item in items {
+        match item {
+            ListItem::Anonymous(block) => walk_attribute_names(&block.elements, names, seen),
+            ListItem::NamedBlock(list) => walk_attribute_names(&list.elements, names, seen),
+            ListItem::Nested(list) => walk_list_item_names(&list.items, names, seen),
+            ListItem::OneLiner(_) => {}
+        }
+    }
 }
 
 impl Import {

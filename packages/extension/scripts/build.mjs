@@ -18,6 +18,9 @@ const force =
 const skipNative =
   process.argv.includes("--skip-native") ||
   process.env.REQLAN_SKIP_NATIVE_STAGE === "1";
+/** Release packaging minifies the host bundles and omits source maps.
+ *  rq:["../../../reqlan rq/development/build.rq".extension_release_bundle] */
+const minify = process.argv.includes("--minify");
 /** Dependency trees and Vite scratch dirs must not enter content fingerprints. */
 const ignoredFingerprintDirNames = new Set(["node_modules"]);
 
@@ -197,7 +200,7 @@ const steps = [
   },
   {
     name: "bundle extension host and language server",
-    command: "node esbuild.mjs",
+    command: minify ? "node esbuild.mjs --minify" : "node esbuild.mjs",
     cacheKey: "extension-host",
     inputs: [
       ...sharedInputs,
@@ -209,11 +212,15 @@ const steps = [
     ],
     outputs: [
       fromExtension("out", "extension", "main.cjs"),
-      fromExtension("out", "extension", "main.cjs.map"),
       fromExtension("out", "language", "main.cjs"),
-      fromExtension("out", "language", "main.cjs.map"),
       fromExtension("out", "language", "reqlan-parse-worker.cjs"),
-      fromExtension("out", "language", "reqlan-parse-worker.cjs.map"),
+      ...(minify
+        ? []
+        : [
+            fromExtension("out", "extension", "main.cjs.map"),
+            fromExtension("out", "language", "main.cjs.map"),
+            fromExtension("out", "language", "reqlan-parse-worker.cjs.map"),
+          ]),
     ],
   },
 ];

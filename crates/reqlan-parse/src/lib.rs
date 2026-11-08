@@ -23,7 +23,7 @@ pub use barrel::{
     file_basename_alias, plan_barrel_page, rewrite_sibling_refs, BarrelChildPlan, BarrelPagePlan,
 };
 pub use budget::{ParseBudget, DEFAULT_PARSE_BUDGET, PARSE_HANG_SENTINEL};
-pub use lexer::{is_inside_line_fence, lex, LexResult};
+pub use lexer::{is_id_continuation, is_id_start, is_inside_line_fence, lex, LexResult};
 pub use parser::{
     parse_document, parse_document_with_budget, ParseDiagnostic, ParseResult, Severity,
 };

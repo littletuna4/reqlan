@@ -269,6 +269,27 @@ impl IndexStore {
         rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
     }
 
+    /// Members of every ideaset named `set_name`, one row per member idea.
+    /// A set name can be defined in several files; the rows union across them.
+    /// rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
+    pub fn set_member_names(
+        &self,
+        set_name: &str,
+        limit: usize,
+    ) -> Result<Vec<IdeaNameRow>, StoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT DISTINCT i.name, i.kind, i.file_uri, i.line_start
+             FROM ideas s
+             JOIN edges e ON e.source_id = s.id AND e.kind = 'ideaset_member'
+             JOIN ideas i ON i.id = e.target_id
+             WHERE s.name = ?1 AND s.kind = 'ideaset'
+             ORDER BY i.name, i.file_uri
+             LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(rusqlite::params![set_name, limit as i64], map_name_row)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    }
+
     /// Idea and edge totals via SQL `COUNT(*)` — never materialises the tables.
     /// Counting by row length would load every idea and edge into memory.
     pub fn counts(&self) -> Result<(usize, usize), StoreError> {

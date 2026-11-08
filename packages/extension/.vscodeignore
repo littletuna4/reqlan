@@ -12,6 +12,12 @@ tsconfig.tsbuildinfo
 langium-quickstart.md
 grammars/**
 vsix-out/**
+test/**
+# Only runtime artifacts ship; maps/vendor/tsbuildinfo are dev-host concerns.
+# rq:["../../reqlan rq/development/build.rq".extension_release_bundle]
+out/**/*.map
+out/extension/vendor/**
+out/tsconfig.tsbuildinfo
 !.skills/**
 !.prompts/**
 !.agents/**

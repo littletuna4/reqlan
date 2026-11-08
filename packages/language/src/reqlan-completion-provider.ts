@@ -2,6 +2,7 @@
  * Code completion for references, import paths, file paths, and attributes.
  * rq:["../../../reqlan rq/extension/host/configuration.rq".configuration_import_roots]
  * rq:["../../../reqlan rq/language/imports.rq".configuration_import_root_alias]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".attribute_code_completion_attribute_key]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_sequencing]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion]
@@ -11,6 +12,8 @@
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_replaces_the_tail]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_reentry_is_lossless]
  */
 import type { AstNode, AstNodeDescription, FileSystemProvider, LangiumDocument, LangiumDocuments } from 'langium';
 import { AstUtils, UriUtils, stream } from 'langium';
@@ -42,7 +45,8 @@ import {
     getAttributeValueContext,
     getCompletionSite,
     getQualifiedFileIdeaContext,
-    getReferencePrefixContext
+    getReferencePrefixContext,
+    mergeCompletionTail
 } from './reqlan-completion-context.js';
 import { findNamespaceImportByAlias, importPathOf } from './reqlan-import-bindings.js';
 import { buildFromImportEdit, relativeRqImportPath } from './reqlan-import-edits.js';
@@ -167,16 +171,20 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             if (context.prefix && !key.startsWith(context.prefix)) {
                 return [];
             }
-            if (usedKeys.has(key)) {
+            // A used key is still offered while the cursor is inside the key word:
+            // the replace edit is lossless.
+            if (usedKeys.has(key) && context.tail.length === 0) {
                 return [];
             }
             return [{
                 label: key,
                 kind: CompletionItemKind.Property,
-                insertText: key,
-                range: {
-                    start: context.replaceStart,
-                    end: context.replaceEnd
+                textEdit: {
+                    newText: mergeCompletionTail(key, context.prefix, context.tail),
+                    range: {
+                        start: context.replaceStart,
+                        end: context.replaceEnd
+                    }
                 },
                 detail: endorsed.has(key) ? 'endorsed attribute' : 'workspace attribute'
             }];
@@ -198,10 +206,12 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             return [{
                 label: value,
                 kind: CompletionItemKind.Value,
-                insertText: value,
-                range: {
-                    start: context.replaceStart,
-                    end: context.replaceEnd
+                textEdit: {
+                    newText: mergeCompletionTail(value, context.prefix, context.tail),
+                    range: {
+                        start: context.replaceStart,
+                        end: context.replaceEnd
+                    }
                 },
                 detail: `@${context.attributeName}`
             }];
@@ -378,7 +388,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
             kind: CompletionItemKind.Reference,
             sortText: `${String(distance).padStart(4, '0')}_${candidate.name}`,
             textEdit: {
-                newText: candidate.name,
+                newText: mergeCompletionTail(candidate.name, context.prefix, context.tail),
                 range: {
                     start: context.replaceStart,
                     end: context.replaceEnd
@@ -419,6 +429,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         }
         const replaceContext = {
             prefix: context.ideaPrefix,
+            tail: context.tail,
             replaceStart: context.replaceStart,
             replaceEnd: context.replaceEnd
         };
@@ -441,18 +452,20 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
         if (!context) {
             return LspCompletionList.create([], true);
         }
-        const candidates = this.collectPathCandidates(document, context.prefix);
+        // An unclosed string with nothing after the line gets its closing quote back on insert.
+        const closing = context.closerMissing ? context.delimiter : '';
+        const candidates = this.collectPathCandidates(document, context.prefix, undefined, context.tail);
         const items = candidates.map(candidate => ({
             label: candidate.path,
             kind: candidate.isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
             textEdit: {
-                newText: candidate.path,
+                newText: mergeCompletionTail(candidate.path, context.prefix, context.tail) + closing,
                 range: {
                     start: context.replaceStart,
                     end: context.replaceEnd
                 }
             },
-            sortText: pathCompletionSortText(document, candidate),
+            sortText: pathCompletionSortText(document, candidate, context.prefix),
             filterText: pathCompletionFilterText(context.prefix, candidate)
         }));
         return LspCompletionList.create(items, true);
@@ -495,7 +508,7 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
                     range
                 },
                 kind: candidate.isDirectory ? CompletionItemKind.Folder : CompletionItemKind.File,
-                sortText: pathCompletionSortText(context.document, candidate),
+                sortText: pathCompletionSortText(context.document, candidate, prefix),
                 filterText: pathCompletionFilterText(prefix, candidate)
             });
         }
@@ -508,14 +521,15 @@ export class ReqlanCompletionProvider extends DefaultCompletionProvider {
     private collectPathCandidates(
         document: LangiumDocument,
         prefix: string,
-        extensionFilter?: string
+        extensionFilter?: string,
+        tail?: string
     ): PathCompletionCandidate[] {
         return collectPathCompletionCandidates(
             document,
             this.documents,
             this.fileSystem,
             pathResolveContextFromServices(this.services),
-            { extensionFilter, prefix }
+            { extensionFilter, prefix, tail }
         );
     }
 

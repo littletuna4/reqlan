@@ -4,10 +4,14 @@
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_explicit_extension]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_path_segments]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_substring_match]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_match_quality]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_prefix_aware_ranking]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_ranking]
  * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".anonymous_reference_code_completion]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_objects]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_replaces_the_tail]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_reentry_is_lossless]
  */
 import type { FileSystemProvider, LangiumDocument, LangiumDocuments, URI } from 'langium';
 import { UriUtils } from 'langium';
@@ -16,7 +20,8 @@ import {
     resolveDocumentPathUri,
     resolveImportRootUri,
     resolveRqConfig,
-    type PathResolveContext
+    type PathResolveContext,
+    type RqConfig
 } from './reqlan-path-resolve.js';
 
 export const UNREACHABLE_PATH_DISTANCE = 9999;
@@ -61,6 +66,12 @@ export interface CollectPathCompletionOptions {
     extensionFilter?: string;
     /** Unquoted typed query; folder browsing when it ends with `/`, otherwise substring/subsequence search. */
     prefix?: string;
+    /**
+     * Line text after the cursor in an unclosed string. Re-entry ranking uses it to offer the
+     * in-progress path first.
+     * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_reentry_is_lossless]
+     */
+    tail?: string;
 }
 
 export interface PathCompletionCacheStats {
@@ -130,44 +141,45 @@ export function pathCandidateHopDistance(document: LangiumDocument, candidate: P
 }
 
 /**
- * Rank by proximity, then directories before files, then path alphabetically.
+ * Rank by match-quality tier, then proximity, then directories before files, then path alphabetically.
  * Puts `../path/` before `../path/file.rq` when hop distance ties.
+ * The tier depends on the typed query, so callers pass the prefix they filtered with.
+ * Sort-text format, all fields lexicographically ordered: `${tier}_${segment}_${hops}_${directory}_${path}`.
+ * `segment` is `pathSegmentRank`, consulted only at tier 2; every other tier keeps rank `0`.
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_match_quality]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_ranking]
  */
-export function pathCompletionSortText(document: LangiumDocument, candidate: PathCompletionCandidate): string {
+export function pathCompletionSortText(
+    document: LangiumDocument,
+    candidate: PathCompletionCandidate,
+    query: string
+): string {
+    const tier = pathMatchTier(candidate.path, query);
+    const tierRank = tier ?? UNMATCHED_TIER;
+    const segmentRank = tier === 2 ? pathSegmentRank(candidate.path, query) : 0;
     const hops = pathCandidateHopDistance(document, candidate);
     const directoryRank = candidate.isDirectory ? '0' : '1';
-    return `${String(hops).padStart(4, '0')}_${directoryRank}_${candidate.path}`;
+    return `${tierRank}_${segmentRank}_${String(hops).padStart(4, '0')}_${directoryRank}_${candidate.path}`;
 }
 
 /**
  * Equalize client fuzzy-match scores so sortText (proximity) wins.
  * VS Code/Cursor re-ranks by filterText/label match first; sortText is only a tie-breaker.
- * The server already filters via pathMatchesQuery and returns isIncomplete lists.
+ * The server already filters via pathMatchTier and returns isIncomplete lists.
  */
 export function pathCompletionFilterText(prefix: string, candidate: PathCompletionCandidate): string {
     return prefix.length > 0 ? prefix : candidate.path;
 }
 
-export function comparePathCompletionCandidates(
-    document: LangiumDocument,
-    left: PathCompletionCandidate,
-    right: PathCompletionCandidate
-): number {
-    return pathCompletionSortText(document, left).localeCompare(pathCompletionSortText(document, right));
-}
-
 /**
- * Sort with a single proximity-key computation per candidate.
- * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ * Sub-rank for tier-2 (subsequence) matches: 0 when every `/`-separated query chunk appears
+ * case-insensitively inside some `/`-segment of the path, else 1.
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_match_quality]
  */
-export function sortPathCompletionCandidates(
-    document: LangiumDocument,
-    candidates: readonly PathCompletionCandidate[]
-): PathCompletionCandidate[] {
-    return candidates
-        .map(candidate => ({ candidate, key: pathCompletionSortText(document, candidate) }))
-        .sort((left, right) => left.key.localeCompare(right.key))
-        .map(entry => entry.candidate);
+export function pathSegmentRank(path: string, query: string): 0 | 1 {
+    const queryChunks = query.toLowerCase().split('/').filter(chunk => chunk.length > 0);
+    const segments = path.toLowerCase().split('/');
+    return queryChunks.every(chunk => segments.some(segment => segment.includes(chunk))) ? 0 : 1;
 }
 
 export function relativePathKeepExtension(fromDir: string, targetUri: URI): string {
@@ -191,29 +203,37 @@ export function aliasedPathKeepExtension(
     return `${aliasPrefix}${cleaned}`;
 }
 
+/** Match tier of a candidate path against the typed query. */
+export type PathMatchTier = 0 | 1 | 2;
+
+/** Sort rank for candidates the query does not match; they sort after every match tier. */
+const UNMATCHED_TIER = 3;
+
 /**
- * Match a typed query against a candidate path using substring search (not only starts-with).
- * Also matches when query characters appear in order after stripping `/` and `.` path markers
- * (so `hellopath` matches `../../hello/inbetween/path/file.rq`).
+ * Best match tier of a typed query against a candidate path:
+ * 0 exact substring, 1 substring after stripping `/` and `.` path markers,
+ * 2 ordered character subsequence after stripping, undefined when the query does not match.
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_match_quality]
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_substring_match]
  */
-export function pathMatchesQuery(path: string, query: string): boolean {
+export function pathMatchTier(path: string, query: string): PathMatchTier | undefined {
     if (!query) {
-        return true;
+        return 0;
     }
     const pathLower = path.toLowerCase();
     const queryLower = query.toLowerCase();
     if (pathLower.includes(queryLower)) {
-        return true;
+        return 0;
     }
     const strippedPath = stripPathSeparators(pathLower);
     const strippedQuery = stripPathSeparators(queryLower);
     if (!strippedQuery) {
-        return true;
+        return 1;
     }
     if (strippedPath.includes(strippedQuery)) {
-        return true;
+        return 1;
     }
-    return isCharacterSubsequence(strippedPath, strippedQuery);
+    return isCharacterSubsequence(strippedPath, strippedQuery) ? 2 : undefined;
 }
 
 function stripPathSeparators(value: string): string {
@@ -258,7 +278,15 @@ export function collectPathCompletionCandidates(
             addFile(candidate);
         }
     }
-    for (const candidate of collectAliasedPathCandidates(document, documents, fileSystem, pathContext, options.extensionFilter)) {
+    const config = resolveRqConfig(document, pathContext);
+    for (const candidate of collectAliasedPathCandidates(
+        document,
+        documents,
+        fileSystem,
+        pathContext,
+        config,
+        options.extensionFilter
+    )) {
         if (candidate.isDirectory) {
             add(candidate);
         } else {
@@ -266,6 +294,7 @@ export function collectPathCompletionCandidates(
         }
     }
     const query = options.prefix ?? '';
+    const tail = options.tail ?? '';
     if (query.endsWith('/')) {
         for (const candidate of collectFolderSegmentCandidates(
             document,
@@ -280,13 +309,69 @@ export function collectPathCompletionCandidates(
 
     let candidates = [...byPath.values()];
     if (query.length > 0) {
-        candidates = candidates.filter(candidate => pathMatchesQuery(candidate.path, query));
+        candidates = candidates.filter(candidate => pathMatchTier(candidate.path, query) !== undefined);
     }
-    const ranked = sortPathCompletionCandidates(document, candidates);
+    // A query that names an import-root alias boosts that alias's candidates over same-tier matches.
+    const aliasPrefix = aliasQueryPrefix(config, query);
+    const ranked = rankPathCompletionCandidates(document, candidates, query, tail, aliasPrefix);
     if (ranked.length <= PATH_COMPLETION_MAX_RESULTS) {
         return ranked;
     }
     return ranked.slice(0, PATH_COMPLETION_MAX_RESULTS);
+}
+
+/** Import-root alias prefix that the query names, e.g. query `@/x` with alias `@` yields `@/`. */
+function aliasQueryPrefix(config: RqConfig, query: string): string | undefined {
+    return config.importRoots
+        .map(mapping => `${mapping.alias}/`)
+        .find(prefix => query.startsWith(prefix));
+}
+
+/** First path segment of a value, ignoring leading separators: `/b/c` is `b`. */
+function headSegment(value: string): string {
+    const trimmed = value.replace(/^\/+/, '');
+    const slash = trimmed.indexOf('/');
+    return slash < 0 ? trimmed : trimmed.slice(0, slash);
+}
+
+/**
+ * A path resumes the tail when the segment after the query is the segment the tail is typing:
+ * `@/a` with tail `/b/c.ts` resumes `@/a/b/` but not `@/a/z/…`.
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_reentry_is_lossless]
+ */
+function isResumePath(path: string, query: string, tail: string): boolean {
+    const tailHead = headSegment(tail);
+    return tailHead.length > 0
+        && path.startsWith(query)
+        && headSegment(path.slice(query.length)) === tailHead;
+}
+
+/**
+ * Final candidate order: identity (path equals query plus tail), then match tier, then alias-root
+ * boost, then re-entry resume, then the plain sort text. The prefix fields are single digits, so
+ * string order is correct.
+ * rq:["../../../reqlan rq/extension/language/support/features-imports.rq".import_code_completion_prefix_aware_ranking]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".code_completion_reentry_is_lossless]
+ * rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".reference_code_completion_performance]
+ */
+function rankPathCompletionCandidates(
+    document: LangiumDocument,
+    candidates: readonly PathCompletionCandidate[],
+    query: string,
+    tail: string,
+    aliasPrefix: string | undefined
+): PathCompletionCandidate[] {
+    return candidates
+        .map(candidate => ({
+            candidate,
+            key: `${candidate.path === query + tail ? '0' : '1'}`
+                + `${pathMatchTier(candidate.path, query) ?? UNMATCHED_TIER}`
+                + `${aliasPrefix !== undefined && candidate.path.startsWith(aliasPrefix) ? '0' : '1'}`
+                + `${isResumePath(candidate.path, query, tail) ? '0' : '1'}`
+                + `_${pathCompletionSortText(document, candidate, query)}`
+        }))
+        .sort((left, right) => left.key.localeCompare(right.key))
+        .map(entry => entry.candidate);
 }
 
 /** Directory prefixes for a file path, e.g. `../path/file.rq` → `../path/`. */
@@ -372,9 +457,9 @@ function collectAliasedPathCandidates(
     documents: LangiumDocuments,
     fileSystem: FileSystemProvider,
     pathContext: PathResolveContext,
+    config: RqConfig,
     extensionFilter?: string
 ): PathCompletionCandidate[] {
-    const config = resolveRqConfig(document, pathContext);
     const candidates: PathCompletionCandidate[] = [];
     for (const mapping of config.importRoots) {
         const importRoot = resolveImportRootUri(document, pathContext, mapping);

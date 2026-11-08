@@ -117,6 +117,7 @@ import_code_completion {
     [import_code_completion_explicit_extension]
     [import_code_completion_path_segments]
     [import_code_completion_substring_match]
+    [import_code_completion_match_quality]
     [import_code_completion_ranking]
     [anonymous_reference_code_completion]
     [import_code_completion_auto_file_import]
@@ -281,8 +282,42 @@ file_ref_missing_quick_fix {
     )
 }
 
+import_code_completion_match_quality {
+    Rank path candidates by match quality before [import_code_completion_ranking] proximity: an exact substring match outranks a separator-stripped substring match, which outranks an ordered character subsequence match.
+    Within the subsequence tier, a match where every `/`-separated query chunk appears inside a path segment outranks a loose character subsequence.
+    This keeps precise matches above coincidental subsequence matches, so the bounded result list keeps the intended target.
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_exact_substring_matches_above_subsequence_matches"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_segment_matches_above_subsequence_matches"]
+        ["../../../../packages/language/test/completion.test.ts:ranks exact substring matches above subsequence matches"]
+        ["../../../../packages/language/test/completion.test.ts:ranks segment matches above subsequence matches"]
+    )
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    [import_code_completion_substring_match]
+    [import_code_completion_ranking]
+}
+
+import_code_completion_prefix_aware_ranking {
+    A query that starts with an import-root alias ranks that root's candidates before all others, before [import_code_completion_ranking] proximity.
+    The typed prefix asserts the root; proximity must not fight that assertion.
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_alias_root_candidates_first_for_alias_queries"]
+        ["../../../../packages/language/test/completion.test.ts:ranks alias root candidates first for alias queries"]
+    )
+    @implementation (
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
+        ["../../../../packages/language/src/reqlan-path-completion.ts"]
+    )
+    [import_code_completion_ranking]
+    [import_code_completion_match_quality]
+}
+
 import_code_completion_ranking {
     Rank import path completions by directory proximity (hop count from the completing file's directory to the candidate's directory), then directories before files, then path alphabetically.
+    Match-quality tiers from [import_code_completion_match_quality] apply before proximity.
     Example: typing `../` ranks `../close.rq` before `../../../path.rq`.
     Emit sortText for that order, and set filterText so the editor does not re-rank by label fuzzy score over proximity.
     @tests (

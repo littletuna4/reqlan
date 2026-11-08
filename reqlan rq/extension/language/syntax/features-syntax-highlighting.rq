@@ -396,12 +396,17 @@ reference_code_completion_objects {
 
     Import path completion stays limited to `.rq` files.
     Anonymous file-reference paths share ranking and alias logic with import paths, but they include every file and folder target.
+    Bare dotted references (`[ideaset.member]`, `[alias.member]`) complete members in both engines.
+    Members come from open documents and, for closed files, from the ideas index membership edges (`ideaset_member`) in the Rust server.
+    The Node engine has no index access, so its bare `set.member` completion stays limited to open documents; `alias.member` reaches closed files in the Rust server through on-demand parse.
+    Reference completion must not fire inside markdown link labels or main-description prose.
     Scanning every workspace file on each keystroke is too expensive: [reference_code_completion_performance].
 
     @status done
     @implementation (
         ["../../../../crates/reqlan-lsp/src/path_completion.rs"]
         ["../../../../crates/reqlan-lsp/src/session.rs"]
+        ["../../../../crates/reqlan-index/src/store.rs"]
         ["../../../../packages/language/src/reqlan-completion-provider.ts"]
         ["../../../../packages/language/src/reqlan-completion-context.ts"]
         ["../../../../packages/language/src/reqlan-path-completion.ts"]
@@ -410,6 +415,10 @@ reference_code_completion_objects {
         ["../../../../crates/reqlan-lsp/tests/completion.rs:anonymous_file_references_complete_code_files_folders_and_rq_files"]
         ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideas_after_a_quoted_file_path"]
         ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideaset_members_after_a_quoted_path"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideaset_members_after_a_bare_dotted_reference"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_ideaset_members_of_a_closed_file"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:does_not_complete_inside_markdown_link_labels"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:prose_lines_do_not_trigger_import_path_completion"]
         ["../../../../packages/language/test/completion.test.ts:anonymous file references complete code files, folders, and .rq files"]
         ["../../../../packages/language/test/completion.test.ts:completes ideas and ideasets after a quoted file path"]
         ["../../../../packages/language/test/completion.test.ts:completes ideaset members after a dotted qualifier"]
@@ -459,6 +468,46 @@ reference_code_completion_sequencing {
   ["./features-syntax.rq".code_completion]
 }
 
+code_completion_replaces_the_tail {
+    Completion inside an unfinished string or reference name replaces the whole token up to its closing character.
+    Text after the cursor that continues the inserted value is kept, not duplicated; any other tail is consumed.
+    A picked folder keeps a bare file name typed after the cursor: when the inserted value ends with `/` and the tail holds no further `/`, the tail is appended.
+    Applies to anonymous paths (`["…`), bare references (`[…` / `[[…`), qualified-file idea names (`["p.rq".…`), and attribute keys and values (`@key`, `@key: value`), matching the import-path behaviour.
+    Matching still uses the typed prefix before the cursor only.
+    Accepting a completion at the end of an unclosed string appends the missing closing delimiter; only when nothing follows the cursor, so in-progress text is never trapped behind a quote.
+    Implemented by ["../../../../crates/reqlan-lsp/src/path_completion.rs"], ["../../../../crates/reqlan-lsp/src/session/completion.rs"], ["../../../../crates/reqlan-lsp/src/analysis/completion.rs"], ["../../../../packages/language/src/reqlan-completion-context.ts"], and ["../../../../packages/language/src/reqlan-completion-provider.ts"].
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completing_inside_a_string_replaces_the_tail"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completing_inside_a_reference_name_replaces_the_tail"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_attribute_value_replacing_the_tail"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_attribute_key_replacing_the_tail"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:appends_the_closing_quote_at_the_end_of_an_unclosed_string"]
+        ["../../../../crates/reqlan-lsp/src/path_completion.rs:merge_tail_carries_a_bare_filename_tail"]
+        ["../../../../packages/language/test/completion.test.ts:completing inside a string replaces the tail"]
+        ["../../../../packages/language/test/completion.test.ts:completing inside a reference name replaces the tail"]
+        ["../../../../packages/language/test/completion.test.ts:completes attribute value replacing the tail"]
+        ["../../../../packages/language/test/completion.test.ts:completes attribute key replacing the tail"]
+        ["../../../../packages/language/test/completion.test.ts:appends the closing quote at the end of an unclosed string"]
+        ["../../../../packages/language/test/completion.test.ts:picking a folder carries a bare filename tail"]
+    )
+    ["./features-syntax.rq".code_completion]
+    [reference_code_completion_objects]
+    [attribute_code_completion_attribute_key]
+}
+
+code_completion_reentry_is_lossless {
+    Re-entering a finished path and completing again must keep or deliberately replace the content, never mutate it unpredictably.
+    The candidate equal to the current content ranks first.
+    Candidates whose remainder continues the text after the cursor rank above other candidates of the same match tier.
+    Implemented by ["../../../../crates/reqlan-lsp/src/path_completion.rs"] and ["../../../../packages/language/src/reqlan-path-completion.ts"], with the provider in ["../../../../packages/language/src/reqlan-completion-provider.ts"].
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:ranks_the_current_value_first_when_reentering_a_path"]
+        ["../../../../packages/language/test/completion.test.ts:ranks the current value first when reentering a path"]
+    )
+    [code_completion_replaces_the_tail]
+    ["../support/features-imports.rq".import_code_completion_ranking]
+}
+
 attribute_code_completion_main_descriptiption {
 the main description attribute is expected to be prose, so, the dropdown shouldn't be rendered in this context.
 }
@@ -467,6 +516,30 @@ attribute_code_completion_attribute_key {
 the attribute key should complete based on endorsed keys and what is present in the index
 i.e. after the @ symbol at the start of a line, the used attributes should be completed.
 subsquently, values of the attribute key should be completed based on the values in that attribute key.
+Values complete for both grammar forms, `@key value` and `@key: value` (["../../../../packages/language/src/reqlan.langium"]).
+A key already used in the document is filtered out of key completion.
+Implemented by ["../../../../crates/reqlan-lsp/src/analysis/completion.rs"] and ["../../../../packages/language/src/reqlan-completion-provider.ts"], with site detection in ["../../../../packages/language/src/reqlan-completion-context.ts"].
+@tests (
+    ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_attribute_values_after_the_colon_form"]
+    ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_attribute_values_after_the_space_form"]
+    ["../../../../packages/language/test/completion.test.ts:completes attribute values after the colon form"]
+)
+["./features-syntax.rq".code_completion]
+}
+
+completion_site_identifier_charset {
+    Completion site detection must accept the full grammar identifier charset in every typed prefix: attribute keys, bare references, wikilinks, and qualified-file idea prefixes.
+    The charset is the parser `ID` terminal, `[_a-zA-Z][\w-]*`, which includes the hyphen: ["../../../../packages/language/src/reqlan.langium"].
+    Site regexes must not encode a narrower charset than the parser `ID` terminal.
+    Implemented by ["../../../../crates/reqlan-lsp/src/path_completion.rs"] and ["../../../../packages/language/src/reqlan-completion-context.ts"].
+    @tests (
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_hyphenated_reference_names"]
+        ["../../../../crates/reqlan-lsp/tests/completion.rs:completes_hyphenated_names_after_a_quoted_path"]
+        ["../../../../packages/language/test/completion.test.ts:completes hyphenated reference names"]
+        ["../../../../packages/language/test/completion.test.ts:completes hyphenated names after a quoted file path"]
+    )
+    [reference_code_completion_objects]
+    [attribute_code_completion_attribute_key]
 }
 
 

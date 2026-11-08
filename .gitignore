@@ -18,7 +18,6 @@ syntaxes/
 packages/**/src/**/*.js
 packages/**/src/**/*.js.map
 packages/**/src/**/*.d.ts
-!packages/analytical/src/sql-asm.d.ts
 !packages/extension/src/vscode-lm-tools.d.ts
 !packages/language/src/chevrotain.d.ts
 packages/**/test/**/*.js

@@ -58,6 +58,7 @@ const ctx = await esbuild.context({
     loader: { '.ts': 'ts' },
     external: ['vscode'],
     platform: 'node',
+    // rq:["../../reqlan rq/development/build.rq".extension_release_bundle]
     sourcemap: !minify,
     minify,
     plugins

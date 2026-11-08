@@ -138,7 +138,7 @@ startup_diagnostics {
     3. If activation failed, use the first Reqlan stack frame rather than inferring a CPU hang.
     4. If manifest UI exists but every command is missing, investigate module load / activation before indexing or webview data.
     5. If the extension-owned "Loading Reqlan…" shell appears, provider resolution succeeded; subsequent delays belong to webview bootstrap or index readiness.
-    6. Confirm `out/extension/main.cjs` is newer than changed source and includes a lazy vendor sql-asm import.
+    6. Confirm `out/extension/main.cjs` is newer than changed source and bundles no sql.js vendor (["../../development/build.rq".extension_release_bundle]).
     CPU-idle profiles do not disprove activation failure: once `require()` throws, the host can remain healthy and mostly idle while Reqlan stays unregistered.
 }
 

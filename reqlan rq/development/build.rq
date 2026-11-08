@@ -137,3 +137,17 @@ extension_bundle {
     Output: CommonJS `.cjs` files under `packages/extension/out/`.
     `vscode` remains external; a small `Object.groupBy` polyfill is injected for older Node runtimes.
 }
+
+extension_release_bundle {
+    VSIX payloads carry runtime artifacts only ([distribution.vsix_export]):
+    - `vscode:prepublish` runs the build orchestrator with `--minify`: esbuild emits minified `.cjs` and no `.map`. Source maps stay a development-host concern; F5 loads `out/` directly and never reads them from a VSIX.
+    - `.vscodeignore` excludes `**/*.map`, `out/extension/vendor/`, `out/tsconfig.tsbuildinfo`, and `test/` so stale build residue cannot re-enter packaging when `out/` is reused between builds.
+    - The extension host requires the staged native engine; there is no sql.js vendor bundle in the extension host or the VSIX (["../extension/host/startup-performance.rq".lazy_runtime_dependencies]). Stale `out/extension/vendor/` sql.js artifacts are build residue, not a runtime path, and are removed rather than shipped.
+    - The removed `sql.js/dist/sql-asm.js` module declaration and its `.gitignore` negation have no remaining TypeScript importer.
+    Implementation: ["../../packages/extension/package.json"], ["../../packages/extension/scripts/build.mjs"], ["../../packages/extension/esbuild.mjs"], ["../../packages/extension/.vscodeignore"].
+    @tests (
+        ["../../packages/extension/test/extension-package.test.ts:vscodeignore excludes source maps, stale vendor artifacts, and test outputs from the VSIX"]
+        ["../../packages/extension/test/extension-package.test.ts:prepublish bundles minified with no source maps"]
+    )
+    @status done
+}

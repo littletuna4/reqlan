@@ -6,6 +6,7 @@
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".nested_curly_braces]
 //! rq:["../../../reqlan rq/language/syntax-edge-cases.rq".fencing_comments]
 //! rq:["../../../reqlan rq/core_analysis/rust_port.rq".comment_span_align]
+//! rq:["../../../reqlan rq/extension/language/syntax/features-syntax-highlighting.rq".completion_site_identifier_charset]
 
 use crate::budget::ParseBudget;
 use crate::token::{Token, TokenKind};
@@ -683,6 +684,17 @@ fn is_ident_start(byte: u8) -> bool {
 
 fn is_ident_continue(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-'
+}
+
+/// First character of a grammar `ID`, `[_a-zA-Z]`.
+pub fn is_id_start(value: char) -> bool {
+    value.is_ascii() && is_ident_start(value as u8)
+}
+
+/// Continuation characters of a grammar `ID`, `[\w-]` over ASCII.
+/// The hyphen is a legal identifier continuation in reqlan.
+pub fn is_id_continuation(value: char) -> bool {
+    value.is_ascii() && is_ident_continue(value as u8)
 }
 
 fn match_id(bytes: &[u8], offset: usize) -> Option<usize> {
