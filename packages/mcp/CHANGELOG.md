@@ -1,5 +1,12 @@
 # @reqlan/mcp
 
+## 0.12.1
+
+### Patch Changes
+
+- Updated dependencies [88572b7]
+  - @reqlan/analytical@1.22.1
+
 ## 0.12.0
 
 ### Minor Changes

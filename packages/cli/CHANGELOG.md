@@ -1,5 +1,12 @@
 # @reqlan/cli
 
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [88572b7]
+  - @reqlan/analytical@1.22.1
+
 ## 0.17.0
 
 ### Minor Changes

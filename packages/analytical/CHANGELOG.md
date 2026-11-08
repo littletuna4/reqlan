@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.22.1
+
+### Patch Changes
+
+- 88572b7: bundlesize and autocomplete improvements
+
 ## 1.22.0
 
 ### Minor Changes

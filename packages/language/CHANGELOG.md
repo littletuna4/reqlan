@@ -1,5 +1,13 @@
 # @reqlan/language
 
+## 1.17.1
+
+### Patch Changes
+
+- 88572b7: bundlesize and autocomplete improvements
+- Updated dependencies [88572b7]
+  - @reqlan/analytical@1.22.1
+
 ## 1.17.0
 
 ### Minor Changes
