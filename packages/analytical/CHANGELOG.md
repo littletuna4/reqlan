@@ -1,5 +1,11 @@
 # @reqlan/analytical
 
+## 1.23.0
+
+### Minor Changes
+
+- c3f2faa: html and markdown upgrades, extension cli compatability check, minor parser & linker bugfixes.
+
 ## 1.22.1
 
 ### Patch Changes

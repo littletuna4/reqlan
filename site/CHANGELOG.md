@@ -1,5 +1,11 @@
 # site
 
+## 0.25.0
+
+### Minor Changes
+
+- c3f2faa: html and markdown upgrades, extension cli compatability check, minor parser & linker bugfixes.
+
 ## 0.24.1
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # reqlan-extension
 
+## 1.22.0
+
+### Minor Changes
+
+- c3f2faa: html and markdown upgrades, extension cli compatability check, minor parser & linker bugfixes.
+
+### Patch Changes
+
+- Updated dependencies [c3f2faa]
+  - @reqlan/analytical@1.23.0
+  - @reqlan/language@1.18.0
+
 ## 1.21.1
 
 ### Patch Changes
