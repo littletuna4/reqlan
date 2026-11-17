@@ -43,3 +43,20 @@ file_reference_errors {
         ["../../../../crates/reqlan-index/tests/broken_references.rs:check_honours_import_roots_from_applying_config"]
     )
 }
+
+anonymous_qualified_reference_links {
+    An anonymous qualified reference `["./target.rq".idea_name]` must produce document links for both
+    the file path token and the idea name token, even when the target `.rq` file is not loaded into
+    Langium's document store.
+    The idea link must not duplicate when the file pass and the native-extract pass both surface it.
+
+    @status done
+    @implementation (
+        ["../../../../packages/language/src/reqlan-file-link-resolver.ts"]
+        ["../../../../packages/language/src/reqlan-document-link-provider.ts"]
+    )
+    @tests (
+        ["../../../../packages/language/test/repro-idea-link.test.ts:returns idea link for anonymous qualified reference"]
+        ["../../../../packages/language/test/repro-idea-link.test.ts:returns exactly one link per range for anonymous qualified reference"]
+    )
+}

@@ -8,6 +8,7 @@ use super::attributes::build_attribute_records;
 use super::clusters::{attach_cluster_membership, build_cluster_records, finalize_cluster_counts};
 use super::files::{build_code_file_records, build_file_records};
 use super::filter::filter_export_ideas;
+use super::folders::{attach_folder_membership, build_folder_records};
 use super::graph::build_graph_catalog;
 use super::ideas::build_idea_records;
 use super::manifest::{build_manifest, normalize_header_link};
@@ -49,6 +50,7 @@ pub fn build_export_snapshot(
         include_file_pages: request.include_file_pages,
         include_code_file_pages: request.include_code_file_pages,
         include_cluster_pages: request.include_cluster_pages,
+        include_folder_pages: request.include_folder_pages,
         include_attribute_pages: request.include_attribute_pages,
         include_print_pages: request.include_print_pages,
         include_requirements_page: request.include_requirements_page,
@@ -81,6 +83,17 @@ pub fn build_export_snapshot(
     let mut clusters = build_cluster_records(&ideas, &cluster_strategy);
     attach_cluster_membership(&mut ideas, &clusters);
     finalize_cluster_counts(&mut clusters, &ideas);
+    let folders = if request.include_folder_pages {
+        let folders_local = build_folder_records(&ideas);
+        attach_folder_membership(&mut ideas, &folders_local);
+        folders_local
+    } else {
+        Vec::new()
+    };
+    let folders_by_path = folders
+        .iter()
+        .map(|folder| (folder.path.clone(), folder.clone()))
+        .collect::<BTreeMap<_, _>>();
     let files = build_file_records(&ideas);
     let code_files = build_code_file_records(&ideas, &files);
     let attributes = build_attribute_records(&ideas);
@@ -145,6 +158,8 @@ pub fn build_export_snapshot(
         clusters_by_id,
         attributes,
         attributes_by_key,
+        folders,
+        folders_by_path,
         graphs,
         search_documents,
         by_status,

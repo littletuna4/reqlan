@@ -12,6 +12,7 @@ pub(crate) fn build_manifest(request: &ExportRequest) -> ExportManifest {
         ideas_index: build_page_info("Ideas", "ideas.html", None),
         files_index: build_page_info("Files", "files.html", None),
         clusters_index: build_page_info("Clusters", "clusters.html", None),
+        folders_index: build_page_info("Folders", "folders.html", None),
         attributes_index: build_page_info("Attributes", "attributes.html", None),
         code_files_index: build_page_info("Code files", "code-files.html", None),
         graph: build_page_info("Graph", "graph.html", None),

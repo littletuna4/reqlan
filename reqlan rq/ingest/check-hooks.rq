@@ -1,0 +1,6 @@
+check-hooks {
+    Scripts, whose entries are defined in the .reqlan folder.
+    Before or after check.
+    The idea being that you could perform custom validation before 
+    @todo
+}

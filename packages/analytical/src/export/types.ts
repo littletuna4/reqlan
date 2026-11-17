@@ -36,6 +36,7 @@ export interface ExportRequest {
     includeFilePages?: boolean;
     includeCodeFilePages?: boolean;
     includeClusterPages?: boolean;
+    includeFolderPages?: boolean;
     includeAttributePages?: boolean;
     includePrintPages?: boolean;
     /**

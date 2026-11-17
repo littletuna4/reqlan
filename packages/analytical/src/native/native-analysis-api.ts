@@ -610,6 +610,7 @@ export class NativeAnalysisApi {
             includeFilePages: request.includeFilePages ?? true,
             includeCodeFilePages: request.includeCodeFilePages ?? true,
             includeClusterPages: request.includeClusterPages ?? true,
+            includeFolderPages: request.includeFolderPages ?? true,
             includeAttributePages: request.includeAttributePages ?? true,
             includePrintPages: request.includePrintPages ?? true,
             attributeFilters: request.attributeFilters ?? [],

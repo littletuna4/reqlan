@@ -10,6 +10,7 @@ pub(crate) enum ActiveNav {
     Files,
     CodeFiles,
     Clusters,
+    Folders,
     Attributes,
     Graph,
     Print,
@@ -85,6 +86,12 @@ pub(crate) fn render_shell(options: RenderOptions<'_>) -> String {
             ActiveNav::Clusters,
             &options.snapshot.manifest.clusters_index,
             options.snapshot.page_options.include_cluster_pages,
+        ),
+        nav_link(
+            &options,
+            ActiveNav::Folders,
+            &options.snapshot.manifest.folders_index,
+            options.snapshot.page_options.include_folder_pages,
         ),
         nav_link(
             &options,

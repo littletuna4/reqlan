@@ -6,6 +6,7 @@ mod build;
 mod clusters;
 mod files;
 mod filter;
+mod folders;
 mod graph;
 mod ideas;
 mod manifest;

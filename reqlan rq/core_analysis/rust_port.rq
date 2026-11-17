@@ -243,6 +243,8 @@ export_rust {
         ["../../crates/reqlan-export/tests/html_export.rs:html_export_writes_ts_page_template_set_and_embeds_assets"]
         ["../../crates/reqlan-export/tests/html_export.rs:overview_status_and_tag_rollups_link_with_filters"]
         ["../../crates/reqlan-export/tests/html_export.rs:url_base_and_header_link_produce_root_relative_hrefs"]
+        ["../../crates/reqlan-export/tests/markdown_export.rs:markdown_export_writes_rich_pages_with_links_and_backlinks"]
+        ["../../crates/reqlan-export/tests/markdown_export.rs:markdown_export_inlines_ideas_when_idea_pages_disabled"]
     )
 }
 

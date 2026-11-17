@@ -25,8 +25,8 @@ export async function exportMarkdown(
         includeRequirementsPage: false,
         includePrintPages: false,
         includeCodeFilePages: false,
-        includeClusterPages: false,
-        includeAttributePages: false,
+        includeClusterPages: request.includeClusterPages ?? false,
+        includeAttributePages: request.includeAttributePages ?? false,
         runtimeMode: request.runtimeMode ?? 'document',
     }, onProgress);
     return writeMarkdownExport(snapshot, request, onProgress);

@@ -4,6 +4,7 @@ import "./host/activation.rq" as activation
 import "./host/installation.rq" as installation
 import "./host/configuration.rq" as configuration
 import "./host/startup-performance.rq" as startup
+import "./host/cli-version-check.rq" as cli_version_check
 import "./host/onboarding/page-thanks-for-installing.rq" as onboarding
 import "./host/features-commands.rq" as command_palette_doc
 import "./language/syntax/features-syntax.rq" as language_syntax
@@ -45,7 +46,7 @@ host_lifecycle {
     Install vs base, activation, first paint, onboarding, and configuration schema contribution.
     [installation.installation], [activation.activation], [startup.extension_startup_reliability],
     [onboarding.installation_event], [configuration.configuration_location],
-    [command_palette_doc.command_palette].
+    [command_palette_doc.command_palette], [cli_version_check.cli_version_check].
     @status done
 }
 

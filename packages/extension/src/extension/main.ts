@@ -28,6 +28,7 @@ import { registerImportErrorCommands } from './register-import-error-commands.js
 import { openThanksForInstallingIfNeeded } from './open-thanks-for-installing.js';
 import { registerOnboardingCommands } from './register-onboarding-commands.js';
 import { StartupGate } from './startup-gate.js';
+import { checkAndWarnCliVersion } from './cli-version-check.js';
 import { activateAnalyticalSubmodule, type AnalyticalSubmodule } from '../analytical_submodule/index.js';
 import { registerExtensionContributions } from './register-contributions.js';
 
@@ -149,6 +150,11 @@ function scheduleBackgroundStartup(
                 registerNameCatalogSync(context, submodule.index, () => client);
                 registerBaseRootsSync(context, submodule.index, () => client);
                 registerInboundSqliteSync(context, submodule.index, () => client, fileInboundCodeLens);
+                // One CLI upgrade check once all start tasks have completed.
+                // rq:["../../../../reqlan rq/extension/host/cli-version-check.rq".cli_version_check]
+                void checkAndWarnCliVersion(context).catch(error => {
+                    console.error('[reqlan] CLI version check failed:', error);
+                });
             })
             .catch(error => {
                 console.error('[reqlan] Language client failed to start:', error);

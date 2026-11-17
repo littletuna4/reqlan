@@ -2,6 +2,7 @@
  * Resolves file references, idea references, and import paths to target URIs and editor ranges.
  * Document links use these so same-file and cross-file refs share the same underline/click affordance.
  * Missing file refs stay in this result so the validator can underline them without creating a link.
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".anonymous_qualified_reference_links]
  * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".file_reference_errors]
  * rq:["../../../reqlan rq/extension/language/syntax/features-syntax.rq".file_references]
  * rq:["../../../reqlan rq/reference_types.rq".url_reference]
@@ -579,6 +580,14 @@ export function collectFileLinks(
             const link = resolveQualifiedReferencePathLink(node, documents, pathContext);
             if (link) {
                 pushLink(link);
+            }
+            // Anonymous qualified references like ["./file.rq".idea] also expose the idea link here so
+            // the idea token gets a document link even when the native-extract fallback does not run.
+            // `linkedRanges` de-duplicates against the path link (different range) and any prior link.
+            for (const ideaLink of resolveIdeaReferenceLinks(node)) {
+                if (ideaLink) {
+                    pushLink(ideaLink);
+                }
             }
         }
         if (isMarkdownLink(node)) {

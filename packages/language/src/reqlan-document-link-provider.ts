@@ -9,6 +9,7 @@
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".open_file_algorithm]
  * rq:["../../../reqlan rq/extension/language/support/open-file-sequencing.rq".missing_reference_colour_sequence]
  * rq:["../../../reqlan rq/language/syntax.rq".attribute_namespacing]
+ * rq:["../../../reqlan rq/extension/language/support/language-server-errors.rq".anonymous_qualified_reference_links]
  */
 import type { LangiumDocument } from 'langium';
 import { URI } from 'langium';
@@ -116,7 +117,18 @@ export class ReqlanDocumentLinkProvider implements DocumentLinkProvider {
             return [navigableDocumentLink(link.range, target)];
         });
         const ideaOnly = ideaLinks.filter(link => !attributeRanges.has(rangeKey(link.range)));
-        return [...fileLinks, ...ideaOnly, ...attributeLinks, ...commentLinks];
+        const allLinks = [...fileLinks, ...ideaOnly, ...attributeLinks, ...commentLinks];
+        // De-duplicate by range so an idea token surfaced by the file pass (e.g. an anonymous
+        // qualified reference ["./file.rq".idea]) is not repeated by the native-extract pass.
+        const seenRanges = new Set<string>();
+        return allLinks.filter(link => {
+            const key = rangeKey(link.range);
+            if (seenRanges.has(key)) {
+                return false;
+            }
+            seenRanges.add(key);
+            return true;
+        });
     }
 
     /**

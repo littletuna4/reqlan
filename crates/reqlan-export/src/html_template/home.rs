@@ -1,8 +1,10 @@
 //! Home / overview page template.
 
+// rq:["../../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer]
 use crate::html_template::layout::{
     render_entity_layout_card, render_layout_card, render_layout_card_with_actions,
 };
+use crate::html_template::render_file_explorer;
 use crate::html_template::shell::{export_page_href, render_shell, ActiveNav, RenderOptions};
 use crate::html_utils::{
     escape_html, format_date, list_filter_href, render_definition_list, render_metric,
@@ -63,6 +65,9 @@ pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
                 <p>{}</p>
             </div>
         </header>
+        <div data-layout-group="home-explorer">
+            {}
+        </div>
         <section class="grid">
             {}
             {}
@@ -82,6 +87,8 @@ pub fn render_home_page(snapshot: &ExportSnapshot) -> String {
         escape_html(&snapshot.runtime_mode),
         escape_html(&format_date(&snapshot.generated_at)),
         escape_html(&snapshot.workspace_root),
+        // rq:["../../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer]
+        render_file_explorer(snapshot, current_path),
         render_metric(
             "Ideas",
             &snapshot.counts.ideas.to_string(),

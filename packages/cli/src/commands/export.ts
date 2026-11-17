@@ -54,6 +54,9 @@ export class ExportCommand extends Command {
     excludeIgnored = Option.Boolean('--exclude-ignored', false, {
         description: 'Omit ideas hosted in paths matched by .reqlan/.rqignore'
     });
+    includeFolderPages = Option.Boolean('--include-folder-pages', true, {
+        description: 'Generate folder detail pages for the folder hierarchy (default: true)'
+    });
     urlBase = Option.String('--url-base', {
         description: 'Absolute URL prefix for the export mount (e.g. /spec or /reqlan/spec)'
     });
@@ -126,6 +129,7 @@ export class ExportCommand extends Command {
                     includeFilePages: true,
                     includeCodeFilePages: true,
                     includeClusterPages: true,
+                    includeFolderPages: this.includeFolderPages,
                     includeAttributePages: true,
                     includePrintPages: true,
                     excludeSecretFiles: this.excludeSecret,

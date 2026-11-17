@@ -159,6 +159,8 @@ pub struct ExportRequestDto {
     #[serde(default = "default_true")]
     pub include_cluster_pages: bool,
     #[serde(default = "default_true")]
+    pub include_folder_pages: bool,
+    #[serde(default = "default_true")]
     pub include_attribute_pages: bool,
     #[serde(default = "default_true")]
     pub include_print_pages: bool,
@@ -193,6 +195,7 @@ impl Default for ExportRequestDto {
             include_file_pages: true,
             include_code_file_pages: true,
             include_cluster_pages: true,
+            include_folder_pages: true,
             include_attribute_pages: true,
             include_print_pages: true,
             attribute_filters: Vec::new(),

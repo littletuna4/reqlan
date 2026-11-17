@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1095 1095" width="1095" height="1095">  
+
+
+
+
+  <g stroke="#0bc9d6" stroke-width="14" stroke-linecap="round">
+    <!-- o1 -->
+    <line x1="874.5" y1="492.1" x2="818.0" y2="355.4" />
+    <!-- o0.1 -->
+    <line x1="599.1" y1="229.7" x2="735.8" y2="286.2" />
+    <!-- o2 -->
+    <line x1="874.5" y1="602.9" x2="818.0" y2="739.6" />
+    <!-- o3 -->
+    <line x1="602.9" y1="874.5" x2="739.6" y2="818.0" />
+    <!-- o4 -->
+    <line x1="492.1" y1="874.5" x2="355.4" y2="818.0" />
+    <!-- o5 -->
+    <line x1="220.5" y1="602.9" x2="277.0" y2="739.6" />
+    <!-- o6 -->
+    <line x1="220.5" y1="492.1" x2="277.0" y2="355.4" />
+    <!-- o7 -->
+    <line x1="492.1" y1="220.5" x2="355.4" y2="277.0" /> 
+  </g>
+  <g stroke="#e1430e" stroke-width="14" stroke-linecap="round">
+    <!-- o0 -->
+    <!-- <line x1="602.9" y1="220.5" x2="739.6" y2="277.0" /> -->
+    <!-- o0.1 -->
+    <line x1="606.7" y1="211.3" x2="743.4" y2="267.8" />
+  </g>
+  <!-- RED VERTICAL AND HORIZONTAL LINES (With gap adjusted for increased radii) -->
+  <g stroke="#e1430e" stroke-width="14" stroke-linecap="round">
+    <!-- Vertical segments -->
+    <!-- i0 -->
+    <line x1="547.5" y1="257.5" x2="547.5" y2="454.5" />
+    <!-- i1 -->
+    <line x1="613.3" y1="481.7" x2="752.6" y2="342.4" />
+    <!-- i3.1 -->
+    <!-- <line x1="613.3" y1="613.3" x2="752.6" y2="752.6" /> -->
+    <line x1="603.3" y1="623.3" x2="742.6" y2="762.6" />
+    <!-- i4 -->
+    <line x1="547.5" y1="640.5" x2="547.5" y2="837.5" />
+    <!-- Horizontal segments -->
+  </g>
+  <!-- INNER BLUE LINES (With gap adjusted for increased radii) -->
+  <g stroke="#0bc9d6" stroke-width="14" stroke-linecap="round">
+    <!-- i2 -->
+    <line x1="640.5" y1="547.5" x2="837.5" y2="547.5" />
+    <!-- i3.2  -->
+    <!-- <line x1="613.3" y1="613.3" x2="753.6" y2="752.6" /> -->
+    <line x1="623.3" y1="603.3" x2="762.6" y2="742.6" />
+    <!-- i5 -->
+    <line x1="481.7" y1="613.3" x2="342.4" y2="752.6" />
+    <!-- i6 -->
+    <line x1="257.5" y1="547.5" x2="454.5" y2="547.5" />
+    <!-- i7 -->
+    <line x1="481.7" y1="481.7" x2="342.4" y2="342.4" />
+  </g>
+
+  <!-- CENTER CIRCLE -->
+  <circle cx="547.5" cy="547.5" r="70" fill="#e1430e" />
+
+  <!-- BLUE OUTER CIRCLES -->
+  <g fill="#0bc9d6">
+    <circle cx="300.0" cy="300.0" r="40" />
+    <circle cx="300.0" cy="795.0" r="40" />
+    <circle cx="197.5" cy="547.5" r="40" />
+    <circle cx="897.5" cy="547.5" r="40" />
+  </g>
+
+  <!-- RED OUTER CIRCLES -->
+  <g fill="#e1430e">
+    <circle cx="547.5" cy="197.5" r="40" />
+    <circle cx="795.0" cy="300.0" r="40" />
+    <circle cx="547.5" cy="897.5" r="40" />
+    <circle cx="795.0" cy="795.0" r="40" />
+  </g>
+</svg>

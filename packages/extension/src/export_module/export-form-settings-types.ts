@@ -30,6 +30,7 @@ export interface ExportFormSettings {
     includeFilePages: boolean;
     includeCodeFilePages: boolean;
     includeClusterPages: boolean;
+    includeFolderPages: boolean;
     includeAttributePages: boolean;
     includePrintPages: boolean;
     excludeSecretFiles: boolean;
@@ -59,6 +60,7 @@ export function defaultExportFormSettings(_baseRoot?: string): ExportFormSetting
         includeFilePages: true,
         includeCodeFilePages: true,
         includeClusterPages: true,
+        includeFolderPages: true,
         includeAttributePages: true,
         includePrintPages: true,
         excludeSecretFiles: false,
@@ -99,6 +101,7 @@ export function mergeExportFormSettings(
         includeFilePages: bool(raw.includeFilePages, defaults.includeFilePages),
         includeCodeFilePages: bool(raw.includeCodeFilePages, defaults.includeCodeFilePages),
         includeClusterPages: bool(raw.includeClusterPages, defaults.includeClusterPages),
+        includeFolderPages: bool(raw.includeFolderPages, defaults.includeFolderPages),
         includeAttributePages: bool(raw.includeAttributePages, defaults.includeAttributePages),
         includePrintPages: bool(raw.includePrintPages, defaults.includePrintPages),
         excludeSecretFiles: bool(raw.excludeSecretFiles, defaults.excludeSecretFiles),

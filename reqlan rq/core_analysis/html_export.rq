@@ -41,7 +41,10 @@ html_export {
     [html_export_scrollable_lists]
     [html_export_header_link]
     [html_export_url_base]
+    [html_export_include_folder_path_hierarchy]
+    [html_export_folder_page]
     [html_export_katz_column]
+    [html_export_file_explorer]
     @status done
     @implementation (
         ["../../crates/reqlan-export/src/html.rs"]
@@ -213,6 +216,46 @@ html_export_ideas_ref_columns {
     )
     @tests (
         ["../../crates/reqlan-export/tests/html_export.rs:ideas_index_splits_inbound_and_outbound_counts"]
+    )
+}
+
+html_export_include_folder_path_hierarchy {
+    The ideas page should have a toggle to show ideas hierarchically in the same folder-based hierarchy they are defined in.
+    Folder hierarchy is derived from `ExportIdea.file_segments`; the root folder is `.` for workspace root.
+    The toggle is only available in interactive runtime mode per [html_export_runtime_modes].
+    Both the flat table and the tree view are server-rendered; the client toggles visibility and persists state in localStorage for that page path.
+    Tree nodes link to folder pages per [html_export_folder_page].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/folders.rs"]
+        ["../../crates/reqlan-export/src/html_template/indexes.rs"]
+        ["../../crates/reqlan-export/src/types.rs"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_folder_pages_generated"]
+    )
+}
+
+html_export_folder_page {
+    Folders must have their own dedicated page.
+    A folder page shows breadcrumbs back to root, child folders as entity cards linking to subfolder pages, an ideas table for direct ideas, and a local graph view.
+    Folder pages link to parent and children; the ideas index tree links to folder pages.
+    Emission defaults on and is controllable via includeFolderPages so page families can be flagged in or out without changing the export pipeline shape.
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/snapshot/folders.rs"]
+        ["../../crates/reqlan-export/src/html_template/folder.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
+        ["../../crates/reqlan-export/src/types.rs"]
+        ["../../crates/reqlan-analytical/src/api.rs"]
+        ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../packages/analytical/src/export/types.ts"]
+        ["../../packages/extension/src/export_module/export-form-settings-types.ts"]
+        ["../../packages/cli/src/commands/export.ts"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_folder_pages_generated"]
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_folder_pages_disabled"]
     )
 }
 
@@ -677,3 +720,37 @@ html_export_url_base {
         ["../../crates/reqlan-analytical/tests/export.rs:html_export_honours_graph_page_url_base_and_header_link"]
     )
 }
+
+html_export_file_explorer {
+    The export home page shows a file explorer section: the site nav stays on top, a tree of folders, hosting files, code files, and ideas sits on the left, and a preview pane sits on the right.
+    Tree rows never grow horizontally. Deep paths truncate with an ellipsis. Indentation is a fixed step with guide lines. Rows are compact, like the VS Code explorer. Rows have no list markers.
+    Icons distinguish folders, folders that hold rq documents, rq files, ideas, and code files.
+    Tree nodes expand and collapse, and show counts for folders, files, and code files.
+    Tree items are not links. Selecting a tree item sets the selection and fills the preview pane.
+    Idea, file, folder, and code-file pages open from links inside the preview pane, per [html_export_internal_links], [html_export_folder_page], [html_export_file_pages], and [html_export_code_reference_pages].
+    Idea tree items show the idea tooltip per [html_export_idea_tooltips].
+    The preview pane shows content for every tree item type: workspace root, folder, hosting file, code file, and idea.
+    Idea preview content shows the name, source file and line, status, tags, Katz score, and summary body.
+    An address bar above the tree shows the breadcrumb path of the selection and updates with the selection.
+    The preview pane is resizable by drag. The tree fills the remaining width. The chosen width persists in localStorage with the other explorer state.
+    The preview toggle control sits inline with the filter input on one row.
+    A filter input narrows the tree and keeps ancestors of matches expanded.
+    Tree expand state, preview visibility, preview width, and the selection persist in localStorage for that page path, like [html_export_layout_cards].
+    Only interactive runtime wires the tree, filter, address bar, preview, and resize per [html_export_runtime_modes]; document and print modes show the full expanded tree as static navigation and omit the preview pane.
+    Page and asset links follow [html_export_url_base].
+    @status done
+    @implementation (
+        ["../../crates/reqlan-export/src/html_template/explorer/mod.rs"]
+        ["../../crates/reqlan-export/src/html_template/explorer/tree.rs"]
+        ["../../crates/reqlan-export/src/html_template/explorer/preview.rs"]
+        ["../../crates/reqlan-export/src/html_template/home.rs"]
+        ["../../crates/reqlan-export/src/html_template/mod.rs"]
+        ["../../crates/reqlan-export/src/html.rs"]
+        ["../../crates/reqlan-export/assets/explorer.css"]
+        ["../../crates/reqlan-export/assets/explorer.js"]
+    )
+    @tests (
+        ["../../crates/reqlan-export/tests/html_export.rs:html_export_home_renders_file_explorer"]
+    )
+}
+

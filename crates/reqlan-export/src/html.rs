@@ -5,10 +5,10 @@
 use crate::html_template::{
     render_attribute_detail_page, render_attributes_index_page, render_cluster_detail_page,
     render_clusters_index_page, render_code_file_detail_page, render_code_files_index_page,
-    render_file_detail_page, render_files_index_page, render_graph_page, render_home_page,
-    render_idea_detail_page, render_ideas_index_page, render_print_cluster_page,
-    render_print_code_file_page, render_print_file_page, render_print_home_page,
-    render_print_idea_page,
+    render_file_detail_page, render_files_index_page, render_folder_detail_page,
+    render_folders_index_page, render_graph_page, render_home_page, render_idea_detail_page,
+    render_ideas_index_page, render_print_cluster_page, render_print_code_file_page,
+    render_print_file_page, render_print_home_page, render_print_idea_page,
 };
 use crate::html_utils::stringify_json;
 use crate::json::ExportError;
@@ -17,8 +17,12 @@ use crate::types::{ExportRequest, ExportResult, ExportSnapshot};
 use std::fs;
 use std::path::Path;
 
-const SHARED_STYLES: &str = include_str!("../assets/styles.css");
-const APP_JS: &str = include_str!("../assets/app.js");
+// Explorer assets concatenate with the shared bundle; emitted filenames stay unchanged.
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer]
+const SHARED_STYLES: &str =
+    concat!(include_str!("../assets/styles.css"), include_str!("../assets/explorer.css"),);
+const APP_JS: &str =
+    concat!(include_str!("../assets/app.js"), include_str!("../assets/explorer.js"),);
 
 pub fn write_html_export(
     snapshot: &ExportSnapshot,
@@ -50,6 +54,7 @@ pub fn write_html_export(
     let code_files_index_file_path = output_dir.join(&snapshot.manifest.code_files_index.path);
     let clusters_index_file_path = output_dir.join(&snapshot.manifest.clusters_index.path);
     let attributes_index_file_path = output_dir.join(&snapshot.manifest.attributes_index.path);
+    let folders_index_file_path = output_dir.join(&snapshot.manifest.folders_index.path);
     let print_file_path = output_dir.join(&print_file_name);
     let data_file_path = data_dir.join("export.json");
     let manifest_file_path = output_dir.join(&snapshot.manifest.data_manifest.path);
@@ -114,6 +119,9 @@ pub fn write_html_export(
         if snapshot.page_options.include_cluster_pages {
             write_page(&clusters_index_file_path, render_clusters_index_page(snapshot))?;
         }
+        if snapshot.page_options.include_folder_pages {
+            write_page(&folders_index_file_path, render_folders_index_page(snapshot))?;
+        }
         write_page(&attributes_index_file_path, render_attributes_index_page(snapshot))?;
         if snapshot.page_options.include_idea_pages {
             for idea in &snapshot.ideas {
@@ -136,6 +144,14 @@ pub fn write_html_export(
                 write_page(
                     &output_dir.join(&file.page.path),
                     render_code_file_detail_page(snapshot, file),
+                )?;
+            }
+        }
+        if snapshot.page_options.include_folder_pages {
+            for folder in &snapshot.folders {
+                write_page(
+                    &output_dir.join(&folder.page.path),
+                    render_folder_detail_page(snapshot, folder),
                 )?;
             }
         }
@@ -205,6 +221,10 @@ pub fn write_html_export(
             .include_code_file_pages
             .then_some(code_files_index_file_path),
         clusters_index_file_path: Some(clusters_index_file_path),
+        folders_index_file_path: snapshot
+            .page_options
+            .include_folder_pages
+            .then_some(folders_index_file_path),
         attributes_index_file_path: Some(attributes_index_file_path),
         manifest_file_path: Some(manifest_file_path),
     })

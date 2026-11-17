@@ -170,6 +170,19 @@ fn match_token(bytes: &[u8], offset: usize, cache: &BraceScanCache) -> Option<(T
         return Some((TokenKind::RWiki, 2));
     }
 
+    if let Some(len) = match_wildcard_name(bytes, offset) {
+        return Some((TokenKind::WildcardName, len));
+    }
+    if let Some(len) = match_id(bytes, offset) {
+        return Some((TokenKind::Id, len));
+    }
+    if let Some(len) = match_word(bytes, offset) {
+        return Some((TokenKind::Word, len));
+    }
+    if let Some(len) = match_number(bytes, offset) {
+        return Some((TokenKind::Number, len));
+    }
+
     match bytes[offset] {
         b'(' => return Some((TokenKind::LParen, 1)),
         b')' => return Some((TokenKind::RParen, 1)),
@@ -189,18 +202,6 @@ fn match_token(bytes: &[u8], offset: usize, cache: &BraceScanCache) -> Option<(T
         _ => {}
     }
 
-    if let Some(len) = match_wildcard_name(bytes, offset) {
-        return Some((TokenKind::WildcardName, len));
-    }
-    if let Some(len) = match_word(bytes, offset) {
-        return Some((TokenKind::Word, len));
-    }
-    if let Some(len) = match_id(bytes, offset) {
-        return Some((TokenKind::Id, len));
-    }
-    if let Some(len) = match_number(bytes, offset) {
-        return Some((TokenKind::Number, len));
-    }
     if bytes[offset] == b'{' || bytes[offset] == b'}' {
         return Some((TokenKind::Other, 1));
     }

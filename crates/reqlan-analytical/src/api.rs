@@ -644,6 +644,7 @@ impl AnalysisRuntime {
             include_file_pages: request.include_file_pages,
             include_code_file_pages: request.include_code_file_pages,
             include_cluster_pages: request.include_cluster_pages,
+            include_folder_pages: request.include_folder_pages,
             include_attribute_pages: request.include_attribute_pages,
             include_print_pages: request.include_print_pages,
             attribute_filters: request

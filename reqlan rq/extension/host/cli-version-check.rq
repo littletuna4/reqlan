@@ -1,0 +1,19 @@
+import "./activation.rq" as activation
+import "./scope.rq" as scope
+
+cli_version_check {
+    Once [activation.background_startup] start tasks complete — index open and language client running — ["../../../packages/extension/src/extension/main.ts"] calls the CLI version check once per activation, fire-and-forget inside its own error boundary, so the check must not fail startup.
+    The check compares the installed CLI with the latest published release:
+    - Installed version: run `reqlan --version`, then `rq --version`, with a bounded timeout and hidden Windows console (["../../../packages/extension/src/shared/hidden-exec-file.ts"]). The first binary on PATH decides. No binary on PATH means there is nothing to upgrade, so the check stays silent.
+    - Latest version: the npm registry `latest` manifest for `@reqlan/cli`. An unreachable or malformed answer stays silent — network trouble must not nag the user.
+    When the installed strict `X.Y.Z` version is older than the latest, a warning names both versions and offers an Upgrade CLI button. The button opens a visible terminal that runs `npm install -g @reqlan/cli@latest`, so npm output and errors stay user-visible.
+    Parsing and comparison live in ["../../../packages/extension/src/extension/cli-version-helpers.ts"]; VS Code glue lives in ["../../../packages/extension/src/extension/cli-version-check.ts"].
+    [warning_suppression]
+}
+
+warning_suppression {
+    One warning per published latest version: global state key `cliVersionCheck` stores the latest version whose warning was shown, via ["../../../packages/extension/src/extension/cli-version-check.ts"].
+    Extension development hosts skip the check, so a dev profile must not suppress the warning in the user's main profile (same isolation reason as ["./activation.rq".onboarding_check]).
+    @tests ("../../../packages/extension/test/cli-version-check.test.ts")
+    @status done
+}

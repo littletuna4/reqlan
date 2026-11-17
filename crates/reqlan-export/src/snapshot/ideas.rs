@@ -54,6 +54,7 @@ pub(crate) fn build_idea_records(
                     ancestors: Vec::new(),
                 },
                 cluster_ids: Vec::new(),
+                folder_ids: Vec::new(),
                 katz_centrality: *katz_scores
                     .get(&summary.id)
                     .unwrap_or_else(|| panic!("missing Katz score for {}", summary.id)),

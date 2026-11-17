@@ -57,6 +57,8 @@ pub struct ExportRequest {
     #[serde(default = "default_true")]
     pub include_cluster_pages: bool,
     #[serde(default = "default_true")]
+    pub include_folder_pages: bool,
+    #[serde(default = "default_true")]
     pub include_attribute_pages: bool,
     #[serde(default = "default_true")]
     pub include_print_pages: bool,
@@ -91,6 +93,7 @@ impl Default for ExportRequest {
             include_file_pages: true,
             include_code_file_pages: true,
             include_cluster_pages: true,
+            include_folder_pages: true,
             include_attribute_pages: true,
             include_print_pages: true,
             attribute_filters: Vec::new(),
@@ -134,6 +137,8 @@ pub struct ExportResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ideas_index_file_path: Option<PathBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folders_index_file_path: Option<PathBuf>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub files_index_file_path: Option<PathBuf>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code_files_index_file_path: Option<PathBuf>,
@@ -166,6 +171,7 @@ pub struct ExportManifest {
     pub ideas_index: ExportPageInfo,
     pub files_index: ExportPageInfo,
     pub clusters_index: ExportPageInfo,
+    pub folders_index: ExportPageInfo,
     pub attributes_index: ExportPageInfo,
     pub code_files_index: ExportPageInfo,
     pub graph: ExportPageInfo,
@@ -183,6 +189,7 @@ pub struct ExportPageOptions {
     pub include_file_pages: bool,
     pub include_code_file_pages: bool,
     pub include_cluster_pages: bool,
+    pub include_folder_pages: bool,
     pub include_attribute_pages: bool,
     pub include_print_pages: bool,
     pub include_requirements_page: bool,
@@ -264,6 +271,8 @@ pub struct ExportIdea {
     pub references: ExportIdeaReferenceGroups,
     pub ancestors: ExportAncestorChain,
     pub cluster_ids: Vec<String>,
+    /// Folders (directory paths) this idea belongs to, from its file layout.
+    pub folder_ids: Vec<String>,
     /// Max-normalized inbound Katz centrality. The top idea in the export scope is 1.
     pub katz_centrality: f64,
 }
@@ -340,6 +349,19 @@ pub struct ExportCluster {
     pub idea_ids: Vec<String>,
     pub file_uris: Vec<String>,
     pub counts: ExportClusterCounts,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportFolder {
+    pub id: String,
+    pub path: String,
+    pub name: String,
+    pub parent_path: String,
+    pub page: ExportPageInfo,
+    pub idea_ids: Vec<String>,
+    pub subtree_idea_count: usize,
+    pub file_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -481,6 +503,8 @@ pub struct ExportSnapshot {
     pub clusters_by_id: BTreeMap<String, ExportCluster>,
     pub attributes: Vec<ExportAttribute>,
     pub attributes_by_key: BTreeMap<String, ExportAttribute>,
+    pub folders: Vec<ExportFolder>,
+    pub folders_by_path: BTreeMap<String, ExportFolder>,
     pub graphs: ExportGraphCatalog,
     pub search_documents: Vec<ExportSearchDocument>,
     pub by_status: BTreeMap<String, usize>,

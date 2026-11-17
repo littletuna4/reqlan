@@ -1,6 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type {
+    ExportAttributeRecord,
+    ExportClusterRecord,
+    ExportFileRecord,
     ExportIdeaRecord,
     ExportProgressCallback,
     ExportRequest,
@@ -14,6 +17,19 @@ export function toMarkdownPath(htmlPath: string): string {
     return htmlPath.replace(/\.html$/i, '.md');
 }
 
+/** Get the relative markdown path from one idea's location to another. */
+function relativeMarkdownPath(fromIdea: ExportIdeaRecord, toIdea: ExportIdeaRecord): string {
+    const fromPath = toMarkdownPath(fromIdea.page.path);
+    const toPath = toMarkdownPath(toIdea.page.path);
+    const fromDir = fromPath.slice(0, fromPath.lastIndexOf('/'));
+    const toDir = toPath.slice(0, toPath.lastIndexOf('/'));
+    const fileName = toPath.slice(toPath.lastIndexOf('/') + 1);
+    if (fromDir === toDir) {
+        return `./${fileName}`;
+    }
+    return relative(fromPath, toPath).replace(/\\/g, '/');
+}
+
 /** Write a multi-file markdown export from an export snapshot. */
 export async function writeMarkdownExport(
     snapshot: ExportSnapshot,
@@ -23,20 +39,58 @@ export async function writeMarkdownExport(
     const outputDir = join(request.outputDir, request.exportName);
     await mkdir(outputDir, { recursive: true });
 
-    const indexFilePath = join(outputDir, 'README.md');
     const ideasDir = join(outputDir, 'ideas');
+    const filesDir = join(outputDir, 'files');
+    const clustersDir = join(outputDir, 'clusters');
+    const attributesDir = join(outputDir, 'attributes');
+
+    let ideasPageDirCreated = false;
     if (snapshot.pageOptions.includeIdeaPages) {
         await mkdir(ideasDir, { recursive: true });
+        ideasPageDirCreated = true;
+    }
+
+    if (snapshot.pageOptions.includeFilePages) {
+        await mkdir(filesDir, { recursive: true });
+    }
+
+    if (snapshot.pageOptions.includeClusterPages) {
+        await mkdir(clustersDir, { recursive: true });
+    }
+
+    if (snapshot.pageOptions.includeAttributePages) {
+        await mkdir(attributesDir, { recursive: true });
     }
 
     const writes: Array<() => Promise<void>> = [
-        () => writeFile(indexFilePath, renderReadme(snapshot), 'utf8'),
+        () => writeFile(join(outputDir, 'README.md'), renderReadme(snapshot), 'utf8'),
     ];
 
-    if (snapshot.pageOptions.includeIdeaPages) {
+    if (ideasPageDirCreated) {
         for (const idea of snapshot.ideas) {
             const path = join(outputDir, ideaMarkdownRelPath(idea));
             writes.push(() => writeFile(path, renderIdeaMarkdown(snapshot, idea), 'utf8'));
+        }
+    }
+
+    if (snapshot.pageOptions.includeFilePages) {
+        for (const file of snapshot.files) {
+            const path = join(filesDir, fileMarkdownRelPath(file));
+            writes.push(() => writeFile(path, renderFileMarkdown(snapshot, file), 'utf8'));
+        }
+    }
+
+    if (snapshot.pageOptions.includeClusterPages) {
+        for (const cluster of snapshot.clusters) {
+            const path = join(clustersDir, clusterMarkdownRelPath(cluster));
+            writes.push(() => writeFile(path, renderClusterMarkdown(snapshot, cluster), 'utf8'));
+        }
+    }
+
+    if (snapshot.pageOptions.includeAttributePages) {
+        for (const attribute of snapshot.attributes) {
+            const path = join(attributesDir, attributeMarkdownRelPath(attribute));
+            writes.push(() => writeFile(path, renderAttributeMarkdown(snapshot, attribute), 'utf8'));
         }
     }
 
@@ -61,10 +115,13 @@ export async function writeMarkdownExport(
 
     return {
         outputDir,
-        indexFilePath,
-        printFilePath: indexFilePath,
-        dataFilePath: indexFilePath,
-        ideasIndexFilePath: indexFilePath,
+        indexFilePath: join(outputDir, 'README.md'),
+        printFilePath: join(outputDir, 'README.md'),
+        dataFilePath: join(outputDir, 'README.md'),
+        ideasIndexFilePath: join(outputDir, 'README.md'),
+        filesIndexFilePath: join(outputDir, 'README.md'),
+        clustersIndexFilePath: join(outputDir, 'README.md'),
+        attributesIndexFilePath: join(outputDir, 'README.md'),
     };
 }
 
@@ -72,6 +129,28 @@ function ideaMarkdownRelPath(idea: ExportIdeaRecord): string {
     return toMarkdownPath(idea.page.path);
 }
 
+function fileMarkdownRelPath(file: ExportFileRecord): string {
+    return toMarkdownPath(file.page.path).replace(/^files\//, '');
+}
+
+function clusterMarkdownRelPath(cluster: ExportClusterRecord): string {
+    return toMarkdownPath(cluster.page.path).replace(/^clusters\//, '');
+}
+
+function attributeMarkdownRelPath(attr: ExportAttributeRecord): string {
+    return toMarkdownPath(attr.page.path).replace(/^attributes\//, '');
+}
+
+/** Compute a link path from one idea's markdown location to another, respecting urlBase. */
+function linkPath(fromIdea: ExportIdeaRecord, toIdea: ExportIdeaRecord, urlBase: string | undefined): string {
+    const rel = relativeMarkdownPath(fromIdea, toIdea);
+    if (urlBase) {
+        return `/${urlBase.replace(/^\/+/, '')}/${rel}`;
+    }
+    return rel.startsWith('./') || rel.startsWith('../') ? rel : `./${rel}`;
+}
+
+/** Render the README.md index, mirroring HTML export overview structure. */
 function renderReadme(snapshot: ExportSnapshot): string {
     const lines: string[] = [
         `# ${snapshot.title}`,
@@ -126,9 +205,20 @@ function renderReadme(snapshot: ExportSnapshot): string {
         lines.push('');
     }
 
+    if (snapshot.clusters.length > 0) {
+        lines.push('## Clusters', '');
+        // Build clusters count from snapshot
+        const clusterCounts = snapshot.clusters.map(c => `${c.kind}: ${c.label} (${c.counts.ideas} ideas)`);
+        for (const line of clusterCounts) {
+            lines.push(`- ${escapeMd(line)}`);
+        }
+        lines.push('');
+    }
+
     return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/** Render a per-idea markdown page, mirroring HTML idea page structure. */
 function renderIdeaMarkdown(
     snapshot: ExportSnapshot,
     idea: ExportIdeaRecord,
@@ -136,9 +226,12 @@ function renderIdeaMarkdown(
 ): string {
     const level = options?.headingLevel ?? 1;
     const heading = `${'#'.repeat(level)} ${escapeMd(idea.name)}`;
+    const urlBase = snapshot.urlBase ?? undefined;
+
     const lines: string[] = [heading, ''];
 
     if (!options?.omitBackLink) {
+        // Back link to README from idea page: go up from ideas/<page>.md to output dir, then README.md
         lines.push('[← Back to index](../README.md)', '');
     }
 
@@ -164,8 +257,10 @@ function renderIdeaMarkdown(
         lines.push('');
     }
 
-    appendRefSection(lines, snapshot, 'Outbound', idea.references.outbound);
-    appendRefSection(lines, snapshot, 'Inbound', idea.references.inbound);
+    // Outbound references with rich links
+    appendRefSection(lines, snapshot, 'Outbound', idea.references.outbound, idea, urlBase);
+    // Inbound references (backlinks)
+    appendRefSection(lines, snapshot, 'Backlinks', idea.references.inbound, idea, urlBase);
     if (idea.references.unresolved.length > 0) {
         lines.push('## Unresolved references', '');
         for (const row of idea.references.unresolved) {
@@ -177,21 +272,34 @@ function renderIdeaMarkdown(
     return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/**
+ * Render a reference section with rich markdown links.
+ * @param lines - The output lines array
+ * @param snapshot - The export snapshot
+ * @param title - Section title (e.g. 'Outbound', 'Backlinks')
+ * @param rows - Reference rows to render
+ * @param fromIdea - The idea from which these references are evaluated (for relative paths)
+ * @param urlBase - Optional URL base prefix for links
+ */
 function appendRefSection(
     lines: string[],
     snapshot: ExportSnapshot,
     title: string,
-    rows: ExportIdeaRecord['references']['outbound']
+    rows: ExportIdeaRecord['references']['outbound'],
+    fromIdea: ExportIdeaRecord,
+    urlBase: string | undefined
 ): void {
     if (rows.length === 0) {
         return;
     }
     lines.push(`## ${title}`, '');
     for (const row of rows) {
-        const target = row.targetIdeaId ? snapshot.ideasById[row.targetIdeaId] : undefined;
+        // Pick the other endpoint for each row direction: inbound rows target this idea; sourceIdeaId is the backlink origin.
+        const rowIdeaId = row.direction === 'inbound' ? row.sourceIdeaId : row.targetIdeaId;
+        const target = rowIdeaId ? snapshot.ideasById[rowIdeaId] : undefined;
         if (target && snapshot.pageOptions.includeIdeaPages) {
-            const fileName = ideaMarkdownRelPath(target).replace(/^ideas\//, '');
-            lines.push(`- [${escapeMdLinkText(target.name)}](./${fileName})`);
+            const rel = linkPath(fromIdea, target, urlBase);
+            lines.push(`- [${escapeMdLinkText(target.name)}](${rel})`);
         } else if (target) {
             lines.push(`- ${escapeMd(target.name)}`);
         } else if (row.targetPath) {
@@ -201,6 +309,125 @@ function appendRefSection(
         }
     }
     lines.push('');
+}
+
+/** Render a per-file markdown page. */
+function renderFileMarkdown(snapshot: ExportSnapshot, file: ExportFileRecord): string {
+    const lines: string[] = [
+        `# ${file.name}`,
+        '',
+        `File: \`${escapeMd(file.fileUri)}\``,
+        '',
+        `Ideas: ${file.ideas.length}`,
+        '',
+        '## Ideas',
+        '',
+    ];
+
+    for (const idea of file.ideas) {
+        const href = `../${ideaMarkdownRelPath(idea)}`;
+        lines.push(`- [${escapeMdLinkText(idea.name)}](${href})`);
+        if (idea.summary?.trim()) {
+            lines.push(`  - ${escapeMd(oneLine(idea.summary))}`);
+        }
+    }
+
+    lines.push('');
+    lines.push('## Clusters');
+    // List cluster memberships for ideas in this file
+    const fileClusterIds = file.ideas.flatMap(idea => idea.clusterIds);
+    const uniqueClusterIds = [...new Set(fileClusterIds)];
+    for (const clusterId of uniqueClusterIds) {
+        const cluster = snapshot.clustersById[clusterId];
+        if (cluster) {
+            lines.push(`- ${escapeMd(cluster.label)} (${cluster.kind})`);
+        }
+    }
+    lines.push('');
+
+    if (file.edgeCount > 0) {
+        for (const idea of file.ideas) {
+            if (idea.references.outbound.length > 0) {
+                appendRefSection(lines, snapshot, `Outbound — ${escapeMd(idea.name)}`, idea.references.outbound, idea, snapshot.urlBase);
+            }
+        }
+    }
+    lines.push('');
+
+    return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/** Render a per-cluster markdown page. */
+function renderClusterMarkdown(snapshot: ExportSnapshot, cluster: ExportClusterRecord): string {
+    const lines: string[] = [
+        `# ${cluster.label}`,
+        '',
+        `Kind: ${cluster.kind}`,
+        '',
+        `Ideas: ${cluster.counts.ideas}`,
+        '',
+        '## Ideas',
+        '',
+    ];
+
+    for (const ideaId of cluster.ideaIds) {
+        const idea = snapshot.ideasById[ideaId];
+        if (idea) {
+            const href = `../${ideaMarkdownRelPath(idea)}`;
+            lines.push(`- [${escapeMdLinkText(idea.name)}](${href})`);
+        }
+    }
+
+    lines.push('');
+    lines.push('## Attributes');
+    // List attributes used by ideas in this cluster
+    const clusterAttrKeys = new Set<string>();
+    for (const ideaId of cluster.ideaIds) {
+        const idea = snapshot.ideasById[ideaId];
+        if (idea) {
+            for (const key of Object.keys(idea.attributes)) {
+                clusterAttrKeys.add(key);
+            }
+        }
+    }
+    for (const key of [...clusterAttrKeys].sort()) {
+        const attr = snapshot.attributesByKey[key];
+        if (attr) {
+            lines.push(`- \`${escapeMd(key)}\`: ${attr.ideaCount} ideas`);
+        }
+    }
+    lines.push('');
+
+    return `${lines.join('\n').trimEnd()}\n`;
+}
+
+/** Render a per-attribute markdown page. */
+function renderAttributeMarkdown(snapshot: ExportSnapshot, attribute: ExportAttributeRecord): string {
+    const lines: string[] = [
+        `# \`${escapeMd(attribute.key)}\` attribute`,
+        '',
+        `Ideas: ${attribute.ideaCount}`,
+        '',
+        '## Values',
+        '',
+    ];
+
+    for (const { value, count } of attribute.values) {
+        lines.push(`- \`${escapeMd(value)}\`: ${count} ideas`);
+    }
+    lines.push('');
+
+    lines.push('## Ideas', '');
+    for (const ideaId of attribute.ideaIds) {
+        const idea = snapshot.ideasById[ideaId];
+        if (idea) {
+            const href = `../${ideaMarkdownRelPath(idea)}`;
+            lines.push(`- [${escapeMdLinkText(idea.name)}](${href})`);
+        }
+    }
+    lines.push('');
+
+    return `${lines.join('\n').trimEnd()}\n`;
 }
 
 function oneLine(value: string): string {

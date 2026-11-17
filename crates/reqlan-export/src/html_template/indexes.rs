@@ -39,6 +39,107 @@ pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
         })
         .collect::<Vec<_>>()
         .join("");
+
+    let hierarchy_enabled = snapshot.runtime_mode == "interactive"
+        && snapshot.page_options.include_folder_pages
+        && !snapshot.folders.is_empty();
+    let actions = if hierarchy_enabled {
+        r#"<input class="searchbar" type="search" placeholder="Filter ideas by name, path, status, tags, or summary" data-filter-input="ideas" /><button type="button" class="ideas-hierarchy-toggle" data-ideas-hierarchy-toggle aria-expanded="false" aria-pressed="false" title="Toggle hierarchical folder view">🗂</button>"#.to_string()
+    } else {
+        r#"<input class="searchbar" type="search" placeholder="Filter ideas by name, path, status, tags, or summary" data-filter-input="ideas" />"#.to_string()
+    };
+    let flat_card = render_layout_card_with_actions(
+        "ideas-table",
+        "section",
+        "table-shell",
+        "Ideas",
+        "Searchable list of all exported ideas.",
+        &actions,
+        &format!(
+            r#"<table>
+            <thead>
+                <tr>
+                    <th data-filter-key="name">Name</th>
+                    <th data-filter-key="path">Path</th>
+                    <th data-filter-key="status">Status</th>
+                    <th data-filter-key="tags">Tags</th>
+                    <th data-filter-key="summary">Summary</th>
+                    <th data-filter-key="in">In</th>
+                    <th data-filter-key="out">Out</th>
+                    <th data-filter-key="katz">Katz</th>
+                </tr>
+            </thead>
+            <tbody>{rows}</tbody>
+        </table>"#
+        ),
+        "",
+    );
+
+    let tree_card = if hierarchy_enabled {
+        let tree_rows = snapshot
+            .folders
+            .iter()
+            .map(|folder| {
+                let name = if folder.path == "." {
+                    "/".to_string()
+                } else {
+                    folder.path.rsplit('/').next().unwrap_or(&folder.path).to_string()
+                };
+                let href = export_page_href(snapshot, current_path, &folder.page);
+                format!(
+                    r#"<tr data-filter-row="folders" data-filter-text="{}"><td><strong><a href="{}">{}</a></strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                    escape_html(&format!("{} {} {}", folder.name, folder.path, folder.subtree_idea_count)),
+                    escape_html(&href),
+                    escape_html(&name),
+                    escape_html(&folder.path),
+                    folder.idea_ids.len(),
+                    folder.subtree_idea_count,
+                    folder.file_count,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("");
+        format!(
+            r#"<div class="ideas-tree" data-view="tree" hidden>
+                <section class="layout-card table-shell" data-layout-id="ideas-tree" data-layout-span="12" style="--layout-span: 12">
+                    <div class="layout-card-head toolbar" draggable="true" data-layout-drag>
+                        <h2 data-heading-tip="Folder hierarchy with direct and subtree idea counts." tabindex="0">Ideas in folders</h2>
+                        <div class="actions"><input class="searchbar" type="search" placeholder="Filter folders by path" data-filter-input="folders" /></div>
+                    </div>
+                    <div class="layout-card-body" id="layout-body-ideas-tree">
+                        <table>
+                        <thead>
+                            <tr>
+                                <th data-filter-key="folder">Folder</th>
+                                <th data-filter-key="path">Path</th>
+                                <th data-filter-key="directIdeas">Direct ideas</th>
+                                <th data-filter-key="subtreeIdeas">Subtree ideas</th>
+                                <th data-filter-key="files">Files</th>
+                            </tr>
+                        </thead>
+                        <tbody>{tree_rows}</tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>"#,
+            tree_rows = tree_rows,
+        )
+    } else {
+        String::new()
+    };
+    let cards = if hierarchy_enabled {
+        format!(
+            r#"<div class="ideas-hierarchy" data-view="flat">
+                {flat_card}
+                {tree_card}
+            </div>"#,
+            flat_card = flat_card,
+            tree_card = tree_card,
+        )
+    } else {
+        flat_card.clone()
+    };
+
     render_shell(RenderOptions {
         current_path,
         active_nav: ActiveNav::Ideas,
@@ -52,34 +153,8 @@ pub fn render_ideas_index_page(snapshot: &ExportSnapshot) -> String {
                 <h1>{}</h1>
                 <p class="subtle">Searchable list view for all exported ideas.</p>
             </header>
-            <div data-layout-group="ideas-index">{}</div>"#,
+            <div data-layout-group="ideas-index">{cards}</div>"#,
             escape_html(&snapshot.title),
-            render_layout_card_with_actions(
-                "ideas-table",
-                "section",
-                "table-shell",
-                "Ideas",
-                "Searchable list of all exported ideas.",
-                r#"<input class="searchbar" type="search" placeholder="Filter ideas by name, path, status, tags, or summary" data-filter-input="ideas" />"#,
-                &format!(
-                    r#"<table>
-                    <thead>
-                        <tr>
-                            <th data-filter-key="name">Name</th>
-                            <th data-filter-key="path">Path</th>
-                            <th data-filter-key="status">Status</th>
-                            <th data-filter-key="tags">Tags</th>
-                            <th data-filter-key="summary">Summary</th>
-                            <th data-filter-key="in">In</th>
-                            <th data-filter-key="out">Out</th>
-                            <th data-filter-key="katz">Katz</th>
-                        </tr>
-                    </thead>
-                    <tbody>{rows}</tbody>
-                </table>"#
-                ),
-                "",
-            )
         ),
     })
 }
@@ -373,6 +448,77 @@ pub fn render_attributes_index_page(snapshot: &ExportSnapshot) -> String {
                 &format!(
                     r#"<table>
                     <thead><tr><th data-filter-key="attribute">Attribute</th><th data-filter-key="ideas">Ideas</th><th data-filter-key="values">Values</th><th data-filter-key="value-summary">Value summary</th></tr></thead>
+                    <tbody>{rows}</tbody>
+                </table>"#
+                ),
+                "",
+            )
+        ),
+    })
+}
+
+pub fn render_folders_index_page(snapshot: &ExportSnapshot) -> String {
+    let current_path = snapshot.manifest.folders_index.path.as_str();
+    let rows = snapshot
+        .folders
+        .iter()
+        .map(|folder| {
+            let name = if folder.path == "." {
+                "Root".to_string()
+            } else {
+                folder.path.rsplit('/').next().unwrap_or(&folder.path).to_string()
+            };
+            let href = if snapshot.page_options.include_folder_pages {
+                export_page_href(snapshot, current_path, &folder.page)
+            } else {
+                "#".to_string()
+            };
+            format!(
+                r#"<tr data-filter-row="folders" data-filter-text="{}"><td><strong><a href="{}">{}</a></strong></td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>"#,
+                escape_html(&format!("{} {} {}", folder.name, folder.path, folder.subtree_idea_count)),
+                escape_html(&href),
+                escape_html(&name),
+                escape_html(&folder.path),
+                folder.idea_ids.len(),
+                folder.subtree_idea_count,
+                folder.file_count
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    render_shell(RenderOptions {
+        current_path,
+        active_nav: ActiveNav::Folders,
+        title: format!("{} - Folders", snapshot.title),
+        snapshot,
+        include_global_search: true,
+        breadcrumbs: Vec::new(),
+        body: format!(
+            r#"<header class="page-header">
+                <p class="eyebrow">Folders index</p>
+                <h1>{}</h1>
+                <p class="subtle">Hierarchical folder structure with idea counts.</p>
+            </header>
+            <div data-layout-group="folders-index">{}</div>"#,
+            escape_html(&snapshot.title),
+            render_layout_card_with_actions(
+                "folders-table",
+                "section",
+                "table-shell",
+                "Folders",
+                "Folder hierarchy with direct and subtree idea counts.",
+                r#"<input class="searchbar" type="search" placeholder="Filter folders by path" data-filter-input="folders" />"#,
+                &format!(
+                    r#"<table>
+                    <thead>
+                        <tr>
+                            <th data-filter-key="folder">Folder</th>
+                            <th data-filter-key="path">Path</th>
+                            <th data-filter-key="directIdeas">Direct ideas</th>
+                            <th data-filter-key="subtreeIdeas">Subtree ideas</th>
+                            <th data-filter-key="files">Files</th>
+                        </tr>
+                    </thead>
                     <tbody>{rows}</tbody>
                 </table>"#
                 ),

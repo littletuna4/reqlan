@@ -1,0 +1,201 @@
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] */
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] breadcrumb address bar: VS Code style, single line, ellipsis per crumb, ancestors are buttons that select. */
+.explorer-addressbar {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 0;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+    padding: 0.22rem 0.35rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+.explorer-crumb {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font: inherit;
+    min-width: 0;
+    max-width: 10rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.1rem 0.25rem;
+    border-radius: 4px;
+}
+.explorer-crumb:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--fg); }
+.explorer-crumb.is-current { color: var(--fg); font-weight: 600; cursor: default; }
+.explorer-crumb-separator { color: var(--muted); user-select: none; }
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] action row: filter grows, Preview stays inline beside it; never wraps. */
+.explorer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+}
+.explorer-actions .explorer-filter { flex: 1 1 auto; min-width: 0; }
+.explorer-actions [data-explorer-preview-toggle] { flex: 0 0 auto; }
+.file-explorer-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--explorer-preview-width, 24rem);
+    gap: 0.4rem;
+    align-items: start;
+}
+.file-explorer-body.is-resizable {
+    grid-template-columns: minmax(0, 1fr) auto var(--explorer-preview-width, 24rem);
+}
+.file-explorer.is-preview-closed .file-explorer-body,
+.file-explorer-body.is-preview-closed {
+    grid-template-columns: minmax(0, 1fr);
+}
+.explorer-resize-handle {
+    width: 0.45rem;
+    align-self: stretch;
+    cursor: col-resize;
+    border: 0;
+    border-left: 1px solid var(--line);
+    background: transparent;
+    border-radius: 3px;
+    touch-action: none;
+    user-select: none;
+    padding: 0;
+    min-height: 6rem;
+}
+.explorer-resize-handle:hover,
+.explorer-resize-handle:focus-visible {
+    border-left-color: var(--accent-dim);
+    border-left-width: 2px;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    outline: none;
+}
+.file-explorer.is-preview-closed .explorer-resize-handle {
+    display: none;
+}
+.file-explorer-tree {
+    min-width: 0;
+    max-height: min(34rem, 60vh);
+    overflow: hidden auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    padding: 0.35rem 0.15rem;
+}
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] fixed indent step; --explorer-depth counts nesting so rows can span the full tree width for hover/selection while content stays indented. */
+.file-explorer-tree ul {
+    --explorer-depth: 0;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 0.9rem;
+}
+.file-explorer-tree ul ul {
+    --explorer-depth: calc(var(--explorer-depth) + 1);
+    border-left: 1px solid var(--line);
+}
+.file-explorer-tree > .explorer-tree-root { padding-left: 0; }
+.explorer-node:not(.is-open) > ul { display: none; }
+.explorer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    overflow: hidden;
+    margin-left: calc(var(--explorer-depth, 0) * -0.9rem);
+    padding: 0.14rem 0.4rem 0.14rem calc(var(--explorer-depth, 0) * 0.9rem + 0.4rem);
+    border-radius: 4px;
+    font-size: 0.8125rem;
+}
+.explorer-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.explorer-row.is-selected { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.explorer-row.is-code .explorer-label { color: var(--rust-muted); }
+.explorer-disclosure {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: 0 0 auto;
+    padding: 0;
+    font: inherit;
+    line-height: 1;
+}
+.explorer-disclosure::before { content: "▾"; font-size: 0.75rem; }
+.explorer-node:not(.is-open) > .explorer-row > .explorer-disclosure::before { content: "▸"; }
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] row icons: fixed square, inline after the chevron/spacer; folders sit muted and rq-holding folders tint with the accent. */
+.explorer-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    color: inherit;
+}
+.explorer-icon-folder { color: var(--muted); }
+.explorer-icon-folder-rq { color: var(--accent-strong); }
+.explorer-spacer { width: 1.05rem; flex: 0 0 auto; }
+.explorer-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg);
+}
+/* rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer] rows are selectable (not links): keyboard focus and selection highlight the row, not the label. */
+.explorer-row:focus-visible {
+    outline: 1px solid var(--accent-strong);
+    outline-offset: -1px;
+}
+.explorer-count {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+.file-explorer-preview {
+    min-width: 0;
+    min-height: 12rem;
+    max-height: min(34rem, 60vh);
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    padding: 0.9rem 1rem;
+}
+.explorer-preview-content[hidden] { display: none; }
+.explorer-preview-name { margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+.explorer-preview-kind { margin: 0; }
+.explorer-preview-file { margin: 0.6rem 0 0; overflow-wrap: anywhere; }
+.explorer-preview-summary {
+    margin: 0.6rem 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.explorer-preview-open { margin-top: 0.75rem; }
+body:not([data-runtime-mode="interactive"]) .explorer-filter,
+body:not([data-runtime-mode="interactive"]) [data-explorer-preview-toggle],
+body:not([data-runtime-mode="interactive"]) .file-explorer-preview { display: none; }
+body:not([data-runtime-mode="interactive"]) .file-explorer-body {
+    grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 720px) {
+    .file-explorer-body,
+    .file-explorer-body.is-resizable { grid-template-columns: minmax(0, 1fr); }
+    .explorer-resize-handle { display: none; }
+}
+@media print {
+    .explorer-filter, [data-explorer-preview-toggle], .file-explorer-preview { display: none !important; }
+    .file-explorer-body, .file-explorer-body.is-resizable { grid-template-columns: minmax(0, 1fr); }
+    .explorer-resize-handle { display: none !important; }
+    .file-explorer-tree { max-height: none; overflow: visible; }
+}

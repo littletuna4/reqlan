@@ -304,6 +304,87 @@ fn html_export_writes_ts_page_template_set_and_embeds_assets() {
     std::fs::remove_dir_all(&output_dir).ok();
 }
 
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_file_explorer]
+#[test]
+fn html_export_home_renders_file_explorer() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let (alpha, _) = persist_pair(&mut store);
+    let output_dir = temp_out("explorer");
+    let request = html_request(&output_dir, "explorer-report");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let index_html = read(&result.index_file_path);
+    assert!(index_html.contains("File explorer"));
+    assert!(index_html.contains(r#"data-explorer-tree"#));
+    assert!(index_html.contains(r#"data-explorer-preview"#));
+    assert!(index_html.contains(r#"data-explorer-preview-toggle"#));
+    assert!(index_html.contains(r#"data-explorer-filter"#));
+    assert!(index_html.contains("explorer-actions"));
+    assert!(index_html.contains(r#"data-explorer-resize"#));
+    assert!(index_html.contains(r#"class="file-explorer-body is-resizable""#));
+    assert!(index_html.contains(r#"<script id="explorer-data""#));
+    assert!(index_html.contains(r#"data-explorer-node"#));
+    assert!(index_html.contains(r#"data-explorer-key="reqs""#));
+    assert!(index_html.contains(r#"data-explorer-leaf"#));
+    // Icons distinguish folders, rq-holding folders, rq docs, ideas, and code files.
+    assert!(index_html.contains(r#"data-explorer-icon="folder""#));
+    assert!(index_html.contains(r#"data-explorer-icon="folder-rq""#));
+    assert!(index_html.contains(r#"data-explorer-icon="rq""#));
+    assert!(index_html.contains(r#"data-explorer-icon="idea""#));
+    assert!(index_html.contains(r#"data-explorer-icon="code""#));
+    assert!(index_html.contains("explorer-icon explorer-icon-folder-rq"));
+    assert!(index_html.contains(r#"data-explorer-idea="#));
+    // The address bar renders a breadcrumb shell with the workspace-root fallback crumb.
+    assert!(index_html.contains(r#"data-explorer-addressbar"#));
+    assert!(index_html.contains("explorer-crumb"));
+    assert!(index_html.contains("reqlan"));
+    // Tree rows are selectable, not links: no anchors in the tree, select identities on rows.
+    assert!(!index_html.contains(r#"<a class="explorer-label""#));
+    assert!(index_html.contains(r#"data-explorer-select="folder:reqs""#));
+    assert!(index_html.contains(r#"data-explorer-select="code:"#));
+    assert!(index_html.contains(&format!(r#"data-explorer-select="idea:{}""#, alpha.id)));
+    // The preview payload covers every item kind and carries the page hrefs for the
+    // "Open page" link inside the preview pane.
+    assert!(index_html.contains(r#"data-explorer-open"#));
+    assert!(index_html.contains(r#""kind": "folder""#));
+    assert!(index_html.contains(r#""kind": "file""#));
+    assert!(index_html.contains(r#""kind": "code""#));
+    assert!(index_html.contains(r#""kind": "idea""#));
+    assert!(index_html.contains("codeFiles"));
+    assert!(index_html.contains(&snapshot.ideas_by_id[&alpha.id].page.path));
+    assert!(index_html.contains("a.rq"));
+    assert!(index_html.contains("app.ts"));
+    assert!(index_html.contains(r#""summary": "alpha links to"#));
+    let app_js = read(&result.output_dir.join("assets/app.js"));
+    let styles_css = read(&result.output_dir.join("assets/styles.css"));
+    assert!(app_js.contains("wireFileExplorer"));
+    assert!(app_js.contains("setPreviewWidth"));
+    assert!(styles_css.contains(".file-explorer-body"));
+    assert!(styles_css.contains(".explorer-resize-handle"));
+    assert!(styles_css.contains(".explorer-disclosure"));
+    assert!(styles_css.contains(".explorer-icon"));
+    assert!(styles_css.contains(".explorer-icon-folder-rq"));
+    // Fixed indent step, per-level guide lines, and full-width rows survive asset concatenation.
+    assert!(styles_css.contains("--explorer-depth"));
+    assert!(styles_css.contains(".file-explorer-tree ul ul"));
+    assert!(styles_css.contains(".explorer-addressbar"));
+
+    // Document runtime keeps the static tree but omits preview chrome and data.
+    let mut document_request = html_request(&output_dir, "explorer-doc");
+    document_request.runtime_mode = "document".into();
+    let document_snapshot = build_export_snapshot(&store, &document_request).unwrap();
+    let document_result = write_html_export(&document_snapshot, &document_request).unwrap();
+    let document_html = read(&document_result.index_file_path);
+    assert!(document_html.contains(r#"data-explorer-tree"#));
+    assert!(document_html.contains(r#"data-explorer-addressbar"#));
+    assert!(!document_html.contains(r#"data-explorer-preview"#));
+    assert!(!document_html.contains(r#"data-explorer-preview-toggle"#));
+    assert!(!document_html.contains(r#"data-explorer-filter"#));
+    assert!(!document_html.contains(r#"data-explorer-resize"#));
+    assert!(!document_html.contains("explorer-data"));
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
 // rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_ideas_ref_columns]
 #[test]
 fn ideas_index_splits_inbound_and_outbound_counts() {
@@ -893,5 +974,59 @@ fn idea_tables_show_a_katz_column() {
     let attribute_html = read(&result.output_dir.join(&status.page.path));
     assert!(attribute_html.contains(r#"data-filter-key="katz""#));
 
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_folder_page]
+// rq:["../../../reqlan rq/core_analysis/html_export.rq".html_export_include_folder_path_hierarchy]
+#[test]
+fn html_export_folder_pages_generated() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let root_idea = idea("reqs/a.rq", "root_idea", "root", r#"{"status":"todo"}"#);
+    let child_idea = idea("reqs/sub/b.rq", "child_idea", "child", r#"{"status":"done"}"#);
+    store.upsert_document("reqs/a.rq", "hash-a", &[root_idea], &[], None).unwrap();
+    store.upsert_document("reqs/sub/b.rq", "hash-b", &[child_idea], &[], None).unwrap();
+    let output_dir = temp_out("folder-pages");
+    let request = html_request(&output_dir, "folder-test");
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    // Verify folder records exist
+    assert!(!snapshot.folders.is_empty(), "folders should be populated");
+    assert!(snapshot.folders.iter().any(|f| f.path == "."), "root folder");
+    assert!(snapshot.folders.iter().any(|f| f.path == "reqs"), "reqs folder");
+    assert!(snapshot.folders.iter().any(|f| f.path == "reqs/sub"), "reqs/sub folder");
+    // Verify folder membership attached to ideas
+    let reqs_ideas: Vec<_> = snapshot
+        .ideas
+        .iter()
+        .filter(|i| i.folder_ids.contains(&"folder:reqs".to_string()))
+        .collect();
+    assert!(!reqs_ideas.is_empty(), "reqs idea should have folder membership");
+    // Write HTML and verify folder index and detail pages exist
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let folders_index_path = result.output_dir.join("folders.html");
+    assert!(folders_index_path.exists(), "folders.html should exist");
+    let reqs_folder = snapshot.folders.iter().find(|f| f.path == "reqs").expect("reqs folder");
+    let reqs_folder_path = result.output_dir.join(&reqs_folder.page.path);
+    assert!(reqs_folder_path.exists(), "reqs folder detail page should exist");
+    let folders_html = read(&folders_index_path);
+    assert!(folders_html.contains("Folders index"), "folders index page rendered");
+    assert!(folders_html.contains("reqs"), "reqs folder listed");
+    assert!(folders_html.contains("reqs/sub"), "reqs/sub folder listed");
+    std::fs::remove_dir_all(&output_dir).ok();
+}
+
+#[test]
+fn html_export_folder_pages_disabled() {
+    let mut store = IndexStore::open_in_memory().unwrap();
+    let root_idea = idea("reqs/a.rq", "root_idea", "root", r#"{"status":"todo"}"#);
+    store.upsert_document("reqs/a.rq", "hash-a", &[root_idea], &[], None).unwrap();
+    let output_dir = temp_out("folder-pages-disabled");
+    let mut request = html_request(&output_dir, "folder-disabled");
+    request.include_folder_pages = false;
+    let snapshot = build_export_snapshot(&store, &request).unwrap();
+    assert!(snapshot.folders.is_empty(), "folders should be empty when disabled");
+    let result = write_html_export(&snapshot, &request).unwrap();
+    let folders_index_path = result.output_dir.join("folders.html");
+    assert!(!folders_index_path.exists(), "folders.html should not exist when disabled");
     std::fs::remove_dir_all(&output_dir).ok();
 }

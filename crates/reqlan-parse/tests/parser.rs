@@ -525,3 +525,82 @@ fn parses_idea_attribute_link_as_qualified_names() {
         other => panic!("expected idea.attribute qualified target, got {other:?}"),
     }
 }
+
+// rq:["../../../reqlan rq/language/imports.rq".import_from]
+// rq:["../../../reqlan rq/language/syntax.rq".idea_name]
+#[test]
+fn from_import_with_dash_delimited_idea() {
+    let source = "from \"./myfile.rq\" import my-idea-with-dashes\n";
+    let parsed = parse_document(source);
+    let reqlan_parse::Import::From(from) = &parsed.model.imports[0] else {
+        panic!("expected a from-import");
+    };
+    assert_eq!(from.specifiers.len(), 1);
+    assert_eq!(from.specifiers[0].idea, "my-idea-with-dashes");
+    // The span should cover the full idea name including dashes
+    let text = |span: reqlan_parse::Span| &source[span.start..span.end];
+    assert_eq!(text(from.specifiers[0].idea_span), "my-idea-with-dashes");
+}
+
+// rq:["../../../reqlan rq/language/imports.rq".import_qualified]
+// rq:["../../../reqlan rq/language/syntax.rq".idea_name]
+#[test]
+fn qualified_import_with_dash_delimited_idea() {
+    let source = "import \"./myfile.rq\".myideaset.my-idea-with-dashes as aliased-idea\n";
+    let parsed = parse_document(source);
+    let reqlan_parse::Import::Qualified(qualified) = &parsed.model.imports[0] else {
+        panic!("expected a qualified import");
+    };
+    assert_eq!(qualified.ideaset, "myideaset");
+    assert_eq!(qualified.idea, "my-idea-with-dashes");
+    assert_eq!(qualified.alias.as_deref(), Some("aliased-idea"));
+}
+
+// rq:["../../../reqlan rq/language/imports.rq".import_from]
+// rq:["../../../reqlan rq/language/syntax.rq".idea_name]
+#[test]
+fn from_import_dash_idea_alias_binds_locally() {
+    let source = "from \"./myfile.rq\" import my-idea-with-dashes as dash_alias\n";
+    let parsed = parse_document(source);
+    let reqlan_parse::Import::From(from) = &parsed.model.imports[0] else {
+        panic!("expected a from-import");
+    };
+    assert_eq!(from.specifiers[0].idea, "my-idea-with-dashes");
+    assert_eq!(from.specifiers[0].alias.as_deref(), Some("dash_alias"));
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".simple_idea]
+#[test]
+fn one_liner_idea_with_dash_name() {
+    let source = "my-idea-with-dashes some body text\n";
+    let parsed = parse_document(source);
+    let names: Vec<&str> = parsed.model.elements.iter().filter_map(|e| e.name()).collect();
+    assert!(names.contains(&"my-idea-with-dashes"), "Expected one-liner idea with dash name");
+}
+
+// rq:["../../../reqlan rq/language/syntax.rq".reference_brackets]
+#[test]
+fn bracket_reference_with_dash_name_is_one_local_target() {
+    let source = "host {\n    see [my-idea-with-dashes]\n}\n";
+    let parsed = parse_document(source);
+    let idea = parsed
+        .model
+        .elements
+        .iter()
+        .find_map(|element| match element {
+            TopLevelElement::Idea(idea) if idea.name == "host" => Some(idea),
+            _ => None,
+        })
+        .expect("host idea");
+    let target = idea.elements.iter().find_map(|element| match element {
+        BodyElement::BodyLine(line) => line.parts.iter().find_map(|part| match part {
+            RichPart::BracketRef { target, .. } => Some(target),
+            _ => None,
+        }),
+        _ => None,
+    });
+    match target {
+        Some(ReferenceTarget::Local { idea, .. }) => assert_eq!(idea, "my-idea-with-dashes"),
+        other => panic!("expected a local dash reference target, got {other:?}"),
+    }
+}

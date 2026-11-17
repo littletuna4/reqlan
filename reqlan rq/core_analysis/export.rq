@@ -23,19 +23,25 @@ export_pipeline {
 }
 
 markdown_export {
-    Markdown export writes a `README.md` index for the selected base (counts, status/tag rollups, idea list, file list) and optional per-idea `.md` pages under `ideas/` with attributes and inbound/outbound references as relative markdown links.
+    Markdown export writes a multi-file static site mirroring the HTML export structure: a `README.md` overview index plus per-idea `.md` pages under `ideas/`, optional per-file pages under `files/`, per-cluster pages under `clusters/`, and per-attribute pages under `attributes/`.
+    Every idea link is a rich relative markdown link to its own page. Idea pages include outbound references and backlinks (inbound references) as clickable markdown links, summary, attributes, status/tags, and unresolved references.
     When per-idea pages are disabled, idea bodies are inlined in the README.
-    Shared base/scope/output/name and file filters apply; HTML-only page families (graph, clusters, attributes, print) are omitted.
+    Shared base/scope/output/name and file filters apply; HTML-only page families (graph, print) are omitted. Clusters and attribute pages are opt-in via pageOptions.
     Pipeline: `exportMarkdown` / `writeMarkdownExport` using the same snapshot builder as HTML ([export_pipeline]).
+    Native engine ships the same writer (`crates/reqlan-export/src/markdown.rs`); hosts call `NativeAnalysisApi.exportMarkdown`.
     Extension UI host: ["../extension/export/export.rq".export_webview].
     @status done
     @implementation (
         ["../../packages/analytical/src/export/export-markdown.ts"]
         ["../../packages/analytical/src/export/write-markdown-export.ts"]
         ["../../packages/analytical/src/native/native-analysis-api.ts"]
+        ["../../crates/reqlan-export/src/markdown.rs"]
     )
     @tests (
         ["../../packages/analytical/test/export-markdown.test.ts"]
+        ["../../crates/reqlan-export/tests/markdown_export.rs:markdown_export_writes_rich_pages_with_links_and_backlinks"]
+        ["../../crates/reqlan-export/tests/markdown_export.rs:markdown_export_inlines_ideas_when_idea_pages_disabled"]
+        ["../../crates/reqlan-analytical/tests/export.rs:markdown_export_honours_cluster_and_attribute_page_flags"]
     )
 }
 
