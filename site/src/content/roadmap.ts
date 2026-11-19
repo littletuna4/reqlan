@@ -14,14 +14,20 @@ export const roadmap = {
         "Activity-bar signals for the next move - not just where a file came from.",
     },
     {
-      id: "search",
+      id: "types",
       horizon: "Next",
+      label: "Type system and verification",
+      detail: "Declare types on ideas; verify them in reqlan check.",
+    },
+    {
+      id: "search",
+      horizon: "Later",
       label: "Search in context",
       detail: "Rank matches from the ideas and files you already have open.",
     },
     {
       id: "rank",
-      horizon: "Next",
+      horizon: "Later",
       label: "Rank the neighbourhood",
       detail: "Pagerank and multi-seed distance so agents get the right slice.",
     },
