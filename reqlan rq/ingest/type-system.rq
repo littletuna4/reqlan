@@ -1,5 +1,6 @@
 purpose {
     An unobstructive validation layer for reqlan.
+    Site roadmap Next: ["../site/site.rq".roadmap_section].
 }
 
 typed-reqlan {
@@ -50,7 +51,7 @@ type-resolution {
 }
 
 type-validation {
-    peformed in reqlan check.
+    performed in reqlan check.
     Objects need to be validated against their types.
     @todo triage and implement
 }

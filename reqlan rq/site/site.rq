@@ -5,6 +5,7 @@ import "../phonebook.rq" as phonebook_reqs
 import "../development/core.rq" as development_core
 import "../core_analysis/html_export.rq" as html_export
 import "../cli/cli_package.rq" as cli_package
+import "../ingest/type-system.rq" as type_system
 import "../../site/src/components/Contact.tsx" as contact_component
 import "../../site/src/components/PhonebookIcon.tsx" as phonebook_icon_tsx_component
 import "../../site/src/lib/phonebook-icons.ts" as phonebook_icon_registry
@@ -432,17 +433,26 @@ quickstart_page {
 roadmap_section {
     Landing page section `#roadmap` after example and before [founder_note_section].
     Compact vertical scaled-center carousel (snap + distance-based scale/opacity peeks).
-    Flat Now / Next / Later items — one focused at a time; neighbours peek smaller.
+    Flat Done / Now / Next / Later items — one focused at a time; neighbours peek smaller.
+    Horizon marks: Done ✓, Now ●, Next ○, Later · — checkmarks on completed items.
+    Each item links into the embedded `/spec` graph for its ideas and folders (and hosting files when the folder page is the wrong grain), via ["../../site/src/lib/spec-path.ts"].
     Copy lives in ["../../site/src/content/roadmap.ts"] (per [copy]); nav and sticky page graph include the section.
     Keep the list honest and thin — no fake dates, no wall of tickets.
+    Next horizon: type system and type verification — product signal for [type_system.typed-reqlan] and [type_system.type-validation]; do not invent dates or ticket walls.
+    Done horizon tracks shipped work such as ["../core_analysis/search.rq".contextual_search].
     @status done
     @implementation (
         ["../../site/src/components/Roadmap.tsx"]
+        ["../../site/src/components/Roadmap.module.css"]
         ["../../site/src/content/roadmap.ts"]
+        ["../../site/src/lib/spec-path.ts"]
         ["../../site/src/views/HomePage.tsx"]
         ["../../site/src/components/NavGraph.tsx"]
     )
-    @todo refresh items when product priorities shift
+    @tests (
+        ["../../site/src/content/roadmap.test.ts"]
+        ["../../site/src/lib/spec-path.test.ts"]
+    )
 }
 
 founder_note_section {
