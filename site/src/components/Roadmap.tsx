@@ -7,11 +7,13 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useReducedMotion } from "motion/react";
 
 import { roadmap } from "@/content/roadmap";
-import type { RoadmapItem } from "@/content/types";
+import type { RoadmapHorizon, RoadmapItem } from "@/content/types";
+import { sitePath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import shared from "./shared.module.css";
 import styles from "./Roadmap.module.css";
@@ -19,6 +21,13 @@ import styles from "./Roadmap.module.css";
 type ItemStyle = {
   scale: number;
   opacity: number;
+};
+
+const HORIZON_MARK: Record<RoadmapHorizon, string> = {
+  Done: "✓",
+  Now: "●",
+  Next: "○",
+  Later: "·",
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -184,7 +193,11 @@ export function Roadmap() {
             <button
               key={item.id}
               type="button"
-              className={cn(styles.dot, index === activeIndex && styles.dotActive)}
+              className={cn(
+                styles.dot,
+                index === activeIndex && styles.dotActive,
+                item.horizon === "Done" && styles.dotDone,
+              )}
               aria-label={`${item.horizon}: ${item.label}`}
               aria-current={index === activeIndex ? "true" : undefined}
               onClick={() => scrollToIndex(index)}
@@ -215,6 +228,13 @@ function RoadmapSlide({
   onSelect: () => void;
   setRef: (node: HTMLElement | null) => void;
 }) {
+  const mark = HORIZON_MARK[item.horizon];
+  const done = item.horizon === "Done";
+
+  const onSpecClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    event.stopPropagation();
+  };
+
   return (
     <article
       ref={setRef}
@@ -222,7 +242,7 @@ function RoadmapSlide({
       role="option"
       aria-selected={active}
       tabIndex={-1}
-      className={cn(styles.item, active && styles.itemActive)}
+      className={cn(styles.item, active && styles.itemActive, done && styles.itemDone)}
       style={{
         transform: `scale(${style.scale})`,
         opacity: style.opacity,
@@ -231,9 +251,29 @@ function RoadmapSlide({
       onClick={onSelect}
       data-index={index}
     >
-      <p className={styles.horizon}>{item.horizon}</p>
+      <p className={styles.horizon}>
+        <span className={cn(styles.mark, done && styles.markDone)} aria-hidden="true">
+          {mark}
+        </span>
+        {item.horizon}
+      </p>
       <h3 className={styles.label}>{item.label}</h3>
       <p className={styles.detail}>{item.detail}</p>
+      {item.spec.length > 0 ? (
+        <ul className={styles.specList} aria-label="Spec">
+          {item.spec.map((link) => (
+            <li key={link.href}>
+              <a
+                className={styles.specLink}
+                href={sitePath(link.href)}
+                onClick={onSpecClick}
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </article>
   );
 }

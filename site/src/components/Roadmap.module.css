@@ -9,7 +9,7 @@
 .scroller {
   display: flex;
   flex-direction: column;
-  height: 11.5rem;
+  height: 13rem;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scroll-snap-type: y mandatory;
@@ -74,12 +74,32 @@
 }
 
 .horizon {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0 0 0.2rem;
   color: var(--color-aqua-bright);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.mark {
+  display: inline-flex;
+  width: 0.85em;
+  justify-content: center;
+  font-size: 0.85em;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.markDone {
+  color: var(--color-aqua-bright);
+}
+
+.itemDone .label {
+  color: var(--color-text-muted);
 }
 
 .label {
@@ -96,6 +116,30 @@
   color: var(--color-text-muted);
   font-size: 0.8125rem;
   line-height: 1.45;
+}
+
+.specList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.specLink {
+  color: var(--color-aqua-bright);
+  font-size: 0.75rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  letter-spacing: -0.01em;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-aqua-bright) 35%, transparent);
+  text-underline-offset: 0.12em;
+}
+
+.specLink:hover,
+.specLink:focus-visible {
+  text-decoration-color: var(--color-aqua-bright);
 }
 
 .dots {
@@ -128,6 +172,14 @@
   transform: scaleY(1.65);
 }
 
+.dotDone {
+  background: color-mix(in srgb, var(--color-aqua-bright) 55%, var(--color-border));
+}
+
+.dotDone.dotActive {
+  background: var(--color-aqua-bright);
+}
+
 @media (max-width: 520px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
@@ -141,7 +193,7 @@
 
   .scroller {
     order: 1;
-    height: 12rem;
+    height: 13.5rem;
   }
 
   .item {

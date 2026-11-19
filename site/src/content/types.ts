@@ -97,11 +97,22 @@ export type FaqItem = {
   links?: readonly FaqSupportLink[];
 };
 
+export type RoadmapHorizon = "Done" | "Now" | "Next" | "Later";
+
+export type RoadmapSpecLink = {
+  /** Short idea or folder label shown on the slide. */
+  label: string;
+  /** Site-relative `/spec/...` path (idea, file, or folder page). */
+  href: string;
+};
+
 export type RoadmapItem = {
   id: string;
-  horizon: "Now" | "Next" | "Later";
+  horizon: RoadmapHorizon;
   label: string;
   detail: string;
+  /** Spec graph pages for the ideas / folders this item tracks. */
+  spec: readonly RoadmapSpecLink[];
 };
 
 export type FeaturedItem = {
